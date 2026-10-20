@@ -1,16 +1,32 @@
-const VERSION = 'v2.0.0';
+// sw.js
+const VERSION = 'v2.0.1';
 const SHELL_CACHE = `kp-shell-${VERSION}`;
 const TILE_CACHE  = `kp-tiles-${VERSION}`;
 const IMG_CACHE   = `kp-img-${VERSION}`;
 
 const SHELL_ASSETS = [
-  './', './index.html', './manifest.json',
-  './css/tokens.css', './css/base.css', './css/components.css', './css/layout.css',
+  './',
+  './index.html',
+  './404.html',
+  './manifest.json',
+  './icon.svg',
+  './apple-touch-icon.png',
+  './css/tokens.css',
+  './css/base.css',
+  './css/components.css',
+  './css/layout.css',
   './js/app.js',
-  './js/core/store.js', './js/core/events.js', './js/core/router.js',
-  './js/core/api.js', './js/core/storage.js', './js/core/format.js',
-  './js/data/constants.js', './js/data/basin-configs.js',
-  './js/data/water-profiles.js', './js/data/fish-db.js',
+  './js/core/state.js',
+  './js/core/store.js',
+  './js/core/events.js',
+  './js/core/router.js',
+  './js/core/api.js',
+  './js/core/storage.js',
+  './js/core/format.js',
+  './js/data/constants.js',
+  './js/data/basin-configs.js',
+  './js/data/water-profiles.js',
+  './js/data/fish-db.js',
   './js/ui/components.js',
   './js/modules/fish/fish.module.js',
   './js/modules/geo/geo.module.js',
@@ -27,8 +43,7 @@ const NETWORK_ONLY = [
 ];
 
 const TILE_HOSTS = [
-  'opentopomap.org', 'arcgisonline.com', 'cartocdn.com',
-  'openstreetmap.org'
+  'opentopomap.org', 'arcgisonline.com', 'cartocdn.com', 'openstreetmap.org'
 ];
 
 self.addEventListener('install', event => {
@@ -55,10 +70,8 @@ self.addEventListener('fetch', event => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
 
-  // 1. API — bypass, всегда сеть
   if (NETWORK_ONLY.some(h => url.hostname.includes(h))) return;
 
-  // 2. Навигация — Network First с фоллбэком в Shell
   if (req.mode === 'navigate' ||
      (url.origin === self.location.origin &&
       (url.pathname.endsWith('/') || url.pathname.endsWith('.html')))) {
@@ -77,7 +90,6 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // 3. Тайлы карт — Cache First
   if (TILE_HOSTS.some(h => url.hostname.includes(h))) {
     event.respondWith(
       caches.open(TILE_CACHE).then(cache =>
@@ -92,7 +104,6 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // 4. Same-origin ассеты — Stale-While-Revalidate
   if (url.origin === self.location.origin) {
     event.respondWith(
       caches.open(SHELL_CACHE).then(cache =>
@@ -110,7 +121,6 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // 5. Изображения (CDN иконки, PNG рыб) — Cache First
   if (/\.(png|jpe?g|webp|svg|woff2?)$/i.test(url.pathname)) {
     event.respondWith(
       caches.open(IMG_CACHE).then(cache =>
