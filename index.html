@@ -8,11 +8,12 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Клёв ПРО">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <title>Клёв ПРО 2.0</title>
 
   <link rel="manifest" href="manifest.json">
-  <link rel="icon" type="image/png" href="icons/icon-512.png">
-  <link rel="apple-touch-icon" href="icons/icon-512.png">
+  <link rel="icon" type="image/svg+xml" href="icon.svg">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
 
   <link rel="preconnect" href="https://api.open-meteo.com">
   <link rel="preconnect" href="https://nominatim.openstreetmap.org">
@@ -26,7 +27,6 @@
   <link rel="stylesheet" href="css/components.css">
   <link rel="stylesheet" href="css/layout.css">
 
-  <!-- Theme bootstrap: применяем сохранённую тему ДО первого рендера -->
   <script>
     (function () {
       try {
@@ -41,10 +41,10 @@
   </script>
 </head>
 <body>
-  <a href="#app-main" class="skip-link">Перейти к содержимому</a>
+  <a href="#main" class="skip-link">Перейти к содержимому</a>
   <div class="app-shell">
     <header id="app-header" class="app-header" role="banner"></header>
-    <main id="app-main" class="app-main" role="main" tabindex="-1"></main>
+    <main id="main" class="app-main" role="main" tabindex="-1"></main>
     <nav id="app-nav" class="app-nav" role="navigation" aria-label="Основная навигация"></nav>
     <div id="app-toasts" class="toast-container" aria-live="polite" aria-atomic="true"></div>
     <div id="app-offline" class="offline-banner" hidden role="status">Нет соединения — показаны кэшированные данные</div>
