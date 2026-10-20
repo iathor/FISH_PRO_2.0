@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0b1120"/>
+      <stop offset="100%" stop-color="#0f2942"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="96" fill="url(#g)"/>
+  <rect x="244" y="60" width="24" height="115" fill="#ef4444"/>
+  <rect x="244" y="110" width="24" height="28" fill="#f8fafc"/>
+  <ellipse cx="256" cy="230" rx="38" ry="72" fill="#38bdf8"/>
+  <path d="M40 310 L140 310 L180 235 L220 365 L260 175 L300 335 L340 280 L375 310 L472 310"
+        stroke="#10b981" stroke-width="16" stroke-linecap="round"
+        stroke-linejoin="round" fill="none"/>
+  <text x="256" y="445" text-anchor="middle"
+        font-family="system-ui,-apple-system,sans-serif"
+        font-weight="900" font-size="56" fill="#f8fafc">КЛЁВ</text>
+  <text x="380" y="445" text-anchor="middle"
+        font-family="system-ui,-apple-system,sans-serif"
+        font-weight="900" font-size="56" fill="#38bdf8">PRO</text>
+</svg>
