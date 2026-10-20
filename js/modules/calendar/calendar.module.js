@@ -1,3 +1,4 @@
+// js/modules/calendar/calendar.module.js
 import { placeholder } from '../../ui/components.js';
 
 export const calendarModule = {
