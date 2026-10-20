@@ -1,15 +1,14 @@
-import { store } from '../../app.js';
+// js/modules/fish/fish.module.js
+import { store } from '../../core/state.js';
 import { FISH_DB } from '../../data/fish-db.js';
 import { getBasinName } from '../../data/basin-configs.js';
-import { el, placeholder, renderRating } from '../../ui/components.js';
+import { el, renderRating } from '../../ui/components.js';
 
 export const fishModule = {
   render(main) {
     const s = store.getState();
     const loc = s.location;
     const basinName = getBasinName(loc.basinCode);
-
-    // Фильтрация: только виды текущего бассейна (демо-набор)
     const basinFish = FISH_DB.filter(f => f.basins.includes(loc.basinCode));
 
     main.append(
@@ -39,12 +38,10 @@ export const fishModule = {
       ),
       el('section', { class: 'section' },
         el('div', { class: 'card' },
-          el('div', { class: 'card__title' }, 'Демо-набор'),
+          el('div', { class: 'card__title' }, 'Демо-набор недели 1'),
           el('p', { style: 'font-size: 13px; color: var(--text-muted); line-height: 1.5;' },
-            'В этой итерации показано 30 видов для проверки ядра. ',
-            'Полный массив 115 видов переносится из оригинального ',
-            'index.html на неделе 3 — формат данных совместим, ',
-            'достаточно скопировать объекты в массив FISH_DB.'
+            `Показано ${basinFish.length} видов для бассейна «${basinName}». `,
+            'Полный массив 115 видов переносится на неделе 3 — формат FISH_DB совместим.'
           )
         )
       )
