@@ -1,34 +1,18 @@
-import { createStore } from './core/store.js';
-import { createBus } from './core/events.js';
+// js/app.js
+import { store, bus, persist } from './core/state.js';
 import { createRouter } from './core/router.js';
-import { ls } from './core/storage.js';
-import { fmt } from './core/format.js';
-import { DEFAULT_LOCATION, ROUTES, THEME_MODES } from './data/constants.js';
-import { detectBasinByCoords, getBasinName } from './data/basin-configs.js';
+import { detectBasinByCoords } from './data/basin-configs.js';
+import { ROUTES, THEME_MODES } from './data/constants.js';
 import { icons } from './ui/components.js';
 
-import { fishModule } from './modules/fish/fish.module.js';
-import { geoModule } from './modules/geo/geo.module.js';
-import { weatherModule } from './modules/weather/weather.module.js';
+import { fishModule }     from './modules/fish/fish.module.js';
+import { geoModule }      from './modules/geo/geo.module.js';
+import { weatherModule }  from './modules/weather/weather.module.js';
 import { forecastModule } from './modules/forecast/forecast.module.js';
 import { calendarModule } from './modules/calendar/calendar.module.js';
-import { logModule } from './modules/log/log.module.js';
+import { logModule }      from './modules/log/log.module.js';
 
-// === Globals ===
-export const bus = createBus();
-export const store = createStore({
-  location: ls.get('location', DEFAULT_LOCATION),
-  theme: ls.get('theme', 'auto'),
-  water: ls.get('water', 'small_river'),
-  depth: ls.get('depth', 1.2),
-  method: ls.get('method', 'spin_micro'),
-  fishId: ls.get('fishId', 'pike'),
-  dayIdx: ls.get('dayIdx', 0),
-  weather: null,
-  forecast: null
-});
-
-// === Header render ===
+// ==================== HEADER ====================
 function renderHeader() {
   const header = document.getElementById('app-header');
   const s = store.getState();
@@ -42,12 +26,17 @@ function renderHeader() {
     <div class="app-header__hierarchy">${hierarchy}</div>
     <div class="app-header__title">${icons.location} ${loc.label}</div>
   `;
-  locBox.querySelector('.app-header__title').style.display = 'flex';
-  locBox.querySelector('.app-header__title').style.alignItems = 'center';
-  locBox.querySelector('.app-header__title').style.gap = '6px';
-  locBox.querySelector('svg').style.width = '18px';
-  locBox.querySelector('svg').style.height = '18px';
-  locBox.querySelector('svg').style.color = 'var(--accent)';
+  const titleEl = locBox.querySelector('.app-header__title');
+  titleEl.style.display = 'flex';
+  titleEl.style.alignItems = 'center';
+  titleEl.style.gap = '6px';
+  const svg = titleEl.querySelector('svg');
+  if (svg) {
+    svg.style.width = '18px';
+    svg.style.height = '18px';
+    svg.style.color = 'var(--accent)';
+    svg.style.flexShrink = '0';
+  }
 
   const actions = document.createElement('div');
   actions.style.display = 'flex';
@@ -56,6 +45,7 @@ function renderHeader() {
 
   const themeBtn = document.createElement('button');
   themeBtn.className = 'btn btn--sm btn--ghost';
+  themeBtn.type = 'button';
   themeBtn.setAttribute('aria-label', 'Переключить тему');
   themeBtn.textContent = s.theme === 'dark' ? '🌙' : s.theme === 'light' ? '☀️' : '💻';
   themeBtn.addEventListener('click', cycleTheme);
@@ -69,11 +59,9 @@ function renderHeader() {
 }
 
 function cycleTheme() {
-  const modes = THEME_MODES;
   const cur = store.getState().theme;
-  const next = modes[(modes.indexOf(cur) + 1) % modes.length];
-  store.setState({ theme: next });
-  ls.set('theme', next);
+  const next = THEME_MODES[(THEME_MODES.indexOf(cur) + 1) % THEME_MODES.length];
+  persist({ theme: next });
   applyTheme(next);
   renderHeader();
 }
@@ -88,7 +76,7 @@ function applyTheme(mode) {
   if (meta) meta.setAttribute('content', eff === 'dark' ? '#0b1120' : '#f1f5f9');
 }
 
-// === Nav render ===
+// ==================== NAV ====================
 function renderNav() {
   const nav = document.getElementById('app-nav');
   nav.innerHTML = '';
@@ -105,39 +93,37 @@ function renderNav() {
   }
 }
 
-// === Router setup ===
+// ==================== ROUTER ====================
 const router = createRouter({
   routes: [
-    { path: '/fish',     title: 'Пазл рыбы',        render: (main, ctx) => fishModule.render(main, ctx) },
-    { path: '/geo',      title: 'Геолокация',       render: (main, ctx) => geoModule.render(main, ctx) },
-    { path: '/weather',  title: 'Погода и Луна',    render: (main, ctx) => weatherModule.render(main, ctx) },
-    { path: '/forecast', title: 'Прогноз клёва',    render: (main, ctx) => forecastModule.render(main, ctx) },
-    { path: '/calendar', title: 'Годовой календарь',render: (main, ctx) => calendarModule.render(main, ctx) },
-    { path: '/log',      title: 'Журнал уловов',    render: (main, ctx) => logModule.render(main, ctx) }
+    { path: '/fish',     title: 'Пазл рыбы',         render: (main, ctx) => fishModule.render(main, ctx) },
+    { path: '/geo',      title: 'Геолокация',        render: (main, ctx) => geoModule.render(main, ctx) },
+    { path: '/weather',  title: 'Погода и Луна',     render: (main, ctx) => weatherModule.render(main, ctx) },
+    { path: '/forecast', title: 'Прогноз клёва',     render: (main, ctx) => forecastModule.render(main, ctx) },
+    { path: '/calendar', title: 'Годовой календарь', render: (main, ctx) => calendarModule.render(main, ctx) },
+    { path: '/log',      title: 'Журнал уловов',     render: (main, ctx) => logModule.render(main, ctx) }
   ],
   defaultPath: '/fish'
 });
 
-// === Location setter ===
-export function setLocation(lat, lon, { label, country, admin1, admin2 } = {}) {
+// ==================== LOCATION ====================
+export function setLocation(lat, lon, meta = {}) {
   const basinCode = detectBasinByCoords(lat, lon);
   const current = store.getState().location;
-  store.setState({
-    location: {
-      lat, lon,
-      country: country ?? current.country,
-      admin1: admin1 ?? current.admin1,
-      admin2: admin2 ?? current.admin2,
-      label: label ?? current.label,
-      basinCode
-    }
-  });
-  ls.set('location', store.getState().location);
+  const next = {
+    lat, lon,
+    country: meta.country ?? current.country,
+    admin1:  meta.admin1  ?? current.admin1,
+    admin2:  meta.admin2  ?? current.admin2,
+    label:   meta.label   ?? current.label,
+    basinCode
+  };
+  persist({ location: next });
   renderHeader();
-  bus.emit('location:changed', store.getState().location);
+  bus.emit('location:changed', next);
 }
 
-// === Online/offline ===
+// ==================== CONNECTIVITY ====================
 function initConnectivity() {
   const banner = document.getElementById('app-offline');
   const update = () => { banner.hidden = navigator.onLine; };
@@ -146,7 +132,7 @@ function initConnectivity() {
   update();
 }
 
-// === Global errors ===
+// ==================== GLOBAL ERRORS ====================
 window.addEventListener('error', (e) => {
   console.error('[app] Uncaught:', e.error || e.message);
 });
@@ -154,14 +140,16 @@ window.addEventListener('unhandledrejection', (e) => {
   console.error('[app] Unhandled rejection:', e.reason);
 });
 
-// === Service Worker ===
+// ==================== SERVICE WORKER ====================
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-  navigator.serviceWorker.register('sw.js').catch(err => {
-    console.warn('[app] SW registration failed:', err);
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(err => {
+      console.warn('[app] SW registration failed:', err);
+    });
   });
 }
 
-// === Init ===
+// ==================== INIT ====================
 function init() {
   applyTheme(store.getState().theme);
   renderHeader();
