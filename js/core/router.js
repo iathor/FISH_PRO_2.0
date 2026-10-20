@@ -1,8 +1,12 @@
+// js/core/router.js
 export function createRouter({ routes, defaultPath = '/fish' }) {
   function parseHash() {
     const raw = location.hash.slice(1) || defaultPath;
     const [path, query = ''] = raw.split('?');
-    return { path: path || defaultPath, query };
+    // Принимаем только пути, начинающиеся с "/" — всё прочее (skip-link, пусто)
+    // уводим на defaultPath
+    const safePath = path.startsWith('/') ? path : defaultPath;
+    return { path: safePath, query };
   }
 
   function findRoute(path) {
@@ -14,7 +18,7 @@ export function createRouter({ routes, defaultPath = '/fish' }) {
   function render() {
     const { path, query } = parseHash();
     const route = findRoute(path);
-    const main = document.getElementById('app-main');
+    const main = document.getElementById('main');
     if (!main) return;
 
     document.querySelectorAll('[data-route]').forEach(el => {
@@ -40,8 +44,11 @@ export function createRouter({ routes, defaultPath = '/fish' }) {
 
   function start() {
     window.addEventListener('hashchange', render);
-    if (!location.hash) location.hash = defaultPath;
-    else render();
+    // Всегда рендерим первый раз, даже если hash уже какой-то невалидный
+    if (!location.hash || !location.hash.startsWith('#/')) {
+      location.hash = defaultPath;
+    }
+    render();
   }
 
   return { navigate, render, start };
