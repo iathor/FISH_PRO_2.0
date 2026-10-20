@@ -1,1 +1,18 @@
-1
+{
+  "name": "Клёв ПРО — прогноз клёва и атлас ихтиофауны РФ",
+  "short_name": "Клёв ПРО",
+  "description": "Прогноз биологической активности 115 видов рыб, гидрология и ихтиофауна водоёмов России",
+  "lang": "ru",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0b1120",
+  "theme_color": "#0b1120",
+  "categories": ["lifestyle", "weather", "utilities"],
+  "icons": [
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
