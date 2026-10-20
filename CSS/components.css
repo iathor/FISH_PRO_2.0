@@ -1,3 +1,5 @@
+/* css/components.css */
+
 /* === BUTTON === */
 .btn {
   display: inline-flex; align-items: center; justify-content: center;
@@ -8,9 +10,13 @@
   font-size: var(--fs-sm); font-weight: var(--fw-semibold);
   transition: background var(--dur-fast), border-color var(--dur-fast);
   white-space: nowrap; user-select: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 .btn:hover:not(:disabled) { background: var(--bg-hover); border-color: var(--border-strong); }
 .btn:active:not(:disabled) { transform: translateY(1px); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn--primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
 .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
 .btn--ghost { background: transparent; border-color: transparent; }
@@ -37,11 +43,15 @@
 /* === CHIP === */
 .chip {
   display: inline-flex; align-items: center; gap: var(--sp-1);
-  padding: var(--sp-1) var(--sp-3); border-radius: var(--r-pill);
+  padding: var(--sp-1) var(--sp-3);
+  min-height: 32px;
+  border-radius: var(--r-pill);
   background: var(--chip-bg); border: 1px solid var(--chip-border);
   font-size: var(--fs-xs); font-weight: var(--fw-semibold);
   color: var(--text-muted); white-space: nowrap;
   transition: border-color var(--dur-fast), color var(--dur-fast);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 .chip--active { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); }
 .chip--good { background: var(--good-bg); color: var(--good-fg); border-color: transparent; }
@@ -56,6 +66,7 @@
   padding: 2px 8px; border-radius: var(--r-pill);
   font-size: var(--fs-xs); font-weight: var(--fw-bold);
   text-transform: uppercase; letter-spacing: 0.03em;
+  white-space: nowrap;
 }
 .pill--good   { background: var(--good-bg);   color: var(--good-fg); }
 .pill--warn   { background: var(--warn-bg);   color: var(--warn-fg); }
@@ -63,17 +74,42 @@
 .pill--info   { background: var(--info-bg);   color: var(--info-fg); }
 .pill--purple { background: var(--purple-bg); color: var(--purple-fg); }
 
-/* === INPUT === */
+/* === INPUT (FIXED: font-size >= 16px для iOS Safari) === */
 .input, .select {
-  width: 100%; min-height: var(--tap-min);
+  width: 100%;
+  min-height: var(--tap-min);
   padding: var(--sp-2) var(--sp-3);
-  background: var(--bg-input); color: var(--text);
-  border: 1px solid var(--border); border-radius: var(--r-md);
-  font-size: var(--fs-sm); transition: border-color var(--dur-fast);
+  background: var(--bg-input);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  font-size: max(16px, var(--fs-sm));
+  font-family: inherit;
+  transition: border-color var(--dur-fast);
+  -webkit-tap-highlight-color: transparent;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.select {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path fill='%2364748b' d='M6 8L0 0h12z'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
 }
 .input:focus, .select:focus {
   outline: none; border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-bg);
+}
+
+/* === RATING (fish icons wrapper) === */
+.rating {
+  display: inline-flex;
+  gap: 2px;
+  align-items: center;
+}
+.rating svg {
+  display: block;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.15));
 }
 
 /* === SKELETON === */
