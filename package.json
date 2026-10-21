@@ -1,0 +1,10 @@
+{
+  "name": "klev-pro-v2",
+  "version": "2.0.0",
+  "description": "Клёв ПРО 2.0 • Прогноз клёва и Атлас Ихтиофауны РФ (PWA)",
+  "type": "module",
+  "scripts": {
+    "start": "python3 -m http.server 8080"
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0b1120">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Клёв ПРО 2.0">
+  <meta name="description" content="Клёв ПРО 2.0 — модульное PWA-приложение прогноза клёва, батиметрии водоёмов и атласа ихтиофауны РФ с поддержкой офлайн-работы">
+  <title>Клёв ПРО 2.0 • Прогноз клёва и Атлас Ихтиофауны РФ</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/svg+xml" href="icon.svg">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <script>
+    (function() {
+      try {
+        var raw = localStorage.getItem('klev_pro_state_v2.0');
+        var saved = raw ? JSON.parse(raw).theme : 'auto';
+        var eff = saved === 'auto'
+          ? (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark')
+          : (saved || 'dark');
+        document.documentElement.setAttribute('data-theme', eff);
+      } catch (e) {}
+    })();
+  </script>
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js" defer></script>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-bar">
+      <div class="loc-summary">
+        <div class="loc-sub" id="headerLocSub">Определение координат и бассейна...</div>
+        <div class="loc-main" id="headerLocMain">
+          <span class="loc-main-text" id="headerLocText">📍 Поиск геолокации...</span>
+          <span class="pill pill-good" id="headerStatusPill" role="status">🟢 Онлайн</span>
+        </div>
+      </div>
+      <div class="header-controls">
+        <button type="button" class="btn btn-icon" id="headerProfileBtn" aria-label="Профиль рыболова" title="Профиль рыболова">⚙️</button>
+        <button type="button" class="btn btn-icon" id="headerRefreshBtn" aria-label="Обновить метеоданные" title="Обновить метеоданные">🔄</button>
+        <button type="button" class="btn btn-icon" id="headerThemeBtn" aria-label="Переключить тему" title="Переключить тему">🌓</button>
+      </div>
+    </div>
+    <div class="season-strip open-water" id="headerSeasonStrip" role="region" aria-label="Ледовая обстановка">
+      <span>🌊 Расчёт термического и ледового режима водоёма...</span>
+    </div>
+  </header>
+
+  <main id="app" class="app-main">
+    <section id="secGeo" data-route-section="geo" aria-label="Геолокация и выбор водоёма"></section>
+    <section id="secFish" data-route-section="fish" aria-label="Рыбы в месте ловли"></section>
+    <section id="secForecast" data-route-section="forecast" aria-label="Прогноз клёва и архив"></section>
+    <section id="secWeather" data-route-section="weather" aria-label="Погода и фазы Луны"></section>
+    <section id="secCalendar" data-route-section="calendar" aria-label="Годовой биоритм и нерест"></section>
+    <section id="secLog" data-route-section="log" aria-label="Журнал уловов"></section>
+  </main>
+
+  <nav class="bottom-nav" aria-label="Навигация по разделам">
+    <div class="bottom-nav-inner">
+      <button type="button" class="nav-tab active" data-nav-tab="dashboard" aria-label="Все разделы"><span>🧭</span><span>Обзор</span></button>
+      <button type="button" class="nav-tab" data-nav-tab="forecast" aria-label="Прогноз клёва"><span>🎣</span><span>Прогноз</span></button>
+      <button type="button" class="nav-tab" data-nav-tab="fish" aria-label="Рыбы"><span>🐟</span><span>Рыбы</span></button>
+      <button type="button" class="nav-tab" data-nav-tab="geo" aria-label="Карта и водоём"><span>📍</span><span>Карта</span></button>
+      <button type="button" class="nav-tab" data-nav-tab="weather" aria-label="Погода и Луна"><span>🌦️</span><span>Погода</span></button>
+      <button type="button" class="nav-tab" data-nav-tab="calendar" aria-label="Календарь"><span>📅</span><span>Календарь</span></button>
+      <button type="button" class="nav-tab" data-nav-tab="log" aria-label="Журнал уловов"><span>📓</span><span>Журнал</span></button>
+    </div>
+  </nav>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
