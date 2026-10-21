@@ -1,0 +1,388 @@
+/* Main application layout & structure */
+
+:root {
+  --header-h: 78px;
+}
+
+html {
+  width: 100%;
+}
+
+body {
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: clip;
+  padding-top: var(--header-h, 78px);
+}
+
+#app, .bottom-nav {
+  width: 100%;
+  max-width: 100vw;
+}
+
+/* Pinned Header: always fixed at top everywhere, dynamically grows with full location name */
+.app-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  z-index: 1000;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  padding: 8px 12px;
+  box-shadow: var(--shadow-header);
+  height: auto;
+}
+
+.header-bar {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
+.loc-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
+}
+
+.loc-sub {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 700;
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.25;
+}
+
+.loc-main {
+  font-size: var(--fs-md);
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  line-height: 1.28;
+}
+
+.loc-main-text {
+  white-space: normal;
+  word-break: break-word;
+  overflow: visible;
+  text-overflow: clip;
+  max-width: 100%;
+}
+
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  align-self: flex-start;
+}
+
+/* Compact non-interactive season information strip */
+.season-strip {
+  max-width: 1200px;
+  margin: 5px auto 0;
+  padding: 4px 10px;
+  min-height: auto;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  border: 1px solid transparent;
+  line-height: 1.25;
+}
+.season-strip.ice-safe { background: var(--pill-ice-bg); color: var(--pill-ice-text); border-color: var(--ice); }
+.season-strip.ice-danger { background: var(--pill-bad-bg); color: var(--pill-bad-text); border-color: var(--bad); }
+.season-strip.open-water { background: var(--pill-good-bg); color: var(--pill-good-text); border-color: var(--good); }
+
+.app-main {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.app-main > section,
+.card,
+#fcExpressBox,
+#fcWeekBox,
+#fcHourlyBox {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.express-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 10px;
+}
+
+.express-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+.express-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+.express-card.active { border-color: var(--accent); box-shadow: 0 0 0 1.5px var(--accent); }
+
+.express-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.controls-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+/* Horizontal scroll containers: allow both horizontal swipe (pan-x) and vertical page scroll (pan-y) */
+.fish-strip,
+.week-strip,
+.bite-timeline,
+.chip-scroll-row,
+.month-grid {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  touch-action: pan-x pan-y;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+/* Smooth progressive miniaturization of fish cards on scroll without empty gap */
+.fish-toolbar-onerow {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.fish-toolbar-onerow .btn {
+  width: 100%;
+  min-width: 0;
+  padding: 4px 6px;
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fish-strip-placeholder {
+  width: 100%;
+  min-width: 0;
+}
+
+.fish-strip-dock-wrap {
+  width: 100%;
+  min-width: 0;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.fish-strip-dock-wrap.docked-mini {
+  position: fixed;
+  top: var(--header-h, 78px);
+  left: 0;
+  right: 0;
+  width: 100%;
+  z-index: 990;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow-header);
+  padding: 4px 12px;
+}
+
+.fish-strip-dock-wrap.docked-mini .fish-strip {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2px 0;
+  gap: 6px;
+}
+
+/* Progressive shrinking driven by --shrink (0 to 1) or .docked-mini */
+.fish-strip-dock-wrap.docked-mini .fish-card {
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  min-width: calc(156px - var(--shrink, 1) * 60px);
+  max-width: none;
+  padding: calc(10px - var(--shrink, 1) * 6px) 10px calc(10px - var(--shrink, 1) * 6px) 8px;
+  gap: 6px;
+  border-radius: var(--r-sm);
+  transform: none !important;
+}
+
+.fish-strip-dock-wrap.docked-mini .fish-img-wrap {
+  width: calc(112px - var(--shrink, 1) * 78px);
+  height: calc(48px - var(--shrink, 1) * 28px);
+  margin: 0;
+  flex-shrink: 0;
+  transition: width 0.08s linear, height 0.08s linear;
+}
+
+.fish-strip-dock-wrap.docked-mini .fish-name {
+  font-size: 12px;
+  font-weight: 800;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.fish-strip-dock-wrap.docked-mini .fav-btn,
+.fish-strip-dock-wrap.docked-mini .fish-latin,
+.fish-strip-dock-wrap.docked-mini .fish-badge-wrap,
+.fish-strip-dock-wrap.docked-mini .fish-rating-box,
+.fish-strip-dock-wrap.docked-mini .fish-redbook-ban,
+.fish-strip-dock-wrap.docked-mini [data-info-fish] {
+  display: none !important;
+}
+
+.week-strip {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+}
+
+.day-card {
+  min-width: 142px;
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 8px 10px;
+  flex-shrink: 0;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  position: relative;
+}
+.day-card.active { border-color: var(--accent); background: rgba(56, 189, 248, 0.11); box-shadow: 0 0 0 1.5px var(--accent); }
+.day-card.archive-day { border-style: dashed; background: rgba(148, 163, 184, 0.08); }
+
+.day-status-stripe {
+  height: 4px;
+  width: 100%;
+  border-radius: 3px;
+}
+
+.month-grid {
+  display: flex;
+  gap: 5px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.month-cell {
+  flex: 1 0 54px;
+  min-width: 54px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 7px 4px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.month-cell.current { border-color: var(--accent); box-shadow: 0 0 0 1.5px var(--accent); }
+
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+  z-index: 1000;
+  box-shadow: var(--shadow-header);
+}
+
+.bottom-nav-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  padding: 4px 6px;
+}
+
+.nav-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 42px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  padding: 3px 2px;
+}
+.nav-tab.active {
+  color: var(--accent);
+  background: rgba(56, 189, 248, 0.12);
+}
+
+#mapBox {
+  width: 100%;
+  height: 290px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  background: #0f172a;
+  position: relative;
+  z-index: 1;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+/* Map 4-chips row: exactly 1 line across any phone screen */
+.map-layers-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 5px;
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.map-layer-btn {
+  width: 100%;
+  text-align: center;
+  padding: 5px 2px;
+  font-size: 11px;
+  font-weight: 800;
+  min-height: 32px;
+}
+
+@media (max-width: 720px) {
+  .factor-row { grid-template-columns: 120px 1fr 46px; font-size: var(--fs-xs); }
+  .bottom-nav-inner { overflow-x: auto; display: flex; }
+  .nav-tab { min-width: 64px; flex: 1 0 auto; }
+}
