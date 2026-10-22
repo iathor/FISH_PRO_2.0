@@ -404,7 +404,10 @@ export function renderMap(mapBoxEl) {
 export function getMethodOptions(iceState, waterType) {
   const s = store.getState();
   const fish = FISH_DB.find(f => f.id === s.fishId) || FISH_DB[0];
-  return getCompatibleMethods(fish, iceState, waterType);
+  const day = s.weatherDays[s.dayIdx] || s.weatherDays[2] || s.weatherDays[0];
+  const effIce = day?.iceState || iceState || s.iceState || 'open_water';
+  const effWaterTemp = day?.waterTemp ?? 12;
+  return getCompatibleMethods(fish, effIce, waterType, effWaterTemp);
 }
 
 export function render(container) {
@@ -482,7 +485,7 @@ export function render(container) {
         <div class="chip-scroll-row">
           ${(s.nearbyWaters || []).map(w => {
             const isSelected = s.selectedWaterName ? (s.selectedWaterName === w.name) : (s.water === w.wType);
-            return `<button type="button" class="w-chip ${isSelected ? 'active' : ''}" data-nearby-water="${w.wType}" data-nearby-name="${w.name || w.label}" data-nearby-depth="${w.defDepth || ''}">${w.label}</button>`;
+            return `<button type="button" class="w-chip ${isSelected ? 'active' : ''}" data-nearby-water="${w.wType}" data-nearby-name="${w.name || w.label}" data-nearby-depth="${w.defDepth \vert{}\vert{} ''}">${w.label}</button>`;
           }).join('')}
         </div>
       </div>
@@ -659,22 +662,29 @@ export async function init(container) {
   autoDetectStartupLocation();
 
   unsub = store.subscribe(
-    st => ({
-      lat: st.lat,
-      lon: st.lon,
-      basinCode: st.basinCode,
-      isCoastal: st.isCoastal,
-      water: st.water,
-      selectedWaterName: st.selectedWaterName,
-      method: st.method,
-      depth: st.depth,
-      iceState: st.iceState,
-      nearbyWaters: st.nearbyWaters,
-      nearbyPlaces: st.nearbyPlaces,
-      savedSpots: st.savedSpots,
-      route: st.route,
-      fishId: st.fishId
-    }),
+    st => {
+      const activeDay = st.weatherDays?.[st.dayIdx] || st.weatherDays?.[2] || st.weatherDays?.[0];
+      return {
+        lat: st.lat,
+        lon: st.lon,
+        basinCode: st.basinCode,
+        isCoastal: st.isCoastal,
+        water: st.water,
+        selectedWaterName: st.selectedWaterName,
+        method: st.method,
+        selectedBait: st.selectedBait,
+        depth: st.depth,
+        iceState: st.iceState,
+        dayIdx: st.dayIdx,
+        dayIceState: activeDay?.iceState || st.iceState,
+        dayWaterTemp: activeDay?.waterTemp ?? 12,
+        nearbyWaters: st.nearbyWaters,
+        nearbyPlaces: st.nearbyPlaces,
+        savedSpots: st.savedSpots,
+        route: st.route,
+        fishId: st.fishId
+      };
+    },
     () => render(container)
   );
 }
