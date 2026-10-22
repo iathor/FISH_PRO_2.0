@@ -186,21 +186,122 @@ export function getFactorBreakdown(fish, day, method, water, depth, normPress = 
   return computeHourFactors(fish, day, targetHr, method, water, depth, normPress, iceState);
 }
 
-export function calcDynamicRig(method, water, depth, wind) {
+export function calcDynamicRig(method, water, depth, wind, fish = null, waterTemp = 12, iceState = 'open_water') {
   const prof = WATER_PROFILES[water] || WATER_PROFILES.small_river;
   const flowCoeff = prof.flow;
-  if (method === 'winter_jig') return { weight: `Вольфрамовая мормышка ${Math.min(3.5, Math.max(0.4, Math.round(depth * 0.35 * flowCoeff * 10) / 10))} г`, line: 'Зимняя леска 0.09–0.12 мм', tactic: 'Плавный подъём с мелкой игрой на 30–50 см от дна и короткой паузой' };
-  if (method === 'winter_cisco') return { weight: 'Нижнее грузило 6–14 г + гирлянда', line: 'Основная леска 0.14 мм, поводки 0.10 мм', tactic: 'Плавное покачивание гирлянды мормышек в полводы и у кромки льда' };
-  if (method === 'winter_lure') return { weight: `Балансир / Раттлин ${Math.min(32, Math.max(5, Math.round(depth * 2.0 * flowCoeff)))} г`, line: 'Плетёный шнур 0.14 мм + флюорокарбон 0.35 мм', tactic: 'Короткий взмах удильником на 15–20 см, сброс и выдержка паузы 4–6 секунд' };
-  if (method === 'winter_stuka') return { weight: `Блесна-стукалка ${Math.min(65, Math.max(20, Math.round(depth * 3.5 * flowCoeff)))} г`, line: 'Монолеска 0.35–0.45 мм', tactic: 'Ритмичное постукивание по каменистому дну с подсадкой кусочка рыбы' };
-  if (method === 'winter_livebait') return { weight: `Скользящее грузило ${Math.max(6, Math.round(depth * 1.6 * flowCoeff))} г`, line: 'Леска 0.35 мм + поводок 0.45 мм / металл', tactic: 'Установка живца в 25–40 см от дна на бровке или у камыша' };
-  if (method === 'spin_micro') return { weight: `Груз-чебурашка / Мормышка ${Math.min(4.5, Math.max(0.3, Math.round(depth * 0.65 * flowCoeff * 10) / 10))} г`, line: 'Тонкий шнур 0.06–0.08 мм + поводок 0.12–0.14 мм', tactic: 'Мелкая анимация кончиком удилища в придонном слое с паузами до 3 секунд' };
-  if (method === 'spin_jig') return { weight: `Джиг-головка ${Math.min(56, Math.max(8, Math.round(depth * 2.8 * flowCoeff)))} г`, line: 'Плетёный шнур 0.14–0.18 мм + поводок', tactic: 'Классическая ступенька: два оборота катушки — пауза 2 секунды с касанием дна' };
-  if (method === 'spin_lure') return { weight: `Блесна / Воблер ${Math.min(28, Math.max(4, Math.round(depth * 2.2 * flowCoeff)))} г`, line: 'Шнур 0.12–0.16 мм + стальной/титановый поводок', tactic: 'Равномерная проводка вдоль кромки травы или рывковая анимация с паузами' };
-  if (method === 'bottom') return { weight: `Донная кормушка ${Math.min(130, Math.max(25, Math.round(depth * 12 * flowCoeff)))} г`, line: 'Шнур 0.14 мм, поводок 0.12–0.18 мм (50–70 см)', tactic: 'Точное закармливание точки на ракушечнике или нижней русловой бровке' };
-  if (method === 'float') return { weight: `Поплавок ${Math.min(8.0, Math.max(0.5, Math.round((depth * 0.8 * flowCoeff + wind * 0.15) * 10) / 10))} г`, line: 'Основная леска 0.14–0.16 мм, поводок 0.10–0.12 мм', tactic: 'Проводка насадки в придонном слое с лёгким притормаживанием поплавка' };
-  if (method === 'fly') return { weight: 'Нахлыстовый шнур 4–5 класса + подлесок 2.7 м', line: 'Поводковая леска 0.12–0.16 мм', tactic: 'Подача мушки вверх или поперёк струи со свободным проплывом без борозды' };
-  return { weight: `Морское грузило / Блесна ${Math.max(12, Math.round(depth * 3.8 * flowCoeff))} г`, line: 'Шнур 0.14–0.20 мм + флюорокарбоновый поводок', tactic: 'Ступенчатая проводка у каменистого рельефа и береговых свалов' };
+  const fid = fish?.id || 'pike';
+  const fName = fish?.name || 'выбранного вида';
+  const isCold = waterTemp <= 10.5 || iceState !== 'open_water';
+  const isTrophy = ['catfish', 'amur_catfish', 'carp', 'grass_carp', 'silver_carp', 'salmon', 'chinook_salmon', 'taimen', 'halibut', 'cod', 'turbot'].includes(fid);
+  const isDelicate = ['roach', 'rudd', 'bleak', 'dace', 'gudgeon', 'crucian', 'white_bream', 'tugun', 'cisco', 'vendace', 'smelt', 'rotan', 'ruffe'].includes(fid);
+
+  if (method === 'winter_jig') {
+    const w = Math.min(3.8, Math.max(0.3, Math.round(depth * (isDelicate ? 0.28 : 0.40) * flowCoeff * 10) / 10));
+    const line = isDelicate ? 'Зимняя флюорокарбоновая леска 0.08–0.10 мм' : 'Зимняя леска 0.11–0.14 мм';
+    const tactic = ['bream', 'white_bream', 'carp', 'crucian'].includes(fid)
+      ? `Подлёдный лов (${fName}): медленное опускание ко дну, выдержка на стоячку со сторожком и плавный подъём`
+      : `Подлёдный лов (${fName}): высокочастотная проводка мормышки в 15–45 см от дна с контрольной паузой 3–4 сек`;
+    return { weight: `Вольфрамовая мормышка ${w} г`, line, tactic };
+  }
+  if (method === 'winter_cisco') {
+    return {
+      weight: `Нижнее грузило ${Math.max(6, Math.round(depth * 1.4 * flowCoeff))} г + гирлянда (3–5 мормышек)`,
+      line: 'Основная леска 0.14–0.16 мм, поводки 0.10–0.12 мм',
+      tactic: `Пелагический облов (${fName}): плавное покачивание гирлянды в полводы и у нижней кромки льда`
+    };
+  }
+  if (method === 'winter_lure') {
+    const mult = ['zander', 'volga_zander', 'pike'].includes(fid) ? 2.4 : 1.5;
+    const w = Math.min(36, Math.max(4, Math.round(depth * mult * flowCoeff)));
+    const leader = fid === 'pike' ? 'титановый/стальной поводок 20 см' : 'флюорокарбон 0.30–0.40 мм';
+    return {
+      weight: `Балансир / Раттлин ${w} г`,
+      line: `Зимний шнур 0.12–0.16 мм + ${leader}`,
+      tactic: `Зимнее блеснение (${fName}): короткий подброс на 15–25 см, сброс и обязательная пауза ${isCold ? '5–8' : '3–5'} секунд`
+    };
+  }
+  if (method === 'winter_stuka') {
+    const w = Math.min(70, Math.max(18, Math.round(depth * 3.5 * flowCoeff)));
+    return {
+      weight: `Тяжёлая блесна-стукалка / джиг ${w} г`,
+      line: 'Монолеска 0.35–0.45 мм',
+      tactic: `Донный лов (${fName}): ритмичное постукивание по каменистому грунту с подсадкой ерша или резки рыбы`
+    };
+  }
+  if (method === 'winter_livebait') {
+    const w = Math.max(6, Math.round(depth * 1.6 * flowCoeff));
+    const leader = fid === 'pike' ? 'вольфрамовый/стальной поводок 25–30 см' : 'флюорокарбон 0.40–0.50 мм';
+    return {
+      weight: `Скользящее грузило-оливка ${w} г`,
+      line: `Основная леска 0.35 мм + ${leader}`,
+      tactic: `Жерлица (${fName}): установка живца в ${['burbot', 'zander'].includes(fid) ? '5–15 см от самого дна' : '25–45 см над дном у свала или камыша'}`
+    };
+  }
+  if (method === 'spin_micro') {
+    const baseW = depth * (isCold ? 0.55 : 0.70) * flowCoeff;
+    const w = Math.min(5.0, Math.max(0.3, Math.round(baseW * 10) / 10));
+    const line = w <= 1.2 ? 'Нанофил / шнур #0.15–0.2 PE + флюорокарбон 0.10–0.12 мм' : 'Шнур #0.2–0.4 PE + флюорокарбон 0.14–0.16 мм';
+    const tactic = isCold
+      ? `Холодная вода (${waterTemp}°C, ${fName}): деликатное волочение по дну с микродрожанием и паузами 3–6 секунд`
+      : `Тёплая вода (${waterTemp}°C, ${fName}): активная ступенька и пелагический зуд в придонном и среднем слоях`;
+    return { weight: `Микроджиг / Мормышка ${w} г`, line, tactic };
+  }
+  if (method === 'spin_jig') {
+    const mult = isTrophy ? 3.4 : (['perch'].includes(fid) ? 1.8 : 2.7);
+    const w = Math.min(60, Math.max(6, Math.round(depth * mult * flowCoeff)));
+    const leader = fid === 'pike' ? 'стальной поводок-струна 20–25 см' : 'флюорокарбон 0.35–0.50 мм';
+    const tactic = isCold
+      ? `Холодная вода (${waterTemp}°C, ${fName}): медленная подача у дна — 1 оборот катушки и затяжная пауза 3–5 сек`
+      : `Тёплая вода (${waterTemp}°C, ${fName}): классическая ступенька 2 оборота — пауза 1.5–2 сек по рельефу и коряжнику`;
+    return { weight: `Джиг-головка / Чебурашка ${w} г`, line: `Плетёный шнур #0.8–1.5 PE + ${leader}`, tactic };
+  }
+  if (method === 'spin_lure') {
+    const mult = ['chub', 'trout', 'grayling', 'perch', 'rotan'].includes(fid) ? 1.2 : 2.3;
+    const w = Math.min(32, Math.max(3, Math.round(depth * mult * flowCoeff)));
+    const leader = fid === 'pike' ? 'стальной / титановый поводок 20–25 см' : 'флюорокарбоновый поводок 0.22–0.35 мм';
+    const tactic = isCold
+      ? `Холодная вода (${waterTemp}°C, ${fName}): вялый стоп-энд-гоу (Stop & Go) суспендером с паузами до 4–6 секунд`
+      : `Тёплая вода (${waterTemp}°C, ${fName}): активный твичинг минноу или равномерная проводка блесны/крэнка вдоль укрытий`;
+    return { weight: `Воблер / Блесна ${w} г`, line: `Шнур #0.6–1.2 PE + ${leader}`, tactic };
+  }
+  if (method === 'bottom') {
+    const w = Math.min(140, Math.max(20, Math.round(depth * 11 * flowCoeff)));
+    if (fish?.type === 'predator') {
+      return {
+        weight: `Донное грузило ${w} г`,
+        line: isTrophy ? 'Шнур 0.28–0.40 мм + силовой поводок 0.50–0.80 мм' : 'Основная леска 0.30 мм + поводок 0.28–0.35 мм',
+        tactic: `Донная ловля хищника (${fName}): подача живца или резки на выходе из русловой ямы (${isCold ? 'пассивная зимняя стоянка' : 'ночной выход на бровку'})`
+      };
+    }
+    const line = isCold
+      ? `Шнур 0.10–0.12 мм, тонкий поводок 0.09–0.12 мм (длина 60–100 см), крючок №14–16`
+      : (isTrophy ? 'Карповая леска 0.28–0.32 мм, волосяной поводок 15–25 lb, крючок №4–8' : 'Шнур 0.12–0.14 мм, поводок 0.14–0.18 мм (40–60 см), крючок №10–12');
+    const tactic = isCold
+      ? `Холодная вода (${waterTemp}°C, ${fName}): тёмная мелкофракционная прикормка со специями и кормовым мотылём, темп перезаброса 7–10 мин`
+      : `Тёплая вода (${waterTemp}°C, ${fName}): обильный стартовый закорм крупной фракцией (зерновые/пеллетс), темп 3–5 мин`;
+    return { weight: `Фидерная кормушка ${w} г`, line, tactic };
+  }
+  if (method === 'float') {
+    const w = Math.min(8.0, Math.max(0.5, Math.round((depth * 0.75 * flowCoeff + wind * 0.15) * 10) / 10));
+    const line = isCold
+      ? 'Основная леска 0.12 мм, деликатный поводок 0.08–0.10 мм, крючок №16–18'
+      : (isTrophy ? 'Основная леска 0.22–0.25 мм, поводок 0.18–0.20 мм' : 'Основная леска 0.14–0.16 мм, поводок 0.10–0.12 мм');
+    const tactic = isCold
+      ? `Холодная вода (${waterTemp}°C, ${fName}): точная подача животной насадки в 1–3 см от дна с минимальным докормом`
+      : `Тёплая вода (${waterTemp}°C, ${fName}): ловля в проводку или у границы водной растительности с регулярным докормом шарами`;
+    return { weight: `Поплавок ${w} г`, line, tactic };
+  }
+  if (method === 'fly') {
+    const tactic = isCold
+      ? `Холодная вода (${waterTemp}°C, ${fName}): проводка тяжёлой вольфрамовой нимфы у самого дна в приямках за камнями`
+      : `Тёплая вода (${waterTemp}°C, ${fName}): подача сухой мушки или жука вверх по течению со свободным дрейфом по струе`;
+    return { weight: 'Нахлыстовый шнур 4–5 класса + конусный подлесок 2.7 м', line: `Поводок флюорокарбон ${isCold ? '0.12–0.14' : '0.14–0.18'} мм`, tactic };
+  }
+  return {
+    weight: `Морская оснастка / Пилькер ${Math.max(10, Math.round(depth * 3.5 * flowCoeff))} г`,
+    line: 'Шнур #0.6–1.5 PE + флюорокарбоновый шок-лидер 0.26–0.40 мм',
+    tactic: `Морской лов (${fName}, вода ${waterTemp}°C): облов береговых свалов, ракушечника и каменистых банок`
+  };
 }
 
 export function generateAdaptiveGuides(fish, water, depth, day, method, globalIceState) {
@@ -221,7 +322,7 @@ export function generateAdaptiveGuides(fish, water, depth, day, method, globalIc
     standAdvice = `На глубине ${depth.toFixed(1)} м (${WATER_PROFILES[water]?.shortName || 'водоём'}) ${fish.name} занимает характерный микрорельеф. ${fish.baseAdvice}`;
   }
 
-  const rigInfo = calcDynamicRig(method, water, depth, day.windMax);
+  const rigInfo = calcDynamicRig(method, water, depth, day.windMax, fish, day.waterTemp, iceState);
   const tackleAdvice = fish.legal === 'redbook'
     ? 'Любые любительские снасти по данному виду запрещены к применению.'
     : `Рекомендуемый монтаж: <b>${rigInfo.weight}</b> (${rigInfo.line}). ${rigInfo.tactic}. Профильная снасть: ${fish.topGear}`;
@@ -312,7 +413,7 @@ export function renderExpress(container) {
         <div class="express-chips">
           ${createPill({ icon: '💧', text: `Вода ${d.waterTemp}°C`, tone: wtTone })}
           ${createPill({ icon: '🧭', text: `${d.pressAvg} мм (${fmtDeltaPress(d.dP)})`, tone: pTone })}
-          ${createPill({ icon: '💨', text: `${d.windDir} ${d.windMax} м/с`, tone: wTone })}
+          ${createPill({ icon: '💨', text: `${d.windDir}${d.windMax} м/с`, tone: wTone })}
           ${createPill({ icon: d.moon.phaseIcon, text: `${d.moon.moonDay} л.д.`, tone: 'neutral' })}
           ${createPill({ icon: dayIce === 'open_water' ? '🌊' : '❄️', text: iceText, tone: iceTone })}
         </div>
@@ -371,7 +472,7 @@ export function renderWeek(container) {
               <div style="font-weight:800;font-size:var(--fs-sm);">${pd.relTitle ? pd.relTitle + ' • ' : ''}${pd.label}</div>
               <div style="font-size:var(--fs-xs);color:var(--muted);margin:3px 0;">
                 💧 Вода ${pd.waterTemp}°C • 🧭 ${pd.pressAvg} мм (${fmtDeltaPress(pd.dP)})<br>
-                💨 ${pd.windDir} ${pd.windMax} м/с • ${pd.moon.phaseIcon} ${pd.moon.moonDay} л.д.
+                💨 ${pd.windDir}${pd.windMax} м/с • ${pd.moon.phaseIcon}${pd.moon.moonDay} л.д.
               </div>
               <div>${fish.legal === 'redbook' ? RU.redbookBan : renderFiveFish(pSc, 14, curTheme, true)}</div>
             </div>
@@ -405,11 +506,11 @@ export function renderWeek(container) {
                 <button type="button" class="btn btn-sm" style="min-height:26px;padding:1px 5px;" data-pin-day="${idx}" title="Закрепить для сравнения" aria-label="Закрепить ${d.label}">${isPinned ? '📌' : '📍'}</button>
               </div>
               <div>${topBadge}</div>
-              <div style="font-size:var(--fs-md);font-weight:800;">${d.tDay > 0 ? '+' + d.tDay : d.tDay}° / ${d.tNight > 0 ? '+' + d.tNight : d.tNight}°C</div>
+              <div style="font-size:var(--fs-md);font-weight:800;">${d.tDay > 0 ? '+' + d.tDay : d.tDay}° /${d.tNight > 0 ? '+' + d.tNight : d.tNight}°C</div>
               <div style="font-size:11px;color:var(--muted);">
                 💧 Вода ${d.waterTemp}°C<br>
                 🧭 ${d.pressAvg} мм (${fmtDeltaPress(d.dP)})<br>
-                💨 ${d.windDir} ${d.windMax} м/с
+                💨 ${d.windDir}${d.windMax} м/с
               </div>
               <div style="margin-top:auto;padding-top:5px;border-top:1px solid var(--border);">
                 ${d.isArchive
@@ -449,7 +550,7 @@ export function renderHourly(container) {
   const selH = clampHour(s.selectedHour);
   const selHrObj = day.hours[selH] || day.hours[12];
   const selBreakdown = computeHourFactors(fish, day, selHrObj, s.method, s.water, s.depth, s.normPress, s.iceState);
-  const rig = calcDynamicRig(s.method, s.water, s.depth, day.windMax);
+  const rig = calcDynamicRig(s.method, s.water, s.depth, day.windMax, fish, day.waterTemp, day.iceState || s.iceState);
   const seasonalBaits = getSeasonalBaitsForContext(fish, s.method, day.waterTemp, day.iceState || s.iceState);
   const activeBait = s.selectedBait && seasonalBaits.includes(s.selectedBait) ? s.selectedBait : seasonalBaits[0];
 
@@ -462,7 +563,7 @@ export function renderHourly(container) {
 
       ${fish.legal === 'redbook' ? `
         <div style="padding:12px;border-radius:var(--r-sm);background:var(--pill-bad-bg);color:var(--pill-bad-text);font-weight:700;">
-          ⛔ <b>${fish.name} — ${RU.redbookBan}</b><br>
+          ⛔ <b>${fish.name} —${RU.redbookBan}</b><br>
           <span style="font-size:var(--fs-xs);">${RU.redbookLaw}</span>
         </div>
       ` : `
@@ -489,10 +590,10 @@ export function renderHourly(container) {
           <div style="flex:1;min-width:240px;">
             <div style="font-size:10px;color:var(--muted);font-weight:700;">УСЛОВИЯ В ВЫБРАННЫЙ ЧАС: ${String(selH).padStart(2, '0')}:00 (${day.label})</div>
             <div style="font-size:var(--fs-md);font-weight:800;margin-top:2px;">
-              Воздух ${selHrObj.tAir > 0 ? '+' + selHrObj.tAir : selHrObj.tAir}°C • Вода ~${day.waterTemp}°C • 🧭 ${selHrObj.press} мм (за 3ч: ${fmtDeltaPress(selHrObj.dp3h)}) • 💨 ${selHrObj.windDir} ${selHrObj.wind} м/с
+              Воздух ${selHrObj.tAir > 0 ? '+' + selHrObj.tAir : selHrObj.tAir}°C • Вода ~${day.waterTemp}°C • 🧭 ${selHrObj.press} мм (за 3ч: ${fmtDeltaPress(selHrObj.dp3h)}) • 💨 ${selHrObj.windDir}${selHrObj.wind} м/с
             </div>
             <div style="font-size:var(--fs-xs);color:var(--accent);margin-top:4px;">
-              Рекомендуемая оснастка: <b>${rig.weight}</b> (${rig.line}) • ${rig.tactic}
+              Рекомендуемая оснастка: <b>${rig.weight}</b> (${rig.line}) •${rig.tactic}
             </div>
             <div style="margin-top:6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
               <label for="fcSeasonalBaitSel" style="font-size:10px;color:var(--muted);font-weight:700;">СЕЗОННАЯ НАЖИВКА / ПРИМАНКА:</label>
@@ -563,7 +664,7 @@ function renderArchiveDayLogger(container, s, day, currentFish) {
   const selH = clampHour(s.selectedHour);
   const selHrObj = day.hours[selH] || day.hours[12];
   const availWaters = getAvailableWaterTypes(s.basinCode, s.lat, s.lon);
-  const compatibleMethods = getCompatibleMethods(currentFish, day.iceState || s.iceState, s.water);
+  const compatibleMethods = getCompatibleMethods(currentFish, day.iceState || s.iceState, s.water, day.waterTemp);
   const currentMethodVal = compatibleMethods.some(m => m.val === s.method) ? s.method : compatibleMethods[0]?.val;
   const seasonalBaits = getSeasonalBaitsForContext(currentFish, currentMethodVal, day.waterTemp, day.iceState || s.iceState);
   const activeBait = s.selectedBait && seasonalBaits.includes(s.selectedBait) ? s.selectedBait : seasonalBaits[0];
@@ -614,7 +715,7 @@ function renderArchiveDayLogger(container, s, day, currentFish) {
         <div>
           <label style="display:block;font-size:10px;color:var(--muted);font-weight:700;margin-bottom:3px;">ШАГ 4. ВОДОЁМ / БИОТОП</label>
           <select id="archWaterSel">
-            ${(s.nearbyWaters || []).map(w => `<option value="${w.wType}|${w.name || w.label}" ${s.selectedWaterName === w.name ? 'selected' : ''}>${w.label}</option>`).join('')}
+            ${(s.nearbyWaters || []).map(w => `<option value="${w.wType}\vert{}${w.name || w.label}" ${s.selectedWaterName === w.name ? 'selected' : ''}>${w.label}</option>`).join('')}
             ${availWaters.map(w => `<option value="${w.id}|${w.shortName}">${w.name}</option>`).join('')}
           </select>
         </div>
@@ -622,7 +723,7 @@ function renderArchiveDayLogger(container, s, day, currentFish) {
         <div>
           <label style="display:block;font-size:10px;color:var(--muted);font-weight:700;margin-bottom:3px;">ШАГ 5. ЧАС ПОИМКИ (${day.relTitle.toUpperCase()})</label>
           <select id="archHourSel">
-            ${day.hours.map(hr => `<option value="${hr.hour}" ${hr.hour === selH ? 'selected' : ''}>${String(hr.hour).padStart(2, '0')}:00 (воздух ${hr.tAir > 0 ? '+' + hr.tAir : hr.tAir}°C, ${hr.press} мм)</option>`).join('')}
+            ${day.hours.map(hr => `<option value="${hr.hour}" ${hr.hour === selH ? 'selected' : ''}>${String(hr.hour).padStart(2, '0')}:00 (воздух ${hr.tAir > 0 ? '+' + hr.tAir : hr.tAir}°C,${hr.press} мм)</option>`).join('')}
           </select>
         </div>
 
@@ -716,7 +817,8 @@ function bindForecastEvents(container) {
       store.dispatch({ type: 'SET_FISH', payload: newFishId });
 
       // Update methods for this fish
-      const newMethods = getCompatibleMethods(fObj, s.iceState, s.water);
+      const dayObj = s.weatherDays[s.dayIdx] || s.weatherDays[2] || s.weatherDays[0] || {};
+      const newMethods = getCompatibleMethods(fObj, dayObj.iceState || s.iceState, s.water, dayObj.waterTemp ?? 12);
       if (archMethod) {
         archMethod.innerHTML = newMethods.map(m => `<option value="${m.val}">${m.text}</option>`).join('');
         const chosenMethod = newMethods[0]?.val;
