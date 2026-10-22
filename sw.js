@@ -1,10 +1,11 @@
 /**
  * Service Worker для PWA «Клёв ПРО 2.0» (многомодульная архитектура)
- * Стратегия:
- * - HTML, JS, CSS, JSON: Network-First (мгновенная подгрузка актуальных модулей без необходимости тянуть экран вниз) + кэш-фоллбэк для офлайна
- * - Иконки и изображения рыб: Cache-First
+ * Исправления v2.0.2:
+ * 1. Безопасное кэширование через Promise.allSettled (не падает при отсутствии отдельных файлов).
+ * 2. Исключена подмена .js/.css модулей файлом index.html при сбое сети (предотвращает ошибку MIME type text/html у ES-модулей).
+ * 3. Проверка Content-Type перед сохранением в кэш.
  */
-const CACHE_VERSION = 'v2.0.1';
+const CACHE_VERSION = 'v2.0.2';
 const STATIC_CACHE = `klev-pro-static-${CACHE_VERSION}`;
 
 const APP_SHELL_FILES = [
@@ -43,7 +44,7 @@ const APP_SHELL_FILES = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(STATIC_CACHE)
-      .then((cache) => cache.addAll(APP_SHELL_FILES))
+      .then((cache) => Promise.allSettled(APP_SHELL_FILES.map((url) => cache.add(url))))
       .then(() => self.skipWaiting())
   );
 });
@@ -53,7 +54,7 @@ self.addEventListener('activate', (event) => {
     caches.keys().then((keys) =>
       Promise.all(
         keys
-          .filter((key) => key.startsWith('klev-pro-') && key !== STATIC_CACHE)
+          .filter((key) => (key.startsWith('klev-pro-') || key.startsWith('app-assets-') || key.startsWith('map-tiles-')) && key !== STATIC_CACHE)
           .map((key) => caches.delete(key))
       )
     ).then(() => self.clients.claim())
@@ -66,24 +67,17 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(req.url);
 
-  // Пропускаем внешние API запросы погоды и геокодинга напрямую в сеть
+  // Пропускаем внешние API запросы погоды, карт и геокодинга напрямую в сеть
   if (url.origin !== self.location.origin) {
     return;
   }
 
-  const isCodeOrDoc =
-    req.mode === 'navigate' ||
-    url.pathname.endsWith('.html') ||
-    url.pathname.endsWith('.js') ||
-    url.pathname.endsWith('.css') ||
-    url.pathname.endsWith('.json');
-
-  if (isCodeOrDoc) {
-    // Network-First: всегда отдаём свежий модуль при наличии сети, а в офлайне — из кэша
+  // 1. Навигационные запросы (HTML-страница): Network-First с фоллбэком на ./index.html
+  if (req.mode === 'navigate' || url.pathname.endsWith('.html') || url.pathname.endsWith('/')) {
     event.respondWith(
       fetch(req)
         .then((networkRes) => {
-          if (networkRes && networkRes.status === 200) {
+          if (networkRes && networkRes.ok && networkRes.status === 200) {
             const copy = networkRes.clone();
             caches.open(STATIC_CACHE).then((cache) => cache.put(req, copy));
           }
@@ -94,12 +88,38 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Для локальных изображений рыб и иконок: Cache-First с подгрузкой
+  // 2. ES-модули (.js), стили (.css) и манифест (.json):
+  // Network-First, но НИКОГДА не возвращаем index.html вместо .js/.css!
+  const isScriptOrStyle =
+    url.pathname.endsWith('.js') ||
+    url.pathname.endsWith('.css') ||
+    url.pathname.endsWith('.json');
+
+  if (isScriptOrStyle) {
+    event.respondWith(
+      fetch(req)
+        .then((networkRes) => {
+          if (networkRes && networkRes.ok && networkRes.status === 200) {
+            const ct = (networkRes.headers.get('content-type') || '').toLowerCase();
+            // Защита от кэширования HTML-страницы 404 под видом .js модуля
+            if (!url.pathname.endsWith('.js') || !ct.includes('text/html')) {
+              const copy = networkRes.clone();
+              caches.open(STATIC_CACHE).then((cache) => cache.put(req, copy));
+            }
+          }
+          return networkRes;
+        })
+        .catch(() => caches.match(req))
+    );
+    return;
+  }
+
+  // 3. Для локальных изображений рыб и иконок: Cache-First с подгрузкой из сети
   event.respondWith(
     caches.match(req).then((cachedRes) => {
       if (cachedRes) return cachedRes;
       return fetch(req).then((networkRes) => {
-        if (networkRes && networkRes.status === 200) {
+        if (networkRes && networkRes.ok && networkRes.status === 200) {
           const copy = networkRes.clone();
           caches.open(STATIC_CACHE).then((cache) => cache.put(req, copy));
         }
