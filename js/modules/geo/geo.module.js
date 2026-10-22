@@ -412,6 +412,7 @@ export function getMethodOptions(iceState, waterType) {
 
 export function render(container) {
   if (!container) return;
+  const prevScrolls = Array.from(container.querySelectorAll('.chip-scroll-row')).map(el => el.scrollLeft);
   const s = store.getState();
   const availableWaters = getAvailableWaterTypes(s.basinCode, s.lat, s.lon);
   const prof = WATER_PROFILES[s.water] || WATER_PROFILES.small_river;
@@ -540,7 +541,7 @@ export function render(container) {
   bindGeoEvents(container, showDrawer);
   const newRows = container.querySelectorAll('.chip-scroll-row');
   newRows.forEach((el, idx) => {
-    if (prevScrolls[idx] > 0) el.scrollLeft = prevScrolls[idx];
+    if (Array.isArray(prevScrolls) && prevScrolls[idx] > 0) el.scrollLeft = prevScrolls[idx];
   });
 }
 
