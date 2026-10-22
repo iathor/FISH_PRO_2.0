@@ -1,0 +1,74 @@
+:root {
+  --bg: #0b1120;
+  --panel: #151f32;
+  --card: #1e293b;
+  --input-bg: #0f172a;
+  --text: #f8fafc;
+  --muted: #cbd5e1;
+  --accent: #38bdf8;
+  --accent-strong: #0284c7;
+  --good: #10b981;
+  --warn: #f59e0b;
+  --bad: #ef4444;
+  --ice: #67e8f9;
+  --border: #334155;
+
+  --chip-bg: #1e293b;
+  --chip-border: #334155;
+  --pill-good-bg: rgba(16, 185, 129, 0.18);
+  --pill-good-text: #34d399;
+  --pill-warn-bg: rgba(245, 158, 11, 0.18);
+  --pill-warn-text: #fbbf24;
+  --pill-bad-bg: rgba(239, 68, 68, 0.20);
+  --pill-bad-text: #f87171;
+  --pill-purple-bg: rgba(168, 85, 247, 0.20);
+  --pill-purple-text: #d8b4fe;
+  --pill-ice-bg: rgba(103, 232, 249, 0.16);
+  --pill-ice-text: #67e8f9;
+
+  --font-ui: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  /* Увеличенная типографика (+2..2.5px) для комфортного чтения при дальнозоркости (+6 диоптрий) */
+  --fs-xs: 13px;
+  --fs-sm: 15px;
+  --fs-md: 17px;
+  --fs-lg: 19px;
+
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-pill: 999px;
+
+  --shadow-card: 0 4px 14px 0 rgba(0, 0, 0, 0.30);
+  --shadow-header: 0 3px 14px 0 rgba(0, 0, 0, 0.42);
+}
+
+[data-theme="light"] {
+  --bg: #f1f5f9;
+  --panel: #ffffff;
+  --card: #f8fafc;
+  --input-bg: #ffffff;
+  --text: #0f172a;
+  --muted: #475569;
+  --accent: #0284c7;
+  --accent-strong: #0369a1;
+  --good: #059669;
+  --warn: #b45309;
+  --bad: #dc2626;
+  --ice: #0e7490;
+  --border: #cbd5e1;
+
+  --chip-bg: #ffffff;
+  --chip-border: #cbd5e1;
+  --pill-good-bg: #d1fae5;
+  --pill-good-text: #065f46;
+  --pill-warn-bg: #fef3c7;
+  --pill-warn-text: #92400e;
+  --pill-bad-bg: #fee2e2;
+  --pill-bad-text: #991b1b;
+  --pill-purple-bg: #f3e8ff;
+  --pill-purple-text: #6b21a8;
+  --pill-ice-bg: #cffafe;
+  --pill-ice-text: #155e75;
+
+  --shadow-card: 0 4px 12px 0 rgba(15, 23, 42, 0.06);
+  --shadow-header: 0 3px 12px 0 rgba(15, 23, 42, 0.09);
+}
