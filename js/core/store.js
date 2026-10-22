@@ -1,9 +1,52 @@
-import { DEFAULT_STATE, getCompatibleMethods } from './config.js';
-import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin } from '../data/basins.js';
-import { FISH_DB } from '../data/species.js';
-import { storage } from './storage.js';
+/**
+ * @file store.js
+ * @description Централизованное хранилище состояния (Store) с автоматической синхронизацией снасти и наживки при смене рыбы, сезона и водоёма
+ */
 
-export function createStore(initialState) {
+import { DEFAULT_STATE, getCompatibleMethods, getSeasonalBaitsForContext } from './config.js';
+import { storage } from './storage.js';
+import { detectBasinByCoords, BASIN_CONFIGS, isCoastalInBasin } from '../data/basins.js';
+import { FISH_DB } from '../data/species.js';
+
+/**
+ * Вычисляет актуальные сезонные параметры (ледовый режим и температуру воды) для выбранного дня
+ */
+function getActiveDaySeasonContext(state, overrideDays = null, overrideDayIdx = null, overrideIceState = null) {
+  const days = overrideDays ?? state.weatherDays ?? [];
+  const idx = overrideDayIdx ?? state.dayIdx ?? 2;
+  const day = days[idx] || days[2] || days[0] || null;
+  const effIce = day?.iceState || overrideIceState || state.iceState || 'open_water';
+  const effWaterTemp = day?.waterTemp ?? 12;
+  return { effIce, effWaterTemp };
+}
+
+/**
+ * Синхронизирует выбранный метод ловли и сезонную наживку с видом рыбы, типом водоёма и сезоном (температурой воды / льдом).
+ * При forcePrimaryMethod = true (например, при переключении вида рыбы) сразу выбирает профильную снасть №1 для этого вида и сезона.
+ */
+function syncTackleForContext(nextState, forcePrimaryMethod = false) {
+  const fishObj = FISH_DB.find(f => f.id === nextState.fishId) || FISH_DB[0];
+  const { effIce, effWaterTemp } = getActiveDaySeasonContext(nextState);
+  const compat = getCompatibleMethods(fishObj, effIce, nextState.water, effWaterTemp);
+
+  let nextMethod = nextState.method;
+  if (forcePrimaryMethod || !compat.some(m => m.val === nextMethod)) {
+    nextMethod = compat[0]?.val || nextState.method;
+  }
+
+  const baits = getSeasonalBaitsForContext(fishObj, nextMethod, effWaterTemp, effIce);
+  const nextBait = (!forcePrimaryMethod && nextState.selectedBait && baits.includes(nextState.selectedBait))
+    ? nextState.selectedBait
+    : (baits[0] || '');
+
+  return {
+    ...nextState,
+    method: nextMethod,
+    selectedBait: nextBait
+  };
+}
+
+function createStore(initialState) {
   let state = { ...initialState };
   const subscribers = new Set();
 
@@ -69,7 +112,7 @@ function reducer(state, action) {
       if (!isCoastal && (water === 'sea_gulf' || water === 'open_sea')) {
         water = 'small_river';
       }
-      return {
+      const nextBase = {
         ...state,
         hasUserLocation: hasUserLocation ?? true,
         lat,
@@ -85,33 +128,50 @@ function reducer(state, action) {
         selectedWaterName: '',
         dayIdx: 2 // Today
       };
+      return syncTackleForContext(nextBase, false);
     }
     case 'SET_LOCATION_LABELS':
       return { ...state, ...action.payload };
-    case 'SET_WATER':
-      return {
+    case 'SET_WATER': {
+      const nextWater = action.payload.water;
+      const waterChanged = nextWater !== state.water;
+      const nextBase = {
         ...state,
-        water: action.payload.water,
+        water: nextWater,
         depth: action.payload.depth ?? state.depth,
         selectedWaterName: action.payload.selectedWaterName ?? state.selectedWaterName
       };
-    case 'SET_METHOD':
-      return { ...state, method: action.payload };
+      return syncTackleForContext(nextBase, waterChanged);
+    }
+    case 'SET_METHOD': {
+      const nextMethod = action.payload;
+      const fishObj = FISH_DB.find(f => f.id === state.fishId) || FISH_DB[0];
+      const { effIce, effWaterTemp } = getActiveDaySeasonContext(state);
+      const baits = getSeasonalBaitsForContext(fishObj, nextMethod, effWaterTemp, effIce);
+      const nextBait = (state.selectedBait && baits.includes(state.selectedBait))
+        ? state.selectedBait
+        : (baits[0] || '');
+      return { ...state, method: nextMethod, selectedBait: nextBait };
+    }
     case 'SET_BAIT':
       return { ...state, selectedBait: action.payload };
     case 'SET_DEPTH':
       return { ...state, depth: action.payload };
     case 'SET_FISH': {
       const nextFishId = action.payload;
-      const fishObj = FISH_DB.find(f => f.id === nextFishId) || FISH_DB[0];
-      const compat = getCompatibleMethods(fishObj, state.iceState, state.water);
-      const nextMethod = compat.some(m => m.val === state.method)
-        ? state.method
-        : (compat[0]?.val || state.method);
-      return { ...state, fishId: nextFishId, method: nextMethod };
+      const fishChanged = nextFishId !== state.fishId;
+      const nextBase = { ...state, fishId: nextFishId };
+      return syncTackleForContext(nextBase, fishChanged);
     }
-    case 'SET_DAY':
-      return { ...state, dayIdx: action.payload };
+    case 'SET_DAY': {
+      const nextDayIdx = action.payload;
+      const prevSeason = getActiveDaySeasonContext(state);
+      const nextBase = { ...state, dayIdx: nextDayIdx };
+      const nextSeason = getActiveDaySeasonContext(nextBase);
+      const seasonShifted = prevSeason.effIce !== nextSeason.effIce ||
+        (prevSeason.effWaterTemp <= 10.5) !== (nextSeason.effWaterTemp <= 10.5);
+      return syncTackleForContext(nextBase, seasonShifted);
+    }
     case 'SET_HOUR':
       return { ...state, selectedHour: action.payload };
     case 'TOGGLE_SHOW_ALL':
@@ -152,8 +212,9 @@ function reducer(state, action) {
       }
       return { ...state, compareSpeciesIds: list };
     }
-    case 'SET_WEATHER_DATA':
-      return {
+    case 'SET_WEATHER_DATA': {
+      const prevSeason = getActiveDaySeasonContext(state);
+      const nextBase = {
         ...state,
         weatherDays: action.payload.days,
         elevation: action.payload.elevation ?? state.elevation,
@@ -163,6 +224,11 @@ function reducer(state, action) {
         weatherSource: action.payload.source ?? state.weatherSource,
         weatherUpdatedAt: action.payload.updatedAt ?? Date.now()
       };
+      const nextSeason = getActiveDaySeasonContext(nextBase);
+      const seasonShifted = prevSeason.effIce !== nextSeason.effIce ||
+        (prevSeason.effWaterTemp <= 10.5) !== (nextSeason.effWaterTemp <= 10.5);
+      return syncTackleForContext(nextBase, seasonShifted);
+    }
     case 'SET_NEARBY_WATERS':
       return { ...state, nearbyWaters: action.payload };
     case 'SET_NEARBY_PLACES':
@@ -171,8 +237,8 @@ function reducer(state, action) {
       return { ...state, savedSpots: action.payload };
     case 'SET_CATCHES':
       return { ...state, catches: action.payload };
-    case 'SAVE_ONBOARDING':
-      return {
+    case 'SAVE_ONBOARDING': {
+      const nextBase = {
         ...state,
         water: action.payload.water,
         method: action.payload.method,
@@ -185,6 +251,8 @@ function reducer(state, action) {
           targetSpecies: action.payload.targetSpecies || []
         }
       };
+      return syncTackleForContext(nextBase, false);
+    }
     default:
       return state;
   }
@@ -200,7 +268,7 @@ if (!initCoastal && (initWater === 'sea_gulf' || initWater === 'open_sea')) {
   initWater = 'small_river';
 }
 
-export const store = createStore({
+export const store = createStore(syncTackleForContext({
   ...DEFAULT_STATE,
   ...saved,
   dayIdx: 2, // Always start on Today (idx=2)
@@ -208,4 +276,4 @@ export const store = createStore({
   basinName: BASIN_CONFIGS[initBasin]?.name || DEFAULT_STATE.basinName,
   isCoastal: initCoastal,
   water: initWater
-});
+}, false));
