@@ -12,11 +12,12 @@ import { FISH_DB } from '../data/species.js';
  * Вычисляет актуальные сезонные параметры (ледовый режим и температуру воды) для выбранного дня
  */
 function getActiveDaySeasonContext(state, overrideDays = null, overrideDayIdx = null, overrideIceState = null) {
-  const days = overrideDays ?? state.weatherDays ?? [];
-  const idx = overrideDayIdx ?? state.dayIdx ?? 2;
+  const rawDays = overrideDays ?? state?.weatherDays;
+  const days = Array.isArray(rawDays) ? rawDays : [];
+  const idx = Number.isFinite(overrideDayIdx) ? overrideDayIdx : (Number.isFinite(state?.dayIdx) ? state.dayIdx : 2);
   const day = days[idx] || days[2] || days[0] || null;
-  const effIce = day?.iceState || overrideIceState || state.iceState || 'open_water';
-  const effWaterTemp = day?.waterTemp ?? 12;
+  const effIce = day?.iceState || overrideIceState || state?.iceState || 'open_water';
+  const effWaterTemp = Number.isFinite(day?.waterTemp) ? day.waterTemp : 12;
   return { effIce, effWaterTemp };
 }
 
