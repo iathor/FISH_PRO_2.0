@@ -107,6 +107,7 @@ body {
 }
 .season-strip.ice-safe { background: var(--pill-ice-bg); color: var(--pill-ice-text); border-color: var(--ice); }
 .season-strip.ice-danger { background: var(--pill-bad-bg); color: var(--pill-bad-text); border-color: var(--bad); }
+.season-strip.ice-slush { background: var(--pill-warn-bg); color: var(--pill-warn-text); border-color: var(--warn); }
 .season-strip.open-water { background: var(--pill-good-bg); color: var(--pill-good-text); border-color: var(--good); }
 
 .app-main {
@@ -201,7 +202,8 @@ body {
 .fish-strip-dock-wrap {
   width: 100%;
   min-width: 0;
-  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+  will-change: height, transform;
+  transition: background-color 0.2s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.2s cubic-bezier(0.22, 1, 0.36, 1), height 0.12s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .fish-strip-dock-wrap.docked-mini {
@@ -229,7 +231,7 @@ body {
   flex-direction: row;
   align-items: center;
   justify-content: flex-start;
-  min-width: calc(168px - var(--shrink, 1) * 62px);
+  min-width: calc(168px - var(--shrink, 1) * 58px);
   max-width: none;
   padding: calc(10px - var(--shrink, 1) * 5px) 10px calc(10px - var(--shrink, 1) * 5px) 8px;
   gap: 6px;
@@ -238,11 +240,11 @@ body {
 }
 
 .fish-strip-dock-wrap.docked-mini .fish-img-wrap {
-  width: calc(118px - var(--shrink, 1) * 80px);
-  height: calc(52px - var(--shrink, 1) * 28px);
+  width: calc(118px - var(--shrink, 1) * 78px);
+  height: calc(52px - var(--shrink, 1) * 26px);
   margin: 0;
   flex-shrink: 0;
-  transition: width 0.08s linear, height 0.08s linear;
+  transition: width 0.14s ease, height 0.14s ease;
 }
 
 .fish-strip-dock-wrap.docked-mini .fish-name {
@@ -266,10 +268,11 @@ body {
   gap: 8px;
   overflow-x: auto;
   padding-bottom: 6px;
+  align-items: stretch;
 }
 
 .day-card {
-  min-width: 152px;
+  min-width: 148px;
   background: var(--card);
   border: 1.5px solid var(--border);
   border-radius: var(--r-md);
@@ -280,9 +283,30 @@ body {
   flex-direction: column;
   gap: 5px;
   position: relative;
+  transition: border-color 0.15s ease, transform 0.15s ease;
 }
+.day-card:hover { border-color: var(--accent); }
 .day-card.active { border-color: var(--accent); background: rgba(56, 189, 248, 0.11); box-shadow: 0 0 0 1.5px var(--accent); }
-.day-card.archive-day { border-style: dashed; background: rgba(148, 163, 184, 0.08); }
+
+/* Ревизия 2.0.13 (Пункт 4a): Компактные карточки для архива (Вчера/Позавчера) и расширенные для Сегодня и Завтра */
+.day-card.archive-day {
+  min-width: 118px;
+  max-width: 130px;
+  padding: 7px 9px;
+  gap: 3px;
+  border-style: dashed;
+  background: rgba(148, 163, 184, 0.08);
+  opacity: 0.92;
+}
+.day-card.priority-day {
+  min-width: 192px;
+  padding: 10px 12px;
+  border-width: 2px;
+  background: rgba(56, 189, 248, 0.07);
+}
+.day-card.priority-day.active {
+  background: rgba(56, 189, 248, 0.15);
+}
 
 .day-status-stripe {
   height: 4px;
@@ -311,6 +335,7 @@ body {
 }
 .month-cell.current { border-color: var(--accent); box-shadow: 0 0 0 1.5px var(--accent); }
 
+/* Ревизия 2.0.13 (Пункт 3a): Нижняя панель навигации: Карта / Погода / Обзор / Рыбы / Прогноз + кнопка ⋮ */
 .bottom-nav {
   position: fixed;
   bottom: 0;
@@ -326,9 +351,10 @@ body {
   max-width: 1200px;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 2px;
+  grid-template-columns: repeat(5, 1fr) 48px;
+  gap: 3px;
   padding: 5px 6px;
+  position: relative;
 }
 
 .nav-tab {
@@ -346,10 +372,66 @@ body {
   border-radius: var(--r-sm);
   cursor: pointer;
   padding: 4px 2px;
+  min-width: 0;
 }
 .nav-tab.active {
   color: var(--accent);
   background: rgba(56, 189, 248, 0.12);
+}
+
+.nav-more-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-more-btn {
+  width: 100%;
+  height: 100%;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.nav-more-popup {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  right: 0;
+  min-width: 200px;
+  background: var(--panel);
+  border: 1.5px solid var(--accent);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-header);
+  padding: 6px;
+  display: none;
+  flex-direction: column;
+  gap: 4px;
+  z-index: 1050;
+}
+.nav-more-popup.open {
+  display: flex;
+}
+
+.nav-popup-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  background: var(--card);
+  color: var(--text);
+  font-size: var(--fs-sm);
+  font-weight: 800;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.nav-popup-item:hover,
+.nav-popup-item.active {
+  background: rgba(56, 189, 248, 0.16);
+  color: var(--accent);
 }
 
 #mapBox {
@@ -384,6 +466,6 @@ body {
 
 @media (max-width: 720px) {
   .factor-row { grid-template-columns: 135px 1fr 50px; font-size: var(--fs-xs); }
-  .bottom-nav-inner { overflow-x: auto; display: flex; }
-  .nav-tab { min-width: 68px; flex: 1 0 auto; }
+  .bottom-nav-inner { grid-template-columns: repeat(5, 1fr) 44px; padding: 4px; }
+  .nav-tab { font-size: 11.5px; padding: 3px 1px; }
 }

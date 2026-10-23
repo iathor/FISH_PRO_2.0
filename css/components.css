@@ -110,8 +110,10 @@
   font-size: var(--fs-xs);
   font-weight: 700;
   border: 1px solid transparent;
-  line-height: 1.22;
-  white-space: nowrap;
+  line-height: 1.25;
+  white-space: normal;
+  word-break: break-word;
+  max-width: 100%;
 }
 .pill-good { background: var(--pill-good-bg); color: var(--pill-good-text); border-color: rgba(16,185,129,0.35); }
 .pill-warn { background: var(--pill-warn-bg); color: var(--pill-warn-text); border-color: rgba(245,158,11,0.35); }
@@ -177,7 +179,7 @@
   cursor: pointer;
   position: relative;
   text-align: center;
-  transition: border-color 0.15s ease, transform 0.15s ease;
+  transition: border-color 0.15s ease, transform 0.15s ease, height 0.14s ease, padding 0.14s ease, min-width 0.14s ease;
 }
 .fish-card:hover { border-color: var(--accent); transform: translateY(-2px); }
 .fish-card.active {
@@ -186,7 +188,7 @@
   box-shadow: 0 0 0 2px var(--accent);
 }
 .fish-card.redbook-muted {
-  opacity: 0.82;
+  opacity: 0.88;
   border-style: dashed;
   border-color: var(--bad);
 }
@@ -214,6 +216,7 @@
   margin-top: 4px;
   overflow: hidden;
   flex-shrink: 0;
+  transition: width 0.14s ease, height 0.14s ease, margin-top 0.14s ease;
 }
 .fish-img-wrap svg,
 .fish-img-wrap img,
@@ -228,46 +231,69 @@
   filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
 }
 
-/* Компактная и собранная шапка в модальном окне «Подробнее» (исправление огромных PNG) */
+/* Ревизия 2.0.13 (Пункт 1a, 1b): Крупная витрина рыбы в модальном окне «Подробнее» и смещённые вниз названия */
 .fish-detail-header {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--r-md);
-  padding: 10px 12px;
+  padding: 12px;
 }
-.fish-detail-img-box {
-  width: 124px;
-  height: 68px;
-  min-width: 110px;
-  max-width: 124px;
-  max-height: 68px;
+.fish-detail-img-banner {
+  width: 100%;
+  height: 156px;
+  min-height: 142px;
+  max-height: 168px;
   background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: var(--r-sm);
-  padding: 6px 8px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 10px 14px 24px 14px;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  flex-shrink: 0;
+  position: relative;
+  cursor: zoom-in;
+  transition: border-color 0.15s ease, transform 0.15s ease;
 }
-.fish-detail-img-box img,
-.fish-detail-img-box svg {
+.fish-detail-img-banner:hover {
+  border-color: var(--accent);
+}
+.fish-detail-img-banner img,
+.fish-detail-img-banner svg {
   width: 100% !important;
   height: 100% !important;
-  max-width: 108px !important;
-  max-height: 56px !important;
+  max-width: 310px !important;
+  max-height: 118px !important;
   object-fit: contain !important;
   display: block !important;
-  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.42));
+  margin: 0 auto !important;
+  filter: drop-shadow(0 4px 10px rgba(0,0,0,0.48));
+}
+.fish-detail-zoom-hint {
+  position: absolute;
+  bottom: 5px;
+  right: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent);
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  padding: 2px 8px;
+  pointer-events: none;
+}
+[data-theme="light"] .fish-detail-zoom-hint {
+  background: rgba(255, 255, 255, 0.88);
 }
 .fish-detail-title-col {
-  flex: 1;
-  min-width: 170px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
 }
 .fish-detail-stats-grid {
   display: grid;
@@ -279,6 +305,68 @@
   .fish-detail-stats-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* Ревизия 2.0.13 (Пункт 1d): Полноразмерный лайтбокс рыбы (50vw на ПК, по экрану на смартфоне) */
+.fish-lightbox-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.88);
+  z-index: 9500;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 14px;
+}
+.fish-lightbox-backdrop.open {
+  display: flex;
+}
+.fish-lightbox-box {
+  background: var(--panel);
+  border: 1.5px solid var(--accent);
+  border-radius: var(--r-md);
+  padding: 16px;
+  box-shadow: var(--shadow-header);
+  width: 94vw;
+  max-width: 94vw;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+@media (min-width: 769px) {
+  .fish-lightbox-box {
+    width: 50vw;
+    max-width: 50vw;
+  }
+}
+.fish-lightbox-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.fish-lightbox-stage {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 18px;
+  min-height: 220px;
+  max-height: 68vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: zoom-out;
+  overflow: hidden;
+}
+.fish-lightbox-stage img,
+.fish-lightbox-stage svg {
+  width: 100% !important;
+  height: auto !important;
+  max-height: 60vh !important;
+  object-fit: contain !important;
+  display: block !important;
+  filter: drop-shadow(0 6px 16px rgba(0,0,0,0.55));
 }
 
 .fish-name {
@@ -402,4 +490,24 @@
   overflow-y: auto;
   padding: 16px;
   box-shadow: var(--shadow-header);
+  position: relative;
+}
+.modal-box.modal-has-sticky-footer {
+  padding-bottom: 0;
+}
+/* Ревизия 2.0.13 (Пункт 1c): Закреплённая нижняя полоса кнопок «Я поймал» и «Закрыть» */
+.modal-sticky-footer {
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  margin: 14px -16px 0 -16px;
+  padding: 10px 16px 12px 16px;
+  background: var(--panel);
+  border-top: 1.5px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 20;
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.28);
 }
