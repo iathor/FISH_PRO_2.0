@@ -1,14 +1,15 @@
-import { RU } from '../../i18n/ru.js?v=2.0.12';
-import { events } from '../../core/events.js?v=2.0.12';
-import { store } from '../../core/store.js?v=2.0.12';
-import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.0.12';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.0.12';
-import { RUSSIA_CITIES } from '../../data/russia-waters.js?v=2.0.12';
-import { FISH_DB } from '../../data/species.js?v=2.0.12';
-import { renderFishVisual, renderFiveFish } from '../../ui/svg.js?v=2.0.12';
-import { createPill, showToast, openModal, closeModal } from '../../ui/components.js?v=2.0.12';
-import { setLocation } from '../geo/geo.module.js?v=2.0.12';
-import { calcDayBest } from '../forecast/forecast.module.js?v=2.0.12';
+import { RU } from '../../i18n/ru.js?v=2.0.13';
+import { events } from '../../core/events.js?v=2.0.13';
+import { store } from '../../core/store.js?v=2.0.13';
+import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.0.13';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.0.13';
+import { RUSSIA_CITIES } from '../../data/russia-waters.js?v=2.0.13';
+import { FISH_DB } from '../../data/species.js?v=2.0.13';
+import { renderFishVisual, renderFiveFish } from '../../ui/svg.js?v=2.0.13';
+import { createPill, showToast, openModal, closeModal, openFishLightbox } from '../../ui/components.js?v=2.0.13';
+import { getNearestRussianWaters } from '../../data/russia-waters.js?v=2.0.13';
+import { setLocation } from '../geo/geo.module.js?v=2.0.13';
+import { calcDayBest } from '../forecast/forecast.module.js?v=2.0.13';
 
 /**
  * Региональные приоритетные виды для каждого бассейна РФ,
@@ -62,19 +63,31 @@ export function pickBestDefaultFish(regionalList) {
 
 export function getFilteredFishList(state) {
   const s = state || store.getState();
-  const q = normalizeSearchText(s.fishSearch || '');
+  const q = normalizeSearchText(s.fishSearch || "");
   const isSearching = q.length > 0;
+  const radiusKm = s.waterRadiusKm === 120 ? 120 : 50;
+  const day = (s.weatherDays && (s.weatherDays[s.dayIdx] || s.weatherDays[2] || s.weatherDays[0])) || null;
 
-  // Regional fauna check: Caucasian Black Sea mountain streams (Sochi, Mzymta, Matsesta)
-  const isCaucasianMountainStream = s.basinCode === 'black_azov' &&
+  // Определяем все типы водоёмов, реально присутствующие в радиусе 50 км или 120 км вокруг выбранной точки
+  const nearbyWatersList = (Array.isArray(s.nearbyWaters) && s.nearbyWaters.length > 0)
+    ? s.nearbyWaters.filter(w => !Number.isFinite(w.distKm) || w.distKm <= radiusKm + 5)
+    : getNearestRussianWaters(s.lat, s.lon, s.basinCode, s.isCoastal, 14, radiusKm);
+  const radiusWaterTypes = new Set(nearbyWatersList.map(w => w.wType));
+  radiusWaterTypes.add(s.water);
+
+  // Региональная проверка: быстрые горные реки Черноморского побережья Кавказа (Мзымта, Сочи)
+  const isCaucasianMountainStream = s.basinCode === "black_azov" &&
     s.lat <= 44.6 && s.lat >= 43.3 && s.lon >= 38.5 && s.lon <= 40.5 &&
-    (s.water === 'small_river' || (s.selectedWaterName || '').toLowerCase().includes('мзымта'));
+    (s.water === "small_river" || (s.selectedWaterName || "").toLowerCase().includes("мзымта"));
+
+  // Широтные и ареальные зоны по точным координатам локации (Пункт 8a)
+  const isFarNorth = s.lat >= 63.5;
+  const isWarmSouth = s.lat <= 50.5;
+  const hasCoolingInRadius = s.water === "cooling_reservoir" || radiusWaterTypes.has("cooling_reservoir");
+  const hasSeaOrEstuaryInRadius = s.isCoastal || s.water === "sea_gulf" || s.water === "open_sea" || radiusWaterTypes.has("sea_gulf") || radiusWaterTypes.has("open_sea");
 
   let list;
   if (isSearching) {
-    // При активном текстовом поиске ищем сначала по всему региональному бассейну (игнорируя фильтр биотопа/группы),
-    // а если в бассейне нет совпадений — автоматически ищем по всему атласу РФ (115 видов),
-    // чтобы поиск НИКОГДА не выдавал «ничего не найдено» на существующую рыбу!
     const basinMatches = FISH_DB.filter(f => f.basins.includes(s.basinCode) && matchesFishQuery(f, q));
     list = basinMatches.length > 0
       ? basinMatches
@@ -84,20 +97,43 @@ export function getFilteredFishList(state) {
       ? [...FISH_DB]
       : FISH_DB.filter(f => {
           const basinMatch = f.basins.includes(s.basinCode);
-          let waterMatch = !f.waters || f.waters.includes(s.water);
-          if (!waterMatch && (s.water === 'tundra_lake' || s.water === 'quarry') && ['crucian', 'carp', 'silver_carp', 'grass_carp', 'perch', 'pike', 'roach', 'bream', 'dace', 'peled', 'chir', 'pizhyan', 'ide', 'tench', 'rudd'].includes(f.id)) {
-            waterMatch = true;
+          if (!basinMatch) return false;
+
+          // Проверка соответствия выбранному типу водоёма и водоёмам в радиусе 50/120 км (Пункт 8a, 8c)
+          const fishWaters = Array.isArray(f.waters) ? f.waters : ["small_river", "big_river", "quarry", "tundra_lake"];
+          let waterMatch = fishWaters.includes(s.water);
+
+          // В радиусе 120 км дополнительно учитываем смежные речные и озёрные биотопы радиуса (например, заход из крупной реки в приток или старицу)
+          if (!waterMatch && radiusKm >= 120) {
+            const isFreshContext = s.water !== "open_sea" && s.water !== "sea_gulf";
+            if (isFreshContext && f.habitat === "fresh" && fishWaters.some(wt => radiusWaterTypes.has(wt))) {
+              waterMatch = true;
+            }
           }
-          if (!waterMatch && (s.water === 'small_river' || s.water === 'big_river') && ['dace', 'peled', 'chir', 'pizhyan', 'tugun', 'cisco', 'roach', 'ide', 'perch', 'pike', 'crucian', 'bream', 'burbot', 'grayling'].includes(f.id)) {
-            waterMatch = true;
+
+          // Для морских рыб в пресных реках оставляем только те виды, которые реально заходят в реки (riverEntry: корюшка, навага, лососи, камбала-глосса, пеленгас, кутум, вобла, тарань, рыбец, омуль, ряпушка)
+          if (f.habitat === "sea" && s.water !== "sea_gulf" && s.water !== "open_sea") {
+            if (!f.riverEntry) return false;
+            if (!hasSeaOrEstuaryInRadius && radiusKm < 120 && !["smelt", "salmon", "pink_salmon", "chum_salmon", "coho_salmon", "sockeye_salmon", "chinook_salmon", "cherry_salmon", "vobla", "taran", "vimba", "kutum", "cisco", "omul_arctic", "goby"].includes(f.id)) {
+              return false;
+            }
           }
-          if (f.legal === 'introduced' && s.water !== 'cooling_reservoir' && s.water !== 'quarry') {
-            if (!['carp', 'silver_carp', 'grass_carp', 'crucian'].includes(f.id)) return false;
+
+          // Теплолюбивые вселенцы (тиляпия, канальный сомик, буффало) обитают в тёплых сбросах ГРЭС/АЭС или южных водоёмах
+          if (f.legal === "introduced" && !hasCoolingInRadius && !isWarmSouth) {
+            if (!["carp", "silver_carp", "grass_carp", "crucian", "rainbow_trout"].includes(f.id)) return false;
           }
-          if (isCaucasianMountainStream && ['pike', 'perch', 'zander', 'bream'].includes(f.id)) {
+
+          // На Крайнем Севере (ЯНАО, Таймыр, lat >= 63.5) вне тёплых сбросов ГРЭС исключаем южных теплолюбивых рыб
+          if (isFarNorth && !hasCoolingInRadius && ["catfish", "carp", "silver_carp", "grass_carp", "tench", "chub", "asp", "rudd", "bleak"].includes(f.id)) {
             return false;
           }
-          return basinMatch && waterMatch;
+
+          if (isCaucasianMountainStream && ["pike", "perch", "zander", "bream"].includes(f.id)) {
+            return false;
+          }
+
+          return waterMatch;
         });
 
     if (s.onlyFavoritesFilter) {
@@ -105,7 +141,7 @@ export function getFilteredFishList(state) {
       list = list.filter(f => favSet.has(f.id));
     }
 
-    if (s.fishGroup && s.fishGroup !== 'all') {
+    if (s.fishGroup && s.fishGroup !== "all") {
       list = list.filter(f => f.group === s.fishGroup);
     }
   }
@@ -114,6 +150,19 @@ export function getFilteredFishList(state) {
   const sigOrder = REGIONAL_SIGNATURE_SPECIES[s.basinCode] || [];
   const sigMap = new Map(sigOrder.map((id, idx) => [id, idx]));
 
+  // Предварительно вычисляем вероятность поимки (максимальный вылов в выбранной локации и радиусе — Пункт 8b)
+  const scoreCache = new Map();
+  if (day) {
+    for (const f of list) {
+      const baseSc = calcDayBest(f, day, s.method, s.water, s.depth, s.normPress, s.iceState);
+      // Учитываем региональную численность вида в радиусе 50/120 км (характерные виды водоёма получают бонус плотности популяции)
+      const sigIdx = sigMap.has(f.id) ? sigMap.get(f.id) : -1;
+      const abundanceBonus = sigIdx >= 0 ? Math.max(2, 12 - Math.floor(sigIdx * 0.7)) : 0;
+      const directWaterBonus = (Array.isArray(f.waters) && f.waters.includes(s.water)) ? 4 : 0;
+      scoreCache.set(f.id, baseSc + abundanceBonus + directWaterBonus);
+    }
+  }
+
   list.sort((a, b) => {
     // 1. Точное совпадение начала названия при поиске
     if (isSearching) {
@@ -121,74 +170,85 @@ export function getFilteredFishList(state) {
       const bStarts = normalizeSearchText(b.name).startsWith(q) ? 1 : 0;
       if (aStarts !== bStarts) return bStarts - aStarts;
     }
-    // 2. Избранные пользователем рыбы
+    // 2. Избранные пользователем рыбы всегда первыми
     const aFav = favSet.has(a.id) ? 1 : 0;
     const bFav = favSet.has(b.id) ? 1 : 0;
     if (aFav !== bFav) return bFav - aFav;
 
-    // 3. Краснокнижные виды всегда после разрешённых
-    const aRed = a.legal === 'redbook' ? 1 : 0;
-    const bRed = b.legal === 'redbook' ? 1 : 0;
+    // 3. Разрешённые виды выше краснокнижных (чтобы вверху стояли виды с максимальным разрешённым выловом)
+    const aRed = a.legal === "redbook" ? 1 : 0;
+    const bRed = b.legal === "redbook" ? 1 : 0;
     if (aRed !== bRed) return aRed - bRed;
 
-    // 4. Региональный приоритет характерных видов бассейна
+    // 4. Сортировка по максимально возможному вылову и вероятности поимки в локации (Пункт 8b)
+    const aScore = scoreCache.get(a.id) ?? 50;
+    const bScore = scoreCache.get(b.id) ?? 50;
+    if (Math.abs(bScore - aScore) >= 3) return bScore - aScore;
+
+    // 5. Региональный приоритет характерных видов бассейна
     const aSig = sigMap.has(a.id) ? sigMap.get(a.id) : 999;
     const bSig = sigMap.has(b.id) ? sigMap.get(b.id) : 999;
     if (aSig !== bSig) return aSig - bSig;
 
-    return 0;
+    return bScore - aScore;
   });
 
   return list;
 }
 
+/**
+ * Ревизия 2.0.13 (Пункты 1a, 1b, 1c, 1d, 1e):
+ * - 1a: Изображение рыбы увеличено до удобного полноширинного баннера в верхней части карточки (розовая рамка).
+ * - 1b: Названия, латынь, народные названия и пилл статуса смещены вниз под изображение рыбы (без обрезания текста).
+ * - 1c: Кнопка «Закрыть» перенесена вниз формы и закреплена на нижней полосе (sticky footer) рядом с кнопкой «🎣 Я поймал».
+ * - 1d: При нажатии на рыбку открывается полноразмерное изображение, подогнанное под экран (50% по горизонтали на ПК, во весь экран на смартфоне).
+ * - 1e: Заголовок формы «Справка ихтиолога» не дублирует наименование рыбы.
+ */
 export function openFishDetail(fishId) {
   const f = FISH_DB.find(x => x.id === fishId);
   if (!f) return;
-  const isRed = f.legal === 'redbook';
-  const isLic = f.legal === 'license';
-  const spawnMonthsText = (f.spawnMonth || []).map(m => RU.monthsShort[m - 1]).join(', ') || 'По прогреву воды';
+  const isRed = f.legal === "redbook";
+  const isLic = f.legal === "license";
+  const spawnMonthsText = (f.spawnMonth || []).map(m => RU.monthsShort[m - 1]).join(", ") || "По прогреву воды";
   const aliasesText = Array.isArray(f.aliases) && f.aliases.length > 0
-    ? f.aliases.slice(0, 6).join(', ')
-    : '';
+    ? f.aliases.slice(0, 6).join(", ")
+    : "";
+
+  const visualHtml = renderFishVisual(f);
 
   const html = `
-    <div class="fish-detail-modal-content" style="display:flex;flex-direction:column;gap:12px;">
-      <!-- Собранная шапка карточки с фиксированным боксом под PNG/SVG -->
+    <div class="fish-detail-modal-content" style="display:flex;flex-direction:column;gap:12px;padding-bottom:6px;">
+      <!-- Верхний блок: крупная картинка рыбы в розовой рамке (1a) и смещённые под неё названия (1b) -->
       <div class="fish-detail-header">
-        <div class="fish-detail-img-box">
-          ${renderFishVisual(f)}
+        <div class="fish-detail-img-banner" id="detailFishImgZoomBtn" role="button" tabindex="0" aria-label="Увеличить изображение ${f.name}" title="Нажмите для полноразмерного просмотра">
+          ${visualHtml}
+          <span class="fish-detail-zoom-hint">🔍 Нажмите для увеличения</span>
         </div>
         <div class="fish-detail-title-col">
-          <div style="font-size:var(--fs-lg);font-weight:800;line-height:1.2;">${f.name}</div>
-          <div style="font-size:var(--fs-xs);color:var(--muted);font-style:italic;margin-top:2px;">${f.latin || ''}</div>
-          ${aliasesText ? `<div style="font-size:var(--fs-xs);color:var(--accent);margin-top:3px;">Народные названия: <b>${aliasesText}</b></div>` : ''}
+          <div style="font-size:var(--fs-lg);font-weight:800;line-height:1.22;color:var(--text);">${f.name}</div>
+          <div style="font-size:var(--fs-xs);color:var(--muted);font-style:italic;">${f.latin || ""}</div>
+          ${aliasesText ? `<div style="font-size:var(--fs-xs);color:var(--accent);margin-top:2px;">Народные названия: <b>${aliasesText}</b></div>` : ""}
           <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
             ${isRed
-              ? createPill({ text: '⛔ Красная книга • Вылов запрещён', tone: 'bad' })
+              ? createPill({ text: "⛔ Красная книга • Поймал — отпусти", tone: "bad" })
               : (isLic
-                  ? createPill({ text: '🎫 По путёвке / Лицензионный вид', tone: 'warn' })
-                  : (f.legal === 'introduced'
-                      ? createPill({ text: '⚡ Вселенец / Аквакультура', tone: 'purple' })
-                      : createPill({ text: '✅ Свободный любительский лов', tone: 'good' })))}
+                  ? createPill({ text: "🎫 По путёвке / Лицензионный вид", tone: "warn" })
+                  : (f.legal === "introduced"
+                      ? createPill({ text: "⚡ Вселенец / Аквакультура", tone: "purple" })
+                      : createPill({ text: "✅ Свободный любительский лов", tone: "good" })))}
           </div>
         </div>
-        ${!isRed ? `
-          <div style="width:100%;margin-top:4px;">
-            <button type="button" class="btn btn-good" id="detailCatchFishBtn" style="width:100%;">🎣 Я поймал (${f.name})</button>
-          </div>
-        ` : ''}
       </div>
 
-      <!-- Памятка по краснокнижным и лицензионным видам (что делать при поимке) -->
+      <!-- Памятка рыболову -->
       ${f.handlingAdvice ? `
-        <div class="card" style="padding:12px;border-radius:var(--r-sm);background:${isRed ? 'var(--pill-bad-bg)' : (isLic ? 'var(--pill-warn-bg)' : 'rgba(56,189,248,0.10)')};border:1.5px solid ${isRed ? 'var(--bad)' : (isLic ? 'var(--warn)' : 'var(--accent)')};color:${isRed ? 'var(--pill-bad-text)' : 'var(--text)'};font-size:var(--fs-sm);line-height:1.45;">
+        <div class="card" style="padding:12px;border-radius:var(--r-sm);background:${isRed ? "var(--pill-bad-bg)" : (isLic ? "var(--pill-warn-bg)" : "rgba(56,189,248,0.10)")};border:1.5px solid ${isRed ? "var(--bad)" : (isLic ? "var(--warn)" : "var(--accent)")};color:${isRed ? "var(--pill-bad-text)" : "var(--text)"};font-size:var(--fs-sm);line-height:1.45;">
           <div style="font-weight:800;margin-bottom:4px;">
-            ${isRed ? '🚨 ВНИМАНИЕ! КРАСНАЯ КНИГА — ЧТО ДЕЛАТЬ ПРИ ПОИМКЕ:' : (isLic ? '⚖️ ПРАВИЛА ЛИЦЕНЗИОННОГО ЛОВА И ОБРАЩЕНИЯ С РЫБОЙ:' : '💡 ПРАКТИЧЕСКАЯ ПАМЯТКА РЫБОЛОВУ:')}
+            ${isRed ? "🚨 ВНИМАНИЕ! КРАСНАЯ КНИГА — ЧТО ДЕЛАТЬ ПРИ ПОИМКЕ:" : (isLic ? "⚖️ ПРАВИЛА ЛИЦЕНЗИОННОГО ЛОВА И ОБРАЩЕНИЯ С РЫБОЙ:" : "💡 ПРАКТИЧЕСКАЯ ПАМЯТКА РЫБОЛОВУ:")}
           </div>
           <div>${f.handlingAdvice}</div>
         </div>
-      ` : ''}
+      ` : ""}
 
       <!-- Ключевые параметры ихтиологии -->
       <div class="fish-detail-stats-grid">
@@ -215,14 +275,14 @@ export function openFishDetail(fishId) {
           <div style="font-size:var(--fs-xs);font-weight:800;color:var(--accent);text-transform:uppercase;margin-bottom:3px;">📏 Размеры в уловах и трофейный потенциал</div>
           <div>${f.sizeInfo}</div>
         </div>
-      ` : ''}
+      ` : ""}
 
       ${f.idTraits ? `
         <div class="card" style="background:var(--card);padding:11px 12px;font-size:var(--fs-sm);line-height:1.45;">
           <div style="font-size:var(--fs-xs);font-weight:800;color:var(--accent);text-transform:uppercase;margin-bottom:3px;">🔍 Как распознать вид (отличительные признаки)</div>
           <div>${f.idTraits}</div>
         </div>
-      ` : ''}
+      ` : ""}
 
       <div class="card" style="background:var(--card);padding:12px;font-size:var(--fs-sm);line-height:1.48;display:flex;flex-direction:column;gap:10px;">
         <div>
@@ -238,21 +298,43 @@ export function openFishDetail(fishId) {
             <div style="font-size:var(--fs-xs);font-weight:800;color:var(--accent);text-transform:uppercase;margin-bottom:3px;">🪱 Природная кормовая база и рабочие приманки</div>
             <div>${f.feedBase}</div>
           </div>
-        ` : ''}
+        ` : ""}
       </div>
     </div>
   `;
 
-  openModal(`Справка ихтиолога: ${f.name}`, html, (bodyEl) => {
-    const catchBtn = bodyEl.querySelector('#detailCatchFishBtn');
-    if (catchBtn) {
-      catchBtn.addEventListener('click', () => {
-        store.dispatch({ type: 'SET_FISH', payload: f.id });
-        closeModal();
-        const st = store.getState();
-        events.emit('forecast:hourSelected', { dayIdx: st.dayIdx, hour: st.selectedHour, fishId: f.id });
+  // Нижняя закреплённая полоса (Пункт 1c): кнопка «Я поймал» и рядом кнопка «Закрыть»
+  const stickyFooterHtml = `
+    ${!isRed ? `<button type="button" class="btn btn-good" id="detailCatchFishBtn" style="flex:1.4;">🎣 Я поймал</button>` : ""}
+    <button type="button" class="btn" id="detailBottomCloseBtn" data-modal-close style="flex:1;">✕ Закрыть</button>
+  `;
+
+  // Заголовок формы без дублирования названия рыбы (Пункт 1e)
+  openModal("Справка ихтиолога", html, (bodyEl, footerEl) => {
+    const zoomBox = bodyEl?.querySelector("#detailFishImgZoomBtn");
+    if (zoomBox) {
+      const triggerZoom = () => openFishLightbox(f.name, f.latin || "", renderFishVisual(f));
+      zoomBox.addEventListener("click", triggerZoom);
+      zoomBox.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          triggerZoom();
+        }
       });
     }
+
+    const catchBtn = (footerEl || bodyEl)?.querySelector("#detailCatchFishBtn");
+    if (catchBtn) {
+      catchBtn.addEventListener("click", () => {
+        store.dispatch({ type: "SET_FISH", payload: f.id });
+        closeModal();
+        const st = store.getState();
+        events.emit("forecast:hourSelected", { dayIdx: st.dayIdx, hour: st.selectedHour, fishId: f.id });
+      });
+    }
+  }, true, {
+    hideTopClose: true,
+    footerHtml: stickyFooterHtml
   });
 }
 
@@ -790,7 +872,7 @@ function buildFishResultsHtml(s, list) {
           ${list.map(f => {
             const isRed = f.legal === 'redbook';
             const isFav = favSet.has(f.id);
-            const sc = (!isRed && day) ? calcDayBest(f, day, s.method, s.water, s.depth, s.normPress, s.iceState) : 0;
+            const sc = day ? calcDayBest(f, day, s.method, s.water, s.depth, s.normPress, s.iceState) : 0;
             let badge = '';
             if (isRed) badge = createPill({ text: 'Красная книга', tone: 'bad' });
             else if (f.legal === 'license') badge = createPill({ text: 'По путёвке', tone: 'warn' });
@@ -803,9 +885,7 @@ function buildFishResultsHtml(s, list) {
                 <div class="fish-name">${f.name}</div>
                 <div class="fish-latin">${f.latin || ''}</div>
                 <div class="fish-badge-wrap" style="margin:2px 0;">${badge}</div>
-                ${isRed
-                  ? `<div class="fish-redbook-ban" style="margin-top:4px;"><span class="pill pill-bad">${RU.redbookBan}</span></div>`
-                  : renderFiveFish(sc, 14, curTheme, true)}
+                ${renderFiveFish(sc, 14, curTheme, true, isRed ? `Прилов ${sc}% • Отпусти` : null)}
                 <button type="button" class="btn btn-sm" style="width:100%;margin-top:6px;" data-info-fish="${f.id}">ℹ️ Подробнее</button>
               </div>
             `;
@@ -831,7 +911,7 @@ function updateFishDynamicParts(container, s, list) {
       ? `Результаты поиска по запросу «${s.fishSearch.trim()}»`
       : (s.showAllSpecies
           ? 'Показан полный справочник РФ (все 115 видов)'
-          : `Обитатели бассейна «${s.basinName}» • ${prof.shortName}`);
+          : `Локация (радиус до ${s.waterRadiusKm || 50} км) • ${prof.shortName} • Ранжировано по улову`);
   }
 
   const favBtn = container.querySelector('#fishFavFilterBtn');
@@ -902,7 +982,7 @@ export function renderFishStrip(container, state) {
           <div id="fishSectionSubText" style="font-size:var(--fs-xs);color:var(--muted);margin-top:2px;">
             ${s.showAllSpecies
               ? 'Показан полный справочник РФ (все 115 видов)'
-              : `Обитатели бассейна «${s.basinName}» • ${prof.shortName}`}
+              : `Локация (радиус до ${s.waterRadiusKm || 50} км) • ${prof.shortName} • Ранжировано по улову`}
           </div>
         </div>
       </div>
@@ -1075,8 +1155,12 @@ export function init(container) {
 
   unsub = store.subscribe(
     st => ({
+      lat: st.lat,
+      lon: st.lon,
       basinCode: st.basinCode,
       water: st.water,
+      waterRadiusKm: st.waterRadiusKm,
+      nearbyWaters: st.nearbyWaters,
       method: st.method,
       depth: st.depth,
       fishId: st.fishId,
