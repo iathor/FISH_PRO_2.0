@@ -1,11 +1,11 @@
 /**
  * Service Worker для PWA «Клёв ПРО 2.0» (многомодульная архитектура)
- * Ревизия v2.0.12:
+ * Ревизия v2.0.13:
  * - Немедленная активация новой версии (skipWaiting + clients.claim) без зависания старого кэша
  * - Принудительный обход дискового HTTP-кэша браузера при обновлении JS/CSS модулей
- * - Поддержка версионных query-параметров (?v=2.0.12) при офлайн-чтении из кэша (ignoreSearch: true)
+ * - Поддержка версионных query-параметров (?v=2.0.13) при офлайн-чтении из кэша (ignoreSearch: true)
  */
-const CACHE_VERSION = 'v2.0.12';
+const CACHE_VERSION = 'v2.0.13';
 const STATIC_CACHE = `klev-pro-static-${CACHE_VERSION}`;
 
 const APP_SHELL_FILES = [
@@ -14,33 +14,33 @@ const APP_SHELL_FILES = [
   './version.json',
   './manifest.json',
   './icon.svg',
-  './css/tokens.css?v=2.0.12',
-  './css/base.css?v=2.0.12',
-  './css/components.css?v=2.0.12',
-  './css/layout.css?v=2.0.12',
-  './js/app.js?v=2.0.12',
-  './js/i18n/ru.js?v=2.0.12',
-  './js/core/config.js?v=2.0.12',
-  './js/core/updater.js?v=2.0.12',
-  './js/core/events.js?v=2.0.12',
-  './js/core/format.js?v=2.0.12',
-  './js/core/http.js?v=2.0.12',
-  './js/core/pwa.js?v=2.0.12',
-  './js/core/router.js?v=2.0.12',
-  './js/core/storage.js?v=2.0.12',
-  './js/core/store.js?v=2.0.12',
-  './js/data/basins.js?v=2.0.12',
-  './js/data/waters.js?v=2.0.12',
-  './js/data/russia-waters.js?v=2.0.12',
-  './js/data/species.js?v=2.0.12',
-  './js/ui/components.js?v=2.0.12',
-  './js/ui/svg.js?v=2.0.12',
-  './js/modules/weather/weather.module.js?v=2.0.12',
-  './js/modules/geo/geo.module.js?v=2.0.12',
-  './js/modules/forecast/forecast.module.js?v=2.0.12',
-  './js/modules/fish/fish.module.js?v=2.0.12',
-  './js/modules/calendar/calendar.module.js?v=2.0.12',
-  './js/modules/log/log.module.js?v=2.0.12'
+  './css/tokens.css?v=2.0.13',
+  './css/base.css?v=2.0.13',
+  './css/components.css?v=2.0.13',
+  './css/layout.css?v=2.0.13',
+  './js/app.js?v=2.0.13',
+  './js/i18n/ru.js?v=2.0.13',
+  './js/core/config.js?v=2.0.13',
+  './js/core/updater.js?v=2.0.13',
+  './js/core/events.js?v=2.0.13',
+  './js/core/format.js?v=2.0.13',
+  './js/core/http.js?v=2.0.13',
+  './js/core/pwa.js?v=2.0.13',
+  './js/core/router.js?v=2.0.13',
+  './js/core/storage.js?v=2.0.13',
+  './js/core/store.js?v=2.0.13',
+  './js/data/basins.js?v=2.0.13',
+  './js/data/waters.js?v=2.0.13',
+  './js/data/russia-waters.js?v=2.0.13',
+  './js/data/species.js?v=2.0.13',
+  './js/ui/components.js?v=2.0.13',
+  './js/ui/svg.js?v=2.0.13',
+  './js/modules/weather/weather.module.js?v=2.0.13',
+  './js/modules/geo/geo.module.js?v=2.0.13',
+  './js/modules/forecast/forecast.module.js?v=2.0.13',
+  './js/modules/fish/fish.module.js?v=2.0.13',
+  './js/modules/calendar/calendar.module.js?v=2.0.13',
+  './js/modules/log/log.module.js?v=2.0.13'
 ];
 
 self.addEventListener('install', (event) => {
