@@ -1,4 +1,4 @@
-import { showToast } from '../ui/components.js?v=2.0.12';
+import { showToast } from '../ui/components.js?v=2.0.13';
 
 let deferredInstallPrompt = null;
 

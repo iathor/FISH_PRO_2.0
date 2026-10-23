@@ -1,4 +1,4 @@
-import { STATE_CACHE_KEY, WEATHER_CACHE_KEY, WEATHER_TTL_MS } from './config.js?v=2.0.12';
+import { STATE_CACHE_KEY, WEATHER_CACHE_KEY, WEATHER_TTL_MS } from './config.js?v=2.0.13';
 
 const DB_NAME = 'KlevProDB_v2';
 const DB_VERSION = 1;
@@ -58,6 +58,7 @@ export const storage = {
         basinName: state.basinName,
         isCoastal: state.isCoastal,
         water: state.water,
+        waterRadiusKm: state.waterRadiusKm || 50,
         selectedWaterName: state.selectedWaterName,
         method: state.method,
         selectedBait: state.selectedBait,

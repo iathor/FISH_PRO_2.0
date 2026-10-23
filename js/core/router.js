@@ -1,5 +1,5 @@
-import { store } from './store.js?v=2.0.12';
-import { renderMap } from '../modules/geo/geo.module.js?v=2.0.12';
+import { store } from './store.js?v=2.0.13';
+import { renderMap } from '../modules/geo/geo.module.js?v=2.0.13';
 
 const VALID_ROUTES = ['dashboard', 'fish', 'geo', 'weather', 'forecast', 'calendar', 'log'];
 
@@ -42,6 +42,10 @@ export const router = {
     document.querySelectorAll('[data-nav-tab]').forEach(btn => {
       btn.classList.toggle('active', btn.getAttribute('data-nav-tab') === route);
     });
+    const moreBtn = document.getElementById('navMoreBtn');
+    if (moreBtn) {
+      moreBtn.classList.toggle('active', route === 'calendar' || route === 'log');
+    }
     if (typeof window.syncFishDockState === 'function') {
       window.syncFishDockState();
     }

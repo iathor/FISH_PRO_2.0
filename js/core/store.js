@@ -1,12 +1,12 @@
 /**
  * @file store.js
- * @description Централизованное хранилище состояния (Store) с автоматической синхронизацией снасти и наживки и чистым списком Избранного по умолчанию (Ревизия 2.0.11)
+ * @description Централизованное хранилище состояния (Store) с автоматической синхронизацией снасти и наживки и чистым списком Избранного по умолчанию (Ревизия 2.0.13)
  */
 
-import { DEFAULT_STATE, getCompatibleMethods, getSeasonalBaitsForContext } from './config.js?v=2.0.12';
-import { storage } from './storage.js?v=2.0.12';
-import { detectBasinByCoords, BASIN_CONFIGS, isCoastalInBasin } from '../data/basins.js?v=2.0.12';
-import { FISH_DB } from '../data/species.js?v=2.0.12';
+import { DEFAULT_STATE, getCompatibleMethods, getSeasonalBaitsForContext } from './config.js?v=2.0.13';
+import { storage } from './storage.js?v=2.0.13';
+import { detectBasinByCoords, BASIN_CONFIGS, isCoastalInBasin } from '../data/basins.js?v=2.0.13';
+import { FISH_DB } from '../data/species.js?v=2.0.13';
 
 function getActiveDaySeasonContext(state, overrideDays = null, overrideDayIdx = null, overrideIceState = null) {
   const rawDays = overrideDays ?? state?.weatherDays;
@@ -151,6 +151,8 @@ function reducer(state, action) {
       return { ...state, selectedBait: action.payload };
     case 'SET_DEPTH':
       return { ...state, depth: action.payload };
+    case 'SET_WATER_RADIUS':
+      return { ...state, waterRadiusKm: action.payload === 120 ? 120 : 50 };
     case 'SET_FISH': {
       const nextFishId = action.payload;
       const fishChanged = nextFishId !== state.fishId;
@@ -294,5 +296,6 @@ export const store = createStore(syncTackleForContext({
   basinCode: initBasin,
   basinName: BASIN_CONFIGS[initBasin]?.name || DEFAULT_STATE.basinName,
   isCoastal: initCoastal,
-  water: initWater
+  water: initWater,
+  waterRadiusKm: saved.waterRadiusKm === 120 ? 120 : 50
 }, false));
