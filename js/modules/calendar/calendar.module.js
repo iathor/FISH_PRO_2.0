@@ -1,9 +1,9 @@
-import { RU } from '../../i18n/ru.js?v=2.0.12';
-import { store } from '../../core/store.js?v=2.0.12';
-import { generateSpawnICS } from '../../core/format.js?v=2.0.12';
-import { BASIN_CONFIGS } from '../../data/basins.js?v=2.0.12';
-import { FISH_DB } from '../../data/species.js?v=2.0.12';
-import { showToast } from '../../ui/components.js?v=2.0.12';
+import { RU } from '../../i18n/ru.js?v=2.0.13';
+import { store } from '../../core/store.js?v=2.0.13';
+import { generateSpawnICS } from '../../core/format.js?v=2.0.13';
+import { BASIN_CONFIGS } from '../../data/basins.js?v=2.0.13';
+import { FISH_DB } from '../../data/species.js?v=2.0.13';
+import { showToast } from '../../ui/components.js?v=2.0.13';
 
 const COMPARE_COLORS = ['#10b981', '#38bdf8', '#a855f7'];
 
@@ -54,9 +54,7 @@ export function renderCalendar(container, fishId) {
   const curMonth = new Date().getMonth();
 
   const maxAct = Math.max(...info.monthActivity);
-  const bestMonths = fish.legal === 'redbook'
-    ? RU.redbookBan
-    : (maxAct > 0
+  const bestMonths = (maxAct > 0
         ? info.monthActivity.map((v, i) => v === maxAct ? RU.monthsShort[i] : null).filter(Boolean).join(', ')
         : 'Круглогодично');
   const spawnText = info.spawnMonths.length
@@ -89,8 +87,7 @@ export function renderCalendar(container, fishId) {
         const isSpawn = info.spawnMonths.includes(idx + 1);
         let bg = 'var(--border)';
         let label = 'Спад';
-        if (fish.legal === 'redbook') { bg = 'var(--bad)'; label = 'Запрет'; }
-        else if (isSpawn) { bg = '#e11d48'; label = 'Нерест'; }
+        if (isSpawn) { bg = '#e11d48'; label = 'Нерест'; }
         else if (act === 3) { bg = 'var(--good)'; label = 'Жор'; }
         else if (act === 2) { bg = 'var(--warn)'; label = 'Клёв'; }
         else if (act === 1) { bg = '#64748b'; label = 'Слабо'; }
