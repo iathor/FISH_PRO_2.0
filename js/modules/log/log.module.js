@@ -1,11 +1,11 @@
-import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.0.12';
-import { events } from '../../core/events.js?v=2.0.12';
-import { storage } from '../../core/storage.js?v=2.0.12';
-import { store } from '../../core/store.js?v=2.0.12';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.0.12';
-import { FISH_DB } from '../../data/species.js?v=2.0.12';
-import { createPill, showToast, openModal, closeModal } from '../../ui/components.js?v=2.0.12';
-import { calcHourly } from '../forecast/forecast.module.js?v=2.0.12';
+import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.0.13';
+import { events } from '../../core/events.js?v=2.0.13';
+import { storage } from '../../core/storage.js?v=2.0.13';
+import { store } from '../../core/store.js?v=2.0.13';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.0.13';
+import { FISH_DB } from '../../data/species.js?v=2.0.13';
+import { createPill, showToast, openModal, closeModal } from '../../ui/components.js?v=2.0.13';
+import { calcHourly } from '../forecast/forecast.module.js?v=2.0.13';
 
 let currentFilter = { fishId: 'all', cond: 'all' };
 
