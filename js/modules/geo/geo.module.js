@@ -1,14 +1,14 @@
-import { MAP_LAYERS, getCompatibleMethods } from '../../core/config.js?v=2.0.12';
-import { events } from '../../core/events.js?v=2.0.12';
-import { storage } from '../../core/storage.js?v=2.0.12';
-import { store } from '../../core/store.js?v=2.0.12';
-import { fetchWithTimeout } from '../../core/http.js?v=2.0.12';
-import { installShortcut, syncInstallButtons } from '../../core/pwa.js?v=2.0.12';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.0.12';
-import { RUSSIA_CITIES, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.0.12';
-import { FISH_DB } from '../../data/species.js?v=2.0.12';
-import { showToast } from '../../ui/components.js?v=2.0.12';
-import { fetchWeather } from '../weather/weather.module.js?v=2.0.12';
+import { MAP_LAYERS, getCompatibleMethods } from '../../core/config.js?v=2.0.13';
+import { events } from '../../core/events.js?v=2.0.13';
+import { storage } from '../../core/storage.js?v=2.0.13';
+import { store } from '../../core/store.js?v=2.0.13';
+import { fetchWithTimeout } from '../../core/http.js?v=2.0.13';
+import { installShortcut, syncInstallButtons } from '../../core/pwa.js?v=2.0.13';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.0.13';
+import { RUSSIA_CITIES, getNearestRussianWaters, getWaterTypeShortTag } from '../../data/russia-waters.js?v=2.0.13';
+import { FISH_DB } from '../../data/species.js?v=2.0.13';
+import { showToast } from '../../ui/components.js?v=2.0.13';
+import { fetchWeather } from '../weather/weather.module.js?v=2.0.13';
 
 let mapInstance = null;
 let mapMarker = null;
@@ -16,6 +16,8 @@ let currentTileLayer = null;
 let currentLayerKey = 'topo';
 let mapOpen = false;
 let inlineGpsHint = '';
+let overpassLoading = false;
+let activeOverpassReqId = 0;
 
 function clamp(val, min, max) {
   return Math.max(min, Math.min(max, val));
@@ -30,6 +32,64 @@ function calcHaversineKm(lat1, lon1, lat2, lon2) {
   return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 10) / 10;
 }
 
+/**
+ * Классифицирует водный объект из OpenStreetMap / Overpass API по тегам, названию и размеру
+ * (Озеро / Карьер / ГРЭС / Река-малая / Река-большая / Старица / Морской залив)
+ */
+export function classifyOsmWaterElement(el, name, isCoastal) {
+  const tags = el?.tags || {};
+  const nLower = String(name || '').toLowerCase();
+  const waterTag = String(tags.water || '').toLowerCase();
+  const waterwayTag = String(tags.waterway || '').toLowerCase();
+  const landuseTag = String(tags.landuse || '').toLowerCase();
+
+  if (/грэс|тэц|аэс|охладител|тёплый канал|теплый канал/i.test(nLower)) {
+    return { wType: 'cooling_reservoir', typeTag: 'ГРЭС / Тёплый сброс' };
+  }
+
+  if (/губа|залив|лиман|бухта|пролив|море/i.test(nLower) || tags.natural === 'bay' || tags.natural === 'strait') {
+    if (isCoastal) {
+      return { wType: 'sea_gulf', typeTag: 'Морской залив / Губа' };
+    }
+    return { wType: 'quarry', typeTag: 'Крупный залив / Вдхр' };
+  }
+
+  if (waterwayTag || /^р\.|^река\s|^ручей\s|^протока\s/i.test(nLower)) {
+    const isMajorRiver =
+      /обь|иртыш|енисей|волга|кама|дон|днепр|пур|таз|надым|амур|зея|уссури|лена|вилюй|алдан|ангара|печора|уса|ока|урал|вятка|белая|кубань|нева|свирь|волхов|северная двина|вычегда|онега|луга|нарва|преголя|селенга|камчатка|колыма|индигирка|хатанга|пясина|тулома|томь|чулым|кет|вах|конда|туртас|тавда|тура|тобол|исеть|чусовая|сура|ветлуга|мокша|хопёр|медведица|северский донец|маныч|ахтуба|бузан|бахтемир/i.test(nLower) ||
+      (tags.width && parseFloat(tags.width) >= 60) ||
+      tags.boat === 'yes' ||
+      tags.CEMT;
+
+    if (isMajorRiver) {
+      return { wType: 'big_river', typeTag: 'Река большая' };
+    }
+    if (waterwayTag === 'stream' || /ручей|ключ|речка/i.test(nLower)) {
+      return { wType: 'small_river', typeTag: 'Река малая / Ручей' };
+    }
+    return { wType: 'small_river', typeTag: 'Река малая' };
+  }
+
+  if (/карьер|разрез|котлован/i.test(nLower) || waterTag === 'quarry' || landuseTag === 'quarry') {
+    return { wType: 'quarry', typeTag: 'Карьер' };
+  }
+
+  if (/вдхр|водохранилище/i.test(nLower) || waterTag === 'reservoir' || landuseTag === 'reservoir') {
+    return { wType: 'quarry', typeTag: 'Водохранилище' };
+  }
+
+  if (/старица|затон|сор|пойма|пруд|болото|ильмень|озерцо/i.test(nLower) || waterTag === 'oxbow' || waterTag === 'pond') {
+    return { wType: 'tundra_lake', typeTag: /старица|затон/i.test(nLower) ? 'Старица / Затон' : 'Пруд / Озеро малое' };
+  }
+
+  // Для озёр: если это relation (крупный полигон) или известное глубокое озеро — относим к глубоким озёрам (quarry), иначе к мелководным/средним озёрам (tundra_lake)
+  if (el?.type === 'relation' || /большое|глубокое|святое|белое|светлое|круглое|долгое|селигер|ладож|онеж|байкал|имандра|сямозеро|сегозеро|выгозеро|пяозеро|чудск|телецк|увильды|тургояк|ханто|янтарное/i.test(nLower)) {
+    return { wType: 'quarry', typeTag: 'Озеро крупное' };
+  }
+
+  return { wType: 'tundra_lake', typeTag: 'Озеро' };
+}
+
 export async function setLocation(lat, lon, skipReverseGeo = false) {
   const rLat = Math.round(lat * 10000) / 10000;
   const rLon = Math.round(lon * 10000) / 10000;
@@ -39,7 +99,7 @@ export async function setLocation(lat, lon, skipReverseGeo = false) {
   });
   if (mapInstance && mapMarker) {
     mapMarker.setLatLng([rLat, rLon]);
-    const z = clamp(mapInstance.getZoom() || 10, 9, 13);
+    const z = clamp(mapInstance.getZoom() || 10, 8, 13);
     mapInstance.setView([rLat, rLon], z);
   }
   const st = store.getState();
@@ -51,43 +111,20 @@ export async function setLocation(lat, lon, skipReverseGeo = false) {
   if (!skipReverseGeo) {
     resolveReverseGeocode(rLat, rLon);
   }
-  getNearbyWatersAndPlaces(rLat, rLon);
+  getNearbyWatersAndPlaces(rLat, rLon, st.waterRadiusKm || 50);
   await fetchWeather(rLat, rLon, true);
 }
 
+/**
+ * Ревизия 2.0.13 (Пункт 6a): Постоянное автогеопозиционирование убрано!
+ * Карта больше никогда сама не перебрасывает пользователя обратно в прошлую точку, пока он ищет водоём на карте.
+ * Геолокация запрашивается только при явном нажатии кнопки «🎯 Мой GPS».
+ */
 export async function autoDetectStartupLocation() {
-  const s = store.getState();
-  if (!s.hasUserLocation) {
-    try {
-      const ipData = await fetchWithTimeout('https://api.bigdatacloud.net/data/reverse-geocode-client?localityLanguage=ru', 4500);
-      if (ipData && Number.isFinite(ipData.latitude) && Number.isFinite(ipData.longitude)) {
-        const city = ipData.city || ipData.locality || ipData.principalSubdivision || 'Моя точка';
-        store.dispatch({
-          type: 'SET_LOCATION_LABELS',
-          payload: {
-            locCountry: ipData.countryName || 'Россия',
-            locAdmin1: ipData.principalSubdivision || '',
-            locAdmin2: city,
-            locLabel: city
-          }
-        });
-        await setLocation(ipData.latitude, ipData.longitude, true);
-      }
-    } catch (e) {}
-  }
-  if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(
-      pos => {
-        setLocation(pos.coords.latitude, pos.coords.longitude, false);
-      },
-      () => {},
-      { enableHighAccuracy: false, timeout: 6500, maximumAge: 300000 }
-    );
-  }
+  return;
 }
 
 async function resolveReverseGeocode(lat, lon) {
-  // Check offline cities first if close (< 25 km)
   for (const c of RUSSIA_CITIES) {
     if (calcHaversineKm(lat, lon, c.lat, c.lon) <= 25) {
       store.dispatch({
@@ -158,7 +195,6 @@ export async function searchPlaceByQuery(query) {
   const q = (query || '').trim();
   if (!q) return;
 
-  // Offline quick match for famous Russian fishing cities
   const qLower = q.toLowerCase();
   const matchedCity = RUSSIA_CITIES.find(c => c.name.toLowerCase().includes(qLower) || qLower.includes(c.name.toLowerCase()));
   if (matchedCity) {
@@ -261,11 +297,20 @@ export function requestGPS(container) {
   );
 }
 
-export async function getNearbyWatersAndPlaces(lat, lon) {
+/**
+ * Ревизия 2.0.13 (Пункт 7a, 7b):
+ * Определение водоёмов по геолокации в выбранном радиусе «До 50 км» (50000 м) или «До 120 км» (120000 м).
+ * Использует мгновенную офлайн-базу РФ + локализованный в России сервер Overpass API (maps.mail.ru)
+ * с поддержкой радиуса до 120000 метров и таймаутом 90 секунд.
+ */
+export async function getNearbyWatersAndPlaces(lat, lon, customRadiusKm = null) {
   const s = store.getState();
+  const radiusKm = Number.isFinite(customRadiusKm) ? customRadiusKm : (s.waterRadiusKm || 50);
+  const radiusMeters = Math.min(120000, Math.max(20000, Math.round(radiusKm * 1000)));
+  const reqId = ++activeOverpassReqId;
 
-  // 1. Instant offline calculation from Russia Hydrography DB
-  const offlineWaters = getNearestRussianWaters(lat, lon, s.basinCode, s.isCoastal, 10);
+  // 1. Мгновенная выборка из расширенной офлайн-базы гидрографии РФ в выбранном радиусе (50 или 120 км)
+  const offlineWaters = getNearestRussianWaters(lat, lon, s.basinCode, s.isCoastal, 16, radiusKm);
   store.dispatch({ type: 'SET_NEARBY_WATERS', payload: offlineWaters });
   if (!store.getState().selectedWaterName && offlineWaters.length > 0) {
     store.dispatch({
@@ -278,28 +323,35 @@ export async function getNearbyWatersAndPlaces(lat, lon) {
     });
   }
 
-  // 2. Online enrichment from Overpass if available
-  const query = `[out:json][timeout:7];(way["waterway"~"river|stream|canal"]["name"](around:38000,${lat},${lon});way["natural"="water"]["name"](around:38000,${lat},${lon});relation["natural"="water"]["name"](around:38000,${lat},${lon});node["place"~"city|town|village|hamlet"]["name"](around:35000,${lat},${lon}););out center tags 45;`;
+  // 2. Асинхронная подгрузка из локализованного в РФ сервера Overpass API (maps.mail.ru) с таймаутом 90 сек
+  overpassLoading = true;
+  const placeRadiusMeters = Math.min(60000, radiusMeters);
+  const query = `[out:json][timeout:90];(way["waterway"~"river|canal"]["name"](around:${radiusMeters},${lat},${lon});way["natural"="water"]["name"](around:${radiusMeters},${lat},${lon});relation["natural"="water"]["name"](around:${radiusMeters},${lat},${lon});node["place"~"city|town|village|hamlet"]["name"](around:${placeRadiusMeters},${lat},${lon}););out center tags 85;`;
+
   const endpoints = [
-    'https://maps.mail.ru/osm/tools/overpass/api/interpreter?data=' + encodeURIComponent(query),
-    'https://overpass-api.de/api/interpreter?data=' + encodeURIComponent(query),
-    'https://overpass.kumi.systems/api/interpreter?data=' + encodeURIComponent(query)
+    { url: 'https://maps.mail.ru/osm/tools/overpass/api/interpreter?data=' + encodeURIComponent(query), timeoutMs: 90000 },
+    { url: 'https://overpass-api.de/api/interpreter?data=' + encodeURIComponent(query), timeoutMs: 25000 },
+    { url: 'https://overpass.kumi.systems/api/interpreter?data=' + encodeURIComponent(query), timeoutMs: 25000 }
   ];
 
   for (const ep of endpoints) {
     try {
-      const data = await fetchWithTimeout(ep, 6500);
+      const data = await fetchWithTimeout(ep.url, ep.timeoutMs);
+      if (reqId !== activeOverpassReqId) return offlineWaters;
+      if (!data || !Array.isArray(data.elements)) continue;
+
       const seenWater = new Set(offlineWaters.map(w => w.name.toLowerCase()));
       const seenPlace = new Set();
       const waters = [...offlineWaters];
       const places = [];
 
-      for (const el of (data.elements || [])) {
+      for (const el of data.elements) {
         const name = el.tags && (el.tags['name:ru'] || el.tags.name);
         if (!name) continue;
         const elLat = el.lat ?? el.center?.lat;
         const elLon = el.lon ?? el.center?.lon;
         const distKm = (elLat && elLon) ? calcHaversineKm(lat, lon, elLat, elLon) : 9.9;
+        if (distKm > radiusKm + 5) continue;
 
         if (el.tags.place) {
           const key = name.toLowerCase();
@@ -311,22 +363,22 @@ export async function getNearbyWatersAndPlaces(lat, lon) {
           continue;
         }
 
-        const cleanName = name.replace(/^(река|озеро|пруд|ручей)\s+/i, '');
+        const cleanName = name.replace(/^(река|озеро|пруд|ручей|карьер|водохранилище|вдхр\.?)\s+/i, '').trim();
         const wKey = cleanName.toLowerCase();
-        if (seenWater.has(wKey)) continue;
+        if (!cleanName || seenWater.has(wKey)) continue;
         seenWater.add(wKey);
 
-        const isRiver = Boolean(el.tags.waterway);
-        let wType = isRiver
-          ? (/обь|иртыш|енисей|волга|кама|дон|днепр|пур|таз|амур|лена|ангара|печора|ока|урал|вятка|кубань|нева|свирь/i.test(name) ? 'big_river' : 'small_river')
-          : (/море|губа|залив|лиман|бухта/i.test(name) ? (s.isCoastal ? 'sea_gulf' : 'quarry') : (/карьер|вдхр|водохранилище/i.test(name) ? 'quarry' : 'tundra_lake'));
+        const { wType, typeTag } = classifyOsmWaterElement(el, name, s.isCoastal);
         const defDepth = WATER_PROFILES[wType]?.defD || 1.5;
-        const prefix = isRiver ? '🌊 р. ' : '💧 ';
+        const isRiver = wType === 'big_river' || wType === 'small_river';
+        const prefix = isRiver ? '🌊 р. ' : (wType.startsWith('sea') ? '⚓ ' : (wType === 'cooling_reservoir' ? '♨️ ' : '💧 '));
+        const distStr = distKm < 1 ? `${Math.round(distKm * 1000)} м` : `${distKm} км`;
 
         waters.push({
           name: cleanName,
-          label: `${prefix}${cleanName} • ${distKm} км`,
+          label: `${prefix}${cleanName} [${typeTag}] • ${distStr}`,
           wType,
+          typeTag,
           defDepth,
           distKm,
           lat: elLat || lat,
@@ -337,17 +389,19 @@ export async function getNearbyWatersAndPlaces(lat, lon) {
       waters.sort((a, b) => a.distKm - b.distKm);
       places.sort((a, b) => a.distKm - b.distKm);
 
+      overpassLoading = false;
       if (places.length > 0) {
-        store.dispatch({ type: 'SET_NEARBY_PLACES', payload: places.slice(0, 8) });
+        store.dispatch({ type: 'SET_NEARBY_PLACES', payload: places.slice(0, 10) });
       }
       if (waters.length > 0) {
-        const topWaters = waters.slice(0, 10);
+        const topWaters = waters.slice(0, 18);
         store.dispatch({ type: 'SET_NEARBY_WATERS', payload: topWaters });
         return topWaters;
       }
     } catch (e) {}
   }
 
+  overpassLoading = false;
   return offlineWaters;
 }
 
@@ -379,10 +433,10 @@ export async function deleteSpot(id) {
 }
 
 export function renderMap(mapBoxEl) {
-  if (typeof window !== "undefined") window.__KLEV_RENDER_MAP__ = renderMap;
+  if (typeof window !== 'undefined') window.__KLEV_RENDER_MAP__ = renderMap;
   if (!mapBoxEl || typeof L === 'undefined') return;
   const s = store.getState();
-  const targetZoom = mapInstance ? clamp(mapInstance.getZoom(), 9, 13) : 10;
+  const targetZoom = mapInstance ? clamp(mapInstance.getZoom(), 7, 14) : 10;
   if (!mapInstance || mapInstance._container !== mapBoxEl) {
     if (mapInstance) {
       try { mapInstance.remove(); } catch (e) {}
@@ -398,7 +452,6 @@ export function renderMap(mapBoxEl) {
   } else {
     mapInstance.invalidateSize();
     mapMarker.setLatLng([s.lat, s.lon]);
-    mapInstance.setView([s.lat, s.lon], targetZoom);
   }
 }
 
@@ -420,6 +473,7 @@ export function render(container) {
   const isRouteGeo = s.route === 'geo';
   const showDrawer = isRouteGeo ? true : mapOpen;
   const compatibleMethods = getMethodOptions(s.iceState, s.water);
+  const activeRadius = s.waterRadiusKm === 120 ? 120 : 50;
 
   container.innerHTML = `
     <div class="card">
@@ -480,9 +534,17 @@ export function render(container) {
         ` : ''}
       </div>
 
+      <!-- Ревизия 2.0.13 (Пункт 7a, 7b): Выбор радиуса поиска водоёмов «До 50 км» или «До 120 км» -->
       <div style="margin-bottom:10px;">
-        <div style="font-size:var(--fs-xs);color:var(--muted);font-weight:700;margin-bottom:4px;">
-          🌊 ВОДОЁМЫ РЯДОМ ПО ПЕРИМЕТРУ ${s.selectedWaterName ? `(выбран: <b style="color:var(--accent);">${s.selectedWaterName}</b>)` : '(кликните для выбора водоёма)'}:
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:6px;">
+          <div style="font-size:var(--fs-xs);color:var(--muted);font-weight:700;">
+            🌊 ВОДОЁМЫ В РАДИУСЕ <b>ДО ${activeRadius} КМ</b> (${(s.nearbyWaters || []).length} шт.)
+            ${s.selectedWaterName ? `• выбран: <b style="color:var(--accent);">${s.selectedWaterName}</b> [${getWaterTypeShortTag(s.water)}]` : '(кликните для выбора)'}:
+          </div>
+          <div style="display:inline-flex;gap:5px;align-items:center;">
+            <button type="button" class="btn btn-sm ${activeRadius === 50 ? 'btn-accent' : ''}" data-water-radius="50" style="min-height:30px;padding:3px 10px;">📡 До 50 км</button>
+            <button type="button" class="btn btn-sm ${activeRadius === 120 ? 'btn-accent' : ''}" data-water-radius="120" style="min-height:30px;padding:3px 10px;">📡 До 120 км</button>
+          </div>
         </div>
         <div class="chip-scroll-row">
           ${(s.nearbyWaters || []).map(w => {
@@ -492,10 +554,10 @@ export function render(container) {
         </div>
       </div>
 
-      <!-- Батиметрический профиль и глубины водоёма (Point 3) -->
+      <!-- Батиметрический профиль и глубины водоёма -->
       <div class="card" style="background:var(--card);margin-bottom:12px;padding:10px 12px;border:1px solid var(--border);">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:6px;">
-          <span style="font-size:var(--fs-xs);font-weight:800;color:var(--accent);">🗺️ КАРТА ГЛУБИН И РЕЛЬЕФ ДНА: ${s.selectedWaterName || prof.name}</span>
+          <span style="font-size:var(--fs-xs);font-weight:800;color:var(--accent);">🗺️ КАРТА ГЛУБИН И РЕЛЬЕФ ДНА: ${s.selectedWaterName || prof.name} (${getWaterTypeShortTag(s.water)})</span>
           <span class="pill pill-neutral" style="font-size:var(--fs-xs);">Эхолокационный диапазон: ${prof.minD}–${prof.maxD} м</span>
         </div>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;font-size:var(--fs-xs);">
@@ -585,6 +647,17 @@ function bindGeoEvents(container, showDrawer) {
     });
   });
 
+  // Переключение радиуса поиска водоёмов «До 50 км» / «До 120 км» (Пункт 7a)
+  container.querySelectorAll('[data-water-radius]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const nextRadius = parseInt(btn.getAttribute('data-water-radius'), 10) === 120 ? 120 : 50;
+      store.dispatch({ type: 'SET_WATER_RADIUS', payload: nextRadius });
+      const st = store.getState();
+      getNearbyWatersAndPlaces(st.lat, st.lon, nextRadius);
+      showToast(`Радиус поиска водоёмов и видового состава рыб: до ${nextRadius} км`, 'info');
+    });
+  });
+
   container.querySelectorAll('[data-nearby-place]').forEach(btn => {
     btn.addEventListener('click', () => {
       const [latStr, lonStr, name] = btn.getAttribute('data-nearby-place').split(',');
@@ -599,7 +672,7 @@ function bindGeoEvents(container, showDrawer) {
       const wName = btn.getAttribute('data-nearby-name') || '';
       const defD = parseFloat(btn.getAttribute('data-nearby-depth')) || WATER_PROFILES[wType]?.defD || 1.5;
       store.dispatch({ type: 'SET_WATER', payload: { water: wType, depth: defD, selectedWaterName: wName } });
-      showToast(`Выбран водоём: ${wName}`, 'info');
+      showToast(`Выбран водоём: ${wName} (${getWaterTypeShortTag(wType)})`, 'info');
     });
   });
 
@@ -659,9 +732,8 @@ export async function init(container) {
   const spots = await storage.getAllFromStore('spots');
   store.dispatch({ type: 'SET_SAVED_SPOTS', payload: spots });
   const s = store.getState();
-  getNearbyWatersAndPlaces(s.lat, s.lon);
+  getNearbyWatersAndPlaces(s.lat, s.lon, s.waterRadiusKm || 50);
   render(container);
-  autoDetectStartupLocation();
 
   unsub = store.subscribe(
     st => {
@@ -672,6 +744,7 @@ export async function init(container) {
         basinCode: st.basinCode,
         isCoastal: st.isCoastal,
         water: st.water,
+        waterRadiusKm: st.waterRadiusKm,
         selectedWaterName: st.selectedWaterName,
         method: st.method,
         selectedBait: st.selectedBait,
@@ -701,6 +774,7 @@ export const geoModule = {
   searchPlaceByQuery,
   requestGPS,
   getNearbyWatersAndPlaces,
+  classifyOsmWaterElement,
   saveSpot,
   deleteSpot,
   renderMap,
