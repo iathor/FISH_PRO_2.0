@@ -1,15 +1,15 @@
-import { initReleaseUpdater, checkForReleaseUpdate } from './core/updater.js?v=2.0.12';
-import { RU } from './i18n/ru.js?v=2.0.12';
-import { store } from './core/store.js?v=2.0.12';
-import { router } from './core/router.js?v=2.0.12';
-import { installShortcut, initPwa } from './core/pwa.js?v=2.0.12';
-import { showToast } from './ui/components.js?v=2.0.12';
-import { weatherModule } from './modules/weather/weather.module.js?v=2.0.12';
-import { geoModule } from './modules/geo/geo.module.js?v=2.0.12';
-import { fishModule } from './modules/fish/fish.module.js?v=2.0.12';
-import { forecastModule } from './modules/forecast/forecast.module.js?v=2.0.12';
-import { calendarModule } from './modules/calendar/calendar.module.js?v=2.0.12';
-import { logModule } from './modules/log/log.module.js?v=2.0.12';
+import { initReleaseUpdater, checkForReleaseUpdate } from './core/updater.js?v=2.0.13';
+import { RU } from './i18n/ru.js?v=2.0.13';
+import { store } from './core/store.js?v=2.0.13';
+import { router } from './core/router.js?v=2.0.13';
+import { installShortcut, initPwa } from './core/pwa.js?v=2.0.13';
+import { showToast } from './ui/components.js?v=2.0.13';
+import { weatherModule } from './modules/weather/weather.module.js?v=2.0.13';
+import { geoModule } from './modules/geo/geo.module.js?v=2.0.13';
+import { fishModule } from './modules/fish/fish.module.js?v=2.0.13';
+import { forecastModule } from './modules/forecast/forecast.module.js?v=2.0.13';
+import { calendarModule } from './modules/calendar/calendar.module.js?v=2.0.13';
+import { logModule } from './modules/log/log.module.js?v=2.0.13';
 
 // Немедленно помечаем успешную загрузку модульного ядра, чтобы аварийный таймер в index.html не срабатывал
 if (typeof window !== 'undefined') {
@@ -64,13 +64,25 @@ function updateHeaderUI() {
     const day = s.weatherDays[s.dayIdx] || s.weatherDays[2] || s.weatherDays[0];
     const ice = day?.iceState || s.iceState;
     const thick = day?.iceThickness ?? s.iceThickness;
-    seasonStrip.className = 'season-strip ' + (ice === 'ice_safe' ? 'ice-safe' : (ice === 'ice_danger' ? 'ice-danger' : 'open-water'));
+    const subState = day?.iceSubState || '';
+    const customNote = day?.iceNote || '';
+
+    const stripCls = ice === 'ice_safe'
+      ? 'ice-safe'
+      : (ice === 'ice_danger' ? 'ice-danger' : (ice === 'ice_slush' ? 'ice-slush' : 'open-water'));
+    seasonStrip.className = 'season-strip ' + stripCls;
+
     if (ice === 'ice_safe') {
-      seasonStrip.innerHTML = `<span>❄️ Подлёдный сезон: безопасный лёд ~${thick} см</span><span>💧 Вода ~${day?.waterTemp ?? 0.5}°C</span>`;
+      seasonStrip.innerHTML = `<span>${customNote || `❄️ Подлёдный сезон: безопасный лёд ~${thick} см`}</span><span>💧 Вода ~${day?.waterTemp ?? 0.5}°C</span>`;
     } else if (ice === 'ice_danger') {
-      seasonStrip.innerHTML = `<span>⚠️ Опасный ледостав / шуга (~${thick} см) — выход на лёд запрещён!</span><span>💧 Вода ~${day?.waterTemp ?? 0.8}°C</span>`;
+      const msg = subState === 'spring_rotten_ice'
+        ? (customNote || `⚠️ Весенний рыхлый лёд и промоины (~${thick} см) — выход на лёд запрещён!`)
+        : (customNote || `⚠️ Опасный тонкий лёд (~${thick} см) — выход на лёд запрещён!`);
+      seasonStrip.innerHTML = `<span>${msg}</span><span>💧 Вода ~${day?.waterTemp ?? 0.8}°C</span>`;
+    } else if (ice === 'ice_slush') {
+      seasonStrip.innerHTML = `<span>${customNote || '🌊❄️ Шуга и забереги (колебания -3..+3°C, ледостава нет)'}</span><span>💧 Вода ~${day?.waterTemp ?? 1.2}°C</span>`;
     } else {
-      seasonStrip.innerHTML = `<span>🌊 Открытая вода (льда нет)</span><span>💧 Вода ~${day?.waterTemp ?? 10}°C</span>`;
+      seasonStrip.innerHTML = `<span>${customNote || '🌊 Открытая вода (льда нет)'}</span><span>💧 Вода ~${day?.waterTemp ?? 10}°C</span>`;
     }
   }
 }
@@ -120,9 +132,31 @@ function bindGlobalShellEvents() {
     });
   }
 
+  const moreBtn = document.getElementById('navMoreBtn');
+  const morePopup = document.getElementById('navMorePopup');
+  const closeMorePopup = () => {
+    if (morePopup) morePopup.classList.remove('open');
+    if (moreBtn) moreBtn.setAttribute('aria-expanded', 'false');
+  };
+
+  if (moreBtn && morePopup) {
+    moreBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const willOpen = !morePopup.classList.contains('open');
+      morePopup.classList.toggle('open', willOpen);
+      moreBtn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+    });
+    document.addEventListener('click', (e) => {
+      if (!morePopup.contains(e.target) && e.target !== moreBtn) {
+        closeMorePopup();
+      }
+    });
+  }
+
   document.querySelectorAll('[data-nav-tab]').forEach(btn => {
     btn.addEventListener('click', () => {
       const tab = btn.getAttribute('data-nav-tab');
+      closeMorePopup();
       if (tab === 'profile') {
         fishModule.openOnboardingModal(true);
       } else {
@@ -133,7 +167,7 @@ function bindGlobalShellEvents() {
 }
 
 // ==========================================
-// DYNAMIC HEADER HEIGHT & SHRINKING FISH BUTTONS (MINIATURES ON SCROLL)
+// DYNAMIC HEADER HEIGHT & SMOOTH SHRINKING FISH BUTTONS (MINIATURES ON SCROLL & FORECAST TAB)
 // ==========================================
 function syncHeaderLayout() {
   const header = document.querySelector('.app-header');
@@ -178,11 +212,19 @@ function clearFishCardInlineStyles(dockWrap) {
 }
 
 let cachedFullDockH = 212;
+let scrollRafPending = false;
 
+/**
+ * Ревизия 2.0.13 (Пункты 2a и 2b):
+ * - 2b: На вкладке «Прогноз» (и «Погода» / «Календарь») сохраняем видимость #fishResultsArea,
+ *   внутри которого лежат #fishStripPlaceholder и #fishStripDockWrap, чтобы миниатюрная лента рыб всегда была закреплена сверху!
+ * - 2a: Уменьшение карточек рыб при свайпе вверх сделано плавным (увеличен диапазон интерполяции maxDelta = 175px + кубическое сглаживание easeOutCubic + requestAnimationFrame).
+ */
 function syncFishDockState() {
   const headerH = syncHeaderLayout();
   const route = store.getState().route || 'dashboard';
   const secFish = document.getElementById('secFish');
+  const resultsArea = document.getElementById('fishResultsArea');
   const sentinel = document.getElementById('fishDockSentinel');
   const placeholder = document.getElementById('fishStripPlaceholder');
   const dockWrap = document.getElementById('fishStripDockWrap');
@@ -198,7 +240,12 @@ function syncFishDockState() {
   if (isDedicatedFishTab) {
     if (cardEl) {
       Array.from(cardEl.children).forEach(ch => {
-        if (ch !== placeholder && ch !== sentinel) ch.style.display = 'none';
+        // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ (Пункт 2b): НЕ скрываем #fishResultsArea, так как внутри него находится мини-лента рыб!
+        if (ch !== placeholder && ch !== sentinel && ch !== resultsArea && ch.id !== 'fishResultsArea') {
+          ch.style.display = 'none';
+        } else {
+          ch.style.display = '';
+        }
       });
       cardEl.style.padding = '0';
       cardEl.style.border = 'none';
@@ -210,7 +257,7 @@ function syncFishDockState() {
     placeholder.style.minHeight = '0px';
     dockWrap.style.setProperty('--shrink', '1');
     dockWrap.classList.add('docked-mini');
-    const dockH = Math.ceil(dockWrap.getBoundingClientRect().height) || 46;
+    const dockH = Math.ceil(dockWrap.getBoundingClientRect().height) || 48;
     document.body.style.paddingTop = `${headerH + dockH}px`;
     return;
   }
@@ -255,21 +302,24 @@ function syncFishDockState() {
   }
 
   const fullH = cachedFullDockH || 212;
-  const miniH = 46;
-  const maxDelta = Math.max(80, fullH - miniH);
-  const p = Math.min(1, Math.max(0, delta / maxDelta));
+  const miniH = 48;
+  // Увеличенная дистанция свайпа (180px) и плавная функция сглаживания (Пункт 2a)
+  const maxDelta = Math.max(175, fullH - miniH + 35);
+  const rawP = Math.min(1, Math.max(0, delta / maxDelta));
+  const p = Number((rawP * (2 - rawP)).toFixed(3)); // Плавное квадратичное сглаживание без резких скачков
 
   placeholder.style.height = `${fullH}px`;
   placeholder.style.minHeight = `${fullH}px`;
 
-  if (p < 1) {
+  if (rawP < 0.99) {
     if (dockWrap.classList.contains('docked-mini')) {
       dockWrap.classList.remove('docked-mini');
     }
-    const targetDockH = Math.round(fullH - p * maxDelta);
-    const targetCardH = Math.max(36, targetDockH - 12);
-    const fade = Math.max(0, 1 - p * 1.8);
-    const extraMaxH = Math.round(Math.max(0, 1 - p * 1.4) * 34);
+    const heightSpan = fullH - miniH;
+    const targetDockH = Math.round(fullH - p * heightSpan);
+    const targetCardH = Math.max(38, targetDockH - 12);
+    const fade = Math.max(0, 1 - p * 1.45);
+    const extraMaxH = Math.round(Math.max(0, 1 - p * 1.25) * 34);
 
     dockWrap.style.position = 'fixed';
     dockWrap.style.top = `${headerH}px`;
@@ -285,15 +335,15 @@ function syncFishDockState() {
 
     dockWrap.querySelectorAll('.fish-card').forEach(c => {
       const padV = Math.round(10 - p * 5);
-      const minW = Math.round(168 - p * 56);
+      const minW = Math.round(168 - p * 54);
       c.style.height = `${targetCardH}px`;
       c.style.minWidth = `${minW}px`;
       c.style.padding = `${padV}px 8px`;
       c.style.overflow = 'hidden';
     });
     dockWrap.querySelectorAll('.fish-img-wrap').forEach(img => {
-      const w = Math.round(118 - p * 80);
-      const h = Math.round(52 - p * 28);
+      const w = Math.round(118 - p * 76);
+      const h = Math.round(52 - p * 26);
       img.style.width = `${w}px`;
       img.style.height = `${h}px`;
       img.style.marginTop = `${Math.round(4 * (1 - p))}px`;
@@ -302,8 +352,8 @@ function syncFishDockState() {
       el.style.opacity = String(fade.toFixed(2));
       el.style.maxHeight = `${extraMaxH}px`;
       el.style.overflow = 'hidden';
-      el.style.margin = p > 0.4 ? '0' : '';
-      el.style.pointerEvents = p > 0.3 ? 'none' : '';
+      el.style.margin = p > 0.5 ? '0' : '';
+      el.style.pointerEvents = p > 0.35 ? 'none' : '';
     });
   } else {
     clearFishCardInlineStyles(dockWrap);
@@ -342,7 +392,13 @@ function bootstrapApp() {
   syncFishDockState();
 
   window.addEventListener('scroll', () => {
-    syncFishDockState();
+    if (!scrollRafPending) {
+      scrollRafPending = true;
+      requestAnimationFrame(() => {
+        scrollRafPending = false;
+        syncFishDockState();
+      });
+    }
   }, { passive: true });
 
   window.addEventListener('resize', () => {
@@ -379,6 +435,7 @@ function bootstrapApp() {
       showAllSpecies: s.showAllSpecies,
       onlyFavoritesFilter: s.onlyFavoritesFilter,
       water: s.water,
+      waterRadiusKm: s.waterRadiusKm,
       route: s.route
     }),
     () => {
