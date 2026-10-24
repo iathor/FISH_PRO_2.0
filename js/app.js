@@ -1,18 +1,18 @@
-import { initReleaseUpdater, checkForReleaseUpdate } from './core/updater.js?v=2.0.16';
-import { RU } from './i18n/ru.js?v=2.0.16';
-import { events } from './core/events.js?v=2.0.16';
-import { store } from './core/store.js?v=2.0.16';
-import { router } from './core/router.js?v=2.0.16';
-import { installShortcut, initPwa } from './core/pwa.js?v=2.0.16';
-import { initTelegramMiniApp, clearIncomingShareTokenFromUrl, triggerHaptic } from './core/telegram.js?v=2.0.16';
-import { showToast } from './ui/components.js?v=2.0.16';
-import { weatherModule } from './modules/weather/weather.module.js?v=2.0.16';
-import { geoModule } from './modules/geo/geo.module.js?v=2.0.16';
-import { fishModule } from './modules/fish/fish.module.js?v=2.0.16';
-import { forecastModule } from './modules/forecast/forecast.module.js?v=2.0.16';
-import { calendarModule } from './modules/calendar/calendar.module.js?v=2.0.16';
-import { logModule } from './modules/log/log.module.js?v=2.0.16';
-import { circleModule } from './modules/circle/circle.module.js?v=2.0.16';
+import { initReleaseUpdater, checkForReleaseUpdate } from './core/updater.js?v=2.0.161';
+import { RU } from './i18n/ru.js?v=2.0.161';
+import { events } from './core/events.js?v=2.0.161';
+import { store } from './core/store.js?v=2.0.161';
+import { router } from './core/router.js?v=2.0.161';
+import { installShortcut, initPwa } from './core/pwa.js?v=2.0.161';
+import { initTelegramMiniApp, clearIncomingShareTokenFromUrl, triggerHaptic } from './core/telegram.js?v=2.0.161';
+import { showToast } from './ui/components.js?v=2.0.161';
+import { weatherModule } from './modules/weather/weather.module.js?v=2.0.161';
+import { geoModule } from './modules/geo/geo.module.js?v=2.0.161';
+import { fishModule } from './modules/fish/fish.module.js?v=2.0.161';
+import { forecastModule } from './modules/forecast/forecast.module.js?v=2.0.161';
+import { calendarModule } from './modules/calendar/calendar.module.js?v=2.0.161';
+import { logModule } from './modules/log/log.module.js?v=2.0.161';
+import { circleModule } from './modules/circle/circle.module.js?v=2.0.161';
 
 if (typeof window !== 'undefined') {
   window.__KLEV_BOOTSTRAPPED__ = true;

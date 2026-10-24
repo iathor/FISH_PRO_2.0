@@ -9,7 +9,7 @@
   <meta name="apple-mobile-web-app-title" content="Клёв ПРО 2.0">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Клёв ПРО 2.0 • Прогноз клёва, Круг и Атлас Ихтиофауны РФ</title>
-  <link rel="manifest" href="manifest.json?v=2.0.16">
+  <link rel="manifest" href="manifest.json?v=2.0.1611">
   <link id="dynamicFavicon" rel="icon" type="image/png" sizes="180x180" href="apple-touch-icon.png">
   <link id="dynamicTouchIcon" rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
   <script>
@@ -45,7 +45,7 @@
           caches.keys().then(function(keys) {
             return Promise.all(
               keys
-                .filter(function(k) { return k !== 'klev-pro-static-v2.0.16'; })
+                .filter(function(k) { return k !== 'klev-pro-static-v2.0.1611'; })
                 .map(function(k) { return caches.delete(k); })
             );
           }).then(function() {
@@ -55,10 +55,10 @@
       } catch (e) {}
     })();
   </script>
-  <link rel="stylesheet" href="css/tokens.css?v=2.0.16">
-  <link rel="stylesheet" href="css/base.css?v=2.0.16">
-  <link rel="stylesheet" href="css/components.css?v=2.0.16">
-  <link rel="stylesheet" href="css/layout.css?v=2.0.16">
+  <link rel="stylesheet" href="css/tokens.css?v=2.0.1611">
+  <link rel="stylesheet" href="css/base.css?v=2.0.1611">
+  <link rel="stylesheet" href="css/components.css?v=2.0.1611">
+  <link rel="stylesheet" href="css/layout.css?v=2.0.1611">
   <!-- Неблокирующая асинхронная загрузка картографического движка Leaflet -->
   <script>
     (function() {
@@ -107,7 +107,7 @@
       <div class="header-controls">
         <button type="button" class="btn btn-icon btn-install-header" id="installAppBtn" data-install-app aria-label="Установить приложение" title="📲 Ярлык на экран">📲</button>
         <button type="button" class="btn btn-icon" id="headerModeBtn" aria-label="Режим интерфейса (Новичок / Рыбак / Профи)" title="Режим: 🟡 Рыбак (нажмите для смены: Новичок / Рыбак / Профи)">🟡</button>
-        <button type="button" class="btn btn-icon" id="headerVersionBtn" aria-label="Что нового в версии и проверка обновлений" title="Что нового в версии 2.0.16">📦</button>
+        <button type="button" class="btn btn-icon" id="headerVersionBtn" aria-label="Что нового в версии и проверка обновлений" title="Что нового в версии 2.0.161">📦</button>
         <button type="button" class="btn btn-icon" id="headerProfileBtn" aria-label="Профиль рыболова" title="Профиль рыболова">⚙️</button>
         <button type="button" class="btn btn-icon" id="headerRefreshBtn" aria-label="Обновить метеоданные и проверить релиз" title="Обновить метеоданные и проверить обновление">🔄</button>
         <button type="button" class="btn btn-icon" id="headerThemeBtn" aria-label="Переключить тему" title="Переключить тему">🌓</button>
@@ -150,7 +150,7 @@
     </div>
   </nav>
 
-  <script type="module" src="js/app.js?v=2.0.16"></script>
+  <script type="module" src="js/app.js?v=2.0.1611"></script>
   <script>
     // Защитный сторожевой таймер (только на случай полного обрыва загрузки скрипта в старом Service Worker)
     setTimeout(function() {
@@ -161,7 +161,7 @@
           box.className = 'card';
           box.style.cssText = 'border-color:var(--accent);text-align:center;padding:18px;margin-top:24px;';
           box.innerHTML =
-            '<div style="font-size:17px;font-weight:800;margin-bottom:8px;">🚀 Доступна новая сборка «Клёв ПРО 2.0.16»</div>' +
+            '<div style="font-size:17px;font-weight:800;margin-bottom:8px;">🚀 Доступна новая сборка «Клёв ПРО 2.0.161»</div>' +
             '<p style="font-size:14px;color:var(--muted);margin-bottom:14px;line-height:1.45;">Обнаружены устаревшие файлы в кэше телефона. Нажмите кнопку ниже, чтобы обновить модули приложения (ваши точки и уловы сохранятся).</p>' +
             '<button type="button" class="btn btn-good" id="emergencyResetCacheBtn" style="width:100%;">✅ Обновить кэш и запустить новую версию</button>';
           mainEl.prepend(box);
@@ -185,7 +185,7 @@
                   }
                 })
                 .finally(function() {
-                  window.location.replace(window.location.pathname + '?v=2.0.16&reset=' + Date.now());
+                  window.location.replace(window.location.pathname + '?v=2.0.161&reset=' + Date.now());
                 });
             };
           }

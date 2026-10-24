@@ -1,11 +1,11 @@
-import { RU } from '../../i18n/ru.js?v=2.0.16';
-import { events } from '../../core/events.js?v=2.0.16';
-import { storage } from '../../core/storage.js?v=2.0.16';
-import { store } from '../../core/store.js?v=2.0.16';
-import { fetchWithTimeout, fallbackChain } from '../../core/http.js?v=2.0.16';
-import { formatLocalYYYYMMDD, fmtHM, fmtDeltaPress } from '../../core/format.js?v=2.0.16';
-import { WATER_PROFILES } from '../../data/waters.js?v=2.0.16';
-import { createPill, showToast } from '../../ui/components.js?v=2.0.16';
+import { RU } from '../../i18n/ru.js?v=2.0.161';
+import { events } from '../../core/events.js?v=2.0.161';
+import { storage } from '../../core/storage.js?v=2.0.161';
+import { store } from '../../core/store.js?v=2.0.161';
+import { fetchWithTimeout, fallbackChain } from '../../core/http.js?v=2.0.161';
+import { formatLocalYYYYMMDD, fmtHM, fmtDeltaPress } from '../../core/format.js?v=2.0.161';
+import { WATER_PROFILES } from '../../data/waters.js?v=2.0.161';
+import { createPill, showToast } from '../../ui/components.js?v=2.0.161';
 
 const DIRS = ['С', 'СВ', 'В', 'ЮВ', 'Ю', 'ЮЗ', 'З', 'СЗ'];
 
@@ -217,6 +217,76 @@ export function evaluateDayIce(historyMeanTemps, tDayMax, tNightMin, waterTemp, 
     iceSubState: 'open_water',
     iceThickness: 0,
     iceNote: `🌊 Открытая вода (льда нет, ${flowLabel})`
+  };
+}
+
+/**
+ * Ревизия 2.0.161: Расчёт комплексного Индекса безопасности льда (0–100) и порогов нагрузки (Пешком vs Снегоход/Мотобуксировщик)
+ */
+export function computeIceSafetyIndex(day, waterType = "small_river") {
+  const prof = WATER_PROFILES[waterType] || WATER_PROFILES.small_river;
+  const flow = Number.isFinite(prof.flow) ? prof.flow : 1.0;
+  const iceState = day?.iceState || "open_water";
+  const thick = Number(day?.iceThickness) || 0;
+  const wind = Number(day?.windMax) || 3;
+  const tDay = Number(day?.tDay) || 0;
+
+  if (iceState === "open_water") {
+    return {
+      index: 100,
+      hasIce: false,
+      footSafe: false,
+      sledSafe: false,
+      minFootCm: flow >= 1.5 ? 12 : 10,
+      minSledCm: flow >= 1.5 ? 25 : 20,
+      statusText: "Открытая вода (ледостава нет)",
+      vehicleVerdict: "Ловля с берега или лодки (спасжилет обязателен при волне)",
+      recommendation: "Льда нет. При выходе на лодке учитывайте ветер (" + wind + " м/с) и температуру воды (~" + (day?.waterTemp ?? 8) + "°C)."
+    };
+  }
+
+  const minFootCm = flow >= 1.8 ? 12 : (flow >= 1.1 ? 10 : 8);
+  const minSledCm = flow >= 1.8 ? 25 : (flow >= 1.1 ? 22 : 18);
+
+  if (iceState === "ice_danger" || iceState === "ice_slush") {
+    const rawIdx = iceState === "ice_slush" ? 25 : Math.max(5, Math.min(38, Math.round((thick / minFootCm) * 35)));
+    return {
+      index: rawIdx,
+      hasIce: true,
+      footSafe: false,
+      sledSafe: false,
+      minFootCm,
+      minSledCm,
+      statusText: iceState === "ice_slush" ? "Шуга и забереги (выход запрещён)" : `Опасный лёд ~${thick} см (индекс ${rawIdx}/100)`,
+      vehicleVerdict: "⛔ Пешком и на технике ЗАПРЕЩЕНО!",
+      recommendation: `Несущая способность льда критически низкая (~${thick} см при норме от ${minFootCm} см на течении). Допустима только береговая ловля!`
+    };
+  }
+
+  // ice_safe
+  let score = Math.min(98, Math.round(55 + (thick - minFootCm) * 2.2));
+  if (flow >= 1.8) score -= 8;
+  if (tDay > 0) score -= 12;
+  if (wind >= 9) score -= 6;
+  score = Math.max(45, Math.min(98, score));
+
+  const footSafe = thick >= minFootCm && tDay <= 2;
+  const sledSafe = thick >= minSledCm && tDay <= 0;
+
+  return {
+    index: score,
+    hasIce: true,
+    footSafe,
+    sledSafe,
+    minFootCm,
+    minSledCm,
+    statusText: `Безопасный лёд ~${thick} см (индекс надёжности ${score}/100)`,
+    vehicleVerdict: sledSafe
+      ? `🚶 Пешком: РАЗРЕШЕНО (≥${minFootCm} см) • 🛷 Мотобуксировщик/снегоход: РАЗРЕШЕНО (≥${minSledCm} см)`
+      : `🚶 Пешком со спасалками: РАЗРЕШЕНО (≥${minFootCm} см) • 🛷 Техника/снегоход: ОПАСНО (нужно ≥${minSledCm} см!)`,
+    recommendation: sledSafe
+      ? "Монолитный лёд достаточной толщины для пешего перехода и лёгкой мототехники. Избегайте устьев притоков и быстрин."
+      : `Толщина ~${thick} см достаточна для одиночного пешего выхода с пешнёй и спасалками, но выезд на мотобуксировщике или снегоходе запрещён (требуется от ${minSledCm} см).`
   };
 }
 
@@ -858,9 +928,23 @@ export function render(container) {
         </div>
       </div>
 
-      <div style="margin-bottom:10px;padding:9px 12px;border-radius:var(--r-sm);background:${iceBannerTone};border:1px solid var(--border);font-size:var(--fs-xs);font-weight:800;">
-        ${iceBannerText} • Водоём: <b>${s.selectedWaterName || prof.shortName}</b> (${flowLabel})
-      </div>
+      ${(() => {
+        const safety = computeIceSafetyIndex(day, s.water);
+        return `
+          <div style="margin-bottom:10px;padding:10px 12px;border-radius:var(--r-sm);background:${iceBannerTone};border:1px solid var(--border);font-size:var(--fs-xs);">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;font-weight:800;">
+              <span>${iceBannerText} • Водоём: <b>${s.selectedWaterName || prof.shortName}</b> (${flowLabel})</span>
+              <span class="pill ${safety.footSafe || !safety.hasIce ? 'pill-good' : 'pill-bad'}">🛡️ Индекс льда: ${safety.index}/100</span>
+            </div>
+            <div style="margin-top:5px;font-weight:700;color:var(--text);">
+              ${safety.vehicleVerdict}
+            </div>
+            <div style="margin-top:3px;color:var(--muted);">
+              ℹ️ ${safety.recommendation}
+            </div>
+          </div>
+        `;
+      })()}
 
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;">
         <div class="card" style="background:var(--card);padding:10px 12px;">
@@ -951,6 +1035,7 @@ export function destroy() {
 
 export const weatherModule = {
   computeMoon,
+  computeIceSafetyIndex,
   computeWaterTempSeries,
   evaluateDayIce,
   recalculateIceForWaterType,
