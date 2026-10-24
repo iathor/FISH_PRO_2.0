@@ -1,12 +1,12 @@
-import { MAP_LAYERS, getCompatibleMethods } from '../../core/config.js?v=2.0.161';
-import { events } from '../../core/events.js?v=2.0.161';
-import { storage } from '../../core/storage.js?v=2.0.161';
-import { store } from '../../core/store.js?v=2.0.161';
-import { fetchWithTimeout } from '../../core/http.js?v=2.0.161';
-import { installShortcut, syncInstallButtons } from '../../core/pwa.js?v=2.0.161';
-import { triggerHaptic } from '../../core/telegram.js?v=2.0.161';
-import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.0.161';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.0.161';
+import { MAP_LAYERS, getCompatibleMethods } from '../../core/config.js?v=2.0.162';
+import { events } from '../../core/events.js?v=2.0.162';
+import { storage } from '../../core/storage.js?v=2.0.162';
+import { store } from '../../core/store.js?v=2.0.162';
+import { fetchWithTimeout } from '../../core/http.js?v=2.0.162';
+import { installShortcut, syncInstallButtons } from '../../core/pwa.js?v=2.0.162';
+import { triggerHaptic } from '../../core/telegram.js?v=2.0.162';
+import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.0.162';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.0.162';
 import {
   RUSSIA_CITIES,
   RUSSIA_WATERS,
@@ -14,12 +14,12 @@ import {
   getNearestRussianSettlements,
   getNearestRussianWaters,
   getWaterTypeShortTag
-} from '../../data/russia-waters.js?v=2.0.161';
-import { FISH_DB } from '../../data/species.js?v=2.0.161';
-import { createPill, showToast } from '../../ui/components.js?v=2.0.161';
-import { fetchWeather } from '../weather/weather.module.js?v=2.0.161';
-import { calcDayBest } from '../forecast/forecast.module.js?v=2.0.161';
-import { computeHexPolygonForCircle, getEffectiveCircleRadiusKm } from '../circle/circle.module.js?v=2.0.161';
+} from '../../data/russia-waters.js?v=2.0.162';
+import { FISH_DB } from '../../data/species.js?v=2.0.162';
+import { createPill, showToast } from '../../ui/components.js?v=2.0.162';
+import { fetchWeather } from '../weather/weather.module.js?v=2.0.162';
+import { calcDayBest } from '../forecast/forecast.module.js?v=2.0.162';
+import { computeHexPolygonForCircle, getEffectiveCircleRadiusKm } from '../circle/circle.module.js?v=2.0.162';
 
 let mapInstance = null;
 let mapMarker = null;
@@ -930,8 +930,7 @@ export function render(container) {
   const s = store.getState();
   const availableWaters = getAvailableWaterTypes(s.basinCode, s.lat, s.lon);
   const prof = WATER_PROFILES[s.water] || WATER_PROFILES.small_river;
-  const isRouteGeo = s.route === 'geo';
-  const showDrawer = isRouteGeo ? true : mapOpen;
+  const showDrawer = true;
   const compatibleMethods = getMethodOptions(s.iceState, s.water);
   const activeRadius = s.waterRadiusKm === 120 ? 120 : 50;
   const isProMode = s.appMode === 'pro';
@@ -942,22 +941,20 @@ export function render(container) {
 
   container.innerHTML = `
     <div class="card">
-      <div class="section-head">
-        <div>
+      <div style="margin-bottom:8px;">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px;">
           <span class="section-title">📍 Водоём, карта глубин и снасть</span>
-          <div style="font-size:var(--fs-xs);color:var(--accent);font-weight:700;margin-top:2px;">
-            ${s.basinName} (${s.lat.toFixed(2)}°N, ${s.lon.toFixed(2)}°E)
-          </div>
+          <span style="font-size:var(--fs-xs);color:var(--accent);font-weight:700;">
+            ${s.lat.toFixed(2)}°N, ${s.lon.toFixed(2)}°E
+          </span>
         </div>
-        <div class="toolbar-row">
-          ${!isRouteGeo ? `<button type="button" class="btn btn-sm btn-accent" id="geoToggleMapBtn">${showDrawer ? '🗺 Свернуть карту ▲' : '🗺 Карта и поиск ▼'}</button>` : ''}
-          <button type="button" class="btn btn-sm ${inspectMode ? 'btn-good' : ''}" id="geoInspectModeBtn" title="Тап по любой точке карты покажет, какая рыба там клюёт, без смены вашей основной локации">
-            ${inspectMode ? '🔍 Разведка ВКЛ (тап по карте)' : '🔍 Что здесь клюёт?'}
-          </button>
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-top:8px;">
           <button type="button" class="btn btn-sm" id="geoGpsBtn">🎯 Мой GPS</button>
+          <button type="button" class="btn btn-sm ${inspectMode ? 'btn-good' : ''}" id="geoInspectModeBtn" title="Тап по любой точке карты покажет, какая рыба там клюёт, без смены вашей основной локации">
+            ${inspectMode ? '🔍 Разведка ВКЛ' : '🔍 Что здесь клюёт?'}
+          </button>
           <button type="button" class="btn btn-sm" id="geoSaveSpotBtn">⭐ В закладки</button>
           <button type="button" class="btn btn-sm" id="geoShareCrewBtn" title="Отправить точку в Круг (±5 км) или Экипаж (72 ч)">🌊 В Круг / Экипаж</button>
-          <button type="button" class="btn btn-sm btn-install" data-install-app>📲 Ярлык на экран</button>
         </div>
       </div>
 
@@ -975,22 +972,22 @@ export function render(container) {
           `).join('')}
         </div>
 
-        <!-- Слои приватности и навигации «Клёв ПРО: Круг» -->
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:8px;">
-          <div class="chip-scroll-row" style="padding-bottom:0;">
-            <button type="button" class="w-chip ${visibleMapLayers.mySpots ? 'active' : ''}" data-toggle-overlay="mySpots">
-              🔒 Мои точки (${s.savedSpots.length})
+        <!-- Слои приватности и навигации «Клёв ПРО: Круг» (без обрезки по краям экрана) -->
+        <div style="margin-bottom:8px;">
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:5px;">
+            <button type="button" class="btn btn-sm ${visibleMapLayers.mySpots ? 'btn-accent' : ''}" data-toggle-overlay="mySpots" style="padding:4px 6px;font-size:11.5px;min-height:32px;">
+              🔒 Точки (${s.savedSpots.length})
             </button>
-            <button type="button" class="w-chip ${visibleMapLayers.circleBlur ? 'active' : ''}" data-toggle-overlay="circleBlur">
-              👥 Круг ±5 км (${circleBlurCount})
+            <button type="button" class="btn btn-sm ${visibleMapLayers.circleBlur ? 'btn-accent' : ''}" data-toggle-overlay="circleBlur" style="padding:4px 6px;font-size:11.5px;min-height:32px;">
+              👥 Круг ±5км (${circleBlurCount})
             </button>
-            <button type="button" class="w-chip ${visibleMapLayers.crewExact ? 'active' : ''}" data-toggle-overlay="crewExact">
-              🌊 Экипаж 72ч (${crewExactCount})
+            <button type="button" class="btn btn-sm ${visibleMapLayers.crewExact ? 'btn-accent' : ''}" data-toggle-overlay="crewExact" style="padding:4px 6px;font-size:11.5px;min-height:32px;">
+              🌊 Экипаж (${crewExactCount})
             </button>
           </div>
-          <span style="font-size:11px;color:${inspectMode ? 'var(--good)' : 'var(--muted)'};font-weight:700;">
+          <div style="font-size:11px;color:${inspectMode ? 'var(--good)' : 'var(--muted)'};font-weight:700;margin-top:4px;">
             ${inspectMode ? '🔍 Тапните на карту для мгновенной разведки видов без смены дома' : '📍 Тап по карте переносит основную точку'}
-          </span>
+          </div>
         </div>
 
         <div id="mapBox" role="application" aria-label="Карта выбора водоёма"></div>

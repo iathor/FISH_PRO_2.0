@@ -1,7 +1,8 @@
-import { store } from './store.js?v=2.0.161';
-import { renderMap } from '../modules/geo/geo.module.js?v=2.0.161';
+import { store } from './store.js?v=2.0.162';
+import { renderMap } from '../modules/geo/geo.module.js?v=2.0.162';
 
-const VALID_ROUTES = ['dashboard', 'fish', 'geo', 'weather', 'forecast', 'calendar', 'log', 'circle'];
+const VALID_ROUTES = ['geo', 'weather', 'fish', 'forecast', 'circle', 'log', 'calendar'];
+const DEFAULT_ROUTE = 'forecast';
 
 export const router = {
   init() {
@@ -20,7 +21,8 @@ export const router = {
       return;
     }
     const cleanRoute = raw.split('?')[0];
-    const route = VALID_ROUTES.includes(cleanRoute) ? cleanRoute : 'dashboard';
+    // Если старая ссылка вела на #/dashboard или хэш пуст — открываем Прогноз (без перегруженного Обзора)
+    const route = VALID_ROUTES.includes(cleanRoute) ? cleanRoute : DEFAULT_ROUTE;
     if (store.getState().route !== route) {
       store.dispatch({ type: 'SET_ROUTE', payload: route });
     }
@@ -28,7 +30,7 @@ export const router = {
   },
 
   navigate(route) {
-    const target = VALID_ROUTES.includes(route) ? route : 'dashboard';
+    const target = VALID_ROUTES.includes(route) ? route : DEFAULT_ROUTE;
     if (window.location.hash !== `#/${target}`) {
       history.replaceState(null, '', `#/${target}`);
     }
@@ -37,20 +39,12 @@ export const router = {
   },
 
   applyVisibility(route) {
-    const appMode = store.getState().appMode || 'angler';
     document.querySelectorAll('[data-route-section]').forEach(sec => {
       const secName = sec.getAttribute('data-route-section');
-      if (route === 'dashboard') {
-        // В режиме «🟢 Новичок» на Обзоре оставляем только Карту, Рыб и Прогноз (со светофором Новичка), чтобы не перегружать экран
-        if (appMode === 'novice' && (secName === 'calendar' || secName === 'circle')) {
-          sec.style.display = 'none';
-        } else {
-          sec.style.display = '';
-        }
-      } else if (secName === route) {
+      if (secName === route) {
         sec.style.display = '';
-      } else if (secName === 'fish' && ['forecast', 'weather', 'calendar'].includes(route)) {
-        // Keep fish section in DOM so its .fish-card buttons dock in miniature mode
+      } else if (secName === 'fish' && ['forecast', 'calendar'].includes(route)) {
+        // На вкладках «Прогноз» и «Календарь» оставляем компактную полоску быстрого переключения целевой рыбы
         sec.style.display = '';
       } else {
         sec.style.display = 'none';
@@ -61,18 +55,18 @@ export const router = {
     });
     const moreBtn = document.getElementById('navMoreBtn');
     if (moreBtn) {
-      moreBtn.classList.toggle('active', route === 'calendar' || route === 'log' || route === 'circle');
+      moreBtn.classList.toggle('active', route === 'calendar' || route === 'log');
     }
     if (typeof window.syncFishDockState === 'function') {
       window.syncFishDockState();
     }
-    if (route === 'geo' || route === 'dashboard') {
+    if (route === 'geo') {
       setTimeout(() => {
         const box = document.getElementById('mapBox');
         if (box && box.offsetParent !== null) {
           renderMap(box);
         }
-      }, 80);
+      }, 60);
     }
   }
 };

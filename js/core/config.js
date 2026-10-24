@@ -3,19 +3,19 @@
  * @description Конфигурация приложения (Ревизия 2.0.15), слои карт и адаптивные справочники снастей и сезонных наживок (включая нано-джиг и мормышинг по белой и сиговой рыбе)
  */
 
-export const APP_VERSION = '2.0.161';
-export const APP_REVISION = '2026.10.24-r161';
+export const APP_VERSION = '2.0.162';
+export const APP_REVISION = '2026.10.24-r162';
 export const STATE_CACHE_KEY = 'klev_pro_state_v2.0';
 export const WEATHER_CACHE_KEY = 'klev_pro_weather_v2.0';
 export const RELEASE_CACHE_KEY = 'klev_pro_release_v2.0';
 export const WEATHER_TTL_MS = 2 * 60 * 60 * 1000;
 
 export const CURRENT_RELEASE_INFO = {
-  "version": "2.0.161",
-  "revision": "2026.10.24-r161",
+  "version": "2.0.162",
+  "revision": "2026.10.24-r162",
   "date": "24 октября 2026",
   "releasedAt": "2026-10-24",
-  "title": "Обновление «Клёв ПРО: Круг» — Ревизия 2.0.161 (Пакет P0 + P1)",
+  "title": "Обновление «Клёв ПРО: Круг» — Ревизия 2.0.162 (Пакет P0 + P1)",
   "subtitle": "Анти-триангуляция 2.0 (6-угольные полигоны сетки + расширение до ±10 км через 24ч), честный 8-й фактор (лимит ±10%, затухание 72ч, защита от самоподтверждения, ранг «🏅 Эксперт Круга» ×1.5), очистка EXIF фото + dHash, Индекс безопасности льда (0–100, Пешком vs Снегоход), сигнал «🆘 SOS Экипажу», паспорта «🛠️ Мастерской снастей», чек-лист сборов и защита TMA/Бота.",
   "summary": "Реализованы экспертные доработки P0 и P1 после Ревизии 2.0.16: гексагональная анти-триангуляция и временное размытие Круга, честный 8-й фактор без самоподтверждения, автоматическое удаление GPS EXIF из фото улова и dHash, Индекс безопасности льда (0–100) с порогами для пешего выхода и мотобуксировщика, кнопка SOS, физические паспорта оснасток в Мастерской и криптографическая защита бота.",
   "changes": [
@@ -700,7 +700,7 @@ export function getCompatibleMethods(fish, iceState = 'open_water', waterType = 
 }
 
 export const DEFAULT_STATE = {
-  route: 'dashboard',
+  route: 'forecast',
   appMode: 'angler',
   hasUserLocation: false,
   lat: 55.7558,

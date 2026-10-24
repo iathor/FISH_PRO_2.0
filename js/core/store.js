@@ -4,11 +4,11 @@
  * модуля «Клёв ПРО: Круг» (Экипаж 72ч, Круг ±5 км, Мастерская), весов факторов Профи и 5-дневного метеоархива (Ревизия 2.0.16)
  */
 
-import { DEFAULT_STATE, getCompatibleMethods, getSeasonalBaitsForContext } from './config.js?v=2.0.161';
-import { storage } from './storage.js?v=2.0.161';
-import { detectBasinByCoords, BASIN_CONFIGS, isCoastalInBasin } from '../data/basins.js?v=2.0.161';
-import { findNearestRussianSettlement } from '../data/russia-waters.js?v=2.0.161';
-import { FISH_DB } from '../data/species.js?v=2.0.161';
+import { DEFAULT_STATE, getCompatibleMethods, getSeasonalBaitsForContext } from './config.js?v=2.0.162';
+import { storage } from './storage.js?v=2.0.162';
+import { detectBasinByCoords, BASIN_CONFIGS, isCoastalInBasin } from '../data/basins.js?v=2.0.162';
+import { findNearestRussianSettlement } from '../data/russia-waters.js?v=2.0.162';
+import { FISH_DB } from '../data/species.js?v=2.0.162';
 
 function getActiveDaySeasonContext(state, overrideDays = null, overrideDayIdx = null, overrideIceState = null) {
   const rawDays = overrideDays ?? state?.weatherDays;

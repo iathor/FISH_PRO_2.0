@@ -4,8 +4,8 @@
  * Не блокирует старт приложения, защищён от бесконечных циклов перезагрузки и поддерживает все форматы описания релизов.
  */
 
-import { APP_VERSION, APP_REVISION, RELEASE_CACHE_KEY, CURRENT_RELEASE_INFO } from './config.js?v=2.0.161';
-import { showToast } from '../ui/components.js?v=2.0.161';
+import { APP_VERSION, APP_REVISION, RELEASE_CACHE_KEY, CURRENT_RELEASE_INFO } from './config.js?v=2.0.162';
+import { showToast } from '../ui/components.js?v=2.0.162';
 
 let pendingSwRegistration = null;
 let pendingReleaseInfo = null;

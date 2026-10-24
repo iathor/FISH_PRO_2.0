@@ -1,15 +1,15 @@
-import { RU } from '../../i18n/ru.js?v=2.0.161';
-import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.0.161';
-import { events } from '../../core/events.js?v=2.0.161';
-import { storage } from '../../core/storage.js?v=2.0.161';
-import { store } from '../../core/store.js?v=2.0.161';
-import { formatLocalYYYYMMDD, fmtDeltaPress, fmtHM } from '../../core/format.js?v=2.0.161';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.0.161';
-import { FISH_DB } from '../../data/species.js?v=2.0.161';
-import { renderFiveFish } from '../../ui/svg.js?v=2.0.161';
-import { createPill, showToast, openModal } from '../../ui/components.js?v=2.0.161';
-import { computeIceSafetyIndex } from '../weather/weather.module.js?v=2.0.161';
-import { evaluateCircleFieldConfirmation } from '../circle/circle.module.js?v=2.0.161';
+import { RU } from '../../i18n/ru.js?v=2.0.162';
+import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.0.162';
+import { events } from '../../core/events.js?v=2.0.162';
+import { storage } from '../../core/storage.js?v=2.0.162';
+import { store } from '../../core/store.js?v=2.0.162';
+import { formatLocalYYYYMMDD, fmtDeltaPress, fmtHM } from '../../core/format.js?v=2.0.162';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.0.162';
+import { FISH_DB } from '../../data/species.js?v=2.0.162';
+import { renderFiveFish } from '../../ui/svg.js?v=2.0.162';
+import { createPill, showToast, openModal } from '../../ui/components.js?v=2.0.162';
+import { computeIceSafetyIndex } from '../weather/weather.module.js?v=2.0.162';
+import { evaluateCircleFieldConfirmation } from '../circle/circle.module.js?v=2.0.162';
 
 /**
  * Список морских, проходных и полупроходных видов, которые заходят в пресные реки
@@ -941,25 +941,7 @@ export function renderExpress(container) {
   const tomorrowObj = s.weatherDays[3] || todayObj;
   const nearWaterTitle = s.selectedWaterName || s.nearbyWaters?.[0]?.name || WATER_PROFILES[s.water]?.shortName || "Ближайший водоём";
 
-  let modeBannerHtml = `
-    <div class="card" style="margin-bottom:12px;padding:10px 12px;background:var(--card);border:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-      <div>
-        <div style="font-size:var(--fs-xs);font-weight:800;color:var(--accent);">🧭 РЕЖИМ ИНТЕРФЕЙСА «КЛЁВ ПРО: КРУГ»</div>
-        <div style="font-size:11px;color:var(--muted);">
-          ${appMode === "novice"
-            ? "🟢 Новичок: лаконичный светофор клёва, ТОП-3 рыбы в водоёме и готовая снасть без лишней перегрузки."
-            : (appMode === "pro"
-                ? "🔴 Профи: все 8 факторов с ручной калибровкой весов, полевыми сводками Круга и экспортом GPX."
-                : "🟡 Рыбак: полный навигатор, 12-дневная лента прогноза с архивом и закрытый клубный Круг.")}
-        </div>
-      </div>
-      <div style="display:inline-flex;gap:5px;flex-wrap:wrap;">
-        <button type="button" class="btn btn-sm ${appMode === "novice" ? "btn-good" : ""}" data-set-app-mode="novice">🟢 Новичок</button>
-        <button type="button" class="btn btn-sm ${appMode === "angler" ? "btn-accent" : ""}" data-set-app-mode="angler">🟡 Рыбак</button>
-        <button type="button" class="btn btn-sm ${appMode === "pro" ? "btn-accent" : ""}" data-set-app-mode="pro">🔴 Профи</button>
-      </div>
-    </div>
-  `;
+  let modeBannerHtml = '';
 
   if (appMode === "novice" && todayObj) {
     const regionalCandidates = FISH_DB.filter(f => f.basins.includes(s.basinCode) && f.legal !== "redbook" && (!f.waters || f.waters.includes(s.water)));

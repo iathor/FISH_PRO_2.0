@@ -1,14 +1,17 @@
-import { RU } from '../../i18n/ru.js?v=2.0.161';
-import { events } from '../../core/events.js?v=2.0.161';
-import { store } from '../../core/store.js?v=2.0.161';
-import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.0.161';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.0.161';
-import { RUSSIA_CITIES, findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.0.161';
-import { FISH_DB } from '../../data/species.js?v=2.0.161';
-import { renderFishVisual, renderFiveFish } from '../../ui/svg.js?v=2.0.161';
-import { createPill, showToast, openModal, closeModal, openFishLightbox } from '../../ui/components.js?v=2.0.161';
-import { setLocation, detectUserPosition } from '../geo/geo.module.js?v=2.0.161';
-import { calcDayBest } from '../forecast/forecast.module.js?v=2.0.161';
+import { RU } from '../../i18n/ru.js?v=2.0.162';
+import { events } from '../../core/events.js?v=2.0.162';
+import { store } from '../../core/store.js?v=2.0.162';
+import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.0.162';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.0.162';
+import { RUSSIA_CITIES, findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.0.162';
+import { FISH_DB } from '../../data/species.js?v=2.0.162';
+import { renderFishVisual, renderFiveFish } from '../../ui/svg.js?v=2.0.162';
+import { createPill, showToast, openModal, closeModal, openFishLightbox } from '../../ui/components.js?v=2.0.162';
+import { setLocation, detectUserPosition } from '../geo/geo.module.js?v=2.0.162';
+import { installShortcut } from '../../core/pwa.js?v=2.0.162';
+import { fetchWeather } from '../weather/weather.module.js?v=2.0.162';
+import { checkForReleaseUpdate } from '../../core/updater.js?v=2.0.162';
+import { calcDayBest } from '../forecast/forecast.module.js?v=2.0.162';
 
 /**
  * Региональные приоритетные виды для каждого бассейна РФ,
@@ -491,9 +494,9 @@ export function openOnboardingModal(isEditMode = false) {
           </div>
         </div>
 
-        <!-- ВЫБОР РЕЖИМА ВХОДА (Новичок / Рыбак / Профи) -->
+        <!-- ВЫБОР УРОВНЯ РЫБАКА (Новичок / Рыбак / Профи) С ПОДРОБНЫМ ОПИСАНИЕМ -->
         <div>
-          <label style="display:block;font-weight:800;font-size:var(--fs-xs);color:var(--muted);margin-bottom:5px;">РЕЖИМ ИНТЕРФЕЙСА (МОЖНО МЕНЯТЬ В ЛЮБОЙ МОМЕНТ)</label>
+          <label style="display:block;font-weight:800;font-size:var(--fs-xs);color:var(--muted);margin-bottom:5px;">УРОВЕНЬ РЫБАКА И РЕЖИМ ПРОГНОЗА</label>
           <div id="onbModeContainer" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;">
             <button type="button" class="btn btn-sm ${currentAppMode === 'novice' ? 'btn-good' : ''}" data-onb-mode="novice" style="flex-direction:column;min-height:48px;gap:2px;">
               <span>🟢 Новичок</span>
@@ -507,6 +510,28 @@ export function openOnboardingModal(isEditMode = false) {
               <span>🔴 Профи</span>
               <span style="font-size:10px;opacity:0.85;">Веса 8 факт. + GPX</span>
             </button>
+          </div>
+          <div id="onbModeDescBox" style="margin-top:6px;padding:8px 10px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);font-size:var(--fs-xs);line-height:1.42;color:var(--text);">
+            ${currentAppMode === 'novice'
+              ? '🟢 <b>Новичок:</b> Лаконичный экран «Клюёт / Не клюёт», ТОП-3 активные рыбы на сегодня и завтра, готовая рекомендация по снасти и кнопка «Почему?» простыми словами.'
+              : (currentAppMode === 'pro'
+                  ? '🔴 <b>Профи:</b> Полный доступ ко всем 8 факторам ихтиомодели с ручной калибровкой весов, импортом/экспортом точек эхолота (.GPX), выгрузкой в календарь (.ICS) и верификацией точности за 30 дней.'
+                  : '🟡 <b>Рыбак (оптимально по умолчанию):</b> Почасовой прогноз клёва с архивом погоды за 2 дня, карта водоёмов и глубин, справочник рыб, закрытый клуб «Круг» и личный журнал уловов.')}
+          </div>
+        </div>
+
+        <!-- ОФОРМЛЕНИЕ И СЕРВИС ПРИЛОЖЕНИЯ (ВЫНЕСЕНО ИЗ ШАПКИ) -->
+        <div style="padding:10px 12px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);display:flex;flex-direction:column;gap:8px;">
+          <div style="font-weight:800;font-size:var(--fs-xs);color:var(--muted);">🎨 ТЕМА ОФОРМЛЕНИЯ И УПРАВЛЕНИЕ ПРИЛОЖЕНИЕМ</div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;" id="onbThemeContainer">
+            <button type="button" class="btn btn-sm ${(store.getState().theme || 'auto') === 'auto' ? 'btn-accent' : ''}" data-onb-theme="auto">🌓 Авто</button>
+            <button type="button" class="btn btn-sm ${store.getState().theme === 'dark' ? 'btn-accent' : ''}" data-onb-theme="dark">🌙 Тёмная</button>
+            <button type="button" class="btn btn-sm ${store.getState().theme === 'light' ? 'btn-accent' : ''}" data-onb-theme="light">☀️ Светлая</button>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;">
+            <button type="button" class="btn btn-sm" id="onbRefreshWeatherBtn" title="Принудительно обновить метеоданные">🔄 Погода</button>
+            <button type="button" class="btn btn-sm" id="onbInstallAppBtn" title="Установить иконку приложения на рабочий стол">📲 На экран</button>
+            <button type="button" class="btn btn-sm" id="onbVersionCheckBtn" title="Проверить обновления и очистить кэш">📦 Версия</button>
           </div>
         </div>
 
@@ -611,6 +636,7 @@ export function openOnboardingModal(isEditMode = false) {
   }
 
   openModal(isEditMode ? '👤 Профиль рыболова' : '🚀 Стартовая настройка рыболова', getModalBodyHtml(), (bodyEl) => {
+    if (!bodyEl) return;
     function bindWaters(container) {
       if (!container) return;
       container.querySelectorAll('[data-onb-water]').forEach(btn => {
@@ -680,6 +706,7 @@ export function openOnboardingModal(isEditMode = false) {
     bodyEl.querySelectorAll('[data-onb-mode]').forEach(btn => {
       btn.addEventListener('click', () => {
         currentAppMode = btn.getAttribute('data-onb-mode') || 'angler';
+        store.dispatch({ type: 'SET_APP_MODE', payload: currentAppMode });
         bodyEl.querySelectorAll('[data-onb-mode]').forEach(b => {
           const m = b.getAttribute('data-onb-mode');
           b.classList.remove('btn-good', 'btn-accent');
@@ -687,8 +714,56 @@ export function openOnboardingModal(isEditMode = false) {
             b.classList.add(m === 'novice' ? 'btn-good' : 'btn-accent');
           }
         });
+        const descBox = bodyEl.querySelector('#onbModeDescBox');
+        if (descBox) {
+          descBox.innerHTML = currentAppMode === 'novice'
+            ? '🟢 <b>Новичок:</b> Лаконичный экран «Клюёт / Не клюёт», ТОП-3 активные рыбы на сегодня и завтра, готовая рекомендация по снасти и кнопка «Почему?» простыми словами.'
+            : (currentAppMode === 'pro'
+                ? '🔴 <b>Профи:</b> Полный доступ ко всем 8 факторам ихтиомодели с ручной калибровкой весов, импортом/экспортом точек эхолота (.GPX), выгрузкой в календарь (.ICS) и верификацией точности за 30 дней.'
+                : '🟡 <b>Рыбак (оптимально по умолчанию):</b> Почасовой прогноз клёва с архивом погоды за 2 дня, карта водоёмов и глубин, справочник рыб, закрытый клуб «Круг» и личный журнал уловов.');
+        }
       });
     });
+
+    bodyEl.querySelectorAll('[data-onb-theme]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const nextTheme = btn.getAttribute('data-onb-theme') || 'auto';
+        if (typeof window.__KLEV_APPLY_THEME__ === 'function') {
+          window.__KLEV_APPLY_THEME__(nextTheme);
+        } else {
+          store.dispatch({ type: 'SET_THEME', payload: nextTheme });
+        }
+        bodyEl.querySelectorAll('[data-onb-theme]').forEach(b => {
+          b.classList.toggle('btn-accent', b.getAttribute('data-onb-theme') === nextTheme);
+        });
+        const label = nextTheme === 'auto' ? 'Авто (день/ночь)' : (nextTheme === 'dark' ? 'Тёмная' : 'Светлая');
+        showToast(`Тема оформления: ${label}`, 'info');
+      });
+    });
+
+    const refreshWBtn = bodyEl.querySelector('#onbRefreshWeatherBtn');
+    if (refreshWBtn) {
+      refreshWBtn.addEventListener('click', () => {
+        const st = store.getState();
+        closeModal();
+        fetchWeather(st.lat, st.lon, true);
+      });
+    }
+
+    const installAppBtn = bodyEl.querySelector('#onbInstallAppBtn');
+    if (installAppBtn) {
+      installAppBtn.addEventListener('click', () => {
+        installShortcut();
+      });
+    }
+
+    const versionCheckBtn = bodyEl.querySelector('#onbVersionCheckBtn');
+    if (versionCheckBtn) {
+      versionCheckBtn.addEventListener('click', () => {
+        closeModal();
+        checkForReleaseUpdate({ manual: true });
+      });
+    }
 
     bindWaters(bodyEl.querySelector('#onbWatersContainer'));
     bindMethods(bodyEl.querySelector('#onbMethodsContainer'));

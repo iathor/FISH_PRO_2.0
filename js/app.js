@@ -1,18 +1,18 @@
-import { initReleaseUpdater, checkForReleaseUpdate } from './core/updater.js?v=2.0.161';
-import { RU } from './i18n/ru.js?v=2.0.161';
-import { events } from './core/events.js?v=2.0.161';
-import { store } from './core/store.js?v=2.0.161';
-import { router } from './core/router.js?v=2.0.161';
-import { installShortcut, initPwa } from './core/pwa.js?v=2.0.161';
-import { initTelegramMiniApp, clearIncomingShareTokenFromUrl, triggerHaptic } from './core/telegram.js?v=2.0.161';
-import { showToast } from './ui/components.js?v=2.0.161';
-import { weatherModule } from './modules/weather/weather.module.js?v=2.0.161';
-import { geoModule } from './modules/geo/geo.module.js?v=2.0.161';
-import { fishModule } from './modules/fish/fish.module.js?v=2.0.161';
-import { forecastModule } from './modules/forecast/forecast.module.js?v=2.0.161';
-import { calendarModule } from './modules/calendar/calendar.module.js?v=2.0.161';
-import { logModule } from './modules/log/log.module.js?v=2.0.161';
-import { circleModule } from './modules/circle/circle.module.js?v=2.0.161';
+import { initReleaseUpdater, checkForReleaseUpdate } from './core/updater.js?v=2.0.162';
+import { RU } from './i18n/ru.js?v=2.0.162';
+import { events } from './core/events.js?v=2.0.162';
+import { store } from './core/store.js?v=2.0.162';
+import { router } from './core/router.js?v=2.0.162';
+import { installShortcut, initPwa } from './core/pwa.js?v=2.0.162';
+import { initTelegramMiniApp, clearIncomingShareTokenFromUrl, triggerHaptic } from './core/telegram.js?v=2.0.162';
+import { showToast } from './ui/components.js?v=2.0.162';
+import { weatherModule } from './modules/weather/weather.module.js?v=2.0.162';
+import { geoModule } from './modules/geo/geo.module.js?v=2.0.162';
+import { fishModule } from './modules/fish/fish.module.js?v=2.0.162';
+import { forecastModule } from './modules/forecast/forecast.module.js?v=2.0.162';
+import { calendarModule } from './modules/calendar/calendar.module.js?v=2.0.162';
+import { logModule } from './modules/log/log.module.js?v=2.0.162';
+import { circleModule } from './modules/circle/circle.module.js?v=2.0.162';
 
 if (typeof window !== 'undefined') {
   window.__KLEV_BOOTSTRAPPED__ = true;
@@ -42,25 +42,24 @@ function applyTheme(themeMode) {
   }
 }
 
+export function applyAppTheme(themeMode) {
+  applyTheme(themeMode);
+}
+if (typeof window !== 'undefined') {
+  window.__KLEV_APPLY_THEME__ = applyTheme;
+}
+
 function updateHeaderUI() {
   const s = store.getState();
   const locSub = document.getElementById('headerLocSub');
   const locText = document.getElementById('headerLocText');
   const statusEl = document.getElementById('headerStatusPill');
   const seasonStrip = document.getElementById('headerSeasonStrip');
-  const modeBtn = document.getElementById('headerModeBtn');
-
-  if (modeBtn) {
-    const mode = s.appMode || 'angler';
-    const modeIcons = { novice: '🟢', angler: '🟡', pro: '🔴' };
-    const modeNames = { novice: 'Новичок (Светофор + ТОП-3)', angler: 'Рыбак (Полный + Круг)', pro: 'Профи (8 факторов + GPX)' };
-    modeBtn.textContent = modeIcons[mode] || '🟡';
-    modeBtn.title = `Режим: ${modeIcons[mode] || '🟡'} ${modeNames[mode] || 'Рыбак'} (нажмите для переключения)`;
-  }
 
   if (locSub) {
+    const shortBasin = (s.basinName || '').replace(/\s*\([^)]*\)/g, '').trim();
     const regionPart = s.locAdmin1 && s.locAdmin1 !== s.locLabel ? `${s.locAdmin1} • ` : '';
-    locSub.textContent = `${regionPart}${s.basinName}`;
+    locSub.textContent = `${regionPart}${shortBasin}`;
   }
   if (locText) {
     const waterPart = s.selectedWaterName ? ` • ${s.selectedWaterName}` : '';
@@ -68,15 +67,18 @@ function updateHeaderUI() {
   }
   if (statusEl) {
     const isOff = !navigator.onLine || (s.weatherSource || '').includes('Автономный');
-    statusEl.className = 'pill ' + (isOff ? 'pill-warn' : 'pill-good');
-    statusEl.textContent = isOff ? `📡 ${RU.offlineMode}` : `🟢 ${s.weatherSource || RU.online}`;
+    statusEl.className = 'pill header-status-pill ' + (isOff ? 'pill-warn' : 'pill-good');
+    const shortSrc = (s.weatherSource || RU.online)
+      .replace(/\s+назад/g, '')
+      .replace(/Онлайн\s*\(MET\.no\)/i, 'MET.no')
+      .replace(/Онлайн\s*•\s*10 дней\s*\+\s*архив/i, 'Онлайн');
+    statusEl.textContent = isOff ? `📡 Офлайн` : `🟢 ${shortSrc}`;
   }
   if (seasonStrip) {
     const day = s.weatherDays[s.dayIdx] || s.weatherDays[2] || s.weatherDays[0];
     const ice = day?.iceState || s.iceState;
     const thick = day?.iceThickness ?? s.iceThickness;
     const subState = day?.iceSubState || '';
-    const customNote = day?.iceNote || '';
 
     const stripCls = ice === 'ice_safe'
       ? 'ice-safe'
@@ -84,21 +86,30 @@ function updateHeaderUI() {
     seasonStrip.className = 'season-strip ' + stripCls;
 
     if (ice === 'ice_safe') {
-      seasonStrip.innerHTML = `<span>${customNote || `❄️ Подлёдный сезон: безопасный лёд ~${thick} см`}</span><span>💧 Вода ~${day?.waterTemp ?? 0.5}°C</span>`;
+      seasonStrip.innerHTML = `<span>❄️ Безопасный лёд ~${thick} см</span><span>💧 Вода ~${day?.waterTemp ?? 0.5}°C</span>`;
     } else if (ice === 'ice_danger') {
       const msg = subState === 'spring_rotten_ice'
-        ? (customNote || `⚠️ Весенний рыхлый лёд и промоины (~${thick} см) — выход на лёд запрещён!`)
-        : (customNote || `⚠️ Опасный тонкий лёд (~${thick} см) — выход на лёд запрещён!`);
+        ? `⚠️ Весенний рыхлый лёд (~${thick} см) — опасно!`
+        : `⚠️ Опасный тонкий лёд (~${thick} см) — выход запрещён!`;
       seasonStrip.innerHTML = `<span>${msg}</span><span>💧 Вода ~${day?.waterTemp ?? 0.8}°C</span>`;
     } else if (ice === 'ice_slush') {
-      seasonStrip.innerHTML = `<span>${customNote || '🌊❄️ Шуга и забереги (колебания -3..+3°C, ледостава нет)'}</span><span>💧 Вода ~${day?.waterTemp ?? 1.2}°C</span>`;
+      seasonStrip.innerHTML = `<span>🌊❄️ Шуга и забереги (сплошного льда нет)</span><span>💧 Вода ~${day?.waterTemp ?? 1.2}°C</span>`;
     } else {
-      seasonStrip.innerHTML = `<span>${customNote || '🌊 Открытая вода (льда нет)'}</span><span>💧 Вода ~${day?.waterTemp ?? 10}°C</span>`;
+      seasonStrip.innerHTML = `<span>🌊 Открытая вода (льда нет)</span><span>💧 Вода ~${day?.waterTemp ?? 10}°C</span>`;
     }
   }
 }
 
 function bindGlobalShellEvents() {
+  const locClickArea = document.getElementById('headerLocClickArea');
+  if (locClickArea) {
+    locClickArea.addEventListener('click', () => {
+      if (store.getState().route !== 'geo') {
+        triggerHaptic('selection');
+        router.navigate('geo');
+      }
+    });
+  }
   const installBtn = document.getElementById('installAppBtn');
   if (installBtn) {
     installBtn.addEventListener('click', () => installShortcut());
@@ -111,7 +122,7 @@ function bindGlobalShellEvents() {
       const cur = store.getState().appMode || 'angler';
       const next = order[(order.indexOf(cur) + 1) % order.length];
       store.dispatch({ type: 'SET_APP_MODE', payload: next });
-      router.applyVisibility(store.getState().route || 'dashboard');
+      router.applyVisibility(store.getState().route || 'forecast');
       triggerHaptic('selection');
       const labels = {
         novice: '🟢 Режим «Новичок»: светофор клёва, ТОП-3 рыбы и готовая снасть',
@@ -251,7 +262,7 @@ let scrollRafPending = false;
 
 function syncFishDockState() {
   const headerH = syncHeaderLayout();
-  const route = store.getState().route || 'dashboard';
+  const route = store.getState().route || 'forecast';
   const secFish = document.getElementById('secFish');
   const resultsArea = document.getElementById('fishResultsArea');
   const sentinel = document.getElementById('fishDockSentinel');
@@ -264,7 +275,7 @@ function syncFishDockState() {
   }
 
   const cardEl = secFish.querySelector('.card');
-  const isDedicatedFishTab = ['forecast', 'weather', 'calendar'].includes(route);
+  const isDedicatedFishTab = ['forecast', 'calendar'].includes(route);
 
   if (isDedicatedFishTab) {
     if (cardEl) {
@@ -300,7 +311,7 @@ function syncFishDockState() {
     cardEl.style.boxShadow = '';
   }
 
-  if (route !== 'dashboard' && route !== 'fish') {
+  if (route !== 'fish') {
     clearFishCardInlineStyles(dockWrap);
     dockWrap.classList.remove('docked-mini');
     dockWrap.style.removeProperty('--shrink');
@@ -479,7 +490,7 @@ function bootstrapApp() {
     }),
     () => {
       updateHeaderUI();
-      router.applyVisibility(store.getState().route || 'dashboard');
+      router.applyVisibility(store.getState().route || 'forecast');
       syncFishDockState();
     }
   );
