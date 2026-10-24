@@ -1,11 +1,11 @@
-import { RU } from '../../i18n/ru.js?v=2.0.14';
-import { events } from '../../core/events.js?v=2.0.14';
-import { storage } from '../../core/storage.js?v=2.0.14';
-import { store } from '../../core/store.js?v=2.0.14';
-import { fetchWithTimeout, fallbackChain } from '../../core/http.js?v=2.0.14';
-import { formatLocalYYYYMMDD, fmtHM, fmtDeltaPress } from '../../core/format.js?v=2.0.14';
-import { WATER_PROFILES } from '../../data/waters.js?v=2.0.14';
-import { createPill, showToast } from '../../ui/components.js?v=2.0.14';
+import { RU } from '../../i18n/ru.js?v=2.0.15';
+import { events } from '../../core/events.js?v=2.0.15';
+import { storage } from '../../core/storage.js?v=2.0.15';
+import { store } from '../../core/store.js?v=2.0.15';
+import { fetchWithTimeout, fallbackChain } from '../../core/http.js?v=2.0.15';
+import { formatLocalYYYYMMDD, fmtHM, fmtDeltaPress } from '../../core/format.js?v=2.0.15';
+import { WATER_PROFILES } from '../../data/waters.js?v=2.0.15';
+import { createPill, showToast } from '../../ui/components.js?v=2.0.15';
 
 const DIRS = ['С', 'СВ', 'В', 'ЮВ', 'Ю', 'ЮЗ', 'З', 'СЗ'];
 
@@ -43,7 +43,7 @@ export function computeMoon(dateStr) {
 }
 
 /**
- * Ревизия 2.0.14: Физический расчёт температуры воды с учётом тепловой инерции за прошлые дни И скорости течения (flow).
+ * Ревизия 2.0.15: Физический расчёт температуры воды с учётом тепловой инерции за прошлые дни И скорости течения (flow).
  * - На реках с умеренным и быстрым течением (flow >= 1.1) турбулентное перемешивание водной толщи
  *   предотвращает мгновенное переохлаждение поверхности при околонулевых качелях (-4..+3 °C).
  * - В стоячих мелководных озёрах (flow <= 0.4) вода быстрее остывает осенью и быстрее прогревается весной.
@@ -90,7 +90,7 @@ export function computeWaterTempSeries(dailyMeans, dailyMaxs, dailyMins, waterTy
 }
 
 /**
- * Ревизия 2.0.14: Физически точный расчёт ледостава и сезона ловли с учётом архива погоды и скорости течения водоёма (flow)
+ * Ревизия 2.0.15: Физически точный расчёт ледостава и сезона ловли с учётом архива погоды и скорости течения водоёма (flow)
  */
 export function evaluateDayIce(historyMeanTemps, tDayMax, tNightMin, waterTemp, waterType = 'small_river', dateStr = '') {
   if (waterType === 'cooling_reservoir') {
@@ -317,7 +317,7 @@ export function buildFallback(lat = 55.75, waterType = 'small_river') {
 }
 
 /**
- * Ревизия 2.0.14: Нормализация ответа Open-Meteo (past_days=7, forecast_days=10)
+ * Ревизия 2.0.15: Нормализация ответа Open-Meteo (past_days=7, forecast_days=10)
  * Возвращает как 12 плиток прогноза (2 архивных + Сегодня + 9 будущих), так и полный 5-дневный архив (archive5Days) для кэша 10 км!
  */
 export function normalizeOpenMeteo(data, waterType) {
@@ -433,7 +433,7 @@ export function normalizeOpenMeteo(data, waterType) {
 }
 
 /**
- * Ревизия 2.0.14: Полностью переработанная нормализация MET.no (работа без VPN в РФ):
+ * Ревизия 2.0.15: Полностью переработанная нормализация MET.no (работа без VPN в РФ):
  * - Никогда не оставляет синтетические морозы (-13..-20 °C) из buildFallback() во «Вчера» и «Позавчера»!
  * - Подтягивает реальные архивные дни за последние 5 дней из 10-км гео-кэша (GeoWeatherArchive) или из архивного API.
  * - Если это первый запрос в локации и архивный сервер не ответил, плавно реконструирует прошлые дни от реального

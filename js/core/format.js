@@ -1,4 +1,4 @@
-import { RU } from '../i18n/ru.js?v=2.0.14';
+import { RU } from '../i18n/ru.js?v=2.0.15';
 
 export function formatLocalYYYYMMDD(dt) {
   const y = dt.getFullYear();

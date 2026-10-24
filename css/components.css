@@ -21,8 +21,19 @@
 .btn:active { transform: scale(0.98); }
 .btn-accent { background: var(--accent-strong); border-color: var(--accent); color: #ffffff; }
 .btn-good { background: var(--good); border-color: var(--good); color: #ffffff; }
-.btn-install { border-color: var(--good); color: var(--good); display: none; }
-.btn-install:hover { background: var(--pill-good-bg); border-color: var(--good); }
+.btn-install, .btn-install-header { border-color: var(--good); color: var(--good); display: inline-flex; }
+.btn-install:hover, .btn-install-header:hover { background: var(--pill-good-bg); border-color: var(--good); }
+@media (display-mode: standalone), (display-mode: fullscreen), (display-mode: minimal-ui) {
+  [data-install-app], #installAppBtn, .btn-install, .btn-install-header {
+    display: none !important;
+  }
+}
+html[data-pwa-installed="1"] [data-install-app],
+html[data-pwa-installed="1"] #installAppBtn,
+html[data-pwa-installed="1"] .btn-install,
+html[data-pwa-installed="1"] .btn-install-header {
+  display: none !important;
+}
 
 .guide-grid {
   display: grid;

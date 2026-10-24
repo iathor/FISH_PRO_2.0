@@ -1,14 +1,54 @@
-import { STATE_CACHE_KEY, WEATHER_CACHE_KEY, WEATHER_TTL_MS } from './config.js?v=2.0.14';
-import { formatLocalYYYYMMDD } from './format.js?v=2.0.14';
+import { STATE_CACHE_KEY, WEATHER_CACHE_KEY, WEATHER_TTL_MS } from './config.js?v=2.0.15';
+import { formatLocalYYYYMMDD } from './format.js?v=2.0.15';
 
 const DB_NAME = 'KlevProDB_v2';
-const DB_VERSION = 2;
 export const GEO_WEATHER_ARCHIVE_KEY = 'klev_pro_geo_weather_archive_v2';
 export const GEO_WATERS_CACHE_KEY = 'klev_pro_geo_waters_cache_v2';
 export const GEO_CLUSTER_RADIUS_KM = 10.0;
 
+const LOCAL_STORE_KEYS = {
+  spots: 'klev_pro_spots_backup_v2',
+  catches: 'klev_pro_catches_backup_v2'
+};
+
 let dbPromise = null;
 const memoryFallback = { catches: [], spots: [], weather_archive: [] };
+
+function readLocalBackup(storeName) {
+  const key = LOCAL_STORE_KEYS[storeName];
+  if (!key) return [...(memoryFallback[storeName] || [])];
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return [...(memoryFallback[storeName] || [])];
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      memoryFallback[storeName] = parsed;
+      return [...parsed];
+    }
+  } catch (e) {}
+  return [...(memoryFallback[storeName] || [])];
+}
+
+function writeLocalBackup(storeName, list) {
+  if (!Array.isArray(list)) return;
+  memoryFallback[storeName] = [...list];
+  const key = LOCAL_STORE_KEYS[storeName];
+  if (!key) return;
+  try {
+    localStorage.setItem(key, JSON.stringify(list));
+  } catch (e) {}
+}
+
+function mergeRecordsById(idbList = [], localList = []) {
+  const map = new Map();
+  for (const item of localList) {
+    if (item && item.id) map.set(item.id, item);
+  }
+  for (const item of idbList) {
+    if (item && item.id) map.set(item.id, item);
+  }
+  return Array.from(map.values());
+}
 
 export function calcGeoDistanceKm(lat1, lon1, lat2, lon2) {
   const R = 6371;
@@ -19,6 +59,11 @@ export function calcGeoDistanceKm(lat1, lon1, lat2, lon2) {
   return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 100) / 100;
 }
 
+/**
+ * Ревизия 2.0.15:
+ * Неблокирующее открытие IndexedDB без принудительного конфликта версий (v1/v2),
+ * с обработчиками onblocked / onversionchange и жёстким сторожевым таймером 500 мс.
+ */
 function openDB() {
   if (dbPromise) return dbPromise;
   dbPromise = new Promise((resolve) => {
@@ -26,8 +71,21 @@ function openDB() {
       resolve(null);
       return;
     }
+    let settled = false;
+    const finish = (dbInstance) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      if (!dbInstance) {
+        dbPromise = null;
+      }
+      resolve(dbInstance || null);
+    };
+    const timer = setTimeout(() => finish(null), 550);
+
     try {
-      const req = indexedDB.open(DB_NAME, DB_VERSION);
+      // Открываем БД без принудительного завышения версии, чтобы исключить блокировку (onblocked) со старыми вкладками v1/v2
+      const req = indexedDB.open(DB_NAME);
       req.onupgradeneeded = (e) => {
         const db = e.target.result;
         if (!db.objectStoreNames.contains('catches')) {
@@ -42,10 +100,20 @@ function openDB() {
           db.createObjectStore('weather_archive', { keyPath: 'clusterId' });
         }
       };
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => resolve(null);
+      req.onsuccess = () => {
+        const db = req.result;
+        if (db) {
+          db.onversionchange = () => {
+            try { db.close(); } catch (e) {}
+            dbPromise = null;
+          };
+        }
+        finish(db);
+      };
+      req.onerror = () => finish(null);
+      req.onblocked = () => finish(null);
     } catch (e) {
-      resolve(null);
+      finish(null);
     }
   });
   return dbPromise;
@@ -66,7 +134,6 @@ function writeClustersToLocalStorage(clusters) {
   try {
     localStorage.setItem(GEO_WEATHER_ARCHIVE_KEY, JSON.stringify(clusters));
   } catch (e) {}
-  // Дублируем в IndexedDB для надёжности
   openDB().then(db => {
     if (!db || !db.objectStoreNames.contains('weather_archive')) return;
     try {
@@ -121,6 +188,10 @@ export const storage = {
     } catch (e) {}
   },
 
+  getLocalBackup(storeName) {
+    return readLocalBackup(storeName);
+  },
+
   /**
    * Ищет кластер погоды в радиусе 10 км от указанных координат
    */
@@ -140,13 +211,7 @@ export const storage = {
   },
 
   /**
-   * Сохраняет и накапливает прогноз и архив погоды по геолокации в радиусе 10 км:
-   * - Если сегодня запросить прогноз, для локации в радиусе 10 км кэшируются все дни (архив, сегодня, завтра, послезавтра и до 5–10 дней вперёд).
-   * - Если запрос в этой локации (<= 10 км) происходит завтра или через 5 дней:
-   *   старые записи автоматически переходят в статус архивных и НЕ затираются,
-   *   а перезаписываются только текущий (сегодняшний) и будущие дни!
-   * - В кэш сохраняются все параметры для прогноза клёва по всем видам рыб:
-   *   tDay, tNight, waterTemp (с учётом течения), pressAvg, dP, windMax, windDir, moon, iceState, iceThickness и почасовой массив hours (24 ч).
+   * Сохраняет и накапливает прогноз и архив погоды по геолокации в радиусе 10 км
    */
   saveWeatherCache(lat, lon, payload, extraArchiveDays = []) {
     const todayStr = formatLocalYYYYMMDD(new Date());
@@ -186,7 +251,6 @@ export const storage = {
       targetCluster.daysByDate = {};
     }
 
-    // Объединяем дополнительные архивные дни (до 5–7 дней назад) и основные дни прогноза
     const incomingDays = [
       ...(Array.isArray(extraArchiveDays) ? extraArchiveDays : []),
       ...(Array.isArray(payload.days) ? payload.days : [])
@@ -222,17 +286,14 @@ export const storage = {
       };
 
       if (isPastDay) {
-        // Архивные дни НЕ перезаписываются, если в кэше уже лежит реальный прогноз/архив за этот день!
         if (!existing || (!existing.isReal && recordToStore.isReal)) {
           targetCluster.daysByDate[dStr] = recordToStore;
         }
       } else {
-        // Текущий (сегодняшний) и будущие дни перезаписываются свежим прогнозом
         targetCluster.daysByDate[dStr] = recordToStore;
       }
     }
 
-    // Проверяем наличие реального архива минимум за 3 прошлых дня в этой локации (10 км)
     const pastDates = Object.keys(targetCluster.daysByDate).filter(d => d < todayStr).sort();
     const realPastCount = pastDates.filter(d => targetCluster.daysByDate[d]?.isReal !== false).length;
     targetCluster.hasRealArchive = realPastCount >= 3 || Boolean(payload.hasRealArchive);
@@ -356,8 +417,7 @@ export const storage = {
   },
 
   /**
-   * Возвращает сохранённый день (с полным почасовым прогнозом 0–23 ч, температурой воды, давлением, ветром и Луной)
-   * по произвольной календарной дате YYYY-MM-DD из 10-км кэша локации
+   * Возвращает сохранённый день по произвольной календарной дате YYYY-MM-DD из 10-км кэша локации
    */
   getDayWeatherByDate(lat, lon, dateStr) {
     if (!dateStr) return null;
@@ -369,7 +429,7 @@ export const storage = {
   },
 
   /**
-   * Возвращает сводную статистику по всему локальному архиву погоды (сколько локаций 10 км и сколько дней в архиве)
+   * Возвращает сводную статистику по всему локальному архиву погоды
    */
   getWeatherArchiveStats(lat, lon) {
     const todayStr = formatLocalYYYYMMDD(new Date());
@@ -404,8 +464,7 @@ export const storage = {
   },
 
   /**
-   * Очищает архив погоды по кнопке «🧹 Очистить архив погоды»:
-   * удаляет все старые архивные записи во всех локациях, КРОМЕ последних 5 дней в архиве (и текущего/будущего прогноза).
+   * Очищает архив погоды по кнопке «🧹 Очистить архив погоды» (сохраняя последние 5 дней)
    */
   clearWeatherArchiveKeep5Days() {
     const todayDt = new Date();
@@ -439,7 +498,7 @@ export const storage = {
   },
 
   /**
-   * Кэш найденных водоёмов и населённых пунктов в радиусе 10 км (для мгновенного отклика и экономии лимитов Overpass)
+   * Кэш найденных водоёмов и населённых пунктов в радиусе 10 км
    */
   loadNearbyWatersCache(lat, lon, radiusKm = 50) {
     try {
@@ -480,50 +539,85 @@ export const storage = {
   },
 
   async getAllFromStore(storeName) {
+    const localList = readLocalBackup(storeName);
     const db = await openDB();
-    if (!db) return [...(memoryFallback[storeName] || [])];
+    if (!db || !db.objectStoreNames.contains(storeName)) {
+      return localList;
+    }
     return new Promise((resolve) => {
+      let done = false;
+      const finish = (res) => {
+        if (done) return;
+        done = true;
+        clearTimeout(t);
+        resolve(res);
+      };
+      const t = setTimeout(() => finish(localList), 500);
       try {
         const tx = db.transaction(storeName, 'readonly');
         const req = tx.objectStore(storeName).getAll();
-        req.onsuccess = () => resolve(req.result || []);
-        req.onerror = () => resolve([...(memoryFallback[storeName] || [])]);
+        req.onsuccess = () => {
+          const merged = mergeRecordsById(req.result || [], localList);
+          writeLocalBackup(storeName, merged);
+          finish(merged);
+        };
+        req.onerror = () => finish(localList);
       } catch (e) {
-        resolve([...(memoryFallback[storeName] || [])]);
+        finish(localList);
       }
     });
   },
 
   async putToStore(storeName, item) {
-    const list = memoryFallback[storeName] || [];
+    const list = readLocalBackup(storeName);
     const idx = list.findIndex(x => x.id === item.id);
     if (idx >= 0) list[idx] = item; else list.unshift(item);
+    writeLocalBackup(storeName, list);
+
     const db = await openDB();
-    if (!db) return item;
+    if (!db || !db.objectStoreNames.contains(storeName)) return item;
     return new Promise((resolve) => {
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        clearTimeout(t);
+        resolve(item);
+      };
+      const t = setTimeout(finish, 500);
       try {
         const tx = db.transaction(storeName, 'readwrite');
         tx.objectStore(storeName).put(item);
-        tx.oncomplete = () => resolve(item);
-        tx.onerror = () => resolve(item);
+        tx.oncomplete = finish;
+        tx.onerror = finish;
       } catch (e) {
-        resolve(item);
+        finish();
       }
     });
   },
 
   async deleteFromStore(storeName, id) {
-    memoryFallback[storeName] = (memoryFallback[storeName] || []).filter(x => x.id !== id);
+    const list = readLocalBackup(storeName).filter(x => x.id !== id);
+    writeLocalBackup(storeName, list);
+
     const db = await openDB();
-    if (!db) return true;
+    if (!db || !db.objectStoreNames.contains(storeName)) return true;
     return new Promise((resolve) => {
+      let done = false;
+      const finish = (ok) => {
+        if (done) return;
+        done = true;
+        clearTimeout(t);
+        resolve(ok);
+      };
+      const t = setTimeout(() => finish(true), 500);
       try {
         const tx = db.transaction(storeName, 'readwrite');
         tx.objectStore(storeName).delete(id);
-        tx.oncomplete = () => resolve(true);
-        tx.onerror = () => resolve(false);
+        tx.oncomplete = () => finish(true);
+        tx.onerror = () => finish(false);
       } catch (e) {
-        resolve(false);
+        finish(false);
       }
     });
   }

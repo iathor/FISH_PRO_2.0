@@ -1,13 +1,13 @@
-import { RU } from '../../i18n/ru.js?v=2.0.14';
-import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.0.14';
-import { events } from '../../core/events.js?v=2.0.14';
-import { storage } from '../../core/storage.js?v=2.0.14';
-import { store } from '../../core/store.js?v=2.0.14';
-import { formatLocalYYYYMMDD, fmtDeltaPress, fmtHM } from '../../core/format.js?v=2.0.14';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.0.14';
-import { FISH_DB } from '../../data/species.js?v=2.0.14';
-import { renderFiveFish } from '../../ui/svg.js?v=2.0.14';
-import { createPill, showToast } from '../../ui/components.js?v=2.0.14';
+import { RU } from '../../i18n/ru.js?v=2.0.15';
+import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.0.15';
+import { events } from '../../core/events.js?v=2.0.15';
+import { storage } from '../../core/storage.js?v=2.0.15';
+import { store } from '../../core/store.js?v=2.0.15';
+import { formatLocalYYYYMMDD, fmtDeltaPress, fmtHM } from '../../core/format.js?v=2.0.15';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.0.15';
+import { FISH_DB } from '../../data/species.js?v=2.0.15';
+import { renderFiveFish } from '../../ui/svg.js?v=2.0.15';
+import { createPill, showToast } from '../../ui/components.js?v=2.0.15';
 
 /**
  * Список морских, проходных и полупроходных видов, которые заходят в пресные реки
@@ -72,7 +72,7 @@ export function getPreceding5DaysForTarget(day, state = null) {
 }
 
 /**
- * 7-й ФАКТОР ПРОГНОЗИРОВАНИЯ (Ревизия 2.0.14):
+ * 7-й ФАКТОР ПРОГНОЗИРОВАНИЯ (Ревизия 2.0.15):
  * Анализ 5-дневного метеоархива (в радиусе 10 км) и эффекта «барического шока» (ступора рыбы после скачков давления за 1–2 суток).
  * Даже если сегодня погода и давление нормализовались, при резких скачках за предыдущие 24–72 часа рыба находится в барическом «шоке» и болеет.
  */
@@ -163,7 +163,7 @@ export function evaluate5DayArchiveAndBaricShock(fish, day, prev5Days = [], hasR
 }
 
 /**
- * Аналитика Личного журнала рыболова для калибровки прогноза клёва (Ревизия 2.0.14):
+ * Аналитика Личного журнала рыболова для калибровки прогноза клёва (Ревизия 2.0.15):
  * Сравнивает текущие условия (температура воды, давление, ветер, снасть, час) с реальными уловами пользователя из журнала.
  */
 export function evaluateLogbookInsight(fish, day, hrObj, method, water, catches = []) {
@@ -234,7 +234,7 @@ export function evaluateLogbookInsight(fish, day, hrObj, method, water, catches 
 }
 
 /**
- * Ревизия 2.0.14:
+ * Ревизия 2.0.15:
  * 7-факторный расчёт почасового прогноза клёва + калибровка по Личному журналу рыболова:
  * 1) Температура воды (с учётом течения водоёма)
  * 2) Давление и его суточный/3ч ход

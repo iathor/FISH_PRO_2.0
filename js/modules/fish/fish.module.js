@@ -1,15 +1,14 @@
-import { RU } from '../../i18n/ru.js?v=2.0.14';
-import { events } from '../../core/events.js?v=2.0.14';
-import { store } from '../../core/store.js?v=2.0.14';
-import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.0.14';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.0.14';
-import { RUSSIA_CITIES } from '../../data/russia-waters.js?v=2.0.14';
-import { FISH_DB } from '../../data/species.js?v=2.0.14';
-import { renderFishVisual, renderFiveFish } from '../../ui/svg.js?v=2.0.14';
-import { createPill, showToast, openModal, closeModal, openFishLightbox } from '../../ui/components.js?v=2.0.14';
-import { getNearestRussianWaters } from '../../data/russia-waters.js?v=2.0.14';
-import { setLocation } from '../geo/geo.module.js?v=2.0.14';
-import { calcDayBest } from '../forecast/forecast.module.js?v=2.0.14';
+import { RU } from '../../i18n/ru.js?v=2.0.15';
+import { events } from '../../core/events.js?v=2.0.15';
+import { store } from '../../core/store.js?v=2.0.15';
+import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.0.15';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.0.15';
+import { RUSSIA_CITIES, findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.0.15';
+import { FISH_DB } from '../../data/species.js?v=2.0.15';
+import { renderFishVisual, renderFiveFish } from '../../ui/svg.js?v=2.0.15';
+import { createPill, showToast, openModal, closeModal, openFishLightbox } from '../../ui/components.js?v=2.0.15';
+import { setLocation, detectUserPosition } from '../geo/geo.module.js?v=2.0.15';
+import { calcDayBest } from '../forecast/forecast.module.js?v=2.0.15';
 
 /**
  * Региональные приоритетные виды для каждого бассейна РФ,
@@ -197,7 +196,7 @@ export function getFilteredFishList(state) {
 }
 
 /**
- * Ревизия 2.0.14 (Пункты 1a, 1b, 1c, 1d, 1e):
+ * Ревизия 2.0.15 (Пункты 1a, 1b, 1c, 1d, 1e):
  * - 1a: Изображение рыбы увеличено до удобного полноширинного баннера в верхней части карточки (розовая рамка).
  * - 1b: Названия, латынь, народные названия и пилл статуса смещены вниз под изображение рыбы (без обрезания текста).
  * - 1c: Кнопка «Закрыть» перенесена вниз формы и закреплена на нижней полосе (sticky footer) рядом с кнопкой «🎣 Я поймал».
@@ -581,6 +580,7 @@ export function openOnboardingModal(isEditMode = false) {
 
   openModal(isEditMode ? '👤 Профиль рыболова' : '🚀 Стартовая настройка рыболова', getModalBodyHtml(), (bodyEl) => {
     function bindWaters(container) {
+      if (!container) return;
       container.querySelectorAll('[data-onb-water]').forEach(btn => {
         btn.addEventListener('click', () => {
           const wid = btn.getAttribute('data-onb-water');
@@ -604,6 +604,7 @@ export function openOnboardingModal(isEditMode = false) {
     }
 
     function bindMethods(container) {
+      if (!container) return;
       container.querySelectorAll('[data-onb-method]').forEach(btn => {
         btn.addEventListener('click', () => {
           const mid = btn.getAttribute('data-onb-method');
@@ -627,6 +628,7 @@ export function openOnboardingModal(isEditMode = false) {
     }
 
     function bindFishChips(container) {
+      if (!container) return;
       container.querySelectorAll('[data-onb-fish]').forEach(btn => {
         btn.addEventListener('click', () => {
           const fid = btn.getAttribute('data-onb-fish');
@@ -683,85 +685,121 @@ export function openOnboardingModal(isEditMode = false) {
     }
 
     const citySelect = bodyEl.querySelector('#onbCitySelect');
+
+    function applyModalLocation(latVal, lonVal, cName, cAdmin, sourceType = 'manual') {
+      currentLat = Math.round(latVal * 10000) / 10000;
+      currentLon = Math.round(lonVal * 10000) / 10000;
+      currentCityName = cName;
+      currentBasin = detectBasinByCoords(currentLat, currentLon);
+
+      store.dispatch({
+        type: 'SET_LOCATION_LABELS',
+        payload: { locLabel: cName, locAdmin1: cAdmin || cName, locAdmin2: cName }
+      });
+      setLocation(currentLat, currentLon, sourceType === 'manual');
+
+      if (citySelect) {
+        const opts = Array.from(citySelect.options);
+        const matchOpt = opts.find(o => o.value.split(',')[2] === cName);
+        if (matchOpt) {
+          citySelect.value = matchOpt.value;
+        } else {
+          const customVal = `${currentLat},${currentLon},${cName},${cAdmin || 'Россия'}`;
+          let customOpt = bodyEl.querySelector('#onbCustomGpsOpt');
+          if (!customOpt) {
+            customOpt = document.createElement('option');
+            customOpt.id = 'onbCustomGpsOpt';
+            citySelect.prepend(customOpt);
+          }
+          customOpt.value = customVal;
+          customOpt.textContent = `📍 ${cName} (${cAdmin || 'По геолокации'})`;
+          citySelect.value = customVal;
+        }
+      }
+
+      const isSeaCoastal = isCoastalInBasin(currentBasin, currentLat, currentLon);
+      const hint = bodyEl.querySelector('#onbLocHint');
+      if (hint) {
+        const coordPart = sourceType !== 'manual' ? `📍 ${cName} (${currentLat.toFixed(2)}°N, ${currentLon.toFixed(2)}°E) • ` : '';
+        hint.textContent = `${coordPart}Бассейн: ${BASIN_CONFIGS[currentBasin]?.name || 'РФ'} ${isSeaCoastal ? '• 🌊 Морское побережье' : '• 💧 Пресноводный бассейн'}`;
+      }
+
+      const availWaters = getAvailableWaterTypes(currentBasin, currentLat, currentLon);
+      const validWaterIds = new Set(availWaters.map(w => w.id));
+      const filteredWaters = Array.from(selectedWaters).filter(w => validWaterIds.has(w));
+      selectedWaters.clear();
+      if (filteredWaters.length) {
+        filteredWaters.forEach(w => selectedWaters.add(w));
+      } else if (availWaters.length) {
+        selectedWaters.add(availWaters[0].id);
+      }
+
+      const watersContainer = bodyEl.querySelector('#onbWatersContainer');
+      if (watersContainer) {
+        watersContainer.innerHTML = availWaters.map(w => {
+          const active = selectedWaters.has(w.id);
+          return `<button type="button" class="w-chip ${active ? 'active' : ''}" data-onb-water="${w.id}">
+            ${active ? '✓ ' : ''}${w.name}
+          </button>`;
+        }).join('');
+        bindWaters(watersContainer);
+        const cnt = bodyEl.querySelector('#onbWatersCount');
+        if (cnt) cnt.textContent = selectedWaters.size;
+      }
+
+      const regionalSpecies = getSortedRegionalSpecies(currentBasin);
+      const speciesContainer = bodyEl.querySelector('#onbSpeciesChips');
+      if (speciesContainer) {
+        speciesContainer.innerHTML = regionalSpecies.map(f => {
+          const active = selectedFishes.has(f.id);
+          return `<button type="button" class="w-chip ${active ? 'active' : ''}" data-onb-fish="${f.id}">
+            ${active ? '⭐ ' : ''}${f.name}
+          </button>`;
+        }).join('');
+        bindFishChips(speciesContainer);
+      }
+    }
+
     if (citySelect) {
       citySelect.addEventListener('change', (e) => {
         const [latStr, lonStr, cName, cAdmin] = e.target.value.split(',');
-        currentLat = parseFloat(latStr);
-        currentLon = parseFloat(lonStr);
-        currentCityName = cName;
-        currentBasin = detectBasinByCoords(currentLat, currentLon);
-
-        store.dispatch({
-          type: 'SET_LOCATION_LABELS',
-          payload: { locLabel: cName, locAdmin1: cAdmin, locAdmin2: cName }
-        });
-        setLocation(currentLat, currentLon, true);
-
-        const isSeaCoastal = isCoastalInBasin(currentBasin, currentLat, currentLon);
-        const hint = bodyEl.querySelector('#onbLocHint');
-        if (hint) {
-          hint.textContent = `Бассейн: ${BASIN_CONFIGS[currentBasin]?.name || 'РФ'} ${isSeaCoastal ? '• 🌊 Морское побережье' : '• 💧 Пресноводный бассейн'}`;
-        }
-
-        const availWaters = getAvailableWaterTypes(currentBasin, currentLat, currentLon);
-        const validWaterIds = new Set(availWaters.map(w => w.id));
-        const filteredWaters = Array.from(selectedWaters).filter(w => validWaterIds.has(w));
-        selectedWaters.clear();
-        if (filteredWaters.length) {
-          filteredWaters.forEach(w => selectedWaters.add(w));
-        } else if (availWaters.length) {
-          selectedWaters.add(availWaters[0].id);
-        }
-
-        const watersContainer = bodyEl.querySelector('#onbWatersContainer');
-        if (watersContainer) {
-          watersContainer.innerHTML = availWaters.map(w => {
-            const active = selectedWaters.has(w.id);
-            return `<button type="button" class="w-chip ${active ? 'active' : ''}" data-onb-water="${w.id}">
-              ${active ? '✓ ' : ''}${w.name}
-            </button>`;
-          }).join('');
-          bindWaters(watersContainer);
-          const cnt = bodyEl.querySelector('#onbWatersCount');
-          if (cnt) cnt.textContent = selectedWaters.size;
-        }
-
-        const regionalSpecies = getSortedRegionalSpecies(currentBasin);
-        const speciesContainer = bodyEl.querySelector('#onbSpeciesChips');
-        if (speciesContainer) {
-          speciesContainer.innerHTML = regionalSpecies.map(f => {
-            const active = selectedFishes.has(f.id);
-            return `<button type="button" class="w-chip ${active ? 'active' : ''}" data-onb-fish="${f.id}">
-              ${active ? '⭐ ' : ''}${f.name}
-            </button>`;
-          }).join('');
-          bindFishChips(speciesContainer);
-        }
+        applyModalLocation(parseFloat(latStr), parseFloat(lonStr), cName, cAdmin, 'manual');
       });
     }
 
     const gpsBtn = bodyEl.querySelector('#onbGpsBtn');
-    if (gpsBtn && navigator.geolocation) {
-      gpsBtn.addEventListener('click', () => {
+    if (gpsBtn) {
+      gpsBtn.addEventListener('click', async () => {
         gpsBtn.textContent = '⏳ Поиск...';
-        navigator.geolocation.getCurrentPosition(
-          pos => {
-            currentLat = pos.coords.latitude;
-            currentLon = pos.coords.longitude;
-            currentBasin = detectBasinByCoords(currentLat, currentLon);
-            setLocation(currentLat, currentLon, false);
-            gpsBtn.textContent = '✅ Найдено';
-            const isSeaCoastal = isCoastalInBasin(currentBasin, currentLat, currentLon);
+        gpsBtn.disabled = true;
+        try {
+          const geoRes = await detectUserPosition();
+          gpsBtn.disabled = false;
+          if (geoRes && Number.isFinite(geoRes.lat) && Number.isFinite(geoRes.lon)) {
+            const near = findNearestRussianSettlement(geoRes.lat, geoRes.lon);
+            const cName = (near && near.distKm <= 75) ? near.name : (geoRes.city || 'Моя точка');
+            const cAdmin = (near && near.distKm <= 75) ? near.admin1 : (geoRes.region || 'Россия');
+            applyModalLocation(geoRes.lat, geoRes.lon, cName, cAdmin, geoRes.source);
+            gpsBtn.textContent = geoRes.source === 'ip' ? '✅ По сети' : '✅ Найдено';
+            if (geoRes.source === 'ip' && geoRes.permissionDenied) {
+              showToast(`📍 Доступ к GPS в браузере закрыт — определён город по сети: ${cName}`, 'info');
+            } else {
+              showToast(`📍 Локация определена: ${cName}`, 'good');
+            }
+          } else {
+            const nearCur = findNearestRussianSettlement(currentLat, currentLon);
+            const fallbackName = nearCur ? nearCur.name : currentCityName;
+            gpsBtn.textContent = '📍 Выберите в списке';
             const hint = bodyEl.querySelector('#onbLocHint');
             if (hint) {
-              hint.textContent = `Координаты: ${currentLat.toFixed(2)}°N, ${currentLon.toFixed(2)}°E (${BASIN_CONFIGS[currentBasin]?.name || 'РФ'}) ${isSeaCoastal ? '• 🌊 Морское побережье' : ''}`;
+              hint.textContent = `ℹ️ Доступ к геоданным отключён в настройках браузера (значок 🔒 у адреса сайта). Выберите город в списке выше (сейчас: ${fallbackName}).`;
             }
-          },
-          () => {
-            gpsBtn.textContent = '❌ Ошибка GPS';
-          },
-          { enableHighAccuracy: true, timeout: 6000 }
-        );
+            showToast('Разрешите доступ к геоданным в браузере или выберите город в списке Шага 1', 'info');
+          }
+        } catch (e) {
+          gpsBtn.disabled = false;
+          gpsBtn.textContent = '📍 Выберите в списке';
+        }
       });
     }
 

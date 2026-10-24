@@ -1,5 +1,5 @@
-import { store } from './store.js?v=2.0.14';
-import { renderMap } from '../modules/geo/geo.module.js?v=2.0.14';
+import { store } from './store.js?v=2.0.15';
+import { renderMap } from '../modules/geo/geo.module.js?v=2.0.15';
 
 const VALID_ROUTES = ['dashboard', 'fish', 'geo', 'weather', 'forecast', 'calendar', 'log'];
 

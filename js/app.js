@@ -1,15 +1,15 @@
-import { initReleaseUpdater, checkForReleaseUpdate } from './core/updater.js?v=2.0.14';
-import { RU } from './i18n/ru.js?v=2.0.14';
-import { store } from './core/store.js?v=2.0.14';
-import { router } from './core/router.js?v=2.0.14';
-import { installShortcut, initPwa } from './core/pwa.js?v=2.0.14';
-import { showToast } from './ui/components.js?v=2.0.14';
-import { weatherModule } from './modules/weather/weather.module.js?v=2.0.14';
-import { geoModule } from './modules/geo/geo.module.js?v=2.0.14';
-import { fishModule } from './modules/fish/fish.module.js?v=2.0.14';
-import { forecastModule } from './modules/forecast/forecast.module.js?v=2.0.14';
-import { calendarModule } from './modules/calendar/calendar.module.js?v=2.0.14';
-import { logModule } from './modules/log/log.module.js?v=2.0.14';
+import { initReleaseUpdater, checkForReleaseUpdate } from './core/updater.js?v=2.0.15';
+import { RU } from './i18n/ru.js?v=2.0.15';
+import { store } from './core/store.js?v=2.0.15';
+import { router } from './core/router.js?v=2.0.15';
+import { installShortcut, initPwa } from './core/pwa.js?v=2.0.15';
+import { showToast } from './ui/components.js?v=2.0.15';
+import { weatherModule } from './modules/weather/weather.module.js?v=2.0.15';
+import { geoModule } from './modules/geo/geo.module.js?v=2.0.15';
+import { fishModule } from './modules/fish/fish.module.js?v=2.0.15';
+import { forecastModule } from './modules/forecast/forecast.module.js?v=2.0.15';
+import { calendarModule } from './modules/calendar/calendar.module.js?v=2.0.15';
+import { logModule } from './modules/log/log.module.js?v=2.0.15';
 
 // Немедленно помечаем успешную загрузку модульного ядра, чтобы аварийный таймер в index.html не срабатывал
 if (typeof window !== 'undefined') {
@@ -215,7 +215,7 @@ let cachedFullDockH = 212;
 let scrollRafPending = false;
 
 /**
- * Ревизия 2.0.14 (Пункты 2a и 2b):
+ * Ревизия 2.0.15 (Пункты 2a и 2b):
  * - 2b: На вкладке «Прогноз» (и «Погода» / «Календарь») сохраняем видимость #fishResultsArea,
  *   внутри которого лежат #fishStripPlaceholder и #fishStripDockWrap, чтобы миниатюрная лента рыб всегда была закреплена сверху!
  * - 2a: Уменьшение карточек рыб при свайпе вверх сделано плавным (увеличен диапазон интерполяции maxDelta = 175px + кубическое сглаживание easeOutCubic + requestAnimationFrame).

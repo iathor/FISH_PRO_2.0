@@ -1,13 +1,13 @@
 /**
  * @file store.js
- * @description Централизованное хранилище состояния (Store) с автоматической синхронизацией снасти/наживки, поддержкой 5-дневного метеоархива (10 км) и мгновенным разрешением населённого пункта из единой базы РФ (Ревизия 2.0.14)
+ * @description Централизованное хранилище состояния (Store) с автоматической синхронизацией снасти/наживки, поддержкой 5-дневного метеоархива (10 км) и мгновенным разрешением населённого пункта из единой базы РФ (Ревизия 2.0.15)
  */
 
-import { DEFAULT_STATE, getCompatibleMethods, getSeasonalBaitsForContext } from './config.js?v=2.0.14';
-import { storage } from './storage.js?v=2.0.14';
-import { detectBasinByCoords, BASIN_CONFIGS, isCoastalInBasin } from '../data/basins.js?v=2.0.14';
-import { findNearestRussianSettlement } from '../data/russia-waters.js?v=2.0.14';
-import { FISH_DB } from '../data/species.js?v=2.0.14';
+import { DEFAULT_STATE, getCompatibleMethods, getSeasonalBaitsForContext } from './config.js?v=2.0.15';
+import { storage } from './storage.js?v=2.0.15';
+import { detectBasinByCoords, BASIN_CONFIGS, isCoastalInBasin } from '../data/basins.js?v=2.0.15';
+import { findNearestRussianSettlement } from '../data/russia-waters.js?v=2.0.15';
+import { FISH_DB } from '../data/species.js?v=2.0.15';
 
 function getActiveDaySeasonContext(state, overrideDays = null, overrideDayIdx = null, overrideIceState = null) {
   const rawDays = overrideDays ?? state?.weatherDays;

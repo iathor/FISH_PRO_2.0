@@ -1,5 +1,6 @@
-import { showToast } from '../ui/components.js?v=2.0.14';
+import { showToast } from '../ui/components.js?v=2.0.15';
 
+export const PWA_INSTALLED_KEY = 'klev_pro_pwa_installed';
 let deferredInstallPrompt = null;
 
 export function generateFloatIconDataURL(size = 512) {
@@ -56,14 +57,54 @@ export function initDynamicTouchIcon() {
 }
 
 export function isStandaloneMode() {
-  return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) ||
-         window.navigator.standalone === true;
+  try {
+    if (window.navigator.standalone === true) return true;
+    if (typeof document !== 'undefined' && document.referrer && document.referrer.includes('android-app://')) return true;
+    if (window.matchMedia) {
+      if (window.matchMedia('(display-mode: standalone)').matches) return true;
+      if (window.matchMedia('(display-mode: fullscreen)').matches) return true;
+      if (window.matchMedia('(display-mode: minimal-ui)').matches) return true;
+      if (window.matchMedia('(display-mode: window-controls-overlay)').matches) return true;
+    }
+  } catch (e) {}
+  return false;
+}
+
+export function isAppInstalledOrShortcutPresent() {
+  if (isStandaloneMode()) {
+    try { localStorage.setItem(PWA_INSTALLED_KEY, '1'); } catch (e) {}
+    return true;
+  }
+  try {
+    return localStorage.getItem(PWA_INSTALLED_KEY) === '1';
+  } catch (e) {
+    return false;
+  }
+}
+
+export function markAppInstalled(installed = true) {
+  try {
+    if (installed) {
+      localStorage.setItem(PWA_INSTALLED_KEY, '1');
+      document.documentElement.setAttribute('data-pwa-installed', '1');
+    } else {
+      localStorage.removeItem(PWA_INSTALLED_KEY);
+      document.documentElement.removeAttribute('data-pwa-installed');
+    }
+  } catch (e) {}
+  syncInstallButtons();
 }
 
 export function syncInstallButtons() {
-  const standalone = isStandaloneMode();
+  const installed = isAppInstalledOrShortcutPresent();
+  if (installed) {
+    document.documentElement.setAttribute('data-pwa-installed', '1');
+  } else {
+    document.documentElement.removeAttribute('data-pwa-installed');
+  }
+
   document.querySelectorAll('[data-install-app]').forEach(btn => {
-    if (standalone) {
+    if (installed) {
       btn.style.display = 'none';
     } else {
       btn.style.display = 'inline-flex';
@@ -83,17 +124,24 @@ export function showInstallModal(htmlText) {
     modal.id = 'customInstallModal';
     modal.style.cssText = 'position:fixed;inset:0;background:rgba(2,6,23,0.78);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;';
     modal.innerHTML = `
-      <div style="background:var(--panel);border:1.5px solid var(--accent);border-radius:16px;max-width:360px;width:100%;padding:18px;box-shadow:var(--shadow-header);text-align:center;">
+      <div style="background:var(--panel);border:1.5px solid var(--accent);border-radius:16px;max-width:370px;width:100%;padding:18px;box-shadow:var(--shadow-header);text-align:center;">
         <img id="modalIconPreview" alt="Клёв ПРО" style="width:72px;height:72px;border-radius:16px;margin-bottom:10px;border:1px solid var(--border);" src="">
         <div style="font-size:16px;font-weight:800;margin-bottom:8px;color:var(--text);">Установка «Клёв ПРО 2.0»</div>
         <div id="modalInstallText" style="font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:16px;text-align:left;"></div>
-        <button type="button" class="btn btn-accent" style="width:100%;" id="closeCustomInstallModalBtn">Понятно</button>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <button type="button" class="btn btn-accent" style="width:100%;" id="closeCustomInstallModalBtn">Понятно</button>
+          <button type="button" class="btn btn-sm" style="width:100%;color:var(--good);border-color:var(--good);" id="markShortcutAddedBtn">✅ Ярлык уже на экране (скрыть кнопку)</button>
+        </div>
       </div>
     `;
     document.body.appendChild(modal);
     modal.addEventListener('click', (e) => {
       if (e.target === modal || e.target.id === 'closeCustomInstallModalBtn') {
         modal.style.display = 'none';
+      } else if (e.target.id === 'markShortcutAddedBtn') {
+        modal.style.display = 'none';
+        markAppInstalled(true);
+        showToast('Кнопка установки скрыта (ярлык уже добавлен)', 'good');
       }
     });
   }
@@ -106,12 +154,14 @@ export function showInstallModal(htmlText) {
 
 export async function installShortcut() {
   if (deferredInstallPrompt) {
-    deferredInstallPrompt.prompt();
-    const { outcome } = await deferredInstallPrompt.userChoice;
-    if (outcome === 'accepted') {
-      deferredInstallPrompt = null;
-      syncInstallButtons();
-    }
+    try {
+      deferredInstallPrompt.prompt();
+      const { outcome } = await deferredInstallPrompt.userChoice;
+      if (outcome === 'accepted') {
+        deferredInstallPrompt = null;
+        markAppInstalled(true);
+      }
+    } catch (e) {}
     return;
   }
   const ua = (navigator.userAgent || '').toLowerCase();
@@ -126,16 +176,39 @@ export async function installShortcut() {
 
 export function initPwa() {
   initDynamicTouchIcon();
+
+  // Если браузер присылает beforeinstallprompt в обычной вкладке — значит приложение ещё НЕ установлено
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredInstallPrompt = e;
-    syncInstallButtons();
+    if (!isStandaloneMode()) {
+      markAppInstalled(false);
+    }
   });
+
   window.addEventListener('appinstalled', () => {
     deferredInstallPrompt = null;
-    syncInstallButtons();
+    markAppInstalled(true);
     showToast('Приложение «Клёв ПРО 2.0» установлено на главный экран!', 'good');
   });
+
+  if (window.matchMedia) {
+    try {
+      const mq = window.matchMedia('(display-mode: standalone)');
+      if (typeof mq.addEventListener === 'function') {
+        mq.addEventListener('change', () => syncInstallButtons());
+      }
+    } catch (e) {}
+  }
+
+  if (typeof navigator !== 'undefined' && typeof navigator.getInstalledRelatedApps === 'function') {
+    navigator.getInstalledRelatedApps().then(apps => {
+      if (Array.isArray(apps) && apps.length > 0) {
+        markAppInstalled(true);
+      }
+    }).catch(() => {});
+  }
+
   syncInstallButtons();
 }
 
@@ -143,6 +216,8 @@ export const pwaModule = {
   generateFloatIconDataURL,
   initDynamicTouchIcon,
   isStandaloneMode,
+  isAppInstalledOrShortcutPresent,
+  markAppInstalled,
   syncInstallButtons,
   initPwa,
   showInstallModal,

@@ -1,14 +1,14 @@
-import { RU } from '../../i18n/ru.js?v=2.0.14';
-import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.0.14';
-import { events } from '../../core/events.js?v=2.0.14';
-import { storage } from '../../core/storage.js?v=2.0.14';
-import { store } from '../../core/store.js?v=2.0.14';
-import { formatLocalYYYYMMDD, fmtDeltaPress } from '../../core/format.js?v=2.0.14';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.0.14';
-import { FISH_DB } from '../../data/species.js?v=2.0.14';
-import { createPill, showToast, openModal, closeModal } from '../../ui/components.js?v=2.0.14';
-import { computeMoon } from '../weather/weather.module.js?v=2.0.14';
-import { calcHourly } from '../forecast/forecast.module.js?v=2.0.14';
+import { RU } from '../../i18n/ru.js?v=2.0.15';
+import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.0.15';
+import { events } from '../../core/events.js?v=2.0.15';
+import { storage } from '../../core/storage.js?v=2.0.15';
+import { store } from '../../core/store.js?v=2.0.15';
+import { formatLocalYYYYMMDD, fmtDeltaPress } from '../../core/format.js?v=2.0.15';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.0.15';
+import { FISH_DB } from '../../data/species.js?v=2.0.15';
+import { createPill, showToast, openModal, closeModal } from '../../ui/components.js?v=2.0.15';
+import { computeMoon } from '../weather/weather.module.js?v=2.0.15';
+import { calcHourly } from '../forecast/forecast.module.js?v=2.0.15';
 
 let currentFilter = { fishId: 'all', cond: 'all' };
 
@@ -177,7 +177,7 @@ export function getPersonalStats(fishId) {
 }
 
 /**
- * Ревизия 2.0.14:
+ * Ревизия 2.0.15:
  * Окно записи улова «🎣 Я поймал» с обычным календарём (<input type="date">),
  * быстрыми кнопками выбора за предыдущие 5 дней (и Сегодня) и автоматической подгрузкой почасового прогноза из кэша 10 км!
  */
@@ -601,19 +601,34 @@ let unsub = null;
 let unsubEvent = null;
 
 export async function init(container) {
-  const all = await storage.getAllFromStore('catches');
-  all.sort((a, b) => b.timestamp - a.timestamp);
-  store.dispatch({ type: 'SET_CATCHES', payload: all });
+  // 1. Мгновенная синхронная подгрузка из резерва и первичная отрисовка Журнала (0 мс, без ожидания IndexedDB!)
+  const localCatches = storage.getLocalBackup ? storage.getLocalBackup('catches') : [];
+  if (Array.isArray(localCatches) && localCatches.length > 0) {
+    localCatches.sort((a, b) => b.timestamp - a.timestamp);
+    store.dispatch({ type: 'SET_CATCHES', payload: localCatches });
+  }
+
   render(container);
 
+  if (unsub) unsub();
   unsub = store.subscribe(
     s => ({ catches: s.catches, fishId: s.fishId }),
     () => render(container)
   );
 
+  if (unsubEvent) unsubEvent();
   unsubEvent = events.on('forecast:hourSelected', (payload) => {
     openCatchWizard(payload);
   });
+
+  // 2. Асинхронная синхронизация с IndexedDB после отрисовки интерфейса
+  try {
+    const all = await storage.getAllFromStore('catches');
+    if (Array.isArray(all)) {
+      all.sort((a, b) => b.timestamp - a.timestamp);
+      store.dispatch({ type: 'SET_CATCHES', payload: all });
+    }
+  } catch (e) {}
 }
 
 export function destroy() {

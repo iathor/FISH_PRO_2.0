@@ -1,6 +1,6 @@
-import { APP_VERSION, IMG_SEARCH_DIRS } from '../core/config.js?v=2.0.14';
-import { getRatingWord } from '../core/format.js?v=2.0.14';
-import { FISH_DB } from '../data/species.js?v=2.0.14';
+import { APP_VERSION, IMG_SEARCH_DIRS } from '../core/config.js?v=2.0.15';
+import { getRatingWord } from '../core/format.js?v=2.0.15';
+import { FISH_DB } from '../data/species.js?v=2.0.15';
 
 let clipSeq = 0;
 const missingImagesSet = new Set();

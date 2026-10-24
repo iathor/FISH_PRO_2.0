@@ -1,10 +1,10 @@
-import { MAP_LAYERS, getCompatibleMethods } from '../../core/config.js?v=2.0.14';
-import { events } from '../../core/events.js?v=2.0.14';
-import { storage } from '../../core/storage.js?v=2.0.14';
-import { store } from '../../core/store.js?v=2.0.14';
-import { fetchWithTimeout } from '../../core/http.js?v=2.0.14';
-import { installShortcut, syncInstallButtons } from '../../core/pwa.js?v=2.0.14';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.0.14';
+import { MAP_LAYERS, getCompatibleMethods } from '../../core/config.js?v=2.0.15';
+import { events } from '../../core/events.js?v=2.0.15';
+import { storage } from '../../core/storage.js?v=2.0.15';
+import { store } from '../../core/store.js?v=2.0.15';
+import { fetchWithTimeout } from '../../core/http.js?v=2.0.15';
+import { installShortcut, syncInstallButtons } from '../../core/pwa.js?v=2.0.15';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.0.15';
 import {
   RUSSIA_CITIES,
   RUSSIA_WATERS,
@@ -12,10 +12,10 @@ import {
   getNearestRussianSettlements,
   getNearestRussianWaters,
   getWaterTypeShortTag
-} from '../../data/russia-waters.js?v=2.0.14';
-import { FISH_DB } from '../../data/species.js?v=2.0.14';
-import { showToast } from '../../ui/components.js?v=2.0.14';
-import { fetchWeather } from '../weather/weather.module.js?v=2.0.14';
+} from '../../data/russia-waters.js?v=2.0.15';
+import { FISH_DB } from '../../data/species.js?v=2.0.15';
+import { showToast } from '../../ui/components.js?v=2.0.15';
+import { fetchWeather } from '../weather/weather.module.js?v=2.0.15';
 
 let mapInstance = null;
 let mapMarker = null;
@@ -122,7 +122,7 @@ export async function setLocation(lat, lon, skipReverseGeo = false) {
 }
 
 /**
- * Ревизия 2.0.14: Безопасное определение геолокации без блокировок в мобильных браузерах:
+ * Ревизия 2.0.15: Безопасное определение геолокации без блокировок в мобильных браузерах:
  * - Не вызывает getCurrentPosition при старте страницы, если разрешение ещё не выдано (state !== 'granted'),
  *   чтобы мобильные браузеры не блокировали запрос без клика пользователя.
  * - Если пользователь уже выдал разрешение ранее (state === 'granted') и точка ещё не выбиралась вручную — тихо уточняет координаты.
@@ -153,8 +153,14 @@ export async function autoDetectStartupLocation() {
  * Резервное определение примерных координат по IP (доступные в РФ без VPN сервисы),
  * если в мобильном браузере заблокирован системный доступ к GPS (PERMISSION_DENIED).
  */
-async function locateByIpFallback() {
+export async function locateByIpFallback() {
   const providers = [
+    {
+      url: 'https://api.bigdatacloud.net/data/reverse-geocode-client?localityLanguage=ru',
+      parse: d => (d && Number.isFinite(d.latitude) && Number.isFinite(d.longitude))
+        ? { lat: d.latitude, lon: d.longitude, city: d.city || d.locality || d.principalSubdivision, region: d.principalSubdivision }
+        : null
+    },
     {
       url: 'https://ipwho.is/?lang=ru',
       parse: d => (d && d.success !== false && Number.isFinite(d.latitude) && Number.isFinite(d.longitude))
@@ -177,7 +183,7 @@ async function locateByIpFallback() {
 
   for (const p of providers) {
     try {
-      const raw = await fetchWithTimeout(p.url, 4500);
+      const raw = await fetchWithTimeout(p.url, 4200);
       const res = p.parse(raw);
       if (res && Number.isFinite(res.lat) && Number.isFinite(res.lon)) {
         return res;
@@ -185,6 +191,78 @@ async function locateByIpFallback() {
     } catch (e) {}
   }
   return null;
+}
+
+/**
+ * Ревизия 2.0.15:
+ * Универсальный трёхступенчатый каскад определения координат (GPS -> Сеть/Wi-Fi -> IP-геолокация РФ без VPN)
+ */
+export async function detectUserPosition() {
+  if (typeof navigator !== 'undefined' && navigator.geolocation) {
+    try {
+      const pos1 = await new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 5500,
+          maximumAge: 180000
+        });
+      });
+      if (pos1 && pos1.coords && Number.isFinite(pos1.coords.latitude)) {
+        return {
+          lat: pos1.coords.latitude,
+          lon: pos1.coords.longitude,
+          source: 'gps',
+          permissionDenied: false
+        };
+      }
+    } catch (err1) {
+      const denied1 = Boolean(err1 && err1.code === 1);
+      if (!denied1) {
+        try {
+          const pos2 = await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+              enableHighAccuracy: false,
+              timeout: 6000,
+              maximumAge: 600000
+            });
+          });
+          if (pos2 && pos2.coords && Number.isFinite(pos2.coords.latitude)) {
+            return {
+              lat: pos2.coords.latitude,
+              lon: pos2.coords.longitude,
+              source: 'network',
+              permissionDenied: false
+            };
+          }
+        } catch (err2) {}
+      }
+      const ipGeo = await locateByIpFallback();
+      if (ipGeo) {
+        return {
+          lat: ipGeo.lat,
+          lon: ipGeo.lon,
+          city: ipGeo.city,
+          region: ipGeo.region,
+          source: 'ip',
+          permissionDenied: denied1
+        };
+      }
+      return { lat: null, lon: null, source: 'failed', permissionDenied: denied1 };
+    }
+  }
+
+  const ipGeo = await locateByIpFallback();
+  if (ipGeo) {
+    return {
+      lat: ipGeo.lat,
+      lon: ipGeo.lon,
+      city: ipGeo.city,
+      region: ipGeo.region,
+      source: 'ip',
+      permissionDenied: false
+    };
+  }
+  return { lat: null, lon: null, source: 'failed', permissionDenied: false };
 }
 
 export async function resolveReverseGeocode(lat, lon) {
@@ -418,7 +496,7 @@ export function requestGPS(container) {
 }
 
 /**
- * Ревизия 2.0.14:
+ * Ревизия 2.0.15:
  * Определение водоёмов и ближайших населённых пунктов по геолокации в радиусе «До 50 км» или «До 120 км».
  * 1) Мгновенно подставляет данные из единой офлайн-базы РФ (водоёмы + ближайшие населённые пункты) и 10-км кэша водоёмов.
  * 2) Асинхронно опрашивает каскад альтернативных серверов Overpass API (maps.mail.ru -> kumi.systems -> private.coffee -> overpass-api.de),
@@ -861,19 +939,21 @@ function bindGeoEvents(container, showDrawer) {
 let unsub = null;
 
 export async function init(container) {
-  const spots = await storage.getAllFromStore('spots');
-  store.dispatch({ type: 'SET_SAVED_SPOTS', payload: spots });
-  const s = store.getState();
+  // 1. Синхронно подгружаем точки из локального резерва и немедленно отрисовываем карту/водоёмы (0 мс, без ожидания IndexedDB!)
+  const localSpots = storage.getLocalBackup ? storage.getLocalBackup('spots') : [];
+  if (Array.isArray(localSpots) && localSpots.length > 0) {
+    store.dispatch({ type: 'SET_SAVED_SPOTS', payload: localSpots });
+  }
 
-  // Гарантируем, что название локации никогда не останется «Определение геолокации...»
+  const s = store.getState();
   if (!s.locLabel || s.locLabel.includes('Определение') || s.locAdmin1 === 'Автоопределение') {
     resolveReverseGeocode(s.lat, s.lon);
   }
 
   getNearbyWatersAndPlaces(s.lat, s.lon, s.waterRadiusKm || 50);
-  autoDetectStartupLocation();
   render(container);
 
+  if (unsub) unsub();
   unsub = store.subscribe(
     st => {
       const activeDay = st.weatherDays?.[st.dayIdx] || st.weatherDays?.[2] || st.weatherDays?.[0];
@@ -901,6 +981,16 @@ export async function init(container) {
     },
     () => render(container)
   );
+
+  autoDetectStartupLocation();
+
+  // 2. Асинхронная синхронизация сохранённых точек из IndexedDB после первичной отрисовки
+  try {
+    const spots = await storage.getAllFromStore('spots');
+    if (Array.isArray(spots)) {
+      store.dispatch({ type: 'SET_SAVED_SPOTS', payload: spots });
+    }
+  } catch (e) {}
 }
 
 export function destroy() {
@@ -910,6 +1000,8 @@ export function destroy() {
 export const geoModule = {
   setLocation,
   autoDetectStartupLocation,
+  locateByIpFallback,
+  detectUserPosition,
   resolveReverseGeocode,
   searchPlaceByQuery,
   requestGPS,
