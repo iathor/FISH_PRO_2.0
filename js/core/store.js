@@ -1,12 +1,13 @@
 /**
  * @file store.js
- * @description Централизованное хранилище состояния (Store) с автоматической синхронизацией снасти и наживки и чистым списком Избранного по умолчанию (Ревизия 2.0.13)
+ * @description Централизованное хранилище состояния (Store) с автоматической синхронизацией снасти/наживки, поддержкой 5-дневного метеоархива (10 км) и мгновенным разрешением населённого пункта из единой базы РФ (Ревизия 2.0.14)
  */
 
-import { DEFAULT_STATE, getCompatibleMethods, getSeasonalBaitsForContext } from './config.js?v=2.0.13';
-import { storage } from './storage.js?v=2.0.13';
-import { detectBasinByCoords, BASIN_CONFIGS, isCoastalInBasin } from '../data/basins.js?v=2.0.13';
-import { FISH_DB } from '../data/species.js?v=2.0.13';
+import { DEFAULT_STATE, getCompatibleMethods, getSeasonalBaitsForContext } from './config.js?v=2.0.14';
+import { storage } from './storage.js?v=2.0.14';
+import { detectBasinByCoords, BASIN_CONFIGS, isCoastalInBasin } from '../data/basins.js?v=2.0.14';
+import { findNearestRussianSettlement } from '../data/russia-waters.js?v=2.0.14';
+import { FISH_DB } from '../data/species.js?v=2.0.14';
 
 function getActiveDaySeasonContext(state, overrideDays = null, overrideDayIdx = null, overrideIceState = null) {
   const rawDays = overrideDays ?? state?.weatherDays;
@@ -106,15 +107,19 @@ function reducer(state, action) {
       if (!isCoastal && (water === 'sea_gulf' || water === 'open_sea')) {
         water = 'small_river';
       }
+      const nearestPlace = findNearestRussianSettlement(lat, lon);
+      const fallbackLabel = nearestPlace ? nearestPlace.label : `${lat.toFixed(2)}°N, ${lon.toFixed(2)}°E`;
+      const fallbackAdmin1 = nearestPlace ? nearestPlace.admin1 : '';
+
       const nextBase = {
         ...state,
         hasUserLocation: hasUserLocation ?? true,
         lat,
         lon,
-        locCountry: locCountry ?? state.locCountry,
-        locAdmin1: locAdmin1 ?? state.locAdmin1,
-        locAdmin2: locAdmin2 ?? state.locAdmin2,
-        locLabel: locLabel ?? state.locLabel,
+        locCountry: locCountry ?? state.locCountry ?? 'Россия',
+        locAdmin1: locAdmin1 ?? fallbackAdmin1,
+        locAdmin2: locAdmin2 ?? (nearestPlace?.name || ''),
+        locLabel: locLabel ?? fallbackLabel,
         basinCode,
         basinName,
         isCoastal,
@@ -225,10 +230,18 @@ function reducer(state, action) {
       const nextBase = {
         ...state,
         weatherDays: action.payload.days,
+        weatherArchive5Days: Array.isArray(action.payload.archive5Days)
+          ? action.payload.archive5Days
+          : (state.weatherArchive5Days || []),
+        hasRealArchive: action.payload.hasRealArchive !== undefined
+          ? Boolean(action.payload.hasRealArchive)
+          : (state.hasRealArchive ?? true),
         elevation: action.payload.elevation ?? state.elevation,
         normPress: action.payload.normPress ?? state.normPress,
         iceState: action.payload.iceState ?? state.iceState,
+        iceSubState: action.payload.iceSubState ?? state.iceSubState,
         iceThickness: action.payload.iceThickness ?? state.iceThickness,
+        iceNote: action.payload.iceNote ?? state.iceNote,
         weatherSource: action.payload.source ?? state.weatherSource,
         weatherUpdatedAt: action.payload.updatedAt ?? Date.now()
       };
@@ -281,7 +294,18 @@ if (!initCoastal && (initWater === 'sea_gulf' || initWater === 'open_sea')) {
   initWater = 'small_river';
 }
 
-// Пункт 1b: Если пользователь явно не выбирал избранное в новой ревизии, список избранного пустой
+// Мгновенно разрешаем название населённого пункта из единой офлайн-базы РФ, чтобы никогда не зависало «Определение геолокации...»
+const nearestSettlement = findNearestRussianSettlement(initLat, initLon);
+const rawSavedLabel = saved.locLabel || '';
+const isStuckLabel = !rawSavedLabel || rawSavedLabel.includes('Определение') || rawSavedLabel.includes('Поиск');
+const initLocLabel = !isStuckLabel
+  ? rawSavedLabel
+  : (nearestSettlement ? nearestSettlement.label : 'Москва');
+const rawSavedAdmin1 = saved.locAdmin1 || '';
+const initLocAdmin1 = (rawSavedAdmin1 && rawSavedAdmin1 !== 'Автоопределение')
+  ? rawSavedAdmin1
+  : (nearestSettlement ? nearestSettlement.admin1 : 'Москва');
+
 const initFavorites = saved.favoritesExplicitlySet === true && Array.isArray(saved.favorites)
   ? saved.favorites
   : [];
@@ -289,6 +313,9 @@ const initFavorites = saved.favoritesExplicitlySet === true && Array.isArray(sav
 export const store = createStore(syncTackleForContext({
   ...DEFAULT_STATE,
   ...saved,
+  locLabel: initLocLabel,
+  locAdmin1: initLocAdmin1,
+  locAdmin2: saved.locAdmin2 || (nearestSettlement?.name || initLocLabel),
   favorites: initFavorites,
   favoritesExplicitlySet: Boolean(saved.favoritesExplicitlySet),
   onlyFavoritesFilter: initFavorites.length === 0 ? false : Boolean(saved.onlyFavoritesFilter),
@@ -297,5 +324,7 @@ export const store = createStore(syncTackleForContext({
   basinName: BASIN_CONFIGS[initBasin]?.name || DEFAULT_STATE.basinName,
   isCoastal: initCoastal,
   water: initWater,
-  waterRadiusKm: saved.waterRadiusKm === 120 ? 120 : 50
+  waterRadiusKm: saved.waterRadiusKm === 120 ? 120 : 50,
+  weatherArchive5Days: [],
+  hasRealArchive: true
 }, false));
