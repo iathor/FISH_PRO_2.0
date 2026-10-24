@@ -1,15 +1,15 @@
-import { RU } from '../../i18n/ru.js?v=2.0.13';
-import { events } from '../../core/events.js?v=2.0.13';
-import { store } from '../../core/store.js?v=2.0.13';
-import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.0.13';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.0.13';
-import { RUSSIA_CITIES } from '../../data/russia-waters.js?v=2.0.13';
-import { FISH_DB } from '../../data/species.js?v=2.0.13';
-import { renderFishVisual, renderFiveFish } from '../../ui/svg.js?v=2.0.13';
-import { createPill, showToast, openModal, closeModal, openFishLightbox } from '../../ui/components.js?v=2.0.13';
-import { getNearestRussianWaters } from '../../data/russia-waters.js?v=2.0.13';
-import { setLocation } from '../geo/geo.module.js?v=2.0.13';
-import { calcDayBest } from '../forecast/forecast.module.js?v=2.0.13';
+import { RU } from '../../i18n/ru.js?v=2.0.14';
+import { events } from '../../core/events.js?v=2.0.14';
+import { store } from '../../core/store.js?v=2.0.14';
+import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.0.14';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.0.14';
+import { RUSSIA_CITIES } from '../../data/russia-waters.js?v=2.0.14';
+import { FISH_DB } from '../../data/species.js?v=2.0.14';
+import { renderFishVisual, renderFiveFish } from '../../ui/svg.js?v=2.0.14';
+import { createPill, showToast, openModal, closeModal, openFishLightbox } from '../../ui/components.js?v=2.0.14';
+import { getNearestRussianWaters } from '../../data/russia-waters.js?v=2.0.14';
+import { setLocation } from '../geo/geo.module.js?v=2.0.14';
+import { calcDayBest } from '../forecast/forecast.module.js?v=2.0.14';
 
 /**
  * Региональные приоритетные виды для каждого бассейна РФ,
@@ -197,7 +197,7 @@ export function getFilteredFishList(state) {
 }
 
 /**
- * Ревизия 2.0.13 (Пункты 1a, 1b, 1c, 1d, 1e):
+ * Ревизия 2.0.14 (Пункты 1a, 1b, 1c, 1d, 1e):
  * - 1a: Изображение рыбы увеличено до удобного полноширинного баннера в верхней части карточки (розовая рамка).
  * - 1b: Названия, латынь, народные названия и пилл статуса смещены вниз под изображение рыбы (без обрезания текста).
  * - 1c: Кнопка «Закрыть» перенесена вниз формы и закреплена на нижней полосе (sticky footer) рядом с кнопкой «🎣 Я поймал».
