@@ -9,7 +9,11 @@
   <meta name="apple-mobile-web-app-title" content="Клёв ПРО 2.0">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Клёв ПРО 2.0 • Прогноз клёва, Круг и Атлас Ихтиофауны РФ</title>
+<<<<<<< HEAD
   <link rel="manifest" href="manifest.json?v=2.0.162">
+=======
+  <link rel="manifest" href="manifest.json?v=2.0.161">
+>>>>>>> 33417ede577c091e7b89aed0efc07fda7f101501
   <link id="dynamicFavicon" rel="icon" type="image/png" sizes="180x180" href="apple-touch-icon.png">
   <link id="dynamicTouchIcon" rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
   <script>
@@ -40,12 +44,20 @@
 
       // Безопасная фоновая очистка устаревших кэшей прошлых сборок (без принудительной перезагрузки страницы)
       try {
+<<<<<<< HEAD
         var MIGRATION_KEY = 'klev_pro_migrated_v20162';
+=======
+        var MIGRATION_KEY = 'klev_pro_migrated_v20161_r2';
+>>>>>>> 33417ede577c091e7b89aed0efc07fda7f101501
         if (localStorage.getItem(MIGRATION_KEY) !== '1' && 'caches' in window) {
           caches.keys().then(function(keys) {
             return Promise.all(
               keys
+<<<<<<< HEAD
                 .filter(function(k) { return k !== 'klev-pro-static-v2.0.162'; })
+=======
+                .filter(function(k) { return k !== 'klev-pro-static-v2.0.161-r2'; })
+>>>>>>> 33417ede577c091e7b89aed0efc07fda7f101501
                 .map(function(k) { return caches.delete(k); })
             );
           }).then(function() {
@@ -55,10 +67,17 @@
       } catch (e) {}
     })();
   </script>
+<<<<<<< HEAD
   <link rel="stylesheet" href="css/tokens.css?v=2.0.162">
   <link rel="stylesheet" href="css/base.css?v=2.0.162">
   <link rel="stylesheet" href="css/components.css?v=2.0.162">
   <link rel="stylesheet" href="css/layout.css?v=2.0.162">
+=======
+  <link rel="stylesheet" href="css/tokens.css?v=2.0.161">
+  <link rel="stylesheet" href="css/base.css?v=2.0.161">
+  <link rel="stylesheet" href="css/components.css?v=2.0.161">
+  <link rel="stylesheet" href="css/layout.css?v=2.0.161">
+>>>>>>> 33417ede577c091e7b89aed0efc07fda7f101501
   <!-- Неблокирующая асинхронная загрузка картографического движка Leaflet -->
   <script>
     (function() {
@@ -144,7 +163,11 @@
     </div>
   </nav>
 
+<<<<<<< HEAD
   <script type="module" src="js/app.js?v=2.0.162"></script>
+=======
+  <script type="module" src="js/app.js?v=2.0.161"></script>
+>>>>>>> 33417ede577c091e7b89aed0efc07fda7f101501
   <script>
     // Защитный сторожевой таймер (только на случай полного обрыва загрузки скрипта в старом Service Worker)
     setTimeout(function() {

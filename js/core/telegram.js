@@ -5,7 +5,11 @@
  * и мгновенного шаринга карточек «Круга», «Экипажа (72ч)» и «Мастерской снастей» в чаты Telegram (Ревизия 2.0.16).
  */
 
+<<<<<<< HEAD
 import { showToast } from '../ui/components.js?v=2.0.162';
+=======
+import { showToast } from '../ui/components.js?v=2.0.161';
+>>>>>>> 33417ede577c091e7b89aed0efc07fda7f101501
 
 export const TELEGRAM_BOT_USERNAME = 'KlevProBot';
 export const PUBLIC_APP_URL = 'https://klevpro.ru/';

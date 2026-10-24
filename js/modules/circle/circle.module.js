@@ -1,6 +1,10 @@
 /**
  * @file circle.module.js
+<<<<<<< HEAD
  * @description Модуль «Клёв ПРО: Круг» (Ревизия 2.0.162):
+=======
+ * @description Модуль «Клёв ПРО: Круг» (Ревизия 2.0.161):
+>>>>>>> 33417ede577c091e7b89aed0efc07fda7f101501
  * - Анти-триангуляция 2.0: привязка точек к фиксированной гексагональной сетке полигонов (вместо кругов вокруг смещённой точки) +
  *   временное размытие (свежие отчёты до 24ч — радиус ~5 км, старше 24ч — автоматическое расширение полигона до ±10 км).
  * - Региональный порог k-anonymity (≥3 отчётов за 72 ч для публичного регионального тренда) без блокировки личного доверенного Круга.
@@ -12,12 +16,21 @@
  * - «🆘 SOS / Сигнал Экипажу на воде»: экстренный пакет координат с уровнем заряда батареи и состоянием льда/ветра в 1 клик.
  */
 
+<<<<<<< HEAD
 import { store } from '../../core/store.js?v=2.0.162';
 import { storage, calcGeoDistanceKm } from '../../core/storage.js?v=2.0.162';
 import { router } from '../../core/router.js?v=2.0.162';
 import { WATER_PROFILES } from '../../data/waters.js?v=2.0.162';
 import { FISH_DB } from '../../data/species.js?v=2.0.162';
 import { createPill, showToast, openModal, closeModal } from '../../ui/components.js?v=2.0.162';
+=======
+import { store } from '../../core/store.js?v=2.0.161';
+import { storage, calcGeoDistanceKm } from '../../core/storage.js?v=2.0.161';
+import { router } from '../../core/router.js?v=2.0.161';
+import { WATER_PROFILES } from '../../data/waters.js?v=2.0.161';
+import { FISH_DB } from '../../data/species.js?v=2.0.161';
+import { createPill, showToast, openModal, closeModal } from '../../ui/components.js?v=2.0.161';
+>>>>>>> 33417ede577c091e7b89aed0efc07fda7f101501
 import {
   buildShareUrls,
   shareToTelegramChat,
@@ -26,9 +39,15 @@ import {
   syncToTelegramCloud,
   readFromTelegramCloud,
   triggerHaptic
+<<<<<<< HEAD
 } from '../../core/telegram.js?v=2.0.162';
 import { setLocation } from '../geo/geo.module.js?v=2.0.162';
 import { calcDynamicRig } from '../forecast/forecast.module.js?v=2.0.162';
+=======
+} from '../../core/telegram.js?v=2.0.161';
+import { setLocation } from '../geo/geo.module.js?v=2.0.161';
+import { calcDynamicRig } from '../forecast/forecast.module.js?v=2.0.161';
+>>>>>>> 33417ede577c091e7b89aed0efc07fda7f101501
 
 export const CREW_TTL_MS = 72 * 60 * 60 * 1000; // 72 часа
 export const CIRCLE_BLUR_RADIUS_KM = 5.0; // Базовый радиус свежего отчёта (< 24 ч)
@@ -528,7 +547,11 @@ export async function importSharePackToken(rawInput, silent = false) {
 }
 
 /**
+<<<<<<< HEAD
  * Честный 8-й фактор прогноза клёва — «📡 Полевое подтверждение Круга» (Ревизия 2.0.162):
+=======
+ * Честный 8-й фактор прогноза клёва — «📡 Полевое подтверждение Круга» (Ревизия 2.0.161):
+>>>>>>> 33417ede577c091e7b89aed0efc07fda7f101501
  * 1) Исключает собственные отчёты текущего устройства (`item.did === myDeviceId`), чтобы исключить петлю самоподтверждения!
  *    (Личные уловы пользователя учитываются отдельно в калибровке Журнала уловов).
  * 2) Применяет линейное затухание веса по возрасту отчёта: 1.0 в момент публикации (0 ч) -> 0.3 к 72 часам.
@@ -780,7 +803,11 @@ export function render(container) {
     <div class="card">
       <div class="section-head">
         <div>
+<<<<<<< HEAD
           <span class="section-title">👥 «Клёв ПРО: Круг» • Закрытый клубный навигатор (Ревизия 2.0.162)</span>
+=======
+          <span class="section-title">👥 «Клёв ПРО: Круг» • Закрытый клубный навигатор (Ревизия 2.0.161)</span>
+>>>>>>> 33417ede577c091e7b89aed0efc07fda7f101501
           <div style="font-size:var(--fs-xs);color:var(--accent);font-weight:700;margin-top:2px;">
             Гексагональная защита от триангуляции • Временное размытие (&gt;24ч ➔ ±10 км) • Экипаж 72ч • Паспорта Мастерской
           </div>

@@ -1,6 +1,10 @@
 /**
  * @file bot/cloudflare-worker-bot.js
+<<<<<<< HEAD
  * @description Защищённая бессерверная (Serverless Webhook) версия Telegram-бота @KlevProBot (Ревизия 2.0.162)
+=======
+ * @description Защищённая бессерверная (Serverless Webhook) версия Telegram-бота @KlevProBot (Ревизия 2.0.161)
+>>>>>>> 33417ede577c091e7b89aed0efc07fda7f101501
  * для бесплатного размещения на Cloudflare Workers или Yandex Cloud Functions (0 руб/мес).
  *
  * Реализованная защита P0:
@@ -35,7 +39,11 @@ export default {
     if (request.method !== 'POST') {
       return new Response(JSON.stringify({
         status: 'ok',
+<<<<<<< HEAD
         version: '2.0.162',
+=======
+        version: '2.0.161',
+>>>>>>> 33417ede577c091e7b89aed0efc07fda7f101501
         service: 'Klev PRO 2.0 Telegram Bot Webhook (Protected)',
         webapp: WEBAPP_URL
       }), { headers: { 'Content-Type': 'application/json;charset=utf-8' } });
@@ -61,7 +69,11 @@ export default {
         }
 
         let replyText =
+<<<<<<< HEAD
           `🎣 *Клёв ПРО 2.0: Круг (Ревизия 2.0.162)*\n` +
+=======
+          `🎣 *Клёв ПРО 2.0: Круг (Ревизия 2.0.161)*\n` +
+>>>>>>> 33417ede577c091e7b89aed0efc07fda7f101501
           `Отправьте геопозицию (📎 ➔ Геопозиция) или нажмите кнопку ниже, чтобы открыть полный навигатор, карту глубин, 8-факторный прогноз и точки Экипажа (72ч)!`;
 
         if (msg.location) {
