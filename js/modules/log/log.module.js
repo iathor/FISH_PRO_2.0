@@ -1,146 +1,16 @@
-import { RU } from '../../i18n/ru.js?v=2.0.161';
-import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.0.161';
-import { events } from '../../core/events.js?v=2.0.161';
-import { storage } from '../../core/storage.js?v=2.0.161';
-import { store } from '../../core/store.js?v=2.0.161';
-import { formatLocalYYYYMMDD, fmtDeltaPress } from '../../core/format.js?v=2.0.161';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.0.161';
-import { FISH_DB } from '../../data/species.js?v=2.0.161';
-import { createPill, showToast, openModal, closeModal } from '../../ui/components.js?v=2.0.161';
-import { computeMoon } from '../weather/weather.module.js?v=2.0.161';
-import { calcHourly } from '../forecast/forecast.module.js?v=2.0.161';
+import { RU } from '../../i18n/ru.js?v=2.0.16';
+import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.0.16';
+import { events } from '../../core/events.js?v=2.0.16';
+import { storage } from '../../core/storage.js?v=2.0.16';
+import { store } from '../../core/store.js?v=2.0.16';
+import { formatLocalYYYYMMDD, fmtDeltaPress } from '../../core/format.js?v=2.0.16';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.0.16';
+import { FISH_DB } from '../../data/species.js?v=2.0.16';
+import { createPill, showToast, openModal, closeModal } from '../../ui/components.js?v=2.0.16';
+import { computeMoon } from '../weather/weather.module.js?v=2.0.16';
+import { calcHourly } from '../forecast/forecast.module.js?v=2.0.16';
 
 let currentFilter = { fishId: 'all', cond: 'all' };
-
-/**
- * Биологические верхние пределы веса (кг) для защиты от накрутки и опечаток
- */
-const SPECIES_MAX_WEIGHT_KG = {
-  bleak: 0.25, gudgeon: 0.30, tugun: 0.25, smelt: 0.45, vendace: 0.8, cisco: 1.2,
-  ruffe: 0.5, rotan: 0.8, dace: 0.8, roach: 2.5, rudd: 2.5, perch: 3.5,
-  crucian: 4.5, peled: 5.0, pizhyan: 6.0, chir: 12.0, whitefish: 10.0,
-  grayling: 4.5, baikal_grayling: 4.0, trout: 12.0, chub: 6.5, ide: 6.5,
-  tench: 6.5, bream: 9.0, asp: 12.0, zander: 18.0, volga_zander: 3.5,
-  burbot: 24.0, pike: 32.0, carp: 40.0, grass_carp: 45.0, silver_carp: 55.0,
-  salmon: 35.0, chinook_salmon: 50.0, catfish: 120.0, halibut: 150.0
-};
-
-export function getBiologicalMaxWeightKg(fish) {
-  if (!fish) return 45;
-  if (SPECIES_MAX_WEIGHT_KG[fish.id]) return SPECIES_MAX_WEIGHT_KG[fish.id];
-  return fish.type === "predator" ? 35 : 15;
-}
-
-/**
- * Вычисляет детерминированный 64-битный перцептивный хэш (dHash / контент-отпечаток) фото
- */
-export function computeDataUrlFingerprint(dataUrl) {
-  const s = String(dataUrl || "");
-  if (!s) return "";
-  let h1 = 0xdeadbeef ^ s.length;
-  let h2 = 0x41c6ce57 ^ s.length;
-  const step = Math.max(1, Math.floor(s.length / 512));
-  for (let i = 0; i < s.length; i += step) {
-    const ch = s.charCodeAt(i);
-    h1 = Math.imul(h1 ^ ch, 2654435761);
-    h2 = Math.imul(h2 ^ ch, 1597334677);
-  }
-  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
-  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
-  return "dh_" + (h1 >>> 0).toString(16).padStart(8, "0") + (h2 >>> 0).toString(16).padStart(8, "0");
-}
-
-/**
- * Очищает фотографии улова от всех скрытых EXIF GPS-тегов камеры через перерисовку на <canvas>
- * и возвращает очищенный DataURL + 64-битный перцептивный хэш (dHash) для защиты от дубликатов.
- */
-export async function sanitizeCatchPhotoAndComputeHash(rawDataUrl) {
-  if (!rawDataUrl || typeof rawDataUrl !== "string") {
-    return { cleanDataUrl: "", dHash: "", exifStripped: false };
-  }
-  if (typeof document === "undefined" || typeof Image === "undefined") {
-    return {
-      cleanDataUrl: rawDataUrl,
-      dHash: computeDataUrlFingerprint(rawDataUrl),
-      exifStripped: true
-    };
-  }
-  return new Promise((resolve) => {
-    try {
-      const img = new Image();
-      img.onload = () => {
-        try {
-          // 1. Вычисляем 8x8 dHash на мини-холсте 9x8
-          const hc = document.createElement("canvas");
-          hc.width = 9;
-          hc.height = 8;
-          const hctx = hc.getContext("2d");
-          let dHash = "";
-          if (hctx) {
-            hctx.drawImage(img, 0, 0, 9, 8);
-            const px = hctx.getImageData(0, 0, 9, 8).data;
-            let bits = "";
-            for (let y = 0; y < 8; y++) {
-              for (let x = 0; x < 8; x++) {
-                const i1 = (y * 9 + x) * 4;
-                const i2 = (y * 9 + x + 1) * 4;
-                const g1 = px[i1] * 0.299 + px[i1 + 1] * 0.587 + px[i1 + 2] * 0.114;
-                const g2 = px[i2] * 0.299 + px[i2 + 1] * 0.587 + px[i2 + 2] * 0.114;
-                bits += g1 < g2 ? "1" : "0";
-              }
-            }
-            const hex1 = parseInt(bits.slice(0, 32), 2).toString(16).padStart(8, "0");
-            const hex2 = parseInt(bits.slice(32, 64), 2).toString(16).padStart(8, "0");
-            dHash = "dh_" + hex1 + hex2;
-          }
-
-          // 2. Перерисовываем фото на чистый холст (макс 1280px) -> 100% удаление EXIF GPS-метаданных!
-          const maxDim = 1280;
-          let w = img.width || 800;
-          let h = img.height || 600;
-          if (w > maxDim || h > maxDim) {
-            const ratio = Math.min(maxDim / w, maxDim / h);
-            w = Math.round(w * ratio);
-            h = Math.round(h * ratio);
-          }
-          const c = document.createElement("canvas");
-          c.width = w;
-          c.height = h;
-          const ctx = c.getContext("2d");
-          if (ctx) {
-            ctx.drawImage(img, 0, 0, w, h);
-            const cleanDataUrl = c.toDataURL("image/jpeg", 0.84);
-            resolve({
-              cleanDataUrl,
-              dHash: dHash || computeDataUrlFingerprint(cleanDataUrl),
-              exifStripped: true
-            });
-            return;
-          }
-        } catch (e) {}
-        resolve({
-          cleanDataUrl: rawDataUrl,
-          dHash: computeDataUrlFingerprint(rawDataUrl),
-          exifStripped: true
-        });
-      };
-      img.onerror = () => {
-        resolve({
-          cleanDataUrl: rawDataUrl,
-          dHash: computeDataUrlFingerprint(rawDataUrl),
-          exifStripped: false
-        });
-      };
-      img.src = rawDataUrl;
-    } catch (e) {
-      resolve({
-        cleanDataUrl: rawDataUrl,
-        dHash: computeDataUrlFingerprint(rawDataUrl),
-        exifStripped: false
-      });
-    }
-  });
-}
 
 /**
  * Находит суточный и почасовой (24 ч) метеопрогноз из 10-км кэша локации по выбранной календарной дате YYYY-MM-DD
@@ -227,31 +97,6 @@ export async function logCatch(catchData) {
   const relPrefix = diffDays === 0 ? 'Сегодня' : (diffDays === -1 ? 'Вчера' : (diffDays === -2 ? 'Позавчера' : (diffDays < 0 && diffDays >= -5 ? `${Math.abs(diffDays)} дн. назад` : '')));
   const formattedLabel = day.label || `${RU.daysShort[dt.getDay()]}, ${dt.getDate()} ${RU.monthsGen[dt.getMonth()]}`;
 
-  const rawWeight = Math.max(0, parseFloat(catchData.weightKg) || 0);
-  const maxBioWeight = getBiologicalMaxWeightKg(fish);
-  const validatedWeight = rawWeight > maxBioWeight ? maxBioWeight : rawWeight;
-  if (rawWeight > maxBioWeight) {
-    showToast(`⚠️ Вес ${rawWeight} кг превышает биологический максимум для вида «${fish.name}» (${maxBioWeight} кг) — скорректировано до ${maxBioWeight} кг.`, "warn");
-  }
-
-  let cleanPhoto = catchData.photoDataUrl || "";
-  let photoHash = catchData.photoHash || "";
-  if (cleanPhoto && !photoHash) {
-    const sanitized = await sanitizeCatchPhotoAndComputeHash(cleanPhoto);
-    cleanPhoto = sanitized.cleanDataUrl;
-    photoHash = sanitized.dHash;
-  }
-
-  if (photoHash && storage.loadPhotoHashes) {
-    const knownHashes = storage.loadPhotoHashes();
-    const isDupInCatches = (s.catches || []).some(c => c && c.photoHash === photoHash);
-    if (knownHashes.includes(photoHash) || isDupInCatches) {
-      showToast("⚠️ Этот снимок уже загружался ранее (дубликат dHash) — запись сохранена для вас, но исключена из накрутки рейтинга Круга.", "warn");
-    } else if (storage.savePhotoHash) {
-      storage.savePhotoHash(photoHash);
-    }
-  }
-
   const record = {
     id: `catch_${Date.now()}`,
     timestamp: Date.now(),
@@ -260,14 +105,12 @@ export async function logCatch(catchData) {
     hour: hr.hour,
     fishId: fish.id,
     fishName: fish.name,
-    weightKg: validatedWeight,
+    weightKg: parseFloat(catchData.weightKg) || 0,
     lengthCm: parseFloat(catchData.lengthCm) || 0,
     method: catchData.method || s.method,
     bait: (catchData.bait || '').trim() || 'Сезонная оснастка',
     matchedForecast: catchData.matchedForecast !== false,
-    photoDataUrl: cleanPhoto,
-    photoHash: photoHash,
-    exifStripped: Boolean(cleanPhoto),
+    photoDataUrl: catchData.photoDataUrl || '',
     locLabel: `${s.locLabel} • ${waterTitle}`,
     lat: s.lat,
     lon: s.lon,
@@ -587,20 +430,13 @@ export function openCatchWizard(prefill = {}) {
       });
     }
 
-    let photoHash = '';
     const fileInput = bodyEl.querySelector('#cwPhoto');
     if (fileInput) {
       fileInput.addEventListener('change', (e) => {
         const file = e.target.files?.[0];
         if (!file) return;
         const reader = new FileReader();
-        reader.onload = async () => {
-          const rawUrl = String(reader.result || '');
-          const sanitized = await sanitizeCatchPhotoAndComputeHash(rawUrl);
-          photoDataUrl = sanitized.cleanDataUrl;
-          photoHash = sanitized.dHash;
-          showToast('🔒 Фото очищено от скрытых GPS EXIF-тегов (приватность точки защищена)', 'good');
-        };
+        reader.onload = () => { photoDataUrl = String(reader.result || ''); };
         reader.readAsDataURL(file);
       });
     }
@@ -621,8 +457,7 @@ export function openCatchWizard(prefill = {}) {
           lengthCm: bodyEl.querySelector('#cwLength')?.value || 0,
           bait: bodyEl.querySelector('#cwBaitCustom')?.value || defaultBait,
           matchedForecast: bodyEl.querySelector('#cwMatch')?.value === 'yes',
-          photoDataUrl,
-          photoHash
+          photoDataUrl
         });
         closeModal();
       });
@@ -816,9 +651,6 @@ export function destroy() {
 
 export const logModule = {
   resolveDayWeatherForDate,
-  getBiologicalMaxWeightKg,
-  computeDataUrlFingerprint,
-  sanitizeCatchPhotoAndComputeHash,
   logCatch,
   deleteCatch,
   getCatches,

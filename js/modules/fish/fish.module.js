@@ -1,14 +1,14 @@
-import { RU } from '../../i18n/ru.js?v=2.0.161';
-import { events } from '../../core/events.js?v=2.0.161';
-import { store } from '../../core/store.js?v=2.0.161';
-import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.0.161';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.0.161';
-import { RUSSIA_CITIES, findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.0.161';
-import { FISH_DB } from '../../data/species.js?v=2.0.161';
-import { renderFishVisual, renderFiveFish } from '../../ui/svg.js?v=2.0.161';
-import { createPill, showToast, openModal, closeModal, openFishLightbox } from '../../ui/components.js?v=2.0.161';
-import { setLocation, detectUserPosition } from '../geo/geo.module.js?v=2.0.161';
-import { calcDayBest } from '../forecast/forecast.module.js?v=2.0.161';
+import { RU } from '../../i18n/ru.js?v=2.0.16';
+import { events } from '../../core/events.js?v=2.0.16';
+import { store } from '../../core/store.js?v=2.0.16';
+import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.0.16';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.0.16';
+import { RUSSIA_CITIES, findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.0.16';
+import { FISH_DB } from '../../data/species.js?v=2.0.16';
+import { renderFishVisual, renderFiveFish } from '../../ui/svg.js?v=2.0.16';
+import { createPill, showToast, openModal, closeModal, openFishLightbox } from '../../ui/components.js?v=2.0.16';
+import { setLocation, detectUserPosition } from '../geo/geo.module.js?v=2.0.16';
+import { calcDayBest } from '../forecast/forecast.module.js?v=2.0.16';
 
 /**
  * Региональные приоритетные виды для каждого бассейна РФ,
@@ -583,18 +583,6 @@ export function openOnboardingModal(isEditMode = false) {
               `;
             }).join('')}
           </div>
-        </div>
-
-        <!-- СОГЛАСИЕ 152-ФЗ (LOCAL-FIRST / ZERO-KNOWLEDGE) И ДИСКЛЕЙМЕР БЕЗОПАСНОСТИ НА ЛЬДУ -->
-        <div style="padding:10px 12px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);display:flex;flex-direction:column;gap:6px;font-size:11.5px;">
-          <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;line-height:1.38;">
-            <input type="checkbox" id="onbConsentLocalFirst" checked style="margin-top:2px;">
-            <span>🔒 <b>Приватность и 152-ФЗ (Local-First / Zero-Knowledge):</b> мои личные точки, уловы и настройки хранятся только локально на моём устройстве (IndexedDB) и в моём личном зашифрованном облаке Telegram CloudStorage без передачи персональных данных на сторонние серверы.</span>
-          </label>
-          <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;line-height:1.38;">
-            <input type="checkbox" id="onbConsentIceSafety" checked style="margin-top:2px;">
-            <span>❄️ <b>Безопасность на водоёме и льду:</b> я понимаю, что расчёт толщины льда и клёва носит информационно-расчётный характер, а решение о выходе на лёд или воду принимается рыболовом лично после фактической проверки пешнёй и учёта сводок МЧС РФ.</span>
-          </label>
         </div>
 
         <!-- КНОПКИ ВНИЗУ -->

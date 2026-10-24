@@ -1,12 +1,10 @@
-import { STATE_CACHE_KEY, WEATHER_CACHE_KEY, WEATHER_TTL_MS } from './config.js?v=2.0.161';
-import { formatLocalYYYYMMDD } from './format.js?v=2.0.161';
+import { STATE_CACHE_KEY, WEATHER_CACHE_KEY, WEATHER_TTL_MS } from './config.js?v=2.0.16';
+import { formatLocalYYYYMMDD } from './format.js?v=2.0.16';
 
 const DB_NAME = 'KlevProDB_v2';
 export const GEO_WEATHER_ARCHIVE_KEY = 'klev_pro_geo_weather_archive_v2';
 export const GEO_WATERS_CACHE_KEY = 'klev_pro_geo_waters_cache_v2';
 export const CIRCLE_PACKS_CACHE_KEY = 'klev_pro_circle_packs_v2';
-export const DEVICE_ID_CACHE_KEY = 'klev_pro_device_id_v2';
-export const PHOTO_HASHES_CACHE_KEY = 'klev_pro_photo_dhashes_v2';
 export const GEO_CLUSTER_RADIUS_KM = 10.0;
 
 const LOCAL_STORE_KEYS = {
@@ -144,40 +142,6 @@ function writeClustersToLocalStorage(clusters) {
 }
 
 export const storage = {
-  getDeviceId() {
-    try {
-      let devId = localStorage.getItem(DEVICE_ID_CACHE_KEY);
-      if (!devId || typeof devId !== "string" || devId.length < 8) {
-        const rand = Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
-        devId = "dev_" + rand;
-        localStorage.setItem(DEVICE_ID_CACHE_KEY, devId);
-      }
-      return devId;
-    } catch (e) {
-      return "dev_local_fallback";
-    }
-  },
-
-  loadPhotoHashes() {
-    try {
-      const raw = localStorage.getItem(PHOTO_HASHES_CACHE_KEY);
-      if (!raw) return [];
-      const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) ? parsed : [];
-    } catch (e) {
-      return [];
-    }
-  },
-
-  savePhotoHash(dHash) {
-    if (!dHash) return;
-    try {
-      const list = this.loadPhotoHashes().filter(x => x !== dHash);
-      list.unshift(dHash);
-      localStorage.setItem(PHOTO_HASHES_CACHE_KEY, JSON.stringify(list.slice(0, 200)));
-    } catch (e) {}
-  },
-
   loadSettings() {
     try {
       const raw = localStorage.getItem(STATE_CACHE_KEY);

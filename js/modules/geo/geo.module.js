@@ -1,12 +1,12 @@
-import { MAP_LAYERS, getCompatibleMethods } from '../../core/config.js?v=2.0.161';
-import { events } from '../../core/events.js?v=2.0.161';
-import { storage } from '../../core/storage.js?v=2.0.161';
-import { store } from '../../core/store.js?v=2.0.161';
-import { fetchWithTimeout } from '../../core/http.js?v=2.0.161';
-import { installShortcut, syncInstallButtons } from '../../core/pwa.js?v=2.0.161';
-import { triggerHaptic } from '../../core/telegram.js?v=2.0.161';
-import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.0.161';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.0.161';
+import { MAP_LAYERS, getCompatibleMethods } from '../../core/config.js?v=2.0.16';
+import { events } from '../../core/events.js?v=2.0.16';
+import { storage } from '../../core/storage.js?v=2.0.16';
+import { store } from '../../core/store.js?v=2.0.16';
+import { fetchWithTimeout } from '../../core/http.js?v=2.0.16';
+import { installShortcut, syncInstallButtons } from '../../core/pwa.js?v=2.0.16';
+import { triggerHaptic } from '../../core/telegram.js?v=2.0.16';
+import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.0.16';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.0.16';
 import {
   RUSSIA_CITIES,
   RUSSIA_WATERS,
@@ -14,12 +14,11 @@ import {
   getNearestRussianSettlements,
   getNearestRussianWaters,
   getWaterTypeShortTag
-} from '../../data/russia-waters.js?v=2.0.161';
-import { FISH_DB } from '../../data/species.js?v=2.0.161';
-import { createPill, showToast } from '../../ui/components.js?v=2.0.161';
-import { fetchWeather } from '../weather/weather.module.js?v=2.0.161';
-import { calcDayBest } from '../forecast/forecast.module.js?v=2.0.161';
-import { computeHexPolygonForCircle, getEffectiveCircleRadiusKm } from '../circle/circle.module.js?v=2.0.161';
+} from '../../data/russia-waters.js?v=2.0.16';
+import { FISH_DB } from '../../data/species.js?v=2.0.16';
+import { createPill, showToast } from '../../ui/components.js?v=2.0.16';
+import { fetchWeather } from '../weather/weather.module.js?v=2.0.16';
+import { calcDayBest } from '../forecast/forecast.module.js?v=2.0.16';
 
 let mapInstance = null;
 let mapMarker = null;
@@ -841,30 +840,19 @@ function renderMapOverlays() {
       );
       overlayLayerGroup.addLayer(crewCircle);
     } else if (item.t === 'circle' && visibleMapLayers.circleBlur) {
-      const effRadiusKm = getEffectiveCircleRadiusKm(item, now);
-      const polyVertices = (Array.isArray(item.poly) && item.poly.length >= 6 && effRadiusKm <= 5.5)
-        ? item.poly
-        : computeHexPolygonForCircle(item.lat, item.lon, effRadiusKm, item.id || 'hex').vertices;
-      const blurZone = (typeof L.polygon === 'function')
-        ? L.polygon(polyVertices, {
-            color: '#10b981',
-            fillColor: '#10b981',
-            fillOpacity: 0.16,
-            weight: 1.8,
-            dashArray: '5, 5'
-          })
-        : L.circle([item.lat, item.lon], {
-            radius: effRadiusKm * 1000,
-            color: '#10b981',
-            fillColor: '#10b981',
-            fillOpacity: 0.16,
-            weight: 1.8,
-            dashArray: '5, 5'
-          });
+      const blurRadiusMeters = (item.br || 5) * 1000;
+      const blurZone = L.circle([item.lat, item.lon], {
+        radius: blurRadiusMeters,
+        color: '#10b981',
+        fillColor: '#10b981',
+        fillOpacity: 0.16,
+        weight: 1.8,
+        dashArray: '5, 5'
+      });
       blurZone.bindPopup(
-        `<b>⬡ Сектор Круга (гексагон ±${effRadiusKm} км, анти-триангуляция):</b><br>` +
+        `<b>👥 Зона Круга (±${item.br || 5} км, центр смещён):</b><br>` +
         `🐟 <b>${item.fn || 'Рыба'}${item.kg ? ` (${item.kg} кг)` : ''}</b> • 💧 Вода ~${item.tw ?? 8}°C<br>` +
-        `🪱 Приманка: ${item.bt || 'по сезону'} • От: ${item.au || 'Друг'} (${item.rk === 'expert' ? '🏅 Эксперт' : 'Рыбак'})`
+        `🪱 Приманка: ${item.bt || 'по сезону'} • От: ${item.au || 'Друг'}`
       );
       overlayLayerGroup.addLayer(blurZone);
     }
