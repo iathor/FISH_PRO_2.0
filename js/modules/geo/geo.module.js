@@ -1,14 +1,21 @@
-import { MAP_LAYERS, getCompatibleMethods } from '../../core/config.js?v=2.0.13';
-import { events } from '../../core/events.js?v=2.0.13';
-import { storage } from '../../core/storage.js?v=2.0.13';
-import { store } from '../../core/store.js?v=2.0.13';
-import { fetchWithTimeout } from '../../core/http.js?v=2.0.13';
-import { installShortcut, syncInstallButtons } from '../../core/pwa.js?v=2.0.13';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.0.13';
-import { RUSSIA_CITIES, getNearestRussianWaters, getWaterTypeShortTag } from '../../data/russia-waters.js?v=2.0.13';
-import { FISH_DB } from '../../data/species.js?v=2.0.13';
-import { showToast } from '../../ui/components.js?v=2.0.13';
-import { fetchWeather } from '../weather/weather.module.js?v=2.0.13';
+import { MAP_LAYERS, getCompatibleMethods } from '../../core/config.js?v=2.0.14';
+import { events } from '../../core/events.js?v=2.0.14';
+import { storage } from '../../core/storage.js?v=2.0.14';
+import { store } from '../../core/store.js?v=2.0.14';
+import { fetchWithTimeout } from '../../core/http.js?v=2.0.14';
+import { installShortcut, syncInstallButtons } from '../../core/pwa.js?v=2.0.14';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.0.14';
+import {
+  RUSSIA_CITIES,
+  RUSSIA_WATERS,
+  findNearestRussianSettlement,
+  getNearestRussianSettlements,
+  getNearestRussianWaters,
+  getWaterTypeShortTag
+} from '../../data/russia-waters.js?v=2.0.14';
+import { FISH_DB } from '../../data/species.js?v=2.0.14';
+import { showToast } from '../../ui/components.js?v=2.0.14';
+import { fetchWeather } from '../weather/weather.module.js?v=2.0.14';
 
 let mapInstance = null;
 let mapMarker = null;
@@ -82,7 +89,6 @@ export function classifyOsmWaterElement(el, name, isCoastal) {
     return { wType: 'tundra_lake', typeTag: /старица|затон/i.test(nLower) ? 'Старица / Затон' : 'Пруд / Озеро малое' };
   }
 
-  // Для озёр: если это relation (крупный полигон) или известное глубокое озеро — относим к глубоким озёрам (quarry), иначе к мелководным/средним озёрам (tundra_lake)
   if (el?.type === 'relation' || /большое|глубокое|святое|белое|светлое|круглое|долгое|селигер|ладож|онеж|байкал|имандра|сямозеро|сегозеро|выгозеро|пяозеро|чудск|телецк|увильды|тургояк|ханто|янтарное/i.test(nLower)) {
     return { wType: 'quarry', typeTag: 'Озеро крупное' };
   }
@@ -116,37 +122,97 @@ export async function setLocation(lat, lon, skipReverseGeo = false) {
 }
 
 /**
- * Ревизия 2.0.13 (Пункт 6a): Постоянное автогеопозиционирование убрано!
- * Карта больше никогда сама не перебрасывает пользователя обратно в прошлую точку, пока он ищет водоём на карте.
- * Геолокация запрашивается только при явном нажатии кнопки «🎯 Мой GPS».
+ * Ревизия 2.0.14: Безопасное определение геолокации без блокировок в мобильных браузерах:
+ * - Не вызывает getCurrentPosition при старте страницы, если разрешение ещё не выдано (state !== 'granted'),
+ *   чтобы мобильные браузеры не блокировали запрос без клика пользователя.
+ * - Если пользователь уже выдал разрешение ранее (state === 'granted') и точка ещё не выбиралась вручную — тихо уточняет координаты.
  */
 export async function autoDetectStartupLocation() {
-  return;
+  const s = store.getState();
+  if (s.hasUserLocation) return;
+
+  if (typeof navigator !== 'undefined' && navigator.permissions && typeof navigator.permissions.query === 'function') {
+    try {
+      const perm = await navigator.permissions.query({ name: 'geolocation' });
+      if (perm && perm.state === 'granted' && navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          pos => {
+            if (!store.getState().hasUserLocation) {
+              setLocation(pos.coords.latitude, pos.coords.longitude);
+            }
+          },
+          () => {},
+          { enableHighAccuracy: false, timeout: 6000, maximumAge: 600000 }
+        );
+      }
+    } catch (e) {}
+  }
 }
 
-async function resolveReverseGeocode(lat, lon) {
-  for (const c of RUSSIA_CITIES) {
-    if (calcHaversineKm(lat, lon, c.lat, c.lon) <= 25) {
-      store.dispatch({
-        type: 'SET_LOCATION_LABELS',
-        payload: {
-          locCountry: 'Россия',
-          locAdmin1: c.admin1,
-          locAdmin2: c.name,
-          locLabel: c.name
-        }
-      });
+/**
+ * Резервное определение примерных координат по IP (доступные в РФ без VPN сервисы),
+ * если в мобильном браузере заблокирован системный доступ к GPS (PERMISSION_DENIED).
+ */
+async function locateByIpFallback() {
+  const providers = [
+    {
+      url: 'https://ipwho.is/?lang=ru',
+      parse: d => (d && d.success !== false && Number.isFinite(d.latitude) && Number.isFinite(d.longitude))
+        ? { lat: d.latitude, lon: d.longitude, city: d.city, region: d.region }
+        : null
+    },
+    {
+      url: 'https://freeipapi.com/api/json',
+      parse: d => (d && Number.isFinite(d.latitude) && Number.isFinite(d.longitude))
+        ? { lat: d.latitude, lon: d.longitude, city: d.cityName, region: d.regionName }
+        : null
+    },
+    {
+      url: 'https://get.geojs.io/v1/ip/geo.json',
+      parse: d => (d && d.latitude && d.longitude)
+        ? { lat: parseFloat(d.latitude), lon: parseFloat(d.longitude), city: d.city, region: d.region }
+        : null
+    }
+  ];
+
+  for (const p of providers) {
+    try {
+      const raw = await fetchWithTimeout(p.url, 4500);
+      const res = p.parse(raw);
+      if (res && Number.isFinite(res.lat) && Number.isFinite(res.lon)) {
+        return res;
+      }
+    } catch (e) {}
+  }
+  return null;
+}
+
+export async function resolveReverseGeocode(lat, lon) {
+  // 1. Мгновенная подстановка из единой офлайн-базы городов и близлежащих населённых пунктов РФ (0 мс, никогда не зависает!)
+  const nearest = findNearestRussianSettlement(lat, lon);
+  if (nearest && nearest.distKm <= 65) {
+    store.dispatch({
+      type: 'SET_LOCATION_LABELS',
+      payload: {
+        locCountry: 'Россия',
+        locAdmin1: nearest.admin1,
+        locAdmin2: nearest.name,
+        locLabel: nearest.label
+      }
+    });
+    if (nearest.distKm <= 16) {
       return;
     }
   }
 
+  // 2. Уточнение по онлайн-геокодерам, если точка далеко от известных населённых пунктов
   try {
     const nomUrl = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&addressdetails=1&zoom=12&accept-language=ru`;
-    const nom = await fetchWithTimeout(nomUrl, 5500, { headers: { 'Accept-Language': 'ru' } });
+    const nom = await fetchWithTimeout(nomUrl, 4800, { headers: { 'Accept-Language': 'ru' } });
     if (nom && nom.address) {
       const a = nom.address;
       const city = a.city || a.town || a.village || a.hamlet || a.municipality || a.county || nom.name || '';
-      const reg = a.state || a.region || '';
+      const reg = a.state || a.region || nearest?.admin1 || '';
       if (city || reg) {
         store.dispatch({
           type: 'SET_LOCATION_LABELS',
@@ -164,14 +230,14 @@ async function resolveReverseGeocode(lat, lon) {
 
   try {
     const bdcUrl = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=ru`;
-    const data = await fetchWithTimeout(bdcUrl, 5500);
+    const data = await fetchWithTimeout(bdcUrl, 4500);
     if (data && (data.city || data.locality || data.principalSubdivision)) {
       const city = data.city || data.locality || data.principalSubdivision;
       store.dispatch({
         type: 'SET_LOCATION_LABELS',
         payload: {
           locCountry: data.countryName || 'Россия',
-          locAdmin1: data.principalSubdivision || '',
+          locAdmin1: data.principalSubdivision || nearest?.admin1 || '',
           locAdmin2: city,
           locLabel: city
         }
@@ -180,15 +246,17 @@ async function resolveReverseGeocode(lat, lon) {
     }
   } catch (e) {}
 
-  store.dispatch({
-    type: 'SET_LOCATION_LABELS',
-    payload: {
-      locCountry: 'Россия',
-      locAdmin1: `${lat.toFixed(2)}°N`,
-      locAdmin2: `${lon.toFixed(2)}°E`,
-      locLabel: `${lat.toFixed(2)}°N, ${lon.toFixed(2)}°E`
-    }
-  });
+  if (!nearest) {
+    store.dispatch({
+      type: 'SET_LOCATION_LABELS',
+      payload: {
+        locCountry: 'Россия',
+        locAdmin1: `${lat.toFixed(2)}°N`,
+        locAdmin2: `${lon.toFixed(2)}°E`,
+        locLabel: `${lat.toFixed(2)}°N, ${lon.toFixed(2)}°E`
+      }
+    });
+  }
 }
 
 export async function searchPlaceByQuery(query) {
@@ -196,6 +264,8 @@ export async function searchPlaceByQuery(query) {
   if (!q) return;
 
   const qLower = q.toLowerCase();
+
+  // 1. Поиск по единой офлайн-базе городов и посёлков РФ
   const matchedCity = RUSSIA_CITIES.find(c => c.name.toLowerCase().includes(qLower) || qLower.includes(c.name.toLowerCase()));
   if (matchedCity) {
     store.dispatch({
@@ -208,12 +278,41 @@ export async function searchPlaceByQuery(query) {
       }
     });
     await setLocation(matchedCity.lat, matchedCity.lon, true);
+    showToast(`Переход к населённому пункту: ${matchedCity.name}`, 'good');
+    return;
+  }
+
+  // 2. Поиск по офлайн-базе водоёмов РФ
+  const matchedWater = RUSSIA_WATERS.find(w =>
+    w.name.toLowerCase().includes(qLower) ||
+    w.cleanName.toLowerCase().includes(qLower)
+  );
+  if (matchedWater) {
+    store.dispatch({
+      type: 'SET_LOCATION_LABELS',
+      payload: {
+        locCountry: 'Россия',
+        locAdmin1: matchedWater.region,
+        locAdmin2: matchedWater.cleanName,
+        locLabel: matchedWater.region
+      }
+    });
+    store.dispatch({
+      type: 'SET_WATER',
+      payload: {
+        water: matchedWater.wType,
+        depth: matchedWater.defDepth,
+        selectedWaterName: matchedWater.cleanName
+      }
+    });
+    await setLocation(matchedWater.lat, matchedWater.lon, true);
+    showToast(`Выбран водоём: ${matchedWater.name}`, 'good');
     return;
   }
 
   try {
     const nomUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&addressdetails=1&limit=1&accept-language=ru`;
-    const nomData = await fetchWithTimeout(nomUrl, 6000, { headers: { 'Accept-Language': 'ru' } });
+    const nomData = await fetchWithTimeout(nomUrl, 5500, { headers: { 'Accept-Language': 'ru' } });
     if (Array.isArray(nomData) && nomData.length > 0) {
       const p = nomData[0];
       const addr = p.address || {};
@@ -234,7 +333,7 @@ export async function searchPlaceByQuery(query) {
 
   try {
     const omUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=1&language=ru&format=json`;
-    const omData = await fetchWithTimeout(omUrl, 6000);
+    const omData = await fetchWithTimeout(omUrl, 5500);
     if (omData && omData.results && omData.results.length > 0) {
       const p = omData.results[0];
       store.dispatch({
@@ -257,13 +356,40 @@ export async function searchPlaceByQuery(query) {
 
 export function requestGPS(container) {
   if (!navigator.geolocation) {
-    inlineGpsHint = 'Геолокация не поддерживается браузером. Выберите точку на карте.';
+    inlineGpsHint = 'Геолокация не поддерживается браузером. Определяем регион по сети...';
     if (store.getState().route !== 'geo') mapOpen = true;
     render(container);
+    locateByIpFallback().then(ipGeo => {
+      if (ipGeo) {
+        inlineGpsHint = `📍 Координаты определены по сети (${ipGeo.city || 'ваш регион'}). Для точного выбора укажите водоём на карте.`;
+        setLocation(ipGeo.lat, ipGeo.lon);
+      }
+      render(container);
+    });
     return;
   }
-  inlineGpsHint = 'Опрос спутников GPS...';
+
+  inlineGpsHint = 'Опрос спутников GPS и датчиков геолокации...';
   render(container);
+
+  const handleDeniedOrFailed = async (isPermissionDenied) => {
+    const ipGeo = await locateByIpFallback();
+    if (ipGeo) {
+      const near = findNearestRussianSettlement(ipGeo.lat, ipGeo.lon);
+      const cityTitle = near && near.distKm <= 35 ? near.name : (ipGeo.city || 'ваш регион');
+      inlineGpsHint = isPermissionDenied
+        ? `📍 В браузере запрещён доступ к GPS (определён город по сети: ${cityTitle}). Чтобы включить точный GPS, нажмите на значок 🔒/⚙️ слева от адреса klevpro.ru в строке браузера и разрешите «Геоданные», либо выберите водоём на карте.`
+        : `📍 Спутники GPS недоступны в помещении — точка установлена по сети (${cityTitle}). Вы можете уточнить водоём кликом на карте.`;
+      await setLocation(ipGeo.lat, ipGeo.lon);
+    } else {
+      inlineGpsHint = isPermissionDenied
+        ? 'Доступ к GPS отклонён в настройках браузера. Нажмите на значок 🔒/⚙️ слева от адреса сайта и разрешите «Геоданные», либо выберите город в поиске / точку на карте.'
+        : 'Слабый сигнал GPS. Выберите населённый пункт в поиске или укажите точку на карте.';
+    }
+    if (store.getState().route !== 'geo') mapOpen = true;
+    render(container);
+  };
+
   navigator.geolocation.getCurrentPosition(
     pos => {
       inlineGpsHint = '';
@@ -279,29 +405,24 @@ export function requestGPS(container) {
             setLocation(pos2.coords.latitude, pos2.coords.longitude);
           },
           err2 => {
-            inlineGpsHint = err2.code === 1
-              ? 'Доступ к GPS отклонён. Кликните на нужный водоём прямо на карте.'
-              : 'Слабый сигнал GPS и сети. Укажите водоём кликом на карте.';
-            if (store.getState().route !== 'geo') mapOpen = true;
-            render(container);
+            handleDeniedOrFailed(err2.code === 1);
           },
-          { enableHighAccuracy: false, timeout: 9000, maximumAge: 300000 }
+          { enableHighAccuracy: false, timeout: 8000, maximumAge: 600000 }
         );
       } else {
-        inlineGpsHint = 'Доступ к GPS отклонён в настройках браузера. Выберите точку на карте.';
-        if (store.getState().route !== 'geo') mapOpen = true;
-        render(container);
+        handleDeniedOrFailed(true);
       }
     },
-    { enableHighAccuracy: true, timeout: 9000, maximumAge: 120000 }
+    { enableHighAccuracy: true, timeout: 7500, maximumAge: 180000 }
   );
 }
 
 /**
- * Ревизия 2.0.13 (Пункт 7a, 7b):
- * Определение водоёмов по геолокации в выбранном радиусе «До 50 км» (50000 м) или «До 120 км» (120000 м).
- * Использует мгновенную офлайн-базу РФ + локализованный в России сервер Overpass API (maps.mail.ru)
- * с поддержкой радиуса до 120000 метров и таймаутом 90 секунд.
+ * Ревизия 2.0.14:
+ * Определение водоёмов и ближайших населённых пунктов по геолокации в радиусе «До 50 км» или «До 120 км».
+ * 1) Мгновенно подставляет данные из единой офлайн-базы РФ (водоёмы + ближайшие населённые пункты) и 10-км кэша водоёмов.
+ * 2) Асинхронно опрашивает каскад альтернативных серверов Overpass API (maps.mail.ru -> kumi.systems -> private.coffee -> overpass-api.de),
+ *    чтобы при недоступности одного сервиса данные надёжно подгружались с другого!
  */
 export async function getNearbyWatersAndPlaces(lat, lon, customRadiusKm = null) {
   const s = store.getState();
@@ -309,9 +430,13 @@ export async function getNearbyWatersAndPlaces(lat, lon, customRadiusKm = null) 
   const radiusMeters = Math.min(120000, Math.max(20000, Math.round(radiusKm * 1000)));
   const reqId = ++activeOverpassReqId;
 
-  // 1. Мгновенная выборка из расширенной офлайн-базы гидрографии РФ в выбранном радиусе (50 или 120 км)
-  const offlineWaters = getNearestRussianWaters(lat, lon, s.basinCode, s.isCoastal, 16, radiusKm);
+  // 1. Мгновенная выборка водоёмов и близлежащих населённых пунктов из единой офлайн-базы РФ
+  const offlineWaters = getNearestRussianWaters(lat, lon, s.basinCode, s.isCoastal, 18, radiusKm);
+  const offlinePlaces = getNearestRussianSettlements(lat, lon, 12, Math.max(80, radiusKm));
+
   store.dispatch({ type: 'SET_NEARBY_WATERS', payload: offlineWaters });
+  store.dispatch({ type: 'SET_NEARBY_PLACES', payload: offlinePlaces });
+
   if (!store.getState().selectedWaterName && offlineWaters.length > 0) {
     store.dispatch({
       type: 'SET_WATER',
@@ -323,15 +448,26 @@ export async function getNearbyWatersAndPlaces(lat, lon, customRadiusKm = null) 
     });
   }
 
-  // 2. Асинхронная подгрузка из локализованного в РФ сервера Overpass API (maps.mail.ru) с таймаутом 90 сек
+  // 2. Проверяем 10-км локальный кэш водоёмов
+  const cachedWatersObj = storage.loadNearbyWatersCache(lat, lon, radiusKm);
+  if (cachedWatersObj && Array.isArray(cachedWatersObj.waters) && cachedWatersObj.waters.length > 0) {
+    store.dispatch({ type: 'SET_NEARBY_WATERS', payload: cachedWatersObj.waters });
+    if (Array.isArray(cachedWatersObj.places) && cachedWatersObj.places.length > 0) {
+      store.dispatch({ type: 'SET_NEARBY_PLACES', payload: cachedWatersObj.places });
+    }
+    return cachedWatersObj.waters;
+  }
+
+  // 3. Каскад альтернативных зеркал Overpass API (если один сервер не отвечает — автоматически запрашиваем в другом)
   overpassLoading = true;
   const placeRadiusMeters = Math.min(60000, radiusMeters);
-  const query = `[out:json][timeout:90];(way["waterway"~"river|canal"]["name"](around:${radiusMeters},${lat},${lon});way["natural"="water"]["name"](around:${radiusMeters},${lat},${lon});relation["natural"="water"]["name"](around:${radiusMeters},${lat},${lon});node["place"~"city|town|village|hamlet"]["name"](around:${placeRadiusMeters},${lat},${lon}););out center tags 85;`;
+  const query = `[out:json][timeout:65];(way["waterway"~"river|canal"]["name"](around:${radiusMeters},${lat},${lon});way["natural"="water"]["name"](around:${radiusMeters},${lat},${lon});relation["natural"="water"]["name"](around:${radiusMeters},${lat},${lon});node["place"~"city|town|village|hamlet"]["name"](around:${placeRadiusMeters},${lat},${lon}););out center tags 90;`;
 
   const endpoints = [
-    { url: 'https://maps.mail.ru/osm/tools/overpass/api/interpreter?data=' + encodeURIComponent(query), timeoutMs: 90000 },
-    { url: 'https://overpass-api.de/api/interpreter?data=' + encodeURIComponent(query), timeoutMs: 25000 },
-    { url: 'https://overpass.kumi.systems/api/interpreter?data=' + encodeURIComponent(query), timeoutMs: 25000 }
+    { name: 'VK/Mail.ru Overpass РФ', url: 'https://maps.mail.ru/osm/tools/overpass/api/interpreter?data=' + encodeURIComponent(query), timeoutMs: 32000 },
+    { name: 'Kumi Systems Overpass', url: 'https://overpass.kumi.systems/api/interpreter?data=' + encodeURIComponent(query), timeoutMs: 22000 },
+    { name: 'Private.Coffee Overpass', url: 'https://overpass.private.coffee/api/interpreter?data=' + encodeURIComponent(query), timeoutMs: 22000 },
+    { name: 'OSM.de Overpass', url: 'https://overpass-api.de/api/interpreter?data=' + encodeURIComponent(query), timeoutMs: 22000 }
   ];
 
   for (const ep of endpoints) {
@@ -341,9 +477,9 @@ export async function getNearbyWatersAndPlaces(lat, lon, customRadiusKm = null) 
       if (!data || !Array.isArray(data.elements)) continue;
 
       const seenWater = new Set(offlineWaters.map(w => w.name.toLowerCase()));
-      const seenPlace = new Set();
+      const seenPlace = new Set(offlinePlaces.map(p => p.name.toLowerCase()));
       const waters = [...offlineWaters];
-      const places = [];
+      const places = [...offlinePlaces];
 
       for (const el of data.elements) {
         const name = el.tags && (el.tags['name:ru'] || el.tags.name);
@@ -390,14 +526,13 @@ export async function getNearbyWatersAndPlaces(lat, lon, customRadiusKm = null) 
       places.sort((a, b) => a.distKm - b.distKm);
 
       overpassLoading = false;
-      if (places.length > 0) {
-        store.dispatch({ type: 'SET_NEARBY_PLACES', payload: places.slice(0, 10) });
-      }
-      if (waters.length > 0) {
-        const topWaters = waters.slice(0, 18);
-        store.dispatch({ type: 'SET_NEARBY_WATERS', payload: topWaters });
-        return topWaters;
-      }
+      const topPlaces = places.slice(0, 14);
+      const topWaters = waters.slice(0, 20);
+
+      storage.saveNearbyWatersCache(lat, lon, radiusKm, topWaters, topPlaces);
+      store.dispatch({ type: 'SET_NEARBY_PLACES', payload: topPlaces });
+      store.dispatch({ type: 'SET_NEARBY_WATERS', payload: topWaters });
+      return topWaters;
     } catch (e) {}
   }
 
@@ -492,11 +627,11 @@ export function render(container) {
         </div>
       </div>
 
-      ${inlineGpsHint ? `<div style="margin-bottom:8px;padding:6px 10px;border-radius:var(--r-sm);background:var(--pill-warn-bg);color:var(--pill-warn-text);font-size:var(--fs-xs);font-weight:700;">ℹ️ ${inlineGpsHint}</div>` : ''}
+      ${inlineGpsHint ? `<div style="margin-bottom:8px;padding:7px 11px;border-radius:var(--r-sm);background:var(--pill-warn-bg);color:var(--pill-warn-text);font-size:var(--fs-xs);font-weight:700;line-height:1.4;">ℹ️ ${inlineGpsHint}</div>` : ''}
 
       <div id="geoMapSection" style="display:${showDrawer ? 'block' : 'none'};margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--border);">
         <div style="display:flex;gap:6px;margin-bottom:8px;">
-          <input type="search" id="geoSearchInput" class="input" style="flex:1;" placeholder="Поиск реки, озера или населённого пункта...">
+          <input type="search" id="geoSearchInput" class="input" style="flex:1;" placeholder="Поиск реки, озера, города или посёлка РФ...">
           <button type="button" class="btn btn-sm btn-accent" id="geoSearchBtn" style="min-height:38px;padding:0 14px;">Найти</button>
         </div>
 
@@ -510,7 +645,7 @@ export function render(container) {
 
         ${(s.nearbyPlaces && s.nearbyPlaces.length) ? `
           <div style="margin-top:8px;">
-            <div style="font-size:var(--fs-xs);color:var(--muted);font-weight:700;margin-bottom:4px;">🏘 НАСЕЛЁННЫЕ ПУНКТЫ РЯДОМ С ТОЧКОЙ (кликните для перехода):</div>
+            <div style="font-size:var(--fs-xs);color:var(--muted);font-weight:700;margin-bottom:4px;">🏘 БЛИЖАЙШИЕ ГОРОДА И НАСЕЛЁННЫЕ ПУНКТЫ (единая база РФ • кликните для перехода):</div>
             <div class="chip-scroll-row">
               ${s.nearbyPlaces.map(p => `
                 <button type="button" class="w-chip" data-nearby-place="${p.lat},${p.lon},${p.name}">🏘 ${p.name} • ${p.distKm} км</button>
@@ -534,7 +669,6 @@ export function render(container) {
         ` : ''}
       </div>
 
-      <!-- Ревизия 2.0.13 (Пункт 7a, 7b): Выбор радиуса поиска водоёмов «До 50 км» или «До 120 км» -->
       <div style="margin-bottom:10px;">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:6px;">
           <div style="font-size:var(--fs-xs);color:var(--muted);font-weight:700;">
@@ -554,7 +688,6 @@ export function render(container) {
         </div>
       </div>
 
-      <!-- Батиметрический профиль и глубины водоёма -->
       <div class="card" style="background:var(--card);margin-bottom:12px;padding:10px 12px;border:1px solid var(--border);">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:6px;">
           <span style="font-size:var(--fs-xs);font-weight:800;color:var(--accent);">🗺️ КАРТА ГЛУБИН И РЕЛЬЕФ ДНА: ${s.selectedWaterName || prof.name} (${getWaterTypeShortTag(s.water)})</span>
@@ -570,7 +703,7 @@ export function render(container) {
             <div style="font-weight:700;">${prof.flow > 1.5 ? 'Русловая бровка, песчано-галечный свал' : 'Илистое дно, перепады глубин, старичные ямы'}</div>
           </div>
           <div style="background:var(--panel);padding:6px 8px;border-radius:6px;">
-            <div style="color:var(--muted);font-size:var(--fs-xs);">СКОРОСТЬ ТЕЧЕНИЯ</div>
+            <div style="color:var(--muted);font-size:var(--fs-xs);">СКОРОСТЬ ТЕЧЕНИЯ (ВЛИЯЕТ НА ВОДУ И ЛЁД)</div>
             <div style="font-weight:700;">${prof.flow >= 2.0 ? 'Быстрое (до ' + prof.flow + ' м/с)' : (prof.flow >= 1.0 ? 'Умеренное (~' + prof.flow + ' м/с)' : 'Слабое / стоячая вода')}</div>
           </div>
         </div>
@@ -647,7 +780,6 @@ function bindGeoEvents(container, showDrawer) {
     });
   });
 
-  // Переключение радиуса поиска водоёмов «До 50 км» / «До 120 км» (Пункт 7a)
   container.querySelectorAll('[data-water-radius]').forEach(btn => {
     btn.addEventListener('click', () => {
       const nextRadius = parseInt(btn.getAttribute('data-water-radius'), 10) === 120 ? 120 : 50;
@@ -732,7 +864,14 @@ export async function init(container) {
   const spots = await storage.getAllFromStore('spots');
   store.dispatch({ type: 'SET_SAVED_SPOTS', payload: spots });
   const s = store.getState();
+
+  // Гарантируем, что название локации никогда не останется «Определение геолокации...»
+  if (!s.locLabel || s.locLabel.includes('Определение') || s.locAdmin1 === 'Автоопределение') {
+    resolveReverseGeocode(s.lat, s.lon);
+  }
+
   getNearbyWatersAndPlaces(s.lat, s.lon, s.waterRadiusKm || 50);
+  autoDetectStartupLocation();
   render(container);
 
   unsub = store.subscribe(
@@ -771,6 +910,7 @@ export function destroy() {
 export const geoModule = {
   setLocation,
   autoDetectStartupLocation,
+  resolveReverseGeocode,
   searchPlaceByQuery,
   requestGPS,
   getNearbyWatersAndPlaces,
