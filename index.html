@@ -9,7 +9,7 @@
   <meta name="apple-mobile-web-app-title" content="Клёв ПРО 2.0">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Клёв ПРО 2.0 • Прогноз клёва, Круг и Атлас Ихтиофауны РФ</title>
-  <link rel="manifest" href="manifest.json?v=2.0.1611">
+  <link rel="manifest" href="manifest.json?v=2.0.161">
   <link id="dynamicFavicon" rel="icon" type="image/png" sizes="180x180" href="apple-touch-icon.png">
   <link id="dynamicTouchIcon" rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
   <script>
@@ -40,12 +40,12 @@
 
       // Безопасная фоновая очистка устаревших кэшей прошлых сборок (без принудительной перезагрузки страницы)
       try {
-        var MIGRATION_KEY = 'klev_pro_migrated_v2016';
+        var MIGRATION_KEY = 'klev_pro_migrated_v20161_r2';
         if (localStorage.getItem(MIGRATION_KEY) !== '1' && 'caches' in window) {
           caches.keys().then(function(keys) {
             return Promise.all(
               keys
-                .filter(function(k) { return k !== 'klev-pro-static-v2.0.1611'; })
+                .filter(function(k) { return k !== 'klev-pro-static-v2.0.161-r2'; })
                 .map(function(k) { return caches.delete(k); })
             );
           }).then(function() {
@@ -55,10 +55,10 @@
       } catch (e) {}
     })();
   </script>
-  <link rel="stylesheet" href="css/tokens.css?v=2.0.1611">
-  <link rel="stylesheet" href="css/base.css?v=2.0.1611">
-  <link rel="stylesheet" href="css/components.css?v=2.0.1611">
-  <link rel="stylesheet" href="css/layout.css?v=2.0.1611">
+  <link rel="stylesheet" href="css/tokens.css?v=2.0.161">
+  <link rel="stylesheet" href="css/base.css?v=2.0.161">
+  <link rel="stylesheet" href="css/components.css?v=2.0.161">
+  <link rel="stylesheet" href="css/layout.css?v=2.0.161">
   <!-- Неблокирующая асинхронная загрузка картографического движка Leaflet -->
   <script>
     (function() {
@@ -150,7 +150,7 @@
     </div>
   </nav>
 
-  <script type="module" src="js/app.js?v=2.0.1611"></script>
+  <script type="module" src="js/app.js?v=2.0.161"></script>
   <script>
     // Защитный сторожевой таймер (только на случай полного обрыва загрузки скрипта в старом Service Worker)
     setTimeout(function() {
