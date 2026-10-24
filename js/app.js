@@ -1,17 +1,19 @@
-import { initReleaseUpdater, checkForReleaseUpdate } from './core/updater.js?v=2.0.15';
-import { RU } from './i18n/ru.js?v=2.0.15';
-import { store } from './core/store.js?v=2.0.15';
-import { router } from './core/router.js?v=2.0.15';
-import { installShortcut, initPwa } from './core/pwa.js?v=2.0.15';
-import { showToast } from './ui/components.js?v=2.0.15';
-import { weatherModule } from './modules/weather/weather.module.js?v=2.0.15';
-import { geoModule } from './modules/geo/geo.module.js?v=2.0.15';
-import { fishModule } from './modules/fish/fish.module.js?v=2.0.15';
-import { forecastModule } from './modules/forecast/forecast.module.js?v=2.0.15';
-import { calendarModule } from './modules/calendar/calendar.module.js?v=2.0.15';
-import { logModule } from './modules/log/log.module.js?v=2.0.15';
+import { initReleaseUpdater, checkForReleaseUpdate } from './core/updater.js?v=2.0.161';
+import { RU } from './i18n/ru.js?v=2.0.161';
+import { events } from './core/events.js?v=2.0.161';
+import { store } from './core/store.js?v=2.0.161';
+import { router } from './core/router.js?v=2.0.161';
+import { installShortcut, initPwa } from './core/pwa.js?v=2.0.161';
+import { initTelegramMiniApp, clearIncomingShareTokenFromUrl, triggerHaptic } from './core/telegram.js?v=2.0.161';
+import { showToast } from './ui/components.js?v=2.0.161';
+import { weatherModule } from './modules/weather/weather.module.js?v=2.0.161';
+import { geoModule } from './modules/geo/geo.module.js?v=2.0.161';
+import { fishModule } from './modules/fish/fish.module.js?v=2.0.161';
+import { forecastModule } from './modules/forecast/forecast.module.js?v=2.0.161';
+import { calendarModule } from './modules/calendar/calendar.module.js?v=2.0.161';
+import { logModule } from './modules/log/log.module.js?v=2.0.161';
+import { circleModule } from './modules/circle/circle.module.js?v=2.0.161';
 
-// Немедленно помечаем успешную загрузку модульного ядра, чтобы аварийный таймер в index.html не срабатывал
 if (typeof window !== 'undefined') {
   window.__KLEV_BOOTSTRAPPED__ = true;
 }
@@ -46,6 +48,15 @@ function updateHeaderUI() {
   const locText = document.getElementById('headerLocText');
   const statusEl = document.getElementById('headerStatusPill');
   const seasonStrip = document.getElementById('headerSeasonStrip');
+  const modeBtn = document.getElementById('headerModeBtn');
+
+  if (modeBtn) {
+    const mode = s.appMode || 'angler';
+    const modeIcons = { novice: '🟢', angler: '🟡', pro: '🔴' };
+    const modeNames = { novice: 'Новичок (Светофор + ТОП-3)', angler: 'Рыбак (Полный + Круг)', pro: 'Профи (8 факторов + GPX)' };
+    modeBtn.textContent = modeIcons[mode] || '🟡';
+    modeBtn.title = `Режим: ${modeIcons[mode] || '🟡'} ${modeNames[mode] || 'Рыбак'} (нажмите для переключения)`;
+  }
 
   if (locSub) {
     const regionPart = s.locAdmin1 && s.locAdmin1 !== s.locLabel ? `${s.locAdmin1} • ` : '';
@@ -91,6 +102,24 @@ function bindGlobalShellEvents() {
   const installBtn = document.getElementById('installAppBtn');
   if (installBtn) {
     installBtn.addEventListener('click', () => installShortcut());
+  }
+
+  const modeBtn = document.getElementById('headerModeBtn');
+  if (modeBtn) {
+    modeBtn.addEventListener('click', () => {
+      const order = ['novice', 'angler', 'pro'];
+      const cur = store.getState().appMode || 'angler';
+      const next = order[(order.indexOf(cur) + 1) % order.length];
+      store.dispatch({ type: 'SET_APP_MODE', payload: next });
+      router.applyVisibility(store.getState().route || 'dashboard');
+      triggerHaptic('selection');
+      const labels = {
+        novice: '🟢 Режим «Новичок»: светофор клёва, ТОП-3 рыбы и готовая снасть',
+        angler: '🟡 Режим «Рыбак»: полный навигатор, архив 5 дней и Круг',
+        pro: '🔴 Режим «Профи»: все 8 факторов с весами и импорт/экспорт GPX'
+      };
+      showToast(labels[next] || next, 'good');
+    });
   }
 
   const profileBtn = document.getElementById('headerProfileBtn');
@@ -157,12 +186,18 @@ function bindGlobalShellEvents() {
     btn.addEventListener('click', () => {
       const tab = btn.getAttribute('data-nav-tab');
       closeMorePopup();
+      triggerHaptic('selection');
       if (tab === 'profile') {
         fishModule.openOnboardingModal(true);
       } else {
         router.navigate(tab);
       }
     });
+  });
+
+  // Глобальное событие вызова окна шаринга в Круг / Экипаж / Мастерскую
+  events.on('circle:openShareModal', (payload = {}) => {
+    circleModule.openShareModalForCurrentContext(payload.mode || 'circle', payload.catchObj || null);
   });
 }
 
@@ -214,12 +249,6 @@ function clearFishCardInlineStyles(dockWrap) {
 let cachedFullDockH = 212;
 let scrollRafPending = false;
 
-/**
- * Ревизия 2.0.15 (Пункты 2a и 2b):
- * - 2b: На вкладке «Прогноз» (и «Погода» / «Календарь») сохраняем видимость #fishResultsArea,
- *   внутри которого лежат #fishStripPlaceholder и #fishStripDockWrap, чтобы миниатюрная лента рыб всегда была закреплена сверху!
- * - 2a: Уменьшение карточек рыб при свайпе вверх сделано плавным (увеличен диапазон интерполяции maxDelta = 175px + кубическое сглаживание easeOutCubic + requestAnimationFrame).
- */
 function syncFishDockState() {
   const headerH = syncHeaderLayout();
   const route = store.getState().route || 'dashboard';
@@ -240,7 +269,6 @@ function syncFishDockState() {
   if (isDedicatedFishTab) {
     if (cardEl) {
       Array.from(cardEl.children).forEach(ch => {
-        // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ (Пункт 2b): НЕ скрываем #fishResultsArea, так как внутри него находится мини-лента рыб!
         if (ch !== placeholder && ch !== sentinel && ch !== resultsArea && ch.id !== 'fishResultsArea') {
           ch.style.display = 'none';
         } else {
@@ -303,10 +331,9 @@ function syncFishDockState() {
 
   const fullH = cachedFullDockH || 212;
   const miniH = 48;
-  // Увеличенная дистанция свайпа (180px) и плавная функция сглаживания (Пункт 2a)
   const maxDelta = Math.max(175, fullH - miniH + 35);
   const rawP = Math.min(1, Math.max(0, delta / maxDelta));
-  const p = Number((rawP * (2 - rawP)).toFixed(3)); // Плавное квадратичное сглаживание без резких скачков
+  const p = Number((rawP * (2 - rawP)).toFixed(3));
 
   placeholder.style.height = `${fullH}px`;
   placeholder.style.minHeight = `${fullH}px`;
@@ -384,10 +411,21 @@ function bootstrapApp() {
   safeInit('geo', () => geoModule.init(document.getElementById('secGeo')));
   safeInit('fish', () => fishModule.init(document.getElementById('secFish')));
   safeInit('forecast', () => forecastModule.init(document.getElementById('secForecast')));
+  safeInit('circle', () => circleModule.init(document.getElementById('secCircle')));
   safeInit('calendar', () => calendarModule.init(document.getElementById('secCalendar')));
   safeInit('log', () => logModule.init(document.getElementById('secLog')));
 
   safeInit('router', () => router.init());
+  safeInit('telegram', () => {
+    initTelegramMiniApp(async (incomingToken) => {
+      const imported = await circleModule.importSharePackToken(incomingToken, false);
+      clearIncomingShareTokenFromUrl();
+      if (imported) {
+        router.navigate('circle');
+      }
+    });
+  });
+
   updateHeaderUI();
   syncFishDockState();
 
@@ -422,6 +460,7 @@ function bootstrapApp() {
 
   store.subscribe(
     s => ({
+      appMode: s.appMode,
       locLabel: s.locLabel,
       locAdmin1: s.locAdmin1,
       selectedWaterName: s.selectedWaterName,
@@ -440,6 +479,7 @@ function bootstrapApp() {
     }),
     () => {
       updateHeaderUI();
+      router.applyVisibility(store.getState().route || 'dashboard');
       syncFishDockState();
     }
   );

@@ -1,11 +1,11 @@
 /**
  * Service Worker для PWA «Клёв ПРО 2.0» (многомодульная архитектура)
- * Ревизия v2.0.15:
+ * Ревизия v2.0.1611:
  * - Немедленная активация новой версии (skipWaiting + clients.claim) без зависания старого кэша
- * - Принудительный обход дискового HTTP-кэша браузера при обновлении JS/CSS модулей
- * - Поддержка версионных query-параметров (?v=2.0.15) при офлайн-чтении из кэша (ignoreSearch: true)
+ * - Поддержка новых модулей «Клёв ПРО: Круг» (circle.module.js) и Telegram Mini App SDK (telegram.js)
+ * - Поддержка версионных query-параметров (?v=2.0.161) при офлайн-чтении из кэша (ignoreSearch: true)
  */
-const CACHE_VERSION = 'v2.0.15';
+const CACHE_VERSION = 'v2.0.1611';
 const STATIC_CACHE = `klev-pro-static-${CACHE_VERSION}`;
 
 const APP_SHELL_FILES = [
@@ -14,33 +14,35 @@ const APP_SHELL_FILES = [
   './version.json',
   './manifest.json',
   './icon.svg',
-  './css/tokens.css?v=2.0.15',
-  './css/base.css?v=2.0.15',
-  './css/components.css?v=2.0.15',
-  './css/layout.css?v=2.0.15',
-  './js/app.js?v=2.0.15',
-  './js/i18n/ru.js?v=2.0.15',
-  './js/core/config.js?v=2.0.15',
-  './js/core/updater.js?v=2.0.15',
-  './js/core/events.js?v=2.0.15',
-  './js/core/format.js?v=2.0.15',
-  './js/core/http.js?v=2.0.15',
-  './js/core/pwa.js?v=2.0.15',
-  './js/core/router.js?v=2.0.15',
-  './js/core/storage.js?v=2.0.15',
-  './js/core/store.js?v=2.0.15',
-  './js/data/basins.js?v=2.0.15',
-  './js/data/waters.js?v=2.0.15',
-  './js/data/russia-waters.js?v=2.0.15',
-  './js/data/species.js?v=2.0.15',
-  './js/ui/components.js?v=2.0.15',
-  './js/ui/svg.js?v=2.0.15',
-  './js/modules/weather/weather.module.js?v=2.0.15',
-  './js/modules/geo/geo.module.js?v=2.0.15',
-  './js/modules/forecast/forecast.module.js?v=2.0.15',
-  './js/modules/fish/fish.module.js?v=2.0.15',
-  './js/modules/calendar/calendar.module.js?v=2.0.15',
-  './js/modules/log/log.module.js?v=2.0.15'
+  './css/tokens.css?v=2.0.1611',
+  './css/base.css?v=2.0.1611',
+  './css/components.css?v=2.0.1611',
+  './css/layout.css?v=2.0.1611',
+  './js/app.js?v=2.0.1611',
+  './js/i18n/ru.js?v=2.0.1611',
+  './js/core/config.js?v=2.0.1611',
+  './js/core/updater.js?v=2.0.1611',
+  './js/core/events.js?v=2.0.1611',
+  './js/core/format.js?v=2.0.1611',
+  './js/core/http.js?v=2.0.1611',
+  './js/core/pwa.js?v=2.0.1611',
+  './js/core/telegram.js?v=2.0.1611',
+  './js/core/router.js?v=2.0.1611',
+  './js/core/storage.js?v=2.0.1611',
+  './js/core/store.js?v=2.0.1611',
+  './js/data/basins.js?v=2.0.1611',
+  './js/data/waters.js?v=2.0.1611',
+  './js/data/russia-waters.js?v=2.0.1611',
+  './js/data/species.js?v=2.0.1611',
+  './js/ui/components.js?v=2.0.1611',
+  './js/ui/svg.js?v=2.0.1611',
+  './js/modules/weather/weather.module.js?v=2.0.1611',
+  './js/modules/geo/geo.module.js?v=2.0.1611',
+  './js/modules/forecast/forecast.module.js?v=2.0.1611',
+  './js/modules/fish/fish.module.js?v=2.0.1611',
+  './js/modules/calendar/calendar.module.js?v=2.0.1611',
+  './js/modules/log/log.module.js?v=2.0.1611',
+  './js/modules/circle/circle.module.js?v=2.0.1611'
 ];
 
 self.addEventListener('install', (event) => {
@@ -86,7 +88,6 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Манифест версии всегда запрашиваем напрямую с сервера без кэширования
   if (url.pathname.endsWith('version.json')) {
     event.respondWith(
       fetch(req, { cache: 'no-store' }).catch(() => caches.match(req, { ignoreSearch: true }))
@@ -94,7 +95,6 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 1. Навигационные запросы (HTML): Network-First с обходом устаревшего HTTP-кэша
   if (req.mode === 'navigate' || url.pathname.endsWith('.html') || url.pathname.endsWith('/')) {
     event.respondWith(
       fetch(req, { cache: 'no-cache' })
@@ -112,7 +112,6 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 2. ES-модули (.js), стили (.css) и манифест (.json): Network-First с проверкой свежести
   const isScriptOrStyle =
     url.pathname.endsWith('.js') ||
     url.pathname.endsWith('.css') ||
@@ -136,7 +135,6 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 3. Изображения рыб и иконки: Cache-First с подгрузкой из сети
   event.respondWith(
     caches.match(req, { ignoreSearch: true }).then((cachedRes) => {
       if (cachedRes) return cachedRes;

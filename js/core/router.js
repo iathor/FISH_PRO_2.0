@@ -1,7 +1,7 @@
-import { store } from './store.js?v=2.0.15';
-import { renderMap } from '../modules/geo/geo.module.js?v=2.0.15';
+import { store } from './store.js?v=2.0.161';
+import { renderMap } from '../modules/geo/geo.module.js?v=2.0.161';
 
-const VALID_ROUTES = ['dashboard', 'fish', 'geo', 'weather', 'forecast', 'calendar', 'log'];
+const VALID_ROUTES = ['dashboard', 'fish', 'geo', 'weather', 'forecast', 'calendar', 'log', 'circle'];
 
 export const router = {
   init() {
@@ -11,7 +11,16 @@ export const router = {
 
   syncFromHash() {
     const raw = (window.location.hash || '').replace(/^#\/?/, '').trim();
-    const route = VALID_ROUTES.includes(raw) ? raw : 'dashboard';
+    if (raw.startsWith('klev_pack=')) {
+      const route = 'circle';
+      if (store.getState().route !== route) {
+        store.dispatch({ type: 'SET_ROUTE', payload: route });
+      }
+      this.applyVisibility(route);
+      return;
+    }
+    const cleanRoute = raw.split('?')[0];
+    const route = VALID_ROUTES.includes(cleanRoute) ? cleanRoute : 'dashboard';
     if (store.getState().route !== route) {
       store.dispatch({ type: 'SET_ROUTE', payload: route });
     }
@@ -28,9 +37,17 @@ export const router = {
   },
 
   applyVisibility(route) {
+    const appMode = store.getState().appMode || 'angler';
     document.querySelectorAll('[data-route-section]').forEach(sec => {
       const secName = sec.getAttribute('data-route-section');
-      if (route === 'dashboard' || secName === route) {
+      if (route === 'dashboard') {
+        // В режиме «🟢 Новичок» на Обзоре оставляем только Карту, Рыб и Прогноз (со светофором Новичка), чтобы не перегружать экран
+        if (appMode === 'novice' && (secName === 'calendar' || secName === 'circle')) {
+          sec.style.display = 'none';
+        } else {
+          sec.style.display = '';
+        }
+      } else if (secName === route) {
         sec.style.display = '';
       } else if (secName === 'fish' && ['forecast', 'weather', 'calendar'].includes(route)) {
         // Keep fish section in DOM so its .fish-card buttons dock in miniature mode
@@ -44,7 +61,7 @@ export const router = {
     });
     const moreBtn = document.getElementById('navMoreBtn');
     if (moreBtn) {
-      moreBtn.classList.toggle('active', route === 'calendar' || route === 'log');
+      moreBtn.classList.toggle('active', route === 'calendar' || route === 'log' || route === 'circle');
     }
     if (typeof window.syncFishDockState === 'function') {
       window.syncFishDockState();

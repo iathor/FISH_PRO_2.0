@@ -1,13 +1,14 @@
 /**
  * @file store.js
- * @description Централизованное хранилище состояния (Store) с автоматической синхронизацией снасти/наживки, поддержкой 5-дневного метеоархива (10 км) и мгновенным разрешением населённого пункта из единой базы РФ (Ревизия 2.0.15)
+ * @description Централизованное хранилище состояния (Store) с поддержкой 3 режимов («Новичок / Рыбак / Профи»),
+ * модуля «Клёв ПРО: Круг» (Экипаж 72ч, Круг ±5 км, Мастерская), весов факторов Профи и 5-дневного метеоархива (Ревизия 2.0.16)
  */
 
-import { DEFAULT_STATE, getCompatibleMethods, getSeasonalBaitsForContext } from './config.js?v=2.0.15';
-import { storage } from './storage.js?v=2.0.15';
-import { detectBasinByCoords, BASIN_CONFIGS, isCoastalInBasin } from '../data/basins.js?v=2.0.15';
-import { findNearestRussianSettlement } from '../data/russia-waters.js?v=2.0.15';
-import { FISH_DB } from '../data/species.js?v=2.0.15';
+import { DEFAULT_STATE, getCompatibleMethods, getSeasonalBaitsForContext } from './config.js?v=2.0.161';
+import { storage } from './storage.js?v=2.0.161';
+import { detectBasinByCoords, BASIN_CONFIGS, isCoastalInBasin } from '../data/basins.js?v=2.0.161';
+import { findNearestRussianSettlement } from '../data/russia-waters.js?v=2.0.161';
+import { FISH_DB } from '../data/species.js?v=2.0.161';
 
 function getActiveDaySeasonContext(state, overrideDays = null, overrideDayIdx = null, overrideIceState = null) {
   const rawDays = overrideDays ?? state?.weatherDays;
@@ -98,6 +99,41 @@ function reducer(state, action) {
       return { ...state, route: action.payload };
     case 'SET_THEME':
       return { ...state, theme: action.payload };
+    case 'SET_APP_MODE': {
+      const mode = ['novice', 'angler', 'pro'].includes(action.payload) ? action.payload : 'angler';
+      return {
+        ...state,
+        appMode: mode,
+        userProfile: {
+          ...(state.userProfile || {}),
+          appMode: mode
+        }
+      };
+    }
+    case 'SET_USER_CALLSIGN': {
+      return {
+        ...state,
+        userProfile: {
+          ...(state.userProfile || {}),
+          callsign: String(action.payload || 'Рыболов').slice(0, 32)
+        }
+      };
+    }
+    case 'SET_PRO_FACTOR_WEIGHTS': {
+      return {
+        ...state,
+        proFactorWeights: {
+          ...(state.proFactorWeights || { temp: 1.0, press: 1.0, archive_shock: 1.0, circle_field: 1.0 }),
+          ...(action.payload || {})
+        }
+      };
+    }
+    case 'SET_CIRCLE_ITEMS': {
+      return {
+        ...state,
+        circleItems: Array.isArray(action.payload) ? action.payload : []
+      };
+    }
     case 'SET_LOCATION': {
       const { lat, lon, locCountry, locAdmin1, locAdmin2, locLabel, hasUserLocation } = action.payload;
       const basinCode = detectBasinByCoords(lat, lon);
@@ -260,8 +296,12 @@ function reducer(state, action) {
       return { ...state, catches: action.payload };
     case 'SAVE_ONBOARDING': {
       const targetSpecies = Array.isArray(action.payload.targetSpecies) ? action.payload.targetSpecies : [];
+      const chosenMode = ['novice', 'angler', 'pro'].includes(action.payload.appMode)
+        ? action.payload.appMode
+        : (state.appMode || 'angler');
       const nextBase = {
         ...state,
+        appMode: chosenMode,
         water: action.payload.water,
         method: action.payload.method,
         fishId: action.payload.fishId || state.fishId,
@@ -269,7 +309,10 @@ function reducer(state, action) {
         favoritesExplicitlySet: true,
         onlyFavoritesFilter: targetSpecies.length === 0 ? false : state.onlyFavoritesFilter,
         userProfile: {
+          ...(state.userProfile || {}),
           onboarded: true,
+          appMode: chosenMode,
+          callsign: action.payload.callsign || state.userProfile?.callsign || 'Рыболов',
           preferredWater: action.payload.water,
           preferredMethod: action.payload.method,
           preferredWaters: action.payload.preferredWaters || [action.payload.water],
@@ -294,7 +337,6 @@ if (!initCoastal && (initWater === 'sea_gulf' || initWater === 'open_sea')) {
   initWater = 'small_river';
 }
 
-// Мгновенно разрешаем название населённого пункта из единой офлайн-базы РФ, чтобы никогда не зависало «Определение геолокации...»
 const nearestSettlement = findNearestRussianSettlement(initLat, initLon);
 const rawSavedLabel = saved.locLabel || '';
 const isStuckLabel = !rawSavedLabel || rawSavedLabel.includes('Определение') || rawSavedLabel.includes('Поиск');
@@ -310,9 +352,14 @@ const initFavorites = saved.favoritesExplicitlySet === true && Array.isArray(sav
   ? saved.favorites
   : [];
 
+const initAppMode = ['novice', 'angler', 'pro'].includes(saved.appMode)
+  ? saved.appMode
+  : (['novice', 'angler', 'pro'].includes(saved.userProfile?.appMode) ? saved.userProfile.appMode : 'angler');
+
 export const store = createStore(syncTackleForContext({
   ...DEFAULT_STATE,
   ...saved,
+  appMode: initAppMode,
   locLabel: initLocLabel,
   locAdmin1: initLocAdmin1,
   locAdmin2: saved.locAdmin2 || (nearestSettlement?.name || initLocLabel),
@@ -326,5 +373,7 @@ export const store = createStore(syncTackleForContext({
   water: initWater,
   waterRadiusKm: saved.waterRadiusKm === 120 ? 120 : 50,
   weatherArchive5Days: [],
-  hasRealArchive: true
+  hasRealArchive: true,
+  circleItems: storage.loadCircleItems ? storage.loadCircleItems() : [],
+  proFactorWeights: saved.proFactorWeights || { temp: 1.0, press: 1.0, archive_shock: 1.0, circle_field: 1.0 }
 }, false));

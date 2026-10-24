@@ -1,9 +1,12 @@
-import { STATE_CACHE_KEY, WEATHER_CACHE_KEY, WEATHER_TTL_MS } from './config.js?v=2.0.15';
-import { formatLocalYYYYMMDD } from './format.js?v=2.0.15';
+import { STATE_CACHE_KEY, WEATHER_CACHE_KEY, WEATHER_TTL_MS } from './config.js?v=2.0.161';
+import { formatLocalYYYYMMDD } from './format.js?v=2.0.161';
 
 const DB_NAME = 'KlevProDB_v2';
 export const GEO_WEATHER_ARCHIVE_KEY = 'klev_pro_geo_weather_archive_v2';
 export const GEO_WATERS_CACHE_KEY = 'klev_pro_geo_waters_cache_v2';
+export const CIRCLE_PACKS_CACHE_KEY = 'klev_pro_circle_packs_v2';
+export const DEVICE_ID_CACHE_KEY = 'klev_pro_device_id_v2';
+export const PHOTO_HASHES_CACHE_KEY = 'klev_pro_photo_dhashes_v2';
 export const GEO_CLUSTER_RADIUS_KM = 10.0;
 
 const LOCAL_STORE_KEYS = {
@@ -59,11 +62,6 @@ export function calcGeoDistanceKm(lat1, lon1, lat2, lon2) {
   return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 100) / 100;
 }
 
-/**
- * Ревизия 2.0.15:
- * Неблокирующее открытие IndexedDB без принудительного конфликта версий (v1/v2),
- * с обработчиками onblocked / onversionchange и жёстким сторожевым таймером 500 мс.
- */
 function openDB() {
   if (dbPromise) return dbPromise;
   dbPromise = new Promise((resolve) => {
@@ -84,7 +82,6 @@ function openDB() {
     const timer = setTimeout(() => finish(null), 550);
 
     try {
-      // Открываем БД без принудительного завышения версии, чтобы исключить блокировку (onblocked) со старыми вкладками v1/v2
       const req = indexedDB.open(DB_NAME);
       req.onupgradeneeded = (e) => {
         const db = e.target.result;
@@ -147,6 +144,40 @@ function writeClustersToLocalStorage(clusters) {
 }
 
 export const storage = {
+  getDeviceId() {
+    try {
+      let devId = localStorage.getItem(DEVICE_ID_CACHE_KEY);
+      if (!devId || typeof devId !== "string" || devId.length < 8) {
+        const rand = Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+        devId = "dev_" + rand;
+        localStorage.setItem(DEVICE_ID_CACHE_KEY, devId);
+      }
+      return devId;
+    } catch (e) {
+      return "dev_local_fallback";
+    }
+  },
+
+  loadPhotoHashes() {
+    try {
+      const raw = localStorage.getItem(PHOTO_HASHES_CACHE_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      return [];
+    }
+  },
+
+  savePhotoHash(dHash) {
+    if (!dHash) return;
+    try {
+      const list = this.loadPhotoHashes().filter(x => x !== dHash);
+      list.unshift(dHash);
+      localStorage.setItem(PHOTO_HASHES_CACHE_KEY, JSON.stringify(list.slice(0, 200)));
+    } catch (e) {}
+  },
+
   loadSettings() {
     try {
       const raw = localStorage.getItem(STATE_CACHE_KEY);
@@ -159,6 +190,7 @@ export const storage = {
   saveSettings(state) {
     try {
       const persist = {
+        appMode: state.appMode || 'angler',
         hasUserLocation: state.hasUserLocation,
         lat: state.lat,
         lon: state.lon,
@@ -182,9 +214,29 @@ export const storage = {
         favoritesExplicitlySet: state.favoritesExplicitlySet,
         compareSpeciesIds: state.compareSpeciesIds,
         theme: state.theme,
-        userProfile: state.userProfile
+        userProfile: state.userProfile,
+        proFactorWeights: state.proFactorWeights
       };
       localStorage.setItem(STATE_CACHE_KEY, JSON.stringify(persist));
+    } catch (e) {}
+  },
+
+  loadCircleItems() {
+    try {
+      const raw = localStorage.getItem(CIRCLE_PACKS_CACHE_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      return [];
+    }
+  },
+
+  saveCircleItems(list) {
+    try {
+      if (Array.isArray(list)) {
+        localStorage.setItem(CIRCLE_PACKS_CACHE_KEY, JSON.stringify(list));
+      }
     } catch (e) {}
   },
 
@@ -192,9 +244,6 @@ export const storage = {
     return readLocalBackup(storeName);
   },
 
-  /**
-   * Ищет кластер погоды в радиусе 10 км от указанных координат
-   */
   findGeoWeatherCluster(lat, lon, radiusKm = GEO_CLUSTER_RADIUS_KM) {
     const clusters = readClustersFromLocalStorage();
     let best = null;
@@ -210,9 +259,6 @@ export const storage = {
     return best ? { cluster: best, distKm: bestDist } : null;
   },
 
-  /**
-   * Сохраняет и накапливает прогноз и архив погоды по геолокации в радиусе 10 км
-   */
   saveWeatherCache(lat, lon, payload, extraArchiveDays = []) {
     const todayStr = formatLocalYYYYMMDD(new Date());
     const clusters = readClustersFromLocalStorage();
@@ -313,9 +359,6 @@ export const storage = {
     return targetCluster;
   },
 
-  /**
-   * Загружает кэш погоды и накопленный архив для локации в радиусе 10 км
-   */
   loadWeatherCache(lat, lon) {
     const todayStr = formatLocalYYYYMMDD(new Date());
     const found = this.findGeoWeatherCluster(lat, lon, GEO_CLUSTER_RADIUS_KM);
@@ -385,9 +428,6 @@ export const storage = {
     }
   },
 
-  /**
-   * Возвращает архивные дни (по умолчанию за последние 5 дней до refDateStr) для локации в радиусе 10 км
-   */
   getArchiveDaysForLocation(lat, lon, maxPastDays = 5, refDateStr = null) {
     const targetRef = refDateStr || formatLocalYYYYMMDD(new Date());
     const found = this.findGeoWeatherCluster(lat, lon, GEO_CLUSTER_RADIUS_KM);
@@ -416,9 +456,6 @@ export const storage = {
     };
   },
 
-  /**
-   * Возвращает сохранённый день по произвольной календарной дате YYYY-MM-DD из 10-км кэша локации
-   */
   getDayWeatherByDate(lat, lon, dateStr) {
     if (!dateStr) return null;
     const found = this.findGeoWeatherCluster(lat, lon, GEO_CLUSTER_RADIUS_KM);
@@ -428,9 +465,6 @@ export const storage = {
     return null;
   },
 
-  /**
-   * Возвращает сводную статистику по всему локальному архиву погоды
-   */
   getWeatherArchiveStats(lat, lon) {
     const todayStr = formatLocalYYYYMMDD(new Date());
     const clusters = readClustersFromLocalStorage();
@@ -463,9 +497,6 @@ export const storage = {
     };
   },
 
-  /**
-   * Очищает архив погоды по кнопке «🧹 Очистить архив погоды» (сохраняя последние 5 дней)
-   */
   clearWeatherArchiveKeep5Days() {
     const todayDt = new Date();
     todayDt.setHours(0, 0, 0, 0);
@@ -497,9 +528,6 @@ export const storage = {
     };
   },
 
-  /**
-   * Кэш найденных водоёмов и населённых пунктов в радиусе 10 км
-   */
   loadNearbyWatersCache(lat, lon, radiusKm = 50) {
     try {
       const raw = localStorage.getItem(GEO_WATERS_CACHE_KEY);

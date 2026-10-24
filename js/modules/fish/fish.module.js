@@ -1,14 +1,14 @@
-import { RU } from '../../i18n/ru.js?v=2.0.15';
-import { events } from '../../core/events.js?v=2.0.15';
-import { store } from '../../core/store.js?v=2.0.15';
-import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.0.15';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.0.15';
-import { RUSSIA_CITIES, findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.0.15';
-import { FISH_DB } from '../../data/species.js?v=2.0.15';
-import { renderFishVisual, renderFiveFish } from '../../ui/svg.js?v=2.0.15';
-import { createPill, showToast, openModal, closeModal, openFishLightbox } from '../../ui/components.js?v=2.0.15';
-import { setLocation, detectUserPosition } from '../geo/geo.module.js?v=2.0.15';
-import { calcDayBest } from '../forecast/forecast.module.js?v=2.0.15';
+import { RU } from '../../i18n/ru.js?v=2.0.161';
+import { events } from '../../core/events.js?v=2.0.161';
+import { store } from '../../core/store.js?v=2.0.161';
+import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.0.161';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.0.161';
+import { RUSSIA_CITIES, findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.0.161';
+import { FISH_DB } from '../../data/species.js?v=2.0.161';
+import { renderFishVisual, renderFiveFish } from '../../ui/svg.js?v=2.0.161';
+import { createPill, showToast, openModal, closeModal, openFishLightbox } from '../../ui/components.js?v=2.0.161';
+import { setLocation, detectUserPosition } from '../geo/geo.module.js?v=2.0.161';
+import { calcDayBest } from '../forecast/forecast.module.js?v=2.0.161';
 
 /**
  * Региональные приоритетные виды для каждого бассейна РФ,
@@ -429,6 +429,7 @@ export function openOnboardingModal(isEditMode = false) {
   let currentLon = s.lon;
   let currentBasin = s.basinCode || 'arctic_ob_taz';
   let currentCityName = s.locLabel || s.locAdmin2 || 'Москва';
+  let currentAppMode = s.appMode || 'angler';
 
   const selectedWaters = new Set(
     (s.userProfile?.preferredWaters && s.userProfile.preferredWaters.length)
@@ -487,6 +488,25 @@ export function openOnboardingModal(isEditMode = false) {
             ${isEditMode
               ? 'Настройте домашний регион, предпочитаемые биотопы, снасти и список избранных рыб.'
               : 'Укажите ваш регион и предпочтения. Если пропустить настройку («Заполню позже»), список Избранного останется пустым.'}
+          </div>
+        </div>
+
+        <!-- ВЫБОР РЕЖИМА ВХОДА (Новичок / Рыбак / Профи) -->
+        <div>
+          <label style="display:block;font-weight:800;font-size:var(--fs-xs);color:var(--muted);margin-bottom:5px;">РЕЖИМ ИНТЕРФЕЙСА (МОЖНО МЕНЯТЬ В ЛЮБОЙ МОМЕНТ)</label>
+          <div id="onbModeContainer" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;">
+            <button type="button" class="btn btn-sm ${currentAppMode === 'novice' ? 'btn-good' : ''}" data-onb-mode="novice" style="flex-direction:column;min-height:48px;gap:2px;">
+              <span>🟢 Новичок</span>
+              <span style="font-size:10px;opacity:0.85;">Светофор + ТОП-3</span>
+            </button>
+            <button type="button" class="btn btn-sm ${currentAppMode === 'angler' ? 'btn-accent' : ''}" data-onb-mode="angler" style="flex-direction:column;min-height:48px;gap:2px;">
+              <span>🟡 Рыбак</span>
+              <span style="font-size:10px;opacity:0.85;">Полный + Круг</span>
+            </button>
+            <button type="button" class="btn btn-sm ${currentAppMode === 'pro' ? 'btn-accent' : ''}" data-onb-mode="pro" style="flex-direction:column;min-height:48px;gap:2px;">
+              <span>🔴 Профи</span>
+              <span style="font-size:10px;opacity:0.85;">Веса 8 факт. + GPX</span>
+            </button>
           </div>
         </div>
 
@@ -563,6 +583,18 @@ export function openOnboardingModal(isEditMode = false) {
               `;
             }).join('')}
           </div>
+        </div>
+
+        <!-- СОГЛАСИЕ 152-ФЗ (LOCAL-FIRST / ZERO-KNOWLEDGE) И ДИСКЛЕЙМЕР БЕЗОПАСНОСТИ НА ЛЬДУ -->
+        <div style="padding:10px 12px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);display:flex;flex-direction:column;gap:6px;font-size:11.5px;">
+          <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;line-height:1.38;">
+            <input type="checkbox" id="onbConsentLocalFirst" checked style="margin-top:2px;">
+            <span>🔒 <b>Приватность и 152-ФЗ (Local-First / Zero-Knowledge):</b> мои личные точки, уловы и настройки хранятся только локально на моём устройстве (IndexedDB) и в моём личном зашифрованном облаке Telegram CloudStorage без передачи персональных данных на сторонние серверы.</span>
+          </label>
+          <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;line-height:1.38;">
+            <input type="checkbox" id="onbConsentIceSafety" checked style="margin-top:2px;">
+            <span>❄️ <b>Безопасность на водоёме и льду:</b> я понимаю, что расчёт толщины льда и клёва носит информационно-расчётный характер, а решение о выходе на лёд или воду принимается рыболовом лично после фактической проверки пешнёй и учёта сводок МЧС РФ.</span>
+          </label>
         </div>
 
         <!-- КНОПКИ ВНИЗУ -->
@@ -644,6 +676,19 @@ export function openOnboardingModal(isEditMode = false) {
         });
       });
     }
+
+    bodyEl.querySelectorAll('[data-onb-mode]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        currentAppMode = btn.getAttribute('data-onb-mode') || 'angler';
+        bodyEl.querySelectorAll('[data-onb-mode]').forEach(b => {
+          const m = b.getAttribute('data-onb-mode');
+          b.classList.remove('btn-good', 'btn-accent');
+          if (m === currentAppMode) {
+            b.classList.add(m === 'novice' ? 'btn-good' : 'btn-accent');
+          }
+        });
+      });
+    });
 
     bindWaters(bodyEl.querySelector('#onbWatersContainer'));
     bindMethods(bodyEl.querySelector('#onbMethodsContainer'));
@@ -810,6 +855,7 @@ export function openOnboardingModal(isEditMode = false) {
         store.dispatch({
           type: 'SAVE_ONBOARDING',
           payload: {
+            appMode: currentAppMode,
             water: s.water,
             method: s.method,
             fishId: s.fishId || 'pike',
@@ -835,6 +881,7 @@ export function openOnboardingModal(isEditMode = false) {
         store.dispatch({
           type: 'SAVE_ONBOARDING',
           payload: {
+            appMode: currentAppMode,
             water: primaryWater,
             method: primaryMethod,
             fishId: targetFish,
