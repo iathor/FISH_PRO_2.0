@@ -1,179 +1,175 @@
 <!DOCTYPE html>
-<html lang="ru" data-theme="dark">
+<html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#0b1120">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-title" content="Клёв ПРО 2.0">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>Клёв ПРО 2.0 • Прогноз клёва и Атлас Ихтиофауны РФ</title>
-  <link rel="manifest" href="manifest.json?v=2.0.13">
-  <link id="dynamicFavicon" rel="icon" type="image/png" sizes="180x180" href="apple-touch-icon.png">
-  <link id="dynamicTouchIcon" rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <title>Клёв ПРО 2.0 • Технические работы</title>
+  <style>
+    :root {
+      --bg: #0b1120;
+      --panel: #151f32;
+      --card: #1e293b;
+      --text: #f8fafc;
+      --muted: #cbd5e1;
+      --accent: #38bdf8;
+      --good: #10b981;
+      --warn: #f59e0b;
+      --border: #334155;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    }
+    body {
+      min-height: 100vh;
+      background: radial-gradient(circle at 50% 15%, #172a46 0%, var(--bg) 70%);
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      line-height: 1.5;
+    }
+    .maint-card {
+      max-width: 520px;
+      width: 100%;
+      background: var(--panel);
+      border: 1.5px solid var(--accent);
+      border-radius: 16px;
+      padding: 28px 24px;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+      text-align: center;
+    }
+    .maint-icon {
+      width: 76px;
+      height: 76px;
+      margin: 0 auto 16px;
+      border-radius: 20px;
+      background: rgba(56, 189, 248, 0.14);
+      border: 1.5px solid rgba(56, 189, 248, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 38px;
+      animation: floatWave 3s ease-in-out infinite;
+    }
+    @keyframes floatWave {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-6px); }
+    }
+    .maint-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 14px;
+      border-radius: 999px;
+      background: rgba(245, 158, 11, 0.18);
+      border: 1px solid rgba(245, 158, 11, 0.45);
+      color: #fbbf24;
+      font-size: 13.5px;
+      font-weight: 800;
+      margin-bottom: 14px;
+    }
+    h1 {
+      font-size: 22px;
+      font-weight: 800;
+      margin-bottom: 12px;
+      color: var(--text);
+    }
+    .maint-msg {
+      font-size: 16.5px;
+      font-weight: 700;
+      color: var(--accent);
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .maint-sub {
+      font-size: 14.5px;
+      color: var(--muted);
+      margin-bottom: 20px;
+    }
+    .maint-features {
+      text-align: left;
+      background: rgba(15, 23, 42, 0.65);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+      font-size: 14px;
+      color: var(--muted);
+      margin-bottom: 20px;
+    }
+    .maint-features div {
+      margin-bottom: 6px;
+    }
+    .maint-features div:last-child {
+      margin-bottom: 0;
+    }
+    .btn-reload {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      min-height: 46px;
+      padding: 10px 18px;
+      border-radius: 10px;
+      border: 1.5px solid var(--good);
+      background: var(--good);
+      color: #ffffff;
+      font-size: 15.5px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: opacity 0.15s ease;
+    }
+    .btn-reload:hover {
+      opacity: 0.92;
+    }
+  </style>
   <script>
+    // Автоматически очищаем старые Service Worker и кэши, чтобы после завершения работ новая версия открылась сразу
     (function() {
       try {
-        var raw = localStorage.getItem('klev_pro_state_v2.0');
-        var saved = raw ? JSON.parse(raw).theme : 'auto';
-        var eff = saved === 'auto'
-          ? (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark')
-          : (saved || 'dark');
-        document.documentElement.setAttribute('data-theme', eff);
-      } catch (e) {}
-
-      // Безопасная фоновая очистка устаревших кэшей прошлых сборок (без принудительной перезагрузки страницы)
-      try {
-        var MIGRATION_KEY = 'klev_pro_migrated_v2013';
-        if (localStorage.getItem(MIGRATION_KEY) !== '1' && 'caches' in window) {
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then(function(regs) {
+            regs.forEach(function(r) { r.unregister(); });
+          });
+        }
+        if ('caches' in window) {
           caches.keys().then(function(keys) {
-            return Promise.all(
-              keys
-                .filter(function(k) { return k !== 'klev-pro-static-v2.0.13'; })
-                .map(function(k) { return caches.delete(k); })
-            );
-          }).then(function() {
-            localStorage.setItem(MIGRATION_KEY, '1');
-          }).catch(function() {});
+            keys.forEach(function(k) { caches.delete(k); });
+          });
         }
       } catch (e) {}
-    })();
-  </script>
-  <link rel="stylesheet" href="css/tokens.css?v=2.0.13">
-  <link rel="stylesheet" href="css/base.css?v=2.0.13">
-  <link rel="stylesheet" href="css/components.css?v=2.0.13">
-  <link rel="stylesheet" href="css/layout.css?v=2.0.13">
-  <!-- Неблокирующая асинхронная загрузка картографического движка Leaflet -->
-  <script>
-    (function() {
-      var cssUrls = [
-        'https://yastatic.net/s3/front-maps-static/leaflet/1.9.4/leaflet.css',
-        'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css'
-      ];
-      var jsUrls = [
-        'https://yastatic.net/s3/front-maps-static/leaflet/1.9.4/leaflet.js',
-        'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js'
-      ];
-      var link = document.createElement('link');
-      link.rel = 'stylesheet';
-      link.href = cssUrls[0];
-      link.onerror = function() { link.href = cssUrls[1]; };
-      document.head.appendChild(link);
-
-      function loadLeafletScript(idx) {
-        if (idx >= jsUrls.length || typeof window.L !== 'undefined') return;
-        var s = document.createElement('script');
-        s.src = jsUrls[idx];
-        s.async = true;
-        s.onload = function() {
-          var box = document.getElementById('mapBox');
-          if (box && box.offsetParent !== null && typeof window.__KLEV_RENDER_MAP__ === 'function') {
-            window.__KLEV_RENDER_MAP__(box);
-          }
-        };
-        s.onerror = function() { loadLeafletScript(idx + 1); };
-        document.head.appendChild(s);
-      }
-      loadLeafletScript(0);
     })();
   </script>
 </head>
 <body>
-  <header class="app-header">
-    <div class="header-bar">
-      <div class="loc-summary">
-        <div class="loc-sub" id="headerLocSub">Определение координат и бассейна...</div>
-        <div class="loc-main" id="headerLocMain">
-          <span class="loc-main-text" id="headerLocText">📍 Поиск геолокации...</span>
-          <span class="pill pill-good" id="headerStatusPill" role="status">🟢 Онлайн</span>
-        </div>
-      </div>
-      <div class="header-controls">
-        <button type="button" class="btn btn-icon btn-install-header" id="installAppBtn" data-install-app aria-label="Установить приложение" title="📲 Ярлык на экран">📲</button>
-        <button type="button" class="btn btn-icon" id="headerVersionBtn" aria-label="Что нового в версии и проверка обновлений" title="Что нового в версии 2.0.13">📦</button>
-        <button type="button" class="btn btn-icon" id="headerProfileBtn" aria-label="Профиль рыболова" title="Профиль рыболова">⚙️</button>
-        <button type="button" class="btn btn-icon" id="headerRefreshBtn" aria-label="Обновить метеоданные и проверить релиз" title="Обновить метеоданные и проверить обновление">🔄</button>
-        <button type="button" class="btn btn-icon" id="headerThemeBtn" aria-label="Переключить тему" title="Переключить тему">🌓</button>
-      </div>
+  <main class="maint-card">
+    <div class="maint-icon" aria-hidden="true">🎣</div>
+    <div class="maint-badge">⚙️ Обновление сервера «Клёв ПРО 2.0»</div>
+    <h1>Техническое обслуживание</h1>
+    <div class="maint-msg">
+      Сейчас ведутся технические работы, ждите обновления приложения в ближайшее время.
     </div>
-    <div class="season-strip open-water" id="headerSeasonStrip" role="region" aria-label="Ледовая обстановка">
-      <span>🌊 Расчёт термического и ледового режима водоёма...</span>
+    <p class="maint-sub">
+      Мы загружаем новую ревизию <b>2.0.13</b> с расширенной базой водоёмов (до 50 / 120 км), обновлёнными карточками рыб и улучшенным расчётом ледовой обстановки.
+    </p>
+    <div class="maint-features">
+      <div>🛡️ <b>Ваши данные сохранены:</b> все сохранённые точки на карте, настройки профиля и журнал уловов останутся на вашем устройстве.</div>
+      <div>🔄 <b>Кэш браузера подготовлен:</b> устаревшие временные файлы автоматически очищены для плавного запуска новой версии.</div>
     </div>
-  </header>
-
-  <main id="app" class="app-main">
-    <section id="secGeo" data-route-section="geo" aria-label="Геолокация и выбор водоёма"></section>
-    <section id="secFish" data-route-section="fish" aria-label="Рыбы в месте ловли"></section>
-    <section id="secForecast" data-route-section="forecast" aria-label="Прогноз клёва и архив"></section>
-    <section id="secWeather" data-route-section="weather" aria-label="Погода и фазы Луны"></section>
-    <section id="secCalendar" data-route-section="calendar" aria-label="Годовой биоритм и нерест"></section>
-    <section id="secLog" data-route-section="log" aria-label="Журнал уловов"></section>
+    <button type="button" class="btn-reload" onclick="window.location.replace(window.location.pathname + '?t=' + Date.now())">
+      🔄 Проверить доступность обновления
+    </button>
   </main>
-
-  <!-- Ревизия 2.0.13 (Пункт 3a): Новый порядок вкладок: Карта / Погода / Обзор / Рыбы / Прогноз + всплывающий блок ⋮ (Календарь и Журнал) -->
-  <nav class="bottom-nav" aria-label="Навигация по разделам">
-    <div class="bottom-nav-inner">
-      <button type="button" class="nav-tab" data-nav-tab="geo" aria-label="Карта и водоём"><span>📍</span><span>Карта</span></button>
-      <button type="button" class="nav-tab" data-nav-tab="weather" aria-label="Погода и Луна"><span>🌦️</span><span>Погода</span></button>
-      <button type="button" class="nav-tab active" data-nav-tab="dashboard" aria-label="Все разделы"><span>🧭</span><span>Обзор</span></button>
-      <button type="button" class="nav-tab" data-nav-tab="fish" aria-label="Рыбы"><span>🐟</span><span>Рыбы</span></button>
-      <button type="button" class="nav-tab" data-nav-tab="forecast" aria-label="Прогноз клёва"><span>🎣</span><span>Прогноз</span></button>
-      <div class="nav-more-wrap">
-        <button type="button" class="nav-tab nav-more-btn" id="navMoreBtn" aria-label="Дополнительные разделы (Календарь и Журнал)" aria-expanded="false" title="Календарь и Журнал">
-          <span>⋮</span>
-          <span style="font-size:10px;">Ещё</span>
-        </button>
-        <div class="nav-more-popup" id="navMorePopup" role="menu" aria-label="Дополнительные вкладки">
-          <button type="button" class="nav-popup-item" data-nav-tab="calendar" role="menuitem"><span>📅</span><span>Календарь биоритмов</span></button>
-          <button type="button" class="nav-popup-item" data-nav-tab="log" role="menuitem"><span>📓</span><span>Журнал уловов</span></button>
-        </div>
-      </div>
-    </div>
-  </nav>
-
-  <script type="module" src="js/app.js?v=2.0.13"></script>
-  <script>
-    // Защитный сторожевой таймер (только на случай полного обрыва загрузки скрипта в старом Service Worker)
-    setTimeout(function() {
-      if (!window.__KLEV_BOOTSTRAPPED__) {
-        var mainEl = document.getElementById('app');
-        if (mainEl && (!mainEl.children[0] || !mainEl.children[0].innerHTML.trim())) {
-          var box = document.createElement('div');
-          box.className = 'card';
-          box.style.cssText = 'border-color:var(--accent);text-align:center;padding:18px;margin-top:24px;';
-          box.innerHTML =
-            '<div style="font-size:17px;font-weight:800;margin-bottom:8px;">🚀 Доступна новая сборка «Клёв ПРО 2.0.13»</div>' +
-            '<p style="font-size:14px;color:var(--muted);margin-bottom:14px;line-height:1.45;">Обнаружены устаревшие файлы в кэше телефона. Нажмите кнопку ниже, чтобы обновить модули приложения (ваши точки и уловы сохранятся).</p>' +
-            '<button type="button" class="btn btn-good" id="emergencyResetCacheBtn" style="width:100%;">✅ Обновить кэш и запустить новую версию</button>';
-          mainEl.prepend(box);
-          var btn = document.getElementById('emergencyResetCacheBtn');
-          if (btn) {
-            btn.onclick = function() {
-              btn.textContent = '⏳ Очистка старого кэша...';
-              Promise.resolve()
-                .then(function() {
-                  if ('serviceWorker' in navigator) {
-                    return navigator.serviceWorker.getRegistrations().then(function(regs) {
-                      return Promise.all(regs.map(function(r) { return r.unregister(); }));
-                    });
-                  }
-                })
-                .then(function() {
-                  if ('caches' in window) {
-                    return caches.keys().then(function(keys) {
-                      return Promise.all(keys.map(function(k) { return caches.delete(k); }));
-                    });
-                  }
-                })
-                .finally(function() {
-                  window.location.replace(window.location.pathname + '?v=2.0.13&reset=' + Date.now());
-                });
-            };
-          }
-        }
-      }
-    }, 6500);
-  </script>
 </body>
 </html>
