@@ -1,11 +1,11 @@
-import { RU } from '../../i18n/ru.js?v=2.0.163';
-import { events } from '../../core/events.js?v=2.0.163';
-import { storage } from '../../core/storage.js?v=2.0.163';
-import { store } from '../../core/store.js?v=2.0.163';
-import { fetchWithTimeout, fallbackChain } from '../../core/http.js?v=2.0.163';
-import { formatLocalYYYYMMDD, fmtHM, fmtDeltaPress } from '../../core/format.js?v=2.0.163';
-import { WATER_PROFILES } from '../../data/waters.js?v=2.0.163';
-import { createPill, showToast } from '../../ui/components.js?v=2.0.163';
+import { RU } from '../../i18n/ru.js?v=2.0.164';
+import { events } from '../../core/events.js?v=2.0.164';
+import { storage } from '../../core/storage.js?v=2.0.164';
+import { store } from '../../core/store.js?v=2.0.164';
+import { fetchWithTimeout, fallbackChain } from '../../core/http.js?v=2.0.164';
+import { formatLocalYYYYMMDD, fmtHM, fmtDeltaPress } from '../../core/format.js?v=2.0.164';
+import { WATER_PROFILES } from '../../data/waters.js?v=2.0.164';
+import { createPill, showToast } from '../../ui/components.js?v=2.0.164';
 
 const DIRS = ['С', 'СВ', 'В', 'ЮВ', 'Ю', 'ЮЗ', 'З', 'СЗ'];
 
@@ -221,7 +221,7 @@ export function evaluateDayIce(historyMeanTemps, tDayMax, tNightMin, waterTemp, 
 }
 
 /**
- * Ревизия 2.0.163: Расчёт комплексного Индекса безопасности льда (0–100) и порогов нагрузки (Пешком vs Снегоход/Мотобуксировщик)
+ * Ревизия 2.0.164: Расчёт комплексного Индекса безопасности льда (0–100) и порогов нагрузки (Пешком vs Снегоход/Мотобуксировщик)
  */
 export function computeIceSafetyIndex(day, waterType = "small_river") {
   const prof = WATER_PROFILES[waterType] || WATER_PROFILES.small_river;
