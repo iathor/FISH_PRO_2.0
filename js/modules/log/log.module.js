@@ -1,14 +1,14 @@
-import { RU } from '../../i18n/ru.js?v=2.0.162';
-import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.0.162';
-import { events } from '../../core/events.js?v=2.0.162';
-import { storage } from '../../core/storage.js?v=2.0.162';
-import { store } from '../../core/store.js?v=2.0.162';
-import { formatLocalYYYYMMDD, fmtDeltaPress } from '../../core/format.js?v=2.0.162';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.0.162';
-import { FISH_DB } from '../../data/species.js?v=2.0.162';
-import { createPill, showToast, openModal, closeModal } from '../../ui/components.js?v=2.0.162';
-import { computeMoon } from '../weather/weather.module.js?v=2.0.162';
-import { calcHourly } from '../forecast/forecast.module.js?v=2.0.162';
+import { RU } from '../../i18n/ru.js?v=2.0.163';
+import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.0.163';
+import { events } from '../../core/events.js?v=2.0.163';
+import { storage } from '../../core/storage.js?v=2.0.163';
+import { store } from '../../core/store.js?v=2.0.163';
+import { formatLocalYYYYMMDD, fmtDeltaPress } from '../../core/format.js?v=2.0.163';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.0.163';
+import { FISH_DB } from '../../data/species.js?v=2.0.163';
+import { createPill, showToast, openModal, closeModal } from '../../ui/components.js?v=2.0.163';
+import { computeMoon } from '../weather/weather.module.js?v=2.0.163';
+import { calcHourly } from '../forecast/forecast.module.js?v=2.0.163';
 
 let currentFilter = { fishId: 'all', cond: 'all' };
 
@@ -790,8 +790,15 @@ export async function init(container) {
 
   if (unsub) unsub();
   unsub = store.subscribe(
-    s => ({ catches: s.catches, fishId: s.fishId }),
-    () => render(container)
+    s => ({ route: s.route, catches: s.catches, fishId: s.fishId }),
+    (next) => {
+      if (next.route && next.route !== 'log') {
+        if (container) container._logNeedsRender = true;
+        return;
+      }
+      if (container) container._logNeedsRender = false;
+      render(container);
+    }
   );
 
   if (unsubEvent) unsubEvent();
