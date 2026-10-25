@@ -1,15 +1,16 @@
-import { RU } from '../../i18n/ru.js?v=2.0.163';
-import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.0.163';
-import { events } from '../../core/events.js?v=2.0.163';
-import { storage } from '../../core/storage.js?v=2.0.163';
-import { store } from '../../core/store.js?v=2.0.163';
-import { formatLocalYYYYMMDD, fmtDeltaPress, fmtHM } from '../../core/format.js?v=2.0.163';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.0.163';
-import { FISH_DB } from '../../data/species.js?v=2.0.163';
-import { renderFiveFish } from '../../ui/svg.js?v=2.0.163';
-import { createPill, showToast, openModal } from '../../ui/components.js?v=2.0.163';
-import { computeIceSafetyIndex } from '../weather/weather.module.js?v=2.0.163';
-import { evaluateCircleFieldConfirmation } from '../circle/circle.module.js?v=2.0.163';
+import { RU } from '../../i18n/ru.js?v=2.0.164';
+import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.0.164';
+import { events } from '../../core/events.js?v=2.0.164';
+import { storage } from '../../core/storage.js?v=2.0.164';
+import { store } from '../../core/store.js?v=2.0.164';
+import { formatLocalYYYYMMDD, fmtDeltaPress, fmtHM } from '../../core/format.js?v=2.0.164';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.0.164';
+import { FISH_DB } from '../../data/species.js?v=2.0.164';
+import { renderFiveFish } from '../../ui/svg.js?v=2.0.164';
+import { createPill, showToast, openModal } from '../../ui/components.js?v=2.0.164';
+import { computeIceSafetyIndex } from '../weather/weather.module.js?v=2.0.164';
+import { evaluateCircleFieldConfirmation } from '../circle/circle.module.js?v=2.0.164';
+import { isTelegramWebApp, getTelegramUser, shareToTelegramChat, openBotChatInTelegram, TELEGRAM_BOT_USERNAME } from '../../core/telegram.js?v=2.0.164';
 
 /**
  * Список морских, проходных и полупроходных видов, которые заходят в пресные реки
@@ -1026,6 +1027,24 @@ export function renderExpress(container) {
   const nearWaterTitle = s.selectedWaterName || s.nearbyWaters?.[0]?.name || WATER_PROFILES[s.water]?.shortName || "Ближайший водоём";
 
   let modeBannerHtml = '';
+  const inTg = isTelegramWebApp();
+  const tgUser = getTelegramUser();
+  const tgIdentityText = tgUser
+    ? `✈️ Вы в Telegram Mini App: <b>${tgUser.displayName}</b>${tgUser.username ? ' (@' + tgUser.username + ')' : ''} • ☁️ Облако Telegram подключено`
+    : `✈️ Клубный навигатор Telegram (<b>@${TELEGRAM_BOT_USERNAME}</b>) • Мгновенная отправка прогноза и точек напарникам`;
+
+  modeBannerHtml += `
+    <div class="card" style="margin-bottom:10px;padding:9px 12px;background:rgba(56,189,248,0.09);border:1px solid var(--accent);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+      <div style="font-size:var(--fs-xs);color:var(--text);line-height:1.35;">
+        ${tgIdentityText}
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button type="button" class="btn btn-sm btn-accent" id="fcShareForecastTgBtn" style="min-height:28px;padding:3px 10px;font-size:11.5px;">📤 Отправить прогноз в Telegram</button>
+        <button type="button" class="btn btn-sm" id="fcShareCrewTgBtn" style="min-height:28px;padding:3px 10px;font-size:11.5px;">🌊 Экипаж (72ч)</button>
+        ${!inTg ? `<button type="button" class="btn btn-sm" id="fcOpenBotTgBtn" style="min-height:28px;padding:3px 10px;font-size:11.5px;">🤖 Чат с ботом</button>` : ''}
+      </div>
+    </div>
+  `;
 
   if (appMode === "novice" && todayObj) {
     const regionalCandidates = FISH_DB.filter(f => f.basins.includes(s.basinCode) && f.legal !== "redbook" && (!f.waters || f.waters.includes(s.water)));
@@ -1608,6 +1627,48 @@ function bindForecastEvents(container) {
   if (wsBtn) {
     wsBtn.addEventListener('click', () => {
       events.emit('circle:openShareModal', { mode: 'workshop' });
+    });
+  }
+
+  const shareFcTgBtn = container.querySelector('#fcShareForecastTgBtn');
+  if (shareFcTgBtn) {
+    shareFcTgBtn.addEventListener('click', () => {
+      const s = store.getState();
+      const fish = FISH_DB.find(f => f.id === s.fishId) || FISH_DB[0];
+      const day = s.weatherDays[s.dayIdx] || s.weatherDays[2] || s.weatherDays[0];
+      if (!day) return;
+      const sc = calcDayBest(fish, day, s.method, s.water, s.depth, s.normPress, s.iceState);
+      const win = getBestBiteWindowText(fish, day, s.method, s.water, s.depth, s.normPress, s.iceState);
+      const rig = calcDynamicRig(s.method, s.water, s.depth, day.windMax, fish, day.waterTemp, day.iceState || s.iceState);
+      const waterTitle = s.selectedWaterName || WATER_PROFILES[s.water]?.shortName || 'водоём';
+      const deepUrl = `https://t.me/${TELEGRAM_BOT_USERNAME}/app?startapp=KPLOC_${s.lat.toFixed(4)}_${s.lon.toFixed(4)}_${fish.id}`;
+      const summary =
+        `🎣 Клёв ПРО 2.0 • Прогноз клёва (${day.relTitle || day.label})
+` +
+        `📍 ${s.locLabel} (${waterTitle})
+` +
+        `🐟 Рыба: ${fish.name} — активность ${sc}%
+` +
+        `⏰ Лучший выход: ${win}
+` +
+        `💧 Вода ~${day.waterTemp}°C • 🧭 ${day.pressAvg} мм (${fmtDeltaPress(day.dP)}) • 💨 ${day.windDir} ${day.windMax} м/с
+` +
+        `🎯 Снасть: ${rig.weight} (${rig.line})`;
+      shareToTelegramChat(deepUrl, summary);
+    });
+  }
+
+  const shareCrewTgBtn = container.querySelector('#fcShareCrewTgBtn');
+  if (shareCrewTgBtn) {
+    shareCrewTgBtn.addEventListener('click', () => {
+      events.emit('circle:openShareModal', { mode: 'crew' });
+    });
+  }
+
+  const openBotTgBtn = container.querySelector('#fcOpenBotTgBtn');
+  if (openBotTgBtn) {
+    openBotTgBtn.addEventListener('click', () => {
+      openBotChatInTelegram();
     });
   }
 
