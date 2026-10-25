@@ -1,11 +1,11 @@
-import { RU } from '../../i18n/ru.js?v=2.0.162';
-import { events } from '../../core/events.js?v=2.0.162';
-import { storage } from '../../core/storage.js?v=2.0.162';
-import { store } from '../../core/store.js?v=2.0.162';
-import { fetchWithTimeout, fallbackChain } from '../../core/http.js?v=2.0.162';
-import { formatLocalYYYYMMDD, fmtHM, fmtDeltaPress } from '../../core/format.js?v=2.0.162';
-import { WATER_PROFILES } from '../../data/waters.js?v=2.0.162';
-import { createPill, showToast } from '../../ui/components.js?v=2.0.162';
+import { RU } from '../../i18n/ru.js?v=2.0.163';
+import { events } from '../../core/events.js?v=2.0.163';
+import { storage } from '../../core/storage.js?v=2.0.163';
+import { store } from '../../core/store.js?v=2.0.163';
+import { fetchWithTimeout, fallbackChain } from '../../core/http.js?v=2.0.163';
+import { formatLocalYYYYMMDD, fmtHM, fmtDeltaPress } from '../../core/format.js?v=2.0.163';
+import { WATER_PROFILES } from '../../data/waters.js?v=2.0.163';
+import { createPill, showToast } from '../../ui/components.js?v=2.0.163';
 
 const DIRS = ['С', 'СВ', 'В', 'ЮВ', 'Ю', 'ЮЗ', 'З', 'СЗ'];
 
@@ -221,7 +221,7 @@ export function evaluateDayIce(historyMeanTemps, tDayMax, tNightMin, waterTemp, 
 }
 
 /**
- * Ревизия 2.0.162: Расчёт комплексного Индекса безопасности льда (0–100) и порогов нагрузки (Пешком vs Снегоход/Мотобуксировщик)
+ * Ревизия 2.0.163: Расчёт комплексного Индекса безопасности льда (0–100) и порогов нагрузки (Пешком vs Снегоход/Мотобуксировщик)
  */
 export function computeIceSafetyIndex(day, waterType = "small_river") {
   const prof = WATER_PROFILES[waterType] || WATER_PROFILES.small_river;
@@ -888,6 +888,7 @@ export function getWeatherState() {
 export function subscribeWeather(cb) {
   return store.subscribe(
     s => ({
+      route: s.route,
       days: s.weatherDays,
       archive5Days: s.weatherArchive5Days,
       hasRealArchive: s.hasRealArchive,
@@ -1024,6 +1025,11 @@ export function init(container) {
         return;
       }
     }
+    if (next.route && next.route !== 'weather') {
+      if (container) container._weatherNeedsRender = true;
+      return;
+    }
+    if (container) container._weatherNeedsRender = false;
     render(container);
   });
   fetchWeather(st.lat, st.lon);
