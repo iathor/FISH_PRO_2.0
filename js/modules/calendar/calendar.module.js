@@ -1,9 +1,9 @@
-import { RU } from '../../i18n/ru.js?v=2.0.162';
-import { store } from '../../core/store.js?v=2.0.162';
-import { generateSpawnICS } from '../../core/format.js?v=2.0.162';
-import { BASIN_CONFIGS } from '../../data/basins.js?v=2.0.162';
-import { FISH_DB } from '../../data/species.js?v=2.0.162';
-import { showToast } from '../../ui/components.js?v=2.0.162';
+import { RU } from '../../i18n/ru.js?v=2.0.163';
+import { store } from '../../core/store.js?v=2.0.163';
+import { generateSpawnICS } from '../../core/format.js?v=2.0.163';
+import { BASIN_CONFIGS } from '../../data/basins.js?v=2.0.163';
+import { FISH_DB } from '../../data/species.js?v=2.0.163';
+import { showToast } from '../../ui/components.js?v=2.0.163';
 
 const COMPARE_COLORS = ['#10b981', '#38bdf8', '#a855f7'];
 
@@ -231,12 +231,20 @@ export function init(container) {
   render(container);
   unsub = store.subscribe(
     s => ({
+      route: s.route,
       fishId: s.fishId,
       basinCode: s.basinCode,
       calendarMode: s.calendarMode,
       compareSpeciesIds: s.compareSpeciesIds
     }),
-    () => render(container)
+    (next) => {
+      if (next.route && next.route !== 'calendar') {
+        if (container) container._calNeedsRender = true;
+        return;
+      }
+      if (container) container._calNeedsRender = false;
+      render(container);
+    }
   );
 }
 
