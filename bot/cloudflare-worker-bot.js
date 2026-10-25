@@ -1,6 +1,6 @@
 /**
  * @file bot/cloudflare-worker-bot.js
- * @description Защищённая бессерверная (Serverless Webhook) версия Telegram-бота @KlevProBot (Ревизия 2.0.162)
+ * @description Защищённая бессерверная (Serverless Webhook) версия Telegram-бота @KlevProClubBot (Ревизия 2.0.163)
  * для бесплатного размещения на Cloudflare Workers или Yandex Cloud Functions (0 руб/мес).
  *
  * Реализованная защита P0:
@@ -35,7 +35,7 @@ export default {
     if (request.method !== 'POST') {
       return new Response(JSON.stringify({
         status: 'ok',
-        version: '2.0.162',
+        version: '2.0.163',
         service: 'Klev PRO 2.0 Telegram Bot Webhook (Protected)',
         webapp: WEBAPP_URL
       }), { headers: { 'Content-Type': 'application/json;charset=utf-8' } });
@@ -61,7 +61,7 @@ export default {
         }
 
         let replyText =
-          `🎣 *Клёв ПРО 2.0: Круг (Ревизия 2.0.162)*\n` +
+          `🎣 *Клёв ПРО 2.0: Круг (Ревизия 2.0.163)*\n` +
           `Отправьте геопозицию (📎 ➔ Геопозиция) или нажмите кнопку ниже, чтобы открыть полный навигатор, карту глубин, 8-факторный прогноз и точки Экипажа (72ч)!`;
 
         if (msg.location) {

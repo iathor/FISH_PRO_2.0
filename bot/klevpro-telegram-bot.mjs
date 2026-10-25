@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * @file bot/klevpro-telegram-bot.mjs
- * @description Автономный Telegram-бот и сервер Mini App для «Клёв ПРО: Круг» (@KlevProBot) — Ревизия 2.0.16.
+ * @description Автономный Telegram-бот и сервер Mini App для «Клёв ПРО: Круг» (@KlevProClubBot) — Ревизия 2.0.16.
  * Не требует внешних npm-пакетов (работает на стандартном Node.js 18/20/22+ fetch и Long Polling).
  *
  * Возможности:
@@ -12,7 +12,7 @@
  *    - /klev <город или река> — Быстрый прогноз по 340+ городам/посёлкам и водоёмам РФ (например: /klev Новый Уренгой)
  *    - /crew <город> — Генерация зашифрованного приглашения «🌊 Экипаж на 72 часа» (код KP1_...)
  *    - /circle <город> — Генерация сводки «👥 Круг (±5 км со смещением центра)»
- * 3. Inline-режим (@KlevProBot Новый Уренгой): отправка карточек прогноза и приглашений «Экипажа (72ч)» в любой групповой чат рыболовов.
+ * 3. Inline-режим (@KlevProClubBot Новый Уренгой): отправка карточек прогноза и приглашений «Экипажа (72ч)» в любой групповой чат рыболовов.
  *
  * Запуск:
  *   BOT_TOKEN="ваш_токен_от_BotFather" WEBAPP_URL="https://klevpro.ru/" node bot/klevpro-telegram-bot.mjs
@@ -154,7 +154,7 @@ async function fetchLiveSpotWeather(lat, lon) {
   try {
     const url = `https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${lat.toFixed(4)}&lon=${lon.toFixed(4)}`;
     const res = await fetch(url, {
-      headers: { 'User-Agent': 'KlevProBot/2.0.16 (https://klevpro.ru)' }
+      headers: { 'User-Agent': 'KlevProClubBot/2.0.16 (https://klevpro.ru)' }
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
@@ -267,7 +267,7 @@ async function callTelegramApi(method, body) {
 }
 
 async function handleUpdate(upd) {
-  // 1. Обработка Inline-запросов (@KlevProBot Новый Уренгой)
+  // 1. Обработка Inline-запросов (@KlevProClubBot Новый Уренгой)
   if (upd.inline_query) {
     const iq = upd.inline_query;
     const city = findCityByText(iq.query);
