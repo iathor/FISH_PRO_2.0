@@ -1,4 +1,4 @@
-import { showToast } from '../ui/components.js?v=2.0.163';
+import { showToast } from '../ui/components.js?v=2.0.164';
 
 export const PWA_INSTALLED_KEY = 'klev_pro_pwa_installed';
 let deferredInstallPrompt = null;

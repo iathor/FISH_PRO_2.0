@@ -1,17 +1,19 @@
 /**
  * @file telegram.js
- * @description Модуль интеграции с Telegram Mini Apps (TMA / Telegram WebApp API),
- * поддержкой Telegram CloudStorage, HapticFeedback, Deep-Linking (startapp)
- * и мгновенного шаринга карточек «Круга», «Экипажа (72ч)» и «Мастерской снастей» в чаты Telegram (Ревизия 2.0.16).
+ * @description Модуль глубокой интеграции с Telegram Mini Apps (TMA / Telegram WebApp API),
+ * нативными кнопками BackButton / MainButton, синхронизацией цветов шапки Telegram,
+ * Telegram CloudStorage, HapticFeedback, Deep-Linking (?tg_city=...&tg_fish=... / startapp)
+ * и мгновенным шарингом карточек «Круга», «Экипажа (72ч)» и прогноза в чаты Telegram (Ревизия 2.0.164).
  */
 
-import { showToast } from '../ui/components.js?v=2.0.163';
+import { showToast } from '../ui/components.js?v=2.0.164';
 
 export const TELEGRAM_BOT_USERNAME = 'KlevProClubBot';
 export const PUBLIC_APP_URL = 'https://klevpro.ru/';
 
 let tgWebApp = null;
 let cloudSyncEnabled = false;
+let backBtnHandler = null;
 
 /**
  * Проверяет, запущено ли приложение внутри контейнера Telegram Mini App
@@ -19,12 +21,16 @@ let cloudSyncEnabled = false;
 export function isTelegramWebApp() {
   if (typeof window === 'undefined') return false;
   const twa = window.Telegram && window.Telegram.WebApp;
-  if (twa && (twa.initData || twa.platform && twa.platform !== 'unknown')) {
+  if (twa && (
+    (typeof twa.initData === 'string' && twa.initData.length > 0) ||
+    (twa.initDataUnsafe && twa.initDataUnsafe.user) ||
+    (twa.platform && twa.platform !== 'unknown')
+  )) {
     return true;
   }
   const hash = window.location.hash || '';
   const search = window.location.search || '';
-  return hash.includes('tgWebAppData') || search.includes('tgWebAppStartParam');
+  return hash.includes('tgWebAppData') || search.includes('tgWebAppStartParam') || search.includes('tg_city=') || search.includes('tg_fish=');
 }
 
 /**
@@ -47,6 +53,45 @@ export function getTelegramUser() {
 }
 
 /**
+ * Синхронизирует цвет верхней системной панели и фона Telegram Mini App с темой приложения
+ */
+export function syncTelegramTheme(effectiveTheme = 'dark') {
+  try {
+    const twa = window.Telegram?.WebApp;
+    if (!twa) return;
+    const isLight = effectiveTheme === 'light';
+    const headerHex = isLight ? '#ffffff' : '#151f32';
+    const bgHex = isLight ? '#f1f5f9' : '#0b1120';
+    if (typeof twa.setHeaderColor === 'function') twa.setHeaderColor(headerHex);
+    if (typeof twa.setBackgroundColor === 'function') twa.setBackgroundColor(bgHex);
+  } catch (e) {}
+}
+
+/**
+ * Управляет системной кнопкой «Назад» (←) в шапке Telegram Mini App:
+ * на внутренних вкладках возвращает в «Прогноз» вместо случайного закрытия всего приложения
+ */
+export function syncTelegramBackButton(currentRoute, onBack) {
+  try {
+    const bb = window.Telegram?.WebApp?.BackButton;
+    if (!bb || !isTelegramWebApp()) return;
+    if (backBtnHandler && typeof bb.offClick === 'function') {
+      bb.offClick(backBtnHandler);
+    }
+    if (currentRoute && currentRoute !== 'forecast') {
+      backBtnHandler = () => {
+        triggerHaptic('selection');
+        if (typeof onBack === 'function') onBack();
+      };
+      if (typeof bb.onClick === 'function') bb.onClick(backBtnHandler);
+      if (typeof bb.show === 'function') bb.show();
+    } else {
+      if (typeof bb.hide === 'function') bb.hide();
+    }
+  } catch (e) {}
+}
+
+/**
  * Вызывает тактильный отклик (вибрацию) в Telegram Mini App или стандартный navigator.vibrate
  */
 export function triggerHaptic(type = 'light') {
@@ -58,7 +103,7 @@ export function triggerHaptic(type = 'light') {
       } else if (type === 'selection') {
         hf.selectionChanged();
       } else {
-        hf.impactOccurred(type); // 'light' | 'medium' | 'heavy'
+        hf.impactOccurred(type);
       }
       return;
     }
@@ -69,25 +114,65 @@ export function triggerHaptic(type = 'light') {
 }
 
 /**
+ * Извлекает параметры быстрого перехода из ответа бота (?tg_lat=...&tg_lon=...&tg_city=...&tg_fish=...)
+ */
+export function extractIncomingDeepLinkParams() {
+  if (typeof window === 'undefined') return null;
+  try {
+    const searchParams = new URLSearchParams(window.location.search || '');
+    const hashStr = window.location.hash || '';
+    const hashQueryIdx = hashStr.indexOf('?');
+    const hashParams = hashQueryIdx >= 0 ? new URLSearchParams(hashStr.slice(hashQueryIdx + 1)) : null;
+
+    const getP = (k) => searchParams.get(k) || (hashParams ? hashParams.get(k) : null);
+    const lat = parseFloat(getP('tg_lat') || '');
+    const lon = parseFloat(getP('tg_lon') || '');
+    const city = getP('tg_city') || '';
+    const water = getP('tg_water') || '';
+    const fish = getP('tg_fish') || '';
+
+    // Также проверяем startapp формат: city_lat_lon_fish (например: KP_LOC_66.0833_76.68_pike)
+    const startParam = window.Telegram?.WebApp?.initDataUnsafe?.start_param || getP('startapp') || getP('tgWebAppStartParam') || '';
+    if (startParam.startsWith('KPLOC_')) {
+      const parts = startParam.split('_');
+      const sLat = parseFloat(parts[1] || '');
+      const sLon = parseFloat(parts[2] || '');
+      const sFish = parts[3] || '';
+      if (Number.isFinite(sLat) && Number.isFinite(sLon)) {
+        return { lat: sLat, lon: sLon, city: '', water: '', fish: sFish };
+      }
+    }
+
+    if ((Number.isFinite(lat) && Number.isFinite(lon)) || fish) {
+      return {
+        lat: Number.isFinite(lat) ? lat : null,
+        lon: Number.isFinite(lon) ? lon : null,
+        city,
+        water,
+        fish
+      };
+    }
+  } catch (e) {}
+  return null;
+}
+
+/**
  * Извлекает стартовый параметр пакета (#klev_pack=... или ?startapp=... или tgWebAppStartParam)
  */
 export function extractIncomingShareToken() {
   if (typeof window === 'undefined') return null;
   try {
-    // 1. Из Telegram WebApp initDataUnsafe.start_param
     const tgStart = window.Telegram?.WebApp?.initDataUnsafe?.start_param;
     if (tgStart && tgStart.startsWith('KP1_')) {
       return tgStart;
     }
 
-    // 2. Из query-параметров (?startapp=KP1_... или ?klev_pack=KP1_...)
     const params = new URLSearchParams(window.location.search || '');
     const qParam = params.get('startapp') || params.get('tgWebAppStartParam') || params.get('klev_pack');
     if (qParam && qParam.startsWith('KP1_')) {
       return qParam;
     }
 
-    // 3. Из URL hash (#klev_pack=KP1_... или #/circle?pack=KP1_...)
     const hash = window.location.hash || '';
     const match = hash.match(/(?:klev_pack|pack)=(KP1_[A-Za-z0-9_-]+)/);
     if (match && match[1]) {
@@ -118,7 +203,7 @@ export async function syncToTelegramCloud(key, dataObj) {
     const cs = window.Telegram?.WebApp?.CloudStorage;
     if (!cs || typeof cs.setItem !== 'function') return false;
     const raw = JSON.stringify(dataObj);
-    if (raw.length > 4000) return false; // Лимит значения в CloudStorage Telegram — 4096 байт
+    if (raw.length > 4000) return false;
     return await new Promise((resolve) => {
       cs.setItem(key, raw, (err, ok) => {
         resolve(!err && Boolean(ok));
@@ -186,6 +271,25 @@ export function shareToTelegramChat(shareUrl, textSummary) {
 }
 
 /**
+ * Открывает чат с ботом @KlevProClubBot
+ */
+export function openBotChatInTelegram() {
+  triggerHaptic('light');
+  const botUrl = `https://t.me/${TELEGRAM_BOT_USERNAME}`;
+  try {
+    if (window.Telegram?.WebApp && typeof window.Telegram.WebApp.openTelegramLink === 'function' && isTelegramWebApp()) {
+      window.Telegram.WebApp.openTelegramLink(botUrl);
+      return true;
+    }
+    if (typeof window !== 'undefined' && typeof window.open === 'function') {
+      window.open(botUrl, '_blank', 'noopener,noreferrer');
+      return true;
+    }
+  } catch (e) {}
+  return false;
+}
+
+/**
  * Универсальная функция «Поделиться» (Web Share API -> Копирование в буфер обмена)
  */
 export async function shareOrCopyPack({ title, text, url, token }) {
@@ -216,9 +320,6 @@ export async function shareOrCopyPack({ title, text, url, token }) {
 }
 
 /**
- * Инициализирует Telegram Mini App SDK (если запущено внутри Telegram или с параметрами TMA)
- */
-/**
  * Базовая проверка целостности строки initData на клиенте (наличие 64-символьного hex-хэша HMAC-SHA256 и свежести auth_date)
  */
 export function validateTelegramInitDataStructure(rawInitData = "") {
@@ -243,7 +344,7 @@ export function validateTelegramInitDataStructure(rawInitData = "") {
   }
 }
 
-export function initTelegramMiniApp(onTokenReceived = null) {
+export function initTelegramMiniApp(onTokenReceived = null, onDeepLinkReceived = null) {
   if (typeof window === 'undefined') return;
 
   const setupTwa = () => {
@@ -253,10 +354,15 @@ export function initTelegramMiniApp(onTokenReceived = null) {
         tgWebApp = twa;
         if (typeof twa.ready === 'function') twa.ready();
         if (typeof twa.expand === 'function') twa.expand();
+        if (typeof twa.enableClosingConfirmation === 'function' && isTelegramWebApp()) {
+          twa.enableClosingConfirmation();
+        }
         cloudSyncEnabled = Boolean(twa.CloudStorage);
 
-        const tgUser = getTelegramUser();
-        if (tgUser) {
+        const curTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+        syncTelegramTheme(curTheme);
+
+        if (isTelegramWebApp()) {
           document.documentElement.setAttribute('data-tg-webapp', '1');
         }
       }
@@ -266,21 +372,14 @@ export function initTelegramMiniApp(onTokenReceived = null) {
     if (incomingToken && typeof onTokenReceived === 'function') {
       onTokenReceived(incomingToken);
     }
+
+    const deepLink = extractIncomingDeepLinkParams();
+    if (deepLink && typeof onDeepLinkReceived === 'function') {
+      onDeepLinkReceived(deepLink);
+    }
   };
 
-  // Если скрипт Telegram уже есть или мы в обычном браузере с #klev_pack
   setupTwa();
-
-  // Если открыто внутри Telegram Webview, но скрипт ещё не подгружен — подгружаем неблокирующе
-  const ua = (navigator.userAgent || '').toLowerCase();
-  const looksLikeTelegram = ua.includes('telegram') || typeof window.TelegramWebviewProxy !== 'undefined' || window.location.hash.includes('tgWebAppData');
-  if (looksLikeTelegram && !window.Telegram?.WebApp) {
-    const s = document.createElement('script');
-    s.src = 'https://telegram.org/js/telegram-web-app.js';
-    s.async = true;
-    s.onload = setupTwa;
-    document.head.appendChild(s);
-  }
 }
 
 export const telegramModule = {
@@ -288,13 +387,17 @@ export const telegramModule = {
   PUBLIC_APP_URL,
   isTelegramWebApp,
   getTelegramUser,
+  syncTelegramTheme,
+  syncTelegramBackButton,
   triggerHaptic,
+  extractIncomingDeepLinkParams,
   extractIncomingShareToken,
   clearIncomingShareTokenFromUrl,
   syncToTelegramCloud,
   readFromTelegramCloud,
   buildShareUrls,
   shareToTelegramChat,
+  openBotChatInTelegram,
   shareOrCopyPack,
   validateTelegramInitDataStructure,
   initTelegramMiniApp
