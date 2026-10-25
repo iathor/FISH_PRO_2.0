@@ -1,18 +1,18 @@
-import { initReleaseUpdater, checkForReleaseUpdate } from './core/updater.js?v=2.0.163';
-import { RU } from './i18n/ru.js?v=2.0.163';
-import { events } from './core/events.js?v=2.0.163';
-import { store } from './core/store.js?v=2.0.163';
-import { router } from './core/router.js?v=2.0.163';
-import { installShortcut, initPwa } from './core/pwa.js?v=2.0.163';
-import { initTelegramMiniApp, clearIncomingShareTokenFromUrl, triggerHaptic } from './core/telegram.js?v=2.0.163';
-import { showToast } from './ui/components.js?v=2.0.163';
-import { weatherModule } from './modules/weather/weather.module.js?v=2.0.163';
-import { geoModule } from './modules/geo/geo.module.js?v=2.0.163';
-import { fishModule } from './modules/fish/fish.module.js?v=2.0.163';
-import { forecastModule } from './modules/forecast/forecast.module.js?v=2.0.163';
-import { calendarModule } from './modules/calendar/calendar.module.js?v=2.0.163';
-import { logModule } from './modules/log/log.module.js?v=2.0.163';
-import { circleModule } from './modules/circle/circle.module.js?v=2.0.163';
+import { initReleaseUpdater, checkForReleaseUpdate } from './core/updater.js?v=2.0.164';
+import { RU } from './i18n/ru.js?v=2.0.164';
+import { events } from './core/events.js?v=2.0.164';
+import { store } from './core/store.js?v=2.0.164';
+import { router } from './core/router.js?v=2.0.164';
+import { installShortcut, initPwa } from './core/pwa.js?v=2.0.164';
+import { initTelegramMiniApp, clearIncomingShareTokenFromUrl, triggerHaptic, syncTelegramTheme, syncTelegramBackButton, getTelegramUser } from './core/telegram.js?v=2.0.164';
+import { showToast } from './ui/components.js?v=2.0.164';
+import { weatherModule } from './modules/weather/weather.module.js?v=2.0.164';
+import { geoModule } from './modules/geo/geo.module.js?v=2.0.164';
+import { fishModule } from './modules/fish/fish.module.js?v=2.0.164';
+import { forecastModule } from './modules/forecast/forecast.module.js?v=2.0.164';
+import { calendarModule } from './modules/calendar/calendar.module.js?v=2.0.164';
+import { logModule } from './modules/log/log.module.js?v=2.0.164';
+import { circleModule } from './modules/circle/circle.module.js?v=2.0.164';
 
 if (typeof window !== 'undefined') {
   window.__KLEV_BOOTSTRAPPED__ = true;
@@ -33,6 +33,7 @@ function applyTheme(themeMode) {
     effective = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   }
   root.setAttribute('data-theme', effective);
+  syncTelegramTheme(effective);
   const metaTheme = document.querySelector('meta[name="theme-color"]');
   if (metaTheme) metaTheme.setAttribute('content', effective === 'dark' ? '#0b1120' : '#f1f5f9');
 
@@ -339,13 +340,40 @@ function bootstrapApp() {
 
   safeInit('router', () => router.init());
   safeInit('telegram', () => {
-    initTelegramMiniApp(async (incomingToken) => {
-      const imported = await circleModule.importSharePackToken(incomingToken, false);
-      clearIncomingShareTokenFromUrl();
-      if (imported) {
-        router.navigate('circle');
+    initTelegramMiniApp(
+      async (incomingToken) => {
+        const imported = await circleModule.importSharePackToken(incomingToken, false);
+        clearIncomingShareTokenFromUrl();
+        if (imported) {
+          router.navigate('circle');
+        }
+      },
+      (deepLink) => {
+        if (deepLink.city) {
+          store.dispatch({
+            type: 'SET_LOCATION_LABELS',
+            payload: { locLabel: deepLink.city, locAdmin2: deepLink.city }
+          });
+        }
+        if (Number.isFinite(deepLink.lat) && Number.isFinite(deepLink.lon)) {
+          geoModule.setLocation(deepLink.lat, deepLink.lon, Boolean(deepLink.city));
+        }
+        if (deepLink.fish) {
+          setTimeout(() => {
+            store.dispatch({ type: 'SET_FISH', payload: deepLink.fish });
+          }, 50);
+        }
+        router.navigate('forecast');
       }
-    });
+    );
+    const tgUser = getTelegramUser();
+    if (tgUser && tgUser.displayName) {
+      const curCallsign = store.getState().userProfile?.callsign;
+      if (!curCallsign || curCallsign === 'Рыболов') {
+        store.dispatch({ type: 'SET_USER_CALLSIGN', payload: tgUser.displayName });
+      }
+    }
+    syncTelegramBackButton(store.getState().route || 'forecast', () => router.navigate('forecast'));
   });
 
   updateHeaderUI();
@@ -400,8 +428,10 @@ function bootstrapApp() {
       route: s.route
     }),
     () => {
+      const curRoute = store.getState().route || 'forecast';
       updateHeaderUI();
-      router.applyVisibility(store.getState().route || 'forecast');
+      router.applyVisibility(curRoute);
+      syncTelegramBackButton(curRoute, () => router.navigate('forecast'));
       syncFishDockState();
     }
   );
