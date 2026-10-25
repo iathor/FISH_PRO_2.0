@@ -1,17 +1,17 @@
-import { RU } from '../../i18n/ru.js?v=2.0.163';
-import { events } from '../../core/events.js?v=2.0.163';
-import { store } from '../../core/store.js?v=2.0.163';
-import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.0.163';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.0.163';
-import { RUSSIA_CITIES, findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.0.163';
-import { FISH_DB } from '../../data/species.js?v=2.0.163';
-import { renderFishVisual, renderFiveFish } from '../../ui/svg.js?v=2.0.163';
-import { createPill, showToast, openModal, closeModal, openFishLightbox } from '../../ui/components.js?v=2.0.163';
-import { setLocation, detectUserPosition } from '../geo/geo.module.js?v=2.0.163';
-import { installShortcut } from '../../core/pwa.js?v=2.0.163';
-import { fetchWeather } from '../weather/weather.module.js?v=2.0.163';
-import { checkForReleaseUpdate } from '../../core/updater.js?v=2.0.163';
-import { calcDayBest } from '../forecast/forecast.module.js?v=2.0.163';
+import { RU } from '../../i18n/ru.js?v=2.0.164';
+import { events } from '../../core/events.js?v=2.0.164';
+import { store } from '../../core/store.js?v=2.0.164';
+import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.0.164';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.0.164';
+import { RUSSIA_CITIES, findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.0.164';
+import { FISH_DB } from '../../data/species.js?v=2.0.164';
+import { renderFishVisual, renderFiveFish } from '../../ui/svg.js?v=2.0.164';
+import { createPill, showToast, openModal, closeModal, openFishLightbox } from '../../ui/components.js?v=2.0.164';
+import { setLocation, detectUserPosition } from '../geo/geo.module.js?v=2.0.164';
+import { installShortcut } from '../../core/pwa.js?v=2.0.164';
+import { fetchWeather } from '../weather/weather.module.js?v=2.0.164';
+import { checkForReleaseUpdate } from '../../core/updater.js?v=2.0.164';
+import { calcDayBest } from '../forecast/forecast.module.js?v=2.0.164';
 
 /**
  * Региональные приоритетные виды для каждого бассейна РФ,
