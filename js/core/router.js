@@ -1,5 +1,5 @@
-import { store } from './store.js?v=2.0.162';
-import { renderMap } from '../modules/geo/geo.module.js?v=2.0.162';
+import { store } from './store.js?v=2.0.163';
+import { renderMap } from '../modules/geo/geo.module.js?v=2.0.163';
 
 const VALID_ROUTES = ['geo', 'weather', 'fish', 'forecast', 'circle', 'log', 'calendar'];
 const DEFAULT_ROUTE = 'forecast';

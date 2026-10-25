@@ -1,5 +1,5 @@
-import { STATE_CACHE_KEY, WEATHER_CACHE_KEY, WEATHER_TTL_MS } from './config.js?v=2.0.162';
-import { formatLocalYYYYMMDD } from './format.js?v=2.0.162';
+import { STATE_CACHE_KEY, WEATHER_CACHE_KEY, WEATHER_TTL_MS } from './config.js?v=2.0.163';
+import { formatLocalYYYYMMDD } from './format.js?v=2.0.163';
 
 const DB_NAME = 'KlevProDB_v2';
 export const GEO_WEATHER_ARCHIVE_KEY = 'klev_pro_geo_weather_archive_v2';
@@ -16,12 +16,21 @@ const LOCAL_STORE_KEYS = {
 
 let dbPromise = null;
 const memoryFallback = { catches: [], spots: [], weather_archive: [] };
+const memoryBackupLoaded = { catches: false, spots: false };
+let _clustersMemoryCache = null;
+let _nearbyWatersMemoryCache = null;
+let _saveSettingsTimer = null;
+let _pendingSettingsState = null;
 
 function readLocalBackup(storeName) {
   const key = LOCAL_STORE_KEYS[storeName];
   if (!key) return [...(memoryFallback[storeName] || [])];
+  if (memoryBackupLoaded[storeName] && Array.isArray(memoryFallback[storeName])) {
+    return [...memoryFallback[storeName]];
+  }
   try {
     const raw = localStorage.getItem(key);
+    memoryBackupLoaded[storeName] = true;
     if (!raw) return [...(memoryFallback[storeName] || [])];
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed)) {
@@ -35,6 +44,7 @@ function readLocalBackup(storeName) {
 function writeLocalBackup(storeName, list) {
   if (!Array.isArray(list)) return;
   memoryFallback[storeName] = [...list];
+  memoryBackupLoaded[storeName] = true;
   const key = LOCAL_STORE_KEYS[storeName];
   if (!key) return;
   try {
@@ -117,19 +127,28 @@ function openDB() {
 }
 
 function readClustersFromLocalStorage() {
+  if (_clustersMemoryCache !== null) {
+    return _clustersMemoryCache;
+  }
   try {
     const raw = localStorage.getItem(GEO_WEATHER_ARCHIVE_KEY);
-    if (!raw) return [];
+    if (!raw) {
+      _clustersMemoryCache = [];
+      return _clustersMemoryCache;
+    }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    _clustersMemoryCache = Array.isArray(parsed) ? parsed : [];
+    return _clustersMemoryCache;
   } catch (e) {
-    return [];
+    _clustersMemoryCache = [];
+    return _clustersMemoryCache;
   }
 }
 
 function writeClustersToLocalStorage(clusters) {
+  _clustersMemoryCache = Array.isArray(clusters) ? clusters : [];
   try {
-    localStorage.setItem(GEO_WEATHER_ARCHIVE_KEY, JSON.stringify(clusters));
+    localStorage.setItem(GEO_WEATHER_ARCHIVE_KEY, JSON.stringify(_clustersMemoryCache));
   } catch (e) {}
   openDB().then(db => {
     if (!db || !db.objectStoreNames.contains('weather_archive')) return;
@@ -187,38 +206,54 @@ export const storage = {
     }
   },
 
-  saveSettings(state) {
+  _flushSettingsNow(stateObj) {
+    const s = stateObj || _pendingSettingsState;
+    if (!s) return;
+    _pendingSettingsState = null;
     try {
       const persist = {
-        appMode: state.appMode || 'angler',
-        hasUserLocation: state.hasUserLocation,
-        lat: state.lat,
-        lon: state.lon,
-        locCountry: state.locCountry,
-        locAdmin1: state.locAdmin1,
-        locAdmin2: state.locAdmin2,
-        locLabel: state.locLabel,
-        basinCode: state.basinCode,
-        basinName: state.basinName,
-        isCoastal: state.isCoastal,
-        water: state.water,
-        waterRadiusKm: state.waterRadiusKm || 50,
-        selectedWaterName: state.selectedWaterName,
-        method: state.method,
-        selectedBait: state.selectedBait,
-        depth: state.depth,
-        fishId: state.fishId,
-        showAllSpecies: state.showAllSpecies,
-        onlyFavoritesFilter: state.onlyFavoritesFilter,
-        favorites: state.favorites,
-        favoritesExplicitlySet: state.favoritesExplicitlySet,
-        compareSpeciesIds: state.compareSpeciesIds,
-        theme: state.theme,
-        userProfile: state.userProfile,
-        proFactorWeights: state.proFactorWeights
+        appMode: s.appMode || 'angler',
+        hasUserLocation: s.hasUserLocation,
+        lat: s.lat,
+        lon: s.lon,
+        locCountry: s.locCountry,
+        locAdmin1: s.locAdmin1,
+        locAdmin2: s.locAdmin2,
+        locLabel: s.locLabel,
+        basinCode: s.basinCode,
+        basinName: s.basinName,
+        isCoastal: s.isCoastal,
+        water: s.water,
+        waterRadiusKm: s.waterRadiusKm || 50,
+        selectedWaterName: s.selectedWaterName,
+        method: s.method,
+        selectedBait: s.selectedBait,
+        depth: s.depth,
+        fishId: s.fishId,
+        showAllSpecies: s.showAllSpecies,
+        onlyFavoritesFilter: s.onlyFavoritesFilter,
+        favorites: s.favorites,
+        favoritesExplicitlySet: s.favoritesExplicitlySet,
+        compareSpeciesIds: s.compareSpeciesIds,
+        theme: s.theme,
+        userProfile: s.userProfile,
+        proFactorWeights: s.proFactorWeights
       };
       localStorage.setItem(STATE_CACHE_KEY, JSON.stringify(persist));
     } catch (e) {}
+  },
+
+  saveSettings(state) {
+    _pendingSettingsState = state;
+    if (typeof window === 'undefined') {
+      this._flushSettingsNow(state);
+      return;
+    }
+    if (_saveSettingsTimer) clearTimeout(_saveSettingsTimer);
+    _saveSettingsTimer = setTimeout(() => {
+      _saveSettingsTimer = null;
+      this._flushSettingsNow();
+    }, 90);
   },
 
   loadCircleItems() {
@@ -530,11 +565,12 @@ export const storage = {
 
   loadNearbyWatersCache(lat, lon, radiusKm = 50) {
     try {
-      const raw = localStorage.getItem(GEO_WATERS_CACHE_KEY);
-      if (!raw) return null;
-      const list = JSON.parse(raw);
-      if (!Array.isArray(list)) return null;
-      for (const item of list) {
+      if (_nearbyWatersMemoryCache === null) {
+        const raw = localStorage.getItem(GEO_WATERS_CACHE_KEY);
+        const parsed = raw ? JSON.parse(raw) : [];
+        _nearbyWatersMemoryCache = Array.isArray(parsed) ? parsed : [];
+      }
+      for (const item of _nearbyWatersMemoryCache) {
         if (item.radiusKm === radiusKm && calcGeoDistanceKm(lat, lon, item.lat, item.lon) <= GEO_CLUSTER_RADIUS_KM) {
           if (Date.now() - (item.savedAt || 0) < 7 * 86400000) {
             return item;
@@ -549,11 +585,14 @@ export const storage = {
 
   saveNearbyWatersCache(lat, lon, radiusKm, waters, places = []) {
     try {
-      const raw = localStorage.getItem(GEO_WATERS_CACHE_KEY);
-      const list = raw ? JSON.parse(raw) : [];
-      const filtered = Array.isArray(list)
-        ? list.filter(x => !(x.radiusKm === radiusKm && calcGeoDistanceKm(lat, lon, x.lat, x.lon) <= GEO_CLUSTER_RADIUS_KM)).slice(0, 24)
-        : [];
+      if (_nearbyWatersMemoryCache === null) {
+        const raw = localStorage.getItem(GEO_WATERS_CACHE_KEY);
+        const parsed = raw ? JSON.parse(raw) : [];
+        _nearbyWatersMemoryCache = Array.isArray(parsed) ? parsed : [];
+      }
+      const filtered = _nearbyWatersMemoryCache
+        .filter(x => !(x.radiusKm === radiusKm && calcGeoDistanceKm(lat, lon, x.lat, x.lon) <= GEO_CLUSTER_RADIUS_KM))
+        .slice(0, 24);
       filtered.unshift({
         lat,
         lon,
@@ -562,6 +601,7 @@ export const storage = {
         places,
         savedAt: Date.now()
       });
+      _nearbyWatersMemoryCache = filtered;
       localStorage.setItem(GEO_WATERS_CACHE_KEY, JSON.stringify(filtered));
     } catch (e) {}
   },
