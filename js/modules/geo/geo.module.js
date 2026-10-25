@@ -1,12 +1,12 @@
-import { MAP_LAYERS, getCompatibleMethods } from '../../core/config.js?v=2.0.163';
-import { events } from '../../core/events.js?v=2.0.163';
-import { storage } from '../../core/storage.js?v=2.0.163';
-import { store } from '../../core/store.js?v=2.0.163';
-import { fetchWithTimeout } from '../../core/http.js?v=2.0.163';
-import { installShortcut, syncInstallButtons } from '../../core/pwa.js?v=2.0.163';
-import { triggerHaptic } from '../../core/telegram.js?v=2.0.163';
-import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.0.163';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.0.163';
+import { MAP_LAYERS, getCompatibleMethods } from '../../core/config.js?v=2.0.164';
+import { events } from '../../core/events.js?v=2.0.164';
+import { storage } from '../../core/storage.js?v=2.0.164';
+import { store } from '../../core/store.js?v=2.0.164';
+import { fetchWithTimeout } from '../../core/http.js?v=2.0.164';
+import { installShortcut, syncInstallButtons } from '../../core/pwa.js?v=2.0.164';
+import { triggerHaptic } from '../../core/telegram.js?v=2.0.164';
+import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.0.164';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.0.164';
 import {
   RUSSIA_CITIES,
   RUSSIA_WATERS,
@@ -14,12 +14,12 @@ import {
   getNearestRussianSettlements,
   getNearestRussianWaters,
   getWaterTypeShortTag
-} from '../../data/russia-waters.js?v=2.0.163';
-import { FISH_DB } from '../../data/species.js?v=2.0.163';
-import { createPill, showToast } from '../../ui/components.js?v=2.0.163';
-import { fetchWeather } from '../weather/weather.module.js?v=2.0.163';
-import { calcDayBest } from '../forecast/forecast.module.js?v=2.0.163';
-import { computeHexPolygonForCircle, getEffectiveCircleRadiusKm } from '../circle/circle.module.js?v=2.0.163';
+} from '../../data/russia-waters.js?v=2.0.164';
+import { FISH_DB } from '../../data/species.js?v=2.0.164';
+import { createPill, showToast } from '../../ui/components.js?v=2.0.164';
+import { fetchWeather } from '../weather/weather.module.js?v=2.0.164';
+import { calcDayBest } from '../forecast/forecast.module.js?v=2.0.164';
+import { computeHexPolygonForCircle, getEffectiveCircleRadiusKm } from '../circle/circle.module.js?v=2.0.164';
 
 let mapInstance = null;
 let mapMarker = null;
