@@ -1,14 +1,14 @@
-import { RU } from '../../i18n/ru.js?v=2.0.164';
-import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.0.164';
-import { events } from '../../core/events.js?v=2.0.164';
-import { storage } from '../../core/storage.js?v=2.0.164';
-import { store } from '../../core/store.js?v=2.0.164';
-import { formatLocalYYYYMMDD, fmtDeltaPress } from '../../core/format.js?v=2.0.164';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.0.164';
-import { FISH_DB } from '../../data/species.js?v=2.0.164';
-import { createPill, showToast, openModal, closeModal } from '../../ui/components.js?v=2.0.164';
-import { computeMoon } from '../weather/weather.module.js?v=2.0.164';
-import { calcHourly } from '../forecast/forecast.module.js?v=2.0.164';
+import { RU } from '../../i18n/ru.js?v=2.0.165';
+import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.0.165';
+import { events } from '../../core/events.js?v=2.0.165';
+import { storage } from '../../core/storage.js?v=2.0.165';
+import { store } from '../../core/store.js?v=2.0.165';
+import { formatLocalYYYYMMDD, fmtDeltaPress } from '../../core/format.js?v=2.0.165';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.0.165';
+import { FISH_DB } from '../../data/species.js?v=2.0.165';
+import { createPill, showToast, openModal, closeModal } from '../../ui/components.js?v=2.0.165';
+import { computeMoon } from '../weather/weather.module.js?v=2.0.165';
+import { calcHourly } from '../forecast/forecast.module.js?v=2.0.165';
 
 let currentFilter = { fishId: 'all', cond: 'all' };
 

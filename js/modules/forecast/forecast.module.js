@@ -1,16 +1,16 @@
-import { RU } from '../../i18n/ru.js?v=2.0.164';
-import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.0.164';
-import { events } from '../../core/events.js?v=2.0.164';
-import { storage } from '../../core/storage.js?v=2.0.164';
-import { store } from '../../core/store.js?v=2.0.164';
-import { formatLocalYYYYMMDD, fmtDeltaPress, fmtHM } from '../../core/format.js?v=2.0.164';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.0.164';
-import { FISH_DB } from '../../data/species.js?v=2.0.164';
-import { renderFiveFish } from '../../ui/svg.js?v=2.0.164';
-import { createPill, showToast, openModal } from '../../ui/components.js?v=2.0.164';
-import { computeIceSafetyIndex } from '../weather/weather.module.js?v=2.0.164';
-import { evaluateCircleFieldConfirmation } from '../circle/circle.module.js?v=2.0.164';
-import { isTelegramWebApp, getTelegramUser, shareToTelegramChat, openBotChatInTelegram, TELEGRAM_BOT_USERNAME } from '../../core/telegram.js?v=2.0.164';
+import { RU } from '../../i18n/ru.js?v=2.0.165';
+import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.0.165';
+import { events } from '../../core/events.js?v=2.0.165';
+import { storage } from '../../core/storage.js?v=2.0.165';
+import { store } from '../../core/store.js?v=2.0.165';
+import { formatLocalYYYYMMDD, fmtDeltaPress, fmtHM } from '../../core/format.js?v=2.0.165';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.0.165';
+import { FISH_DB } from '../../data/species.js?v=2.0.165';
+import { renderFiveFish } from '../../ui/svg.js?v=2.0.165';
+import { createPill, showToast, openModal } from '../../ui/components.js?v=2.0.165';
+import { computeIceSafetyIndex } from '../weather/weather.module.js?v=2.0.165';
+import { evaluateCircleFieldConfirmation } from '../circle/circle.module.js?v=2.0.165';
+import { isTelegramWebApp, getTelegramUser, shareToTelegramChat, openBotChatInTelegram, buildForecastShareUrls, TELEGRAM_BOT_USERNAME } from '../../core/telegram.js?v=2.0.165';
 
 /**
  * Список морских, проходных и полупроходных видов, которые заходят в пресные реки
@@ -1641,7 +1641,7 @@ function bindForecastEvents(container) {
       const win = getBestBiteWindowText(fish, day, s.method, s.water, s.depth, s.normPress, s.iceState);
       const rig = calcDynamicRig(s.method, s.water, s.depth, day.windMax, fish, day.waterTemp, day.iceState || s.iceState);
       const waterTitle = s.selectedWaterName || WATER_PROFILES[s.water]?.shortName || 'водоём';
-      const deepUrl = `https://t.me/${TELEGRAM_BOT_USERNAME}/app?startapp=KPLOC_${s.lat.toFixed(4)}_${s.lon.toFixed(4)}_${fish.id}`;
+      const { webUrl, botStartUrl } = buildForecastShareUrls(s.lat, s.lon, s.locLabel, fish.id);
       const summary =
         `🎣 Клёв ПРО 2.0 • Прогноз клёва (${day.relTitle || day.label})
 ` +
@@ -1653,8 +1653,10 @@ function bindForecastEvents(container) {
 ` +
         `💧 Вода ~${day.waterTemp}°C • 🧭 ${day.pressAvg} мм (${fmtDeltaPress(day.dP)}) • 💨 ${day.windDir} ${day.windMax} м/с
 ` +
-        `🎯 Снасть: ${rig.weight} (${rig.line})`;
-      shareToTelegramChat(deepUrl, summary);
+        `🎯 Снасть: ${rig.weight} (${rig.line})
+` +
+        `🤖 Открыть в Telegram-боте / Mini App: ${botStartUrl}`;
+      shareToTelegramChat(webUrl, summary);
     });
   }
 

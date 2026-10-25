@@ -1,18 +1,29 @@
-import { initReleaseUpdater, checkForReleaseUpdate } from './core/updater.js?v=2.0.164';
-import { RU } from './i18n/ru.js?v=2.0.164';
-import { events } from './core/events.js?v=2.0.164';
-import { store } from './core/store.js?v=2.0.164';
-import { router } from './core/router.js?v=2.0.164';
-import { installShortcut, initPwa } from './core/pwa.js?v=2.0.164';
-import { initTelegramMiniApp, clearIncomingShareTokenFromUrl, triggerHaptic, syncTelegramTheme, syncTelegramBackButton, getTelegramUser } from './core/telegram.js?v=2.0.164';
-import { showToast } from './ui/components.js?v=2.0.164';
-import { weatherModule } from './modules/weather/weather.module.js?v=2.0.164';
-import { geoModule } from './modules/geo/geo.module.js?v=2.0.164';
-import { fishModule } from './modules/fish/fish.module.js?v=2.0.164';
-import { forecastModule } from './modules/forecast/forecast.module.js?v=2.0.164';
-import { calendarModule } from './modules/calendar/calendar.module.js?v=2.0.164';
-import { logModule } from './modules/log/log.module.js?v=2.0.164';
-import { circleModule } from './modules/circle/circle.module.js?v=2.0.164';
+import { initReleaseUpdater, checkForReleaseUpdate } from './core/updater.js?v=2.0.165';
+import { RU } from './i18n/ru.js?v=2.0.165';
+import { events } from './core/events.js?v=2.0.165';
+import { store } from './core/store.js?v=2.0.165';
+import { router } from './core/router.js?v=2.0.165';
+import { installShortcut, initPwa } from './core/pwa.js?v=2.0.165';
+import {
+  initTelegramMiniApp,
+  extractIncomingDeepLinkParams,
+  extractIncomingShareToken,
+  clearIncomingShareTokenFromUrl,
+  triggerHaptic,
+  syncTelegramTheme,
+  syncTelegramBackButton,
+  getTelegramUser
+} from './core/telegram.js?v=2.0.165';
+import { FISH_DB } from './data/species.js?v=2.0.165';
+import { WATER_PROFILES } from './data/waters.js?v=2.0.165';
+import { showToast } from './ui/components.js?v=2.0.165';
+import { weatherModule } from './modules/weather/weather.module.js?v=2.0.165';
+import { geoModule } from './modules/geo/geo.module.js?v=2.0.165';
+import { fishModule } from './modules/fish/fish.module.js?v=2.0.165';
+import { forecastModule } from './modules/forecast/forecast.module.js?v=2.0.165';
+import { calendarModule } from './modules/calendar/calendar.module.js?v=2.0.165';
+import { logModule } from './modules/log/log.module.js?v=2.0.165';
+import { circleModule } from './modules/circle/circle.module.js?v=2.0.165';
 
 if (typeof window !== 'undefined') {
   window.__KLEV_BOOTSTRAPPED__ = true;
@@ -324,9 +335,75 @@ function safeInit(name, fn) {
   }
 }
 
+/**
+ * Применяет параметры Deep-Link (?tg_lat=...&tg_lon=...&tg_city=...&tg_fish=... или KPLOC_...)
+ * и гарантирует, что целевая рыба видна в полоске рыб и не перезаписывается фильтром водоёма
+ */
+function applyIncomingDeepLinkToStore(deepLink, triggerNetworkFetch = false) {
+  if (!deepLink) return;
+  const hasCoords = Number.isFinite(deepLink.lat) && Number.isFinite(deepLink.lon);
+  if (hasCoords) {
+    const rLat = Math.round(deepLink.lat * 10000) / 10000;
+    const rLon = Math.round(deepLink.lon * 10000) / 10000;
+    store.dispatch({
+      type: 'SET_LOCATION',
+      payload: {
+        lat: rLat,
+        lon: rLon,
+        locLabel: deepLink.city || undefined,
+        locAdmin2: deepLink.city || undefined,
+        hasUserLocation: true
+      }
+    });
+    if (triggerNetworkFetch) {
+      geoModule.setLocation(rLat, rLon, Boolean(deepLink.city));
+    }
+  } else if (deepLink.city) {
+    store.dispatch({
+      type: 'SET_LOCATION_LABELS',
+      payload: { locLabel: deepLink.city, locAdmin2: deepLink.city }
+    });
+  }
+
+  if (deepLink.fish) {
+    const targetFishObj = FISH_DB.find(f => f.id === deepLink.fish);
+    if (targetFishObj) {
+      const st = store.getState();
+      if (st.onlyFavoritesFilter && !(st.favorites || []).includes(targetFishObj.id)) {
+        store.dispatch({ type: 'TOGGLE_ONLY_FAVORITES' });
+      }
+      if (Array.isArray(targetFishObj.waters) && targetFishObj.waters.length > 0 && !targetFishObj.waters.includes(st.water)) {
+        const compatWater = targetFishObj.waters.includes('big_river') ? 'big_river' : targetFishObj.waters[0];
+        store.dispatch({
+          type: 'SET_WATER',
+          payload: {
+            water: compatWater,
+            depth: WATER_PROFILES[compatWater]?.defD || 2.5,
+            selectedWaterName: deepLink.water || ''
+          }
+        });
+      }
+      store.dispatch({ type: 'SET_FISH', payload: targetFishObj.id });
+      const checkList = fishModule.getFilteredFishList(store.getState());
+      if (!checkList.some(f => f.id === targetFishObj.id) && !store.getState().showAllSpecies) {
+        store.dispatch({ type: 'TOGGLE_SHOW_ALL' });
+      }
+    }
+  }
+}
+
 function bootstrapApp() {
   window.__KLEV_BOOTSTRAPPED__ = true;
   applyTheme(store.getState().theme || 'auto');
+
+  // Сразу применяем координаты и рыбу из ссылки Telegram до старта модулей погоды и гео,
+  // чтобы приложение мгновенно загружало нужный город (например, Ярославль + Судак) без гонки запросов
+  const earlyDeepLink = extractIncomingDeepLinkParams();
+  const earlyShareToken = extractIncomingShareToken();
+  if (earlyDeepLink) {
+    applyIncomingDeepLinkToStore(earlyDeepLink, false);
+  }
+
   safeInit('pwa', () => initPwa());
   safeInit('shellEvents', () => bindGlobalShellEvents());
 
@@ -349,19 +426,9 @@ function bootstrapApp() {
         }
       },
       (deepLink) => {
-        if (deepLink.city) {
-          store.dispatch({
-            type: 'SET_LOCATION_LABELS',
-            payload: { locLabel: deepLink.city, locAdmin2: deepLink.city }
-          });
-        }
-        if (Number.isFinite(deepLink.lat) && Number.isFinite(deepLink.lon)) {
-          geoModule.setLocation(deepLink.lat, deepLink.lon, Boolean(deepLink.city));
-        }
-        if (deepLink.fish) {
-          setTimeout(() => {
-            store.dispatch({ type: 'SET_FISH', payload: deepLink.fish });
-          }, 50);
+        applyIncomingDeepLinkToStore(deepLink, false);
+        if (Number.isFinite(deepLink.lat) && Number.isFinite(deepLink.lon) && !deepLink.city) {
+          geoModule.resolveReverseGeocode(deepLink.lat, deepLink.lon);
         }
         router.navigate('forecast');
       }
@@ -402,7 +469,7 @@ function bootstrapApp() {
   }
 
   const curProfile = store.getState().userProfile;
-  if (!curProfile || !curProfile.onboarded) {
+  if ((!curProfile || !curProfile.onboarded) && !earlyDeepLink && !earlyShareToken) {
     setTimeout(() => {
       fishModule.openOnboardingModal(false);
     }, 450);
