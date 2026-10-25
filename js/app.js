@@ -1,18 +1,18 @@
-import { initReleaseUpdater, checkForReleaseUpdate } from './core/updater.js?v=2.0.162';
-import { RU } from './i18n/ru.js?v=2.0.162';
-import { events } from './core/events.js?v=2.0.162';
-import { store } from './core/store.js?v=2.0.162';
-import { router } from './core/router.js?v=2.0.162';
-import { installShortcut, initPwa } from './core/pwa.js?v=2.0.162';
-import { initTelegramMiniApp, clearIncomingShareTokenFromUrl, triggerHaptic } from './core/telegram.js?v=2.0.162';
-import { showToast } from './ui/components.js?v=2.0.162';
-import { weatherModule } from './modules/weather/weather.module.js?v=2.0.162';
-import { geoModule } from './modules/geo/geo.module.js?v=2.0.162';
-import { fishModule } from './modules/fish/fish.module.js?v=2.0.162';
-import { forecastModule } from './modules/forecast/forecast.module.js?v=2.0.162';
-import { calendarModule } from './modules/calendar/calendar.module.js?v=2.0.162';
-import { logModule } from './modules/log/log.module.js?v=2.0.162';
-import { circleModule } from './modules/circle/circle.module.js?v=2.0.162';
+import { initReleaseUpdater, checkForReleaseUpdate } from './core/updater.js?v=2.0.163';
+import { RU } from './i18n/ru.js?v=2.0.163';
+import { events } from './core/events.js?v=2.0.163';
+import { store } from './core/store.js?v=2.0.163';
+import { router } from './core/router.js?v=2.0.163';
+import { installShortcut, initPwa } from './core/pwa.js?v=2.0.163';
+import { initTelegramMiniApp, clearIncomingShareTokenFromUrl, triggerHaptic } from './core/telegram.js?v=2.0.163';
+import { showToast } from './ui/components.js?v=2.0.163';
+import { weatherModule } from './modules/weather/weather.module.js?v=2.0.163';
+import { geoModule } from './modules/geo/geo.module.js?v=2.0.163';
+import { fishModule } from './modules/fish/fish.module.js?v=2.0.163';
+import { forecastModule } from './modules/forecast/forecast.module.js?v=2.0.163';
+import { calendarModule } from './modules/calendar/calendar.module.js?v=2.0.163';
+import { logModule } from './modules/log/log.module.js?v=2.0.163';
+import { circleModule } from './modules/circle/circle.module.js?v=2.0.163';
 
 if (typeof window !== 'undefined') {
   window.__KLEV_BOOTSTRAPPED__ = true;
@@ -215,53 +215,22 @@ function bindGlobalShellEvents() {
 // ==========================================
 // DYNAMIC HEADER HEIGHT & SMOOTH SHRINKING FISH BUTTONS (MINIATURES ON SCROLL & FORECAST TAB)
 // ==========================================
-function syncHeaderLayout() {
+let cachedHeaderH = 66;
+let cachedFullDockH = 212;
+let scrollRafPending = false;
+
+function syncHeaderLayout(forceMeasure = false) {
+  if (!forceMeasure && cachedHeaderH > 40) return cachedHeaderH;
   const header = document.querySelector('.app-header');
-  if (!header) return 82;
-  const h = Math.ceil(header.getBoundingClientRect().height) || 82;
+  if (!header) return cachedHeaderH;
+  const h = Math.ceil(header.getBoundingClientRect().height) || 66;
+  cachedHeaderH = h;
   document.documentElement.style.setProperty('--header-h', `${h}px`);
   return h;
 }
 
-function clearFishCardInlineStyles(dockWrap) {
-  if (!dockWrap) return;
-  dockWrap.style.position = '';
-  dockWrap.style.top = '';
-  dockWrap.style.left = '';
-  dockWrap.style.right = '';
-  dockWrap.style.zIndex = '';
-  dockWrap.style.background = '';
-  dockWrap.style.borderBottom = '';
-  dockWrap.style.boxShadow = '';
-  dockWrap.style.padding = '';
-  dockWrap.style.height = '';
-  dockWrap.style.overflow = '';
-  dockWrap.querySelectorAll('.fish-card').forEach(c => {
-    c.style.height = '';
-    c.style.minWidth = '';
-    c.style.maxWidth = '';
-    c.style.padding = '';
-    c.style.overflow = '';
-  });
-  dockWrap.querySelectorAll('.fish-img-wrap').forEach(img => {
-    img.style.width = '';
-    img.style.height = '';
-    img.style.marginTop = '';
-  });
-  dockWrap.querySelectorAll('.fish-latin, .fish-badge-wrap, .fish-rating-box, .fish-redbook-ban, [data-info-fish], .fav-btn').forEach(el => {
-    el.style.opacity = '';
-    el.style.maxHeight = '';
-    el.style.overflow = '';
-    el.style.margin = '';
-    el.style.pointerEvents = '';
-  });
-}
-
-let cachedFullDockH = 212;
-let scrollRafPending = false;
-
-function syncFishDockState() {
-  const headerH = syncHeaderLayout();
+function syncFishDockState(forceMeasure = false) {
+  const headerH = syncHeaderLayout(forceMeasure);
   const route = store.getState().route || 'forecast';
   const secFish = document.getElementById('secFish');
   const resultsArea = document.getElementById('fishResultsArea');
@@ -278,7 +247,8 @@ function syncFishDockState() {
   const isDedicatedFishTab = ['forecast', 'calendar'].includes(route);
 
   if (isDedicatedFishTab) {
-    if (cardEl) {
+    if (cardEl && cardEl.getAttribute('data-dock-mode') !== 'mini') {
+      cardEl.setAttribute('data-dock-mode', 'mini');
       Array.from(cardEl.children).forEach(ch => {
         if (ch !== placeholder && ch !== sentinel && ch !== resultsArea && ch.id !== 'fishResultsArea') {
           ch.style.display = 'none';
@@ -291,17 +261,17 @@ function syncFishDockState() {
       cardEl.style.background = 'transparent';
       cardEl.style.boxShadow = 'none';
     }
-    clearFishCardInlineStyles(dockWrap);
     placeholder.style.height = '0px';
     placeholder.style.minHeight = '0px';
-    dockWrap.style.setProperty('--shrink', '1');
-    dockWrap.classList.add('docked-mini');
-    const dockH = Math.ceil(dockWrap.getBoundingClientRect().height) || 48;
-    document.body.style.paddingTop = `${headerH + dockH}px`;
+    if (!dockWrap.classList.contains('docked-mini')) {
+      dockWrap.classList.add('docked-mini');
+    }
+    document.body.style.paddingTop = `${headerH + 46}px`;
     return;
   }
 
-  if (cardEl) {
+  if (cardEl && cardEl.getAttribute('data-dock-mode') === 'mini') {
+    cardEl.setAttribute('data-dock-mode', 'full');
     Array.from(cardEl.children).forEach(ch => {
       if (ch !== placeholder && ch !== sentinel) ch.style.display = '';
     });
@@ -312,9 +282,9 @@ function syncFishDockState() {
   }
 
   if (route !== 'fish') {
-    clearFishCardInlineStyles(dockWrap);
-    dockWrap.classList.remove('docked-mini');
-    dockWrap.style.removeProperty('--shrink');
+    if (dockWrap.classList.contains('docked-mini')) {
+      dockWrap.classList.remove('docked-mini');
+    }
     placeholder.style.height = '';
     placeholder.style.minHeight = '';
     document.body.style.paddingTop = `${headerH}px`;
@@ -327,77 +297,18 @@ function syncFishDockState() {
   const sRect = sentinel.getBoundingClientRect();
   const delta = headerH - sRect.top;
 
-  if (delta <= 0) {
-    if (dockWrap.classList.contains('docked-mini')) {
-      dockWrap.classList.remove('docked-mini');
-    }
-    dockWrap.style.removeProperty('--shrink');
-    clearFishCardInlineStyles(dockWrap);
-    placeholder.style.height = '';
-    placeholder.style.minHeight = '';
-    const curH = dockWrap.offsetHeight;
-    if (curH > 120) cachedFullDockH = curH;
-    return;
-  }
-
-  const fullH = cachedFullDockH || 212;
-  const miniH = 48;
-  const maxDelta = Math.max(175, fullH - miniH + 35);
-  const rawP = Math.min(1, Math.max(0, delta / maxDelta));
-  const p = Number((rawP * (2 - rawP)).toFixed(3));
-
-  placeholder.style.height = `${fullH}px`;
-  placeholder.style.minHeight = `${fullH}px`;
-
-  if (rawP < 0.99) {
-    if (dockWrap.classList.contains('docked-mini')) {
-      dockWrap.classList.remove('docked-mini');
-    }
-    const heightSpan = fullH - miniH;
-    const targetDockH = Math.round(fullH - p * heightSpan);
-    const targetCardH = Math.max(38, targetDockH - 12);
-    const fade = Math.max(0, 1 - p * 1.45);
-    const extraMaxH = Math.round(Math.max(0, 1 - p * 1.25) * 34);
-
-    dockWrap.style.position = 'fixed';
-    dockWrap.style.top = `${headerH}px`;
-    dockWrap.style.left = '0';
-    dockWrap.style.right = '0';
-    dockWrap.style.zIndex = '990';
-    dockWrap.style.background = 'var(--panel)';
-    dockWrap.style.borderBottom = '1px solid var(--border)';
-    dockWrap.style.boxShadow = 'var(--shadow-header)';
-    dockWrap.style.padding = '4px 12px';
-    dockWrap.style.height = `${targetDockH}px`;
-    dockWrap.style.overflow = 'hidden';
-
-    dockWrap.querySelectorAll('.fish-card').forEach(c => {
-      const padV = Math.round(10 - p * 5);
-      const minW = Math.round(168 - p * 54);
-      c.style.height = `${targetCardH}px`;
-      c.style.minWidth = `${minW}px`;
-      c.style.padding = `${padV}px 8px`;
-      c.style.overflow = 'hidden';
-    });
-    dockWrap.querySelectorAll('.fish-img-wrap').forEach(img => {
-      const w = Math.round(118 - p * 76);
-      const h = Math.round(52 - p * 26);
-      img.style.width = `${w}px`;
-      img.style.height = `${h}px`;
-      img.style.marginTop = `${Math.round(4 * (1 - p))}px`;
-    });
-    dockWrap.querySelectorAll('.fish-latin, .fish-badge-wrap, .fish-rating-box, .fish-redbook-ban, [data-info-fish], .fav-btn').forEach(el => {
-      el.style.opacity = String(fade.toFixed(2));
-      el.style.maxHeight = `${extraMaxH}px`;
-      el.style.overflow = 'hidden';
-      el.style.margin = p > 0.5 ? '0' : '';
-      el.style.pointerEvents = p > 0.35 ? 'none' : '';
-    });
-  } else {
-    clearFishCardInlineStyles(dockWrap);
-    dockWrap.style.setProperty('--shrink', '1');
+  // Переключение одним CSS-классом с гистерезисом (0.01 мс, без пересчёта геометрии 800 DOM-узлов на каждом пикселе скролла!)
+  if (delta > 36) {
     if (!dockWrap.classList.contains('docked-mini')) {
+      placeholder.style.height = `${cachedFullDockH}px`;
+      placeholder.style.minHeight = `${cachedFullDockH}px`;
       dockWrap.classList.add('docked-mini');
+    }
+  } else if (delta <= 8) {
+    if (dockWrap.classList.contains('docked-mini')) {
+      dockWrap.classList.remove('docked-mini');
+      placeholder.style.height = '';
+      placeholder.style.minHeight = '';
     }
   }
 }
@@ -451,13 +362,13 @@ function bootstrapApp() {
   }, { passive: true });
 
   window.addEventListener('resize', () => {
-    syncFishDockState();
+    syncFishDockState(true);
   }, { passive: true });
 
   const headerEl = document.querySelector('.app-header');
   if (headerEl && typeof ResizeObserver !== 'undefined') {
     const ro = new ResizeObserver(() => {
-      syncFishDockState();
+      syncFishDockState(true);
     });
     ro.observe(headerEl);
   }
