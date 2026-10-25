@@ -1,17 +1,17 @@
-import { RU } from '../../i18n/ru.js?v=2.0.162';
-import { events } from '../../core/events.js?v=2.0.162';
-import { store } from '../../core/store.js?v=2.0.162';
-import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.0.162';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.0.162';
-import { RUSSIA_CITIES, findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.0.162';
-import { FISH_DB } from '../../data/species.js?v=2.0.162';
-import { renderFishVisual, renderFiveFish } from '../../ui/svg.js?v=2.0.162';
-import { createPill, showToast, openModal, closeModal, openFishLightbox } from '../../ui/components.js?v=2.0.162';
-import { setLocation, detectUserPosition } from '../geo/geo.module.js?v=2.0.162';
-import { installShortcut } from '../../core/pwa.js?v=2.0.162';
-import { fetchWeather } from '../weather/weather.module.js?v=2.0.162';
-import { checkForReleaseUpdate } from '../../core/updater.js?v=2.0.162';
-import { calcDayBest } from '../forecast/forecast.module.js?v=2.0.162';
+import { RU } from '../../i18n/ru.js?v=2.0.163';
+import { events } from '../../core/events.js?v=2.0.163';
+import { store } from '../../core/store.js?v=2.0.163';
+import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.0.163';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.0.163';
+import { RUSSIA_CITIES, findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.0.163';
+import { FISH_DB } from '../../data/species.js?v=2.0.163';
+import { renderFishVisual, renderFiveFish } from '../../ui/svg.js?v=2.0.163';
+import { createPill, showToast, openModal, closeModal, openFishLightbox } from '../../ui/components.js?v=2.0.163';
+import { setLocation, detectUserPosition } from '../geo/geo.module.js?v=2.0.163';
+import { installShortcut } from '../../core/pwa.js?v=2.0.163';
+import { fetchWeather } from '../weather/weather.module.js?v=2.0.163';
+import { checkForReleaseUpdate } from '../../core/updater.js?v=2.0.163';
+import { calcDayBest } from '../forecast/forecast.module.js?v=2.0.163';
 
 /**
  * Региональные приоритетные виды для каждого бассейна РФ,
@@ -70,10 +70,20 @@ export function getFilteredFishList(state) {
   const radiusKm = s.waterRadiusKm === 120 ? 120 : 50;
   const day = (s.weatherDays && (s.weatherDays[s.dayIdx] || s.weatherDays[2] || s.weatherDays[0])) || null;
 
-  // Определяем все типы водоёмов, реально присутствующие в радиусе 50 км или 120 км вокруг выбранной точки
-  const nearbyWatersList = (Array.isArray(s.nearbyWaters) && s.nearbyWaters.length > 0)
-    ? s.nearbyWaters.filter(w => !Number.isFinite(w.distKm) || w.distKm <= radiusKm + 5)
-    : getNearestRussianWaters(s.lat, s.lon, s.basinCode, s.isCoastal, 14, radiusKm);
+  // Определяем все типы водоёмов, реально присутствующие в радиусе 50 км или 120 км вокруг выбранной точки (с кэшем по координатам)
+  let nearbyWatersList;
+  if (Array.isArray(s.nearbyWaters) && s.nearbyWaters.length > 0) {
+    nearbyWatersList = s.nearbyWaters.filter(w => !Number.isFinite(w.distKm) || w.distKm <= radiusKm + 5);
+  } else {
+    const wCacheKey = `${Math.round((s.lat || 0) * 100)}_${Math.round((s.lon || 0) * 100)}_${s.basinCode}_${radiusKm}`;
+    if (getFilteredFishList._wCacheKey === wCacheKey && getFilteredFishList._wCacheVal) {
+      nearbyWatersList = getFilteredFishList._wCacheVal;
+    } else {
+      nearbyWatersList = getNearestRussianWaters(s.lat, s.lon, s.basinCode, s.isCoastal, 14, radiusKm);
+      getFilteredFishList._wCacheKey = wCacheKey;
+      getFilteredFishList._wCacheVal = nearbyWatersList;
+    }
+  }
   const radiusWaterTypes = new Set(nearbyWatersList.map(w => w.wType));
   radiusWaterTypes.add(s.water);
 
@@ -1304,6 +1314,19 @@ export function render(container) {
 }
 
 let unsub = null;
+let _fishNeedsRender = false;
+
+function updateActiveFishSelectionOnly(container, activeFishId) {
+  if (!container) return false;
+  const cards = container.querySelectorAll('[data-select-fish]');
+  if (!cards.length) return false;
+  cards.forEach(c => {
+    const isAct = c.getAttribute('data-select-fish') === activeFishId;
+    c.classList.toggle('active', isAct);
+    c.setAttribute('aria-selected', isAct ? 'true' : 'false');
+  });
+  return true;
+}
 
 export function init(container) {
   const s = store.getState();
@@ -1315,6 +1338,7 @@ export function init(container) {
 
   unsub = store.subscribe(
     st => ({
+      route: st.route,
       lat: st.lat,
       lon: st.lon,
       basinCode: st.basinCode,
@@ -1333,7 +1357,46 @@ export function init(container) {
       weatherDays: st.weatherDays,
       theme: st.theme
     }),
-    () => render(container)
+    (next, prev) => {
+      const visibleRoutes = ['fish', 'forecast', 'calendar'];
+      const isVisible = !next.route || visibleRoutes.includes(next.route);
+      if (!isVisible) {
+        _fishNeedsRender = true;
+        return;
+      }
+      if (_fishNeedsRender) {
+        _fishNeedsRender = false;
+        render(container);
+        return;
+      }
+      // Быстрый путь (0.05 мс): если изменилась только выбранная рыба или вкладка внутри видимых, не перестраиваем 115 SVG-карточек!
+      if (prev &&
+          next.lat === prev.lat &&
+          next.lon === prev.lon &&
+          next.basinCode === prev.basinCode &&
+          next.water === prev.water &&
+          next.waterRadiusKm === prev.waterRadiusKm &&
+          next.nearbyWaters === prev.nearbyWaters &&
+          next.method === prev.method &&
+          next.depth === prev.depth &&
+          next.dayIdx === prev.dayIdx &&
+          next.showAllSpecies === prev.showAllSpecies &&
+          next.onlyFavoritesFilter === prev.onlyFavoritesFilter &&
+          next.fishSearch === prev.fishSearch &&
+          next.fishGroup === prev.fishGroup &&
+          next.favorites === prev.favorites &&
+          next.weatherDays === prev.weatherDays &&
+          next.theme === prev.theme) {
+        if (next.fishId !== prev.fishId && updateActiveFishSelectionOnly(container, next.fishId)) {
+          return;
+        }
+        if (next.route !== prev.route) {
+          if (typeof window.syncFishDockState === 'function') window.syncFishDockState();
+          return;
+        }
+      }
+      render(container);
+    }
   );
 }
 
