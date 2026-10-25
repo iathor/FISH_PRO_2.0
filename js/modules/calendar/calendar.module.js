@@ -1,9 +1,9 @@
-import { RU } from '../../i18n/ru.js?v=2.0.163';
-import { store } from '../../core/store.js?v=2.0.163';
-import { generateSpawnICS } from '../../core/format.js?v=2.0.163';
-import { BASIN_CONFIGS } from '../../data/basins.js?v=2.0.163';
-import { FISH_DB } from '../../data/species.js?v=2.0.163';
-import { showToast } from '../../ui/components.js?v=2.0.163';
+import { RU } from '../../i18n/ru.js?v=2.0.164';
+import { store } from '../../core/store.js?v=2.0.164';
+import { generateSpawnICS } from '../../core/format.js?v=2.0.164';
+import { BASIN_CONFIGS } from '../../data/basins.js?v=2.0.164';
+import { FISH_DB } from '../../data/species.js?v=2.0.164';
+import { showToast } from '../../ui/components.js?v=2.0.164';
 
 const COMPARE_COLORS = ['#10b981', '#38bdf8', '#a855f7'];
 
