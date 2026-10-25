@@ -1,15 +1,15 @@
-import { RU } from '../../i18n/ru.js?v=2.0.162';
-import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.0.162';
-import { events } from '../../core/events.js?v=2.0.162';
-import { storage } from '../../core/storage.js?v=2.0.162';
-import { store } from '../../core/store.js?v=2.0.162';
-import { formatLocalYYYYMMDD, fmtDeltaPress, fmtHM } from '../../core/format.js?v=2.0.162';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.0.162';
-import { FISH_DB } from '../../data/species.js?v=2.0.162';
-import { renderFiveFish } from '../../ui/svg.js?v=2.0.162';
-import { createPill, showToast, openModal } from '../../ui/components.js?v=2.0.162';
-import { computeIceSafetyIndex } from '../weather/weather.module.js?v=2.0.162';
-import { evaluateCircleFieldConfirmation } from '../circle/circle.module.js?v=2.0.162';
+import { RU } from '../../i18n/ru.js?v=2.0.163';
+import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.0.163';
+import { events } from '../../core/events.js?v=2.0.163';
+import { storage } from '../../core/storage.js?v=2.0.163';
+import { store } from '../../core/store.js?v=2.0.163';
+import { formatLocalYYYYMMDD, fmtDeltaPress, fmtHM } from '../../core/format.js?v=2.0.163';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.0.163';
+import { FISH_DB } from '../../data/species.js?v=2.0.163';
+import { renderFiveFish } from '../../ui/svg.js?v=2.0.163';
+import { createPill, showToast, openModal } from '../../ui/components.js?v=2.0.163';
+import { computeIceSafetyIndex } from '../weather/weather.module.js?v=2.0.163';
+import { evaluateCircleFieldConfirmation } from '../circle/circle.module.js?v=2.0.163';
 
 /**
  * Список морских, проходных и полупроходных видов, которые заходят в пресные реки
@@ -44,33 +44,66 @@ const RIVER_ENTERING_SPECIES = {
 /**
  * Собирает до 5 предшествующих архивных дней для указанного дня day из 10-км гео-кэша и ленты прогноза
  */
+// Высокоскоростной кэш расчётов прогноза (устраняет 5000+ повторных циклов при рендере 115 видов рыб)
+const _prev5DaysMemo = new Map();
+const _archiveShockMemo = new Map();
+const _circleFieldMemo = new Map();
+const _dayBestMemo = new Map();
+const _biteWindowMemo = new Map();
+
+function _pruneCache(mapObj, maxEntries = 2500) {
+  if (mapObj.size > maxEntries) {
+    mapObj.clear();
+  }
+}
+
+function _buildStateForecastSignature(st, fishId, day, method, water, depth, normPress, iceState) {
+  const pw = (st.appMode === 'pro' && st.proFactorWeights) ? st.proFactorWeights : null;
+  const wSig = pw ? `${pw.temp ?? 1}_${pw.press ?? 1}_${pw.archive_shock ?? 1}_${pw.circle_field ?? 1}` : '1';
+  const cLen = Array.isArray(st.catches) ? st.catches.length : 0;
+  const cirLen = Array.isArray(st.circleItems) ? st.circleItems.length : 0;
+  return `${fishId}|${day.date}|${day.waterTemp}|${day.pressAvg}|${day.dP}|${day.windMax}|${day.iceState || iceState}|${method}|${water}|${depth}|${normPress}|${st.appMode || 'angler'}|${wSig}|${cLen}|${cirLen}|${st.hasRealArchive !== false ? 1 : 0}|${Math.round((st.lat || 0) * 100)}_${Math.round((st.lon || 0) * 100)}`;
+}
+
 export function getPreceding5DaysForTarget(day, state = null) {
   const st = state || store.getState();
   if (!day || !day.date) return [];
   const targetDate = day.date;
+  const firstWDate = st.weatherDays?.[0]?.date || '';
+  const archLen = Array.isArray(st.weatherArchive5Days) ? st.weatherArchive5Days.length : 0;
+  const memoKey = `${targetDate}|${Math.round((st.lat || 0) * 100)}|${Math.round((st.lon || 0) * 100)}|${firstWDate}|${archLen}`;
+  if (_prev5DaysMemo.has(memoKey)) {
+    return _prev5DaysMemo.get(memoKey);
+  }
 
   const mapByDate = {};
   if (Array.isArray(st.weatherDays)) {
-    st.weatherDays.forEach(d => {
+    for (let i = 0; i < st.weatherDays.length; i++) {
+      const d = st.weatherDays[i];
       if (d && d.date && d.date < targetDate) mapByDate[d.date] = d;
-    });
+    }
   }
   if (Array.isArray(st.weatherArchive5Days)) {
-    st.weatherArchive5Days.forEach(d => {
+    for (let i = 0; i < st.weatherArchive5Days.length; i++) {
+      const d = st.weatherArchive5Days[i];
       if (d && d.date && d.date < targetDate) mapByDate[d.date] = d;
-    });
+    }
   }
   const geoArch = storage.getArchiveDaysForLocation(st.lat, st.lon, 10, targetDate);
   if (Array.isArray(geoArch.allArchiveDays)) {
-    geoArch.allArchiveDays.forEach(d => {
+    for (let i = 0; i < geoArch.allArchiveDays.length; i++) {
+      const d = geoArch.allArchiveDays[i];
       if (d && d.date && d.date < targetDate) mapByDate[d.date] = d;
-    });
+    }
   }
 
-  return Object.keys(mapByDate)
+  const res = Object.keys(mapByDate)
     .sort()
     .slice(-5)
     .map(k => mapByDate[k]);
+  _pruneCache(_prev5DaysMemo, 500);
+  _prev5DaysMemo.set(memoKey, res);
+  return res;
 }
 
 /**
@@ -247,7 +280,7 @@ export function evaluateLogbookInsight(fish, day, hrObj, method, water, catches 
  * 7) Фаза Луны и приливные окна
  * + Учёт Личного журнала уловов пользователя
  */
-export function computeHourFactors(fish, day, hrObj, method, water, depth, normPress = 752, globalIceState = 'open_water') {
+export function computeHourFactors(fish, day, hrObj, method, water, depth, normPress = 752, globalIceState = 'open_water', fastScoreOnly = false) {
   const st = store.getState();
   const dayIce = day.iceState || globalIceState;
   const isRedBook = fish.legal === 'redbook';
@@ -301,10 +334,16 @@ export function computeHourFactors(fish, day, hrObj, method, water, depth, normP
   pressDelta = Math.max(-24, Math.min(15, pressDelta));
   const pressNote = `Давление ${hrObj.press} мм (суточный ход ${fmtDeltaPress(day.dP)})`;
 
-  // 3. 7-й ФАКТОР: 5-дневный метеоархив (10 км) и барический шок
-  const prev5Days = getPreceding5DaysForTarget(day, st);
+  // 3. 7-й ФАКТОР: 5-дневный метеоархив (10 км) и барический шок (с мемоизацией на сутки)
   const hasRealArchive = st.hasRealArchive !== false;
-  const archiveEval = evaluate5DayArchiveAndBaricShock(fish, day, prev5Days, hasRealArchive);
+  const archMemoKey = `${fish.id}|${day.date}|${day.pressAvg}|${day.dP}|${day.tDay}|${hasRealArchive ? 1 : 0}|${Math.round((st.lat || 0) * 100)}_${Math.round((st.lon || 0) * 100)}`;
+  let archiveEval = _archiveShockMemo.get(archMemoKey);
+  if (!archiveEval) {
+    const prev5Days = getPreceding5DaysForTarget(day, st);
+    archiveEval = evaluate5DayArchiveAndBaricShock(fish, day, prev5Days, hasRealArchive);
+    _pruneCache(_archiveShockMemo, 2500);
+    _archiveShockMemo.set(archMemoKey, archiveEval);
+  }
   const archiveDelta = archiveEval.val;
   const archiveNote = archiveEval.note;
 
@@ -326,7 +365,7 @@ export function computeHourFactors(fish, day, hrObj, method, water, depth, normP
   const windNote = `Ветер ${hrObj.windDir} ${hrObj.wind} м/с`;
 
   // 5. Сезонный биоритм, нерест и речной ход морских/проходных рыб
-  const dtMonthIdx = new Date(day.date + 'T00:00:00').getMonth();
+  const dtMonthIdx = day._mIdx !== undefined ? day._mIdx : (day._mIdx = (parseInt(String(day.date || '2026-06').slice(5, 7), 10) - 1) || 0);
   const curMonthNum = dtMonthIdx + 1;
   const mAct = (fish.monthActivity && fish.monthActivity[dtMonthIdx]) ?? 2;
   let seasonDelta = mAct === 3 ? +14 : (mAct === 2 ? +6 : (mAct === 1 ? -6 : -18));
@@ -405,10 +444,25 @@ export function computeHourFactors(fish, day, hrObj, method, water, depth, normP
     : `${day.moon?.phaseName || 'Луна'} (${md} л.д.)`;
 
   // Калибровка по Личному журналу рыболова
-  const logInsight = evaluateLogbookInsight(fish, day, hrObj, method, water, st.catches || []);
+  const catchesArr = st.catches || [];
+  const logInsight = catchesArr.length > 0
+    ? evaluateLogbookInsight(fish, day, hrObj, method, water, catchesArr)
+    : { val: 0, hasData: false, note: 'Журнал уловов: пока нет записей для личной калибровки', commentary: 'Добавляйте свои уловы через кнопку «🎣 Я поймал» (доступна запись за последние 5 дней по календарю), чтобы прогноз автоматически учитывал вашу личную статистику по водоёмам и приманкам.' };
 
-  // 8-й фактор: Полевое подтверждение «Круга» (свежие отчёты и точки в радиусе 35 км)
-  const circleEval = evaluateCircleFieldConfirmation(fish, st.lat, st.lon, st.circleItems || [], st.catches || []);
+  // 8-й фактор: Полевое подтверждение «Круга» (с мемоизацией по локации и виду рыбы)
+  const circleArr = st.circleItems || [];
+  let circleEval;
+  if (circleArr.length === 0) {
+    circleEval = { val: 0, hasSignal: false, note: 'Нет активных сигналов в радиусе 35 км за 72 ч', commentary: 'В радиусе 35 км пока нет свежих отчётов Круга или точек Экипажа за последние 72 часа.' };
+  } else {
+    const cirMemoKey = `${fish.id}|${Math.round((st.lat || 0) * 100)}_${Math.round((st.lon || 0) * 100)}|${circleArr.length}|${circleArr[0]?.id || ''}|${catchesArr.length}`;
+    circleEval = _circleFieldMemo.get(cirMemoKey);
+    if (!circleEval) {
+      circleEval = evaluateCircleFieldConfirmation(fish, st.lat, st.lon, circleArr, catchesArr);
+      _pruneCache(_circleFieldMemo, 1000);
+      _circleFieldMemo.set(cirMemoKey, circleEval);
+    }
+  }
 
   // Учёт пользовательских весов в режиме «🔴 Профи»
   const w = (st.appMode === "pro" && st.proFactorWeights) ? st.proFactorWeights : { temp: 1, press: 1, archive_shock: 1, circle_field: 1 };
@@ -423,6 +477,10 @@ export function computeHourFactors(fish, day, hrObj, method, water, depth, normP
     rawTotal = Math.min(28, rawTotal - 18);
   }
   const total = Math.max(4, Math.min(98, Math.round(rawTotal)));
+
+  if (fastScoreOnly) {
+    return { total, forbidden: isRedBook, iceDanger: isIceDanger };
+  }
 
   const factors = [
     { id: 'temp', name: '1. Температура воды (с учётом течения)', val: tempDelta, note: tempNote },
@@ -464,60 +522,86 @@ export function computeHourFactors(fish, day, hrObj, method, water, depth, normP
   };
 }
 
+const _WINTER_LURE_SET = new Set(['perch', 'pike', 'zander', 'grayling', 'smelt', 'trout', 'cod', 'navaga', 'lenok', 'volga_zander', 'char', 'broad_whitefish', 'saffron_cod', 'peled', 'chir', 'pizhyan', 'whitefish', 'omul', 'baikal_grayling', 'kundzha', 'nelma', 'taimen']);
+const _WINTER_JIG_SET = new Set(['chir', 'pizhyan', 'peled', 'cisco', 'roach', 'perch', 'whitefish', 'ruffe', 'smelt', 'bream', 'ide', 'dace', 'white_bream', 'vendace', 'omul', 'omul_arctic', 'valek', 'baikal_grayling', 'tugun', 'crucian', 'rudd', 'gudgeon', 'muksun']);
+const _WINTER_STUKA_SET = new Set(['burbot', 'cod', 'halibut', 'navaga', 'wolffish']);
+const _WINTER_CISCO_SET = new Set(['cisco', 'peled', 'smelt', 'whitefish', 'herring', 'vendace', 'omul', 'omul_arctic', 'tugun', 'chir', 'pizhyan', 'muksun']);
+const _NANO_MASTERS_SET = new Set([
+  'perch', 'roach', 'crucian', 'dace', 'peled', 'rudd', 'bleak', 'chub', 'ide',
+  'grayling', 'baikal_grayling', 'trout', 'brown_trout', 'rainbow_trout', 'rotan',
+  'gudgeon', 'bream', 'white_bream', 'blue_bream', 'sopa', 'tench', 'carp', 'chekhon',
+  'vimba', 'vobla', 'taran', 'undermouth', 'chir', 'pizhyan', 'tugun', 'whitefish',
+  'cisco', 'vendace', 'broad_whitefish', 'omul', 'omul_arctic', 'valek', 'smelt',
+  'ruffe', 'minnow', 'verkhovka', 'bitterling', 'horse_mackerel', 'sea_bass',
+  'scorpionfish', 'wrasse', 'sea_bream', 'red_mullet', 'goby', 'shemaya', 'muksun'
+]);
+const _SPIN_JIG_SET = new Set(['zander', 'pike', 'perch', 'catfish', 'volga_zander', 'amur_catfish', 'channel_catfish', 'burbot', 'cod', 'halibut', 'greenling', 'asp', 'chub', 'ide', 'nelma', 'taimen', 'chinese_perch', 'yellowcheek']);
+const _SPIN_LURE_SET = new Set(['ide', 'dace', 'chekhon', 'peled', 'chir', 'pizhyan', 'whitefish', 'tugun', 'rudd', 'bleak', 'roach', 'bream']);
+const _BOTTOM_EXTRA_SET = new Set(['catfish', 'burbot', 'channel_catfish', 'amur_catfish', 'ruffe', 'flounder', 'starry_flounder', 'turbot', 'plaice', 'goby', 'perch', 'pike', 'zander', 'beluga', 'kaluga']);
+const _FLOAT_EXTRA_SET = new Set(['perch', 'rotan', 'ruffe', 'chub', 'grayling', 'baikal_grayling', 'trout', 'dolly_varden', 'garfish']);
+const _FLY_SET = new Set(['grayling', 'baikal_grayling', 'lenok', 'salmon', 'trout', 'chub', 'ide', 'tugun', 'dace', 'peled', 'chir', 'pizhyan', 'whitefish', 'cisco', 'valek', 'brown_trout', 'sockeye_salmon', 'char', 'dolly_varden', 'bleak', 'rudd', 'chekhon', 'roach', 'taimen', 'nelma']);
+
 function getMethodCompatibility(fish, method, water = 'small_river') {
-  const isRiverEntering = Boolean(RIVER_ENTERING_SPECIES[fish.id]);
+  const fid = fish.id;
+  const isRiverEntering = Boolean(RIVER_ENTERING_SPECIES[fid]);
   if (method === 'winter_livebait') return fish.type === 'predator' ? 7 : -14;
-  if (method === 'winter_lure') return ['perch', 'pike', 'zander', 'grayling', 'smelt', 'trout', 'cod', 'navaga', 'lenok', 'volga_zander', 'char', 'broad_whitefish', 'saffron_cod', 'peled', 'chir', 'pizhyan', 'whitefish', 'omul', 'baikal_grayling', 'kundzha', 'nelma', 'taimen'].includes(fish.id) ? 8 : -10;
-  if (method === 'winter_jig') return ['chir', 'pizhyan', 'peled', 'cisco', 'roach', 'perch', 'whitefish', 'ruffe', 'smelt', 'bream', 'ide', 'dace', 'white_bream', 'vendace', 'omul', 'omul_arctic', 'valek', 'baikal_grayling', 'tugun', 'crucian', 'rudd', 'gudgeon', 'muksun'].includes(fish.id) ? 8 : -5;
-  if (method === 'winter_stuka') return ['burbot', 'cod', 'halibut', 'navaga', 'wolffish'].includes(fish.id) ? 10 : -12;
-  if (method === 'winter_cisco') return ['cisco', 'peled', 'smelt', 'whitefish', 'herring', 'vendace', 'omul', 'omul_arctic', 'tugun', 'chir', 'pizhyan', 'muksun'].includes(fish.id) ? 10 : -10;
-
-  if (method === 'spin_micro') {
-    const nanoMasters = [
-      'perch', 'roach', 'crucian', 'dace', 'peled', 'rudd', 'bleak', 'chub', 'ide',
-      'grayling', 'baikal_grayling', 'trout', 'brown_trout', 'rainbow_trout', 'rotan',
-      'gudgeon', 'bream', 'white_bream', 'blue_bream', 'sopa', 'tench', 'carp', 'chekhon',
-      'vimba', 'vobla', 'taran', 'undermouth', 'chir', 'pizhyan', 'tugun', 'whitefish',
-      'cisco', 'vendace', 'broad_whitefish', 'omul', 'omul_arctic', 'valek', 'smelt',
-      'ruffe', 'minnow', 'verkhovka', 'bitterling', 'horse_mackerel', 'sea_bass',
-      'scorpionfish', 'wrasse', 'sea_bream', 'red_mullet', 'goby', 'shemaya', 'muksun'
-    ];
-    if (nanoMasters.includes(fish.id)) return 9;
-    return fish.type === 'predator' ? 5 : 4;
-  }
-
-  if (method === 'spin_jig') return ['zander', 'pike', 'perch', 'catfish', 'volga_zander', 'amur_catfish', 'channel_catfish', 'burbot', 'cod', 'halibut', 'greenling', 'asp', 'chub', 'ide', 'nelma', 'taimen', 'chinese_perch', 'yellowcheek'].includes(fish.id) ? 8 : (fish.type === 'predator' ? 4 : -10);
-  if (method === 'spin_lure') return (fish.type === 'predator' || ['ide', 'dace', 'chekhon', 'peled', 'chir', 'pizhyan', 'whitefish', 'tugun', 'rudd', 'bleak', 'roach', 'bream'].includes(fish.id)) ? 8 : -8;
-  if (method === 'bottom') return (fish.type === 'peace' || isRiverEntering || ['catfish', 'burbot', 'channel_catfish', 'amur_catfish', 'ruffe', 'flounder', 'starry_flounder', 'turbot', 'plaice', 'goby', 'perch', 'pike', 'zander', 'beluga', 'kaluga'].includes(fish.id)) ? 8 : -5;
-  if (method === 'float') return (fish.type === 'peace' || isRiverEntering || ['perch', 'rotan', 'ruffe', 'chub', 'grayling', 'baikal_grayling', 'trout', 'dolly_varden', 'garfish'].includes(fish.id)) ? 8 : -5;
-  if (method === 'fly') return ['grayling', 'baikal_grayling', 'lenok', 'salmon', 'trout', 'chub', 'ide', 'tugun', 'dace', 'peled', 'chir', 'pizhyan', 'whitefish', 'cisco', 'valek', 'brown_trout', 'sockeye_salmon', 'char', 'dolly_varden', 'bleak', 'rudd', 'chekhon', 'roach', 'taimen', 'nelma'].includes(fish.id) ? 9 : -8;
+  if (method === 'winter_lure') return _WINTER_LURE_SET.has(fid) ? 8 : -10;
+  if (method === 'winter_jig') return _WINTER_JIG_SET.has(fid) ? 8 : -5;
+  if (method === 'winter_stuka') return _WINTER_STUKA_SET.has(fid) ? 10 : -12;
+  if (method === 'winter_cisco') return _WINTER_CISCO_SET.has(fid) ? 10 : -10;
+  if (method === 'spin_micro') return _NANO_MASTERS_SET.has(fid) ? 9 : (fish.type === 'predator' ? 5 : 4);
+  if (method === 'spin_jig') return _SPIN_JIG_SET.has(fid) ? 8 : (fish.type === 'predator' ? 4 : -10);
+  if (method === 'spin_lure') return (fish.type === 'predator' || _SPIN_LURE_SET.has(fid)) ? 8 : -8;
+  if (method === 'bottom') return (fish.type === 'peace' || isRiverEntering || _BOTTOM_EXTRA_SET.has(fid)) ? 8 : -5;
+  if (method === 'float') return (fish.type === 'peace' || isRiverEntering || _FLOAT_EXTRA_SET.has(fid)) ? 8 : -5;
+  if (method === 'fly') return _FLY_SET.has(fid) ? 9 : -8;
   if (method.startsWith('sea_')) return (fish.habitat === 'sea' || isRiverEntering || water === 'sea_gulf' || water === 'open_sea') ? 8 : -12;
   return 0;
 }
 
 export function calcHourly(fish, day, hrObj, method, water, depth, normPress = 752, iceState = 'open_water') {
-  return computeHourFactors(fish, day, hrObj, method, water, depth, normPress, iceState).total;
+  return computeHourFactors(fish, day, hrObj, method, water, depth, normPress, iceState, true).total;
 }
 
-export function calcDayBest(fish, day, method, water, depth, normPress = 752, iceState = 'open_water') {
-  if (!fish || !day?.hours?.length) return 0;
-  const scores = day.hours.map(hr => calcHourly(fish, day, hr, method, water, depth, normPress, iceState)).sort((a, b) => b - a);
-  return Math.round((scores[0] + scores[1] + scores[2] + scores[3]) / 4);
-}
+function _computeDaySummaryFast(fish, day, method, water, depth, normPress = 752, iceState = 'open_water') {
+  const st = store.getState();
+  const sig = _buildStateForecastSignature(st, fish.id, day, method, water, depth, normPress, iceState);
+  const cached = _dayBestMemo.get(sig);
+  if (cached) return cached;
 
-export function getBestBiteWindowText(fish, day, method, water, depth, normPress = 752, iceState = 'open_water') {
-  if (!fish || !day?.hours?.length) return '06:00–09:00';
+  let s0 = -1, s1 = -1, s2 = -1, s3 = -1;
   let bestHr = 7;
   let bestScore = -1;
-  for (const hr of day.hours) {
-    const sc = calcHourly(fish, day, hr, method, water, depth, normPress, iceState);
+  const hrs = day.hours;
+  for (let i = 0; i < hrs.length; i++) {
+    const hr = hrs[i];
+    const sc = computeHourFactors(fish, day, hr, method, water, depth, normPress, iceState, true).total;
     if (sc > bestScore) {
       bestScore = sc;
       bestHr = hr.hour;
     }
+    if (sc > s0) { s3 = s2; s2 = s1; s1 = s0; s0 = sc; }
+    else if (sc > s1) { s3 = s2; s2 = s1; s1 = sc; }
+    else if (sc > s2) { s3 = s2; s2 = sc; }
+    else if (sc > s3) { s3 = sc; }
   }
+  const score = Math.round((s0 + s1 + s2 + s3) / 4);
   const endHr = (bestHr + 2) % 24;
-  return `${String(bestHr).padStart(2, '0')}:00–${String(endHr).padStart(2, '0')}:00 (${bestScore}%)`;
+  const windowText = `${String(bestHr).padStart(2, '0')}:00–${String(endHr).padStart(2, '0')}:00 (${bestScore}%)`;
+  const summary = { score, windowText };
+  _pruneCache(_dayBestMemo, 4000);
+  _dayBestMemo.set(sig, summary);
+  return summary;
+}
+
+export function calcDayBest(fish, day, method, water, depth, normPress = 752, iceState = 'open_water') {
+  if (!fish || !day?.hours?.length) return 0;
+  return _computeDaySummaryFast(fish, day, method, water, depth, normPress, iceState).score;
+}
+
+export function getBestBiteWindowText(fish, day, method, water, depth, normPress = 752, iceState = 'open_water') {
+  if (!fish || !day?.hours?.length) return '06:00–09:00';
+  return _computeDaySummaryFast(fish, day, method, water, depth, normPress, iceState).windowText;
 }
 
 export function getFactorBreakdown(fish, day, method, water, depth, normPress = 752, iceState = 'open_water', hourIdx = null) {
@@ -1643,11 +1727,13 @@ function bindForecastEvents(container) {
 }
 
 let unsub = null;
+let _fcNeedsRender = false;
 
 export function init(container) {
   render(container);
   unsub = store.subscribe(
     s => ({
+      route: s.route,
       fishId: s.fishId,
       dayIdx: s.dayIdx,
       selectedHour: s.selectedHour,
@@ -1666,7 +1752,17 @@ export function init(container) {
       iceState: s.iceState,
       theme: s.theme
     }),
-    () => render(container)
+    (next, prev) => {
+      const isVisible = !next.route || next.route === 'forecast';
+      if (!isVisible) {
+        _fcNeedsRender = true;
+        return;
+      }
+      if (_fcNeedsRender || prev?.route !== 'forecast' || next.route === 'forecast') {
+        _fcNeedsRender = false;
+        render(container);
+      }
+    }
   );
 }
 
