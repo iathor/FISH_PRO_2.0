@@ -1,19 +1,4 @@
-<!DOCTYPE html>
-<html lang="ru" data-theme="dark">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="theme-color" content="#0b1120">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-title" content="Клёв ПРО 2.0">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>Клёв ПРО 2.0 • Прогноз клёва, Круг и Атлас Ихтиофауны РФ</title>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <link rel="manifest" href="manifest.json?v=2.0.165">
-  <link id="dynamicFavicon" rel="icon" type="image/png" sizes="180x180" href="apple-touch-icon.png">
-  <link id="dynamicTouchIcon" rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
-  <script>
+<!DOCTYPE html><html lang="ru" data-theme="dark"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"><meta name="theme-color" content="#0b1120"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Клёв ПРО 2.0"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><title>Клёв ПРО 2.0 • Прогноз клёва, Круг и Атлас Ихтиофауны РФ</title><script src="https://telegram.org/js/telegram-web-app.js" async onload="window.__KLEV_ON_TG_SDK_LOAD__&&window.__KLEV_ON_TG_SDK_LOAD__()"></script><link rel="manifest" href="manifest.json?v=2.0.166"><link id="dynamicFavicon" rel="icon" type="image/png" sizes="180x180" href="apple-touch-icon.png"><link id="dynamicTouchIcon" rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png"><script>
     (function() {
       try {
         var raw = localStorage.getItem('klev_pro_state_v2.0');
@@ -46,7 +31,7 @@
           caches.keys().then(function(keys) {
             return Promise.all(
               keys
-                .filter(function(k) { return k !== 'klev-pro-static-v2.0.165'; })
+                .filter(function(k) { return k !== 'klev-pro-static-v2.0.166'; })
                 .map(function(k) { return caches.delete(k); })
             );
           }).then(function() {
@@ -55,13 +40,7 @@
         }
       } catch (e) {}
     })();
-  </script>
-  <link rel="stylesheet" href="css/tokens.css?v=2.0.165">
-  <link rel="stylesheet" href="css/base.css?v=2.0.165">
-  <link rel="stylesheet" href="css/components.css?v=2.0.165">
-  <link rel="stylesheet" href="css/layout.css?v=2.0.165">
-  <!-- Неблокирующая асинхронная загрузка картографического движка Leaflet -->
-  <script>
+  </script><link rel="stylesheet" href="css/tokens.css?v=2.0.166"><link rel="stylesheet" href="css/base.css?v=2.0.166"><link rel="stylesheet" href="css/components.css?v=2.0.166"><link rel="stylesheet" href="css/layout.css?v=2.0.166"><script>
     (function() {
       var cssUrls = [
         'https://yastatic.net/s3/front-maps-static/leaflet/1.9.4/leaflet.css',
@@ -93,60 +72,7 @@
       }
       loadLeafletScript(0);
     })();
-  </script>
-</head>
-<body>
-  <header class="app-header">
-    <div class="header-bar">
-      <div class="loc-summary" id="headerLocClickArea" title="Нажмите для выбора точки и водоёма на карте" style="cursor:pointer;">
-        <div class="header-top-row">
-          <div class="loc-sub" id="headerLocSub">Волжско-Каспийский бассейн</div>
-          <span class="pill pill-good header-status-pill" id="headerStatusPill" role="status">🟢 Онлайн</span>
-        </div>
-        <div class="loc-main" id="headerLocMain">
-          <span class="loc-main-text" id="headerLocText">📍 Москва</span>
-        </div>
-      </div>
-    </div>
-    <div class="season-strip open-water" id="headerSeasonStrip" role="region" aria-label="Ледовая обстановка">
-      <span>🌊 Расчёт термического и ледового режима...</span>
-    </div>
-  </header>
-
-  <main id="app" class="app-main">
-    <section id="secGeo" data-route-section="geo" aria-label="Геолокация и выбор водоёма"></section>
-    <section id="secWeather" data-route-section="weather" aria-label="Погода и фазы Луны"></section>
-    <section id="secFish" data-route-section="fish" aria-label="Рыбы в месте ловли"></section>
-    <section id="secForecast" data-route-section="forecast" aria-label="Прогноз клёва и архив"></section>
-    <section id="secCircle" data-route-section="circle" aria-label="Круг, Экипаж 72ч и Мастерская снастей"></section>
-    <section id="secLog" data-route-section="log" aria-label="Журнал уловов"></section>
-    <section id="secCalendar" data-route-section="calendar" aria-label="Годовой биоритм и нерест"></section>
-  </main>
-
-  <!-- Логическая цепочка вкладок: 1. Карта -> 2. Погода -> 3. Рыбы -> 4. Прогноз -> 5. Круг + ⋮ Ещё (Журнал, Календарь, Профиль) -->
-  <nav class="bottom-nav" aria-label="Навигация по разделам">
-    <div class="bottom-nav-inner">
-      <button type="button" class="nav-tab" data-nav-tab="geo" aria-label="Карта и водоём"><span>📍</span><span>Карта</span></button>
-      <button type="button" class="nav-tab" data-nav-tab="weather" aria-label="Погода и лёд"><span>🌦️</span><span>Погода</span></button>
-      <button type="button" class="nav-tab" data-nav-tab="fish" aria-label="Рыбы водоёма"><span>🐟</span><span>Рыбы</span></button>
-      <button type="button" class="nav-tab active" data-nav-tab="forecast" aria-label="Прогноз клёва"><span>🎣</span><span>Прогноз</span></button>
-      <button type="button" class="nav-tab" data-nav-tab="circle" aria-label="Круг и Экипаж"><span>👥</span><span>Круг</span></button>
-      <div class="nav-more-wrap">
-        <button type="button" class="nav-tab nav-more-btn" id="navMoreBtn" aria-label="Журнал, Календарь и Профиль" aria-expanded="false" title="Журнал, Календарь и Профиль">
-          <span>⋮</span>
-          <span style="font-size:10px;">Ещё</span>
-        </button>
-        <div class="nav-more-popup" id="navMorePopup" role="menu" aria-label="Дополнительные разделы и настройки">
-          <button type="button" class="nav-popup-item" data-nav-tab="log" role="menuitem"><span>📓</span><span>Журнал уловов</span></button>
-          <button type="button" class="nav-popup-item" data-nav-tab="calendar" role="menuitem"><span>📅</span><span>Календарь биоритмов</span></button>
-          <button type="button" class="nav-popup-item" data-nav-tab="profile" role="menuitem"><span>👤</span><span>Профиль и настройки</span></button>
-        </div>
-      </div>
-    </div>
-  </nav>
-
-  <script type="module" src="js/app.js?v=2.0.165"></script>
-  <script>
+  </script></head><body><header class="app-header"><div class="header-bar"><div class="loc-summary" id="headerLocClickArea" title="Нажмите для выбора точки и водоёма на карте" style="cursor:pointer;"><div class="header-top-row"><div class="loc-sub" id="headerLocSub">Волжско-Каспийский бассейн</div><span class="pill pill-good header-status-pill" id="headerStatusPill" role="status">🟢 Онлайн</span></div><div class="loc-main" id="headerLocMain"><span class="loc-main-text" id="headerLocText">📍 Москва</span></div></div></div><div class="season-strip open-water" id="headerSeasonStrip" role="region" aria-label="Ледовая обстановка"><span>🌊 Расчёт термического и ледового режима...</span></div></header><main id="app" class="app-main"><section id="secGeo" data-route-section="geo" aria-label="Геолокация и выбор водоёма"></section><section id="secWeather" data-route-section="weather" aria-label="Погода и фазы Луны"></section><section id="secFish" data-route-section="fish" aria-label="Рыбы в месте ловли"></section><section id="secForecast" data-route-section="forecast" aria-label="Прогноз клёва и архив"></section><section id="secCircle" data-route-section="circle" aria-label="Круг, Экипаж 72ч и Мастерская снастей"></section><section id="secLog" data-route-section="log" aria-label="Журнал уловов"></section><section id="secCalendar" data-route-section="calendar" aria-label="Годовой биоритм и нерест"></section></main><nav class="bottom-nav" aria-label="Навигация по разделам"><div class="bottom-nav-inner"><button type="button" class="nav-tab" data-nav-tab="geo" aria-label="Карта и водоём"><span>📍</span><span>Карта</span></button><button type="button" class="nav-tab" data-nav-tab="weather" aria-label="Погода и лёд"><span>🌦️</span><span>Погода</span></button><button type="button" class="nav-tab" data-nav-tab="fish" aria-label="Рыбы водоёма"><span>🐟</span><span>Рыбы</span></button><button type="button" class="nav-tab active" data-nav-tab="forecast" aria-label="Прогноз клёва"><span>🎣</span><span>Прогноз</span></button><button type="button" class="nav-tab" data-nav-tab="circle" aria-label="Круг и Экипаж"><span>👥</span><span>Круг</span></button><div class="nav-more-wrap"><button type="button" class="nav-tab nav-more-btn" id="navMoreBtn" aria-label="Журнал, Календарь и Профиль" aria-expanded="false" title="Журнал, Календарь и Профиль"><span>⋮</span><span style="font-size:10px;">Ещё</span></button><div class="nav-more-popup" id="navMorePopup" role="menu" aria-label="Дополнительные разделы и настройки"><button type="button" class="nav-popup-item" data-nav-tab="log" role="menuitem"><span>📓</span><span>Журнал уловов</span></button><button type="button" class="nav-popup-item" data-nav-tab="calendar" role="menuitem"><span>📅</span><span>Календарь биоритмов</span></button><button type="button" class="nav-popup-item" data-nav-tab="profile" role="menuitem"><span>👤</span><span>Профиль и настройки</span></button></div></div></div></nav><script type="module" src="js/app.js?v=2.0.166"></script><script>
     // Защитный сторожевой таймер (только на случай полного обрыва загрузки скрипта в старом Service Worker)
     setTimeout(function() {
       if (!window.__KLEV_BOOTSTRAPPED__) {
@@ -156,7 +82,7 @@
           box.className = 'card';
           box.style.cssText = 'border-color:var(--accent);text-align:center;padding:18px;margin-top:24px;';
           box.innerHTML =
-            '<div style="font-size:17px;font-weight:800;margin-bottom:8px;">🚀 Доступна новая сборка «Клёв ПРО 2.0.165»</div>' +
+            '<div style="font-size:17px;font-weight:800;margin-bottom:8px;">🚀 Доступна новая сборка «Клёв ПРО 2.0.166»</div>' +
             '<p style="font-size:14px;color:var(--muted);margin-bottom:14px;line-height:1.45;">Обнаружены устаревшие файлы в кэше телефона. Нажмите кнопку ниже, чтобы обновить модули приложения (ваши точки и уловы сохранятся).</p>' +
             '<button type="button" class="btn btn-good" id="emergencyResetCacheBtn" style="width:100%;">✅ Обновить кэш и запустить новую версию</button>';
           mainEl.prepend(box);
@@ -180,13 +106,11 @@
                   }
                 })
                 .finally(function() {
-                  window.location.replace(window.location.pathname + '?v=2.0.165&reset=' + Date.now());
+                  window.location.replace(window.location.pathname + '?v=2.0.166&reset=' + Date.now());
                 });
             };
           }
         }
       }
     }, 6500);
-  </script>
-</body>
-</html>
+  </script></body></html>
