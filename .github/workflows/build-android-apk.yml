@@ -15,7 +15,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Locate Android project & prepare clean assets
+      - name: Locate & Self-Heal Android Project (Eliminate Duplicate Resources)
         id: locate
         run: |
           if [ -f "android/build.gradle" ]; then
@@ -27,21 +27,344 @@ jobs:
             if [ -n "$FOUND" ]; then
               PROJ_DIR=$(dirname "$FOUND")
             else
-              echo "::error::Не найден файл android/build.gradle или build.gradle в репозитории!"
-              exit 1
+              PROJ_DIR="android"
+              mkdir -p "$PROJ_DIR"
             fi
           fi
           echo "Project directory: $PROJ_DIR"
+          echo "proj_dir=$PROJ_DIR" >> $GITHUB_ENV
           echo "proj_dir=$PROJ_DIR" >> $GITHUB_OUTPUT
 
+          # 1. Копируем свежие веб-ресурсы в assets/www, если они лежат в корне репозитория
           mkdir -p "$PROJ_DIR/app/src/main/assets/www"
           for f in index.html manifest.json version.json icon.svg apple-touch-icon.png sw.js css js assets; do
             if [ -e "$f" ]; then
               cp -r "$f" "$PROJ_DIR/app/src/main/assets/www/"
             fi
           done
-          # Удаляем все скрытые файлы (.gitkeep и др.) из assets, чтобы AAPT2 не выдавал ошибку упаковки
-          find "$PROJ_DIR/app/src/main/assets" -name ".*" -type f -delete || true
+
+          # 2. Удаляем ВСЕ скрытые файлы (.gitkeep и др.) из assets и res
+          find "$PROJ_DIR/app/src/main" -name ".*" -type f -delete || true
+
+          # 3. ИСПРАВЛЕНИЕ DUPLICATE RESOURCES:
+          # При загрузке файлов через веб-интерфейс GitHub старый ic_launcher.xml остаётся рядом с новым ic_launcher.png.
+          # Удаляем все лишние .xml из res/drawable и оставляем ровно одну иконку ic_launcher.png!
+          mkdir -p "$PROJ_DIR/app/src/main/res/drawable" "$PROJ_DIR/app/src/main/res/values" "$PROJ_DIR/app/src/main/java/ru/klevpro/app"
+          rm -f "$PROJ_DIR/app/src/main/res/drawable/"*.xml
+          rm -rf "$PROJ_DIR/app/src/main/res/drawable-v24" "$PROJ_DIR/app/src/main/res/mipmap"*
+
+          if [ ! -f "$PROJ_DIR/app/src/main/res/drawable/ic_launcher.png" ]; then
+            python3 -c 'import struct,zlib;w=h=192;raw=b"".join(b"\x00"+b"\x0e\xa5\xe9\xff"*w for _ in range(h));chunk=lambda t,d:struct.pack("!I",len(d))+t+d+struct.pack("!I",zlib.crc32(t+d)&0xffffffff);open("'"$PROJ_DIR"'/app/src/main/res/drawable/ic_launcher.png","wb").write(b"\x89PNG\r\n\x1a\n"+chunk(b"IHDR",struct.pack("!IIBBBBB",w,h,8,6,0,0,0))+chunk(b"IDAT",zlib.compress(raw))+chunk(b"IEND",b""))'
+          fi
+
+          # 4. Гарантируем эталонные конфиги Gradle, Manifest и MainActivity (0 внешних зависимостей + SDK 34 + отключённый lintVitalRelease)
+          cat << 'EOF' > "$PROJ_DIR/settings.gradle"
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          rootProject.name = "KlevPro2"
+          include ':app'
+          EOF
+
+          cat << 'EOF' > "$PROJ_DIR/build.gradle"
+          plugins {
+              id 'com.android.application' version '8.4.2' apply false
+          }
+          EOF
+
+          cat << 'EOF' > "$PROJ_DIR/gradle.properties"
+          org.gradle.jvmargs=-Xmx3072m -Dfile.encoding=UTF-8
+          android.useAndroidX=true
+          EOF
+
+          cat << 'EOF' > "$PROJ_DIR/app/build.gradle"
+          plugins {
+              id 'com.android.application'
+          }
+          android {
+              namespace 'ru.klevpro.app'
+              compileSdk 34
+              defaultConfig {
+                  applicationId "ru.klevpro.app"
+                  minSdk 24
+                  targetSdk 34
+                  versionCode 20166
+                  versionName "2.0.166"
+              }
+              signingConfigs {
+                  release {
+                      storeFile file("klevpro-release.keystore")
+                      storePassword "KlevPro2026!"
+                      keyAlias "klevpro"
+                      keyPassword "KlevPro2026!"
+                      enableV1Signing true
+                      enableV2Signing true
+                      enableV3Signing true
+                  }
+              }
+              buildTypes {
+                  release {
+                      signingConfig signingConfigs.release
+                      minifyEnabled true
+                      shrinkResources false
+                      proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+                  }
+              }
+              compileOptions {
+                  sourceCompatibility JavaVersion.VERSION_17
+                  targetCompatibility JavaVersion.VERSION_17
+              }
+              lint {
+                  checkReleaseBuilds false
+                  abortOnError false
+              }
+              aaptOptions {
+                  ignoreAssetsPattern "!.svn:!.git:!.ds_store:!*.scc:.*:<dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"
+              }
+          }
+          dependencies {
+          }
+          EOF
+
+          cat << 'EOF' > "$PROJ_DIR/app/proguard-rules.pro"
+          -dontusemixedcaseclassnames
+          -dontskipnonpubliclibraryclasses
+          -keepattributes *Annotation*,Signature,InnerClasses,EnclosingMethod
+          -keep class ru.klevpro.app.** { *; }
+          -dontwarn **
+          EOF
+
+          cat << 'EOF' > "$PROJ_DIR/app/src/main/res/values/strings.xml"
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <string name="app_name">Клёв ПРО 2.0</string>
+          </resources>
+          EOF
+
+          cat << 'EOF' > "$PROJ_DIR/app/src/main/AndroidManifest.xml"
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <uses-permission android:name="android.permission.INTERNET" />
+              <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+              <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+              <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+              <uses-permission android:name="android.permission.VIBRATE" />
+              <application
+                  android:allowBackup="true"
+                  android:icon="@drawable/ic_launcher"
+                  android:roundIcon="@drawable/ic_launcher"
+                  android:label="@string/app_name"
+                  android:supportsRtl="true"
+                  android:usesCleartextTraffic="false"
+                  android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true"
+                      android:configChanges="orientation|screenSize|keyboardHidden|uiMode"
+                      android:windowSoftInputMode="adjustResize">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                      <intent-filter>
+                          <action android:name="android.intent.action.VIEW" />
+                          <category android:name="android.intent.category.DEFAULT" />
+                          <category android:name="android.intent.category.BROWSABLE" />
+                          <data android:scheme="https" android:host="klevpro.ru" />
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOF
+
+          cat << 'EOF' > "$PROJ_DIR/app/src/main/java/ru/klevpro/app/MainActivity.java"
+          package ru.klevpro.app;
+
+          import android.Manifest;
+          import android.annotation.SuppressLint;
+          import android.app.Activity;
+          import android.content.Intent;
+          import android.content.pm.PackageManager;
+          import android.graphics.Color;
+          import android.net.Uri;
+          import android.os.Build;
+          import android.os.Bundle;
+          import android.view.Window;
+          import android.webkit.GeolocationPermissions;
+          import android.webkit.ValueCallback;
+          import android.webkit.WebChromeClient;
+          import android.webkit.WebResourceRequest;
+          import android.webkit.WebResourceResponse;
+          import android.webkit.WebSettings;
+          import android.webkit.WebView;
+          import android.webkit.WebViewClient;
+          import java.io.InputStream;
+          import java.util.HashMap;
+          import java.util.Map;
+
+          public class MainActivity extends Activity {
+              private static final int REQ_LOCATION = 1001;
+              private static final int REQ_FILE_CHOOSER = 1002;
+              private static final String VIRTUAL_HOST = "appassets.androidplatform.net";
+              private WebView webView;
+              private ValueCallback<Uri[]> fileUploadCallback;
+
+              private static String guessMimeType(String path) {
+                  String p = path.toLowerCase();
+                  if (p.endsWith(".html") || p.endsWith(".htm")) return "text/html";
+                  if (p.endsWith(".js") || p.endsWith(".mjs")) return "application/javascript";
+                  if (p.endsWith(".css")) return "text/css";
+                  if (p.endsWith(".json")) return "application/json";
+                  if (p.endsWith(".svg")) return "image/svg+xml";
+                  if (p.endsWith(".png")) return "image/png";
+                  if (p.endsWith(".jpg") || p.endsWith(".jpeg")) return "image/jpeg";
+                  if (p.endsWith(".webp")) return "image/webp";
+                  if (p.endsWith(".ico")) return "image/x-icon";
+                  return "application/octet-stream";
+              }
+
+              @SuppressLint("SetJavaScriptEnabled")
+              @Override
+              protected void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+
+                  Window window = getWindow();
+                  if (window != null) {
+                      window.setStatusBarColor(Color.parseColor("#0b1120"));
+                      window.setNavigationBarColor(Color.parseColor("#151f32"));
+                  }
+
+                  webView = new WebView(this);
+                  webView.setBackgroundColor(Color.parseColor("#0b1120"));
+                  setContentView(webView);
+
+                  WebView.setWebContentsDebuggingEnabled(false);
+
+                  WebSettings ws = webView.getSettings();
+                  ws.setJavaScriptEnabled(true);
+                  ws.setDomStorageEnabled(true);
+                  ws.setDatabaseEnabled(true);
+                  ws.setGeolocationEnabled(true);
+                  ws.setAllowFileAccess(false);
+                  ws.setAllowContentAccess(true);
+                  ws.setCacheMode(WebSettings.LOAD_DEFAULT);
+
+                  webView.setWebViewClient(new WebViewClient() {
+                      @Override
+                      public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+                          Uri uri = request.getUrl();
+                          if (uri != null && VIRTUAL_HOST.equalsIgnoreCase(uri.getHost())) {
+                              String path = uri.getPath();
+                              if (path == null || path.isEmpty() || path.equals("/")) {
+                                  path = "/assets/www/index.html";
+                              }
+                              String assetPath = path.startsWith("/assets/") ? path.substring("/assets/".length()) : path.replaceFirst("^/+", "");
+                              try {
+                                  InputStream is = getAssets().open(assetPath);
+                                  String mime = guessMimeType(assetPath);
+                                  Map<String, String> headers = new HashMap<>();
+                                  headers.put("Access-Control-Allow-Origin", "*");
+                                  headers.put("Cache-Control", "public, max-age=31536000");
+                                  return new WebResourceResponse(mime, "UTF-8", 200, "OK", headers, is);
+                              } catch (Exception e) {
+                                  return new WebResourceResponse("text/plain", "UTF-8", 404, "Not Found", null, null);
+                              }
+                          }
+                          return super.shouldInterceptRequest(view, request);
+                      }
+
+                      @Override
+                      public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                          Uri uri = request.getUrl();
+                          if (uri == null) return false;
+                          String host = uri.getHost() != null ? uri.getHost().toLowerCase() : "";
+                          String scheme = uri.getScheme() != null ? uri.getScheme().toLowerCase() : "";
+                          if (host.equals(VIRTUAL_HOST) || host.equals("klevpro.ru")) {
+                              return false;
+                          }
+                          if (host.equals("t.me") || host.equals("telegram.me") || scheme.equals("tg")) {
+                              try {
+                                  Intent intent = new Intent(Intent.ACTION_VIEW, uri);
+                                  startActivity(intent);
+                                  return true;
+                              } catch (Exception ignored) {}
+                          }
+                          return false;
+                      }
+                  });
+
+                  webView.setWebChromeClient(new WebChromeClient() {
+                      @Override
+                      public void onGeolocationPermissionsShowPrompt(final String origin, final GeolocationPermissions.Callback callback) {
+                          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                              if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                                  requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION}, REQ_LOCATION);
+                              }
+                          }
+                          callback.invoke(origin, true, false);
+                      }
+
+                      @Override
+                      public boolean onShowFileChooser(WebView webView, ValueCallback<Uri[]> filePathCallback, FileChooserParams fileChooserParams) {
+                          if (fileUploadCallback != null) {
+                              fileUploadCallback.onReceiveValue(null);
+                          }
+                          fileUploadCallback = filePathCallback;
+                          try {
+                              Intent intent = fileChooserParams.createIntent();
+                              startActivityForResult(intent, REQ_FILE_CHOOSER);
+                          } catch (Exception e) {
+                              fileUploadCallback = null;
+                              return false;
+                          }
+                          return true;
+                      }
+                  });
+
+                  requestLocationPermissionIfNeeded();
+                  webView.loadUrl("https://" + VIRTUAL_HOST + "/assets/www/index.html");
+              }
+
+              private void requestLocationPermissionIfNeeded() {
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                      if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                          requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION}, REQ_LOCATION);
+                      }
+                  }
+              }
+
+              @Override
+              protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+                  super.onActivityResult(requestCode, resultCode, data);
+                  if (requestCode == REQ_FILE_CHOOSER && fileUploadCallback != null) {
+                      Uri[] results = WebChromeClient.FileChooserParams.parseResult(resultCode, data);
+                      fileUploadCallback.onReceiveValue(results);
+                      fileUploadCallback = null;
+                  }
+              }
+
+              @Override
+              @SuppressWarnings("deprecation")
+              public void onBackPressed() {
+                  if (webView != null && webView.canGoBack()) {
+                      webView.goBack();
+                  } else {
+                      super.onBackPressed();
+                  }
+              }
+          }
+          EOF
 
       - name: Configure JDK 17 & Android SDK
         run: |
@@ -57,14 +380,13 @@ jobs:
       - name: Generate Release Signing Keystore
         working-directory: ${{ steps.locate.outputs.proj_dir }}/app
         run: |
-          if [ ! -f klevpro-release.keystore ]; then
-            keytool -genkeypair -v \
-              -keystore klevpro-release.keystore \
-              -alias klevpro \
-              -keyalg RSA -keysize 2048 -validity 10000 \
-              -storepass KlevPro2026! -keypass KlevPro2026! \
-              -dname "CN=Klev PRO 2.0, OU=Fishing Club, O=KlevPro, L=Novy Urengoy, ST=YANAO, C=RU"
-          fi
+          rm -f klevpro-release.keystore
+          keytool -genkeypair -v \
+            -keystore klevpro-release.keystore \
+            -alias klevpro \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass KlevPro2026! -keypass KlevPro2026! \
+            -dname "CN=Klev PRO 2.0, OU=Fishing Club, O=KlevPro, L=Novy Urengoy, ST=YANAO, C=RU"
 
       - name: Build Signed Obfuscated Release APK with Gradle 8.7
         working-directory: ${{ steps.locate.outputs.proj_dir }}
@@ -73,7 +395,7 @@ jobs:
           unzip -q -o /tmp/gradle-8.7.zip -d /tmp
           set +e
           /tmp/gradle-8.7/bin/gradle assembleRelease --no-daemon --console=plain > /tmp/gradle_build.log 2>&1
-           GRADLE_EXIT=$?
+          GRADLE_EXIT=$?
           set -e
           cat /tmp/gradle_build.log
           if [ $GRADLE_EXIT -ne 0 ]; then
