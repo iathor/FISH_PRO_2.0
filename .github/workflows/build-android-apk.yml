@@ -1,0 +1,90 @@
+name: Build Signed Android APK (Klev PRO 2.0)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Locate Android project & prepare clean assets
+        id: locate
+        run: |
+          if [ -f "android/build.gradle" ]; then
+            PROJ_DIR="android"
+          elif [ -f "build.gradle" ]; then
+            PROJ_DIR="."
+          else
+            FOUND=$(find . -maxdepth 3 -name "settings.gradle" | head -n 1)
+            if [ -n "$FOUND" ]; then
+              PROJ_DIR=$(dirname "$FOUND")
+            else
+              echo "::error::Не найден файл android/build.gradle или build.gradle в репозитории!"
+              exit 1
+            fi
+          fi
+          echo "Project directory: $PROJ_DIR"
+          echo "proj_dir=$PROJ_DIR" >> $GITHUB_OUTPUT
+
+          mkdir -p "$PROJ_DIR/app/src/main/assets/www"
+          for f in index.html manifest.json version.json icon.svg apple-touch-icon.png sw.js css js assets; do
+            if [ -e "$f" ]; then
+              cp -r "$f" "$PROJ_DIR/app/src/main/assets/www/"
+            fi
+          done
+          # Удаляем все скрытые файлы (.gitkeep и др.) из assets, чтобы AAPT2 не выдавал ошибку упаковки
+          find "$PROJ_DIR/app/src/main/assets" -name ".*" -type f -delete || true
+
+      - name: Configure JDK 17 & Android SDK
+        run: |
+          if [ -n "$JAVA_HOME_17_X64" ]; then
+            echo "JAVA_HOME=$JAVA_HOME_17_X64" >> $GITHUB_ENV
+            echo "$JAVA_HOME_17_X64/bin" >> $GITHUB_PATH
+          fi
+          java -version
+          if [ -n "$ANDROID_HOME" ] && [ -x "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]; then
+            yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null 2>&1 || true
+          fi
+
+      - name: Generate Release Signing Keystore
+        working-directory: ${{ steps.locate.outputs.proj_dir }}/app
+        run: |
+          if [ ! -f klevpro-release.keystore ]; then
+            keytool -genkeypair -v \
+              -keystore klevpro-release.keystore \
+              -alias klevpro \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -storepass KlevPro2026! -keypass KlevPro2026! \
+              -dname "CN=Klev PRO 2.0, OU=Fishing Club, O=KlevPro, L=Novy Urengoy, ST=YANAO, C=RU"
+          fi
+
+      - name: Build Signed Obfuscated Release APK with Gradle 8.7
+        working-directory: ${{ steps.locate.outputs.proj_dir }}
+        run: |
+          curl -fsSL https://services.gradle.org/distributions/gradle-8.7-bin.zip -o /tmp/gradle-8.7.zip
+          unzip -q -o /tmp/gradle-8.7.zip -d /tmp
+          set +e
+          /tmp/gradle-8.7/bin/gradle assembleRelease --no-daemon --console=plain > /tmp/gradle_build.log 2>&1
+           GRADLE_EXIT=$?
+          set -e
+          cat /tmp/gradle_build.log
+          if [ $GRADLE_EXIT -ne 0 ]; then
+            echo "=========================================="
+            echo "❌ ТОЧНАЯ ПРИЧИНА ОШИБКИ GRADLE:"
+            grep -E "(FAILURE:|What went wrong|^\* |Exception|Error:|error:)" -A 6 /tmp/gradle_build.log || tail -n 50 /tmp/gradle_build.log
+            exit $GRADLE_EXIT
+          fi
+
+      - name: Upload Signed APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: KlevPro-v2.0.166-Android-APK
+          path: ${{ steps.locate.outputs.proj_dir }}/app/build/outputs/apk/release/*.apk
