@@ -10,9 +10,9 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Клёв ПРО 2.0 • Прогноз клёва, Круг и Атлас Ихтиофауны РФ</title>
     <script src="https://telegram.org/js/telegram-web-app.js" async onload="window.__KLEV_ON_TG_SDK_LOAD__&&window.__KLEV_ON_TG_SDK_LOAD__()"></script>
-  <link rel="manifest" href="manifest.json?v=2.0.167">
-  <link id="dynamicFavicon" rel="icon" type="image/png" sizes="180x180" href="apple-touch-icon.png">
-  <link id="dynamicTouchIcon" rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+  <link rel="manifest" href="manifest.json?v=2.0.169">
+  <link id="dynamicFavicon" rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=2.0.169">
+  <link id="dynamicTouchIcon" rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=2.0.169">
   <script>
     (function() {
       try {
@@ -46,7 +46,7 @@
           caches.keys().then(function(keys) {
             return Promise.all(
               keys
-                .filter(function(k) { return k !== 'klev-pro-static-v2.0.167'; })
+                .filter(function(k) { return k !== 'klev-pro-static-v2.0.169'; })
                 .map(function(k) { return caches.delete(k); })
             );
           }).then(function() {
@@ -56,10 +56,10 @@
       } catch (e) {}
     })();
   </script>
-  <link rel="stylesheet" href="css/tokens.css?v=2.0.167">
-  <link rel="stylesheet" href="css/base.css?v=2.0.167">
-  <link rel="stylesheet" href="css/components.css?v=2.0.167">
-  <link rel="stylesheet" href="css/layout.css?v=2.0.167">
+  <link rel="stylesheet" href="css/tokens.css?v=2.0.169">
+  <link rel="stylesheet" href="css/base.css?v=2.0.169">
+  <link rel="stylesheet" href="css/components.css?v=2.0.169">
+  <link rel="stylesheet" href="css/layout.css?v=2.0.169">
   <!-- Неблокирующая асинхронная загрузка картографического движка Leaflet -->
   <script>
     (function() {
@@ -96,6 +96,23 @@
   </script>
 </head>
 <body>
+  <div id="appSplashScreen" class="app-splash-screen" role="status" aria-label="Загрузка Клёв ПРО 2.0" onclick="this.classList.add('splash-hide')">
+    <div class="app-splash-inner">
+      <div class="app-splash-art-wrap">
+        <img src="assets/splash.jpg" alt="Клёв ПРО 2.0 • FISH PRO 2.0" class="app-splash-img">
+      </div>
+      <div class="app-splash-loader">
+        <div class="app-splash-bar"><div class="app-splash-bar-fill"></div></div>
+        <div class="app-splash-sub">Клёв ПРО 2.0 • Радар клёва и Атлас ихтиофауны РФ</div>
+      </div>
+    </div>
+  </div>
+  <script>
+    setTimeout(function() {
+      var sp = document.getElementById('appSplashScreen');
+      if (sp) sp.classList.add('splash-hide');
+    }, 1350);
+  </script>
   <header class="app-header">
     <div class="header-bar">
       <div class="loc-summary" id="headerLocClickArea" title="Нажмите для выбора точки и водоёма на карте" style="cursor:pointer;">
@@ -145,7 +162,7 @@
     </div>
   </nav>
 
-  <script type="module" src="js/app.js?v=2.0.167"></script>
+  <script type="module" src="js/app.js?v=2.0.169"></script>
   <script>
     // Защитный сторожевой таймер (только на случай полного обрыва загрузки скрипта в старом Service Worker)
     setTimeout(function() {
@@ -156,7 +173,7 @@
           box.className = 'card';
           box.style.cssText = 'border-color:var(--accent);text-align:center;padding:18px;margin-top:24px;';
           box.innerHTML =
-            '<div style="font-size:17px;font-weight:800;margin-bottom:8px;">🚀 Доступна новая сборка «Клёв ПРО 2.0.167»</div>' +
+            '<div style="font-size:17px;font-weight:800;margin-bottom:8px;">🚀 Доступна новая сборка «Клёв ПРО 2.0.169»</div>' +
             '<p style="font-size:14px;color:var(--muted);margin-bottom:14px;line-height:1.45;">Обнаружены устаревшие файлы в кэше телефона. Нажмите кнопку ниже, чтобы обновить модули приложения (ваши точки и уловы сохранятся).</p>' +
             '<button type="button" class="btn btn-good" id="emergencyResetCacheBtn" style="width:100%;">✅ Обновить кэш и запустить новую версию</button>';
           mainEl.prepend(box);
@@ -180,7 +197,7 @@
                   }
                 })
                 .finally(function() {
-                  window.location.replace(window.location.pathname + '?v=2.0.167&reset=' + Date.now());
+                  window.location.replace(window.location.pathname + '?v=2.0.169&reset=' + Date.now());
                 });
             };
           }

@@ -1,11 +1,11 @@
 /**
  * Service Worker для PWA «Клёв ПРО 2.0» (многомодульная архитектура)
- * Ревизия v2.0.1671:
+ * Ревизия v2.0.1691:
  * - Немедленная активация новой версии (skipWaiting + clients.claim) без зависания старого кэша
  * - Поддержка новых модулей «Клёв ПРО: Круг» (circle.module.js) и Telegram Mini App SDK (telegram.js)
- * - Поддержка версионных query-параметров (?v=2.0.167) при офлайн-чтении из кэша (ignoreSearch: true)
+ * - Поддержка версионных query-параметров (?v=2.0.169) при офлайн-чтении из кэша (ignoreSearch: true)
  */
-const CACHE_VERSION = 'v2.0.167-r2';
+const CACHE_VERSION = 'v2.0.169-r2';
 const STATIC_CACHE = `klev-pro-static-${CACHE_VERSION}`;
 
 const APP_SHELL_FILES = [
@@ -14,35 +14,35 @@ const APP_SHELL_FILES = [
   './version.json',
   './manifest.json',
   './icon.svg',
-  './css/tokens.css?v=2.0.167',
-  './css/base.css?v=2.0.167',
-  './css/components.css?v=2.0.167',
-  './css/layout.css?v=2.0.167',
-  './js/app.js?v=2.0.167',
-  './js/i18n/ru.js?v=2.0.167',
-  './js/core/config.js?v=2.0.167',
-  './js/core/updater.js?v=2.0.167',
-  './js/core/events.js?v=2.0.167',
-  './js/core/format.js?v=2.0.167',
-  './js/core/http.js?v=2.0.167',
-  './js/core/pwa.js?v=2.0.167',
-  './js/core/telegram.js?v=2.0.167',
-  './js/core/router.js?v=2.0.167',
-  './js/core/storage.js?v=2.0.167',
-  './js/core/store.js?v=2.0.167',
-  './js/data/basins.js?v=2.0.167',
-  './js/data/waters.js?v=2.0.167',
-  './js/data/russia-waters.js?v=2.0.167',
-  './js/data/species.js?v=2.0.167',
-  './js/ui/components.js?v=2.0.167',
-  './js/ui/svg.js?v=2.0.167',
-  './js/modules/weather/weather.module.js?v=2.0.167',
-  './js/modules/geo/geo.module.js?v=2.0.167',
-  './js/modules/forecast/forecast.module.js?v=2.0.167',
-  './js/modules/fish/fish.module.js?v=2.0.167',
-  './js/modules/calendar/calendar.module.js?v=2.0.167',
-  './js/modules/log/log.module.js?v=2.0.167',
-  './js/modules/circle/circle.module.js?v=2.0.167'
+  './css/tokens.css?v=2.0.169',
+  './css/base.css?v=2.0.169',
+  './css/components.css?v=2.0.169',
+  './css/layout.css?v=2.0.169',
+  './js/app.js?v=2.0.169',
+  './js/i18n/ru.js?v=2.0.169',
+  './js/core/config.js?v=2.0.169',
+  './js/core/updater.js?v=2.0.169',
+  './js/core/events.js?v=2.0.169',
+  './js/core/format.js?v=2.0.169',
+  './js/core/http.js?v=2.0.169',
+  './js/core/pwa.js?v=2.0.169',
+  './js/core/telegram.js?v=2.0.169',
+  './js/core/router.js?v=2.0.169',
+  './js/core/storage.js?v=2.0.169',
+  './js/core/store.js?v=2.0.169',
+  './js/data/basins.js?v=2.0.169',
+  './js/data/waters.js?v=2.0.169',
+  './js/data/russia-waters.js?v=2.0.169',
+  './js/data/species.js?v=2.0.169',
+  './js/ui/components.js?v=2.0.169',
+  './js/ui/svg.js?v=2.0.169',
+  './js/modules/weather/weather.module.js?v=2.0.169',
+  './js/modules/geo/geo.module.js?v=2.0.169',
+  './js/modules/forecast/forecast.module.js?v=2.0.169',
+  './js/modules/fish/fish.module.js?v=2.0.169',
+  './js/modules/calendar/calendar.module.js?v=2.0.169',
+  './js/modules/log/log.module.js?v=2.0.169',
+  './js/modules/circle/circle.module.js?v=2.0.169'
 ];
 
 self.addEventListener('install', (event) => {
