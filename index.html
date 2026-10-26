@@ -10,9 +10,9 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Клёв ПРО 2.0 • Прогноз клёва, Круг и Атлас Ихтиофауны РФ</title>
     <script src="https://telegram.org/js/telegram-web-app.js" async onload="window.__KLEV_ON_TG_SDK_LOAD__&&window.__KLEV_ON_TG_SDK_LOAD__()"></script>
-  <link rel="manifest" href="manifest.json?v=2.0.169">
-  <link id="dynamicFavicon" rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=2.0.169">
-  <link id="dynamicTouchIcon" rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=2.0.169">
+  <link rel="manifest" href="manifest.json?v=2.0.170">
+  <link id="dynamicFavicon" rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=2.0.170">
+  <link id="dynamicTouchIcon" rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=2.0.170">
   <script>
     (function() {
       try {
@@ -26,7 +26,20 @@
 
       // Мгновенная синхронная проверка установленного ярлыка/PWA до отрисовки body (исключает секундное моргание кнопки установки)
       try {
-        var isStandalone = (window.matchMedia && (
+        var host = (window.location && window.location.hostname ? window.location.hostname : '').toLowerCase();
+        var ua = navigator.userAgent || '';
+        var isApkWebView = host.indexOf('androidplatform.net') !== -1 || /;\s*wv\)|KlevProAPK/i.test(ua);
+        var isTma = Boolean(
+          (window.Telegram && window.Telegram.WebApp && (window.Telegram.WebApp.initData || (window.Telegram.WebApp.platform && window.Telegram.WebApp.platform !== 'unknown'))) ||
+          window.location.hash.indexOf('tgWebAppData') !== -1 ||
+          window.location.search.indexOf('tgWebAppStartParam') !== -1 ||
+          window.location.search.indexOf('tg_city=') !== -1 ||
+          window.location.search.indexOf('tg_fish=') !== -1
+        );
+        if (isApkWebView) document.documentElement.setAttribute('data-apk-webview', '1');
+        if (isTma) document.documentElement.setAttribute('data-tg-webapp', '1');
+
+        var isStandalone = isApkWebView || isTma || (window.matchMedia && (
           window.matchMedia('(display-mode: standalone)').matches ||
           window.matchMedia('(display-mode: fullscreen)').matches ||
           window.matchMedia('(display-mode: minimal-ui)').matches
@@ -46,7 +59,7 @@
           caches.keys().then(function(keys) {
             return Promise.all(
               keys
-                .filter(function(k) { return k !== 'klev-pro-static-v2.0.169'; })
+                .filter(function(k) { return k !== 'klev-pro-static-v2.0.170'; })
                 .map(function(k) { return caches.delete(k); })
             );
           }).then(function() {
@@ -56,10 +69,10 @@
       } catch (e) {}
     })();
   </script>
-  <link rel="stylesheet" href="css/tokens.css?v=2.0.169">
-  <link rel="stylesheet" href="css/base.css?v=2.0.169">
-  <link rel="stylesheet" href="css/components.css?v=2.0.169">
-  <link rel="stylesheet" href="css/layout.css?v=2.0.169">
+  <link rel="stylesheet" href="css/tokens.css?v=2.0.170">
+  <link rel="stylesheet" href="css/base.css?v=2.0.170">
+  <link rel="stylesheet" href="css/components.css?v=2.0.170">
+  <link rel="stylesheet" href="css/layout.css?v=2.0.170">
   <!-- Неблокирующая асинхронная загрузка картографического движка Leaflet -->
   <script>
     (function() {
@@ -162,7 +175,7 @@
     </div>
   </nav>
 
-  <script type="module" src="js/app.js?v=2.0.169"></script>
+  <script type="module" src="js/app.js?v=2.0.170"></script>
   <script>
     // Защитный сторожевой таймер (только на случай полного обрыва загрузки скрипта в старом Service Worker)
     setTimeout(function() {
@@ -173,7 +186,7 @@
           box.className = 'card';
           box.style.cssText = 'border-color:var(--accent);text-align:center;padding:18px;margin-top:24px;';
           box.innerHTML =
-            '<div style="font-size:17px;font-weight:800;margin-bottom:8px;">🚀 Доступна новая сборка «Клёв ПРО 2.0.169»</div>' +
+            '<div style="font-size:17px;font-weight:800;margin-bottom:8px;">🚀 Доступна новая сборка «Клёв ПРО 2.0.170»</div>' +
             '<p style="font-size:14px;color:var(--muted);margin-bottom:14px;line-height:1.45;">Обнаружены устаревшие файлы в кэше телефона. Нажмите кнопку ниже, чтобы обновить модули приложения (ваши точки и уловы сохранятся).</p>' +
             '<button type="button" class="btn btn-good" id="emergencyResetCacheBtn" style="width:100%;">✅ Обновить кэш и запустить новую версию</button>';
           mainEl.prepend(box);
@@ -197,7 +210,7 @@
                   }
                 })
                 .finally(function() {
-                  window.location.replace(window.location.pathname + '?v=2.0.169&reset=' + Date.now());
+                  window.location.replace(window.location.pathname + '?v=2.0.170&reset=' + Date.now());
                 });
             };
           }

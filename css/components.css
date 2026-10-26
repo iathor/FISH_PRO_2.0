@@ -532,3 +532,16 @@ html[data-pwa-installed="1"] .btn-install-header {
 .fish-visual-svg-layer[data-hidden="1"] {
   display: none !important;
 }
+
+/* Ревизия 2.0.170: Полное скрытие кнопок установки в APK, Telegram Mini App и установленном PWA */
+[data-pwa-installed="1"] [data-install-app],
+[data-pwa-installed="1"] #installAppBtn,
+[data-pwa-installed="1"] #onbInstallAppBtn,
+[data-tg-webapp="1"] [data-install-app],
+[data-tg-webapp="1"] #installAppBtn,
+[data-tg-webapp="1"] #onbInstallAppBtn,
+[data-apk-webview="1"] [data-install-app],
+[data-apk-webview="1"] #installAppBtn,
+[data-apk-webview="1"] #onbInstallAppBtn {
+  display: none !important;
+}
