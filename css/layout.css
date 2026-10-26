@@ -490,3 +490,80 @@ body {
   .bottom-nav-inner { grid-template-columns: repeat(5, 1fr) 44px; padding: 4px; }
   .nav-tab { font-size: 11.5px; padding: 3px 1px; }
 }
+
+
+/* Startup Radar Splash Screen (v2.0.169) */
+.app-splash-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 12000;
+  background: radial-gradient(circle at 50% 42%, #0d2137 0%, #07101e 75%, #040914 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  opacity: 1;
+  transition: opacity 0.38s ease, visibility 0.38s ease;
+}
+.app-splash-screen.splash-hide {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+.app-splash-inner {
+  width: 100%;
+  max-width: 680px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  text-align: center;
+}
+.app-splash-art-wrap {
+  width: 100%;
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1.5px solid rgba(56, 189, 248, 0.45);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.75), 0 0 28px rgba(16, 185, 129, 0.22);
+  background: #071324;
+}
+.app-splash-img {
+  width: 100%;
+  height: auto;
+  max-height: 68vh;
+  object-fit: contain;
+  display: block;
+}
+.app-splash-loader {
+  width: 100%;
+  max-width: 340px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.app-splash-bar {
+  width: 100%;
+  height: 6px;
+  background: rgba(30, 41, 59, 0.85);
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+}
+.app-splash-bar-fill {
+  height: 100%;
+  width: 35%;
+  background: linear-gradient(90deg, #10b981, #38bdf8);
+  border-radius: 999px;
+  animation: klevSplashProgress 1.1s ease-out forwards;
+}
+@keyframes klevSplashProgress {
+  0% { width: 15%; }
+  60% { width: 82%; }
+  100% { width: 100%; }
+}
+.app-splash-sub {
+  font-size: 12px;
+  font-weight: 700;
+  color: #94a3b8;
+  letter-spacing: 0.2px;
+}

@@ -276,7 +276,6 @@ html[data-pwa-installed="1"] .btn-install-header {
   border-color: var(--accent);
 }
 .fish-detail-img-banner .fish-visual-hybrid,
-.fish-detail-img-banner .fish-visual-svg-layer,
 .fish-detail-img-banner img,
 .fish-detail-img-banner svg {
   width: 100% !important;
@@ -375,7 +374,6 @@ html[data-pwa-installed="1"] .btn-install-header {
   overflow: hidden;
 }
 .fish-lightbox-stage .fish-visual-hybrid,
-.fish-lightbox-stage .fish-visual-svg-layer,
 .fish-lightbox-stage img,
 .fish-lightbox-stage svg {
   width: 100% !important;
@@ -527,4 +525,10 @@ html[data-pwa-installed="1"] .btn-install-header {
   gap: 8px;
   z-index: 20;
   box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.28);
+}
+
+
+.fish-visual-hybrid.has-png .fish-visual-svg-layer,
+.fish-visual-svg-layer[data-hidden="1"] {
+  display: none !important;
 }
