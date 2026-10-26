@@ -1,1 +1,1 @@
-export const _0x2f746d702f6b=0x0;
+const e=new Map;export const events={on(t,o){return e.has(t)||e.set(t,new Set),e.get(t).add(o),()=>this.off(t,o)},off(t,o){e.has(t)&&e.get(t).delete(o)},emit(t,o){if(e.has(t))for(const n of e.get(t))try{n(o)}catch(e){console.error(`[events] Error in ${t}:`,e)}}};
