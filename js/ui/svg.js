@@ -1,7 +1,9 @@
-import { APP_VERSION, IMG_SEARCH_DIRS } from '../core/config.js?v=2.0.172';
-import { getRatingWord } from '../core/format.js?v=2.0.172';
-import { FISH_DB } from '../data/species.js?v=2.0.172';
+import { APP_VERSION, IMG_SEARCH_DIRS } from '../core/config.js?v=2.1.00';
+import { getRatingWord } from '../core/format.js?v=2.1.00';
+import { FISH_DB } from '../data/species.js?v=2.1.00';
+
 let clipSeq = 0;
+
 /**
  * Кеш статуса внешних PNG-изображений рыб:
  * - 'ok': PNG найден и успешно загружен
@@ -9,6 +11,7 @@ let clipSeq = 0;
  */
 const pngStatusCache = new Map();
 const PNG_CACHE_STORAGE_KEY = 'klev_pro_png_status_v2_166';
+
 try {
   if (typeof sessionStorage !== 'undefined') {
     const raw = sessionStorage.getItem(PNG_CACHE_STORAGE_KEY);
@@ -20,6 +23,7 @@ try {
     }
   }
 } catch (_) {}
+
 function savePngStatus(fid, status) {
   if (!fid) return;
   pngStatusCache.set(fid, status);
@@ -31,8 +35,9 @@ function savePngStatus(fid, status) {
     }
   } catch (_) {}
 }
+
 /**
- * Гибридная отрисовка рыбы (Ревизия 2.0.172):
+ * Гибридная отрисовка рыбы (Ревизия 2.1.00):
  * 1. Мгновенно рендерит детализированную анатомическую векторную иллюстрацию вида (0 мс, работает 100% офлайн на сайте, в TMA и в APK).
  * 2. Если для вида на сервере или в папке assets/fish/ есть кастомный PNG, плавно подгружает его поверх SVG;
  *    если PNG ещё нет — оставляет векторную иллюстрацию из встроенного Ихтиологического атласа без пустых рамок и повторных 404.
@@ -42,11 +47,14 @@ export function renderFishVisual(f) {
   const fid = fish.id || 'pike';
   const svgMarkup = getFishCustomSVG(fish);
   const status = pngStatusCache.get(fid);
+
   if (status === 'missing' || !IMG_SEARCH_DIRS || IMG_SEARCH_DIRS.length === 0) {
     return svgMarkup;
   }
+
   const firstSrc = `${IMG_SEARCH_DIRS[0]}${fid}.png?v=${APP_VERSION}`;
   const isKnownOk = status === 'ok';
+
   if (isKnownOk) {
     return `<div class="fish-visual-hybrid has-png" data-fid="${fid}" style="position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;">` +
       `<img class="fish-visual-img" src="${firstSrc}" alt="${fish.name || fid}" loading="lazy" data-fid="${fid}" data-try="0" ` +
@@ -54,6 +62,7 @@ export function renderFishVisual(f) {
       `onerror="window.handleFishImgError && window.handleFishImgError(this)">` +
       `</div>`;
   }
+
   return `<div class="fish-visual-hybrid" data-fid="${fid}" style="position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;">` +
     `<div class="fish-visual-svg-layer" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;">${svgMarkup}</div>` +
     `<img class="fish-visual-img" src="${firstSrc}" alt="${fish.name || fid}" loading="lazy" data-fid="${fid}" data-try="0" ` +
@@ -62,6 +71,7 @@ export function renderFishVisual(f) {
     `onerror="window.handleFishImgError && window.handleFishImgError(this)">` +
     `</div>`;
 }
+
 export function handleFishImgLoad(imgEl) {
   if (!imgEl) return;
   const fid = imgEl.getAttribute('data-fid');
@@ -79,6 +89,7 @@ export function handleFishImgLoad(imgEl) {
     }
   }
 }
+
 export function handleFishImgError(imgEl, fishObj) {
   if (!imgEl) return;
   const fid = imgEl.getAttribute('data-fid');
@@ -99,10 +110,12 @@ export function handleFishImgError(imgEl, fishObj) {
     }
   }
 }
+
 if (typeof window !== 'undefined') {
   window.handleFishImgError = handleFishImgError;
   window.handleFishImgLoad = handleFishImgLoad;
 }
+
 export function renderFiveFish(score0to100, size = 18, theme = 'dark', showWord = false, customWord = null) {
   const rating = Math.max(0, Math.min(5, (score0to100 / 100) * 5));
   const word = customWord || getRatingWord(score0to100);
@@ -112,6 +125,7 @@ export function renderFiveFish(score0to100, size = 18, theme = 'dark', showWord 
   else col = '#10b981';
   const bgCol = theme === 'light' ? '#cbd5e1' : '#334155';
   const dPath = 'M2,8 Q8,2 15,5 L21,2 L19,8 L21,14 L15,11 Q8,14 2,8 Z';
+
   let iconsHtml = `<div class="fish-scale" role="img" aria-label="Рейтинг клёва ${rating.toFixed(1)} из 5: ${word}" title="${rating.toFixed(1)} / 5 • ${word}" style="display:inline-flex;gap:2px;align-items:center;">`;
   for (let i = 1; i <= 5; i++) {
     const frac = Math.max(0, Math.min(1, rating - (i - 1)));
@@ -123,36 +137,49 @@ export function renderFiveFish(score0to100, size = 18, theme = 'dark', showWord 
     </svg>`;
   }
   iconsHtml += `</div>`;
+
   if (!showWord) return iconsHtml;
   return `<div class="fish-rating-box">${iconsHtml}<span class="fish-rating-label">${rating.toFixed(1)}/5 • ${word}</span></div>`;
 }
+
 /**
- * Индивидуальные анатомические и цветовые профили всех 115 видов рыб РФ (Ревизия 2.0.172)
+ * Индивидуальные анатомические и цветовые профили всех 115 видов рыб РФ (Ревизия 2.1.00)
  * m: морфотип корпуса и плавников
  * c: [спина, середина бока, брюшко, плавники, хвостовой/спинной, радужка глаза]
  * p: паттерн окраски (spots_gold, bars_perch, bars_zander, mesh_gold, mesh_silver, spots_trout, spots_char, spots_pike_black, marbled, scutes, stripes_mackerel, lateral_pink, spot_haddock, spots_plaice)
  */
 const SPECIES_VISUAL_PROFILES = {
+  // 1. Щучьи (удлинённая торпеда, утиный нос, спинной плавник у хвоста)
   pike:              { m: 'pike', c: ['#1e3a1e', '#4d7c2b', '#fef9c3', '#c2410c', '#365314', '#facc15'], p: 'spots_gold' },
   amur_pike:         { m: 'pike', c: ['#3f6212', '#a3b18a', '#f8fafc', '#b45309', '#4d7c0f', '#fde047'], p: 'spots_pike_black' },
+
+  // 2. Окунёвые (горбатый профиль, колючий первый спинной с чёрным пятном, тигровые полосы, алые плавники)
   perch:             { m: 'perch', c: ['#14532d', '#65a30d', '#fef08a', '#dc2626', '#365314', '#f59e0b'], p: 'bars_perch' },
   ruffe:             { m: 'ruffe', c: ['#3f3f2c', '#a8a26e', '#fde68a', '#78716c', '#57534e', '#c084fc'], p: 'spots_dark' },
   chinese_perch:     { m: 'perch', c: ['#422006', '#ca8a04', '#fef08a', '#9a3412', '#713f12', '#ef4444'], p: 'marbled' },
   rotan:             { m: 'goby',  c: ['#1c1917', '#57534e', '#a8a29e', '#44403c', '#292524', '#f59e0b'], p: 'marbled' },
   goby:              { m: 'goby',  c: ['#451a03', '#78350f', '#d6d3d1', '#57534e', '#44403c', '#fbbf24'], p: 'spots_dark' },
+
+  // 3. Судак и Берш (прогонистый корпус, два раздельных спинных плавника, клыкастая пасть, поперечные полосы)
   zander:            { m: 'zander', c: ['#1e293b', '#64748b', '#f8fafc', '#475569', '#334155', '#e2e8f0'], p: 'bars_zander' },
   volga_zander:      { m: 'zander', c: ['#27374d', '#7c8da5', '#f1f5f9', '#64748b', '#334155', '#fbbf24'], p: 'bars_zander_bold' },
+
+  // 4. Высокотелые лещовые (ромбовидный высокий корпус, длинный анальный киль, глубокий вырез хвоста)
   bream:             { m: 'bream', c: ['#292524', '#b45309', '#fef3c7', '#44403c', '#292524', '#facc15'], p: 'mesh_gold' },
   white_bream:       { m: 'bream', c: ['#334155', '#94a3b8', '#f8fafc', '#ea580c', '#475569', '#fde047'], p: 'mesh_silver' },
   blue_bream:        { m: 'bream', c: ['#1e3a8a', '#64748b', '#f8fafc', '#475569', '#334155', '#e2e8f0'], p: 'mesh_silver' },
   sopa:              { m: 'bream', c: ['#334155', '#94a3b8', '#ffffff', '#64748b', '#334155', '#f8fafc'], p: 'mesh_silver' },
   parabramis:        { m: 'bream', c: ['#1e293b', '#64748b', '#f8fafc', '#475569', '#334155', '#fde047'], p: 'mesh_silver' },
+
+  // 5. Карась, Сазан, Карп, Линь, Буффало (округлый мощный корпус, длинный спинной плавник, крупная чешуя)
   crucian:           { m: 'carp', c: ['#3f2e18', '#ca8a04', '#fef9c3', '#92400e', '#78350f', '#facc15'], p: 'mesh_gold' },
   carp:              { m: 'carp_barbel', c: ['#291d0e', '#b45309', '#fde68a', '#b91c1c', '#78350f', '#f59e0b'], p: 'mesh_gold' },
   buffalo:           { m: 'carp', c: ['#27272a', '#71717a', '#e4e4e7', '#52525b', '#3f3f46', '#fbbf24'], p: 'mesh_silver' },
   black_carp:        { m: 'cyprinid_power', c: ['#090d16', '#334155', '#94a3b8', '#1e293b', '#0f172a', '#94a3b8'], p: 'mesh_silver' },
   tench:             { m: 'tench', c: ['#14532d', '#4d7c0f', '#fde047', '#3f6212', '#1a2e05', '#dc2626'], p: 'fine_gold' },
   tilapia:           { m: 'carp', c: ['#334155', '#94a3b8', '#fce7f3', '#be123c', '#475569', '#fbbf24'], p: 'bars_zander' },
+
+  // 6. Плотва, Краснопёрка, Елец, Язь, Голавль, Жерех, Белый амур, Подуст, Рыбец, Усач
   roach:             { m: 'roach', c: ['#1e293b', '#94a3b8', '#ffffff', '#dc2626', '#475569', '#ef4444'], p: 'mesh_silver' },
   vobla:             { m: 'roach', c: ['#1e3a5f', '#94a3b8', '#ffffff', '#b91c1c', '#334155', '#f97316'], p: 'mesh_silver' },
   taran:             { m: 'roach', c: ['#0f172a', '#94a3b8', '#ffffff', '#dc2626', '#334155', '#ef4444'], p: 'mesh_silver' },
@@ -174,6 +201,8 @@ const SPECIES_VISUAL_PROFILES = {
   chekhon:           { m: 'chekhon', c: ['#1e3a5f', '#cbd5e1', '#ffffff', '#94a3b8', '#475569', '#e2e8f0'], p: 'sabre_line' },
   bleak:             { m: 'smelt', c: ['#1e3a8a', '#cbd5e1', '#ffffff', '#94a3b8', '#64748b', '#e2e8f0'], p: 'fine_silver' },
   shemaya:           { m: 'smelt', c: ['#0f766e', '#94a3b8', '#ffffff', '#64748b', '#334155', '#fde047'], p: 'fine_silver' },
+
+  // 7. Сиговые (серебристый корпус + характерный жировой плавник у хвоста!)
   peled:             { m: 'whitefish_high', c: ['#1e3a5f', '#cbd5e1', '#ffffff', '#64748b', '#334155', '#e2e8f0'], p: 'spots_head' },
   chir:              { m: 'whitefish_hump', c: ['#1e293b', '#94a3b8', '#fef9c3', '#475569', '#334155', '#fde047'], p: 'mesh_silver' },
   pizhyan:           { m: 'whitefish_hump', c: ['#1e3a5f', '#cbd5e1', '#ffffff', '#64748b', '#334155', '#e2e8f0'], p: 'mesh_silver' },
@@ -188,8 +217,12 @@ const SPECIES_VISUAL_PROFILES = {
   valek:             { m: 'whitefish_slim', c: ['#3f3f2c', '#94a3b8', '#f8fafc', '#ca8a04', '#475569', '#fbbf24'], p: 'spots_head' },
   nelma:             { m: 'salmon_pred', c: ['#1e3a5f', '#e2e8f0', '#ffffff', '#64748b', '#334155', '#e2e8f0'], p: 'fine_silver' },
   white_salmon:      { m: 'salmon_pred', c: ['#0f172a', '#e2e8f0', '#ffffff', '#64748b', '#334155', '#e2e8f0'], p: 'fine_silver' },
+
+  // 8. Хариусовые (огромный парусный спинной плавник с бирюзово-пурпурными пятнами + жировой плавник)
   grayling:          { m: 'grayling', c: ['#312e81', '#94a3b8', '#f8fafc', '#7c3aed', '#be123c', '#fbbf24'], p: 'grayling_sail' },
   baikal_grayling:   { m: 'grayling', c: ['#0f172a', '#64748b', '#e2e8f0', '#0284c7', '#dc2626', '#fbbf24'], p: 'grayling_sail' },
+
+  // 9. Лососёвые и Гольцы (торпеда + жировой плавник + пятнистый/малиновый окрас)
   salmon:            { m: 'salmon_pred', c: ['#1e3a8a', '#94a3b8', '#ffffff', '#475569', '#334155', '#fde047'], p: 'spots_salmon' },
   trout:             { m: 'salmon_pred', c: ['#3f2e18', '#b45309', '#fef08a', '#b91c1c', '#451a03', '#fbbf24'], p: 'spots_trout' },
   brown_trout:       { m: 'salmon_pred', c: ['#451a03', '#ca8a04', '#fef9c3', '#dc2626', '#78350f', '#facc15'], p: 'spots_trout' },
@@ -204,6 +237,8 @@ const SPECIES_VISUAL_PROFILES = {
   sockeye_salmon:    { m: 'salmon_pred', c: ['#14532d', '#dc2626', '#fca5a5', '#15803d', '#991b1b', '#fde047'], p: 'fine_silver' },
   chinook_salmon:    { m: 'taimen', c: ['#1e3a5f', '#64748b', '#f8fafc', '#334155', '#1e293b', '#fde047'], p: 'spots_salmon' },
   cherry_salmon:     { m: 'salmon_pred', c: ['#1e293b', '#94a3b8', '#fecdd3', '#be123c', '#334155', '#fde047'], p: 'bars_chum' },
+
+  // 10. Налим, Сомовые, Змееголов, Вьюн, Угорь (донное удлинённое тело, усики, длинные плавники)
   burbot:            { m: 'burbot', c: ['#291d0e', '#854d0e', '#fef08a', '#713f12', '#422006', '#facc15'], p: 'marbled' },
   catfish:           { m: 'catfish', c: ['#1c1917', '#57534e', '#e7e5e4', '#44403c', '#292524', '#facc15'], p: 'marbled' },
   amur_catfish:      { m: 'catfish', c: ['#14532d', '#4d7c0f', '#ecfccb', '#365314', '#1a2e05', '#facc15'], p: 'marbled' },
@@ -212,12 +247,16 @@ const SPECIES_VISUAL_PROFILES = {
   loach:             { m: 'eel',    c: ['#451a03', '#ca8a04', '#fef08a', '#78350f', '#451a03', '#f59e0b'], p: 'spots_lateral' },
   eel:               { m: 'eel',    c: ['#0f172a', '#3f6212', '#fef08a', '#1e293b', '#0f172a', '#fbbf24'], p: 'fine_silver' },
   wolffish:          { m: 'burbot', c: ['#1e293b', '#475569', '#cbd5e1', '#334155', '#0f172a', '#facc15'], p: 'bars_zander_bold' },
+
+  // 11. Тресковые (3 спинных плавника, 2 анальных плавника, подбородочный усик, светлая боковая линия)
   cod:               { m: 'cod',    c: ['#3f2e18', '#854d0e', '#f8fafc', '#713f12', '#422006', '#fde047'], p: 'cod_line' },
   haddock:           { m: 'cod',    c: ['#1e293b', '#94a3b8', '#ffffff', '#475569', '#334155', '#fde047'], p: 'spot_haddock' },
   saithe:            { m: 'cod',    c: ['#0f172a', '#475569', '#f1f5f9', '#334155', '#1e293b', '#e2e8f0'], p: 'cod_line' },
   navaga:            { m: 'cod',    c: ['#422006', '#a16207', '#fef9c3', '#713f12', '#451a03', '#fbbf24'], p: 'spots_dark' },
   walleye_pollock:   { m: 'cod',    c: ['#1e3a5f', '#94a3b8', '#ffffff', '#475569', '#334155', '#fde047'], p: 'marbled' },
   saffron_cod:       { m: 'cod',    c: ['#1e293b', '#64748b', '#f8fafc', '#475569', '#334155', '#e2e8f0'], p: 'spots_dark' },
+
+  // 12. Осетровые (гетероцеркальный акульий хвост, ряд костных жучек, рострум с 4 усиками)
   sterlet:           { m: 'sturgeon', c: ['#292524', '#78716c', '#fef08a', '#57534e', '#44403c', '#facc15'], p: 'scutes' },
   russian_sturgeon:  { m: 'sturgeon', c: ['#1e293b', '#64748b', '#fef9c3', '#475569', '#334155', '#facc15'], p: 'scutes' },
   siberian_sturgeon: { m: 'sturgeon', c: ['#27272a', '#71717a', '#f4f4f5', '#52525b', '#3f3f46', '#fde047'], p: 'scutes' },
@@ -225,11 +264,15 @@ const SPECIES_VISUAL_PROFILES = {
   kaluga:            { m: 'sturgeon_giant', c: ['#14532d', '#64748b', '#fef9c3', '#3f6212', '#1e293b', '#fde047'], p: 'scutes' },
   stellate_sturgeon: { m: 'sturgeon_long', c: ['#1e293b', '#475569', '#fef08a', '#334155', '#0f172a', '#fde047'], p: 'scutes_bright' },
   paddlefish:        { m: 'paddlefish', c: ['#1e293b', '#64748b', '#f8fafc', '#334155', '#0f172a', '#e2e8f0'], p: 'fine_silver' },
+
+  // 13. Камбаловые и Палтус (асимметричный плоский диск, плавники по контуру, оба глаза на одной стороне)
   flounder:          { m: 'flatfish', c: ['#422006', '#78350f', '#d6d3d1', '#92400e', '#451a03', '#facc15'], p: 'spots_plaice' },
   plaice:            { m: 'flatfish', c: ['#451a03', '#78350f', '#e7e5e4', '#ea580c', '#451a03', '#facc15'], p: 'spots_plaice_bright' },
   starry_flounder:   { m: 'flatfish', c: ['#292524', '#57534e', '#fef08a', '#facc15', '#090d16', '#facc15'], p: 'starry_fins' },
   turbot:            { m: 'turbot',   c: ['#334155', '#64748b', '#e2e8f0', '#475569', '#1e293b', '#fde047'], p: 'spots_turbot' },
   halibut:           { m: 'halibut',  c: ['#0f172a', '#334155', '#cbd5e1', '#1e293b', '#090d16', '#fde047'], p: 'marbled' },
+
+  // 14. Морские пелагические и прибрежные (скумбрия, сарган, ставрида, кефаль, барабулька, скорпена, удильщик)
   smelt:             { m: 'smelt_adipose', c: ['#065f46', '#cbd5e1', '#ffffff', '#94a3b8', '#475569', '#fde047'], p: 'fine_silver' },
   capelin:           { m: 'smelt_adipose', c: ['#0f766e', '#cbd5e1', '#ffffff', '#94a3b8', '#475569', '#fde047'], p: 'fine_silver' },
   herring:           { m: 'herring', c: ['#1e3a8a', '#cbd5e1', '#ffffff', '#64748b', '#334155', '#e2e8f0'], p: 'fine_silver' },
@@ -246,10 +289,13 @@ const SPECIES_VISUAL_PROFILES = {
   scorpionfish:      { m: 'scorpion', c: ['#7f1d1d', '#b91c1c', '#fca5a5', '#ea580c', '#450a0a', '#facc15'], p: 'marbled_bold' },
   greenling:         { m: 'perch',   c: ['#451a03', '#ca8a04', '#fef08a', '#b45309', '#78350f', '#f97316'], p: 'bars_perch' },
   anglerfish:        { m: 'angler',  c: ['#291d0e', '#57534e', '#a8a29e', '#44403c', '#1c1917', '#38bdf8'], p: 'marbled' },
+
+  // 15. Ракообразные (Речной рак, Каменный краб, Камчатский краб)
   crayfish:          { m: 'crayfish', c: ['#1e3a1e', '#4d7c2b', '#a3b18a', '#b45309', '#14532d', '#0f172a'], p: 'none' },
   crab:              { m: 'crab',     c: ['#7c2d12', '#c2410c', '#fdba74', '#9a3412', '#431407', '#0f172a'], p: 'none' },
   king_crab:         { m: 'king_crab', c: ['#991b1b', '#dc2626', '#fca5a5', '#b91c1c', '#7f1d1d', '#0f172a'], p: 'none' }
 };
+
 function renderPatternOverlay(p, c, uid) {
   switch (p) {
     case 'spots_gold':
@@ -395,6 +441,7 @@ function renderPatternOverlay(p, c, uid) {
       return `<path d="M23,20.5 Q50,21.5 76,20.5" stroke="${c[0]}" stroke-width="0.65" fill="none" opacity="0.38"/>`;
   }
 }
+
 export function getFishCustomSVG(f) {
   const fish = f || { id: 'pike', name: 'Рыба' };
   const fid = fish.id || 'pike';
@@ -407,6 +454,7 @@ export function getFishCustomSVG(f) {
   const [topC, midC, botC, finC, tailC, eyeC] = prof.c;
   const m = prof.m;
   const svgAttrs = `class="fish-visual-svg" viewBox="0 0 100 44" role="img" aria-label="${fish.name || fid}" style="width:100%;height:100%;max-width:100%;max-height:100%;display:block;margin:0 auto;"`;
+
   const defs = `<defs>
     <linearGradient id="${uid}_b" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="${topC}"/>
@@ -418,6 +466,8 @@ export function getFishCustomSVG(f) {
       <stop offset="100%" stop-color="${tailC}"/>
     </linearGradient>
   </defs>`;
+
+  // РАКООБРАЗНЫЕ: Речной рак, Каменный краб, Камчатский краб
   if (m === 'crayfish') {
     return `<svg ${svgAttrs}>${defs}
       <g stroke="#0f172a" stroke-width="0.9" stroke-linejoin="round">
@@ -433,6 +483,7 @@ export function getFishCustomSVG(f) {
       </g>
     </svg>`;
   }
+
   if (m === 'crab' || m === 'king_crab') {
     const legLen = m === 'king_crab' ? 18 : 11;
     return `<svg ${svgAttrs}>${defs}
@@ -446,6 +497,8 @@ export function getFishCustomSVG(f) {
       </g>
     </svg>`;
   }
+
+  // КАМБАЛОВЫЕ И ПАЛТУС (вид сверху на глазную сторону, плавники вдоль всего овального тела)
   if (m === 'flatfish' || m === 'turbot' || m === 'halibut') {
     const ry = m === 'turbot' ? 16.5 : (m === 'halibut' ? 12.5 : 14.5);
     const finFringe = prof.p === 'starry_fins'
@@ -462,6 +515,8 @@ export function getFishCustomSVG(f) {
       <circle cx="29" cy="14.5" r="2.2" fill="${eyeC}" stroke="#0f172a" stroke-width="0.6"/><circle cx="29" cy="14.5" r="1.1" fill="#000"/>
     </svg>`;
   }
+
+  // ОСЕТРОВЫЕ И ВЕСЛОНОС (гетероцеркальный хвост с удлинённой верхней лопастью, жучки, рострум, усики)
   if (m === 'sturgeon' || m === 'sturgeon_giant' || m === 'sturgeon_long' || m === 'paddlefish') {
     const snoutX = m === 'paddlefish' ? 1 : (m === 'sturgeon_long' ? 2 : 6);
     const bodyTop = m === 'sturgeon_giant' ? 12 : 14.5;
@@ -477,6 +532,8 @@ export function getFishCustomSVG(f) {
       <circle cx="20" cy="19.5" r="1.8" fill="${eyeC}"/><circle cx="20" cy="19.5" r="0.9" fill="#000"/>
     </svg>`;
   }
+
+  // ЩУКА (удлинённая торпеда, утиный плоский рыльник, спинной и анальный плавники сдвинуты к самому хвосту)
   if (m === 'pike') {
     return `<svg ${svgAttrs}>${defs}
       <path d="M62,15 L70,7 L76,16 Z" fill="url(#${uid}_f)" stroke="#0f172a" stroke-width="0.7"/>
@@ -491,6 +548,8 @@ export function getFishCustomSVG(f) {
       <circle cx="15.5" cy="19" r="2.2" fill="${eyeC}" stroke="#0f172a" stroke-width="0.5"/><circle cx="15.5" cy="19" r="1.1" fill="#000"/>
     </svg>`;
   }
+
+  // ОКУНЬ И ЕРШ (высокая спина, колючий первый спинной плавник с чёрным пятном на конце, второй спинной, яркие плавники)
   if (m === 'perch' || m === 'ruffe') {
     return `<svg ${svgAttrs}>${defs}
       <path d="M28,13 L33,4 L41,5 L48,12 Z" fill="${tailC}" stroke="#0f172a" stroke-width="0.8"/>
@@ -506,6 +565,8 @@ export function getFishCustomSVG(f) {
       <circle cx="16.5" cy="19.5" r="2.4" fill="${eyeC}" stroke="#0f172a" stroke-width="0.6"/><circle cx="16.5" cy="19.5" r="1.1" fill="#000"/>
     </svg>`;
   }
+
+  // СУДАК И БЕРШ (прогонистый хищник, 2 раздельных спинных плавника, клыкастая пасть, стеклянный глаз)
   if (m === 'zander') {
     return `<svg ${svgAttrs}>${defs}
       <path d="M29,14 L34,6 L44,7.5 L49,13.5 Z" fill="${tailC}" stroke="#0f172a" stroke-width="0.75"/>
@@ -520,6 +581,8 @@ export function getFishCustomSVG(f) {
       <circle cx="15" cy="19" r="2.2" fill="${eyeC}" stroke="#0f172a" stroke-width="0.6"/><circle cx="15" cy="19" r="1" fill="#000"/>
     </svg>`;
   }
+
+  // ЛЕЩ, ГУСТЕРА, СИНЕЦ, СОПА (очень высокий ромбовидный корпус, высокий спинной плавник, длинный анальный киль)
   if (m === 'bream') {
     return `<svg ${svgAttrs}>${defs}
       <path d="M40,9 L47,1.5 L54,11 Z" fill="${tailC}" stroke="#0f172a" stroke-width="0.8"/>
@@ -533,6 +596,8 @@ export function getFishCustomSVG(f) {
       <circle cx="16.5" cy="20.5" r="2.2" fill="${eyeC}" stroke="#0f172a" stroke-width="0.6"/><circle cx="16.5" cy="20.5" r="1.1" fill="#000"/>
     </svg>`;
   }
+
+  // КАРАСЬ, САЗАН/КАРП, ЛИНЬ, БУФФАЛО (округлый высокий корпус, длинный ленточный спинной плавник, усики у сазана)
   if (m === 'carp' || m === 'carp_barbel' || m === 'tench') {
     const tailShape = m === 'tench'
       ? `M75,16.5 L91,10 Q93,21.5 91,33 L75,26 Z`
@@ -553,6 +618,8 @@ export function getFishCustomSVG(f) {
       <circle cx="16.5" cy="19.5" r="2.2" fill="${eyeC}" stroke="#0f172a" stroke-width="0.6"/><circle cx="16.5" cy="19.5" r="1.1" fill="#000"/>
     </svg>`;
   }
+
+  // ХАРИУС (огромный парусный спинной плавник с бирюзово-рубиновыми рядами + жировой плавник у хвоста!)
   if (m === 'grayling') {
     return `<svg ${svgAttrs}>${defs}
       <!-- Знаменитый парус хариуса -->
@@ -575,6 +642,8 @@ export function getFishCustomSVG(f) {
       <circle cx="15.5" cy="19" r="2.2" fill="${eyeC}" stroke="#0f172a" stroke-width="0.6"/><circle cx="15.5" cy="19" r="1.1" fill="#000"/>
     </svg>`;
   }
+
+  // СИГОВЫЕ (Пелядь/Сырок, Чир/Щокур, Пыжьян, Муксун, Омуль, Ряпушка, Тугун, Валёк — обязательно с жировым плавником!)
   if (m.startsWith('whitefish') || m === 'smelt_adipose') {
     const isHump = m === 'whitefish_hump';
     const isHigh = m === 'whitefish_high';
@@ -598,6 +667,8 @@ export function getFishCustomSVG(f) {
       <circle cx="15" cy="19.5" r="2.1" fill="${eyeC}" stroke="#0f172a" stroke-width="0.55"/><circle cx="15" cy="19.5" r="1" fill="#000"/>
     </svg>`;
   }
+
+  // ЛОСОСЁВЫЕ, ФОРЕЛЬ, ГОЛЕЦ, ТАЙМЕНЬ, ЛЕНОК, ГОРБУША (хищная торпеда + жировой плавник + пятна/полосы)
   if (m === 'salmon_pred' || m === 'taimen' || m === 'salmon_hump') {
     const humpY = m === 'salmon_hump' ? 7.5 : 12.5;
     return `<svg ${svgAttrs}>${defs}
@@ -615,6 +686,8 @@ export function getFishCustomSVG(f) {
       <circle cx="15" cy="19" r="2.1" fill="${eyeC}" stroke="#0f172a" stroke-width="0.55"/><circle cx="15" cy="19" r="1" fill="#000"/>
     </svg>`;
   }
+
+  // НАЛИМ, СОМ, ЗМЕЕГОЛОВ, ЗУБАТКА (длинные спинной и анальный плавники до хвоста, округлый хвост, усики)
   if (m === 'burbot' || m === 'catfish' || m === 'channel_cat' || m === 'eel') {
     if (m === 'channel_cat') {
       return `<svg ${svgAttrs}>${defs}
@@ -645,6 +718,8 @@ export function getFishCustomSVG(f) {
       <circle cx="14.5" cy="19" r="1.9" fill="${eyeC}" stroke="#0f172a" stroke-width="0.5"/><circle cx="14.5" cy="19" r="0.95" fill="#000"/>
     </svg>`;
   }
+
+  // ТРЕСКОВЫЕ (Треска, Пикша, Сайда, Навага, Минтай — 3 спинных плавника, 2 анальных плавника, подбородочный усик)
   if (m === 'cod') {
     return `<svg ${svgAttrs}>${defs}
       <path d="M26,14 L32,6.5 L40,13.5 Z" fill="${tailC}" stroke="#0f172a" stroke-width="0.7"/>
@@ -660,6 +735,8 @@ export function getFishCustomSVG(f) {
       <circle cx="15" cy="18.5" r="2.2" fill="${eyeC}" stroke="#0f172a" stroke-width="0.55"/><circle cx="15" cy="18.5" r="1.1" fill="#000"/>
     </svg>`;
   }
+
+  // САРГАН (длинное стреловидное тело и длинный клюв-пинцет)
   if (m === 'garfish') {
     return `<svg ${svgAttrs}>${defs}
       <path d="M66,17.5 L73,11 L79,18.5 Z" fill="${tailC}"/>
@@ -669,6 +746,8 @@ export function getFishCustomSVG(f) {
       <circle cx="21" cy="20.5" r="1.8" fill="${eyeC}"/><circle cx="21" cy="20.5" r="0.9" fill="#000"/>
     </svg>`;
   }
+
+  // МОРСКОЙ ЧЁРТ / УДИЛЬЩИК (удочка-иллиций со светящимся фонариком над пастью)
   if (m === 'angler') {
     return `<svg ${svgAttrs}>${defs}
       <path d="M22,14 Q14,4 8,9" stroke="#0f172a" stroke-width="1.2" fill="none"/>
@@ -681,6 +760,8 @@ export function getFishCustomSVG(f) {
       <circle cx="19" cy="16.5" r="2.1" fill="${eyeC}"/><circle cx="19" cy="16.5" r="1" fill="#000"/>
     </svg>`;
   }
+
+  // ЧЕХОНЬ (прямая спина, саблевидно изогнутое брюшко, длинные крыловидные грудные плавники)
   if (m === 'chekhon') {
     return `<svg ${svgAttrs}>${defs}
       <path d="M52,14.5 L57,8 L63,15 Z" fill="${tailC}"/>
@@ -692,6 +773,8 @@ export function getFishCustomSVG(f) {
       <circle cx="15" cy="18.5" r="2.2" fill="${eyeC}" stroke="#0f172a" stroke-width="0.55"/><circle cx="15" cy="18.5" r="1.1" fill="#000"/>
     </svg>`;
   }
+
+  // КЛАССИЧЕСКИЕ КАРПОВЫЕ, ПЛОТВА, КРАСНОПЁРКА, ЕЛЕЦ, ЯЗЬ, ГОЛАВЛЬ, ЖЕРЕХ, УСАЧ, ПЕСКАРЬ, СКУМБРИЯ, СЕЛЬДЬ
   const isDeep = m === 'roach' || m === 'sea_bream' || m === 'wrasse' || m === 'scorpion' || m === 'silver_carp';
   const isPower = m === 'cyprinid_power' || m === 'asp' || m === 'mullet';
   const isSlim = m === 'smelt' || m === 'sand_eel' || m === 'dace' || m === 'herring';
@@ -703,6 +786,7 @@ export function getFishCustomSVG(f) {
   const secondDorsal = (m === 'mackerel' || m === 'mullet' || m === 'red_mullet' || m === 'goby')
     ? `<path d="M54,${topY + 2} L60,${topY - 4} L67,${topY + 3.5} Z" fill="${tailC}" stroke="#0f172a" stroke-width="0.65"/>`
     : '';
+
   return `<svg ${svgAttrs}>${defs}
     <path d="M35,${topY + 1.5} L43,${topY - 7} L53,${topY + 2} Z" fill="${tailC}" stroke="#0f172a" stroke-width="0.75"/>
     ${secondDorsal}
