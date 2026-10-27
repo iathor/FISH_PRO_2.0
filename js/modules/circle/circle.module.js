@@ -1,15 +1,5 @@
-/**
- * @file circle.module.js
- * @description Модуль «Клёв ПРО: Круг» и выделенная вкладка «💬 Чаты» (Ревизия 2.1.00):
- * - Ультракороткая бинарная упаковка V3 (#p=KP1_<28_символов>) со встроенным 20-битным ID рыбака (FP_89AAA001).
- * - Автоматическая привязка ID рыбака (FP_89AAA001) ко всем точкам: Круг, Экипаж 72ч, SOS, Мастерская, Закладки и Уловы.
- * - Автокопирование ID рыбака (FP_89AAA001) и ключей Экипажа (KP-XXXX) в 1 касание (data-copy-fisher-id).
- * - Разделение всех событий на «👤 МОИ» (с возможностью удаления 🗑️) и «🌐 ЧУЖИЕ» (только скрытие 🙈 / возврат 👁️).
- * - Компактный список событий (.circle-compact-list) с раскрывающимися деталями без «взрыва ленты».
- * - Выделенная вкладка «💬 Чаты» на нижней панели навигации + отправка карточки улова прямо в чат.
- * - Закрытый режим Супер-Админа (только для Владельца + управляемая База Администраторов с синхронизацией).
- */
 
+import { events } from '../../core/events.js?v=2.1.00';
 import { store } from '../../core/store.js?v=2.1.00';
 import { storage, calcGeoDistanceKm, safeJsonParse } from '../../core/storage.js?v=2.1.00';
 import { router } from '../../core/router.js?v=2.1.00';
@@ -25,13 +15,15 @@ import {
   shareToTelegramChat,
   shareOrCopyPack,
   getTelegramUser,
+  bindFisherIdWithTelegram,
+  checkServerTelegramBindStatus,
+  openBotChatInTelegram,
   syncToTelegramCloud,
   readFromTelegramCloud,
   triggerHaptic
 } from '../../core/telegram.js?v=2.1.00';
 import { setLocation } from '../geo/geo.module.js?v=2.1.00';
 import { calcDynamicRig } from '../forecast/forecast.module.js?v=2.1.00';
-
 export const CREW_TTL_MS = 72 * 60 * 60 * 1000;
 export const CIRCLE_BLUR_RADIUS_KM = 5.0;
 export const CIRCLE_OLDER_BLUR_RADIUS_KM = 10.0;
@@ -39,25 +31,23 @@ export const REGIONAL_K_ANONYMITY_THRESHOLD = 3;
 const PACK_PREFIX = 'KP1_';
 const CIPHER_SALT = 'KlevProCircle_v2.1_Salt_RU';
 const E2E_PREFIX = 'KPE2E_';
-const EPOCH_2024_MS = 1704067200000; // 2024-01-01T00:00:00Z
-
-// Базовый список суперадминов (Владелец Антон: логин iAthor -> эксклюзивный ID FP_89VIP089, проверка пароля строго по крипто-хэшу и на сервере)
+const EPOCH_2024_MS = 1704067200000; 
 const OWNER_TG_USERNAMES = ['thorantony82', 'iathor', 'iathor82'];
-const DEFAULT_ADMIN_IDS = ['FP_89VIP089'];
 export const OWNER_BOUND_LOGIN = 'iAthor';
 export const OWNER_BOUND_FISHER_ID = 'FP_89VIP089';
+export const OWNER_SECONDARY_FISHER_ID = 'FP_FMP089';
+const DEFAULT_ADMIN_IDS = [OWNER_BOUND_FISHER_ID, OWNER_SECONDARY_FISHER_ID];
 export const OWNER_BOUND_PIN_HASH = 'owner_iathor_vip089';
+let _adminDashboardCache = null;
+let _adminDashboardLoading = false;
 const OWNER_TOKEN_HASH_IATHOR = 'KTOK_6AE3BD91_21C90CF5';
 const OWNER_TOKEN_HASH_IATHOR82 = 'KTOK_9D1A180D_2F2E289F';
 let _serverDynamicAdminSlotHtml = '';
 let _serverAdminSessionToken = '';
 let _idAllocationInFlight = false;
 let _lastNearbyCircleSyncTs = 0;
-
 export const PACK_WATER_KEYS = ['small_river', 'big_river', 'quarry', 'tundra_lake', 'cooling_reservoir', 'sea_gulf', 'open_sea'];
 export const PACK_METHOD_KEYS = ['spin_micro', 'spin_jig', 'spin_lure', 'bottom', 'float', 'winter_jig', 'winter_lure', 'fly', 'sea_rock'];
-
-// Полная таблица кодов всех субъектов РФ (01..99, включая новые регионы России 80, 81, 84, 85, 82, 92)
 export const RUSSIA_REGION_CODE_RULES = [
   ['сахалин', '65'], ['курил', '65'],
   ['якут', '14'], ['саха (якут', '14'],
@@ -149,18 +139,13 @@ export const RUSSIA_REGION_CODE_RULES = [
   ['запорож', '85'], ['мелитопол', '85'], ['бердянск', '85'],
   ['чукот', '87'], ['анадыр', '87']
 ];
-
 let filterWorkshopForToday = false;
-let activeOwnershipFilter = 'all'; // 'all' | 'mine' | 'foreign' | 'hidden'
-let activeCategoryFilter = 'all'; // 'all' | 'sos' | 'crew' | 'circle' | 'workshop'
+let activeOwnershipFilter = 'all'; 
+let activeCategoryFilter = 'all'; 
 const expandedCompactIds = new Set();
-let activeChatChannelId = ''; // 'crew:KP-XXXX' | 'dm:FP_XXXX:FP_YYYY'
+let activeChatChannelId = ''; 
 let relayPollTimer = null;
 let lastRelayPullTs = 0;
-
-/**
- * Быстрый детерминированный 32-битный FNV-1a хэш
- */
 export function fnv1a32(str = '') {
   let h = 0x811c9dc5;
   const s = String(str || '');
@@ -170,10 +155,6 @@ export function fnv1a32(str = '') {
   }
   return h >>> 0;
 }
-
-/**
- * Вычисляет необратимый многораундовый крипто-токен авторизации (вместо хранения открытого пароля в localStorage)
- */
 export function deriveSecureAuthToken(loginNorm = '', passClean = '') {
   const cleanL = String(loginNorm || '').trim().toLowerCase().replace(/^@/, '');
   const cleanP = String(passClean || '').trim();
@@ -185,16 +166,10 @@ export function deriveSecureAuthToken(loginNorm = '', passClean = '') {
   }
   return `KTOK_${h1.toString(16).toUpperCase().padStart(8, '0')}_${h2.toString(16).toUpperCase().padStart(8, '0')}`;
 }
-
-/**
- * Определяет 2-значный код региона РФ (01..99, включая новые регионы России 80, 81, 84, 85, 82, 92)
- * по названию субъекта/города или координатам рыбака
- */
 export function resolveRussianRegionCode(stateOrText = null, lat = null, lon = null) {
   let text = '';
   let effLat = Number(lat);
   let effLon = Number(lon);
-
   if (typeof stateOrText === 'string') {
     text = stateOrText;
   } else if (stateOrText && typeof stateOrText === 'object') {
@@ -207,14 +182,12 @@ export function resolveRussianRegionCode(stateOrText = null, lat = null, lon = n
     if (!Number.isFinite(effLat)) effLat = Number(s?.lat);
     if (!Number.isFinite(effLon)) effLon = Number(s?.lon);
   }
-
   const norm = String(text || '').toLowerCase().replace(/ё/g, 'е').trim();
   if (norm) {
     for (const [kw, code] of RUSSIA_REGION_CODE_RULES) {
       if (norm.includes(kw)) return code;
     }
   }
-
   if (Number.isFinite(effLat) && Number.isFinite(effLon)) {
     const nearCity = findNearestRussianSettlement(effLat, effLon);
     if (nearCity && nearCity.admin1) {
@@ -224,40 +197,61 @@ export function resolveRussianRegionCode(stateOrText = null, lat = null, lon = n
       }
     }
   }
-
   return '89';
 }
-
-/**
- * Генерирует региональный Рыболовный ID формата FP_<RR><AAA..ZZZ><001..999>
- * Ёмкость: 26^3 * 999 = 17 558 424 уникальных ID на каждый регион РФ!
- * - index0 = 0   -> FP_89AAA001 (1-й рыбак в регионе)
- * - index0 = 998 -> FP_89AAA999 (999-й рыбак в регионе)
- * - index0 = 999 -> FP_89AAB001 (1000-й рыбак в регионе — строго 001, без 000!)
- */
 export function formatFisherIdFromIndex(regionCode = '89', index0Based = 0) {
   const regDigits = String(regionCode || '89').replace(/\D/g, '').padStart(2, '0').slice(-2);
   const reg = (regDigits === '00' ? '89' : regDigits);
   const idx = Math.max(0, Math.floor(Number(index0Based) || 0));
-  const num = (idx % 999) + 1; // Строго 001..999 (никогда не 000!)
+  const num = (idx % 999) + 1; 
   const letterBlock = Math.floor(idx / 999) % 17576;
   const c1 = String.fromCharCode(65 + (Math.floor(letterBlock / 676) % 26));
   const c2 = String.fromCharCode(65 + (Math.floor(letterBlock / 26) % 26));
   const c3 = String.fromCharCode(65 + (letterBlock % 26));
   return `FP_${reg}${c1}${c2}${c3}${String(num).padStart(3, '0')}`;
 }
-
-/**
- * Нормализует любой введённый или сохранённый Рыболовный ID к единому стандарту:
- * - Персональный ID Владельца и VIP/красивые ID без кода региона: FP_89VIP089, FP_VIP777
- * - Стандартные региональные ID на 10^6+ аудиторию: FP_89AAA001, FP_77AAB001, FP_01AAA001, FP_45AAA001
- * - Автоматическая миграция старого FP_89VIP089 -> FP_89VIP089
- */
+export function formatTempReserveFisherId(regionCode = '89', seedNumOrStr = 1) {
+  const regDigits = String(regionCode || '89').replace(/\D/g, '').padStart(2, '0').slice(-2);
+  const reg = (regDigits === '00' ? '89' : regDigits);
+  let num = 1;
+  if (typeof seedNumOrStr === 'number' && Number.isFinite(seedNumOrStr)) {
+    num = ((Math.max(1, Math.floor(seedNumOrStr)) - 1) % 9999) + 1;
+  } else {
+    num = (fnv1a32(String(seedNumOrStr || 'dev_rz')) % 9999) + 1;
+  }
+  return `FP_${reg}RZ${String(num).padStart(4, '0')}`;
+}
+export function isTemporaryReserveId(fid = '') {
+  return /^FP_\d{2}RZ\d{4}$/i.test(String(fid || '').trim());
+}
+export function isOwnerFisherId(fid = '') {
+  const clean = String(fid || '').trim().toUpperCase();
+  return clean === OWNER_BOUND_FISHER_ID || clean === OWNER_SECONDARY_FISHER_ID || clean === 'FP_89A01';
+}
+export function isLoginOwnerMatch(rawLogin = '') {
+  const clean = String(rawLogin || '').trim().toLowerCase().replace(/^@/, '');
+  return (
+    clean === 'iathor' ||
+    clean === 'iathor82' ||
+    clean === 'thorantony82' ||
+    clean === 'fp_89vip089' ||
+    clean === 'fp_fmp089'
+  );
+}
 export function normalizeFisherId(rawStr = '', fallbackRegion = '89') {
   const clean = String(rawStr || '').trim().toUpperCase().replace(/-/g, '_');
   if (!clean) return '';
-  if (clean === 'FP_89VIP089' || clean === '89VIP089' || clean === 'FP_89A01' || clean === 'FP_89VIP089' || clean === 'FMP089') {
+  if (clean === 'FP_89VIP089' || clean === '89VIP089' || clean === 'FP_89A01') {
     return OWNER_BOUND_FISHER_ID;
+  }
+  if (clean === 'FP_FMP089' || clean === 'FMP089') {
+    return OWNER_SECONDARY_FISHER_ID;
+  }
+  const rzMatch = clean.match(/^(?:FP_)?(\d{2})RZ(\d{4})$/);
+  if (rzMatch) {
+    const reg = rzMatch[1];
+    const numVal = Math.max(1, Math.min(9999, parseInt(rzMatch[2], 10) || 1));
+    return `FP_${reg}RZ${String(numVal).padStart(4, '0')}`;
   }
   const regMatch = clean.match(/^(?:FP_)?(\d{2})([A-Z]{3})(\d{3})$/);
   if (regMatch) {
@@ -275,15 +269,11 @@ export function normalizeFisherId(rawStr = '', fallbackRegion = '89') {
   const idx = fnv1a32(clean) % (17576 * 999);
   return formatFisherIdFromIndex(fallbackRegion, idx);
 }
-
 export function isValidFisherIdFormat(str = '') {
-  const s = String(str || '').trim();
+  const s = String(str || '').trim().toUpperCase();
+  if (isTemporaryReserveId(s) || isOwnerFisherId(s)) return true;
   return /^FP_(?:\d{2})?[A-Z]{3}(?:00[1-9]|0[1-9]\d|[1-9]\d{2})$/.test(s);
 }
-
-/**
- * Вычисляет 16-битный числовой хэш ключа экипажа (1..65535) и форматирует его в короткий ключ KP-XXXX
- */
 export function computeCrewKeyHash(seedStr = '') {
   const raw = String(seedStr || '').trim().toUpperCase();
   const hexMatch = raw.match(/^KP-([0-9A-F]{4})$/);
@@ -294,16 +284,10 @@ export function computeCrewKeyHash(seedStr = '') {
   const h = fnv1a32(raw || 'crew_default') & 0xffff;
   return h === 0 ? 0x7a3f : h;
 }
-
 export function formatCrewKeyFromHash(hash16) {
   const clean = (Number(hash16) || 0x7a3f) & 0xffff;
   return `KP-${(clean || 0x7a3f).toString(16).toUpperCase().padStart(4, '0')}`;
 }
-
-/**
- * Упаковывает Рыболовный ID (как региональный FP_89AAA001, так и VIP/Владельца FP_89VIP089)
- * в 32-битное целое число (0 .. 1 755 842 399 < 2^31) без единой потери и обратно!
- */
 export function encodeFisherIdTo32Bit(fisherIdStr = '') {
   const norm = normalizeFisherId(fisherIdStr || OWNER_BOUND_FISHER_ID);
   const regMatch = norm.match(/^FP_(\d{2})([A-Z]{3})(\d{3})$/);
@@ -323,7 +307,6 @@ export function encodeFisherIdTo32Bit(fisherIdStr = '') {
   }
   return encodeFisherIdTo32Bit('FP_89AAA001');
 }
-
 export function decodeFisherIdFrom32Bit(val32) {
   const v = (Number(val32) >>> 0) & 0x7fffffff;
   const num = (v % 999) + 1;
@@ -339,53 +322,55 @@ export function decodeFisherIdFrom32Bit(val32) {
   }
   return `FP_${String(Math.min(99, reg)).padStart(2, '0')}${c1}${c2}${c3}${numStr}`;
 }
-
 export function parseFisherIdTo20Bit(fisherIdStr = '') {
   return encodeFisherIdTo32Bit(fisherIdStr);
 }
-
 export function formatFisherIdFrom20Bit(val20) {
   const clean = (Number(val20) || 0) & 0xfffff;
   if (clean === 0x89a01) return OWNER_BOUND_FISHER_ID;
   return formatFisherIdFromIndex('89', clean % 99999);
 }
-
-/**
- * Проверяет логин и пароль рыбака; распознаёт постоянный аккаунт Владельца (iAthor -> FP_89VIP089)
- * и детерминированно/последовательно формирует региональный ID рыбака (FP_<RR><AAA><001..999>).
- */
 export function resolveAccountCredentials(rawLogin = '', rawPassword = '', preferredRegionCode = null) {
   const loginClean = String(rawLogin || '').trim().slice(0, 48);
   const loginNorm = loginClean.toLowerCase().replace(/^@/, '');
   const passClean = String(rawPassword || '').trim();
   const computedToken = deriveSecureAuthToken(loginNorm, passClean);
   const computedTokenLower = deriveSecureAuthToken(loginNorm, passClean.toLowerCase());
-
-  const isOwnerLogin = (loginNorm === 'iathor' || loginNorm === 'iathor82' || loginNorm === 'thorantony82');
-  const expectedOwnerHash = deriveSecureAuthToken('iathor', passClean);
-  const isOwnerPassHash = (fnv1a32(`pin::${passClean}`).toString(16) === '5c4be2a9' || fnv1a32(`pin::${passClean.toLowerCase()}`).toString(16) === '17b24989' || computedToken === OWNER_TOKEN_HASH_IATHOR || computedToken === OWNER_TOKEN_HASH_IATHOR82 || computedTokenLower === OWNER_TOKEN_HASH_IATHOR);
-
+  const isOwnerLogin = isLoginOwnerMatch(loginNorm);
+  const passNormNoStar = passClean.toLowerCase().replace(/\*+$/, '');
+  const isOwnerPassHash = (
+    passClean === 'FISherman1982*' ||
+    passClean.toLowerCase() === 'fisherman1982*' ||
+    fnv1a32(`pin::${passClean}`).toString(16) === '5c4be2a9' ||
+    fnv1a32(`pin::${passClean.toLowerCase()}`).toString(16) === '17b24989' ||
+    fnv1a32(`pin::${passNormNoStar}`).toString(16) === fnv1a32('pin::fisherman1982').toString(16) ||
+    computedToken === OWNER_TOKEN_HASH_IATHOR ||
+    computedToken === OWNER_TOKEN_HASH_IATHOR82 ||
+    computedTokenLower === OWNER_TOKEN_HASH_IATHOR
+  );
   if (isOwnerLogin && isOwnerPassHash) {
+    const preferredFid = loginNorm === 'fp_fmp089' ? OWNER_SECONDARY_FISHER_ID : OWNER_BOUND_FISHER_ID;
     return {
       ok: true,
       isOwner: true,
-      login: OWNER_BOUND_LOGIN,
-      callsign: OWNER_BOUND_LOGIN,
-      fisherId: OWNER_BOUND_FISHER_ID,
+      login: loginNorm === 'iathor82' ? 'iAthor82' : OWNER_BOUND_LOGIN,
+      callsign: loginNorm === 'iathor82' ? 'iAthor82' : OWNER_BOUND_LOGIN,
+      fisherId: preferredFid,
+      ownerIds: [OWNER_BOUND_FISHER_ID, OWNER_SECONDARY_FISHER_ID],
       pinHash: OWNER_BOUND_PIN_HASH,
-      authTokenHash: expectedOwnerHash
+      authTokenHash: OWNER_TOKEN_HASH_IATHOR
     };
   }
-
-  if (!loginNorm || passClean.length < 3) {
-    return { ok: false, error: 'Введите логин и пароль (минимум 3 символа)' };
+  if (isOwnerLogin && !isOwnerPassHash) {
+    return { ok: false, error: 'Неверный пароль для эксклюзивного аккаунта Владельца (iAthor / FP_89VIP089 / FP_FMP089)' };
   }
-
+  if (!loginNorm || passClean.length < 3) {
+    return { ok: false, error: 'Введите логин и пароль (минимум 3 символа) для регистрации постоянного ID' };
+  }
   const pinHash = fnv1a32(`pin::${passClean}`).toString(16);
   const authTokenHash = deriveSecureAuthToken(loginNorm, passClean);
   const regCode = preferredRegionCode || resolveRussianRegionCode();
   const seed = `${loginNorm}:${pinHash}`;
-  // В офлайн-режиме детерминированно распределяем индекс в первых сериях AAA..AAZ (онлайн-сервер выдаёт строго по порядку 001, 002...)
   const detIdx = fnv1a32(seed) % (26 * 999);
   const fisherId = formatFisherIdFromIndex(regCode, detIdx);
   return {
@@ -399,38 +384,26 @@ export function resolveAccountCredentials(rawLogin = '', rawPassword = '', prefe
     regionCode: regCode
   };
 }
-
-/**
- * Проверяет, является ли текущий пользователь Владельцем (Супер-Админом Антоном: iAthor82 / FP_89VIP089)
- */
 export function isOwnerAdmin(stateObj = null) {
   const s = stateObj || store.getState();
   const up = s?.userProfile || {};
   if (up.ownerUnlocked === true) return true;
-  if (['FP_89VIP089', 'FP_89VIP089'].includes(String(up.fisherId || '').toUpperCase()) && (up.pinHash === OWNER_BOUND_PIN_HASH || up.pinHash === 'owner_iathor82_1982')) return true;
-  const loginNorm = String(up.login || up.callsign || '').trim().toLowerCase();
-  if ((loginNorm === 'iathor' || loginNorm === 'iathor82') && (up.pinHash === OWNER_BOUND_PIN_HASH || up.pinHash === 'owner_iathor82_1982')) return true;
+  const fidUpper = String(up.fisherId || '').trim().toUpperCase();
+  if (isOwnerFisherId(fidUpper) && (up.pinHash || up.authTokenHash || up.ownerUnlocked)) return true;
+  if (isLoginOwnerMatch(up.login) && (up.pinHash || up.authTokenHash || up.ownerUnlocked)) return true;
   const tgUser = getTelegramUser();
   const uname = String(tgUser?.username || up.tgUsername || '').toLowerCase().replace(/^@/, '');
   if (uname && OWNER_TG_USERNAMES.includes(uname)) return true;
   return false;
 }
-
-/**
- * Возвращает полный список администраторов из базы (Владелец + добавленные им в базу рыбаки)
- */
 export function getAdminWhitelistEntries(stateObj = null) {
   const s = stateObj || store.getState();
   const up = s?.userProfile || {};
   const list = Array.isArray(up.adminWhitelist) ? up.adminWhitelist : [];
-  const map = new Map();
-  for (const defId of DEFAULT_ADMIN_IDS) {
-    map.set(defId, { id: defId, label: 'Владелец (Супер-Админ)', addedAt: '2026-10-25' });
-  }
-  if (up.ownerUnlocked && up.fisherId) {
-    const myId = String(up.fisherId).toUpperCase();
-    map.set(myId, { id: myId, label: `${up.callsign || 'Антон'} (Владелец)`, addedAt: '2026-10-26' });
-  }
+  const map = new Map([
+    [OWNER_BOUND_FISHER_ID, { id: OWNER_BOUND_FISHER_ID, label: 'iAthor • Антон (Владелец / Основной VIP ID)', addedAt: '2026-10-25' }],
+    [OWNER_SECONDARY_FISHER_ID, { id: OWNER_SECONDARY_FISHER_ID, label: 'iAthor82 • Антон (Владелец / Спец-ID FP_FMP089)', addedAt: '2026-10-25' }]
+  ]);
   for (const item of list) {
     if (item && item.id) {
       const cleanId = String(item.id).trim().toUpperCase();
@@ -443,71 +416,70 @@ export function getAdminWhitelistEntries(stateObj = null) {
   }
   return Array.from(map.values());
 }
-
-/**
- * Проверяет, имеет ли текущий пользователь права Администратора
- * (Владелец ИЛИ рыбак, чей ID FP_89AAA001 / @username добавлен Владельцем в Базу Администраторов)
- */
 export function isUserAdmin(stateObj = null) {
   const s = stateObj || store.getState();
   const up = s?.userProfile || {};
   if (up.adminShowAllCrews === false) return false;
   if (isOwnerAdmin(s)) return true;
-
   const myFisherId = String(up.fisherId || '').trim().toUpperCase();
+  if (!myFisherId || isTemporaryReserveId(myFisherId)) return false;
   const tgUser = getTelegramUser();
   const myUname = String(tgUser?.username || up.tgUsername || '').trim().toUpperCase().replace(/^@/, '');
   const whitelist = getAdminWhitelistEntries(s);
-
   return whitelist.some(entry => {
     const eid = String(entry.id || '').trim().toUpperCase().replace(/^@/, '');
     return (myFisherId && eid === myFisherId) || (myUname && eid === myUname);
   });
 }
-
-/**
- * Возвращает текущую учётную запись рыбака (Позывной, детерминированный Рыболовный ID FP_89AAA001, статус Админа и привязку ТГ)
- */
 export function getCurrentFisherIdentity(stateObj = null) {
   const s = stateObj || store.getState();
   const up = s?.userProfile || {};
   const tgUser = getTelegramUser();
   const devId = storage.getDeviceId ? storage.getDeviceId() : 'dev_local';
-  const callsign = (up.callsign && up.callsign !== 'Рыболов')
-    ? up.callsign
-    : (tgUser?.displayName || up.callsign || 'Рыболов');
-
-  const loginStr = String(up.login || callsign || '').trim();
   const isOwner = isOwnerAdmin(s);
-  let fisherId = up.fisherId;
-
+  const hasCredentials = Boolean(isOwner || (up.login && up.login !== 'Рыболов' && (up.pinHash || up.authTokenHash)));
   const regCode = resolveRussianRegionCode(s);
+  const rawSavedFid = String(up.fisherId || '').trim().toUpperCase();
+  let fisherId = '';
+  let callsign = 'Рыболов';
+  let login = '';
   if (isOwner) {
-    fisherId = OWNER_BOUND_FISHER_ID;
-  } else if (!fisherId || !isValidFisherIdFormat(fisherId) || String(fisherId).toUpperCase() === OWNER_BOUND_FISHER_ID || String(fisherId).toUpperCase() === 'FP_89VIP089') {
-    const seed = up.pinHash
-      ? `${loginStr.toLowerCase()}:${up.pinHash}`
-      : (tgUser?.id ? `tg:${tgUser.id}:${devId}` : `dev:${devId}`);
-    // Распределяем по всему пространству (17576 * 999 = 17.5 млн комбинаций), исключая индекс 0 (AAA001) до ответа сервера
-    const detIdx = 1 + (fnv1a32(seed) % (26 * 999 - 2));
-    fisherId = formatFisherIdFromIndex(regCode, detIdx);
-    if (fisherId.includes('VIP')) {
-      fisherId = formatFisherIdFromIndex(regCode, (detIdx + 999) % (26 * 999));
+    fisherId = rawSavedFid === OWNER_SECONDARY_FISHER_ID ? OWNER_SECONDARY_FISHER_ID : OWNER_BOUND_FISHER_ID;
+    login = up.login && isLoginOwnerMatch(up.login) ? up.login : OWNER_BOUND_LOGIN;
+    callsign = up.callsign && up.callsign !== 'Рыболов' ? up.callsign : login;
+  } else if (hasCredentials) {
+    login = String(up.login || up.callsign || '').trim();
+    callsign = (up.callsign && up.callsign !== 'Рыболов') ? up.callsign : login;
+    if (rawSavedFid && isValidFisherIdFormat(rawSavedFid) && !isTemporaryReserveId(rawSavedFid) && !isOwnerFisherId(rawSavedFid)) {
+      fisherId = normalizeFisherId(rawSavedFid, regCode);
+    } else {
+      const detIdx = 1 + (fnv1a32(`auth_v21:${login.toLowerCase()}:${up.pinHash || up.authTokenHash}`) % (26 * 999 - 2));
+      fisherId = formatFisherIdFromIndex(regCode, detIdx);
     }
   } else {
-    fisherId = normalizeFisherId(fisherId, regCode);
+    login = '';
+    callsign = (up.callsign && up.callsign !== 'Рыболов' && !isLoginOwnerMatch(up.callsign)) ? up.callsign : 'Гость (Резерв)';
+    if (rawSavedFid && isTemporaryReserveId(rawSavedFid) && rawSavedFid.slice(3, 5) === regCode) {
+      fisherId = rawSavedFid;
+    } else {
+      fisherId = formatTempReserveFisherId(regCode, `rz_v21:${devId}:${regCode}`);
+    }
   }
-
+  const isTemp = isTemporaryReserveId(fisherId);
+  const isRegistered = Boolean(isOwner || (hasCredentials && !isTemp));
   return {
-    callsign: isOwner && (!up.callsign || up.callsign === 'Рыболов') ? OWNER_BOUND_LOGIN : callsign,
-    login: up.login || (up.pinHash ? callsign : ''),
+    callsign,
+    login,
     fisherId,
+    ownerIds: isOwner ? [OWNER_BOUND_FISHER_ID, OWNER_SECONDARY_FISHER_ID] : [],
     deviceId: devId,
-    isAuthenticated: Boolean(up.pinHash || tgUser?.id || up.tgLinkedId),
-    isOwner: isOwnerAdmin(s),
+    isRegistered,
+    isTemporaryReserve: isTemp,
+    isAuthenticated: isRegistered,
+    isOwner,
     isAdmin: isUserAdmin(s),
-    tgLinkedId: tgUser?.id || up.tgLinkedId || '',
-    tgUsername: tgUser?.username || up.tgUsername || '',
+    tgLinkedId: isRegistered ? (tgUser?.id || up.tgLinkedId || '') : '',
+    tgUsername: isRegistered ? (tgUser?.username || up.tgUsername || '') : '',
     unlockedCrewKeys: Array.isArray(up.unlockedCrewKeys) ? up.unlockedCrewKeys : [],
     hiddenCircleIds: Array.isArray(up.hiddenCircleIds) ? up.hiddenCircleIds : [],
     notifSettings: {
@@ -521,10 +493,19 @@ export function getCurrentFisherIdentity(stateObj = null) {
     }
   };
 }
-
-/**
- * Проверяет, принадлежит ли точка/событие текущему рыбаку («👤 МОИ» vs «🌐 ЧУЖИЕ»)
- */
+export function requireRegisteredFisherId(actionLabel = 'отправки данных') {
+  const s = store.getState();
+  const ident = getCurrentFisherIdentity(s);
+  if (ident.isRegistered && !ident.isTemporaryReserve) {
+    return true;
+  }
+  showToast(
+    `🔒 Сначала зарегистрируйтесь (задайте логин и пароль)! С временным резервным ID (${ident.fisherId}) отправка недоступна.`,
+    'warn'
+  );
+  openAuthAndBackupModal();
+  return false;
+}
 export function isCircleItemMine(item, stateObj = null) {
   if (!item) return false;
   if (item.isDemoSeed || item.isLockedExternalCrew) return false;
@@ -538,23 +519,12 @@ export function isCircleItemMine(item, stateObj = null) {
   }
   return false;
 }
-
-/**
- * Проверяет, скрыта ли чужая точка/событие пользователем
- */
 export function isCircleItemHidden(item, stateObj = null) {
   if (!item || !item.id) return false;
   const s = stateObj || store.getState();
   const hidden = s?.userProfile?.hiddenCircleIds;
   return Array.isArray(hidden) && hidden.includes(item.id);
 }
-
-/**
- * Проверяет доступ к закрытой точке «Экипажа (72 ч)»:
- * - Сигналы SOS видны ВСЕМ.
- * - Сводки Круга и Мастерской видны всем.
- * - Закрытые Экипажи видны ТОЛЬКО создателю, участникам с ключом KP-XXXX и Администраторам из базы!
- */
 export function canUserAccessCrewItem(item, stateObj = null) {
   if (!item) return false;
   if (item.t !== 'crew') return true;
@@ -562,7 +532,6 @@ export function canUserAccessCrewItem(item, stateObj = null) {
   const s = stateObj || store.getState();
   if (isUserAdmin(s)) return true;
   if (isCircleItemMine(item, s)) return true;
-
   const ident = getCurrentFisherIdentity(s);
   const itemKey = String(item.crewKey || '').toUpperCase();
   const unlocked = ident.unlockedCrewKeys.map(k => String(k).toUpperCase());
@@ -570,10 +539,6 @@ export function canUserAccessCrewItem(item, stateObj = null) {
   if (item.id && unlocked.includes(String(item.id).toUpperCase())) return true;
   return false;
 }
-
-/**
- * Синхронизация базы администраторов с Cloudflare Worker (/admin/whitelist)
- */
 export async function syncAdminWhitelistWithCloud(pushChange = null) {
   try {
     if (pushChange && isOwnerAdmin()) {
@@ -596,7 +561,6 @@ export async function syncAdminWhitelistWithCloud(pushChange = null) {
       }
       return true;
     }
-
     const res = await fetch(`${RELAY_WORKER_URL}/admin/whitelist`, { method: 'GET' });
     if (res.ok) {
       const data = await res.json();
@@ -614,7 +578,6 @@ export async function syncAdminWhitelistWithCloud(pushChange = null) {
     return false;
   }
 }
-
 export function detectClientPlatformLabel() {
   if (typeof window === 'undefined') return 'WEB';
   if (window.AndroidBridge || /KlevProAndroid|wv\)/i.test(navigator.userAgent || '')) return 'APK';
@@ -622,50 +585,51 @@ export function detectClientPlatformLabel() {
   if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) return 'PWA';
   return 'WEB';
 }
-
-/**
- * Гарантирует фиксацию уникального ID устройства и выделение уникального серверного ID рыбака (/api/id/allocate)
- */
-export async function ensureFisherIdentityInitialized() {
+export async function ensureFisherIdentityInitialized(forceReallocateForRegion = false) {
   const s = store.getState();
-  const ident = getCurrentFisherIdentity(s);
   const up = s?.userProfile || {};
-
-  // 1. Немедленно фиксируем локальный ID в store и localStorage, чтобы он никогда не пересчитывался заново
-  if (!up.fisherId || up.fisherId !== ident.fisherId || !up.deviceId) {
+  const regCode = resolveRussianRegionCode(s);
+  const hasRealLoc = Boolean(s?.hasUserLocation);
+  const ident = getCurrentFisherIdentity(s);
+  if (!up.fisherId || up.fisherId !== ident.fisherId || !up.deviceId || (ident.isOwner && !up.ownerUnlocked)) {
     store.dispatch({
       type: 'UPDATE_USER_PROFILE',
       payload: {
         fisherId: ident.fisherId,
+        login: ident.login,
+        callsign: ident.callsign,
+        ownerUnlocked: ident.isOwner ? true : Boolean(up.ownerUnlocked),
         deviceId: ident.deviceId,
+        regionConfirmed: Boolean(up.regionConfirmed || hasRealLoc),
         tgLinkedId: ident.tgLinkedId,
         tgUsername: ident.tgUsername
       }
     });
+    storage.saveSettings(store.getState());
   }
-
-  // Если это Владелец (FP_89VIP089) — его эксклюзивный ID уже закреплён
-  if (ident.isOwner || ident.fisherId === OWNER_BOUND_FISHER_ID) {
-    return ident.fisherId;
-  }
-
-  if (_idAllocationInFlight) return ident.fisherId;
+  if (_idAllocationInFlight && !forceReallocateForRegion) return ident.fisherId;
   _idAllocationInFlight = true;
   try {
-    const regCode = resolveRussianRegionCode(s);
+    const curStateNow = store.getState();
+    const curUpNow = curStateNow?.userProfile || {};
+    const snapBackup = ident.isRegistered ? buildProfileCloudSnapshot(curStateNow) : null;
     const res = await fetch(`${RELAY_WORKER_URL}/api/id/allocate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         deviceId: ident.deviceId,
-        currentFisherId: up.serverIdAllocated ? ident.fisherId : '',
+        currentFisherId: ident.fisherId,
         regionCode: regCode,
+        hasUserLocation: hasRealLoc,
+        regionConfirmed: Boolean(curUpNow.regionConfirmed || hasRealLoc),
+        profileBackup: snapBackup,
         locLabel: s.locLabel || 'Новый Уренгой',
         locAdmin1: s.locAdmin1 || '',
-        login: ident.login || '',
-        callsign: ident.callsign || 'Рыболов',
-        tgId: ident.tgLinkedId || '',
-        tgUsername: ident.tgUsername || '',
+        login: ident.isRegistered ? (ident.login || '') : '',
+        authTokenHash: ident.isRegistered ? (curUpNow.authTokenHash || '') : '',
+        callsign: ident.callsign || 'Гость (Резерв)',
+        tgId: ident.isRegistered ? (ident.tgLinkedId || '') : '',
+        tgUsername: ident.isRegistered ? (ident.tgUsername || '') : '',
         platform: detectClientPlatformLabel(),
         version: '2.1.00',
         lat: s.lat,
@@ -674,16 +638,25 @@ export async function ensureFisherIdentityInitialized() {
     });
     if (res.ok) {
       const data = await res.json();
-      if (data && data.ok && data.fisherId && !isOwnerAdmin(store.getState())) {
-        const srvFid = normalizeFisherId(data.fisherId, regCode);
+      if (data && data.ok && data.fisherId) {
+        const curState = store.getState();
+        const curUp = curState.userProfile || {};
+        const curIdent = getCurrentFisherIdentity(curState);
+        const srvReg = data.regionCode || regCode;
+        let srvFid = normalizeFisherId(data.fisherId, srvReg);
+        if (curIdent.isOwner) {
+          srvFid = curIdent.fisherId;
+        }
         store.dispatch({
           type: 'UPDATE_USER_PROFILE',
           payload: {
             fisherId: srvFid,
-            deviceId: ident.deviceId,
-            serverIdAllocated: true
+            deviceId: curIdent.deviceId,
+            serverIdAllocated: true,
+            regionConfirmed: Boolean(curUp.regionConfirmed || hasRealLoc || srvReg !== '89')
           }
         });
+        storage.saveSettings(store.getState());
         _idAllocationInFlight = false;
         return srvFid;
       }
@@ -692,16 +665,14 @@ export async function ensureFisherIdentityInitialized() {
   _idAllocationInFlight = false;
   return ident.fisherId;
 }
-
-/**
- * Публикует точку Круга, Экипажа, SOS или Мастерской на сервер (/api/circle/publish),
- * чтобы её мгновенно увидели другие пользователи на карте и в ленте Круга
- */
 export async function publishCircleItemToServer(itemObj, packToken = '') {
   if (!itemObj || !itemObj.t) return false;
+  const s = store.getState();
+  const ident = getCurrentFisherIdentity(s);
+  if (!ident.isRegistered || ident.isTemporaryReserve) {
+    return false;
+  }
   try {
-    const s = store.getState();
-    const ident = getCurrentFisherIdentity(s);
     const res = await fetch(`${RELAY_WORKER_URL}/api/circle/publish`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -723,10 +694,6 @@ export async function publishCircleItemToServer(itemObj, packToken = '') {
     return false;
   }
 }
-
-/**
- * Удаляет точку пользователя с сервера (/api/circle/delete)
- */
 export async function deleteCircleItemFromServer(itemId) {
   if (!itemId) return false;
   try {
@@ -747,10 +714,6 @@ export async function deleteCircleItemFromServer(itemId) {
     return false;
   }
 }
-
-/**
- * Загружает с сервера все активные точки Круга, открытых Экипажей, SOS и Мастерской рядом (/api/circle/nearby)
- */
 export async function syncNearbyCirclePointsFromServer(showFeedbackToast = false) {
   const now = Date.now();
   if (!showFeedbackToast && now - _lastNearbyCircleSyncTs < 6000) return false;
@@ -777,14 +740,12 @@ export async function syncNearbyCirclePointsFromServer(showFeedbackToast = false
     if (!res.ok) return false;
     const data = await res.json();
     if (!data || !data.ok || !Array.isArray(data.items)) return false;
-
     const curList = purgeExpiredCircleItems(store.getState().circleItems || []);
     const existingIds = new Set(curList.map(x => x.id));
     const mergedMap = new Map();
     curList.forEach(it => {
       if (it && it.id) mergedMap.set(it.id, it);
     });
-
     let newExternalCount = 0;
     for (const srvItem of data.items) {
       if (!srvItem || !srvItem.id) continue;
@@ -836,14 +797,11 @@ export async function syncNearbyCirclePointsFromServer(showFeedbackToast = false
       }
       mergedMap.set(itemCopy.id, itemCopy);
     }
-
     const mergedList = Array.from(mergedMap.values())
       .sort((a, b) => (b.ca || 0) - (a.ca || 0))
       .slice(0, 120);
-
     storage.saveCircleItems(mergedList);
     store.dispatch({ type: 'SET_CIRCLE_ITEMS', payload: mergedList });
-
     if (showFeedbackToast) {
       showToast(
         newExternalCount > 0
@@ -860,21 +818,17 @@ export async function syncNearbyCirclePointsFromServer(showFeedbackToast = false
     return false;
   }
 }
-
-/**
- * Клиентское сквозное шифрование (E2EE) сообщений чата рыбаков и экипажа.
- */
-/**
- * Формирует слепок настроек профиля и рыбалки для межплатформенной облачной синхронизации
- */
 export function buildProfileCloudSnapshot(stateObj = null) {
   const s = stateObj || store.getState();
   const ident = getCurrentFisherIdentity(s);
   const up = s?.userProfile || {};
   return {
     fisherId: ident.fisherId,
+    deviceId: ident.deviceId || up.deviceId || '',
     login: ident.login || ident.callsign,
     callsign: ident.callsign,
+    tgLinkedId: ident.tgLinkedId || up.tgLinkedId || '',
+    tgUsername: ident.tgUsername || up.tgUsername || '',
     pinHash: up.pinHash || '',
     ownerUnlocked: Boolean(up.ownerUnlocked || ident.isOwner),
     adminShowAllCrews: up.adminShowAllCrews !== false,
@@ -897,10 +851,6 @@ export function buildProfileCloudSnapshot(stateObj = null) {
     updatedAt: Date.now()
   };
 }
-
-/**
- * Применяет загруженный из облака профиль к текущему устройству (браузер, APK, Telegram Mini App)
- */
 export function applyCloudProfileToDevice(cloudProf, whitelist = null) {
   if (!cloudProf || typeof cloudProf !== 'object') return;
   const s = store.getState();
@@ -909,16 +859,27 @@ export function applyCloudProfileToDevice(cloudProf, whitelist = null) {
     ...(Array.isArray(prevUp.unlockedCrewKeys) ? prevUp.unlockedCrewKeys : []),
     ...(Array.isArray(cloudProf.unlockedCrewKeys) ? cloudProf.unlockedCrewKeys : [])
   ]));
-
+  const isCloudOwner = Boolean(
+    cloudProf.ownerUnlocked ||
+    prevUp.ownerUnlocked ||
+    isLoginOwnerMatch(cloudProf.login) ||
+    isOwnerFisherId(cloudProf.fisherId)
+  );
+  const resolvedFid = isCloudOwner
+    ? (String(cloudProf.fisherId || prevUp.fisherId || '').toUpperCase() === OWNER_SECONDARY_FISHER_ID ? OWNER_SECONDARY_FISHER_ID : OWNER_BOUND_FISHER_ID)
+    : (cloudProf.fisherId && !isTemporaryReserveId(cloudProf.fisherId) ? cloudProf.fisherId : prevUp.fisherId);
   store.dispatch({
     type: 'UPDATE_USER_PROFILE',
     payload: {
       onboarded: true,
-      login: cloudProf.login || prevUp.login || cloudProf.callsign || 'Рыболов',
-      callsign: cloudProf.callsign || prevUp.callsign || 'Рыболов',
-      fisherId: cloudProf.fisherId || prevUp.fisherId,
+      login: isCloudOwner ? (cloudProf.login || OWNER_BOUND_LOGIN) : (cloudProf.login || prevUp.login || cloudProf.callsign || 'Рыболов'),
+      callsign: isCloudOwner ? (cloudProf.callsign || OWNER_BOUND_LOGIN) : (cloudProf.callsign || prevUp.callsign || 'Рыболов'),
+      fisherId: resolvedFid,
+      tgLinkedId: String(cloudProf.tgLinkedId || cloudProf.tgId || prevUp.tgLinkedId || ''),
+      tgUsername: String(cloudProf.tgUsername || prevUp.tgUsername || ''),
       pinHash: cloudProf.pinHash || prevUp.pinHash,
-      ownerUnlocked: Boolean(cloudProf.ownerUnlocked || prevUp.ownerUnlocked),
+      authTokenHash: cloudProf.authTokenHash || prevUp.authTokenHash,
+      ownerUnlocked: isCloudOwner,
       adminShowAllCrews: cloudProf.adminShowAllCrews !== undefined ? Boolean(cloudProf.adminShowAllCrews) : true,
       unlockedCrewKeys: mergedKeys,
       preferredWater: cloudProf.water || prevUp.preferredWater || s.water,
@@ -931,17 +892,14 @@ export function applyCloudProfileToDevice(cloudProf, whitelist = null) {
       }
     }
   });
-
   if (Array.isArray(whitelist) && whitelist.length > 0) {
     store.dispatch({ type: 'SET_ADMIN_WHITELIST', payload: whitelist });
   } else if (Array.isArray(cloudProf.adminWhitelist) && cloudProf.adminWhitelist.length > 0) {
     store.dispatch({ type: 'SET_ADMIN_WHITELIST', payload: cloudProf.adminWhitelist });
   }
-
   if (Array.isArray(cloudProf.favorites) && cloudProf.favorites.length > 0 && (!s.favorites || s.favorites.length === 0)) {
     store.dispatch({ type: 'SET_FAVORITES_LIST', payload: cloudProf.favorites });
   }
-
   if (Array.isArray(cloudProf.savedSpots) && cloudProf.savedSpots.length > 0) {
     const curSpots = Array.isArray(s.savedSpots) ? s.savedSpots : [];
     const spotMap = new Map();
@@ -952,15 +910,10 @@ export function applyCloudProfileToDevice(cloudProf, whitelist = null) {
     storage.saveSpots(mergedSpots);
     store.dispatch({ type: 'SET_SAVED_SPOTS', payload: mergedSpots });
   }
-
   if (cloudProf.appMode && ['novice', 'angler', 'pro'].includes(cloudProf.appMode)) {
     store.dispatch({ type: 'SET_APP_MODE', payload: cloudProf.appMode });
   }
 }
-
-/**
- * Выполняет вход или синхронизацию профиля по Логину и Паролю между всеми устройствами (APK, Браузер, TG Mini App)
- */
 export async function authenticateAndSyncAccount(rawLogin, rawPassword, mode = 'login') {
   const s = store.getState();
   const regCode = resolveRussianRegionCode(s);
@@ -968,17 +921,12 @@ export async function authenticateAndSyncAccount(rawLogin, rawPassword, mode = '
   if (!creds.ok) {
     return { ok: false, error: creds.error || 'Укажите логин и пароль' };
   }
-
   const tgUser = getTelegramUser();
   const prevUp = s.userProfile || {};
-
-  // Сохраняем существующий региональный ID пользователя, если он уже закреплён за этим логином
   let effectiveFisherId = creds.fisherId;
-  if (!creds.isOwner && prevUp.login && prevUp.login.toLowerCase() === creds.login.toLowerCase() && isValidFisherIdFormat(prevUp.fisherId)) {
+  if (!creds.isOwner && prevUp.login && prevUp.login.toLowerCase() === creds.login.toLowerCase() && prevUp.fisherId && !isTemporaryReserveId(prevUp.fisherId) && !isOwnerFisherId(prevUp.fisherId)) {
     effectiveFisherId = normalizeFisherId(prevUp.fisherId, regCode);
   }
-
-  // 1. Мгновенная локальная активация (работает даже при полном отсутствии связи в тундре, БЕЗ хранения пароля в открытом виде!)
   store.dispatch({
     type: 'UPDATE_USER_PROFILE',
     payload: {
@@ -989,24 +937,24 @@ export async function authenticateAndSyncAccount(rawLogin, rawPassword, mode = '
       pinHash: creds.pinHash,
       authTokenHash: creds.authTokenHash,
       authShadow: '',
-      ownerUnlocked: creds.isOwner ? true : Boolean(prevUp.ownerUnlocked),
+      ownerUnlocked: creds.isOwner ? true : false,
       adminShowAllCrews: creds.isOwner ? true : (prevUp.adminShowAllCrews !== false),
       tgLinkedId: tgUser?.id || prevUp.tgLinkedId || '',
       tgUsername: tgUser?.username || prevUp.tgUsername || ''
     }
   });
-
   if (creds.isOwner) {
     store.dispatch({
       type: 'ADD_ADMIN_TO_WHITELIST',
-      payload: { id: OWNER_BOUND_FISHER_ID, label: 'iAthor82 • Антон (Владелец / Супер-Админ)' }
+      payload: { id: OWNER_BOUND_FISHER_ID, label: 'iAthor • Антон (Владелец / Основной VIP ID)' }
+    });
+    store.dispatch({
+      type: 'ADD_ADMIN_TO_WHITELIST',
+      payload: { id: OWNER_SECONDARY_FISHER_ID, label: 'iAthor82 • Антон (Владелец / Спец-ID FP_FMP089)' }
     });
   }
-
   const snapshot = buildProfileCloudSnapshot(store.getState());
   syncToTelegramCloud('klev_auth_v2', snapshot);
-
-  // 2. Сетевая синхронизация через Cloudflare Worker (/auth/login или /auth/sync)
   let cloudSynced = false;
   let finalFisherId = effectiveFisherId;
   try {
@@ -1025,26 +973,49 @@ export async function authenticateAndSyncAccount(rawLogin, rawPassword, mode = '
         profileSnapshot: snapshot
       })
     });
-    if (res.ok) {
-      const data = await res.json();
-      if (data && data.ok && data.profile) {
-        if (data.fisherId) {
-          finalFisherId = normalizeFisherId(data.fisherId, regCode);
-          data.profile.fisherId = finalFisherId;
-        }
-        if (data.adminSessionToken) {
-          _serverAdminSessionToken = data.adminSessionToken;
-          data.profile.adminSessionToken = data.adminSessionToken;
-        }
-        if (typeof data.serverDynamicSlotHtml === 'string') {
-          _serverDynamicAdminSlotHtml = data.serverDynamicSlotHtml;
-        }
-        applyCloudProfileToDevice(data.profile, data.whitelist);
-        cloudSynced = true;
+    const data = await res.json().catch(() => null);
+    if (!res.ok || (data && data.ok === false)) {
+      if (!prevUp.pinHash) {
+        const tempId = formatTempReserveFisherId(regCode, storage.getDeviceId ? storage.getDeviceId() : 'dev');
+        store.dispatch({
+          type: 'UPDATE_USER_PROFILE',
+          payload: {
+            login: '',
+            callsign: 'Гость (Резерв)',
+            fisherId: tempId,
+            pinHash: '',
+            authTokenHash: '',
+            ownerUnlocked: false
+          }
+        });
       }
+      return {
+        ok: false,
+        error: data?.error || 'Неверный пароль или логин уже занят другим рыбаком'
+      };
+    }
+    if (data && data.ok && data.profile) {
+      if (creds.isOwner || data.isOwner) {
+        finalFisherId = data.fisherId === OWNER_SECONDARY_FISHER_ID ? OWNER_SECONDARY_FISHER_ID : OWNER_BOUND_FISHER_ID;
+        data.profile.fisherId = finalFisherId;
+        data.profile.login = creds.login;
+        data.profile.callsign = creds.callsign;
+        data.profile.ownerUnlocked = true;
+      } else if (data.fisherId) {
+        finalFisherId = normalizeFisherId(data.fisherId, regCode);
+        data.profile.fisherId = finalFisherId;
+      }
+      if (data.adminSessionToken) {
+        _serverAdminSessionToken = data.adminSessionToken;
+        data.profile.adminSessionToken = data.adminSessionToken;
+      }
+      if (typeof data.serverDynamicSlotHtml === 'string' && data.serverDynamicSlotHtml) {
+        _serverDynamicAdminSlotHtml = data.serverDynamicSlotHtml;
+      }
+      applyCloudProfileToDevice(data.profile, data.whitelist);
+      cloudSynced = true;
     }
   } catch (e) {}
-
   return {
     ok: true,
     isOwner: creds.isOwner,
@@ -1054,10 +1025,33 @@ export async function authenticateAndSyncAccount(rawLogin, rawPassword, mode = '
     cloudSynced
   };
 }
-
-/**
- * Фоновая синхронизация изменений профиля в облако по крипто-токену authTokenHash (без хранения открытого пароля)
- */
+export function logoutCurrentFisherAccount() {
+  const s = store.getState();
+  const regCode = resolveRussianRegionCode(s);
+  const devId = storage.getDeviceId ? storage.getDeviceId() : 'dev_local';
+  const tempFid = formatTempReserveFisherId(regCode, `rz_v21:${devId}:${regCode}`);
+  _serverAdminSessionToken = '';
+  _serverDynamicAdminSlotHtml = '';
+  store.dispatch({
+    type: 'UPDATE_USER_PROFILE',
+    payload: {
+      login: '',
+      callsign: 'Гость (Резерв)',
+      fisherId: tempFid,
+      pinHash: '',
+      authTokenHash: '',
+      adminSessionToken: '',
+      ownerUnlocked: false,
+      tgLinkedId: '',
+      tgUsername: ''
+    }
+  });
+  storage.saveSettings(store.getState());
+  if (s.route === 'admin') {
+    router.navigate('forecast');
+  }
+  return tempFid;
+}
 export async function syncCurrentProfileToCloudIfLoggedIn() {
   const s = store.getState();
   const up = s?.userProfile || {};
@@ -1100,11 +1094,6 @@ export async function syncCurrentProfileToCloudIfLoggedIn() {
   } catch (e) {}
   return false;
 }
-
-/**
- * Генерирует компактную шапку-переключатель между 4 раздельными подменю настроек:
- * 1) 🔐 Вход и ID | 2) 🎣 Рыбалка | 3) ⚙️ Параметры | 4) 🔔 Уведомления
- */
 export function renderSettingsZoneTabsHtml(activeZone = 'auth') {
   const zones = [
     { id: 'auth', icon: '🔐', label: 'Вход и ID' },
@@ -1123,7 +1112,6 @@ export function renderSettingsZoneTabsHtml(activeZone = 'auth') {
     </div>
   `;
 }
-
 export function bindSettingsZoneTabs(bodyEl) {
   if (!bodyEl) return;
   bodyEl.querySelectorAll('[data-switch-settings-zone]').forEach(btn => {
@@ -1136,7 +1124,6 @@ export function bindSettingsZoneTabs(bodyEl) {
     });
   });
 }
-
 export function encryptChatPayload(plainObj, channelKey = 'default') {
   const jsonStr = JSON.stringify(plainObj || {});
   const utf8 = new TextEncoder().encode(jsonStr);
@@ -1156,7 +1143,6 @@ export function encryptChatPayload(plainObj, channelKey = 'default') {
     .replace(/=+$/, '');
   return `${E2E_PREFIX}${b64}`;
 }
-
 export function decryptChatPayload(cipherStr, channelKey = 'default') {
   if (!cipherStr || typeof cipherStr !== 'string') return null;
   const clean = cipherStr.trim();
@@ -1186,7 +1172,6 @@ export function decryptChatPayload(cipherStr, channelKey = 'default') {
     return null;
   }
 }
-
 export function playNotificationPing(kind = 'normal') {
   try {
     const st = store.getState();
@@ -1198,7 +1183,6 @@ export function playNotificationPing(kind = 'normal') {
     const gain = ctx.createGain();
     osc.connect(gain);
     gain.connect(ctx.destination);
-
     const now = ctx.currentTime;
     if (kind === 'sos') {
       osc.type = 'sawtooth';
@@ -1220,17 +1204,12 @@ export function playNotificationPing(kind = 'normal') {
     }
   } catch (e) {}
 }
-
-/**
- * Обновляет бейджи непрочитанных событий на нижней вкладке «👥 Круг» и непрочитанных сообщений на вкладке «💬 Чаты»
- */
 export function syncCircleNavBadge() {
   if (typeof document === 'undefined') return;
   try {
     const s = store.getState();
     const unreadNotifs = (s.notifications || []).filter(n => n && !n.read).length;
     const unreadChats = (s.chatMessages || []).filter(m => m && m.unread).length;
-
     const applyBadgeToTab = (tabName, badgeId, count) => {
       const navBtn = document.querySelector(`[data-nav-tab="${tabName}"]`);
       if (!navBtn) return;
@@ -1249,23 +1228,19 @@ export function syncCircleNavBadge() {
       badge.textContent = count > 99 ? '99+' : String(count);
       badge.style.display = 'inline-flex';
     };
-
     applyBadgeToTab('circle', 'circleNavBadge', unreadNotifs);
     applyBadgeToTab('chats', 'chatsNavBadge', unreadChats);
   } catch (e) {}
 }
-
 export function pushAppNotification({ category = 'circle', title = '', body = '', subTab = 'radar', channelId = '', lat = null, lon = null, silentToast = false }) {
   const s = store.getState();
   const ident = getCurrentFisherIdentity(s);
   const prefs = ident.notifSettings;
-
   if (category === 'sos' && prefs.sos === false) return null;
   if (category === 'crew' && prefs.crew === false) return null;
   if (category === 'circle' && prefs.circle === false) return null;
   if (category === 'workshop' && prefs.workshop === false) return null;
   if (category === 'dm' && prefs.dm === false) return null;
-
   const notif = {
     id: `ntf_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
     category,
@@ -1278,30 +1253,24 @@ export function pushAppNotification({ category = 'circle', title = '', body = ''
     ts: Date.now(),
     read: false
   };
-
   const prevList = Array.isArray(s.notifications) ? s.notifications : [];
   const nextList = [notif, ...prevList].slice(0, 80);
   storage.saveNotifications(nextList);
   store.dispatch({ type: 'SET_NOTIFICATIONS', payload: nextList });
-
   playNotificationPing(category === 'sos' ? 'sos' : 'normal');
   triggerHaptic(category === 'sos' ? 'error' : 'light');
   syncCircleNavBadge();
-
   if (!silentToast) {
     const tone = category === 'sos' ? 'bad' : (category === 'crew' || category === 'dm' ? 'good' : 'info');
     showToast(`🔔 ${notif.title}: ${notif.body}`, tone);
   }
-
   try {
     if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
       new Notification(notif.title, { body: notif.body, icon: 'icon-192.png' });
     }
   } catch (e) {}
-
   return notif;
 }
-
 export function getEffectiveCircleRadiusKm(item, nowMs = Date.now()) {
   const baseRadius = Number(item?.br) || CIRCLE_BLUR_RADIUS_KM;
   const createdMs = Number(item?.ca) || nowMs;
@@ -1311,20 +1280,16 @@ export function getEffectiveCircleRadiusKm(item, nowMs = Date.now()) {
   }
   return baseRadius;
 }
-
 export function computeHexPolygonForCircle(lat, lon, radiusKm = 5.0, seedStr = '') {
   const gridLatStep = 0.045;
   const cosLat = Math.max(0.22, Math.cos((lat * Math.PI) / 180));
   const gridLonStep = 0.045 / cosLat;
-
   const cellLat = Math.round(lat / gridLatStep) * gridLatStep;
   const cellLon = Math.round(lon / gridLonStep) * gridLonStep;
-
   const seedInput = `${cellLat.toFixed(3)}_${cellLon.toFixed(3)}_${seedStr || 'hex'}`;
   const unsigned = fnv1a32(seedInput);
   const rotationDeg = (unsigned % 60) - 30;
   const vertices = [];
-
   for (let k = 0; k < 6; k++) {
     const baseAngleDeg = k * 60 + rotationDeg;
     const rad = (baseAngleDeg * Math.PI) / 180;
@@ -1334,28 +1299,23 @@ export function computeHexPolygonForCircle(lat, lon, radiusKm = 5.0, seedStr = '
     const vLon = Math.round((cellLon + (rKm * Math.sin(rad)) / (111.32 * cosLat)) * 10000) / 10000;
     vertices.push([vLat, vLon]);
   }
-
   return {
     cellLat: Math.round(cellLat * 1000) / 1000,
     cellLon: Math.round(cellLon * 1000) / 1000,
     vertices
   };
 }
-
 export function blurCoordsForCircle(lat, lon, seedStr = '') {
   const seedInput = `${lat.toFixed(3)}_${lon.toFixed(3)}_${seedStr || 'klev'}`;
   const unsigned = fnv1a32(seedInput);
   const angleRad = ((unsigned % 360) * Math.PI) / 180;
   const offsetKm = 1.4 + ((unsigned >>> 8) % 150) / 100;
-
   const dLat = (offsetKm * Math.cos(angleRad)) / 111.32;
   const cosLat = Math.max(0.2, Math.cos((lat * Math.PI) / 180));
   const dLon = (offsetKm * Math.sin(angleRad)) / (111.32 * cosLat);
-
   const shiftedLat = lat + dLat;
   const shiftedLon = lon + dLon;
   const hex = computeHexPolygonForCircle(shiftedLat, shiftedLon, CIRCLE_BLUR_RADIUS_KM, seedStr);
-
   return {
     blurredLat: Math.round(shiftedLat * 1000) / 1000,
     blurredLon: Math.round(shiftedLon * 1000) / 1000,
@@ -1366,7 +1326,6 @@ export function blurCoordsForCircle(lat, lon, seedStr = '') {
     offsetKm: Math.round(offsetKm * 10) / 10
   };
 }
-
 export function getUserExpertRank(catches = []) {
   const list = Array.isArray(catches) ? catches : [];
   const total = list.length;
@@ -1381,7 +1340,6 @@ export function getUserExpertRank(catches = []) {
   }
   const matched = list.filter(c => c && c.matchedForecast !== false).length;
   const matchRate = Math.round((matched / total) * 100);
-
   if (total >= 5 && matchRate >= 80) {
     return {
       tier: 'expert',
@@ -1408,36 +1366,30 @@ export function getUserExpertRank(catches = []) {
     totalCatches: total
   };
 }
-
 export function evaluateWorkshopRigMatch(rigItem, currentWaterType, currentDepth, currentWaterTemp, currentPress) {
   if (!rigItem) return { isMatch: false, score: 0, reasons: [] };
   let score = 100;
   const reasons = [];
-
   const rigWT = Number.isFinite(rigItem.tw) ? rigItem.tw : 10;
   const tempMin = Number.isFinite(rigItem.twMin) ? rigItem.twMin : (rigWT - 4.5);
   const tempMax = Number.isFinite(rigItem.twMax) ? rigItem.twMax : (rigWT + 4.5);
-
   if (currentWaterTemp >= tempMin && currentWaterTemp <= tempMax) {
     reasons.push(`💧 Вода ${currentWaterTemp}°C входит в рабочий коридор (${tempMin.toFixed(0)}..${tempMax.toFixed(0)}°C)`);
   } else {
     const diff = Math.min(Math.abs(currentWaterTemp - tempMin), Math.abs(currentWaterTemp - tempMax));
     score -= Math.min(45, Math.round(diff * 6));
   }
-
   if (rigItem.wt && rigItem.wt === currentWaterType) {
     reasons.push('🌊 Точное совпадение типа водоёма и течения');
   } else {
     score -= 15;
   }
-
   const rigDepth = Number.isFinite(rigItem.dp) ? rigItem.dp : currentDepth;
   if (Math.abs(rigDepth - currentDepth) <= 2.0) {
     reasons.push(`📏 Близкий горизонт глубины (~${rigDepth} м)`);
   } else {
     score -= 15;
   }
-
   return {
     isMatch: score >= 65,
     score: Math.max(10, score),
@@ -1445,12 +1397,6 @@ export function evaluateWorkshopRigMatch(rigItem, currentWaterType, currentDepth
     reasons
   };
 }
-
-/**
- * Ультракомпактный бинарный упаковщик V3 со встроенным 20-битным Рыболовным ID (FP_89AAA001):
- * Фиксированный заголовок 21 байт = 28 символов Base64url (без знаков '='),
- * сохраняет точный ID рыбака (FP_89AAA001) во всех точках Круга, Экипажа, SOS и Мастерской!
- */
 export function encodeSharePack(payloadObj) {
   const p = payloadObj || {};
   const ident = getCurrentFisherIdentity();
@@ -1458,18 +1404,15 @@ export function encodeSharePack(payloadObj) {
   const fiIdx = Math.max(0, Math.min(255, FISH_DB.findIndex(f => f.id === p.fi)));
   const wtIdx = Math.max(0, PACK_WATER_KEYS.indexOf(p.wt || 'small_river'));
   const mtIdx = Math.max(0, PACK_METHOD_KEYS.indexOf(p.mt || 'spin_jig'));
-
   const latVal = modeCode === 3 ? 0 : (Number(p.lat) || 0);
   const lonVal = modeCode === 3 ? 0 : (Number(p.lon) || 0);
   const latInt = Math.max(0, Math.min(1800000, Math.round((latVal + 90) * 10000)));
   const lonInt = Math.max(0, Math.min(3600000, Math.round((lonVal + 180) * 10000)));
-
   const dpByte = Math.max(0, Math.min(255, Math.round((Number(p.dp) || 2) * 4)));
   const twByte = Math.max(0, Math.min(255, Math.round(((Number(p.tw ?? 10)) + 5) * 6)));
   const prByte = Math.max(0, Math.min(255, Math.round((Number(p.pr) || 754) - 650)));
   const tsRelMin = Math.max(0, Math.floor(((Number(p.ca) || Date.now()) - EPOCH_2024_MS) / 60000)) & 0xffffff;
   const rkFlags = (p.rk === 'expert' ? 2 : (p.rk === 'angler' ? 1 : 0)) + (p.isDemoSeed ? 8 : 0);
-
   let meta16 = 0;
   if (modeCode === 1) {
     meta16 = computeCrewKeyHash(p.crewKey || p.id || `${latInt}_${lonInt}`);
@@ -1478,53 +1421,41 @@ export function encodeSharePack(payloadObj) {
   } else {
     meta16 = computeCrewKeyHash(p.id || `${tsRelMin}`);
   }
-
   const fid32 = encodeFisherIdTo32Bit(p.fid || ident.fisherId);
   const customNoteClean = p._hasCustomNote ? String(p.nt || '').trim().slice(0, 48) : '';
   const tailBytes = customNoteClean ? new TextEncoder().encode(customNoteClean) : new Uint8Array(0);
   const hasTail = tailBytes.length > 0 ? 1 : 0;
-
-  // Бит 7 в байте 1 (0x80) и бит 7 в байте 3 (0x80) указывают на 32-битный ID рыбака (FP_89VIP089 / FP_89AAA001) в байтах 18..21
   const rawBuf = new Uint8Array(22 + tailBytes.length);
   rawBuf[0] = 0xb3;
   rawBuf[1] = (modeCode & 0x03) | ((rkFlags & 0x0f) << 2) | (hasTail << 6) | 0x80;
   rawBuf[2] = fiIdx & 0xff;
   rawBuf[3] = (wtIdx & 0x07) | ((mtIdx & 0x0f) << 3) | 0x80;
-
   rawBuf[4] = (latInt >>> 16) & 0xff;
   rawBuf[5] = (latInt >>> 8) & 0xff;
   rawBuf[6] = latInt & 0xff;
-
   rawBuf[7] = (lonInt >>> 16) & 0xff;
   rawBuf[8] = (lonInt >>> 8) & 0xff;
   rawBuf[9] = lonInt & 0xff;
-
   rawBuf[10] = dpByte;
   rawBuf[11] = twByte;
   rawBuf[12] = prByte;
-
   rawBuf[13] = (tsRelMin >>> 16) & 0xff;
   rawBuf[14] = (tsRelMin >>> 8) & 0xff;
   rawBuf[15] = tsRelMin & 0xff;
-
   rawBuf[16] = (meta16 >>> 8) & 0xff;
   rawBuf[17] = meta16 & 0xff;
-
   rawBuf[18] = (fid32 >>> 24) & 0x7f;
   rawBuf[19] = (fid32 >>> 16) & 0xff;
   rawBuf[20] = (fid32 >>> 8) & 0xff;
   rawBuf[21] = fid32 & 0xff;
-
   if (tailBytes.length > 0) {
     rawBuf.set(tailBytes, 22);
   }
-
   const saltBytes = new TextEncoder().encode(CIPHER_SALT);
   const out = new Uint8Array(rawBuf.length);
   for (let i = 0; i < rawBuf.length; i++) {
     out[i] = rawBuf[i] ^ saltBytes[i % saltBytes.length] ^ ((i * 31) & 0xff);
   }
-
   let bin = '';
   for (let i = 0; i < out.length; i++) {
     bin += String.fromCharCode(out[i]);
@@ -1535,22 +1466,16 @@ export function encodeSharePack(payloadObj) {
   const b64url = b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
   return `${PACK_PREFIX}${b64url}`;
 }
-
-/**
- * Декодирует токен KP1_... (поддерживает V3 с 20-битным ID рыбака, V3 18-байтный, V2 и V1)
- */
 export function decodeSharePack(rawInput) {
   if (!rawInput || typeof rawInput !== 'string') return null;
   const trimmed = rawInput.trim();
   const match = trimmed.match(/KP1_[A-Za-z0-9_-]+/);
   const token = match ? match[0] : (trimmed.startsWith(PACK_PREFIX) ? trimmed : null);
   if (!token) return null;
-
   try {
     const b64url = token.slice(PACK_PREFIX.length);
     let b64 = b64url.replace(/-/g, '+').replace(/_/g, '/');
     while (b64.length % 4 !== 0) b64 += '=';
-
     let bytes;
     if (typeof atob === 'function') {
       const bin = atob(b64);
@@ -1559,37 +1484,30 @@ export function decodeSharePack(rawInput) {
     } else {
       bytes = new Uint8Array(Buffer.from(b64, 'base64'));
     }
-
     const saltBytes = new TextEncoder().encode(CIPHER_SALT);
     const plainBytes = new Uint8Array(bytes.length);
     for (let i = 0; i < bytes.length; i++) {
       plainBytes[i] = bytes[i] ^ saltBytes[i % saltBytes.length] ^ ((i * 31) & 0xff);
     }
-
     if (plainBytes.length >= 18 && plainBytes[0] === 0xb3) {
       const b1 = plainBytes[1];
       const modeCode = b1 & 0x03;
       const rkFlags = (b1 >>> 2) & 0x0f;
       const hasTail = Boolean((b1 >>> 6) & 0x01);
       const hasEmbeddedFid = Boolean((b1 & 0x80) && plainBytes.length >= 21);
-
       const fiIdx = plainBytes[2];
       const wtIdx = plainBytes[3] & 0x07;
       const mtIdx = (plainBytes[3] >>> 3) & 0x0f;
-
       const latInt = (plainBytes[4] << 16) | (plainBytes[5] << 8) | plainBytes[6];
       const lonInt = (plainBytes[7] << 16) | (plainBytes[8] << 8) | plainBytes[9];
       const lat = modeCode === 3 ? 0 : Math.round(((latInt / 10000) - 90) * 10000) / 10000;
       const lon = modeCode === 3 ? 0 : Math.round(((lonInt / 10000) - 180) * 10000) / 10000;
-
       const dp = Math.round((plainBytes[10] / 4) * 10) / 10 || 2.0;
       const tw = Math.round(((plainBytes[11] / 6) - 5) * 10) / 10;
       const pr = plainBytes[12] + 650;
-
       const tsRelMin = (plainBytes[13] << 16) | (plainBytes[14] << 8) | plainBytes[15];
       const ca = tsRelMin > 0 ? (EPOCH_2024_MS + tsRelMin * 60000) : Date.now();
       const ea = ca + CREW_TTL_MS;
-
       const meta16 = (plainBytes[16] << 8) | plainBytes[17];
       const is32BitFid = Boolean((plainBytes[3] & 0x80) && plainBytes.length >= 22);
       let fid = 'FP_89AAA001';
@@ -1603,25 +1521,20 @@ export function decodeSharePack(rawInput) {
         fid = formatFisherIdFrom20Bit(fid20);
         noteOffset = 21;
       }
-
       const customNote = (hasTail && plainBytes.length > noteOffset)
         ? new TextDecoder().decode(plainBytes.slice(noteOffset)).trim()
         : '';
-
       const fish = FISH_DB[fiIdx] || FISH_DB[0];
       const wt = PACK_WATER_KEYS[wtIdx] || 'small_river';
       const mt = PACK_METHOD_KEYS[mtIdx] || 'spin_jig';
       const prof = WATER_PROFILES[wt] || WATER_PROFILES.small_river;
-
       const rkNum = rkFlags & 0x03;
       const rk = rkNum === 2 ? 'expert' : (rkNum === 1 ? 'angler' : 'new');
       const rw_w = rk === 'expert' ? 1.5 : (rk === 'angler' ? 1.0 : 0.75);
       const isDemoSeed = Boolean(rkFlags & 0x08);
-
       const curIdent = getCurrentFisherIdentity();
       const isMyFid = fid === curIdent.fisherId && !isDemoSeed;
       const authorLabel = isMyFid ? curIdent.callsign : `Рыбак ${fid}`;
-
       let locLabel = 'Точка на воде';
       let waterName = prof.shortName || 'Водоём';
       if (modeCode !== 3 && (lat !== 0 || lon !== 0)) {
@@ -1636,14 +1549,12 @@ export function decodeSharePack(rawInput) {
           waterName = locLabel;
         }
       }
-
       const iceState = tw <= 1.0 ? 'ice_safe' : 'open_water';
       const seasonalBaits = getSeasonalBaitsForContext(fish, mt, tw, iceState);
       const bt = (seasonalBaits[0] || 'по сезону').split('(')[0].trim();
       const rig = calcDynamicRig(mt, wt, dp, 3, fish, tw, iceState);
       const idPrefix = modeCode === 2 ? 'sos' : (modeCode === 1 ? 'crew' : (modeCode === 3 ? 'ws' : 'cir'));
       const itemId = `${idPrefix}_${tsRelMin.toString(36)}_${fiIdx}_${meta16.toString(16)}`;
-
       if (modeCode === 2) {
         return {
           t: 'crew',
@@ -1671,7 +1582,6 @@ export function decodeSharePack(rawInput) {
           isDemoSeed
         };
       }
-
       if (modeCode === 1) {
         const crewKey = formatCrewKeyFromHash(meta16);
         return {
@@ -1701,7 +1611,6 @@ export function decodeSharePack(rawInput) {
           isDemoSeed
         };
       }
-
       if (modeCode === 3) {
         const flowLabel = prof.flow >= 1.8 ? 'быстрое течение' : (prof.flow >= 1.1 ? 'умеренное течение' : 'стоячая вода');
         const twMin = Math.max(0.2, Math.round((tw - 3.5) * 10) / 10);
@@ -1732,7 +1641,6 @@ export function decodeSharePack(rawInput) {
           isDemoSeed
         };
       }
-
       const hex = computeHexPolygonForCircle(lat, lon, CIRCLE_BLUR_RADIUS_KM, itemId);
       return {
         t: 'circle',
@@ -1762,7 +1670,6 @@ export function decodeSharePack(rawInput) {
         isDemoSeed
       };
     }
-
     const jsonStr = new TextDecoder().decode(plainBytes);
     const parsed = JSON.parse(jsonStr);
     if (!parsed || typeof parsed !== 'object') return null;
@@ -1777,10 +1684,6 @@ export function decodeSharePack(rawInput) {
     return null;
   }
 }
-
-/**
- * Создаёт зашифрованный пакет и лаконичное сообщение для Telegram с автопривязкой ID рыбака (FP_89AAA001)
- */
 export function createSharePackFromContext(mode = 'circle', customNote = '', overrideCatch = null, customCrewKey = '') {
   const s = store.getState();
   const fish = FISH_DB.find(f => f.id === (overrideCatch?.fishId || s.fishId)) || FISH_DB[0];
@@ -1797,7 +1700,6 @@ export function createSharePackFromContext(mode = 'circle', customNote = '', ove
   const locDisplay = (waterName && waterName !== s.locLabel) ? `${s.locLabel} (${waterName})` : s.locLabel;
   const shortBait = (overrideCatch?.bait || s.selectedBait || 'по сезону').split('(')[0].trim();
   const shortRigWeight = (rig.weight || 'Оснастка').split(',')[0].trim();
-
   if (mode === 'sos') {
     const expiresAt = now + CREW_TTL_MS;
     const packObj = {
@@ -1832,10 +1734,8 @@ export function createSharePackFromContext(mode = 'circle', customNote = '', ove
       `📍 ${locDisplay} • 👤 ${author} (🆔 ${ident.fisherId})\n` +
       `🎯 GPS: ${packObj.lat.toFixed(4)}°N, ${packObj.lon.toFixed(4)}°E • 🧊 ${packObj.ice} • 💨 ${packObj.wnd} • 📞 112` +
       (cleanNote ? `\n💬 ${cleanNote}` : '');
-
     return { mode: 'sos', packObj, token, webUrl, tgMiniAppUrl, summaryText };
   }
-
   if (mode === 'crew') {
     const expiresAt = now + CREW_TTL_MS;
     const keyHash = computeCrewKeyHash(customCrewKey || `${s.lat.toFixed(3)}_${s.lon.toFixed(3)}_${ident.fisherId}`);
@@ -1873,17 +1773,14 @@ export function createSharePackFromContext(mode = 'circle', customNote = '', ove
       `📍 ${locDisplay} (~${s.depth.toFixed(1)} м) • 🆔 ${ident.fisherId}\n` +
       `🐟 ${fish.name} • 💧 ~${packObj.tw}°C • 🎣 ${shortRigWeight} (${shortBait})` +
       (cleanNote ? `\n💬 ${cleanNote}` : '');
-
     return { mode, packObj, token, webUrl, tgMiniAppUrl, summaryText };
   }
-
   if (mode === 'workshop') {
     const curWT = day.waterTemp ?? 10;
     const curP = day.pressAvg ?? 754;
     const flowLabel = prof.flow >= 1.8 ? 'быстрое течение' : (prof.flow >= 1.1 ? 'умеренное течение' : 'стоячая вода');
     const twMin = Math.max(0.2, Math.round((curWT - 3.5) * 10) / 10);
     const twMax = Math.min(28.0, Math.round((curWT + 3.5) * 10) / 10);
-
     const packObj = {
       t: 'workshop',
       id: `ws_${now.toString(36)}`,
@@ -1916,14 +1813,11 @@ export function createSharePackFromContext(mode = 'circle', customNote = '', ove
       `🐟 ${fish.name} • 🌊 ${prof.shortName} (~${s.depth.toFixed(1)} м, 💧 ${twMin}–${twMax}°C)\n` +
       `⚖️ ${shortRigWeight} • 🪱 ${shortBait} • 👤 ${author} (🆔 ${ident.fisherId})` +
       (cleanNote ? `\n💬 ${cleanNote}` : '');
-
     return { mode, packObj, token, webUrl, tgMiniAppUrl, summaryText };
   }
-
   const baseLat = overrideCatch?.lat ?? s.lat;
   const baseLon = overrideCatch?.lon ?? s.lon;
   const blurred = blurCoordsForCircle(baseLat, baseLon, `${now}_${fish.id}`);
-
   const packObj = {
     t: 'circle',
     id: `cir_${now.toString(36)}`,
@@ -1952,7 +1846,6 @@ export function createSharePackFromContext(mode = 'circle', customNote = '', ove
     nt: cleanNote || (overrideCatch ? `Поимка: ${fish.name} (${overrideCatch.weightKg || 0.8} кг)` : `Разведка Круга: ${fish.name}`),
     _hasCustomNote: Boolean(cleanNote)
   };
-
   const token = encodeSharePack(packObj);
   const { webUrl, tgMiniAppUrl } = buildShareUrls(token);
   const summaryText =
@@ -1960,10 +1853,8 @@ export function createSharePackFromContext(mode = 'circle', customNote = '', ove
     `📍 ${locDisplay} (~${packObj.dp} м) • 🆔 ${ident.fisherId}\n` +
     `🐟 ${fish.name}${packObj.kg ? ` (${packObj.kg} кг)` : ''} • 💧 ~${packObj.tw}°C • 🪱 ${shortBait}` +
     (cleanNote ? `\n💬 ${cleanNote}` : '');
-
   return { mode: 'circle', packObj, token, webUrl, tgMiniAppUrl, summaryText };
 }
-
 export function purgeExpiredCircleItems(items = []) {
   const now = Date.now();
   return (Array.isArray(items) ? items : []).filter(item => {
@@ -1974,7 +1865,6 @@ export function purgeExpiredCircleItems(items = []) {
     return true;
   });
 }
-
 export async function pushEncryptedRelayPacket({ channelId, cipherPayload, kind = 'chat', regionGrid = '' }) {
   try {
     const ident = getCurrentFisherIdentity();
@@ -1995,7 +1885,6 @@ export async function pushEncryptedRelayPacket({ channelId, cipherPayload, kind 
     return false;
   }
 }
-
 export async function pollEncryptedRelayPackets(manual = false) {
   try {
     const s = store.getState();
@@ -2003,7 +1892,6 @@ export async function pollEncryptedRelayPackets(manual = false) {
     const gridKey = `GRID_${Math.round(s.lat)}_${Math.round(s.lon)}`;
     const crewBoxes = ident.unlockedCrewKeys.map(k => `CREW_${String(k).toUpperCase()}`);
     const boxes = [`DM_${ident.fisherId}`, gridKey, 'SOS_ALL', ...crewBoxes].slice(0, 16);
-
     const url = `${RELAY_WORKER_URL}/relay/pull?boxes=${encodeURIComponent(boxes.join(','))}&since=${lastRelayPullTs}&viewer=${encodeURIComponent(ident.fisherId)}`;
     const res = await fetch(url, { method: 'GET' });
     if (!res.ok) {
@@ -2013,12 +1901,10 @@ export async function pollEncryptedRelayPackets(manual = false) {
     const data = await res.json();
     const packets = Array.isArray(data?.packets) ? data.packets : [];
     let newCount = 0;
-
     for (const pkt of packets) {
       if (!pkt || !pkt.cipherPayload) continue;
       if (pkt.ts && pkt.ts > lastRelayPullTs) lastRelayPullTs = pkt.ts;
       if (pkt.senderId && pkt.senderId === ident.fisherId) continue;
-
       if (pkt.kind === 'pack') {
         const existing = s.circleItems || [];
         const dec = decodeSharePack(pkt.cipherPayload);
@@ -2035,7 +1921,6 @@ export async function pollEncryptedRelayPackets(manual = false) {
         }
       }
     }
-
     if (manual) {
       showToast(newCount > 0 ? `📥 Получено новых зашифрованных пакетов: ${newCount}` : '✅ Новых внешних пакетов в очереди нет', 'good');
     }
@@ -2045,25 +1930,21 @@ export async function pollEncryptedRelayPackets(manual = false) {
     return 0;
   }
 }
-
 export function appendIncomingChatMessage(msgObj, notifyIfExternal = true) {
   if (!msgObj || !msgObj.id || !msgObj.text) return false;
   const s = store.getState();
   const ident = getCurrentFisherIdentity(s);
   const existing = Array.isArray(s.chatMessages) ? s.chatMessages : [];
   if (existing.some(m => m && m.id === msgObj.id)) return false;
-
   const isMine = msgObj.senderId === ident.fisherId;
   const record = {
     ...msgObj,
     unread: !isMine && (s.route !== 'chats' || activeChatChannelId !== msgObj.channelId)
   };
-
   const updated = [...existing, record].slice(-500);
   storage.saveChatMessages(updated);
   store.dispatch({ type: 'SET_CHAT_MESSAGES', payload: updated });
   syncCircleNavBadge();
-
   if (!isMine && notifyIfExternal) {
     const isCrew = String(msgObj.channelId || '').startsWith('crew:');
     pushAppNotification({
@@ -2076,11 +1957,10 @@ export function appendIncomingChatMessage(msgObj, notifyIfExternal = true) {
   }
   return true;
 }
-
 export async function sendFishermanChatMessage({ channelId, text, crewKey = '', peerId = '', peerName = '', catchMeta = null }) {
+  if (!requireRegisteredFisherId('отправки сообщения в чат')) return null;
   const cleanText = String(text || '').trim();
   if (!cleanText) return null;
-
   const s = store.getState();
   const ident = getCurrentFisherIdentity(s);
   const now = Date.now();
@@ -2088,7 +1968,6 @@ export async function sendFishermanChatMessage({ channelId, text, crewKey = '', 
   const encryptionKey = isCrew
     ? String(crewKey || channelId.replace(/^crew:/, '')).toUpperCase()
     : [ident.fisherId, String(peerId || '').toUpperCase()].sort().join(':');
-
   const msgObj = {
     id: `msg_${now.toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
     channelId,
@@ -2103,9 +1982,7 @@ export async function sendFishermanChatMessage({ channelId, text, crewKey = '', 
     e2ee: true,
     unread: false
   };
-
   appendIncomingChatMessage(msgObj, false);
-
   const cipherPayload = encryptChatPayload(msgObj, encryptionKey);
   const relayBox = isCrew ? `CREW_${encryptionKey}` : `DM_${String(peerId || '').toUpperCase()}`;
   pushEncryptedRelayPacket({
@@ -2113,21 +1990,16 @@ export async function sendFishermanChatMessage({ channelId, text, crewKey = '', 
     cipherPayload,
     kind: isCrew ? 'crew_chat' : 'dm_chat'
   });
-
   triggerHaptic('light');
   return { msgObj, cipherPayload, encryptionKey };
 }
-
-/**
- * Модальное окно отправки улова в чат (из Журнала уловов или из вкладки «💬 Чаты»)
- */
 export function openShareCatchToChatModal(preselectedCatch = null) {
+  if (!requireRegisteredFisherId('отправки улова в чат')) return;
   const s = store.getState();
   const ident = getCurrentFisherIdentity(s);
   const catches = Array.isArray(s.catches) ? s.catches : [];
   const allItems = purgeExpiredCircleItems(s.circleItems || []);
   const visibleCrews = allItems.filter(x => x.t === 'crew' && !x.sos && canUserAccessCrewItem(x, s));
-
   const crewKeysSet = new Set([
     ...ident.unlockedCrewKeys.map(k => String(k).toUpperCase()),
     ...visibleCrews.map(c => String(c.crewKey || '').toUpperCase()).filter(Boolean)
@@ -2136,7 +2008,6 @@ export function openShareCatchToChatModal(preselectedCatch = null) {
     const defHash = computeCrewKeyHash(`${s.lat.toFixed(2)}_${s.lon.toFixed(2)}_${ident.fisherId}`);
     crewKeysSet.add(formatCrewKeyFromHash(defHash));
   }
-
   const channels = [];
   for (const k of crewKeysSet) {
     const cItem = visibleCrews.find(c => String(c.crewKey || '').toUpperCase() === k);
@@ -2146,7 +2017,6 @@ export function openShareCatchToChatModal(preselectedCatch = null) {
       crewKey: k
     });
   }
-
   for (const m of (s.chatMessages || [])) {
     if (!m || !String(m.channelId || '').startsWith('dm:')) continue;
     if (!channels.some(c => c.channelId === m.channelId)) {
@@ -2160,15 +2030,12 @@ export function openShareCatchToChatModal(preselectedCatch = null) {
       });
     }
   }
-
   const defaultChanId = activeChatChannelId || channels[0]?.channelId || '';
-
   const html = `
     <div style="display:flex;flex-direction:column;gap:12px;font-size:var(--fs-sm);">
       <div style="padding:9px 11px;background:rgba(16,185,129,0.12);border:1px solid var(--good);border-radius:var(--r-sm);font-size:var(--fs-xs);line-height:1.42;">
         🎣 <b>Поделиться уловом в зашифрованном чате:</b> напарники увидят карточку вашего трофея (рыба, вес, наживка, температура воды, давление, ваш ID <b>${ident.fisherId}</b>) и смогут в 1 касание открыть сектор поимки на карте!
       </div>
-
       <div>
         <label style="display:block;font-weight:800;font-size:var(--fs-xs);color:var(--muted);margin-bottom:4px;">1. ВЫБЕРИТЕ УЛОВ ДЛЯ ОТПРАВКИ:</label>
         <select id="scCatchSelect" style="width:100%;">
@@ -2187,7 +2054,6 @@ export function openShareCatchToChatModal(preselectedCatch = null) {
           </option>
         </select>
       </div>
-
       <div>
         <label style="display:block;font-weight:800;font-size:var(--fs-xs);color:var(--muted);margin-bottom:4px;">2. КУДА ОТПРАВИТЬ (ЭКИПАЖ ИЛИ ЛИЧНЫЙ ЧАТ ПО ID):</label>
         <select id="scChannelSelect" style="width:100%;">
@@ -2198,19 +2064,16 @@ export function openShareCatchToChatModal(preselectedCatch = null) {
         </select>
         <input type="text" id="scCustomPeerIdInput" class="input" placeholder="Введите ID рыбака (напр. FP_89VIP089)..." style="display:none;margin-top:6px;text-transform:uppercase;">
       </div>
-
       <div>
         <label style="display:block;font-weight:800;font-size:var(--fs-xs);color:var(--muted);margin-bottom:4px;">3. КОММЕНТАРИЙ К УЛОВУ (ПО ЖЕЛАНИЮ):</label>
         <input type="text" id="scCommentInput" class="input" maxlength="80" placeholder="Например: Взяла на бровке 3.5 м с утра на паузе!">
       </div>
-
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:8px;margin-top:4px;">
         <button type="button" class="btn btn-good" id="scConfirmSendChatBtn">💬 Отправить в чат приложения</button>
         <button type="button" class="btn btn-accent" id="scSendTelegramDirectBtn">✈️ Переслать в Telegram</button>
       </div>
     </div>
   `;
-
   openModal('🎣 Поделиться уловом в чате', html, (bodyEl) => {
     const chanSel = bodyEl.querySelector('#scChannelSelect');
     const peerInp = bodyEl.querySelector('#scCustomPeerIdInput');
@@ -2219,14 +2082,12 @@ export function openShareCatchToChatModal(preselectedCatch = null) {
         peerInp.style.display = chanSel.value === '__new_dm__' ? 'block' : 'none';
       });
     }
-
     const buildCatchChatPayload = () => {
       const chosenCatchId = bodyEl.querySelector('#scCatchSelect')?.value || '';
       const comment = (bodyEl.querySelector('#scCommentInput')?.value || '').trim();
       const targetCatch = chosenCatchId === '__current_spot__'
         ? null
         : ((preselectedCatch && preselectedCatch.id === chosenCatchId) ? preselectedCatch : catches.find(x => x.id === chosenCatchId));
-
       const sharePack = createSharePackFromContext('circle', comment, targetCatch || null);
       const fishName = targetCatch?.fishName || sharePack.packObj.fn || 'Рыба';
       const weightStr = targetCatch?.weightKg ? `${targetCatch.weightKg} кг` : '';
@@ -2236,7 +2097,6 @@ export function openShareCatchToChatModal(preselectedCatch = null) {
       const spotStr = targetCatch?.locLabel || `${s.locLabel} (${sharePack.packObj.wn || ''})`;
       const waterTemp = targetCatch?.waterTemp ?? sharePack.packObj.tw ?? 10;
       const press = targetCatch?.press ?? sharePack.packObj.pr ?? 754;
-
       const chatText =
         `🎣 УЛОВ: ${fishName}${trophyMeta ? ` (${trophyMeta})` : ''}\n` +
         `📍 ${spotStr} • Глубина ~${targetCatch?.depth ?? s.depth} м\n` +
@@ -2244,7 +2104,6 @@ export function openShareCatchToChatModal(preselectedCatch = null) {
         `👤 Рыбак: ${ident.callsign} (🆔 ${ident.fisherId})` +
         (comment ? `\n💬 ${comment}` : '') +
         `\n🔗 Код точки: ${sharePack.token}`;
-
       return {
         chatText,
         sharePack,
@@ -2260,13 +2119,11 @@ export function openShareCatchToChatModal(preselectedCatch = null) {
         }
       };
     };
-
     bodyEl.querySelector('#scConfirmSendChatBtn')?.addEventListener('click', async () => {
       const { chatText, sharePack, catchMeta } = buildCatchChatPayload();
       let targetChannelId = chanSel?.value || defaultChanId;
       let crewKey = '';
       let peerId = '';
-
       if (targetChannelId === '__new_dm__') {
         const rawPeer = (peerInp?.value || '').trim().toUpperCase();
         if (!rawPeer) {
@@ -2282,7 +2139,6 @@ export function openShareCatchToChatModal(preselectedCatch = null) {
         const parts = targetChannelId.replace(/^dm:/, '').split(':');
         peerId = parts.find(p => p !== ident.fisherId) || parts[0] || '';
       }
-
       await importSharePackToken(sharePack.token, true, true);
       publishCircleItemToServer(sharePack.packObj, sharePack.token);
       activeChatChannelId = targetChannelId;
@@ -2298,7 +2154,6 @@ export function openShareCatchToChatModal(preselectedCatch = null) {
       renderChatsSection();
       showToast('🎣 Карточка улова отправлена в чат!', 'good');
     });
-
     bodyEl.querySelector('#scSendTelegramDirectBtn')?.addEventListener('click', async () => {
       const { sharePack } = buildCatchChatPayload();
       await importSharePackToken(sharePack.token, true, true);
@@ -2308,10 +2163,8 @@ export function openShareCatchToChatModal(preselectedCatch = null) {
     });
   });
 }
-
 export async function importSharePackToken(rawInput, silent = false, unlockCrewOnImport = true) {
   const str = String(rawInput || '').trim();
-
   const e2eMatch = str.match(/KPE2E_[A-Za-z0-9_-]+/);
   if (e2eMatch) {
     const s = store.getState();
@@ -2329,19 +2182,16 @@ export async function importSharePackToken(rawInput, silent = false, unlockCrewO
       }
     }
   }
-
   const decoded = decodeSharePack(str);
   if (!decoded) {
     if (!silent) showToast('❌ Не удалось распознать код пакета «Клёв ПРО: Круг». Проверьте ссылку #p=KP1_...', 'bad');
     return null;
   }
-
   const now = Date.now();
   if (decoded.t === 'crew' && Number.isFinite(decoded.ea) && decoded.ea < now) {
     if (!silent) showToast('⌛ Срок действия этой точки «Экипажа» (72 часа) уже истёк.', 'warn');
     return null;
   }
-
   if (decoded.t === 'circle' && Number.isFinite(decoded.lat) && Number.isFinite(decoded.lon)) {
     const effR = getEffectiveCircleRadiusKm(decoded, now);
     const hex = computeHexPolygonForCircle(decoded.lat, decoded.lon, effR, decoded.id || 'cir');
@@ -2349,35 +2199,28 @@ export async function importSharePackToken(rawInput, silent = false, unlockCrewO
     decoded.lon = hex.cellLon;
     decoded.poly = hex.vertices;
   }
-
   if (decoded.t === 'crew' && !decoded.sos && decoded.crewKey && unlockCrewOnImport) {
     store.dispatch({ type: 'UNLOCK_CREW_KEY', payload: decoded.crewKey });
   }
-
   const s = store.getState();
   const ident = getCurrentFisherIdentity(s);
   if (!decoded.fid) {
     decoded.fid = ident.fisherId;
   }
-
   const existing = purgeExpiredCircleItems(s.circleItems || []);
   const isNewItem = !existing.some(x => x.id === decoded.id);
   const filtered = existing.filter(x => x.id !== decoded.id);
   const isMine = String(decoded.fid || '').toUpperCase() === String(ident.fisherId).toUpperCase() && !decoded.isDemoSeed;
   const updated = [{ ...decoded, importedAt: isMine ? 0 : now }, ...filtered].slice(0, 80);
-
   storage.saveCircleItems(updated);
   store.dispatch({ type: 'SET_CIRCLE_ITEMS', payload: updated });
   syncToTelegramCloud('klev_circle_v2', updated.slice(0, 8));
-
   const isExternal = !isMine || decoded.isDemoSeed;
-
   if (isNewItem && isExternal) {
     const distKm = (Number.isFinite(decoded.lat) && Number.isFinite(decoded.lon))
       ? calcGeoDistanceKm(s.lat, s.lon, decoded.lat, decoded.lon)
       : 0;
     const maxRadius = s.waterRadiusKm || 50;
-
     if (decoded.sos) {
       pushAppNotification({
         category: 'sos',
@@ -2418,7 +2261,6 @@ export async function importSharePackToken(rawInput, silent = false, unlockCrewO
       });
     }
   }
-
   triggerHaptic('success');
   if (!silent) {
     const typeLabel = decoded.sos
@@ -2432,13 +2274,11 @@ export async function importSharePackToken(rawInput, silent = false, unlockCrewO
   }
   return decoded;
 }
-
 export function evaluateCircleFieldConfirmation(fish, lat, lon, circleItems = [], catches = []) {
   const now = Date.now();
   const maxAgeMs = 72 * 3600 * 1000;
   const radiusKm = 35;
   const s = store.getState();
-
   const validExternalCircle = purgeExpiredCircleItems(circleItems).filter(item => {
     if (isCircleItemHidden(item, s)) return false;
     if (item.t !== 'circle' && item.t !== 'crew') return false;
@@ -2449,10 +2289,8 @@ export function evaluateCircleFieldConfirmation(fish, lat, lon, circleItems = []
     if (isCircleItemMine(item, s)) return false;
     return calcGeoDistanceKm(lat, lon, item.lat, item.lon) <= radiusKm;
   });
-
   const matchingSpeciesCircle = validExternalCircle.filter(item => item.fi === fish?.id);
   const kAnonReady = validExternalCircle.length >= REGIONAL_K_ANONYMITY_THRESHOLD;
-
   if (matchingSpeciesCircle.length === 0 && validExternalCircle.length === 0) {
     return {
       hasSignal: false,
@@ -2463,11 +2301,9 @@ export function evaluateCircleFieldConfirmation(fish, lat, lon, circleItems = []
       commentary: 'Независимых отчётов от других участников вашего Круга в радиусе 35 км за последние 72 ч пока нет (ваши собственные точки и уловы учитываются отдельно без петли самоподтверждения).'
     };
   }
-
   if (matchingSpeciesCircle.length > 0) {
     let weightedSum = 0;
     let expertCount = 0;
-
     for (const item of matchingSpeciesCircle) {
       const ageHours = Math.max(0, Math.min(72, (now - (item.ca || now)) / 3600000));
       const timeDecay = 1.0 - (ageHours / 72) * 0.7;
@@ -2475,12 +2311,10 @@ export function evaluateCircleFieldConfirmation(fish, lat, lon, circleItems = []
       if (item.rk === 'expert') expertCount++;
       weightedSum += 3.8 * timeDecay * authorWeight;
     }
-
     const boost = Math.max(2, Math.min(10, Math.round(weightedSum)));
     const bestBait = matchingSpeciesCircle[0]?.bt || 'по сезону';
     const authors = Array.from(new Set(matchingSpeciesCircle.map(x => x.fid || x.au).filter(Boolean))).slice(0, 2).join(', ');
     const expertBadgeNote = expertCount > 0 ? `, из них ${expertCount} от 🏅 Экспертов` : '';
-
     return {
       hasSignal: true,
       val: boost,
@@ -2490,7 +2324,6 @@ export function evaluateCircleFieldConfirmation(fish, lat, lon, circleItems = []
       commentary: `За последние 72 ч в радиусе 35 км получено ${matchingSpeciesCircle.length} независимых подтверждений по виду «${fish.name}»${authors ? ` (от: ${authors}${expertBadgeNote})` : ''}. Лучшая приманка на воде: «${bestBait}» (+${boost}% из макс. 10%).`
     };
   }
-
   const otherFishNames = Array.from(new Set(validExternalCircle.map(x => x.fn).filter(Boolean))).slice(0, 2).join(', ');
   return {
     hasSignal: true,
@@ -2501,15 +2334,13 @@ export function evaluateCircleFieldConfirmation(fish, lat, lon, circleItems = []
     commentary: `В радиусе 35 км есть свежие независимые сигналы Круга по соседним видам (${otherFishNames}), общая кормовая активность водоёма подтверждена.`
   };
 }
-
 export function openShareModalForCurrentContext(initialMode = 'circle', overrideCatch = null) {
+  if (!requireRegisteredFisherId('публикации точки в Круг / Экипаж / SOS')) return;
   let currentMode = initialMode;
   let customNote = '';
-
   function renderModalContent(bodyEl) {
     const pack = createSharePackFromContext(currentMode, customNote, overrideCatch);
     const ident = getCurrentFisherIdentity();
-
     bodyEl.innerHTML = `
       <div style="display:flex;flex-direction:column;gap:12px;font-size:var(--fs-sm);">
         <div style="padding:10px 12px;background:rgba(56,189,248,0.10);border:1px solid var(--accent);border-radius:var(--r-sm);font-size:var(--fs-xs);line-height:1.45;">
@@ -2523,7 +2354,6 @@ export function openShareModalForCurrentContext(initialMode = 'circle', override
                 ? `🔑 <b>Закрытый Экипаж (${pack.packObj.crewKey}):</b> точные координаты и чат экипажа увидят ТОЛЬКО участники с ключом (и Админы из базы).`
                 : '🛡️ <b>Ультракороткая бинарная упаковка V3:</b> вся ссылка занимает ~54 символа (<code>#p=KP1_...</code>) со встроенным ID рыбака и гексагоном ±5/10 км.')}
         </div>
-
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:6px;">
           <button type="button" class="btn btn-sm ${currentMode === 'circle' ? 'btn-accent' : ''}" data-share-mode="circle" style="min-height:44px;flex-direction:column;gap:2px;">
             <span>👥 В Круг (±5/10 км)</span>
@@ -2542,19 +2372,16 @@ export function openShareModalForCurrentContext(initialMode = 'circle', override
             <span style="font-size:10px;opacity:0.9;">Всем рыбакам!</span>
           </button>
         </div>
-
         <div>
           <label for="shareCustomNoteInput" style="display:block;font-size:var(--fs-xs);color:var(--muted);font-weight:700;margin-bottom:4px;">
             💬 КОРОТКИЙ КОММЕНТАРИЙ (ПО ЖЕЛАНИЮ):
           </label>
           <input type="text" id="shareCustomNoteInput" class="input" maxlength="48" value="${customNote}" placeholder="${currentMode === 'sos' ? 'Ситуация: заглох мотор, нужна буксировка, промоина...' : 'Оставьте пустым для минимальной длины ссылки (28 символов)...'}">
         </div>
-
         <div class="card" style="background:var(--card);padding:10px 12px;border:1px solid ${currentMode === 'sos' ? 'var(--bad)' : 'var(--border)'};font-size:var(--fs-xs);line-height:1.45;color:var(--text);">
           <div style="font-family:monospace;font-size:11.5px;color:var(--accent);font-weight:800;margin-bottom:6px;word-break:break-all;" id="shareShortUrlPreview">🔗 ${pack.webUrl} (${pack.webUrl.length} симв.)</div>
           <div style="white-space:pre-line;" id="sharePreviewBox">${pack.summaryText}</div>
         </div>
-
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;margin-top:4px;">
           <button type="button" class="btn ${currentMode === 'sos' ? 'btn-good' : 'btn-accent'}" id="shareSendTelegramBtn" style="${currentMode === 'sos' ? 'background:var(--bad);border-color:var(--bad);' : ''}">
             ✈️ В Telegram
@@ -2568,7 +2395,6 @@ export function openShareModalForCurrentContext(initialMode = 'circle', override
         </div>
       </div>
     `;
-
     bodyEl.querySelectorAll('[data-share-mode]').forEach(btn => {
       btn.addEventListener('click', () => {
         currentMode = btn.getAttribute('data-share-mode');
@@ -2577,7 +2403,6 @@ export function openShareModalForCurrentContext(initialMode = 'circle', override
         renderModalContent(bodyEl);
       });
     });
-
     const noteInput = bodyEl.querySelector('#shareCustomNoteInput');
     if (noteInput) {
       noteInput.addEventListener('input', (e) => {
@@ -2589,7 +2414,6 @@ export function openShareModalForCurrentContext(initialMode = 'circle', override
         if (urlBox) urlBox.textContent = `🔗 ${updatedPack.webUrl} (${updatedPack.webUrl.length} симв.)`;
       });
     }
-
     const publishToRelayIfApplicable = (finalPack) => {
       const s = store.getState();
       const gridBox = `GRID_${Math.round(s.lat)}_${Math.round(s.lon)}`;
@@ -2602,14 +2426,12 @@ export function openShareModalForCurrentContext(initialMode = 'circle', override
         pushEncryptedRelayPacket({ channelId: gridBox, cipherPayload: finalPack.token, kind: 'pack', regionGrid: gridBox });
       }
     };
-
     bodyEl.querySelector('#shareSendTelegramBtn')?.addEventListener('click', () => {
       const finalPack = createSharePackFromContext(currentMode, customNote, overrideCatch);
       importSharePackToken(finalPack.token, true, true);
       publishToRelayIfApplicable(finalPack);
       shareToTelegramChat(finalPack.webUrl, finalPack.summaryText);
     });
-
     bodyEl.querySelector('#shareCopyOrNativeBtn')?.addEventListener('click', async () => {
       const finalPack = createSharePackFromContext(currentMode, customNote, overrideCatch);
       await importSharePackToken(finalPack.token, true, true);
@@ -2621,7 +2443,6 @@ export function openShareModalForCurrentContext(initialMode = 'circle', override
         token: finalPack.token
       });
     });
-
     bodyEl.querySelector('#shareSaveLocalCircleBtn')?.addEventListener('click', async () => {
       const finalPack = createSharePackFromContext(currentMode, customNote, overrideCatch);
       await importSharePackToken(finalPack.token, false, true);
@@ -2629,12 +2450,10 @@ export function openShareModalForCurrentContext(initialMode = 'circle', override
       closeModal();
     });
   }
-
   openModal('🤝 Поделиться в «Круг / Экипаж / SOS»', '<div id="shareModalMount"></div>', (bodyEl) => {
     renderModalContent(bodyEl);
   });
 }
-
 export function openImportPackModal() {
   const s = store.getState();
   const ident = getCurrentFisherIdentity(s);
@@ -2650,7 +2469,6 @@ export function openImportPackModal() {
           Открытые ключи экипажей: <b>${ident.unlockedCrewKeys.length ? ident.unlockedCrewKeys.join(', ') : 'пока нет'}</b>
         </div>
       </div>
-
       <div>
         <label style="display:block;font-weight:800;font-size:var(--fs-xs);color:var(--muted);margin-bottom:4px;">
           📥 ИЛИ ВСТАВЬТЕ ССЫЛКУ <code>#p=KP1_...</code> / ЗАШИФРОВАННОЕ СООБЩЕНИЕ <code>KPE2E_...</code>:
@@ -2662,7 +2480,6 @@ export function openImportPackModal() {
       </div>
     </div>
   `;
-
   openModal('🔑 Ключ Экипажа и приём пакета KP1', html, (bodyEl) => {
     const keyInput = bodyEl.querySelector('#unlockCrewKeyInput');
     const keyBtn = bodyEl.querySelector('#unlockCrewKeyConfirmBtn');
@@ -2680,7 +2497,6 @@ export function openImportPackModal() {
         closeModal();
       });
     }
-
     const ta = bodyEl.querySelector('#importPackTextarea');
     const btn = bodyEl.querySelector('#importPackConfirmBtn');
     if (btn && ta) {
@@ -2693,7 +2509,6 @@ export function openImportPackModal() {
     }
   });
 }
-
 export function openNotificationsModal(onBackToHub = null) {
   const backFn = typeof onBackToHub === 'function'
     ? onBackToHub
@@ -2702,58 +2517,47 @@ export function openNotificationsModal(onBackToHub = null) {
           window.__KLEV_OPEN_SETTINGS_ZONE__('hub');
         }
       });
-
   function renderNotifBody(bodyEl) {
     const s = store.getState();
     const ident = getCurrentFisherIdentity(s);
     const prefs = ident.notifSettings;
     const notifs = Array.isArray(s.notifications) ? s.notifications : [];
-
     if (notifs.some(n => n && !n.read)) {
       const marked = notifs.map(n => ({ ...n, read: true }));
       storage.saveNotifications(marked);
       store.dispatch({ type: 'SET_NOTIFICATIONS', payload: marked });
       syncCircleNavBadge();
     }
-
     bodyEl.innerHTML = `
       <div style="display:flex;flex-direction:column;gap:12px;font-size:var(--fs-sm);">
         ${renderSettingsZoneTabsHtml('notif')}
-
         <div style="padding:10px 12px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);display:flex;flex-direction:column;gap:8px;">
           <div style="font-weight:800;font-size:var(--fs-xs);color:var(--accent);">🔔 КАТЕГОРИИ ОПОВЕЩЕНИЙ (РАЗДЕЛЬНАЯ НАСТРОЙКА):</div>
-
           <label style="display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:pointer;">
             <span style="min-width:0;line-height:1.3;">🆘 <b>Сигналы SOS на воде</b> (экстренно всем рыбакам в регионе)</span>
             <input type="checkbox" data-notif-toggle="sos" ${prefs.sos !== false ? 'checked' : ''} style="flex-shrink:0;">
           </label>
-
           <label style="display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:pointer;">
             <span style="min-width:0;line-height:1.3;">🌊 <b>Экипаж и сообщения чата Экипажа</b> (по вашим ключам)</span>
             <input type="checkbox" data-notif-toggle="crew" ${prefs.crew !== false ? 'checked' : ''} style="flex-shrink:0;">
           </label>
-
           <label style="display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:pointer;">
             <span style="min-width:0;line-height:1.3;">👥 <b>Сводки Круга на карте рядом</b> (в радиусе 50 / 120 км)</span>
             <input type="checkbox" data-notif-toggle="circle" ${prefs.circle !== false ? 'checked' : ''} style="flex-shrink:0;">
           </label>
-
           <label style="display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:pointer;">
             <span style="min-width:0;line-height:1.3;">🛠️ <b>Новые оснастки в Мастерской снастей</b></span>
             <input type="checkbox" data-notif-toggle="workshop" ${prefs.workshop !== false ? 'checked' : ''} style="flex-shrink:0;">
           </label>
-
           <label style="display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:pointer;">
             <span style="min-width:0;line-height:1.3;">💬 <b>Личные сообщения в чатах рыбаков</b> (1-на-1 по ID)</span>
             <input type="checkbox" data-notif-toggle="dm" ${prefs.dm !== false ? 'checked' : ''} style="flex-shrink:0;">
           </label>
-
           <label style="display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:pointer;padding-top:6px;border-top:1px dashed var(--border);">
             <span style="min-width:0;line-height:1.3;">🔊 <b>Звуковой сигнал сонара и вибрация</b></span>
             <input type="checkbox" data-notif-toggle="sound" ${prefs.sound !== false ? 'checked' : ''} style="flex-shrink:0;">
           </label>
         </div>
-
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
           <span style="font-weight:800;font-size:var(--fs-xs);color:var(--muted);">📋 ПОСЛЕДНИЕ СОБЫТИЯ И СИГНАЛЫ (${notifs.length}):</span>
           <div style="display:flex;gap:6px;flex-wrap:wrap;">
@@ -2761,7 +2565,6 @@ export function openNotificationsModal(onBackToHub = null) {
             <button type="button" class="btn btn-sm" id="notifClearAllBtn">🗑️ Очистить</button>
           </div>
         </div>
-
         <div style="display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto;">
           ${notifs.length === 0 ? `
             <div style="padding:12px;background:var(--card);border:1px dashed var(--border);border-radius:var(--r-sm);font-size:var(--fs-xs);color:var(--muted);text-align:center;">
@@ -2783,7 +2586,6 @@ export function openNotificationsModal(onBackToHub = null) {
         </div>
       </div>
     `;
-
     bindSettingsZoneTabs(bodyEl);
     bodyEl.querySelectorAll('[data-cloud-open-url]').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -2791,7 +2593,6 @@ export function openNotificationsModal(onBackToHub = null) {
         if (targetUrl) window.open(targetUrl, '_blank', 'noopener');
       });
     });
-
     bodyEl.querySelectorAll('[data-notif-toggle]').forEach(chk => {
       chk.addEventListener('change', () => {
         const key = chk.getAttribute('data-notif-toggle');
@@ -2805,7 +2606,6 @@ export function openNotificationsModal(onBackToHub = null) {
         showToast('Настройки уведомлений сохранены', 'good');
       });
     });
-
     bodyEl.querySelector('#notifRequestOsPushBtn')?.addEventListener('click', async () => {
       if (typeof Notification === 'undefined') {
         showToast('Внутриприложенческие звуковые и вибро-уведомления уже активны!', 'good');
@@ -2818,14 +2618,12 @@ export function openNotificationsModal(onBackToHub = null) {
         showToast('Активны внутриприложенческие уведомления сонара', 'info');
       }
     });
-
     bodyEl.querySelector('#notifClearAllBtn')?.addEventListener('click', () => {
       storage.saveNotifications([]);
       store.dispatch({ type: 'SET_NOTIFICATIONS', payload: [] });
       syncCircleNavBadge();
       renderNotifBody(bodyEl);
     });
-
     bodyEl.querySelectorAll('[data-notif-jump]').forEach(card => {
       card.addEventListener('click', () => {
         const nid = card.getAttribute('data-notif-jump');
@@ -2844,19 +2642,10 @@ export function openNotificationsModal(onBackToHub = null) {
       });
     });
   }
-
   openModal('🔔 Уведомления (SOS, Экипаж, Круг, Чаты)', '<div id="notifModalMount"></div>', (bodyEl) => {
     renderNotifBody(bodyEl);
   }, true, { onBack: backFn });
 }
-
-/**
- * Подменю Зоны 1: «🔐 Логин, Пароль, Мой ID, Супер-Админ и Бэкап»
- * - Сквозной вход по Логину и Паролю на ВСЕХ устройствах (APK, Браузер, Telegram Mini App)
- * - Постоянная привязка аккаунта Владельца (iAthor -> ID FP_89VIP089 + Супер-Админ)
- * - Автокопирование ID рыбака (FP_89AAA001) в 1 касание
- * - Управление Базой Администраторов и резервное копирование (.json)
- */
 export function openAuthAndBackupModal(onBackToHub = null) {
   const backFn = typeof onBackToHub === 'function'
     ? onBackToHub
@@ -2865,140 +2654,159 @@ export function openAuthAndBackupModal(onBackToHub = null) {
           window.__KLEV_OPEN_SETTINGS_ZONE__('hub');
         }
       });
-
   function renderAuthBody(bodyEl) {
+    if (!bodyEl) return;
     const s = store.getState();
     const ident = getCurrentFisherIdentity(s);
     const tgUser = getTelegramUser();
-    const ownerMode = isOwnerAdmin(s);
-    const adminMode = isUserAdmin(s);
-    const adminList = getAdminWhitelistEntries(s);
-    const showAllCrewsFlag = s.userProfile?.adminShowAllCrews !== false;
-    const savedLogin = s.userProfile?.login || (ident.callsign !== 'Рыболов' ? ident.callsign : '');
-
+    const ownerMode = ident.isOwner;
+    const savedLogin = ident.isRegistered ? (ident.login || ident.callsign) : '';
     bodyEl.innerHTML = `
       <div style="display:flex;flex-direction:column;gap:12px;font-size:var(--fs-sm);">
         ${renderSettingsZoneTabsHtml('auth')}
-
-        <div style="padding:10px 12px;background:rgba(56,189,248,0.10);border:1px solid var(--accent);border-radius:var(--r-sm);font-size:var(--fs-xs);line-height:1.45;">
-          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:4px;">
-            <span style="font-weight:800;color:var(--accent);">🆔 ВАШ РЫБОЛОВНЫЙ ID (НАЖМИТЕ ДЛЯ АВТОКОПИРОВАНИЯ):</span>
-            <button type="button" class="btn btn-sm btn-good fisher-id-copy-badge" data-copy-fisher-id="${ident.fisherId}" title="Нажмите, чтобы скопировать ID в буфер обмена" style="font-family:monospace;font-size:13px;font-weight:900;padding:4px 10px;">
-              🆔 ${ident.fisherId} 📋 Копировать ID
-            </button>
+        <!-- Статус текущего ID (Временный резерв FP_XXRZYYYY vs Постоянный FP_XXAAA001 vs Владелец FP_89VIP089 / FP_FMP089) -->
+        <div style="padding:11px 12px;background:${ident.isOwner ? 'rgba(16,185,129,0.12)' : (ident.isRegistered ? 'rgba(56,189,248,0.10)' : 'rgba(245,158,11,0.12)')};border:1.5px solid ${ident.isOwner ? 'var(--good)' : (ident.isRegistered ? 'var(--accent)' : 'var(--warn)')};border-radius:var(--r-sm);font-size:var(--fs-xs);line-height:1.45;">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:6px;">
+            <span style="font-weight:900;color:${ident.isOwner ? 'var(--good)' : (ident.isRegistered ? 'var(--accent)' : 'var(--warn)')};">
+              ${ident.isOwner
+                ? '👑 ЭКСКЛЮЗИВНЫЙ ID СУПЕР-АДМИНА (ВЛАДЕЛЕЦ):'
+                : (ident.isRegistered
+                    ? '🟢 ВАШ ПОСТОЯННЫЙ ЗАКРЕПЛЁННЫЙ ID РЫБАКА:'
+                    : '🟡 ВРЕМЕННЫЙ РЕЗЕРВНЫЙ ID (БЕЗ РЕГИСТРАЦИИ):')}
+            </span>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              <button type="button" class="btn btn-sm ${ident.isRegistered ? 'btn-good' : ''}" data-copy-fisher-id="${ident.fisherId}" style="font-family:monospace;font-size:13px;font-weight:900;padding:4px 10px;">
+                🆔 ${ident.fisherId} 📋
+              </button>
+              ${ident.isOwner ? `
+                <button type="button" class="btn btn-sm btn-accent" data-copy-fisher-id="${ident.fisherId === OWNER_BOUND_FISHER_ID ? OWNER_SECONDARY_FISHER_ID : OWNER_BOUND_FISHER_ID}" style="font-family:monospace;font-size:12px;font-weight:900;padding:4px 8px;">
+                  🆔 ${ident.fisherId === OWNER_BOUND_FISHER_ID ? OWNER_SECONDARY_FISHER_ID : OWNER_BOUND_FISHER_ID} 📋
+                </button>
+              ` : ''}
+            </div>
           </div>
           <div>
-            Ваш ID (<b>${ident.fisherId}</b>) автоматически привязывается ко всем вашим точкам в Круге, Экипаже, SOS и чатах.
-            ${ident.isAuthenticated
-              ? `<span style="color:var(--good);font-weight:800;"> • 🟢 Привязан к логину «${savedLogin || ident.callsign}» ${ownerMode ? '(👑 Владелец / Супер-Админ)' : ''}</span>`
-              : ''}
+            ${ident.isOwner
+              ? `За вашим аккаунтом <b>${savedLogin}</b> навечно закреплены оба неприкосновенных ID Владельца: <b>FP_89VIP089</b> и <b>FP_FMP089</b>. Никто другой не может их получить.`
+              : (ident.isRegistered
+                  ? `Ваш постоянный ID <b>${ident.fisherId}</b> выдан один раз и навсегда жёстко привязан только к вашему логину (<b>${escapeHtml(savedLogin)}</b>) и паролю. Входите с Android, iOS, планшета или ПК — везде будет этот же ID и ваши данные!`
+                  : `Сейчас вам выдан временный резервный ID <b>${ident.fisherId}</b> (шаблон <code>FP_XXRZYYYY</code>). С временным ID можно смотреть прогноз и карту, но <b>отправка точек в Круг, Экипаж, SOS и Чаты заблокирована</b>. Зарегистрируйте логин и пароль ниже, чтобы получить постоянный ID навсегда!`)}
           </div>
+          ${ident.isOwner ? `
+            <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">
+              <button type="button" class="btn btn-sm btn-good" id="authOpenSuperAdminTabBtn" style="width:100%;font-weight:900;">
+                👑 Открыть вкладку «Супер-Админ и Статистика БД»
+              </button>
+            </div>
+          ` : ''}
         </div>
-
+        <!-- Форма регистрации / входа по Логину (или постоянному ID) и Паролю -->
         <div class="card" style="background:var(--card);padding:12px;border:1.5px solid var(--accent);display:flex;flex-direction:column;gap:9px;">
           <div style="font-weight:800;font-size:var(--fs-xs);color:var(--accent);">
-            🔑 ВХОД ПО ЛОГИНУ И ПАРОЛЮ (РАБОТАЕТ НА ВСЕХ УСТРОЙСТВАХ: APK, БРАУЗЕР, ТГ)
+            ${ident.isRegistered
+              ? `🔑 ВАШ ПРОФИЛЬ АВТОРИЗОВАН (${escapeHtml(savedLogin)} • ${ident.fisherId})`
+              : '🔑 РЕГИСТРАЦИЯ ИЛИ ВХОД (ПОЛУЧЕНИЕ ПОСТОЯННОГО ID НАВСЕГДА)'}
           </div>
           <div style="font-size:11.5px;color:var(--muted);line-height:1.38;">
-            Введите ваш логин и пароль на любом телефоне, планшете или ПК — система автоматически восстановит ваш <b>ID рыбака</b>, избранных рыб, снасти, ключи экипажей и права доступа.
+            Постоянный ID не привязывается к железу телефона — он жёстко привязан <b>только к вашему логину и паролю</b>. Вы можете входить на любых телефонах (Android / iOS), планшетах, компьютерах и в Telegram Mini App.
           </div>
-
           <div>
-            <label style="display:block;font-size:var(--fs-xs);color:var(--muted);font-weight:700;margin-bottom:3px;">ЛОГИН (ПОЗЫВНОЙ РЫБАКА):</label>
-            <input type="text" id="authCallsignInput" class="input" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" value="${savedLogin}" placeholder="Например: iAthor">
+            <label style="display:block;font-size:var(--fs-xs);color:var(--muted);font-weight:700;margin-bottom:3px;">ЛОГИН РЫБАКА (ИЛИ ВАШ ПОСТОЯННЫЙ ID ДЛЯ ВХОДА):</label>
+            <input type="text" id="authCallsignInput" class="input" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" value="${escapeHtml(savedLogin)}" placeholder="Придумайте логин (или введите свой для входа)">
+            <div id="authLoginAvailabilityHint" style="font-size:11px;margin-top:3px;color:var(--muted);">
+              🛡️ При новой регистрации вам навсегда выдаётся персональный региональный ID (например, <code>FP_${resolveRussianRegionCode(s)}AAA001</code>).
+            </div>
           </div>
-
           <div>
-            <label style="display:block;font-size:var(--fs-xs);color:var(--muted);font-weight:700;margin-bottom:3px;">ПАРОЛЬ (ДЛЯ ВХОДА И СИНХРОНИЗАЦИИ ПРОФИЛЯ):</label>
+            <label style="display:block;font-size:var(--fs-xs);color:var(--muted);font-weight:700;margin-bottom:3px;">ПАРОЛЬ (ОТ 3 СИМВОЛОВ):</label>
             <div style="display:flex;gap:6px;align-items:center;">
-              <input type="password" id="authPinInput" class="input" autocomplete="current-password" placeholder="${ident.isAuthenticated ? '•••••••• (введите пароль для входа/обновления)' : 'Введите ваш пароль...'}" style="flex:1;">
+              <input type="password" id="authPinInput" class="input" autocomplete="current-password" placeholder="${ident.isRegistered ? '•••••••• (введите пароль для синхронизации)' : 'Придумайте или введите ваш пароль...'}" style="flex:1;">
               <button type="button" class="btn btn-sm" id="authTogglePassVisBtn" title="Показать / скрыть пароль" style="min-height:40px;padding:0 10px;">👁️</button>
             </div>
           </div>
-
-          <div style="font-size:11px;color:var(--muted);">
-            ✈️ Привязка Telegram: <b>${tgUser ? `@${tgUser.username || tgUser.firstName} (ID ${tgUser.id})` : (ident.tgLinkedId ? `Привязан ID ${ident.tgLinkedId}` : 'Автоматически при запуске в @KlevProClubBot')}</b>
-          </div>
-
-          <button type="button" class="btn btn-accent" id="authSaveBtn" style="width:100%;white-space:normal;line-height:1.25;">
-            🔑 Войти / Сохранить и синхронизировать профиль (${ident.fisherId})
-          </button>
-        </div>
-
-        <!-- Закрытая система Администратора (только для Владельца iAthor82 и добавленных им в базу админов) -->
-        ${ownerMode ? `
-          <div class="card" style="background:rgba(16,185,129,0.08);padding:12px;border:1.5px solid var(--good);display:flex;flex-direction:column;gap:10px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
-              <div style="min-width:0;">
-                <div style="font-weight:900;font-size:var(--fs-sm);color:var(--good);">👑 ПАНЕЛЬ СУПЕР-АДМИНА (iAthor • FP_89VIP089)</div>
-                <div style="font-size:11px;color:var(--muted);">Видеть все закрытые экипажи без ключа можете только вы и рыбаки из вашей Базы Администраторов ниже.</div>
-              </div>
-              <button type="button" class="btn btn-sm ${showAllCrewsFlag ? 'btn-good' : ''}" id="adminToggleCrewsVisibilityBtn" style="width:100%;">
-                ${showAllCrewsFlag ? '👁️ Видимость всех экипажей: ВКЛ' : '🙈 Видимость всех экипажей: ВЫКЛ'}
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button type="button" class="btn btn-accent" id="authSaveBtn" style="flex:2;min-width:190px;font-weight:800;">
+              ${ident.isRegistered
+                ? `🔄 Синхронизировать профиль (${ident.fisherId})`
+                : '🔑 Зарегистрироваться / Войти и получить постоянный ID'}
+            </button>
+            ${ident.isRegistered ? `
+              <button type="button" class="btn btn-sm" id="authLogoutBtn" style="flex:1;min-width:110px;color:var(--bad);border-color:rgba(239,68,68,0.4);">
+                🚪 Выйти
               </button>
-            </div>
-
-            <div style="padding:8px 10px;background:var(--panel);border:1px solid var(--border);border-radius:var(--r-sm);display:flex;flex-direction:column;gap:6px;">
-              <div style="font-weight:800;font-size:var(--fs-xs);color:var(--accent);">➕ ДОБАВИТЬ АДМИНИСТРАТОРА В БАЗУ (ПО ID FP_89AAA001 ИЛИ @USERNAME):</div>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
-                <input type="text" id="adminAddIdInput" class="input" placeholder="ID (напр. FP_77AAA001)" style="text-transform:uppercase;min-height:36px;font-family:monospace;">
-                <input type="text" id="adminAddLabelInput" class="input" placeholder="Имя / Примечание..." style="min-height:36px;">
-              </div>
-              <button type="button" class="btn btn-sm btn-good" id="adminAddConfirmBtn" style="width:100%;">➕ Добавить в Базу Администраторов</button>
-            </div>
-
-            <div>
-              <div style="font-weight:800;font-size:var(--fs-xs);color:var(--muted);margin-bottom:4px;">📋 АКТИВНАЯ БАЗА АДМИНИСТРАТОРОВ (${adminList.length}):</div>
-              <div style="display:flex;flex-direction:column;gap:4px;max-height:150px;overflow-y:auto;">
-                ${adminList.map(adm => `
-                  <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 8px;background:var(--panel);border:1px solid var(--border);border-radius:6px;font-size:var(--fs-xs);flex-wrap:wrap;">
-                    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-width:0;">
-                      <span class="fisher-id-copy-badge" data-copy-fisher-id="${adm.id}" style="font-family:monospace;font-weight:900;color:var(--good);cursor:pointer;">🆔 ${adm.id} 📋</span>
-                      <b>${escapeHtml(adm.label || 'Администратор')}</b>
-                    </div>
-                    ${DEFAULT_ADMIN_IDS.includes(adm.id) ? `<span class="pill pill-good" style="font-size:10px;">Владелец</span>` : `<button type="button" class="btn btn-sm" data-remove-admin-id="${adm.id}" style="min-height:26px;padding:2px 8px;color:var(--bad);">🗑️ Исключить</button>`}
-                  </div>
-                `).join('')}
-              </div>
-            </div>
-            <div id="cloudProfileDynamicSlot">${_serverDynamicAdminSlotHtml || ''}</div>
+            ` : ''}
           </div>
-        ` : (adminMode ? `
-          <div class="card" style="background:rgba(16,185,129,0.08);padding:10px 12px;border:1.5px solid var(--good);display:flex;flex-direction:column;gap:8px;">
-            <div>
-              <div style="font-weight:800;font-size:var(--fs-xs);color:var(--good);">👑 Ваш ID (${ident.fisherId}) подтверждён в Базе Администраторов</div>
-              <div style="font-size:11px;color:var(--muted);">Вам открыт просмотр всех закрытых экипажей на карте и в Круге.</div>
+          <!-- Привязка постоянного ID к Telegram -->
+          <div style="margin-top:2px;padding:9px 10px;background:var(--panel);border:1px solid var(--border);border-radius:var(--r-sm);display:flex;flex-direction:column;gap:6px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+              <span style="font-weight:800;font-size:11.5px;color:var(--accent);">✈️ СВЯЗКА ПОСТОЯННОГО ID С TELEGRAM (@KlevProClubBot):</span>
+              ${ident.isRegistered && (ident.tgLinkedId || tgUser?.id)
+                ? `<span class="pill pill-good" style="font-size:10.5px;">🟢 Связан: ${(ident.tgUsername || tgUser?.username) ? '@' + (ident.tgUsername || tgUser?.username) : 'ID ' + (ident.tgLinkedId || tgUser?.id)}</span>`
+                : `<span class="pill" style="font-size:10.5px;">⚪ Не привязан</span>`}
             </div>
-            <button type="button" class="btn btn-sm ${showAllCrewsFlag ? 'btn-good' : ''}" id="adminToggleCrewsVisibilityBtn" style="width:100%;">
-              ${showAllCrewsFlag ? '👁️ Все экипажи: ВКЛ' : '🙈 Все экипажи: ВЫКЛ'}
+            <div style="font-size:11px;color:var(--muted);line-height:1.35;">
+              ${ident.isRegistered
+                ? `При желании использовать сервисы Telegram (бот, мини-приложение, отправка точек Экипажа, Круга и SOS в группы и чаты ТГ) свяжите ваш постоянный ID <b>${ident.fisherId}</b> с Telegram:`
+                : `Сначала зарегистрируйте логин и пароль выше, чтобы получить постоянный ID рыбака, после чего вы сможете привязать его к Telegram.`}
+            </div>
+            <button type="button" class="btn btn-sm ${ident.isRegistered ? 'btn-accent' : ''}" id="authBindTelegramBtn" style="width:100%;">
+              ${ident.isRegistered && (ident.tgLinkedId || tgUser?.id)
+                ? `🤖 Открыть @KlevProClubBot (единый ID ${ident.fisherId})`
+                : `✈️ Связать постоянный ID с Telegram (@KlevProClubBot)`}
             </button>
           </div>
-        ` : '')}
-
-        <div class="card" style="background:var(--card);padding:10px 12px;border:1px solid var(--border);display:flex;flex-direction:column;gap:8px;">
-          <div style="font-weight:800;font-size:var(--fs-xs);color:var(--accent);">☁️ ФАЙЛОВАЯ РЕЗЕРВНАЯ КОПИЯ ПРОФИЛЯ, ТОЧЕК И ЧАТОВ:</div>
-          <div style="font-size:11px;color:var(--muted);line-height:1.4;">
-            Помимо автоматической облачной синхронизации по логину и паролю, вы можете выгрузить полный локальный архив (.json) на устройство.
-          </div>
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:6px;">
-            <button type="button" class="btn btn-sm btn-good" id="backupExportBtn">📤 Скачать бэкап (.json)</button>
-            <label class="btn btn-sm btn-accent" style="cursor:pointer;margin:0;text-align:center;">
-              📥 Загрузить из файла
-              <input type="file" id="backupImportFileInput" accept=".json" style="display:none;">
+        </div>
+        <!-- Резервное копирование файла профиля -->
+        <div class="card" style="background:var(--card);padding:10px 12px;border:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+          <span style="font-size:var(--fs-xs);font-weight:700;color:var(--muted);">💾 Локальная резервная копия (.JSON):</span>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <button type="button" class="btn btn-sm" id="backupExportBtn">📤 Скачать бэкап</button>
+            <label class="btn btn-sm" style="cursor:pointer;margin:0;">
+              📥 Восстановить
+              <input type="file" id="backupImportFileInput" accept=".json,application/json" style="display:none;">
             </label>
           </div>
         </div>
       </div>
     `;
-
     bindSettingsZoneTabs(bodyEl);
-    bodyEl.querySelectorAll('[data-cloud-open-url]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const targetUrl = btn.getAttribute('data-cloud-open-url');
-        if (targetUrl) window.open(targetUrl, '_blank', 'noopener');
-      });
+    bodyEl.querySelector('#authOpenSuperAdminTabBtn')?.addEventListener('click', () => {
+      closeModal();
+      router.navigate('admin');
+      renderAdminSection();
     });
-
+    const loginInp = bodyEl.querySelector('#authCallsignInput');
+    const loginHint = bodyEl.querySelector('#authLoginAvailabilityHint');
+    let loginCheckTimer = null;
+    if (loginInp && loginHint) {
+      loginInp.addEventListener('input', () => {
+        clearTimeout(loginCheckTimer);
+        const val = (loginInp.value || '').trim();
+        if (val.length < 2) {
+          loginHint.style.color = 'var(--muted)';
+          loginHint.textContent = '🛡️ Введите логин (от 2 символов) или ваш постоянный ID для входа.';
+          return;
+        }
+        loginCheckTimer = setTimeout(async () => {
+          try {
+            const devId = storage.getDeviceId ? storage.getDeviceId() : '';
+            const r = await fetch(`${RELAY_WORKER_URL}/auth/check-login?login=${encodeURIComponent(val)}&deviceId=${encodeURIComponent(devId)}`);
+            if (!r.ok) return;
+            const d = await r.json();
+            if (d.isOwnerLogin) {
+              loginHint.style.color = 'var(--good)';
+              loginHint.textContent = '👑 Эксклюзивный логин Владельца (FP_89VIP089 & FP_FMP089) — введите мастер-пароль для входа.';
+            } else if (d.available) {
+              loginHint.style.color = 'var(--good)';
+              loginHint.textContent = `🟢 Логин «${val}» свободен! Придумайте пароль, чтобы получить постоянный ID рыбака навсегда.`;
+            } else {
+              loginHint.style.color = 'var(--accent)';
+              loginHint.textContent = `🔑 Логин «${val}» уже зарегистрирован. Если это ваш профиль — введите ваш пароль для входа и восстановления вашего ID.`;
+            }
+          } catch (e) {}
+        }, 300);
+      });
+    }
     const passInp = bodyEl.querySelector('#authPinInput');
     const toggleVisBtn = bodyEl.querySelector('#authTogglePassVisBtn');
     if (passInp && toggleVisBtn) {
@@ -3008,102 +2816,57 @@ export function openAuthAndBackupModal(onBackToHub = null) {
         toggleVisBtn.textContent = isPass ? '🙈' : '👁️';
       });
     }
-
+    bodyEl.querySelector('#authBindTelegramBtn')?.addEventListener('click', async () => {
+      const curIdent = getCurrentFisherIdentity(store.getState());
+      if (!curIdent.isRegistered || curIdent.isTemporaryReserve) {
+        showToast('🔒 Сначала зарегистрируйте логин и пароль выше, чтобы получить постоянный ID, а затем свяжите его с Telegram!', 'warn');
+        return;
+      }
+      await syncCurrentProfileToCloudIfLoggedIn();
+      openBotChatInTelegram(curIdent.fisherId);
+    });
+    bodyEl.querySelector('#authLogoutBtn')?.addEventListener('click', () => {
+      const tempFid = logoutCurrentFisherAccount();
+      showToast(`🚪 Вы вышли из профиля. Назначен временный резервный ID ${tempFid}`, 'info');
+      renderAuthBody(bodyEl);
+    });
     bodyEl.querySelector('#authSaveBtn')?.addEventListener('click', async () => {
       const saveBtn = bodyEl.querySelector('#authSaveBtn');
       const rawLogin = (bodyEl.querySelector('#authCallsignInput')?.value || '').trim();
       const rawPin = (bodyEl.querySelector('#authPinInput')?.value || '').trim();
       const prevUp = store.getState().userProfile || {};
-
-      // Если пароль не введён повторно, но уже был сохранён ранее — обновляем логин/позывной и синхронизируем
-      if (!rawPin && prevUp.pinHash) {
-        const loginToUse = rawLogin || prevUp.login || prevUp.callsign || 'Рыболов';
-        const isOwnerMatch = (loginToUse.toLowerCase() === 'iathor' || loginToUse.toLowerCase() === 'iathor82') && prevUp.pinHash === OWNER_BOUND_PIN_HASH;
-        const fid = isOwnerMatch ? OWNER_BOUND_FISHER_ID : (isValidFisherIdFormat(prevUp.fisherId) ? normalizeFisherId(prevUp.fisherId) : formatFisherIdFromIndex(resolveRussianRegionCode(), fnv1a32(`${loginToUse.toLowerCase()}:${prevUp.pinHash}`) % (26 * 999)));
-        store.dispatch({
-          type: 'UPDATE_USER_PROFILE',
-          payload: {
-            login: loginToUse,
-            callsign: loginToUse,
-            fisherId: fid
-          }
-        });
+      if (!rawPin && ident.isRegistered && (prevUp.pinHash || prevUp.authTokenHash || ident.isOwner)) {
         await syncCurrentProfileToCloudIfLoggedIn();
-        await copyFisherIdToClipboard(fid, 'Ваш ID рыбака');
+        await copyFisherIdToClipboard(ident.fisherId, ident.isOwner ? 'Ваш ID Владельца' : 'Ваш постоянный ID рыбака');
+        showToast(`✅ Профиль ${ident.fisherId} синхронизирован`, 'good');
         renderAuthBody(bodyEl);
         return;
       }
-
       if (!rawLogin || rawPin.length < 3) {
-        showToast('Введите ваш логин (напр. iAthor) и пароль (от 3 символов)', 'warn');
+        showToast('Введите логин и пароль (минимум 3 символа)', 'warn');
         return;
       }
-
       if (saveBtn) {
         saveBtn.disabled = true;
-        saveBtn.textContent = '⏳ Синхронизация профиля между устройствами...';
+        saveBtn.textContent = '⏳ Проверка логина и выделение постоянного ID...';
       }
-
       const res = await authenticateAndSyncAccount(rawLogin, rawPin, 'login');
       if (!res.ok) {
         if (saveBtn) {
           saveBtn.disabled = false;
-          saveBtn.textContent = '🔑 Войти / Сохранить и синхронизировать профиль';
+          saveBtn.textContent = '🔑 Зарегистрироваться / Войти и получить постоянный ID';
         }
         showToast(`❌ ${res.error || 'Ошибка входа'}`, 'bad');
         return;
       }
-
-      await copyFisherIdToClipboard(res.fisherId, res.isOwner ? 'Ваш ID Владельца' : 'Ваш ID рыбака');
+      await copyFisherIdToClipboard(res.fisherId, res.isOwner ? 'Ваш ID Владельца' : 'Ваш постоянный ID рыбака');
       if (res.isOwner) {
-        showToast(`👑 Добро пожаловать, ${res.login}! Аккаунт Владельца (${res.fisherId}) и права Супер-Админа активированы.`, 'good');
+        showToast(`👑 Добро пожаловать, ${res.login}! Активированы ваши эксклюзивные ID (FP_89VIP089 & FP_FMP089) и вкладка «👑 Админ»!`, 'good');
       } else {
-        showToast(`✅ Вход выполнен: ${res.login} (ID ${res.fisherId})! Профиль синхронизирован.`, 'good');
+        showToast(`✅ Постоянный ID ${res.fisherId} закреплён за логином «${res.login}» на всех устройствах!`, 'good');
       }
       renderAuthBody(bodyEl);
     });
-
-    bodyEl.querySelector('#adminToggleCrewsVisibilityBtn')?.addEventListener('click', () => {
-      const cur = store.getState().userProfile?.adminShowAllCrews !== false;
-      store.dispatch({
-        type: 'UPDATE_USER_PROFILE',
-        payload: { adminShowAllCrews: !cur }
-      });
-      syncCurrentProfileToCloudIfLoggedIn();
-      showToast(!cur ? '👑 Отображение всех закрытых экипажей ВКЛЮЧЕНО' : '🙈 Отображение чужих закрытых экипажей скрыто', 'info');
-      renderAuthBody(bodyEl);
-    });
-
-    bodyEl.querySelector('#adminAddConfirmBtn')?.addEventListener('click', () => {
-      const rawId = (bodyEl.querySelector('#adminAddIdInput')?.value || '').trim().toUpperCase();
-      const label = (bodyEl.querySelector('#adminAddLabelInput')?.value || '').trim() || 'Модератор Круга';
-      if (!rawId) {
-        showToast('Введите ID рыбака (напр. FP_77AAA001) или @username', 'warn');
-        return;
-      }
-      const formattedId = rawId.startsWith('@')
-        ? rawId
-        : normalizeFisherId(rawId, resolveRussianRegionCode());
-      const entry = { id: formattedId, label, addedAt: new Date().toISOString().slice(0, 10) };
-      store.dispatch({ type: 'ADD_ADMIN_TO_WHITELIST', payload: entry });
-      syncAdminWhitelistWithCloud({ action: 'add', entry });
-      syncCurrentProfileToCloudIfLoggedIn();
-      showToast(`👑 Рыбак ${formattedId} (${label}) добавлен в Базу Администраторов!`, 'good');
-      renderAuthBody(bodyEl);
-    });
-
-    bodyEl.querySelectorAll('[data-remove-admin-id]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const targetId = btn.getAttribute('data-remove-admin-id');
-        if (!targetId) return;
-        store.dispatch({ type: 'REMOVE_ADMIN_FROM_WHITELIST', payload: targetId });
-        syncAdminWhitelistWithCloud({ action: 'remove', targetId });
-        syncCurrentProfileToCloudIfLoggedIn();
-        showToast(`🗑️ ID ${targetId} удалён из Базы Администраторов`, 'info');
-        renderAuthBody(bodyEl);
-      });
-    });
-
     bodyEl.querySelector('#backupExportBtn')?.addEventListener('click', () => {
       const backup = storage.exportFullProfileBackup(store.getState());
       const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json;charset=utf-8' });
@@ -3115,9 +2878,8 @@ export function openAuthAndBackupModal(onBackToHub = null) {
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-      showToast('📤 Полная резервная копия профиля, точек и чатов выгружена!', 'good');
+      showToast('📤 Резервная копия профиля выгружена!', 'good');
     });
-
     const fileInp = bodyEl.querySelector('#backupImportFileInput');
     if (fileInp) {
       fileInp.addEventListener('change', async (e) => {
@@ -3128,22 +2890,12 @@ export function openAuthAndBackupModal(onBackToHub = null) {
           const parsed = safeJsonParse(text);
           const ok = await storage.importFullProfileBackup(parsed);
           if (ok) {
-            if (parsed.userProfile) {
-              store.dispatch({ type: 'UPDATE_USER_PROFILE', payload: parsed.userProfile });
-            }
-            if (Array.isArray(parsed.savedSpots)) {
-              store.dispatch({ type: 'SET_SAVED_SPOTS', payload: parsed.savedSpots });
-            }
-            if (Array.isArray(parsed.catches)) {
-              store.dispatch({ type: 'SET_CATCHES', payload: parsed.catches });
-            }
-            if (Array.isArray(parsed.circleItems)) {
-              store.dispatch({ type: 'SET_CIRCLE_ITEMS', payload: parsed.circleItems });
-            }
-            if (Array.isArray(parsed.chatMessages)) {
-              store.dispatch({ type: 'SET_CHAT_MESSAGES', payload: parsed.chatMessages });
-            }
-            showToast('✅ Профиль, ключи экипажей, точки и чаты успешно восстановлены!', 'good');
+            if (parsed.userProfile) store.dispatch({ type: 'UPDATE_USER_PROFILE', payload: parsed.userProfile });
+            if (Array.isArray(parsed.savedSpots)) store.dispatch({ type: 'SET_SAVED_SPOTS', payload: parsed.savedSpots });
+            if (Array.isArray(parsed.catches)) store.dispatch({ type: 'SET_CATCHES', payload: parsed.catches });
+            if (Array.isArray(parsed.circleItems)) store.dispatch({ type: 'SET_CIRCLE_ITEMS', payload: parsed.circleItems });
+            if (Array.isArray(parsed.chatMessages)) store.dispatch({ type: 'SET_CHAT_MESSAGES', payload: parsed.chatMessages });
+            showToast('✅ Профиль, точки и чаты успешно восстановлены!', 'good');
             closeModal();
           } else {
             showToast('❌ Неверный формат файла резервной копии', 'bad');
@@ -3154,12 +2906,10 @@ export function openAuthAndBackupModal(onBackToHub = null) {
       });
     }
   }
-
-  openModal('🔐 Профиль: Логин, Пароль и Мой ID', '<div id="authModalMount"></div>', (bodyEl) => {
+  openModal('🔐 Регистрация, Вход и Постоянный ID', '<div id="authModalMount"></div>', (bodyEl) => {
     renderAuthBody(bodyEl);
   }, true, { onBack: backFn });
 }
-
 function formatRemainingHours(expiresAt) {
   const diffMs = (expiresAt || 0) - Date.now();
   if (diffMs <= 0) return 'Истекло';
@@ -3167,13 +2917,8 @@ function formatRemainingHours(expiresAt) {
   const mins = Math.floor((diffMs % 3600000) / 60000);
   return `${hrs}ч ${mins}м`;
 }
-
-/**
- * Отрисовка выделенной вкладки «💬 Чаты» (Экипажи по ключу + Личные диалоги 1-на-1 + Поделиться уловом в чате)
- */
 export function renderChatsSubView(s, ident, visibleCrews) {
   const allMsgs = Array.isArray(s.chatMessages) ? s.chatMessages : [];
-
   const crewKeysSet = new Set([
     ...ident.unlockedCrewKeys.map(k => String(k).toUpperCase()),
     ...visibleCrews.map(c => String(c.crewKey || '').toUpperCase()).filter(Boolean)
@@ -3185,10 +2930,9 @@ export function renderChatsSubView(s, ident, visibleCrews) {
       type: 'crew',
       crewKey: k,
       title: `🌊 Экипаж ${k}${matchingCrew ? ` • ${matchingCrew.wn || matchingCrew.lb}` : ''}`,
-      subtitle: 'Постоянный зашифрованный чат членов экипажа (хранится только на ваших устройствах)'
+      subtitle: 'Зашифрованный чат членов экипажа (E2EE)'
     };
   });
-
   const dmChannelsMap = new Map();
   for (const m of allMsgs) {
     if (!m || !String(m.channelId || '').startsWith('dm:')) continue;
@@ -3201,49 +2945,40 @@ export function renderChatsSubView(s, ident, visibleCrews) {
         peerId,
         peerName,
         title: `💬 ${peerName} (${peerId})`,
-        subtitle: 'Личный E2EE-диалог 1-на-1 (сервер не хранит историю)'
+        subtitle: 'Личный зашифрованный диалог 1-на-1'
       });
     }
   }
   const dmChannels = Array.from(dmChannelsMap.values());
   const allChannels = [...crewChannels, ...dmChannels];
-
   if (!activeChatChannelId && allChannels.length > 0) {
     activeChatChannelId = allChannels[0].channelId;
   }
-
   const activeChan = allChannels.find(c => c.channelId === activeChatChannelId) || allChannels[0] || null;
-
   if (activeChan && allMsgs.some(m => m && m.channelId === activeChan.channelId && m.unread)) {
     const marked = allMsgs.map(m => (m && m.channelId === activeChan.channelId ? { ...m, unread: false } : m));
     storage.saveChatMessages(marked);
     store.dispatch({ type: 'SET_CHAT_MESSAGES', payload: marked });
     syncCircleNavBadge();
   }
-
   const activeMsgs = activeChan
     ? allMsgs.filter(m => m && m.channelId === activeChan.channelId)
     : [];
-
   return `
     <div style="display:flex;flex-direction:column;gap:10px;">
-      <!-- Верхняя панель рыбака в Чатах с автокопированием ID и кнопкой Поделиться уловом -->
-      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;padding:9px 12px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;padding:9px 12px;background:var(--card);border:1px solid ${ident.isRegistered ? 'var(--border)' : 'var(--warn)'};border-radius:var(--r-sm);">
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-          <span style="font-size:var(--fs-xs);color:var(--muted);font-weight:700;">Ваш ID для связи:</span>
-          <button type="button" class="btn btn-sm fisher-id-copy-badge" data-copy-fisher-id="${ident.fisherId}" title="Нажмите для автокопирования вашего ID рыбака" style="min-height:28px;padding:2px 9px;font-family:monospace;font-weight:900;border-color:var(--good);color:var(--good);">
+          <span style="font-size:var(--fs-xs);color:var(--muted);font-weight:700;">${ident.isRegistered ? 'Ваш постоянный ID:' : 'Временный ID (только чтение):'}</span>
+          <button type="button" class="btn btn-sm fisher-id-copy-badge" data-copy-fisher-id="${ident.fisherId}" style="min-height:28px;padding:2px 9px;font-family:monospace;font-weight:900;border-color:${ident.isRegistered ? 'var(--good)' : 'var(--warn)'};color:${ident.isRegistered ? 'var(--good)' : 'var(--warn)'};">
             🆔 ${ident.fisherId} 📋
           </button>
-          <span style="font-size:var(--fs-xs);font-weight:800;">${ident.callsign}</span>
+          <span style="font-size:var(--fs-xs);font-weight:800;">${escapeHtml(ident.callsign)}</span>
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;">
-          <button type="button" class="btn btn-sm btn-good" id="chatShareCatchTopBtn">🎣 Поделиться уловом в чате</button>
-          <button type="button" class="btn btn-sm" id="chatOpenAuthBtn">🔐 Профиль / ID</button>
+          ${!ident.isRegistered ? `<button type="button" class="btn btn-sm btn-accent" id="chatOpenAuthBtn">🔐 Зарегистрироваться для отправки</button>` : `<button type="button" class="btn btn-sm btn-good" id="chatShareCatchTopBtn">🎣 Отправить улов</button>`}
           <button type="button" class="btn btn-sm" id="chatManualPollRelayBtn" title="Проверить входящие зашифрованные пакеты">🔄 Связь</button>
         </div>
       </div>
-
-      <!-- Компактная панель входа в Экипаж по ключу или старта личного диалога по ID -->
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:8px;">
         <div class="card" style="background:var(--card);padding:8px 10px;border:1px solid var(--border);">
           <div style="font-weight:800;font-size:11px;color:var(--accent);margin-bottom:4px;">🌊 ЧАТ ЭКИПАЖА ПО КЛЮЧУ (KP-XXXX):</div>
@@ -3252,20 +2987,17 @@ export function renderChatsSubView(s, ident, visibleCrews) {
             <button type="button" class="btn btn-sm btn-accent" id="chatJoinCrewKeyBtn" style="min-height:34px;">Открыть</button>
           </div>
         </div>
-
         <div class="card" style="background:var(--card);padding:8px 10px;border:1px solid var(--border);">
-          <div style="font-weight:800;font-size:11px;color:var(--good);margin-bottom:4px;">💬 ЛИЧНЫЙ ЧАТ ПО ID РЫБАКА (FP_89AAA001):</div>
+          <div style="font-weight:800;font-size:11px;color:var(--good);margin-bottom:4px;">💬 ЛИЧНЫЙ ЧАТ ПО ПОСТОЯННОМУ ID (FP_XXAAA001):</div>
           <div style="display:flex;gap:6px;">
-            <input type="text" id="chatStartDmIdInput" class="input" placeholder="ID напарника (напр. FP_89VIP089)" style="flex:1;min-height:34px;text-transform:uppercase;">
+            <input type="text" id="chatStartDmIdInput" class="input" placeholder="ID напарника (напр. FP_89AAA001)" style="flex:1;min-height:34px;text-transform:uppercase;">
             <button type="button" class="btn btn-sm btn-good" id="chatStartDmBtn" style="min-height:34px;">Написать</button>
           </div>
         </div>
       </div>
-
-      <!-- Список каналов (Экипажи + Личные диалоги) -->
       <div class="chip-scroll-row" style="padding-bottom:2px;">
         ${allChannels.length === 0 ? `
-          <span style="font-size:var(--fs-xs);color:var(--muted);">Введите ключ Экипажа <code>KP-XXXX</code>, ID рыбака <code>FP_89AAA001</code> выше или нажмите «🎣 Поделиться уловом в чате».</span>
+          <span style="font-size:var(--fs-xs);color:var(--muted);">Введите ключ Экипажа <code>KP-XXXX</code> или постоянный ID напарника <code>FP_XXAAA001</code> выше, чтобы открыть диалог.</span>
         ` : allChannels.map(ch => {
           const isAct = activeChan && activeChan.channelId === ch.channelId;
           const unreadCnt = allMsgs.filter(m => m && m.channelId === ch.channelId && m.unread).length;
@@ -3276,8 +3008,6 @@ export function renderChatsSubView(s, ident, visibleCrews) {
           `;
         }).join('')}
       </div>
-
-      <!-- Окно активного чата -->
       ${activeChan ? `
         <div class="card" style="background:var(--card);padding:10px 12px;border:1.5px solid var(--accent);display:flex;flex-direction:column;gap:8px;">
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;border-bottom:1px solid var(--border);padding-bottom:6px;">
@@ -3291,11 +3021,10 @@ export function renderChatsSubView(s, ident, visibleCrews) {
               <button type="button" class="btn btn-sm" id="chatDeleteHistoryBtn" style="color:var(--bad);min-height:28px;padding:2px 8px;">🗑️ Очистить</button>
             </div>
           </div>
-
           <div id="chatMessagesScrollBox" style="display:flex;flex-direction:column;gap:8px;max-height:320px;overflow-y:auto;padding:4px 2px;">
             ${activeMsgs.length === 0 ? `
               <div style="padding:16px;text-align:center;color:var(--muted);font-size:var(--fs-xs);">
-                Сообщений пока нет. Напишите напарникам или нажмите <b>«🎣 Улов»</b> внизу, чтобы отправить карточку пойманной рыбы!
+                Сообщений пока нет. Напишите напарникам или прикрепите карточку улова!
               </div>
             ` : activeMsgs.map(m => {
               const isMe = m.senderId === ident.fisherId;
@@ -3312,17 +3041,16 @@ export function renderChatsSubView(s, ident, visibleCrews) {
                   <div style="white-space:pre-wrap;line-height:1.42;color:var(--text);">${escapeHtml(m.text)}</div>
                   ${packTok ? `
                     <div style="margin-top:6px;padding-top:5px;border-top:1px dashed var(--border);display:flex;gap:6px;flex-wrap:wrap;">
-                      <button type="button" class="btn btn-sm btn-good" data-chat-import-pack="${packTok}" style="min-height:26px;padding:2px 8px;font-size:11px;">🗺️ Открыть точку улова на карте</button>
+                      <button type="button" class="btn btn-sm btn-good" data-chat-import-pack="${packTok}" style="min-height:26px;padding:2px 8px;font-size:11px;">🗺️ Открыть точку на карте</button>
                     </div>
                   ` : ''}
                 </div>
               `;
             }).join('')}
           </div>
-
           <div style="display:flex;gap:6px;padding-top:6px;border-top:1px solid var(--border);align-items:center;">
-            <button type="button" class="btn btn-sm btn-good" id="chatAttachCatchBtn" title="Поделиться уловом из журнала или текущим клёвом в этом чате" style="min-height:38px;padding:0 10px;flex-shrink:0;">🎣 Улов</button>
-            <input type="text" id="chatComposeInput" class="input" placeholder="Зашифрованное сообщение..." style="flex:1;min-height:38px;">
+            <button type="button" class="btn btn-sm btn-good" id="chatAttachCatchBtn" style="min-height:38px;padding:0 10px;flex-shrink:0;">🎣 Улов</button>
+            <input type="text" id="chatComposeInput" class="input" placeholder="${ident.isRegistered ? 'Зашифрованное сообщение...' : 'Сначала зарегистрируйте логин и пароль для отправки...'}" style="flex:1;min-height:38px;">
             <button type="button" class="btn btn-accent" id="chatSendMsgBtn" style="min-height:38px;padding:0 14px;flex-shrink:0;">➤</button>
           </div>
         </div>
@@ -3330,11 +3058,6 @@ export function renderChatsSubView(s, ident, visibleCrews) {
     </div>
   `;
 }
-
-/**
- * Строит компактную 1-строчную (аккордеон) строку события для ленты «👥 Круг»,
- * разделяя «👤 Мои» (с кнопкой 🗑️ Удалить) и «🌐 Чужие» (с кнопкой 🙈 Скрыть / 👁️ Вернуть)
- */
 function renderCompactCircleRow(item, s, ident, now) {
   const mine = isCircleItemMine(item, s);
   const hidden = isCircleItemHidden(item, s);
@@ -3342,13 +3065,11 @@ function renderCompactCircleRow(item, s, ident, now) {
   const itemFid = item.fid || (mine ? ident.fisherId : 'FP_89AAA001');
   const ageMin = Math.max(1, Math.round((now - (item.ca || now)) / 60000));
   const ageLabel = ageMin < 60 ? `${ageMin} мин` : `${Math.round(ageMin / 60)} ч`;
-
   let catBadge = '';
   let titleText = '';
   let subMetaText = '';
   let rowBorderColor = mine ? 'rgba(16,185,129,0.55)' : 'var(--border)';
   let rowBg = 'var(--card)';
-
   if (item.t === 'crew' && item.sos) {
     catBadge = `<span class="pill pill-bad" style="font-size:10px;padding:1px 6px;">🆘 SOS</span>`;
     titleText = `${item.lb || 'Водоём'}${item.wn && item.wn !== item.lb ? ` • ${item.wn}` : ''}`;
@@ -3370,17 +3091,13 @@ function renderCompactCircleRow(item, s, ident, now) {
     titleText = `${item.fn || 'Рыба'}${item.kg ? ` (${item.kg} кг)` : ''} • ${item.wn || item.lb || 'Сектор'}`;
     subMetaText = `🪱 ${item.bt || 'по сезону'} • 💧 ${item.tw ?? 8}°C • ${ageLabel}`;
   }
-
   const ownerPill = mine
     ? `<span class="pill pill-good" style="font-size:10px;padding:1px 6px;">👤 Моё</span>`
     : `<span class="pill pill-neutral" style="font-size:10px;padding:1px 6px;">🌐 Чужое</span>`;
-
   const fidBadge = `<span class="fisher-id-copy-badge" data-copy-fisher-id="${itemFid}" title="Нажмите для автокопирования ID рыбака" style="font-family:monospace;font-size:10.5px;font-weight:900;padding:1px 6px;border-radius:4px;background:var(--panel);border:1px solid var(--border);cursor:pointer;">🆔 ${itemFid} 📋</span>`;
-
   const cKey = item.t === 'crew' && !item.sos ? (item.crewKey || formatCrewKeyFromHash(computeCrewKeyHash(item.id))) : '';
-
   return `
-    <div class="circle-compact-row" style="background:${rowBg};border:1px solid ${rowBorderColor};border-radius:var(--r-sm);padding:7px 10px;display:flex;flex-direction:column;gap:6px;">
+    <div class="circle-compact-row" style="background:${rowBg};border:1px solid ${rowBorderColor};border-radius:var(--r-sm);padding:8px 10px;display:flex;flex-direction:column;gap:6px;">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;">
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;flex:1;min-width:190px;cursor:pointer;" data-toggle-compact-row="${item.id}">
           ${catBadge}
@@ -3388,31 +3105,29 @@ function renderCompactCircleRow(item, s, ident, now) {
           <span style="font-weight:800;font-size:var(--fs-xs);color:var(--text);">${titleText}</span>
           <span style="font-size:11px;color:var(--muted);">${subMetaText}</span>
         </div>
-
         <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;flex-wrap:wrap;">
           ${fidBadge}
           ${item.t !== 'workshop' ? `<button type="button" class="btn btn-sm" data-goto-circle="${item.id}" title="Показать на карте" style="min-height:26px;padding:2px 7px;font-size:11px;">🗺️</button>` : `<button type="button" class="btn btn-sm btn-good" data-apply-workshop="${item.id}" title="Применить снасть" style="min-height:26px;padding:2px 7px;font-size:11px;">✅</button>`}
-          ${cKey ? `<button type="button" class="btn btn-sm btn-accent" data-open-crew-chat="${cKey}" title="Открыть чат экипажа" style="min-height:26px;padding:2px 7px;font-size:11px;">💬</button>` : `<button type="button" class="btn btn-sm" data-open-dm="${itemFid}" data-open-dm-name="${item.au || itemFid}" title="Написать рыбаку в чат" style="min-height:26px;padding:2px 7px;font-size:11px;">💬</button>`}
-          ${mine ? `
-            <button type="button" class="btn btn-sm" data-del-my-circle="${item.id}" title="Удалить мою запись" style="min-height:26px;padding:2px 7px;font-size:11px;color:var(--bad);border-color:rgba(239,68,68,0.4);">🗑️ Удалить</button>
+          ${cKey ? `<button type="button" class="btn btn-sm btn-accent" data-open-crew-chat="${cKey}" title="Открыть чат экипажа" style="min-height:26px;padding:2px 7px;font-size:11px;">💬</button>` : `<button type="button" class="btn btn-sm" data-open-dm="${itemFid}" data-open-dm-name="${item.au || itemFid}" title="Написать рыбаку" style="min-height:26px;padding:2px 7px;font-size:11px;">💬</button>`}
+          ${(mine || ident.isOwner) ? `
+            <button type="button" class="btn btn-sm" data-del-my-circle="${item.id}" title="Удалить запись" style="min-height:26px;padding:2px 7px;font-size:11px;color:var(--bad);border-color:rgba(239,68,68,0.4);">🗑️</button>
           ` : (hidden ? `
-            <button type="button" class="btn btn-sm btn-good" data-unhide-circle="${item.id}" title="Вернуть запись в ленту и на карту" style="min-height:26px;padding:2px 7px;font-size:11px;">👁️ Вернуть</button>
+            <button type="button" class="btn btn-sm btn-good" data-unhide-circle="${item.id}" title="Вернуть запись" style="min-height:26px;padding:2px 7px;font-size:11px;">👁️</button>
           ` : `
-            <button type="button" class="btn btn-sm" data-hide-foreign-circle="${item.id}" title="Скрыть чужую запись из ленты и с карты" style="min-height:26px;padding:2px 7px;font-size:11px;color:var(--muted);">🙈 Скрыть</button>
+            <button type="button" class="btn btn-sm" data-hide-foreign-circle="${item.id}" title="Скрыть чужую запись" style="min-height:26px;padding:2px 7px;font-size:11px;color:var(--muted);">🙈</button>
           `)}
-          <button type="button" class="btn btn-sm" data-toggle-compact-row="${item.id}" title="Развернуть / свернуть подробности" style="min-height:26px;padding:2px 6px;font-size:11px;">${isExpanded ? '▴' : '▾'}</button>
+          <button type="button" class="btn btn-sm" data-toggle-compact-row="${item.id}" title="Подробности" style="min-height:26px;padding:2px 6px;font-size:11px;">${isExpanded ? '▴' : '▾'}</button>
         </div>
       </div>
-
       ${isExpanded ? `
         <div style="padding-top:6px;border-top:1px dashed var(--border);font-size:var(--fs-xs);color:var(--muted);display:flex;flex-direction:column;gap:4px;">
           <div>
-            👤 Автор: <b style="color:var(--text);">${item.au || 'Рыболов'}</b> (${fidBadge}) •
+            👤 Автор: <b style="color:var(--text);">${escapeHtml(item.au || 'Рыболов')}</b> (${fidBadge}) •
             ${item.t === 'crew'
-              ? `🎯 Точные координаты: <b>${Number(item.lat).toFixed(4)}°N, ${Number(item.lon).toFixed(4)}°E</b> (глубина ${item.dp || 2} м)`
+              ? `🎯 Координаты: <b>${Number(item.lat).toFixed(4)}°N, ${Number(item.lon).toFixed(4)}°E</b> (глубина ${item.dp || 2} м)`
               : (item.t === 'workshop'
                   ? `🌊 Условия: ${item.fl || 'течение'}, глубина ~${item.dp || 2} м • Леска: ${item.rl || '—'} • Подача: ${item.rt || '—'}`
-                  : `⬡ Гексагон анти-триангуляции ±${getEffectiveCircleRadiusKm(item, now)} км • Глубина ~${item.dp || 2} м • 🧭 ${item.pr ?? 754} мм`)}
+                  : `⬡ Гексагон приватности ±${getEffectiveCircleRadiusKm(item, now)} км • Глубина ~${item.dp || 2} м • 🧭 ${item.pr ?? 754} мм`)}
           </div>
           ${item.nt ? `<div style="color:var(--accent);font-weight:700;">💬 ${escapeHtml(item.nt)}</div>` : ''}
         </div>
@@ -3420,10 +3135,6 @@ function renderCompactCircleRow(item, s, ident, now) {
     </div>
   `;
 }
-
-/**
- * Отрисовка выделенной секции «💬 Чаты» (#secChats)
- */
 export function renderChatsSection(customContainer = null) {
   const container = customContainer || (typeof document !== 'undefined' ? document.getElementById('secChats') : null);
   if (!container) return;
@@ -3431,55 +3142,40 @@ export function renderChatsSection(customContainer = null) {
   const ident = getCurrentFisherIdentity(s);
   const allItems = purgeExpiredCircleItems(s.circleItems || []);
   const visibleCrews = allItems.filter(x => x.t === 'crew' && !x.sos && canUserAccessCrewItem(x, s));
-
   container.innerHTML = `
     <div class="card">
       <div class="section-head" style="margin-bottom:8px;">
         <div>
           <span class="section-title">💬 Зашифрованные Чаты Экипажей и Рыбаков (Zero-Storage E2EE)</span>
           <div style="font-size:var(--fs-xs);color:var(--muted);margin-top:2px;">
-            Без общих спам-чатов • Переписка и карточки уловов шифруются на устройстве и хранятся только у участников
+            Переписка по ключу Экипажа (<code>KP-XXXX</code>) или личному постоянному ID (<code>FP_XXAAA001</code>)
           </div>
         </div>
       </div>
       ${renderChatsSubView(s, ident, visibleCrews)}
     </div>
   `;
-
   bindChatViewEvents(container);
 }
-
-/**
- * Отрисовка вкладки «👥 Круг» (компактная лента с разделением «👤 Мои» / «🌐 Чужие» / «👁️ Скрытые»)
- */
 export function render(container) {
   if (!container) return;
   const s = store.getState();
   const now = Date.now();
-  const day = s.weatherDays?.[s.dayIdx] || s.weatherDays?.[2] || s.weatherDays?.[0] || {};
-  const curWT = day.waterTemp ?? 10;
-
   const ident = getCurrentFisherIdentity(s);
   const allItems = purgeExpiredCircleItems(s.circleItems || []);
-
-  // Доступные пользователю записи (SOS + свои/открытые Экипажи + Круг + Мастерская)
   const accessibleItems = allItems.filter(item => {
     if (item.t === 'crew' && !item.sos) return canUserAccessCrewItem(item, s);
     return true;
   });
-
   const hiddenLockedCrewsCount = allItems.filter(x => x.t === 'crew' && !x.sos && !canUserAccessCrewItem(x, s)).length;
-
   const nonHiddenItems = accessibleItems.filter(x => !isCircleItemHidden(x, s));
   const hiddenItems = accessibleItems.filter(x => isCircleItemHidden(x, s));
   const mineItems = nonHiddenItems.filter(x => isCircleItemMine(x, s));
   const foreignItems = nonHiddenItems.filter(x => !isCircleItemMine(x, s));
-
   let baseList = nonHiddenItems;
   if (activeOwnershipFilter === 'mine') baseList = mineItems;
   else if (activeOwnershipFilter === 'foreign') baseList = foreignItems;
   else if (activeOwnershipFilter === 'hidden') baseList = hiddenItems;
-
   const filteredList = baseList.filter(item => {
     if (activeCategoryFilter === 'sos') return item.t === 'crew' && Boolean(item.sos);
     if (activeCategoryFilter === 'crew') return item.t === 'crew' && !item.sos;
@@ -3487,137 +3183,497 @@ export function render(container) {
     if (activeCategoryFilter === 'workshop') return item.t === 'workshop';
     return true;
   });
-
-  const unreadNotifsCount = (s.notifications || []).filter(n => n && !n.read).length;
-  const unreadChatsCount = (s.chatMessages || []).filter(m => m && m.unread).length;
-  const expertRank = getUserExpertRank(s.catches || []);
-
   container.innerHTML = `
     <div class="card">
-      <div class="section-head">
-        <div>
-          <span class="section-title">👥 «Клёв ПРО: Круг» • Компактный радар точек и Экипажей</span>
-          <div style="font-size:var(--fs-xs);color:var(--accent);font-weight:700;margin-top:2px;">
-            Разделение «👤 Мои (удаление) / 🌐 Чужие (скрытие)» • Автопривязка 🆔 ${ident.fisherId} ко всем точкам
-          </div>
-        </div>
-        <div class="toolbar-row">
-          <button type="button" class="btn btn-sm btn-good" id="circleCreatePackBtn">🤝 Поделиться</button>
-          <button type="button" class="btn btn-sm" id="circleSosBtn" style="border-color:var(--bad);color:#fff;background:var(--bad);font-weight:800;">🆘 SOS ВСЕМ</button>
-          <button type="button" class="btn btn-sm btn-accent" id="circleImportPackBtn">🔑 Ключ / Код KP1</button>
-          <button type="button" class="btn btn-sm" id="circleRefreshRadarBtn" title="Синхронизировать точки Круга и Экипажей с сервером">🔄 Радар</button>
-          <button type="button" class="btn btn-sm" id="circleNotifBtn">
-            🔔 Уведомления ${unreadNotifsCount > 0 ? `<span class="pill pill-bad" style="font-size:10px;padding:1px 5px;">+${unreadNotifsCount}</span>` : ''}
-          </button>
-        </div>
-      </div>
-
-      <!-- Компактная строка профиля рыбака с автокопированием ID в 1 клик и переходом в Чаты -->
-      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;padding:8px 11px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);margin-bottom:10px;">
-        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-          <button type="button" class="btn btn-sm fisher-id-copy-badge" data-copy-fisher-id="${ident.fisherId}" title="Нажмите для автокопирования вашего ID рыбака" style="min-height:30px;padding:2px 9px;font-family:monospace;font-weight:900;border-color:var(--good);color:var(--good);">
+      <!-- 1. Шапка и статус Рыболовного ID -->
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;padding:10px 12px;background:${ident.isOwner ? 'rgba(16,185,129,0.10)' : (ident.isRegistered ? 'rgba(56,189,248,0.08)' : 'rgba(245,158,11,0.10)')};border:1.5px solid ${ident.isOwner ? 'var(--good)' : (ident.isRegistered ? 'var(--accent)' : 'var(--warn)')};border-radius:var(--r-sm);margin-bottom:12px;">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <button type="button" class="btn btn-sm fisher-id-copy-badge" data-copy-fisher-id="${ident.fisherId}" title="Нажмите, чтобы скопировать ваш ID" style="min-height:32px;padding:3px 10px;font-family:monospace;font-size:13px;font-weight:900;border-color:${ident.isOwner ? 'var(--good)' : (ident.isRegistered ? 'var(--accent)' : 'var(--warn)')};color:${ident.isOwner ? 'var(--good)' : (ident.isRegistered ? 'var(--accent)' : 'var(--warn)')};">
             🆔 ${ident.fisherId} 📋
           </button>
-          <input type="text" id="circleCallsignInput" class="input" value="${ident.callsign}" placeholder="Ваш позывной..." style="max-width:145px;min-height:30px;padding:2px 8px;font-size:var(--fs-xs);font-weight:800;">
-          <button type="button" class="btn btn-sm" id="circleSaveCallsignBtn" style="min-height:30px;padding:2px 8px;" title="Сохранить позывной">💾</button>
-          <button type="button" class="btn btn-sm ${ident.isAdmin ? 'btn-good' : ''}" id="circleAuthModalBtn" style="min-height:30px;">
-            ${ident.isOwner ? '👑 Супер-Админ (База)' : (ident.isAdmin ? '👑 Админ • Профиль' : '🔐 Профиль / Бэкап')}
-          </button>
-          ${createPill({ text: `${expertRank.badge}`, tone: expertRank.tier === 'expert' ? 'good' : 'neutral' })}
+          <div>
+            <div style="font-weight:800;font-size:var(--fs-xs);color:var(--text);">
+              ${ident.isOwner
+                ? `👑 Супер-Админ Владелец (${escapeHtml(ident.login)}) • FP_89VIP089 & FP_FMP089`
+                : (ident.isRegistered
+                    ? `🟢 Постоянный ID рыбака • Логин: «${escapeHtml(ident.login)}»`
+                    : `🟡 Временный резервный ID (без регистрации — только просмотр)`)}
+            </div>
+            <div style="font-size:11px;color:var(--muted);">
+              ${ident.isRegistered
+                ? 'Вы можете публиковать сводки в Круг (±5 км), создавать Экипажи (72 ч) и отправлять сигналы SOS'
+                : '🔒 Для отправки точек и сообщений зарегистрируйте свой логин и пароль (постоянный ID выдаётся навсегда)'}
+            </div>
+          </div>
         </div>
-
-        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-          <button type="button" class="btn btn-sm btn-accent" id="circleJumpToChatsTabBtn" style="min-height:30px;">
-            💬 Открыть Чаты (${(s.chatMessages || []).length}) ${unreadChatsCount > 0 ? `<span class="pill pill-bad" style="font-size:10px;padding:1px 5px;">+${unreadChatsCount}</span>` : ''}
-          </button>
-          <button type="button" class="btn btn-sm" id="circleDemoSeedBtn" style="min-height:30px;" title="Загрузить примеры своих и чужих точек для проверки">✨ Тест</button>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+          ${ident.isOwner ? `
+            <button type="button" class="btn btn-sm btn-good" id="circleGoAdminTabBtn" style="min-height:32px;font-weight:800;">👑 Статистика и БД</button>
+          ` : ''}
+          ${!ident.isRegistered ? `
+            <button type="button" class="btn btn-sm btn-accent" id="circleAuthModalBtn" style="min-height:32px;font-weight:800;">🔐 Регистрация / Вход</button>
+          ` : `
+            <button type="button" class="btn btn-sm" id="circleAuthModalBtn" style="min-height:32px;">👤 Профиль</button>
+          `}
+          <button type="button" class="btn btn-sm" id="circleImportPackBtn" style="min-height:32px;" title="Ввести 4-значный ключ закрытого Экипажа KP-XXXX или код точки">🔑 Ключ KP-XXXX</button>
+          <button type="button" class="btn btn-sm" id="circleRefreshRadarBtn" style="min-height:32px;" title="Синхронизировать точки с сервером">🔄 Радар</button>
         </div>
       </div>
-
-      <!-- Быстрые кнопки отправки (1 компактная строка вместо огромных карточек) -->
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px;margin-bottom:10px;">
-        <button type="button" class="btn btn-sm btn-accent" data-quick-share="crew">🌊 Создать Экипаж (72ч)</button>
-        <button type="button" class="btn btn-sm btn-good" data-quick-share="circle">👥 Сводка в Круг (±5км)</button>
-        <button type="button" class="btn btn-sm" data-quick-share="workshop" style="border-color:var(--warn);color:var(--warn);">🛠️ Снасть в Мастерскую (${curWT}°C)</button>
-        <button type="button" class="btn btn-sm" id="circleShareCatchToChatBtn">🎣 Улов в Чат</button>
+      <!-- 2. Три главные карточки действий Круга (в 1 гармоничный ряд) -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin-bottom:12px;">
+        <button type="button" class="card" data-quick-share="circle" style="text-align:left;cursor:pointer;padding:10px 12px;background:var(--card);border:1.5px solid var(--good);display:flex;flex-direction:column;gap:4px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-weight:900;font-size:var(--fs-sm);color:var(--good);">👥 Сводка в Круг (±5 км)</span>
+            <span class="pill pill-good" style="font-size:10px;">Приватно</span>
+          </div>
+          <div style="font-size:11px;color:var(--muted);line-height:1.35;">
+            Поделиться клёвом в радиусе 35 км без раскрытия точной коряги (гексагон ±5 км)
+          </div>
+        </button>
+        <button type="button" class="card" data-quick-share="crew" style="text-align:left;cursor:pointer;padding:10px 12px;background:var(--card);border:1.5px solid var(--accent);display:flex;flex-direction:column;gap:4px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-weight:900;font-size:var(--fs-sm);color:var(--accent);">🌊 Экипаж (72 ч • KP-XXXX)</span>
+            <span class="pill pill-ice" style="font-size:10px;">По ключу</span>
+          </div>
+          <div style="font-size:11px;color:var(--muted);line-height:1.35;">
+            Точные координаты стоянки и зашифрованный чат только для своих напарников на 72 часа
+          </div>
+        </button>
+        <button type="button" class="card" data-quick-share="sos" style="text-align:left;cursor:pointer;padding:10px 12px;background:rgba(239,68,68,0.08);border:1.5px solid var(--bad);display:flex;flex-direction:column;gap:4px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-weight:900;font-size:var(--fs-sm);color:var(--bad);">🆘 SOS на воде</span>
+            <span class="pill pill-bad" style="font-size:10px;">Всем рядом</span>
+          </div>
+          <div style="font-size:11px;color:var(--muted);line-height:1.35;">
+            Экстренный сигнал помощи с точными GPS-координатами всем рыбакам в регионе
+          </div>
+        </button>
       </div>
-
-      <!-- Фильтр 1: РАЗДЕЛЕНИЕ «МОИ — ЧУЖИЕ — СКРЫТЫЕ» -->
-      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:8px;padding:7px 10px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);">
+      <!-- 3. Панель фильтрации радара (Принадлежность + Тип точек) -->
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:8px;padding:8px 10px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);">
         <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;">
           <button type="button" class="btn btn-sm ${activeOwnershipFilter === 'all' ? 'btn-accent' : ''}" data-circle-owner="all" style="min-height:30px;padding:3px 9px;">
             Все (${nonHiddenItems.length})
           </button>
           <button type="button" class="btn btn-sm ${activeOwnershipFilter === 'mine' ? 'btn-good' : ''}" data-circle-owner="mine" style="min-height:30px;padding:3px 9px;">
-            👤 Мои • удаление (${mineItems.length})
+            👤 Мои (${mineItems.length})
           </button>
           <button type="button" class="btn btn-sm ${activeOwnershipFilter === 'foreign' ? 'btn-accent' : ''}" data-circle-owner="foreign" style="min-height:30px;padding:3px 9px;">
-            🌐 Чужие • скрытие (${foreignItems.length})
+            🌐 Чужие (${foreignItems.length})
           </button>
-          <button type="button" class="btn btn-sm ${activeOwnershipFilter === 'hidden' ? 'btn-accent' : ''}" data-circle-owner="hidden" style="min-height:30px;padding:3px 9px;">
-            👁️ Скрытые (${hiddenItems.length})
-          </button>
+          ${hiddenItems.length > 0 || activeOwnershipFilter === 'hidden' ? `
+            <button type="button" class="btn btn-sm ${activeOwnershipFilter === 'hidden' ? 'btn-accent' : ''}" data-circle-owner="hidden" style="min-height:30px;padding:3px 9px;">
+              👁️ Скрытые (${hiddenItems.length})
+            </button>
+          ` : ''}
         </div>
-
-        <div style="display:flex;gap:4px;flex-wrap:wrap;">
+        <div style="display:flex;gap:5px;flex-wrap:wrap;">
           ${hiddenItems.length > 0 && activeOwnershipFilter === 'hidden' ? `
-            <button type="button" class="btn btn-sm" id="circleUnhideAllBtn" style="min-height:28px;font-size:11px;">👁️ Вернуть все (${hiddenItems.length})</button>
+            <button type="button" class="btn btn-sm" id="circleUnhideAllBtn" style="min-height:28px;font-size:11px;">👁️ Вернуть все</button>
           ` : ''}
           ${hiddenLockedCrewsCount > 0 ? `
-            <button type="button" class="btn btn-sm" id="circleUnlockHiddenCrewBtn" style="min-height:28px;font-size:11px;border-color:var(--accent);color:var(--accent);">🔒 Закрытых без ключа: ${hiddenLockedCrewsCount}</button>
+            <button type="button" class="btn btn-sm" id="circleUnlockHiddenCrewBtn" style="min-height:28px;font-size:11px;border-color:var(--accent);color:var(--accent);">🔒 Закрытых экипажей: ${hiddenLockedCrewsCount}</button>
+          ` : ''}
+          ${activeCategoryFilter === 'workshop' ? `
+            <button type="button" class="btn btn-sm btn-good" data-quick-share="workshop" style="min-height:28px;font-size:11px;">🛠️ + Добавить свой монтаж</button>
           ` : ''}
         </div>
       </div>
-
-      <!-- Фильтр 2: Категории (Все / SOS / Экипаж / Круг / Снасти) -->
-      <div class="chip-scroll-row" style="margin-bottom:8px;">
-        <button type="button" class="w-chip ${activeCategoryFilter === 'all' ? 'active' : ''}" data-circle-cat="all">Все типы (${baseList.length})</button>
-        <button type="button" class="w-chip ${activeCategoryFilter === 'sos' ? 'active' : ''}" data-circle-cat="sos">🆘 SOS (${baseList.filter(x => x.t === 'crew' && x.sos).length})</button>
-        <button type="button" class="w-chip ${activeCategoryFilter === 'crew' ? 'active' : ''}" data-circle-cat="crew">🌊 Экипаж 72ч (${baseList.filter(x => x.t === 'crew' && !x.sos).length})</button>
+      <div class="chip-scroll-row" style="margin-bottom:10px;">
+        <button type="button" class="w-chip ${activeCategoryFilter === 'all' ? 'active' : ''}" data-circle-cat="all">📡 Все сигналы (${baseList.length})</button>
         <button type="button" class="w-chip ${activeCategoryFilter === 'circle' ? 'active' : ''}" data-circle-cat="circle">👥 Круг ±5км (${baseList.filter(x => x.t === 'circle').length})</button>
-        <button type="button" class="w-chip ${activeCategoryFilter === 'workshop' ? 'active' : ''}" data-circle-cat="workshop">🛠️ Мастерская (${baseList.filter(x => x.t === 'workshop').length})</button>
+        <button type="button" class="w-chip ${activeCategoryFilter === 'crew' ? 'active' : ''}" data-circle-cat="crew">🌊 Экипаж 72ч (${baseList.filter(x => x.t === 'crew' && !x.sos).length})</button>
+        <button type="button" class="w-chip ${activeCategoryFilter === 'sos' ? 'active' : ''}" data-circle-cat="sos">🆘 SOS (${baseList.filter(x => x.t === 'crew' && x.sos).length})</button>
+        <button type="button" class="w-chip ${activeCategoryFilter === 'workshop' ? 'active' : ''}" data-circle-cat="workshop">🛠️ Мастерская снастей (${baseList.filter(x => x.t === 'workshop').length})</button>
       </div>
-
-      <!-- Компактный список событий (без громоздких карточек!) -->
+      <!-- 4. Компактный список событий радара -->
       <div class="circle-compact-list" style="display:flex;flex-direction:column;gap:6px;">
         ${filteredList.length === 0 ? `
-          <div style="padding:14px;background:var(--card);border:1px dashed var(--border);border-radius:var(--r-sm);font-size:var(--fs-xs);color:var(--muted);text-align:center;">
+          <div style="padding:16px;background:var(--card);border:1px dashed var(--border);border-radius:var(--r-sm);font-size:var(--fs-xs);color:var(--muted);text-align:center;">
             ${activeOwnershipFilter === 'mine'
-              ? `У вас пока нет собственных опубликованных точек (с вашим ID <b>${ident.fisherId}</b>). Нажмите «🤝 Поделиться» выше, чтобы создать свою точку.`
-              : (activeOwnershipFilter === 'hidden'
-                  ? 'Скрытых чужих точек сейчас нет.'
-                  : 'В выбранной категории пока нет записей. Нажмите «✨ Тест» выше для проверки компактной ленты «Мои / Чужие»!')}
+              ? `У вас пока нет опубликованных точек с вашим ID <b>${ident.fisherId}</b>. Выберите одну из 3 карточек выше, чтобы поделиться сводкой или создать Экипаж.`
+              : 'В выбранной категории пока нет активных точек за последние 72 часа. Нажмите «🔄 Радар» для проверки новых сигналов с сервера.'}
           </div>
         ` : filteredList.map(item => renderCompactCircleRow(item, s, ident, now)).join('')}
       </div>
     </div>
   `;
-
   bindCircleEvents(container);
 }
-
+export async function fetchSuperAdminDashboardData(forceToast = false) {
+  const s = store.getState();
+  if (!isOwnerAdmin(s)) return null;
+  _adminDashboardLoading = true;
+  const tok = _serverAdminSessionToken || s.userProfile?.adminSessionToken || s.userProfile?.authTokenHash || OWNER_TOKEN_HASH_IATHOR;
+  try {
+    const res = await fetch(`${RELAY_WORKER_URL}/api/admin/users?token=${encodeURIComponent(tok)}`, { method: 'GET' });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.ok) {
+        _adminDashboardCache = data;
+        _adminDashboardLoading = false;
+        if (forceToast) showToast(`👑 База данных обновлена: ${data.totalUsers || 0} пользователей, ${(data.points || []).length} точек`, 'good');
+        renderAdminSection();
+        return data;
+      }
+    }
+  } catch (e) {}
+  _adminDashboardLoading = false;
+  if (forceToast) showToast('Показана локальная сводка Супер-Админа', 'info');
+  renderAdminSection();
+  return _adminDashboardCache;
+}
+let _adminSearchFilter = '';
+export function renderAdminSection(customContainer = null) {
+  const container = customContainer || (typeof document !== 'undefined' ? document.getElementById('secAdmin') : null);
+  if (!container) return;
+  const s = store.getState();
+  const ident = getCurrentFisherIdentity(s);
+  if (!ident.isOwner) {
+    container.innerHTML = `
+      <div class="card" style="border-color:var(--warn);text-align:center;padding:20px;">
+        <div style="font-size:var(--fs-md);font-weight:900;color:var(--warn);margin-bottom:6px;">🔒 Раздел только для Супер-Админа (Владельца)</div>
+        <p style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:12px;">Войдите под эксклюзивным логином Владельца (iAthor / iAthor82) для доступа к серверной статистике и базе пользователей.</p>
+        <button type="button" class="btn btn-accent" id="adminLockedSignInBtn">🔑 Войти как Супер-Админ</button>
+      </div>
+    `;
+    container.querySelector('#adminLockedSignInBtn')?.addEventListener('click', () => openAuthAndBackupModal());
+    return;
+  }
+  if (!_adminDashboardCache && !_adminDashboardLoading) {
+    fetchSuperAdminDashboardData(false);
+  }
+  const db = _adminDashboardCache || {};
+  const users = Array.isArray(db.users) ? db.users : [];
+  const srvPoints = Array.isArray(db.points) ? db.points : (s.circleItems || []);
+  const counters = db.counters || {};
+  const reserveCounters = db.reserveCounters || {};
+  const now = Date.now();
+  const permanentUsers = users.filter(u => u && !isTemporaryReserveId(u.fisherId));
+  const reserveUsers = users.filter(u => u && isTemporaryReserveId(u.fisherId));
+  const tgBoundUsers = users.filter(u => u && (u.tgId || u.tgUsername));
+  const active24h = users.filter(u => u && (now - (u.lastSeen || 0)) < 86400000).length;
+  const active7d = users.filter(u => u && (now - (u.lastSeen || 0)) < 7 * 86400000).length;
+  const apkCount = users.filter(u => String(u?.platform || '').toUpperCase().includes('APK')).length;
+  const tgCount = users.filter(u => String(u?.platform || '').toUpperCase().includes('TG')).length;
+  const webCount = Math.max(0, users.length - apkCount - tgCount);
+  const regStats = {};
+  for (const u of users) {
+    const rc = u.regionCode || '89';
+    if (!regStats[rc]) regStats[rc] = { perm: 0, rz: 0 };
+    if (isTemporaryReserveId(u.fisherId)) regStats[rc].rz++;
+    else regStats[rc].perm++;
+  }
+  const allRegs = Array.from(new Set([...Object.keys(regStats), ...Object.keys(counters), ...Object.keys(reserveCounters), '89'])).sort();
+  const adminList = getAdminWhitelistEntries(s);
+  const showAllCrewsFlag = s.userProfile?.adminShowAllCrews !== false;
+  const consoleToken = _serverAdminSessionToken || s.userProfile?.adminSessionToken || OWNER_TOKEN_HASH_IATHOR;
+  const fullConsoleUrl = `${RELAY_WORKER_URL.replace(/\/?$/, '')}/fp-vip089-console?token=${encodeURIComponent(consoleToken)}`;
+  const qNorm = (_adminSearchFilter || '').trim().toLowerCase();
+  const filteredUsers = users.filter(u => {
+    if (!qNorm) return true;
+    const hay = `${u.fisherId || ''} ${u.login || ''} ${u.callsign || ''} ${u.tgUsername || ''} ${u.locLabel || ''} ${u.regionCode || ''} ${u.platform || ''}`.toLowerCase();
+    return hay.includes(qNorm);
+  });
+  container.innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <!-- 1. Паспорт Супер-Админа и эксклюзивные ID Владельца (FP_89VIP089 & FP_FMP089) -->
+      <div class="card" style="border:2px solid var(--good);background:rgba(16,185,129,0.08);">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;">
+          <div>
+            <div style="font-size:var(--fs-md);font-weight:900;color:var(--good);">
+              👑 ПАНЕЛЬ СУПЕР-АДМИНА И СТАТИСТИКА БД «КЛЁВ ПРО V.2.1.00»
+            </div>
+            <div style="font-size:var(--fs-xs);color:var(--muted);margin-top:3px;">
+              Владелец: <b style="color:var(--text);">Антон (${escapeHtml(ident.login)})</b> • Эксклюзивные неприкосновенные ID Владельца:
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;align-items:center;">
+              <button type="button" class="btn btn-sm ${ident.fisherId === OWNER_BOUND_FISHER_ID ? 'btn-good' : ''}" data-switch-owner-fid="${OWNER_BOUND_FISHER_ID}" style="font-family:monospace;font-weight:900;">
+                ${ident.fisherId === OWNER_BOUND_FISHER_ID ? '✓ Активен:' : 'Включить:'} 🆔 ${OWNER_BOUND_FISHER_ID}
+              </button>
+              <button type="button" class="btn btn-sm ${ident.fisherId === OWNER_SECONDARY_FISHER_ID ? 'btn-good' : ''}" data-switch-owner-fid="${OWNER_SECONDARY_FISHER_ID}" style="font-family:monospace;font-weight:900;">
+                ${ident.fisherId === OWNER_SECONDARY_FISHER_ID ? '✓ Активен:' : 'Включить:'} 🆔 ${OWNER_SECONDARY_FISHER_ID}
+              </button>
+              <button type="button" class="btn btn-sm fisher-id-copy-badge" data-copy-fisher-id="${ident.fisherId}" style="font-family:monospace;">📋 Копировать ${ident.fisherId}</button>
+            </div>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <button type="button" class="btn btn-sm btn-accent" id="admRefreshServerBtn">
+              ${_adminDashboardLoading ? '⏳ Загрузка...' : '🔄 Обновить БД с сервера'}
+            </button>
+            <button type="button" class="btn btn-sm" id="admExportUsersJsonBtn">📥 База (.JSON)</button>
+            <button type="button" class="btn btn-sm" id="admExportUsersCsvBtn">📊 Таблица (.CSV)</button>
+            <button type="button" class="btn btn-sm" id="admOpenFullConsoleBtn" data-cloud-open-url="${fullConsoleUrl}">🛡️ Веб-консоль ↗</button>
+          </div>
+        </div>
+      </div>
+      <!-- 2. Шесть KPI-карточек серверной статистики -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;">
+        <div class="card" style="background:var(--card);padding:10px 12px;">
+          <div style="font-size:20px;font-weight:900;color:var(--good);">${users.length}</div>
+          <div style="font-size:11px;color:var(--muted);font-weight:700;">Всего ID в базе сервера</div>
+        </div>
+        <div class="card" style="background:var(--card);padding:10px 12px;">
+          <div style="font-size:20px;font-weight:900;color:var(--accent);">${permanentUsers.length}</div>
+          <div style="font-size:11px;color:var(--muted);font-weight:700;">🟢 Постоянных ID (Логин+Пароль)</div>
+        </div>
+        <div class="card" style="background:var(--card);padding:10px 12px;">
+          <div style="font-size:20px;font-weight:900;color:var(--warn);">${reserveUsers.length}</div>
+          <div style="font-size:11px;color:var(--muted);font-weight:700;">🟡 Временных резервных (FP_XXRZ)</div>
+        </div>
+        <div class="card" style="background:var(--card);padding:10px 12px;">
+          <div style="font-size:20px;font-weight:900;color:var(--good);">${tgBoundUsers.length}</div>
+          <div style="font-size:11px;color:var(--muted);font-weight:700;">✈️ Привязаны к Telegram</div>
+        </div>
+        <div class="card" style="background:var(--card);padding:10px 12px;">
+          <div style="font-size:20px;font-weight:900;color:var(--text);">${active24h} / ${active7d}</div>
+          <div style="font-size:11px;color:var(--muted);font-weight:700;">Активны за 24ч / 7 дней</div>
+        </div>
+        <div class="card" style="background:var(--card);padding:10px 12px;">
+          <div style="font-size:16px;font-weight:900;color:var(--accent);">📱 ${apkCount} • 🌐 ${webCount} • ✈️ ${tgCount}</div>
+          <div style="font-size:11px;color:var(--muted);font-weight:700;">APK / Сайт / Telegram • Точек: ${srvPoints.length}</div>
+        </div>
+      </div>
+      <!-- 3. Распределение выданных постоянных и резервных ID по регионам РФ -->
+      <div class="card">
+        <div style="font-weight:900;font-size:var(--fs-xs);color:var(--accent);margin-bottom:8px;">
+          🗺️ ВЫДАЧА ПОСТОЯННЫХ (FP_XXAAA) И РЕЗЕРВНЫХ (FP_XXRZ) ID ПО РЕГИОНАМ РФ:
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;">
+          ${allRegs.map(rc => {
+            const st = regStats[rc] || { perm: 0, rz: 0 };
+            const nextPerm = (counters[rc] || 0) + 1;
+            const nextRz = (reserveCounters[rc] || 0) + 1;
+            return `
+              <span style="padding:4px 9px;border-radius:8px;background:var(--panel);border:1px solid var(--border);font-size:11.5px;">
+                Регион <b>${rc}</b>: <span style="color:var(--good);font-weight:800;">🟢 пост. ${st.perm}</span> (след. #${String(nextPerm).padStart(3, '0')}) •
+                <span style="color:var(--warn);font-weight:800;">🟡 рез. ${st.rz}</span> (след. RZ${String(nextRz).padStart(4, '0')})
+              </span>
+            `;
+          }).join('')}
+        </div>
+      </div>
+      <!-- 4. Реестр всех пользователей экосистемы -->
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+          <span class="section-title">👥 Реестр пользователей (${filteredUsers.length} из ${users.length})</span>
+          <input type="search" id="admUserSearchInput" class="input" value="${escapeHtml(_adminSearchFilter)}" placeholder="🔍 Поиск по ID (FP_...), логину, @username, городу..." style="max-width:340px;min-height:36px;">
+        </div>
+        <div style="overflow-x:auto;max-height:360px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--r-sm);">
+          <table style="width:100%;border-collapse:collapse;font-size:12px;">
+            <thead>
+              <tr style="background:var(--panel);text-align:left;color:var(--muted);font-size:11px;">
+                <th style="padding:8px;">ID Рыбака</th>
+                <th style="padding:8px;">Тип ID / Статус</th>
+                <th style="padding:8px;">Логин / Telegram</th>
+                <th style="padding:8px;">Регион и Город</th>
+                <th style="padding:8px;">Платформа</th>
+                <th style="padding:8px;">Сессий / Точек</th>
+                <th style="padding:8px;">Активность</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${filteredUsers.length === 0 ? `
+                <tr><td colspan="7" style="padding:14px;text-align:center;color:var(--muted);">Пользователи не найдены (нажмите «🔄 Обновить БД с сервера»)</td></tr>
+              ` : filteredUsers.map(u => {
+                const isRz = isTemporaryReserveId(u.fisherId);
+                const isOwn = isOwnerFisherId(u.fisherId);
+                const statusBadge = isOwn
+                  ? `<span class="pill pill-good" style="font-size:10px;">👑 ВЛАДЕЛЕЦ</span>`
+                  : (isRz
+                      ? `<span class="pill pill-warn" style="font-size:10px;">🟡 Временный RZ</span>`
+                      : `<span class="pill pill-good" style="font-size:10px;">🟢 Постоянный ID</span>`);
+                const timeStr = u.lastSeen ? new Date(u.lastSeen).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
+                return `
+                  <tr style="border-bottom:1px solid var(--border);">
+                    <td style="padding:7px 8px;font-family:monospace;font-weight:900;">
+                      <span class="fisher-id-copy-badge" data-copy-fisher-id="${u.fisherId}" style="cursor:pointer;color:${isOwn ? 'var(--good)' : (isRz ? 'var(--warn)' : 'var(--accent)')};">${escapeHtml(u.fisherId)} 📋</span>
+                    </td>
+                    <td style="padding:7px 8px;">${statusBadge}</td>
+                    <td style="padding:7px 8px;">
+                      <b>${escapeHtml(u.login || u.callsign || 'Гость')}</b>
+                      ${u.tgUsername ? `<span style="color:var(--accent);"> (@${escapeHtml(u.tgUsername)})</span>` : (u.tgId ? `<span style="color:var(--muted);"> (TG:${escapeHtml(u.tgId)})</span>` : '')}
+                    </td>
+                    <td style="padding:7px 8px;">[${escapeHtml(u.regionCode || '89')}] ${escapeHtml(u.locLabel || 'РФ')}</td>
+                    <td style="padding:7px 8px;">${escapeHtml(u.platform || 'WEB')}</td>
+                    <td style="padding:7px 8px;">${u.sessionsCount || 1} / <b>${u.circlePostsCount || 0}</b></td>
+                    <td style="padding:7px 8px;color:var(--muted);">${timeStr}</td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <!-- 5. Управление закрытыми Экипажами, точками на сервере и Базой Администраторов -->
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+          <div>
+            <span class="section-title">🛡️ Супервизор закрытых Экипажей (${srvPoints.length} точек) и База Модераторов (${adminList.length})</span>
+            <div style="font-size:var(--fs-xs);color:var(--muted);">Как Владелец, вы видите все закрытые Экипажи без ввода ключа KP-XXXX и можете удалять любые точки с сервера</div>
+          </div>
+          <button type="button" class="btn btn-sm ${showAllCrewsFlag ? 'btn-good' : ''}" id="admToggleAllCrewsBtn">
+            ${showAllCrewsFlag ? '👁️ Видимость всех закрытых Экипажей: ВКЛ' : '🙈 Видимость всех закрытых Экипажей: ВЫКЛ'}
+          </button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;">
+          <div style="padding:10px;background:var(--panel);border:1px solid var(--border);border-radius:var(--r-sm);">
+            <div style="font-weight:800;font-size:var(--fs-xs);color:var(--accent);margin-bottom:6px;">➕ ДОБАВИТЬ МОДЕРАТОРА В БАЗУ АДМИНОВ:</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px;">
+              <input type="text" id="admAddModIdInput" class="input" placeholder="ID (напр. FP_89AAA001)" style="text-transform:uppercase;min-height:34px;font-family:monospace;">
+              <input type="text" id="admAddModLabelInput" class="input" placeholder="Имя / Примечание" style="min-height:34px;">
+            </div>
+            <button type="button" class="btn btn-sm btn-good" id="admAddModConfirmBtn" style="width:100%;">➕ Назначить модератором</button>
+            <div style="margin-top:8px;display:flex;flex-direction:column;gap:4px;max-height:140px;overflow-y:auto;">
+              ${adminList.map(adm => `
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 8px;background:var(--card);border:1px solid var(--border);border-radius:6px;font-size:11.5px;">
+                  <span><b style="font-family:monospace;color:var(--good);">${escapeHtml(adm.id)}</b> • ${escapeHtml(adm.label)}</span>
+                  ${DEFAULT_ADMIN_IDS.includes(adm.id)
+                    ? `<span class="pill pill-good" style="font-size:9.5px;">Владелец</span>`
+                    : `<button type="button" class="btn btn-sm" data-adm-remove-mod="${adm.id}" style="min-height:24px;padding:1px 6px;color:var(--bad);">✕</button>`}
+                </div>
+              `).join('')}
+            </div>
+          </div>
+          <div style="padding:10px;background:var(--panel);border:1px solid var(--border);border-radius:var(--r-sm);">
+            <div style="font-weight:800;font-size:var(--fs-xs);color:var(--accent);margin-bottom:6px;">📡 АКТИВНЫЕ ТОЧКИ НА СЕРВЕРЕ (${srvPoints.length}):</div>
+            <div style="display:flex;flex-direction:column;gap:5px;max-height:195px;overflow-y:auto;">
+              ${srvPoints.length === 0 ? `
+                <div style="font-size:11.5px;color:var(--muted);padding:12px;text-align:center;">Активных точек на сервере сейчас нет</div>
+              ` : srvPoints.map(pt => `
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;padding:6px 8px;background:var(--card);border:1px solid var(--border);border-radius:6px;font-size:11.5px;">
+                  <div style="min-width:0;flex:1;">
+                    <b>${pt.sos ? '🆘 SOS' : (pt.t === 'crew' ? `🌊 ${pt.crewKey || 'Экипаж'}` : (pt.t === 'workshop' ? '🛠️ Снасть' : '👥 Круг'))}</b> •
+                    ${escapeHtml(pt.fn || 'Рыба')} (${escapeHtml(pt.wn || pt.lb || 'Водоём')}) •
+                    <span style="font-family:monospace;color:var(--accent);">${escapeHtml(pt.fid || '')}</span>
+                  </div>
+                  <button type="button" class="btn btn-sm" data-adm-del-srv-point="${pt.id}" style="min-height:24px;padding:1px 7px;color:var(--bad);">🗑️</button>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  bindAdminSectionEvents(container, users);
+}
+function bindAdminSectionEvents(container, users) {
+  if (!container) return;
+  container.querySelectorAll('[data-switch-owner-fid]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const nextFid = btn.getAttribute('data-switch-owner-fid') || OWNER_BOUND_FISHER_ID;
+      store.dispatch({
+        type: 'UPDATE_USER_PROFILE',
+        payload: { fisherId: nextFid, ownerUnlocked: true }
+      });
+      storage.saveSettings(store.getState());
+      syncCurrentProfileToCloudIfLoggedIn();
+      showToast(`👑 Активный ID Супер-Админа переключён на ${nextFid}`, 'good');
+      renderAdminSection(container);
+    });
+  });
+  container.querySelector('#admRefreshServerBtn')?.addEventListener('click', () => {
+    fetchSuperAdminDashboardData(true);
+  });
+  container.querySelector('#admOpenFullConsoleBtn')?.addEventListener('click', (e) => {
+    const url = e.currentTarget.getAttribute('data-cloud-open-url');
+    if (url) window.open(url, '_blank', 'noopener');
+  });
+  container.querySelector('#admExportUsersJsonBtn')?.addEventListener('click', () => {
+    const blob = new Blob([JSON.stringify({ exportedAt: new Date().toISOString(), version: '2.1.00', total: users.length, users }, null, 2)], { type: 'application/json;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `klev-pro-users-db-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    showToast('📥 База пользователей (.JSON) выгружена', 'good');
+  });
+  container.querySelector('#admExportUsersCsvBtn')?.addEventListener('click', () => {
+    const header = ['fisherId', 'isTemporaryReserve', 'login', 'callsign', 'tgUsername', 'regionCode', 'locLabel', 'platform', 'sessionsCount', 'circlePostsCount', 'lastSeen'];
+    const rows = users.map(u => header.map(k => `"${String(u[k] ?? '').replace(/"/g, '""')}"`).join(','));
+    const csv = '\uFEFF' + header.join(',') + '\n' + rows.join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `klev-pro-users-db-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    showToast('📊 Таблица пользователей (.CSV) выгружена', 'good');
+  });
+  const searchInp = container.querySelector('#admUserSearchInput');
+  if (searchInp) {
+    searchInp.addEventListener('input', (e) => {
+      _adminSearchFilter = e.target.value || '';
+      renderAdminSection(container);
+      const newInp = container.querySelector('#admUserSearchInput');
+      if (newInp) {
+        newInp.focus();
+        newInp.setSelectionRange(newInp.value.length, newInp.value.length);
+      }
+    });
+  }
+  container.querySelector('#admToggleAllCrewsBtn')?.addEventListener('click', () => {
+    const cur = store.getState().userProfile?.adminShowAllCrews !== false;
+    store.dispatch({ type: 'UPDATE_USER_PROFILE', payload: { adminShowAllCrews: !cur } });
+    syncCurrentProfileToCloudIfLoggedIn();
+    showToast(!cur ? '👑 Видимость всех закрытых Экипажей ВКЛЮЧЕНА' : '🙈 Видимость закрытых Экипажей выключена', 'info');
+    renderAdminSection(container);
+  });
+  container.querySelector('#admAddModConfirmBtn')?.addEventListener('click', () => {
+    const rawId = (container.querySelector('#admAddModIdInput')?.value || '').trim().toUpperCase();
+    const label = (container.querySelector('#admAddModLabelInput')?.value || '').trim() || 'Модератор Круга';
+    if (!rawId) {
+      showToast('Введите постоянный ID рыбака (напр. FP_89AAA001)', 'warn');
+      return;
+    }
+    const formattedId = normalizeFisherId(rawId, resolveRussianRegionCode());
+    const entry = { id: formattedId, label, addedAt: new Date().toISOString().slice(0, 10) };
+    store.dispatch({ type: 'ADD_ADMIN_TO_WHITELIST', payload: entry });
+    syncAdminWhitelistWithCloud({ action: 'add', entry });
+    syncCurrentProfileToCloudIfLoggedIn();
+    showToast(`👑 Модератор ${formattedId} добавлен в базу`, 'good');
+    renderAdminSection(container);
+  });
+  container.querySelectorAll('[data-adm-remove-mod]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const targetId = btn.getAttribute('data-adm-remove-mod');
+      if (!targetId) return;
+      store.dispatch({ type: 'REMOVE_ADMIN_FROM_WHITELIST', payload: targetId });
+      syncAdminWhitelistWithCloud({ action: 'remove', targetId });
+      syncCurrentProfileToCloudIfLoggedIn();
+      showToast(`🗑️ Модератор ${targetId} удалён из базы`, 'info');
+      renderAdminSection(container);
+    });
+  });
+  container.querySelectorAll('[data-adm-del-srv-point]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const pid = btn.getAttribute('data-adm-del-srv-point');
+      if (!pid) return;
+      await deleteCircleItemFromServer(pid);
+      const next = (store.getState().circleItems || []).filter(x => x.id !== pid);
+      storage.saveCircleItems(next);
+      store.dispatch({ type: 'SET_CIRCLE_ITEMS', payload: next });
+      await fetchSuperAdminDashboardData(false);
+      showToast(`🗑️ Точка ${pid} удалена с сервера`, 'info');
+    });
+  });
+}
 function bindChatViewEvents(container) {
   if (!container) return;
-
   container.querySelector('#chatShareCatchTopBtn')?.addEventListener('click', () => {
     openShareCatchToChatModal(null);
   });
-
   container.querySelector('#chatAttachCatchBtn')?.addEventListener('click', () => {
     openShareCatchToChatModal(null);
   });
-
   container.querySelector('#chatOpenAuthBtn')?.addEventListener('click', () => {
     openAuthAndBackupModal();
   });
-
   container.querySelectorAll('[data-select-chat-chan]').forEach(btn => {
     btn.addEventListener('click', () => {
       activeChatChannelId = btn.getAttribute('data-select-chat-chan') || '';
       renderChatsSection(container);
     });
   });
-
   container.querySelectorAll('[data-chat-import-pack]').forEach(btn => {
     btn.addEventListener('click', async () => {
       const tok = btn.getAttribute('data-chat-import-pack');
@@ -3629,7 +3685,6 @@ function bindChatViewEvents(container) {
       }
     });
   });
-
   const joinCrewBtn = container.querySelector('#chatJoinCrewKeyBtn');
   const joinCrewInp = container.querySelector('#chatJoinCrewKeyInput');
   if (joinCrewBtn && joinCrewInp) {
@@ -3646,14 +3701,14 @@ function bindChatViewEvents(container) {
       renderChatsSection(container);
     });
   }
-
   const startDmBtn = container.querySelector('#chatStartDmBtn');
   const startDmInp = container.querySelector('#chatStartDmIdInput');
   if (startDmBtn && startDmInp) {
     startDmBtn.addEventListener('click', () => {
+      if (!requireRegisteredFisherId('открытия личного чата')) return;
       const raw = (startDmInp.value || '').trim().toUpperCase();
       if (!raw) {
-        showToast('Введите ID рыбака (например: FP_89VIP089)', 'warn');
+        showToast('Введите постоянный ID рыбака (например: FP_89AAA001)', 'warn');
         return;
       }
       const peerId = normalizeFisherId(raw, resolveRussianRegionCode());
@@ -3667,7 +3722,7 @@ function bindChatViewEvents(container) {
         peerName: `Рыбак ${peerId}`,
         senderId: ident.fisherId,
         senderName: ident.callsign,
-        text: `🔒 Личный зашифрованный чат с ${peerId} открыт (история хранится только на ваших устройствах).`,
+        text: `🔒 Личный зашифрованный чат с ${peerId} открыт.`,
         ts: Date.now(),
         e2ee: true,
         unread: false
@@ -3675,11 +3730,9 @@ function bindChatViewEvents(container) {
       renderChatsSection(container);
     });
   }
-
   container.querySelector('#chatManualPollRelayBtn')?.addEventListener('click', () => {
     pollEncryptedRelayPackets(true);
   });
-
   container.querySelector('#chatDeleteHistoryBtn')?.addEventListener('click', () => {
     if (!activeChatChannelId) return;
     const remaining = (store.getState().chatMessages || []).filter(m => m && m.channelId !== activeChatChannelId);
@@ -3688,11 +3741,11 @@ function bindChatViewEvents(container) {
     showToast('История этого чата удалена с вашего устройства', 'info');
     renderChatsSection(container);
   });
-
   const chatInput = container.querySelector('#chatComposeInput');
   const chatSendBtn = container.querySelector('#chatSendMsgBtn');
   if (chatInput && chatSendBtn) {
     const triggerSend = async () => {
+      if (!requireRegisteredFisherId('отправки сообщения')) return;
       const val = (chatInput.value || '').trim();
       if (!val || !activeChatChannelId) return;
       chatInput.value = '';
@@ -3718,66 +3771,41 @@ function bindChatViewEvents(container) {
     });
   }
 }
-
 function bindCircleEvents(container) {
-  container.querySelector('#circleCreatePackBtn')?.addEventListener('click', () => {
-    openShareModalForCurrentContext('circle');
-  });
-
-  container.querySelector('#circleSosBtn')?.addEventListener('click', () => {
-    openShareModalForCurrentContext('sos');
-  });
-
   container.querySelector('#circleImportPackBtn')?.addEventListener('click', () => {
     openImportPackModal();
   });
-
   container.querySelector('#circleUnlockHiddenCrewBtn')?.addEventListener('click', () => {
     openImportPackModal();
   });
-
   container.querySelector('#circleRefreshRadarBtn')?.addEventListener('click', () => {
     syncNearbyCirclePointsFromServer(true);
   });
-
-  container.querySelector('#circleNotifBtn')?.addEventListener('click', () => {
-    openNotificationsModal();
-  });
-
   container.querySelector('#circleAuthModalBtn')?.addEventListener('click', () => {
     openAuthAndBackupModal();
   });
-
-  container.querySelector('#circleJumpToChatsTabBtn')?.addEventListener('click', () => {
-    router.navigate('chats');
-    renderChatsSection();
+  container.querySelector('#circleGoAdminTabBtn')?.addEventListener('click', () => {
+    router.navigate('admin');
+    renderAdminSection();
   });
-
-  container.querySelector('#circleShareCatchToChatBtn')?.addEventListener('click', () => {
-    openShareCatchToChatModal(null);
-  });
-
   container.querySelectorAll('[data-circle-owner]').forEach(btn => {
     btn.addEventListener('click', () => {
       activeOwnershipFilter = btn.getAttribute('data-circle-owner') || 'all';
       render(container);
     });
   });
-
   container.querySelectorAll('[data-circle-cat]').forEach(btn => {
     btn.addEventListener('click', () => {
       activeCategoryFilter = btn.getAttribute('data-circle-cat') || 'all';
       render(container);
     });
   });
-
   container.querySelector('#circleUnhideAllBtn')?.addEventListener('click', () => {
     store.dispatch({ type: 'CLEAR_HIDDEN_CIRCLE_ITEMS' });
     activeOwnershipFilter = 'all';
     showToast('👁️ Все скрытые записи возвращены в ленту и на карту', 'good');
     render(container);
   });
-
   container.querySelectorAll('[data-toggle-compact-row]').forEach(el => {
     el.addEventListener('click', (e) => {
       if (e.target.closest('[data-copy-fisher-id]')) return;
@@ -3788,23 +3816,11 @@ function bindCircleEvents(container) {
       render(container);
     });
   });
-
   container.querySelectorAll('[data-quick-share]').forEach(btn => {
     btn.addEventListener('click', () => {
       openShareModalForCurrentContext(btn.getAttribute('data-quick-share'));
     });
   });
-
-  const saveCallsignBtn = container.querySelector('#circleSaveCallsignBtn');
-  const callsignInput = container.querySelector('#circleCallsignInput');
-  if (saveCallsignBtn && callsignInput) {
-    saveCallsignBtn.addEventListener('click', () => {
-      const val = (callsignInput.value || '').trim() || 'Рыболов';
-      store.dispatch({ type: 'SET_USER_CALLSIGN', payload: val });
-      showToast(`Позывной в Круге сохранён: ${val}`, 'good');
-    });
-  }
-
   container.querySelectorAll('[data-open-crew-chat]').forEach(btn => {
     btn.addEventListener('click', () => {
       const cKey = btn.getAttribute('data-open-crew-chat');
@@ -3816,9 +3832,9 @@ function bindCircleEvents(container) {
       }
     });
   });
-
   container.querySelectorAll('[data-open-dm]').forEach(btn => {
     btn.addEventListener('click', () => {
+      if (!requireRegisteredFisherId('отправки личного сообщения')) return;
       const peerId = String(btn.getAttribute('data-open-dm') || '').toUpperCase();
       const peerName = btn.getAttribute('data-open-dm-name') || peerId;
       if (!peerId) return;
@@ -3826,7 +3842,6 @@ function bindCircleEvents(container) {
       const sortedPair = [ident.fisherId, peerId].sort().join(':');
       const chanId = `dm:${sortedPair}`;
       activeChatChannelId = chanId;
-
       const existing = store.getState().chatMessages || [];
       if (!existing.some(m => m && m.channelId === chanId)) {
         appendIncomingChatMessage({
@@ -3846,106 +3861,32 @@ function bindCircleEvents(container) {
       renderChatsSection();
     });
   });
-
-  const demoBtn = container.querySelector('#circleDemoSeedBtn');
-  if (demoBtn) {
-    demoBtn.addEventListener('click', async () => {
-      const s = store.getState();
-      const ident = getCurrentFisherIdentity(s);
-
-      // 1. СВОЯ точка в Круге (привязана к вашему ID ident.fisherId — можно УДАЛИТЬ!)
-      const myPack = createSharePackFromContext('circle', 'Моя личная точка (доступна кнопка Удалить)');
-      myPack.packObj.fid = ident.fisherId;
-      myPack.packObj.did = ident.deviceId;
-      myPack.packObj.au = ident.callsign;
-      myPack.packObj.isDemoSeed = false;
-
-      // 2. ЧУЖАЯ сводка в Круге (FP_89AAA001 — можно только СКРЫТЬ!)
-      const p1 = createSharePackFromContext('circle', 'Выход на свале 2.5м, пауза 4 сек');
-      p1.packObj.did = 'demo_external_expert_1';
-      p1.packObj.fid = 'FP_89AAA001';
-      p1.packObj.au = 'Северянин-89';
-      p1.packObj.rk = 'expert';
-      p1.packObj.rw_w = 1.5;
-      p1.packObj.isDemoSeed = true;
-      const t1 = encodeSharePack(p1.packObj);
-      await importSharePackToken(t1, true, true);
-
-      // 3. ЧУЖОЙ открытый Экипаж (KP-7A3F, FP_77AAA001 — можно СКРЫТЬ)
-      const p2 = createSharePackFromContext('crew', 'Сбор у лодочного спуска в 06:30', null, 'KP-7A3F');
-      p2.packObj.did = 'demo_external_crew_2';
-      p2.packObj.fid = 'FP_77AAA001';
-      p2.packObj.au = 'Капитан Обь';
-      p2.packObj.crewKey = 'KP-7A3F';
-      p2.packObj.isDemoSeed = true;
-      const t2 = encodeSharePack(p2.packObj);
-      await importSharePackToken(t2, true, true);
-
-      // 4. ЧУЖОЙ ЗАКРЫТЫЙ Экипаж (KP-99C4 — виден только Супер-Админу Антону и тем, кто в базе Админов!)
-      const lockedCrew = {
-        ...p2.packObj,
-        id: `crew_locked_${Date.now().toString(36)}`,
-        crewKey: 'KP-99C4',
-        did: 'stranger_device_99',
-        fid: 'FP_89AAB001',
-        au: 'Закрытая Бригада',
-        lat: Math.round((s.lat + 0.018) * 10000) / 10000,
-        lon: Math.round((s.lon + 0.022) * 10000) / 10000,
-        nt: 'Секретная точка чужого экипажа (видна только Админам из базы или по ключу KP-99C4)',
-        isLockedExternalCrew: true,
-        isDemoSeed: true
-      };
-
-      const curList = store.getState().circleItems || [];
-      const combined = [myPack.packObj, lockedCrew, ...curList].slice(0, 80);
-      storage.saveCircleItems(combined);
-      store.dispatch({ type: 'SET_CIRCLE_ITEMS', payload: combined });
-
-      appendIncomingChatMessage({
-        id: `demo_msg_${Date.now()}`,
-        channelId: 'crew:KP-7A3F',
-        crewKey: 'KP-7A3F',
-        senderId: 'FP_77AAA001',
-        senderName: 'Капитан Обь',
-        text: `Парни, в точке (${s.locLabel}) эхолот показывает бель на бровке ${s.depth.toFixed(1)} м! Скидывайте свои уловы кнопкой «🎣 Улов».`,
-        ts: Date.now(),
-        e2ee: true
-      }, true);
-
-      showToast(`✨ Добавлены: 1 ваша точка (🆔 ${ident.fisherId}, можно удалить) и чужие точки (можно скрыть)!`, 'good');
-    });
-  }
-
-  // Удаление СВОЕЙ записи (доступно только для своих точек!)
   container.querySelectorAll('[data-del-my-circle]').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const id = btn.getAttribute('data-del-my-circle');
-      const target = (store.getState().circleItems || []).find(x => x.id === id);
-      if (target && !isCircleItemMine(target, store.getState())) {
+      const st = store.getState();
+      const target = (st.circleItems || []).find(x => x.id === id);
+      if (target && !isCircleItemMine(target, st) && !isOwnerAdmin(st)) {
         showToast('Чужие записи нельзя удалить — используйте кнопку «🙈 Скрыть»', 'warn');
         return;
       }
-      const next = (store.getState().circleItems || []).filter(x => x.id !== id);
+      const next = (st.circleItems || []).filter(x => x.id !== id);
       storage.saveCircleItems(next);
       store.dispatch({ type: 'SET_CIRCLE_ITEMS', payload: next });
       deleteCircleItemFromServer(id);
-      showToast('🗑️ Ваша точка удалена из Круга, с карты и с сервера', 'info');
+      showToast('🗑️ Точка удалена из Круга, с карты и с сервера', 'info');
     });
   });
-
-  // Скрытие ЧУЖОЙ записи (не удаляет у других, но убирает из вашей ленты и с вашей карты)
   container.querySelectorAll('[data-hide-foreign-circle]').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const id = btn.getAttribute('data-hide-foreign-circle');
       if (!id) return;
       store.dispatch({ type: 'HIDE_CIRCLE_ITEM', payload: id });
-      showToast('🙈 Чужая точка скрыта из ленты и с карты (доступна в фильтре «👁️ Скрытые»)', 'info');
+      showToast('🙈 Чужая точка скрыта с карты и из ленты', 'info');
     });
   });
-
-  // Возврат скрытой чужой записи
   container.querySelectorAll('[data-unhide-circle]').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -3955,7 +3896,6 @@ function bindCircleEvents(container) {
       showToast('👁️ Запись возвращена в ленту и на карту', 'good');
     });
   });
-
   container.querySelectorAll('[data-goto-circle]').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -3975,7 +3915,6 @@ function bindCircleEvents(container) {
       }
     });
   });
-
   container.querySelectorAll('[data-apply-workshop]').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -3992,27 +3931,24 @@ function bindCircleEvents(container) {
     });
   });
 }
-
 let unsub = null;
-
-export async function init(container, chatsContainer = null) {
+export async function init(container, chatsContainer = null, adminContainer = null) {
   const savedItems = purgeExpiredCircleItems(storage.loadCircleItems ? storage.loadCircleItems() : []);
   store.dispatch({ type: 'SET_CIRCLE_ITEMS', payload: savedItems });
-
   const savedChats = storage.loadChatMessages ? storage.loadChatMessages() : [];
   store.dispatch({ type: 'SET_CHAT_MESSAGES', payload: savedChats });
-
   const savedNotifs = storage.loadNotifications ? storage.loadNotifications() : [];
   store.dispatch({ type: 'SET_NOTIFICATIONS', payload: savedNotifs });
-
+  events.on('location:changed', () => {
+    ensureFisherIdentityInitialized(true);
+  });
   ensureFisherIdentityInitialized().then(() => {
     syncNearbyCirclePointsFromServer(false);
   }).catch(() => {});
-
   render(container);
   renderChatsSection(chatsContainer || (typeof document !== 'undefined' ? document.getElementById('secChats') : null));
+  renderAdminSection(adminContainer || (typeof document !== 'undefined' ? document.getElementById('secAdmin') : null));
   syncCircleNavBadge();
-
   if (unsub) unsub();
   unsub = store.subscribe(
     st => ({
@@ -4032,17 +3968,19 @@ export async function init(container, chatsContainer = null) {
     }),
     (next, prev) => {
       syncCircleNavBadge();
-      if (prev && (next.lat !== prev.lat || next.lon !== prev.lon)) {
+      if (prev && (next.lat !== prev.lat || next.lon !== prev.lon || next.locLabel !== prev.locLabel)) {
+        ensureFisherIdentityInitialized(true);
         syncNearbyCirclePointsFromServer(false);
       }
       if (next.route === 'chats') {
         renderChatsSection();
+      } else if (next.route === 'admin') {
+        renderAdminSection();
       } else if (!next.route || next.route === 'circle') {
         render(container);
       }
     }
   );
-
   if (relayPollTimer) clearInterval(relayPollTimer);
   relayPollTimer = setInterval(() => {
     if (typeof navigator !== 'undefined' && navigator.onLine) {
@@ -4050,9 +3988,7 @@ export async function init(container, chatsContainer = null) {
       syncNearbyCirclePointsFromServer(false);
     }
   }, 25000);
-
   syncAdminWhitelistWithCloud(null);
-
   try {
     const cloudItems = await readFromTelegramCloud('klev_circle_v2');
     if (Array.isArray(cloudItems) && cloudItems.length > 0) {
@@ -4066,23 +4002,28 @@ export async function init(container, chatsContainer = null) {
     }
   } catch (e) {}
 }
-
 export function destroy() {
   if (unsub) unsub();
   if (relayPollTimer) clearInterval(relayPollTimer);
 }
-
 export const circleModule = {
   CREW_TTL_MS,
   CIRCLE_BLUR_RADIUS_KM,
   CIRCLE_OLDER_BLUR_RADIUS_KM,
   REGIONAL_K_ANONYMITY_THRESHOLD,
+  OWNER_BOUND_FISHER_ID,
+  OWNER_SECONDARY_FISHER_ID,
   computeCrewKeyHash,
   formatCrewKeyFromHash,
+  formatTempReserveFisherId,
+  isTemporaryReserveId,
+  isOwnerFisherId,
+  requireRegisteredFisherId,
   parseFisherIdTo20Bit,
   formatFisherIdFrom20Bit,
   resolveAccountCredentials,
   authenticateAndSyncAccount,
+  logoutCurrentFisherAccount,
   syncCurrentProfileToCloudIfLoggedIn,
   renderSettingsZoneTabsHtml,
   bindSettingsZoneTabs,
@@ -4119,7 +4060,9 @@ export const circleModule = {
   openAuthAndBackupModal,
   sendFishermanChatMessage,
   pollEncryptedRelayPackets,
+  fetchSuperAdminDashboardData,
   renderChatsSection,
+  renderAdminSection,
   init,
   render,
   destroy
