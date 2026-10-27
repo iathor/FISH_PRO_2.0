@@ -3,11 +3,14 @@
  * @description Модуль контроля версий, ревизий и безопасного обновления кэша установленного приложения (PWA).
  * Не блокирует старт приложения, защищён от бесконечных циклов перезагрузки и поддерживает все форматы описания релизов.
  */
-import { APP_VERSION, APP_REVISION, RELEASE_CACHE_KEY, CURRENT_RELEASE_INFO } from './config.js?v=2.0.172';
-import { showToast } from '../ui/components.js?v=2.0.172';
+
+import { APP_VERSION, APP_REVISION, RELEASE_CACHE_KEY, CURRENT_RELEASE_INFO } from './config.js?v=2.1.00';
+import { showToast } from '../ui/components.js?v=2.1.00';
+
 let pendingSwRegistration = null;
 let pendingReleaseInfo = null;
 let updateBannerShown = false;
+
 function getInstalledReleaseRecord() {
   try {
     const raw = localStorage.getItem(RELEASE_CACHE_KEY);
@@ -16,6 +19,7 @@ function getInstalledReleaseRecord() {
     return null;
   }
 }
+
 function saveInstalledReleaseRecord(info) {
   try {
     localStorage.setItem(RELEASE_CACHE_KEY, JSON.stringify({
@@ -25,6 +29,7 @@ function saveInstalledReleaseRecord(info) {
     }));
   } catch (e) {}
 }
+
 /**
  * Нормализует список изменений из version.json или CURRENT_RELEASE_INFO
  * (поддерживает как массив объектов {icon, title/module, text}, так и массив строк)
@@ -33,6 +38,7 @@ function normalizeReleaseChanges(info) {
   const rawList = Array.isArray(info?.changes)
     ? info.changes
     : (Array.isArray(info?.items) ? info.items : (Array.isArray(CURRENT_RELEASE_INFO?.changes) ? CURRENT_RELEASE_INFO.changes : []));
+
   return rawList.map((item) => {
     if (typeof item === 'string') {
       const parts = item.split(':');
@@ -52,6 +58,7 @@ function normalizeReleaseChanges(info) {
     };
   });
 }
+
 /**
  * Загружает свежий манифест релиза version.json с сервера в обход всех кэшей
  */
@@ -76,6 +83,7 @@ export async function fetchServerReleaseInfo() {
     changes: normalizeReleaseChanges(CURRENT_RELEASE_INFO)
   };
 }
+
 /**
  * Показывает индикатор доступного обновления на кнопке в шапке
  */
@@ -93,12 +101,14 @@ function markHeaderUpdateAvailable(hasUpdate, releaseInfo = null) {
     btn.removeAttribute('data-has-update');
   }
 }
+
 /**
  * Открывает пользовательское окно с описанием новой версии/ревизии (кнопка Закрыть внизу)
  */
 export function showReleaseUpdateModal(releaseInfo = CURRENT_RELEASE_INFO, isPendingInstall = false) {
   const info = releaseInfo || CURRENT_RELEASE_INFO;
   const changesList = normalizeReleaseChanges(info);
+
   let modal = document.getElementById('releaseUpdateModal');
   if (!modal) {
     modal = document.createElement('div');
@@ -107,6 +117,7 @@ export function showReleaseUpdateModal(releaseInfo = CURRENT_RELEASE_INFO, isPen
     modal.style.zIndex = '9995';
     document.body.appendChild(modal);
   }
+
   const changesHtml = changesList.map(item => `
     <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);padding:10px 12px;margin-bottom:8px;">
       <div style="font-weight:800;font-size:var(--fs-sm);color:var(--accent);margin-bottom:4px;">
@@ -117,7 +128,9 @@ export function showReleaseUpdateModal(releaseInfo = CURRENT_RELEASE_INFO, isPen
       </div>
     </div>
   `).join('');
+
   const subtitleText = info.subtitle || info.summary || 'Актуальный выпуск с улучшениями для рыбаков.';
+
   modal.innerHTML = `
     <div class="modal-box modal-has-sticky-footer" role="dialog" aria-modal="true" aria-label="${info.title || 'Обновление приложения'}" style="max-width:540px;border-color:var(--accent);">
       <div style="margin-bottom:10px;">
@@ -129,12 +142,15 @@ export function showReleaseUpdateModal(releaseInfo = CURRENT_RELEASE_INFO, isPen
           ${subtitleText}
         </div>
       </div>
+
       <div style="max-height:48vh;overflow-y:auto;padding-right:2px;margin:10px 0;">
         ${changesHtml}
       </div>
+
       <div style="padding:9px 11px;background:rgba(16,185,129,0.10);border:1px solid rgba(16,185,129,0.30);border-radius:var(--r-sm);font-size:var(--fs-xs);color:var(--muted);margin-bottom:4px;">
         🛡️ <b>Ваши данные в безопасности:</b> все сохранённые рыболовные точки, избранные виды рыб и записи в журнале уловов полностью сохраняются на устройстве.
       </div>
+
       <div class="modal-sticky-footer" style="flex-wrap:wrap;">
         ${isPendingInstall ? `
           <button type="button" class="btn btn-good" id="relModalConfirmBtn" style="flex:2;min-width:180px;">✅ Обновить приложение и кэш</button>
@@ -146,16 +162,20 @@ export function showReleaseUpdateModal(releaseInfo = CURRENT_RELEASE_INFO, isPen
       </div>
     </div>
   `;
+
   modal.classList.add('open');
   if (typeof window !== 'undefined' && typeof window.__KLEV_PUSH_BACK_GUARD__ === 'function') {
     window.__KLEV_PUSH_BACK_GUARD__('releaseModal');
   }
+
   const closeLater = () => {
     modal.classList.remove('open');
   };
+
   modal.onclick = (e) => {
     if (e.target === modal) closeLater();
   };
+
   modal.querySelector('#relModalCloseBtn')?.addEventListener('click', closeLater);
   modal.querySelector('#relModalLaterBtn')?.addEventListener('click', () => {
     saveInstalledReleaseRecord(info);
@@ -165,6 +185,7 @@ export function showReleaseUpdateModal(releaseInfo = CURRENT_RELEASE_INFO, isPen
     saveInstalledReleaseRecord(info);
     closeLater();
   });
+
   modal.querySelector('#relModalConfirmBtn')?.addEventListener('click', async () => {
     const btn = modal.querySelector('#relModalConfirmBtn');
     if (btn) {
@@ -173,6 +194,7 @@ export function showReleaseUpdateModal(releaseInfo = CURRENT_RELEASE_INFO, isPen
     }
     await applyFullReleaseUpdate(info);
   });
+
   modal.querySelector('#relModalForceSyncBtn')?.addEventListener('click', async () => {
     const btn = modal.querySelector('#relModalForceSyncBtn');
     if (btn) {
@@ -182,41 +204,49 @@ export function showReleaseUpdateModal(releaseInfo = CURRENT_RELEASE_INFO, isPen
     await applyFullReleaseUpdate(info);
   });
 }
+
 /**
  * Полное обновление кэша программы и активация новой ревизии с защитой от зацикливания
  */
 export async function applyFullReleaseUpdate(info = CURRENT_RELEASE_INFO) {
   saveInstalledReleaseRecord(info);
+
   try {
     if (pendingSwRegistration && pendingSwRegistration.waiting) {
       pendingSwRegistration.waiting.postMessage({ type: 'SKIP_WAITING' });
     }
   } catch (e) {}
+
   try {
     if ('caches' in window) {
       const keys = await caches.keys();
       await Promise.all(keys.map(k => caches.delete(k)));
     }
   } catch (e) {}
+
   try {
     if ('serviceWorker' in navigator) {
       const regs = await navigator.serviceWorker.getRegistrations();
       await Promise.all(regs.map(r => r.update().catch(() => {})));
     }
   } catch (e) {}
+
   const cleanPath = window.location.pathname || '/';
   const hash = window.location.hash || '#/forecast';
   window.location.replace(`${cleanPath}?v=${encodeURIComponent(info?.version || APP_VERSION)}&rev=${Date.now()}${hash}`);
 }
+
 /**
  * Проверка наличия новой версии на сервере
  */
 export async function checkForReleaseUpdate({ manual = false } = {}) {
   const serverInfo = await fetchServerReleaseInfo();
   const installed = getInstalledReleaseRecord();
+
   const isNewer = !installed ||
     installed.version !== serverInfo.version ||
     installed.revision !== serverInfo.revision;
+
   if (!installed) {
     saveInstalledReleaseRecord(serverInfo);
     if (manual) {
@@ -224,6 +254,7 @@ export async function checkForReleaseUpdate({ manual = false } = {}) {
     }
     return false;
   }
+
   if (isNewer) {
     pendingReleaseInfo = serverInfo;
     markHeaderUpdateAvailable(true, serverInfo);
@@ -233,12 +264,14 @@ export async function checkForReleaseUpdate({ manual = false } = {}) {
     }
     return true;
   }
+
   markHeaderUpdateAvailable(false);
   if (manual) {
     showReleaseUpdateModal(serverInfo, false);
   }
   return false;
 }
+
 /**
  * Инициализация фонового отслеживания релизов (не блокирует интерфейс)
  */
@@ -249,6 +282,7 @@ export function initReleaseUpdater() {
   } else if (installed.version !== APP_VERSION || installed.revision !== APP_REVISION) {
     saveInstalledReleaseRecord(CURRENT_RELEASE_INFO);
   }
+
   setTimeout(() => {
     checkForReleaseUpdate({ manual: false }).catch(() => {});
   }, 4500);

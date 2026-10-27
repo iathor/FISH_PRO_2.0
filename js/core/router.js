@@ -1,10 +1,13 @@
-import { store } from './store.js?v=2.0.172';
-import { renderMap } from '../modules/geo/geo.module.js?v=2.0.172';
-import { closeModal } from '../ui/components.js?v=2.0.172';
+import { store } from './store.js?v=2.1.00';
+import { renderMap } from '../modules/geo/geo.module.js?v=2.1.00';
+import { closeModal } from '../ui/components.js?v=2.1.00';
+
 const VALID_ROUTES = ['geo', 'weather', 'fish', 'forecast', 'circle', 'chats', 'log', 'calendar'];
 const DEFAULT_ROUTE = 'forecast';
+
 const routeHistoryStack = [DEFAULT_ROUTE];
 let suppressNextPopState = false;
+
 /**
  * Ставит защитную запись в window.history, чтобы боковой свайп «Назад» (на Android / iOS / в APK / в Telegram Mini App)
  * всегда перехватывался приложением (закрывал открытое подменю/модалку или возвращал на вкладку Прогноз),
@@ -21,22 +24,30 @@ export function pushBackGuardState(reason = 'guard') {
     window.history.pushState({ klevGuard: true, reason, route: curRoute, ts: Date.now() }, '', window.location.hash || `#/${curRoute}`);
   } catch (e) {}
 }
+
 /**
  * Централизованный обработчик жеста «Назад» (боковой свайп экрана / системная кнопка Back в APK, браузере и TMA).
  * Возвращает true, если действие обработано внутри приложения (закрыта модалка, лайтбокс, меню или выполнен переход на Прогноз).
  */
 export function handleAppBackAction(source = 'popstate') {
   if (typeof document === 'undefined') return false;
+
+  // 1. Если открыт полноэкранный лайтбокс рыбы — закрываем его
   const lb = document.getElementById('fishImageLightbox');
   if (lb && lb.classList.contains('open')) {
     lb.classList.remove('open');
     return true;
   }
+
+  // 2. Если открыто окно обновления релиза — закрываем его
   const relModal = document.getElementById('releaseUpdateModal');
   if (relModal && relModal.classList.contains('open')) {
     relModal.classList.remove('open');
     return true;
   }
+
+  // 3. Если открыто любое модальное окно или подменю настроек:
+  //    если это дочернее подменю, открытое из хаба профиля, возвращаемся в хаб профиля; иначе закрываем модалку
   const backdrop = document.getElementById('appModalBackdrop');
   if (backdrop && backdrop.classList.contains('open')) {
     if (typeof window !== 'undefined' && typeof window.__KLEV_MODAL_BACK_FN__ === 'function') {
@@ -48,6 +59,8 @@ export function handleAppBackAction(source = 'popstate') {
     closeModal();
     return true;
   }
+
+  // 4. Если открыто всплывающее меню «⋮ Ещё» в нижней панели — закрываем его
   const morePopup = document.getElementById('navMorePopup');
   const moreBtn = document.getElementById('navMoreBtn');
   if (morePopup && morePopup.classList.contains('open')) {
@@ -55,11 +68,15 @@ export function handleAppBackAction(source = 'popstate') {
     if (moreBtn) moreBtn.setAttribute('aria-expanded', 'false');
     return true;
   }
+
+  // 5. Если на карте открыта карточка разведки точки — закрываем её
   const scoutCloseBtn = document.getElementById('scoutCloseBtn');
   if (scoutCloseBtn && scoutCloseBtn.offsetParent !== null) {
     scoutCloseBtn.click();
     return true;
   }
+
+  // 6. Если пользователь находится на любой вкладке кроме главной («🎣 Прогноз»), возвращаем на предыдущую вкладку или «🎣 Прогноз»
   const curRoute = store.getState().route || DEFAULT_ROUTE;
   if (curRoute !== DEFAULT_ROUTE) {
     while (routeHistoryStack.length > 0 && routeHistoryStack[routeHistoryStack.length - 1] === curRoute) {
@@ -69,21 +86,27 @@ export function handleAppBackAction(source = 'popstate') {
     router.navigate(prevRoute, { fromBack: true });
     return true;
   }
+
   return false;
 }
+
 if (typeof window !== 'undefined') {
   window.__KLEV_PUSH_BACK_GUARD__ = pushBackGuardState;
   window.__KLEV_HANDLE_BACK__ = handleAppBackAction;
 }
+
 export const router = {
   init() {
     this.syncFromHash();
+
     if (typeof window !== 'undefined') {
+      // Инициализируем базовую подушку истории, чтобы первый же боковой свайп не выбросил из WebView / браузера
       try {
         const curRoute = store.getState().route || DEFAULT_ROUTE;
         window.history.replaceState({ klevRoot: true, route: curRoute }, '', window.location.hash || `#/${curRoute}`);
         pushBackGuardState('init');
       } catch (e) {}
+
       window.addEventListener('popstate', () => {
         if (suppressNextPopState) {
           suppressNextPopState = false;
@@ -96,8 +119,10 @@ export const router = {
           return;
         }
         handleAppBackAction('popstate');
+        // Всегда восстанавливаем защитную запись в истории, чтобы повторный боковой свайп не закрыл приложение
         pushBackGuardState('rearm');
       });
+
       window.addEventListener('hashchange', () => {
         const raw = (window.location.hash || '').replace(/^#\/?/, '').trim();
         if (raw.startsWith('klev_pack=') || raw.startsWith('pack=KP1_') || raw.startsWith('p=KP1_')) {
@@ -106,6 +131,7 @@ export const router = {
       });
     }
   },
+
   syncFromHash() {
     const raw = (window.location.hash || '').replace(/^#\/?/, '').trim();
     if (raw.startsWith('klev_pack=') || raw.startsWith('pack=KP1_') || raw.startsWith('p=KP1_')) {
@@ -123,9 +149,11 @@ export const router = {
       store.dispatch({ type: 'SET_ROUTE', payload: route });
     }
   },
+
   navigate(route, opts = {}) {
     const target = VALID_ROUTES.includes(route) ? route : DEFAULT_ROUTE;
     const prevRoute = store.getState().route || DEFAULT_ROUTE;
+
     if (!opts.fromBack && prevRoute !== target) {
       if (routeHistoryStack[routeHistoryStack.length - 1] !== prevRoute) {
         routeHistoryStack.push(prevRoute);
@@ -134,6 +162,7 @@ export const router = {
         routeHistoryStack.splice(0, routeHistoryStack.length - 12);
       }
     }
+
     if (typeof window !== 'undefined' && window.history) {
       try {
         if (window.location.hash !== `#/${target}`) {
@@ -142,15 +171,18 @@ export const router = {
         pushBackGuardState('nav');
       } catch (e) {}
     }
+
     if (prevRoute !== target && typeof window !== 'undefined' && typeof window.scrollTo === 'function') {
       try { window.scrollTo(0, 0); } catch (e) {}
     }
+    // Сначала применяем видимость секций, чтобы getBoundingClientRect() в подписчиках читал реальные размеры!
     this.applyVisibility(target);
     store.dispatch({ type: 'SET_ROUTE', payload: target });
     if (typeof window.syncFishDockState === 'function') {
       window.syncFishDockState(true);
     }
   },
+
   applyVisibility(route) {
     document.querySelectorAll('[data-route-section]').forEach(sec => {
       const secName = sec.getAttribute('data-route-section');

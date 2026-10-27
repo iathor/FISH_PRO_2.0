@@ -14,6 +14,7 @@ export async function fetchWithTimeout(url, ms = 6800, options = {}) {
     throw err;
   }
 }
+
 export async function retry(fn, attempts = 2, delayMs = 350) {
   let lastErr;
   for (let i = 0; i < attempts; i++) {
@@ -28,6 +29,7 @@ export async function retry(fn, attempts = 2, delayMs = 350) {
   }
   throw lastErr;
 }
+
 export async function fallbackChain(steps) {
   let lastErr = null;
   for (const step of steps) {
