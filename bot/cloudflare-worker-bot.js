@@ -6,17 +6,33 @@ const rateBuckets = new Map();
 const transitBoxes = new Map(); // Транзитная очередь зашифрованных пакетов (Zero-Storage: удаляется при доставке/по TTL)
 const weatherGridCache = new Map(); // Кэш погоды бота по гео-сетке 0.1° × 0.1° (~8-10 км) на 20 минут
 const weatherFullGridCache = new Map(); // Полный Edge-кэш Open-Meteo (past_days=7&forecast_days=10) по сетке 0.1° × 0.1° на 30 минут
-const regionSequenceCounters = new Map(); // Счётчики порядковых номеров рыбаков по регионам РФ (0 -> AAA001 .. 998 -> AAA999, 999 -> AAB001)
+const regionSequenceCounters = new Map(); // Счётчики ПОСТОЯННЫХ номеров зарегистрированных рыбаков по регионам РФ (0 -> AAA001 .. 998 -> AAA999, 999 -> AAB001)
+const regionReserveCounters = new Map(); // Счётчики ВРЕМЕННЫХ резервных ID без регистрации (FP_XXRZ0001 .. FP_XXRZ9999)
 const OWNER_FISHER_ID = 'FP_89VIP089';
-const reservedVanityIds = new Set([OWNER_FISHER_ID, 'FP_FMP089']); // Забронированные и VIP / «красивые» ID рыбаков
-const deviceToFisherIdMap = new Map(); // Привязка уникального аппаратного/браузерного deviceId -> выданного fisherId
+const OWNER_SECONDARY_ID = 'FP_FMP089';
+const OWNER_ALL_IDS = new Set([OWNER_FISHER_ID, OWNER_SECONDARY_ID]);
+const reservedVanityIds = new Set([OWNER_FISHER_ID, OWNER_SECONDARY_ID, 'FP_89A01']); // Забронированные и VIP ID Владельца
+const deviceToFisherIdMap = new Map(); // Привязка незарегистрированного устройства deviceId -> временного резервного ID (FP_XXRZYYYY)
+const tgToFisherIdMap = new Map(); // Привязка Telegram User ID -> постоянного рыболовного ID (FP_XXAAA001 / FP_89VIP089 / FP_FMP089)
+const fisherIdToAuthKeyMap = new Map([
+ ['FP_89VIP089', 'OWNER_IATHOR_FP_89VIP089'],
+ ['FP_FMP089', 'OWNER_IATHOR_FP_89VIP089']
+]); // Привязка выданного постоянного ID -> authKey (позволяет входить как по логину, так и по своему ID!)
+const loginToAuthKeyMap = new Map([
+ ['iathor', 'OWNER_IATHOR_FP_89VIP089'],
+ ['iathor82', 'OWNER_IATHOR_FP_89VIP089'],
+ ['thorantony82', 'OWNER_IATHOR_FP_89VIP089'],
+ ['fp_89vip089', 'OWNER_IATHOR_FP_89VIP089'],
+ ['fp_fmp089', 'OWNER_IATHOR_FP_89VIP089']
+]); // Глобальный индекс уникальности логинов (loginNorm -> authKey)
 const usersRegistryStore = new Map(); // Реестр всех пользователей экосистемы (APK, Web/PWA, Telegram Mini App, TG Bot)
 const circlePointsStore = new Map(); // Серверное хранилище активных точек Круга, Экипажа, SOS и Мастерской (TTL 72ч)
 let persistentStateLoaded = false;
 let lastEdgePersistTs = 0;
 
 const adminWhitelistStore = new Map([
- [OWNER_FISHER_ID, { id: OWNER_FISHER_ID, label: "iAthor • Антон (Владелец / Супер-Админ)", addedAt: "2026-10-27" }]
+ [OWNER_FISHER_ID, { id: OWNER_FISHER_ID, label: "iAthor • Антон (Владелец / Основной VIP ID)", addedAt: "2026-10-27" }],
+ [OWNER_SECONDARY_ID, { id: OWNER_SECONDARY_ID, label: "iAthor82 • Антон (Владелец / Спец-ID FP_FMP089)", addedAt: "2026-10-27" }]
 ]);
 
 const WORKER_REGION_RULES = [
@@ -122,14 +138,28 @@ function workerFormatFisherIdFromIndex(regionCode = '89', index0Based = 0) {
  return `FP_${reg}${c1}${c2}${c3}${String(num).padStart(3, '0')}`;
 }
 
+function workerFormatReserveFisherId(regionCode = '89', seq1Based = 1) {
+ const regDigits = String(regionCode || '89').replace(/\D/g, '').padStart(2, '0').slice(-2);
+ const reg = regDigits === '00' ? '89' : regDigits;
+ const num = ((Math.max(1, Math.floor(Number(seq1Based) || 1)) - 1) % 9999) + 1;
+ return `FP_${reg}RZ${String(num).padStart(4, '0')}`;
+}
+
+function isTemporaryReserveId(fid = '') {
+ return /^FP_\d{2}RZ\d{4}$/i.test(String(fid || '').trim());
+}
+
+function isOwnerFisherId(fid = '') {
+ const clean = String(fid || '').trim().toUpperCase();
+ return clean === OWNER_FISHER_ID || clean === OWNER_SECONDARY_ID || clean === 'FP_89A01';
+}
+
 function isReservedOrVipFisherId(candidate = '') {
  const clean = String(candidate || '').trim().toUpperCase();
  if (!clean) return true;
  if (reservedVanityIds.has(clean)) return true;
- if (clean === OWNER_FISHER_ID || clean === 'FP_FMP089' || clean === 'FP_89A01') return true;
- // Вся серия VIP (например FP_89VIP089, FP_77VIP001 и т.д.) зарезервирована под VIP/красивые номера
+ if (isOwnerFisherId(clean)) return true;
  if (/^FP_\d{2}VIP\d{3}$/.test(clean) || /^FP_VIP\d{3}$/.test(clean)) return true;
- // Также резервируем блатные триплеты (777, 888, 999, 089 на красивых сериях)
  return false;
 }
 
@@ -144,8 +174,7 @@ function workerDecodeFisherIdFrom32Bit(val32) {
  const c3 = String.fromCharCode(65 + (lIdx % 26));
  const numStr = String(num).padStart(3, '0');
  if (reg <= 0) {
-  const raw = `FP_${c1}${c2}${c3}${numStr}`;
-  return raw === 'FP_FMP089' ? OWNER_FISHER_ID : raw;
+  return `FP_${c1}${c2}${c3}${numStr}`;
  }
  return `FP_${String(Math.min(99, reg)).padStart(2, '0')}${c1}${c2}${c3}${numStr}`;
 }
@@ -153,7 +182,13 @@ function workerDecodeFisherIdFrom32Bit(val32) {
 function workerNormalizeFisherId(rawStr = '', fallbackRegion = '89') {
  const clean = String(rawStr || '').trim().toUpperCase().replace(/-/g, '_');
  if (!clean) return '';
- if (clean === 'FP_89VIP089' || clean === '89VIP089' || clean === 'FP_89A01' || clean === 'FP_FMP089' || clean === 'FMP089') return OWNER_FISHER_ID;
+ if (clean === 'FP_89VIP089' || clean === '89VIP089' || clean === 'FP_89A01') return OWNER_FISHER_ID;
+ if (clean === 'FP_FMP089' || clean === 'FMP089') return OWNER_SECONDARY_ID;
+ const rzMatch = clean.match(/^(?:FP_)?(\d{2})RZ(\d{4})$/);
+ if (rzMatch) {
+  const numVal = Math.max(1, Math.min(9999, parseInt(rzMatch[2], 10) || 1));
+  return `FP_${rzMatch[1]}RZ${String(numVal).padStart(4, '0')}`;
+ }
  const regMatch = clean.match(/^(?:FP_)?(\d{2})([A-Z]{3})(\d{3})$/);
  if (regMatch) {
   const numVal = Math.max(1, Math.min(999, parseInt(regMatch[3], 10) || 1));
@@ -162,8 +197,7 @@ function workerNormalizeFisherId(rawStr = '', fallbackRegion = '89') {
  const vipMatch = clean.match(/^(?:FP_)?([A-Z]{3})(\d{3})$/);
  if (vipMatch) {
   const numVal = Math.max(1, Math.min(999, parseInt(vipMatch[2], 10) || 1));
-  const cand = `FP_${vipMatch[1]}${String(numVal).padStart(3, '0')}`;
-  return cand === 'FP_FMP089' ? OWNER_FISHER_ID : cand;
+  return `FP_${vipMatch[1]}${String(numVal).padStart(3, '0')}`;
  }
  return '';
 }
@@ -178,6 +212,21 @@ function allocateNextRegionalFisherId(regionCode = '89') {
  }
  regionSequenceCounters.set(reg, seq + 1);
  reservedVanityIds.add(candidate);
+ return candidate;
+}
+
+function allocateNextReserveFisherId(regionCode = '89', seedDeviceId = '') {
+ const reg = workerResolveRegionCode(regionCode);
+ let seq = (regionReserveCounters.get(reg) || 0) + 1;
+ if (seq > 9999) seq = 1;
+ let candidate = workerFormatReserveFisherId(reg, seq);
+ let guard = 0;
+ while (usersRegistryStore.has(candidate) && guard < 9999) {
+  seq = (seq % 9999) + 1;
+  candidate = workerFormatReserveFisherId(reg, seq);
+  guard++;
+ }
+ regionReserveCounters.set(reg, seq);
  return candidate;
 }
 
@@ -196,12 +245,19 @@ function isValidOwnerAdminToken(tok = '') {
 }
 
 function resolveWorkerAccountIdentity(rawLogin = '', rawPassword = '', rawTokenHash = '', rawRegionCode = '89', snap = null) {
- const loginClean = String(rawLogin || '').trim().slice(0, 48);
- const loginNorm = loginClean.toLowerCase().replace(/^@/, '');
+ const rawInputClean = String(rawLogin || '').trim().slice(0, 48);
+ let loginClean = rawInputClean;
+ let loginNorm = loginClean.toLowerCase().replace(/^@/, '');
  const passClean = String(rawPassword || '').trim();
  const incomingTok = String(rawTokenHash || '').trim();
 
- const isOwnerLogin = (loginNorm === 'iathor' || loginNorm === 'iathor82' || loginNorm === 'thorantony82');
+ const isOwnerLogin = (
+  loginNorm === 'iathor' ||
+  loginNorm === 'iathor82' ||
+  loginNorm === 'thorantony82' ||
+  loginNorm === 'fp_89vip089' ||
+  loginNorm === 'fp_fmp089'
+ );
  const isOwnerPass = (
   passClean === 'FISherman1982*' ||
   passClean.toLowerCase() === 'fisherman1982*' ||
@@ -213,26 +269,40 @@ function resolveWorkerAccountIdentity(rawLogin = '', rawPassword = '', rawTokenH
  );
 
  if (isOwnerLogin && isOwnerPass) {
+  const preferredOwnerFid = (loginNorm === 'fp_fmp089' || String(snap?.fisherId || '').toUpperCase() === OWNER_SECONDARY_ID)
+   ? OWNER_SECONDARY_ID
+   : OWNER_FISHER_ID;
   return {
    ok: true,
    isOwner: true,
    authKey: 'OWNER_IATHOR_FP_89VIP089',
-   fisherId: OWNER_FISHER_ID,
-   login: 'iAthor',
-   callsign: 'iAthor',
+   fisherId: preferredOwnerFid,
+   ownerIds: [OWNER_FISHER_ID, OWNER_SECONDARY_ID],
+   login: loginNorm === 'iathor82' ? 'iAthor82' : 'iAthor',
+   callsign: loginNorm === 'iathor82' ? 'iAthor82' : 'iAthor',
    pinHash: 'owner_iathor_vip089',
    authTokenHash: OWNER_TOKEN_HASH_IATHOR,
    adminSessionToken: OWNER_ADMIN_CONSOLE_TOKEN
   };
  }
 
- // Запрещаем кому-либо занимать логин владельца без верного пароля
  if (isOwnerLogin && !isOwnerPass) {
-  return { ok: false, error: 'Неверный пароль для аккаунта владельца iAthor' };
+  return { ok: false, error: 'Неверный пароль для эксклюзивного аккаунта Супер-Админа (iAthor / FP_89VIP089 / FP_FMP089)' };
+ }
+
+ // Если пользователь ввёл свой постоянный Рыболовный ID (напр. FP_89AAA001) вместо логина — находим привязанный к нему профиль!
+ const normalizedAsFid = workerNormalizeFisherId(rawInputClean, '89');
+ if (normalizedAsFid && !isTemporaryReserveId(normalizedAsFid)) {
+  const mappedKey = fisherIdToAuthKeyMap.get(normalizedAsFid);
+  const mappedProf = mappedKey ? cloudAuthProfiles.get(mappedKey) : null;
+  if (mappedProf && mappedProf.login) {
+   loginClean = mappedProf.login;
+   loginNorm = String(mappedProf.login).trim().toLowerCase().replace(/^@/, '');
+  }
  }
 
  if (!loginNorm || (passClean.length < 3 && !incomingTok.startsWith('KTOK_'))) {
-  return { ok: false, error: 'Укажите логин и пароль (от 3 символов)' };
+  return { ok: false, error: 'Укажите логин и пароль (от 3 символов) для получения постоянного ID рыбака' };
  }
 
  const authTokenHash = incomingTok.startsWith('KTOK_')
@@ -241,19 +311,51 @@ function resolveWorkerAccountIdentity(rawLogin = '', rawPassword = '', rawTokenH
  const pinHash = passClean
   ? workerFnv1a32(`pin::${passClean}`).toString(16)
   : String(snap?.pinHash || workerFnv1a32(authTokenHash).toString(16));
- const authKey = `AUTH_${loginNorm}_${authTokenHash}`;
+
+ // Проверяем глобальную уникальность логина: постоянный ID жёстко привязан ТОЛЬКО к логину и паролю!
+ let existingAuthKey = loginToAuthKeyMap.get(loginNorm) || '';
+ if (!existingAuthKey) {
+  for (const [k, prof] of cloudAuthProfiles.entries()) {
+   if (prof && String(prof.login || '').trim().toLowerCase().replace(/^@/, '') === loginNorm) {
+    existingAuthKey = k;
+    loginToAuthKeyMap.set(loginNorm, k);
+    break;
+   }
+  }
+ }
+ if (existingAuthKey) {
+  const boundProf = cloudAuthProfiles.get(existingAuthKey);
+  if (boundProf && boundProf.authTokenHash && !constantTimeEquals(authTokenHash, boundProf.authTokenHash)) {
+   return {
+    ok: false,
+    code: 'LOGIN_TAKEN',
+    error: `Логин «${loginClean}» уже зарегистрирован (или введён неверный пароль)! Проверьте пароль или выберите другой логин.`
+   };
+  }
+ }
+
+ const authKey = existingAuthKey || `AUTH_${loginNorm}_${authTokenHash}`;
+ loginToAuthKeyMap.set(loginNorm, authKey);
  const existingProf = cloudAuthProfiles.get(authKey);
  const regCode = workerResolveRegionCode(rawRegionCode || snap);
+
+ // Постоянный ID выдаётся ОДИН РАЗ при регистрации логина+пароля и жёстко хранится в профиле логина+пароля (НЕ привязан к железу телефона!)
  let fisherId = existingProf?.fisherId ? workerNormalizeFisherId(existingProf.fisherId, regCode) : '';
- if (!fisherId || fisherId === OWNER_FISHER_ID) {
-  // Проверяем, есть ли у устройства уже выделенный уникальный ID
-  const devId = String(snap?.deviceId || '').trim();
-  const devBoundId = devId ? deviceToFisherIdMap.get(devId) : '';
-  if (devBoundId && devBoundId !== OWNER_FISHER_ID) {
-   fisherId = devBoundId;
-  } else {
-   fisherId = allocateNextRegionalFisherId(regCode);
-  }
+ if (!fisherId || isOwnerFisherId(fisherId) || isTemporaryReserveId(fisherId)) {
+  fisherId = allocateNextRegionalFisherId(regCode);
+ }
+ fisherIdToAuthKeyMap.set(fisherId, authKey);
+
+ // Если до регистрации на этом устройстве был временный резервный ID (FP_XXRZYYYY), очищаем временный резерв
+ const prevDevId = String(snap?.deviceId || '').trim();
+ const prevTempFid = prevDevId ? deviceToFisherIdMap.get(prevDevId) : '';
+ if (prevTempFid && isTemporaryReserveId(prevTempFid)) {
+  usersRegistryStore.delete(prevTempFid);
+  deviceToFisherIdMap.delete(prevDevId);
+ }
+ const snapTempFid = workerNormalizeFisherId(snap?.fisherId || '', regCode);
+ if (snapTempFid && isTemporaryReserveId(snapTempFid)) {
+  usersRegistryStore.delete(snapTempFid);
  }
 
  return {
@@ -261,8 +363,8 @@ function resolveWorkerAccountIdentity(rawLogin = '', rawPassword = '', rawTokenH
   isOwner: false,
   authKey,
   fisherId,
-  login: loginClean,
-  callsign: loginClean,
+  login: existingProf?.login || loginClean,
+  callsign: existingProf?.callsign || loginClean,
   pinHash,
   authTokenHash,
   adminSessionToken: ''
@@ -2006,9 +2108,16 @@ function decodeKplocToken(rawParam = '') {
  };
  const lat = parseCoord(parts[1]);
  const lon = parseCoord(parts[2]);
- const fishId = parts.slice(3).join('_') || '';
+ let tail = parts.slice(3).join('_') || '';
+ let fisherId = '';
+ const fidMatch = tail.match(/(?:^|_)(FP_[A-Z0-9]{6,8})$/i);
+ if (fidMatch) {
+  fisherId = workerNormalizeFisherId(fidMatch[1], '89');
+  tail = tail.slice(0, tail.length - fidMatch[0].length);
+ }
+ const fishId = tail || 'pike';
  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
- return { lat, lon, fishId };
+ return { lat, lon, fishId, fisherId };
 }
 
 function detectWaterTypeFromQuery(q) {
@@ -2152,19 +2261,25 @@ function saveUserSession(userId, patch = {}) {
  const key = String(userId || 'anon');
  const cur = getUserSession(key);
  const next = { ...cur, ...patch };
- userSessions.set(key, next);
  if (key !== 'anon') {
   const devId = `tg_bot_${key}`;
   const regCode = workerResolveRegionCode(next.cityName || '89');
-  let fid = deviceToFisherIdMap.get(devId);
+  const unameNorm = String(next.tgUsername || '').trim().toLowerCase().replace(/^@/, '');
+  const isOwnerTg = (unameNorm === 'iathor' || unameNorm === 'iathor82' || unameNorm === 'thorantony82');
+  let fid = isOwnerTg
+   ? OWNER_FISHER_ID
+   : (tgToFisherIdMap.get(key) || deviceToFisherIdMap.get(devId));
   if (!fid) {
-   fid = allocateNextRegionalFisherId(regCode);
-   deviceToFisherIdMap.set(devId, fid);
+   fid = allocateNextRegionalFisherId(regCode, devId);
   }
+  tgToFisherIdMap.set(key, fid);
+  deviceToFisherIdMap.set(devId, fid);
+  next.fisherId = fid;
   upsertUserInRegistry({
    fisherId: fid,
    deviceId: devId,
-   callsign: next.tgName || `TG #${key}`,
+   login: isOwnerTg ? 'iAthor' : undefined,
+   callsign: isOwnerTg ? 'iAthor' : (next.tgName || next.tgUsername || `TG #${key}`),
    tgId: key,
    tgUsername: next.tgUsername || '',
    regionCode: regCode,
@@ -2175,6 +2290,7 @@ function saveUserSession(userId, patch = {}) {
    lon: next.lon
   });
  }
+ userSessions.set(key, next);
  return next;
 }
 
@@ -2637,9 +2753,16 @@ function buildSearchDirectoryCard(city) {
 function buildUserProfileCard(session, city, fish, webappUrl, isPrivateChat = true) {
  const shortCity = String(city.name || 'Точка').split('(')[0].trim().slice(0, 14);
  const deepAppUrl = `${webappUrl}?tg_lat=${city.lat.toFixed(4)}&tg_lon=${city.lon.toFixed(4)}&tg_city=${encodeURIComponent(city.name)}&tg_fish=${fish.id}#/forecast`;
+ const fid = session?.fisherId || tgToFisherIdMap.get(String(session?.userId || '')) || 'FP_89AAA001';
+ const regUser = usersRegistryStore.get(fid);
+ const loginLabel = regUser?.login ? `\`${regUser.login}\` (🟢 синхронизирован)` : 'не задан (можно задать в Профиле приложения для синхронизации между устройствами)';
+ const tgLabel = session?.tgUsername ? `@${session.tgUsername}` : (regUser?.tgUsername ? `@${regUser.tgUsername}` : 'привязан');
 
  const text =
-  `👤 *Ваш рыболовный профиль в боте*\n\n` +
+  `👤 *Ваш единый рыболовный профиль*\n\n` +
+  `🆔 *Рыболовный ID:* \`${fid}\`\n` +
+  `🔑 *Логин профиля (APK / Сайт / ТГ):* ${loginLabel}\n` +
+  `✈️ *Связка с Telegram:* 🟢 Активна (${tgLabel})\n` +
   `📍 *Закреплённая локация:* *${city.name}* (${city.lat.toFixed(3)}°N, ${city.lon.toFixed(3)}°E)\n` +
   `🧭 *Рыбохозяйственный субрегион:* ${city.basin}\n` +
   `🌊 *Активный водоём:* ${city.water} (${WATER_TYPE_LABELS[city.wType] || 'Водоём'})\n` +
@@ -2740,8 +2863,12 @@ function upsertUserInRegistry(meta = {}) {
   locLabel: String(meta.locLabel || prev.locLabel || 'Водоём РФ').slice(0, 80),
   platform: String(meta.platform || prev.platform || 'WEB').slice(0, 28),
   version: String(meta.version || prev.version || WORKER_VERSION).slice(0, 20),
-  isOwner: fid === OWNER_FISHER_ID,
-  isAdmin: fid === OWNER_FISHER_ID || adminWhitelistStore.has(fid),
+  isOwner: isOwnerFisherId(fid),
+  isAdmin: isOwnerFisherId(fid) || adminWhitelistStore.has(fid),
+  isTemporaryReserve: isTemporaryReserveId(fid),
+  isRegistered: !isTemporaryReserveId(fid),
+  regionConfirmed: Boolean(meta.regionConfirmed || prev.regionConfirmed),
+  profileBackup: (meta.profileBackup && typeof meta.profileBackup === 'object') ? meta.profileBackup : (prev.profileBackup || null),
   lastSeen: now,
   sessionsCount: (prev.sessionsCount || 0) + (meta.incrementSession ? 1 : 0),
   circlePostsCount: (prev.circlePostsCount || 0) + (meta.incrementPosts ? 1 : 0),
@@ -2749,11 +2876,88 @@ function upsertUserInRegistry(meta = {}) {
   lon: Number.isFinite(Number(meta.lon)) ? Number(meta.lon) : prev.lon
  };
  usersRegistryStore.set(fid, updated);
- reservedVanityIds.add(fid);
- if (updated.deviceId && fid !== OWNER_FISHER_ID) {
+ if (!isTemporaryReserveId(fid)) {
+  reservedVanityIds.add(fid);
+ } else if (updated.deviceId) {
   deviceToFisherIdMap.set(updated.deviceId, fid);
  }
+ if (updated.tgId) {
+  tgToFisherIdMap.set(String(updated.tgId), fid);
+  deviceToFisherIdMap.set(`tg_bot_${updated.tgId}`, fid);
+ }
  return updated;
+}
+
+function bindTelegramToFisherProfile(params = {}) {
+ const tgIdStr = String(params.tgId || '').trim();
+ const tgUsernameClean = String(params.tgUsername || '').trim().replace(/^@/, '');
+ const tgFirstName = String(params.tgFirstName || '').trim();
+ const deviceId = String(params.deviceId || '').trim();
+ const loginClean = String(params.login || '').trim();
+ const loginNorm = loginClean.toLowerCase().replace(/^@/, '');
+ const unameNorm = tgUsernameClean.toLowerCase();
+ const isOwner = (
+  loginNorm === 'iathor' || loginNorm === 'iathor82' || loginNorm === 'thorantony82' ||
+  unameNorm === 'iathor' || unameNorm === 'iathor82' || unameNorm === 'thorantony82' ||
+  params.fisherId === OWNER_FISHER_ID || params.fisherId === 'FP_FMP089'
+ );
+ const regCode = workerResolveRegionCode(params.regionCode || params.locLabel || '89');
+ let fid = isOwner ? OWNER_FISHER_ID : workerNormalizeFisherId(params.fisherId || '', regCode);
+ if (!fid) {
+  if (tgIdStr && tgToFisherIdMap.has(tgIdStr)) fid = tgToFisherIdMap.get(tgIdStr);
+  else if (deviceId && deviceToFisherIdMap.has(deviceId)) fid = deviceToFisherIdMap.get(deviceId);
+  else fid = allocateNextRegionalFisherId(regCode, deviceId || `tg_${tgIdStr}`);
+ }
+
+ // Если ранее у tg_bot_<tgId> был временный ID бота, переносим его на единый fid пользователя
+ if (tgIdStr) {
+  const botDevId = `tg_bot_${tgIdStr}`;
+  const prevBotFid = deviceToFisherIdMap.get(botDevId);
+  if (prevBotFid && prevBotFid !== fid && prevBotFid !== OWNER_FISHER_ID) {
+   const prevBotRec = usersRegistryStore.get(prevBotFid);
+   if (prevBotRec && (!prevBotRec.deviceId || prevBotRec.deviceId === botDevId)) {
+    usersRegistryStore.delete(prevBotFid);
+   }
+  }
+  tgToFisherIdMap.set(tgIdStr, fid);
+  deviceToFisherIdMap.set(botDevId, fid);
+  if (userSessions.has(tgIdStr)) {
+   const s = userSessions.get(tgIdStr);
+   userSessions.set(tgIdStr, { ...s, fisherId: fid, tgUsername: tgUsernameClean || s.tgUsername || '' });
+  }
+ }
+
+ if (deviceId && fid !== OWNER_FISHER_ID) {
+  deviceToFisherIdMap.set(deviceId, fid);
+ }
+
+ const existingUser = usersRegistryStore.get(fid);
+ const userRec = upsertUserInRegistry({
+  fisherId: fid,
+  deviceId: deviceId || existingUser?.deviceId || (tgIdStr ? `tg_bot_${tgIdStr}` : ''),
+  login: isOwner ? 'iAthor' : (loginClean || existingUser?.login || ''),
+  callsign: isOwner ? 'iAthor' : (loginClean || existingUser?.callsign || tgFirstName || tgUsernameClean || 'Рыболов'),
+  tgId: tgIdStr || existingUser?.tgId || '',
+  tgUsername: tgUsernameClean || existingUser?.tgUsername || '',
+  regionCode: regCode,
+  locLabel: params.locLabel || existingUser?.locLabel || 'Новый Уренгой'
+ });
+
+ // Синхронизируем привязку Telegram во всех облачных профилях (Логин + Пароль) этого рыбака
+ for (const [k, prof] of cloudAuthProfiles.entries()) {
+  if (!prof || typeof prof !== 'object') continue;
+  const profFid = workerNormalizeFisherId(prof.fisherId || '', '89');
+  const profLoginNorm = String(prof.login || '').trim().toLowerCase().replace(/^@/, '');
+  if (profFid === fid || (loginNorm && profLoginNorm === loginNorm) || (isOwner && k === 'OWNER_IATHOR_FP_89VIP089')) {
+   prof.fisherId = isOwner ? OWNER_FISHER_ID : fid;
+   if (tgIdStr) prof.tgLinkedId = tgIdStr;
+   if (tgUsernameClean) prof.tgUsername = tgUsernameClean;
+   prof.tgLinkedAt = Date.now();
+   cloudAuthProfiles.set(k, prof);
+  }
+ }
+
+ return userRec;
 }
 
 function purgeExpiredServerCirclePoints() {
@@ -2776,9 +2980,13 @@ function serializeFullServerState() {
   v: WORKER_VERSION,
   ts: Date.now(),
   counters: Object.fromEntries(regionSequenceCounters.entries()),
+  reserveCounters: Object.fromEntries(regionReserveCounters.entries()),
+  fidAuthMap: Object.fromEntries(Array.from(fisherIdToAuthKeyMap.entries()).slice(-5000)),
   vanity: Array.from(reservedVanityIds).slice(-5000),
   whitelist: Array.from(adminWhitelistStore.values()),
   deviceMap: Object.fromEntries(Array.from(deviceToFisherIdMap.entries()).slice(-5000)),
+  tgMap: Object.fromEntries(Array.from(tgToFisherIdMap.entries()).slice(-5000)),
+  loginMap: Object.fromEntries(Array.from(loginToAuthKeyMap.entries()).slice(-5000)),
   users: Array.from(usersRegistryStore.values()).slice(-5000),
   points: Array.from(circlePointsStore.values()).slice(-1200),
   profiles: Object.fromEntries(Array.from(cloudAuthProfiles.entries()).slice(-3000))
@@ -2791,6 +2999,17 @@ function applyLoadedSysMeta(parsed) {
   for (const [reg, val] of Object.entries(parsed.counters)) {
    const cur = regionSequenceCounters.get(reg) || 0;
    if (Number(val) > cur) regionSequenceCounters.set(reg, Number(val));
+  }
+ }
+ if (parsed.reserveCounters && typeof parsed.reserveCounters === 'object') {
+  for (const [reg, val] of Object.entries(parsed.reserveCounters)) {
+   const cur = regionReserveCounters.get(reg) || 0;
+   if (Number(val) > cur) regionReserveCounters.set(reg, Number(val));
+  }
+ }
+ if (parsed.fidAuthMap && typeof parsed.fidAuthMap === 'object') {
+  for (const [fid, aKey] of Object.entries(parsed.fidAuthMap)) {
+   if (fid && aKey) fisherIdToAuthKeyMap.set(String(fid).toUpperCase(), String(aKey));
   }
  }
  if (Array.isArray(parsed.vanity)) {
@@ -2811,6 +3030,18 @@ function applyLoadedSysMeta(parsed) {
    if (devId && fid && !deviceToFisherIdMap.has(devId)) {
     deviceToFisherIdMap.set(devId, fid);
    }
+  }
+ }
+ if (parsed.tgMap && typeof parsed.tgMap === 'object') {
+  for (const [tgId, fid] of Object.entries(parsed.tgMap)) {
+   if (tgId && fid) {
+    tgToFisherIdMap.set(String(tgId), fid === 'FP_FMP089' ? OWNER_FISHER_ID : fid);
+   }
+  }
+ }
+ if (parsed.loginMap && typeof parsed.loginMap === 'object') {
+  for (const [lg, aKey] of Object.entries(parsed.loginMap)) {
+   if (lg && aKey) loginToAuthKeyMap.set(String(lg).toLowerCase(), String(aKey));
   }
  }
  if (Array.isArray(parsed.users)) {
@@ -2840,7 +3071,11 @@ function applyLoadedSysMeta(parsed) {
   for (const [k, prof] of Object.entries(parsed.profiles)) {
    if (k && prof && typeof prof === 'object') {
     if (!cloudAuthProfiles.has(k)) cloudAuthProfiles.set(k, prof);
-    if (prof.fisherId) reservedVanityIds.add(prof.fisherId);
+    if (prof.fisherId) {
+     reservedVanityIds.add(prof.fisherId);
+     fisherIdToAuthKeyMap.set(String(prof.fisherId).toUpperCase(), k);
+    }
+    if (prof.login) loginToAuthKeyMap.set(String(prof.login).trim().toLowerCase().replace(/^@/, ''), k);
    }
   }
  }
@@ -3247,10 +3482,14 @@ export default {
     ok: true,
     version: WORKER_VERSION,
     ownerId: OWNER_FISHER_ID,
+    ownerSecondaryId: OWNER_SECONDARY_ID,
+    ownerIds: [OWNER_FISHER_ID, OWNER_SECONDARY_ID],
     totalUsers: usersRegistryStore.size,
     users: Array.from(usersRegistryStore.values()),
     points: Array.from(circlePointsStore.values()),
-    counters: Object.fromEntries(regionSequenceCounters.entries())
+    whitelist: Array.from(adminWhitelistStore.values()),
+    counters: Object.fromEntries(regionSequenceCounters.entries()),
+    reserveCounters: Object.fromEntries(regionReserveCounters.entries())
    }), {
     headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
    });
@@ -3340,7 +3579,7 @@ export default {
    });
   }
 
-  // ── 2. Серверное выделение и верификация уникального ID рыбака (/api/id/allocate) + регистрация в Базе Пользователей ──
+  // ── 2. Серверное выделение ID (/api/id/allocate): без регистрации выдаёт временный резерв FP_XXRZYYYY, а при наличии валидного токена логина+пароля возвращает постоянный ID FP_XXAAA001 ──
   if (reqUrl.pathname.endsWith('/api/id/allocate') && request.method === 'POST') {
    if (!checkWorkerRateLimit(`alloc_${clientIp}`, false, 30)) {
     return new Response(JSON.stringify({ ok: false, error: 'Rate limit' }), { status: 429, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
@@ -3349,43 +3588,134 @@ export default {
     await ensurePersistentStateLoaded(env);
     const body = workerSanitizeObject(await request.json());
     const deviceId = String(body.deviceId || '').trim().slice(0, 80);
-    const regCode = workerResolveRegionCode(body.regionCode || body.locAdmin1 || body.locLabel || '89');
+    const cfHint = (request.cf && (request.cf.region || request.cf.city)) ? `${request.cf.region || ''} ${request.cf.city || ''}` : '';
+    const regionSource = (body.hasUserLocation === false && cfHint)
+     ? cfHint
+     : (body.regionCode || body.locAdmin1 || body.locLabel || cfHint || '89');
+    const regCode = workerResolveRegionCode(regionSource);
+    const regionConfirmed = Boolean(body.hasUserLocation || body.regionConfirmed);
     const reqCurId = workerNormalizeFisherId(body.currentFisherId || '', regCode);
+    const reqLoginNorm = String(body.login || '').trim().toLowerCase().replace(/^@/, '');
+    const reqAuthToken = String(body.authTokenHash || '').trim();
 
-    let assignedId = '';
-    // Если устройство уже привязано к уникальному ID — возвращаем его
+    // 1. Проверяем, авторизован ли Владелец (iAthor / iAthor82 + токен пароля FISherman1982*)
+    const isVerifiedOwner = (
+     (reqLoginNorm === 'iathor' || reqLoginNorm === 'iathor82' || reqLoginNorm === 'thorantony82' || isOwnerFisherId(reqCurId)) &&
+     isValidOwnerAdminToken(reqAuthToken)
+    );
+    if (isVerifiedOwner) {
+     const ownerFid = reqCurId === OWNER_SECONDARY_ID ? OWNER_SECONDARY_ID : OWNER_FISHER_ID;
+     const ownerRecord = upsertUserInRegistry({
+      fisherId: ownerFid,
+      deviceId,
+      login: 'iAthor',
+      callsign: 'iAthor',
+      tgId: body.tgId || '',
+      tgUsername: body.tgUsername || '',
+      regionCode: '89',
+      locLabel: body.locLabel || 'Новый Уренгой',
+      platform: body.platform || 'WEB',
+      version: body.version || WORKER_VERSION,
+      lat: body.lat,
+      lon: body.lon,
+      incrementSession: true
+     });
+     await persistSystemMeta(env, ctx);
+     return new Response(JSON.stringify({
+      ok: true,
+      fisherId: ownerFid,
+      ownerIds: [OWNER_FISHER_ID, OWNER_SECONDARY_ID],
+      isTemporaryReserve: false,
+      isRegistered: true,
+      regionCode: '89',
+      isOwner: true,
+      tgId: ownerRecord?.tgId || '',
+      tgUsername: ownerRecord?.tgUsername || '',
+      login: 'iAthor',
+      user: ownerRecord
+     }), { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
+    }
+
+    // 2. Проверяем, зарегистрирован ли рыбак (валидная связка Логин + Пароль в cloudAuthProfiles)
+    let verifiedPermanentId = '';
+    let verifiedProf = null;
+    if (reqLoginNorm && reqAuthToken.startsWith('KTOK_')) {
+     const aKey = loginToAuthKeyMap.get(reqLoginNorm) || `AUTH_${reqLoginNorm}_${reqAuthToken}`;
+     const prof = await loadPersistedAuthProfile(env, aKey);
+     if (prof && prof.authTokenHash && constantTimeEquals(reqAuthToken, prof.authTokenHash) && prof.fisherId && !isTemporaryReserveId(prof.fisherId)) {
+      verifiedPermanentId = workerNormalizeFisherId(prof.fisherId, regCode);
+      verifiedProf = prof;
+     }
+    }
+
+    if (verifiedPermanentId) {
+     const userRecord = upsertUserInRegistry({
+      fisherId: verifiedPermanentId,
+      deviceId,
+      login: verifiedProf.login || body.login || '',
+      callsign: verifiedProf.callsign || body.callsign || verifiedProf.login || 'Рыболов',
+      tgId: verifiedProf.tgLinkedId || body.tgId || '',
+      tgUsername: verifiedProf.tgUsername || body.tgUsername || '',
+      regionCode: verifiedPermanentId.slice(3, 5) || regCode,
+      regionConfirmed: true,
+      profileBackup: body.profileBackup || null,
+      locLabel: body.locLabel || verifiedProf.locLabel || 'Водоём РФ',
+      platform: body.platform || 'WEB',
+      version: body.version || WORKER_VERSION,
+      lat: body.lat,
+      lon: body.lon,
+      incrementSession: true
+     });
+     await persistSystemMeta(env, ctx);
+     return new Response(JSON.stringify({
+      ok: true,
+      fisherId: verifiedPermanentId,
+      isTemporaryReserve: false,
+      isRegistered: true,
+      regionCode: verifiedPermanentId.slice(3, 5) || regCode,
+      tgId: userRecord?.tgId || '',
+      tgUsername: userRecord?.tgUsername || '',
+      login: userRecord?.login || '',
+      user: userRecord
+     }), { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
+    }
+
+    // 3. Пользователь НЕ зарегистрировал логин и пароль -> выдаём/обновляем ВРЕМЕННЫЙ РЕЗЕРВНЫЙ ID формата FP_XXRZYYYY (0001..9999) по устройству и региону!
+    let tempReserveId = '';
     if (deviceId && deviceToFisherIdMap.has(deviceId)) {
      const bound = deviceToFisherIdMap.get(deviceId);
-     if (bound && bound !== OWNER_FISHER_ID) {
-      assignedId = bound;
+     if (bound && isTemporaryReserveId(bound)) {
+      const boundReg = bound.slice(3, 5);
+      if (boundReg !== regCode) {
+       usersRegistryStore.delete(bound);
+       deviceToFisherIdMap.delete(deviceId);
+      } else {
+       tempReserveId = bound;
+      }
      }
     }
-
-    // Если клиент прислал уже сохранённый ID (не VIP и не первый дефолтный FP_..AAA001, либо принадлежащий этому же deviceId)
-    if (!assignedId && reqCurId && !isReservedOrVipFisherId(reqCurId) && !reqCurId.endsWith('AAA001')) {
-     const existingOwner = usersRegistryStore.get(reqCurId);
-     if (!existingOwner || !existingOwner.deviceId || existingOwner.deviceId === deviceId) {
-      assignedId = reqCurId;
+    if (!tempReserveId && reqCurId && isTemporaryReserveId(reqCurId) && reqCurId.slice(3, 5) === regCode) {
+     const exRec = usersRegistryStore.get(reqCurId);
+     if (!exRec || !exRec.deviceId || exRec.deviceId === deviceId) {
+      tempReserveId = reqCurId;
      }
     }
-
-    // Иначе выделяем новый гарантированно уникальный порядковый номер в регионе (FP_89AAA001, FP_89AAA002...)
-    if (!assignedId) {
-     assignedId = allocateNextRegionalFisherId(regCode);
+    if (!tempReserveId) {
+     tempReserveId = allocateNextReserveFisherId(regCode, deviceId);
     }
-
     if (deviceId) {
-     deviceToFisherIdMap.set(deviceId, assignedId);
+     deviceToFisherIdMap.set(deviceId, tempReserveId);
     }
 
-    const userRecord = upsertUserInRegistry({
-     fisherId: assignedId,
+    const tempRecord = upsertUserInRegistry({
+     fisherId: tempReserveId,
      deviceId,
-     login: body.login || '',
-     callsign: body.callsign || 'Рыболов',
-     tgId: body.tgId || '',
-     tgUsername: body.tgUsername || '',
+     login: '',
+     callsign: body.callsign || 'Гость (Резерв)',
+     tgId: '',
+     tgUsername: '',
      regionCode: regCode,
+     regionConfirmed,
      locLabel: body.locLabel || 'Водоём РФ',
      platform: body.platform || 'WEB',
      version: body.version || WORKER_VERSION,
@@ -3398,14 +3728,65 @@ export default {
 
     return new Response(JSON.stringify({
      ok: true,
-     fisherId: assignedId,
+     fisherId: tempReserveId,
+     isTemporaryReserve: true,
+     isRegistered: false,
      regionCode: regCode,
-     user: userRecord
+     tgId: '',
+     tgUsername: '',
+     login: '',
+     user: tempRecord
     }), {
      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
     });
    } catch (e) {
     return new Response(JSON.stringify({ ok: false, error: 'Allocation error' }), { status: 400, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
+   }
+  }
+
+  // ── 2b. Двухэтапная связка автономного ID рыбака (FP_89...) и единого профиля с аккаунтом Telegram (/api/tg/bind) ──
+  if (reqUrl.pathname.endsWith('/api/tg/bind')) {
+   await ensurePersistentStateLoaded(env);
+   if (request.method === 'GET') {
+    const qFid = workerNormalizeFisherId(reqUrl.searchParams.get('fid') || '', '89');
+    const qDev = String(reqUrl.searchParams.get('deviceId') || '').trim();
+    const qTg = String(reqUrl.searchParams.get('tgId') || '').trim();
+    const effFid = qFid || (qTg ? tgToFisherIdMap.get(qTg) : '') || (qDev ? deviceToFisherIdMap.get(qDev) : '') || '';
+    const u = effFid ? usersRegistryStore.get(effFid) : null;
+    return new Response(JSON.stringify({
+     ok: true,
+     bound: Boolean(u && u.tgId),
+     fisherId: u?.fisherId || effFid || '',
+     tgId: u?.tgId || '',
+     tgUsername: u?.tgUsername || '',
+     login: u?.login || ''
+    }), { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
+   }
+   if (request.method === 'POST') {
+    try {
+     const body = workerSanitizeObject(await request.json());
+     const rec = bindTelegramToFisherProfile({
+      fisherId: body.fisherId || '',
+      deviceId: body.deviceId || '',
+      login: body.login || '',
+      tgId: body.tgId || '',
+      tgUsername: body.tgUsername || '',
+      tgFirstName: body.tgFirstName || '',
+      locLabel: body.locLabel || 'Новый Уренгой'
+     });
+     await persistSystemMeta(env, ctx);
+     return new Response(JSON.stringify({
+      ok: true,
+      bound: Boolean(rec && rec.tgId),
+      fisherId: rec?.fisherId || body.fisherId || '',
+      tgId: rec?.tgId || '',
+      tgUsername: rec?.tgUsername || '',
+      login: rec?.login || '',
+      user: rec
+     }), { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
+    } catch (e) {
+     return new Response(JSON.stringify({ ok: false, error: 'Bind error' }), { status: 400, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
+    }
    }
   }
 
@@ -3423,7 +3804,14 @@ export default {
      return new Response(JSON.stringify({ ok: false, error: 'Invalid circle item' }), { status: 400, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
     }
     const now = Date.now();
-    const fid = workerNormalizeFisherId(rawItem.fid || body.fid || '', rawItem.locAdmin1 || rawItem.lb || '89') || allocateNextRegionalFisherId('89');
+    const fid = workerNormalizeFisherId(rawItem.fid || body.fid || '', rawItem.locAdmin1 || rawItem.lb || '89');
+    if (!fid || isTemporaryReserveId(fid)) {
+     return new Response(JSON.stringify({
+      ok: false,
+      code: 'REGISTRATION_REQUIRED',
+      error: 'Сначала зарегистрируйте логин и пароль, чтобы получить постоянный ID рыбака и отправлять точки!'
+     }), { status: 403, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
+    }
     const cleanItem = {
      id: String(rawItem.id || `cir_${now.toString(36)}_${Math.random().toString(36).slice(2, 6)}`).slice(0, 64),
      t: ['circle', 'crew', 'workshop'].includes(rawItem.t) ? rawItem.t : 'circle',
@@ -3609,6 +3997,28 @@ export default {
    }
   }
 
+  if (reqUrl.pathname.endsWith('/auth/check-login') && request.method === 'GET') {
+   await ensurePersistentStateLoaded(env);
+   const rawL = String(reqUrl.searchParams.get('login') || '').trim();
+   const normL = rawL.toLowerCase().replace(/^@/, '');
+   const devId = String(reqUrl.searchParams.get('deviceId') || '').trim();
+   if (!normL || normL.length < 2) {
+    return new Response(JSON.stringify({ ok: false, available: false, reason: 'short' }), { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
+   }
+   if (normL === 'iathor' || normL === 'iathor82' || normL === 'thorantony82') {
+    return new Response(JSON.stringify({ ok: true, available: false, isOwnerLogin: true, message: 'Эксклюзивный логин Владельца (FP_89VIP089)' }), { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
+   }
+   const aKey = loginToAuthKeyMap.get(normL);
+   const prof = aKey ? cloudAuthProfiles.get(aKey) : null;
+   const isMine = Boolean(prof && devId && prof.deviceId === devId);
+   return new Response(JSON.stringify({
+    ok: true,
+    available: !aKey || isMine,
+    isMine,
+    fisherId: isMine ? prof.fisherId : undefined
+   }), { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
+  }
+
   if (reqUrl.pathname.endsWith('/auth/login') && request.method === 'POST') {
    if (!checkWorkerRateLimit(`auth_${clientIp}`, false, 15)) {
     return new Response(JSON.stringify({ ok: false, error: 'Too many login attempts' }), {
@@ -3630,12 +4040,17 @@ export default {
      });
     }
     const existing = (await loadPersistedAuthProfile(env, ident.authKey)) || null;
+    const regUser = usersRegistryStore.get(ident.fisherId) || null;
+    const mergedTgId = String(incomingSnap.tgLinkedId || existing?.tgLinkedId || regUser?.tgId || '').trim();
+    const mergedTgUser = String(incomingSnap.tgUsername || existing?.tgUsername || regUser?.tgUsername || '').trim().replace(/^@/, '');
     const merged = {
      ...(existing || {}),
      ...incomingSnap,
      fisherId: ident.fisherId,
      login: ident.login,
      callsign: ident.isOwner ? 'iAthor' : ((existing && existing.callsign && existing.callsign !== 'Рыболов') ? existing.callsign : (incomingSnap.callsign || ident.callsign)),
+     tgLinkedId: mergedTgId,
+     tgUsername: mergedTgUser,
      pinHash: ident.pinHash,
      authTokenHash: ident.authTokenHash,
      adminSessionToken: ident.isOwner ? OWNER_ADMIN_CONSOLE_TOKEN : '',
@@ -3649,13 +4064,21 @@ export default {
     if (ident.isOwner) {
      adminWhitelistStore.set(OWNER_FISHER_ID, { id: OWNER_FISHER_ID, label: 'iAthor • Антон (Владелец / Супер-Админ)', addedAt: '2026-10-27' });
     }
+    bindTelegramToFisherProfile({
+     fisherId: ident.fisherId,
+     deviceId: incomingSnap.deviceId || body.deviceId || '',
+     login: ident.login,
+     tgId: mergedTgId,
+     tgUsername: mergedTgUser,
+     locLabel: incomingSnap.locLabel || 'Новый Уренгой'
+    });
     upsertUserInRegistry({
      fisherId: ident.fisherId,
      deviceId: incomingSnap.deviceId || body.deviceId || '',
      login: ident.login,
      callsign: merged.callsign,
-     tgId: incomingSnap.tgLinkedId || '',
-     tgUsername: incomingSnap.tgUsername || '',
+     tgId: mergedTgId,
+     tgUsername: mergedTgUser,
      regionCode: body.regionCode || incomingSnap.locAdmin1 || '89',
      locLabel: incomingSnap.locLabel || 'Новый Уренгой',
      platform: body.platform || 'WEB',
@@ -3805,8 +4228,9 @@ export default {
    const body = await request.json();
    const channelId = String(body.channelId || '').trim().toUpperCase().slice(0, 64);
    const cipherPayload = String(body.cipherPayload || '').trim().slice(0, 4096);
-   if (!channelId || !cipherPayload) {
-   return new Response(JSON.stringify({ ok: false }), { status: 400, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
+   const senderFid = workerNormalizeFisherId(body.senderId || '', '89');
+   if (!channelId || !cipherPayload || !senderFid || isTemporaryReserveId(senderFid)) {
+   return new Response(JSON.stringify({ ok: false, code: 'REGISTRATION_REQUIRED', error: 'Сначала зарегистрируйтесь для отправки сообщений' }), { status: 403, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
    }
    const pkt = {
    id: `rel_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
@@ -3893,6 +4317,7 @@ export default {
   }
 
   try {
+  await ensurePersistentStateLoaded(env);
   const update = await request.json();
   if (!BOT_TOKEN) return new Response('OK', { status: 200 });
 
@@ -4075,12 +4500,14 @@ export default {
   const isPrivateChat = chatType === 'private';
   const isChannelPost = Boolean(update.channel_post);
   const userId = msg.from?.id || chatId;
+  const fromUsername = msg.from?.username || '';
+  const fromFullName = [msg.from?.first_name, msg.from?.last_name].filter(Boolean).join(' ') || fromUsername || `Рыбак #${userId}`;
 
   if (!checkWorkerRateLimit(userId, Boolean(msg.location))) {
   return new Response('OK', { status: 200 });
   }
 
-  const session = getUserSession(userId);
+  const session = saveUserSession(userId, { userId, tgUsername: fromUsername, tgName: fromFullName });
 
   async function ensurePrivateReplyKeyboard() {
   if (!isPrivateChat || session.keyboardSent) return;
@@ -4138,21 +4565,61 @@ export default {
   const startParam = cleanText.split(/\s+/)[1] || '';
 
   if (isPrivateChat) {
-  saveUserSession(userId, { keyboardSent: true });
+  saveUserSession(userId, { keyboardSent: true, tgUsername: fromUsername, tgName: fromFullName });
   await configureBotMenusAndCommands(BOT_TOKEN, chatId);
+  }
+
+  // Двухэтапная связка автономного Рыболовного ID (из APK или с сайта) с аккаунтом Telegram пользователя (/start BIND_FP_...)
+  if (/^BIND_/i.test(startParam)) {
+  const rawBindFid = startParam.replace(/^BIND_/i, '').trim();
+  const normBindFid = workerNormalizeFisherId(rawBindFid, '89');
+  if (normBindFid) {
+   const boundRec = bindTelegramToFisherProfile({
+   fisherId: normBindFid,
+   tgId: userId,
+   tgUsername: fromUsername,
+   tgFirstName: fromFullName
+   });
+   await persistSystemMeta(env, ctx);
+   const tgDisp = fromUsername ? `@${fromUsername}` : `ID ${userId}`;
+   const loginLine = boundRec?.login ? `🔑 *Единый логин профиля:* \`${boundRec.login}\`\n` : '';
+   await tgApi(BOT_TOKEN, 'sendMessage', {
+   chat_id: chatId,
+   text:
+    `🔗 *Связка выполнена! Ваш рыболовный ID и Telegram объединены воедино.*\n\n` +
+    `🆔 *Ваш единый Рыболовный ID:* \`${boundRec?.fisherId || normBindFid}\`\n` +
+    `✈️ *Аккаунт Telegram:* ${tgDisp}\n` +
+    loginLine +
+    `\nТеперь в мобильном приложении (APK), на сайте \`klevpro.ru\` и в боте \`@KlevProClubBot\` у вас единый профиль, общие точки Круга, Экипажи и настройки!`,
+   parse_mode: 'Markdown',
+   reply_markup: BOT_REPLY_KEYBOARD
+   });
+  }
   }
 
   const kploc = decodeKplocToken(startParam);
   if (kploc) {
+  let bindNote = '';
+  if (isPrivateChat && kploc.fisherId && !tgToFisherIdMap.has(String(userId))) {
+   const bRec = bindTelegramToFisherProfile({
+   fisherId: kploc.fisherId,
+   tgId: userId,
+   tgUsername: fromUsername,
+   tgFirstName: fromFullName
+   });
+   await persistSystemMeta(env, ctx);
+   bindNote = `\n🔗 *Ваш ID \`${bRec?.fisherId || kploc.fisherId}\` связан с вашим Telegram!*`;
+  }
   const fish = BOT_FISH_CATALOG.find(f => f.id === kploc.fishId) || BOT_FISH_CATALOG[0];
   const near = findNearestSettlement(kploc.lat, kploc.lon);
   const label = near.distKm <= 50 ? near.name : `${kploc.lat.toFixed(3)}°N, ${kploc.lon.toFixed(3)}°E`;
   const city = buildSpotContext(kploc.lat, kploc.lon, label);
   saveUserSession(userId, { lat: city.lat, lon: city.lon, cityName: city.name, fishId: fish.id });
+  await persistSystemMeta(env, ctx);
   if (isPrivateChat) {
   await tgApi(BOT_TOKEN, 'sendMessage', {
   chat_id: chatId,
-  text: `📍 Загружена точка: *${city.name}* • *${fish.name}*`,
+  text: `📍 Загружена точка: *${city.name}* • *${fish.name}*${bindNote}`,
   parse_mode: 'Markdown',
   reply_markup: BOT_REPLY_KEYBOARD
   });
