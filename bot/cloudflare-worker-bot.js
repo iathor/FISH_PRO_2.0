@@ -1,11 +1,289 @@
-// @file bot/cloudflare-worker-bot.js — @KlevProClubBot (V.2.0.169)
-// Компактная сборка для Cloudflare Workers (115 рыб, 491 водоём, 609 городов РФ)
+// @file bot/cloudflare-worker-bot.js — @KlevProClubBot (V.2.0.172)
+// Компактная сборка для Cloudflare Workers (115 рыб, 491 водоём, 609 городов РФ + E2EE Zero-Storage Relay + V3 Binary KP1_ + Региональные ID FP_89AAA001 & FP_FMP089 + Security Hardening)
 
 const rateBuckets = new Map();
+const transitBoxes = new Map(); // Транзитная очередь зашифрованных пакетов (Zero-Storage: удаляется при доставке/по TTL)
+const weatherGridCache = new Map(); // Кэш погоды бота по гео-сетке 0.1° × 0.1° (~8-10 км) на 20 минут
+const weatherFullGridCache = new Map(); // Полный Edge-кэш Open-Meteo (past_days=7&forecast_days=10) по сетке 0.1° × 0.1° на 30 минут
+const regionSequenceCounters = new Map(); // Счётчики порядковых номеров рыбаков по регионам РФ (0 -> AAA001 .. 998 -> AAA999, 999 -> AAB001)
+const reservedVanityIds = new Set(['FP_FMP089']); // Забронированные и VIP / «красивые» ID рыбаков
+let persistentStateLoaded = false;
 
-function checkWorkerRateLimit(userId, isGeo = false) {
+const OWNER_FISHER_ID = 'FP_FMP089';
+const adminWhitelistStore = new Map([
+ [OWNER_FISHER_ID, { id: OWNER_FISHER_ID, label: "iAthor82 • Антон (Владелец / Супер-Админ)", addedAt: "2026-10-27" }]
+]);
+
+const WORKER_REGION_RULES = [
+ ['сахалин','65'],['курил','65'],['якут','14'],['саха (якут','14'],['костром','44'],['томск','70'],['колпашево','70'],['омск','55'],
+ ['ямало','89'],['янао','89'],['уренгой','89'],['салехард','89'],['надым','89'],['ноябрьск','89'],['тарко-сале','89'],['тазовск','89'],['губкинск','89'],['муравленко','89'],
+ ['ненецк','83'],['нарьян-мар','83'],['ханты','86'],['хмао','86'],['югра','86'],['сургут','86'],['нижневартовск','86'],
+ ['адыге','01'],['майкоп','01'],['башкорт','02'],['башкир','02'],['уфа','02'],['бурят','03'],['улан-удэ','03'],
+ ['республика алтай','04'],['горно-алтайск','04'],['алтайск','22'],['барнаул','22'],['дагестан','05'],['махачкал','05'],['дербент','05'],
+ ['ингушет','06'],['магас','06'],['кабардино','07'],['нальчик','07'],['калмык','08'],['элист','08'],['карачаево','09'],['черкесск','09'],
+ ['карели','10'],['петрозаводск','10'],['коми','11'],['сыктывкар','11'],['воркут','11'],['усинск','11'],['марий эл','12'],['йошкар-ол','12'],
+ ['мордов','13'],['саранск','13'],['осети','15'],['алани','15'],['татарстан','16'],['казан','16'],['челны','16'],['тыва','17'],['кызыл','17'],
+ ['удмурт','18'],['ижевск','18'],['хакаси','19'],['абакан','19'],['чечен','20'],['грозн','20'],['чуваш','21'],['чебоксар','21'],
+ ['краснодар','23'],['сочи','23'],['кубан','23'],['анап','23'],['красноярск','24'],['норильск','24'],['дудинк','24'],
+ ['приморск','25'],['владивосток','25'],['находк','25'],['ставропол','26'],['пятигорск','26'],['хабаровск','27'],['комсомольск','27'],
+ ['амурск','28'],['благовещенск','28'],['архангел','29'],['северодвинск','29'],['астрахан','30'],['ахтуб','30'],['харабал','30'],
+ ['белгород','31'],['брянск','32'],['владимир','33'],['волгоград','34'],['вологод','35'],['воронеж','36'],['ивановск','37'],['иркутск','38'],['братск','38'],
+ ['калининград','39'],['калуж','40'],['камчат','41'],['кемеров','42'],['кировск','43'],['киров','43'],['курган','45'],['шадринск','45'],['заурал','45'],
+ ['курск','46'],['ленинград','47'],['выборг','47'],['липецк','48'],['магадан','49'],['московск','50'],['подмосков','50'],['москва','77'],['зеленоград','77'],
+ ['мурманск','51'],['териберк','51'],['нижегород','52'],['новгородск','53'],['великий новгород','53'],['новосибирск','54'],['оренбург','56'],
+ ['орловск','57'],['пенз','58'],['перм','59'],['псков','60'],['ростовск','61'],['ростов-на-дону','61'],['таганрог','61'],['рязан','62'],
+ ['самар','63'],['тольятти','63'],['саратов','64'],['свердловск','66'],['екатеринбург','66'],['смоленск','67'],['тамбов','68'],['твер','69'],
+ ['тульск','71'],['тюмен','72'],['тобольск','72'],['ульяновск','73'],['челябинск','74'],['магнитогорск','74'],['забайкал','75'],['чита','75'],
+ ['ярослав','76'],['рыбинск','76'],['санкт-петербург','78'],['петербург','78'],['еврейск','79'],['биробиджан','79'],
+ ['донецк','80'],['днр','80'],['луганск','81'],['лнр','81'],['севастопол','92'],['крым','82'],['симферопол','82'],['ялт','82'],
+ ['херсон','84'],['запорож','85'],['чукот','87'],['анадыр','87']
+];
+
+function workerFnv1a32(str = '') {
+ let h = 0x811c9dc5;
+ const s = String(str || '');
+ for (let i = 0; i < s.length; i++) {
+  h ^= s.charCodeAt(i);
+  h = Math.imul(h, 0x01000193);
+ }
+ return h >>> 0;
+}
+
+function workerSafeJsonParse(rawStr, fallback = null) {
+ if (!rawStr || typeof rawStr !== 'string') return fallback;
+ try {
+  return JSON.parse(rawStr, (k, v) => (k === '__proto__' || k === 'constructor' || k === 'prototype') ? undefined : v);
+ } catch (e) {
+  return fallback;
+ }
+}
+
+function workerSanitizeObject(obj) {
+ if (!obj || typeof obj !== 'object') return {};
+ try {
+  return workerSafeJsonParse(JSON.stringify(obj), {});
+ } catch (e) {
+  return {};
+ }
+}
+
+function constantTimeEquals(a = '', b = '') {
+ const sa = String(a || '');
+ const sb = String(b || '');
+ if (sa.length !== sb.length) return false;
+ let diff = 0;
+ for (let i = 0; i < sa.length; i++) {
+  diff |= sa.charCodeAt(i) ^ sb.charCodeAt(i);
+ }
+ return diff === 0;
+}
+
+function workerDeriveAuthToken(loginNorm = '', passClean = '') {
+ const cleanL = String(loginNorm || '').trim().toLowerCase().replace(/^@/, '');
+ const cleanP = String(passClean || '').trim();
+ let h1 = workerFnv1a32(`klev_auth_v2::${cleanL}::${cleanP}::KlevProCircle_v2.1_Salt_RU`);
+ let h2 = workerFnv1a32(`salt2::${cleanP}::${cleanL}::${h1}`);
+ for (let i = 0; i < 64; i++) {
+  h1 = workerFnv1a32(`${h1}:${h2}:${i}:${cleanL}`);
+  h2 = workerFnv1a32(`${h2}:${h1}:${i}:KlevProCircle_v2.1_Salt_RU`);
+ }
+ return `KTOK_${h1.toString(16).toUpperCase().padStart(8, '0')}_${h2.toString(16).toUpperCase().padStart(8, '0')}`;
+}
+
+function workerResolveRegionCode(rawRegionOrSnap = '') {
+ if (typeof rawRegionOrSnap === 'string' && /^\d{2}$/.test(rawRegionOrSnap.trim())) {
+  const d = rawRegionOrSnap.trim();
+  return d === '00' ? '89' : d;
+ }
+ const text = typeof rawRegionOrSnap === 'object' && rawRegionOrSnap
+  ? `${rawRegionOrSnap.locAdmin1 || ''} ${rawRegionOrSnap.locLabel || ''} ${rawRegionOrSnap.locAdmin2 || ''}`
+  : String(rawRegionOrSnap || '');
+ const norm = text.toLowerCase().replace(/ё/g, 'е');
+ for (const [kw, code] of WORKER_REGION_RULES) {
+  if (norm.includes(kw)) return code;
+ }
+ return '89';
+}
+
+function workerFormatFisherIdFromIndex(regionCode = '89', index0Based = 0) {
+ const regDigits = String(regionCode || '89').replace(/\D/g, '').padStart(2, '0').slice(-2);
+ const reg = regDigits === '00' ? '89' : regDigits;
+ const idx = Math.max(0, Math.floor(Number(index0Based) || 0));
+ const num = (idx % 999) + 1; // Строго 001..999 (без 000!)
+ const letterBlock = Math.floor(idx / 999) % 17576;
+ const c1 = String.fromCharCode(65 + (Math.floor(letterBlock / 676) % 26));
+ const c2 = String.fromCharCode(65 + (Math.floor(letterBlock / 26) % 26));
+ const c3 = String.fromCharCode(65 + (letterBlock % 26));
+ return `FP_${reg}${c1}${c2}${c3}${String(num).padStart(3, '0')}`;
+}
+
+function workerDecodeFisherIdFrom32Bit(val32) {
+ const v = (Number(val32) >>> 0) & 0x7fffffff;
+ const num = (v % 999) + 1;
+ const rem = Math.floor(v / 999);
+ const lIdx = rem % 17576;
+ const reg = Math.floor(rem / 17576);
+ const c1 = String.fromCharCode(65 + (Math.floor(lIdx / 676) % 26));
+ const c2 = String.fromCharCode(65 + (Math.floor(lIdx / 26) % 26));
+ const c3 = String.fromCharCode(65 + (lIdx % 26));
+ const numStr = String(num).padStart(3, '0');
+ if (reg <= 0) return `FP_${c1}${c2}${c3}${numStr}`;
+ return `FP_${String(Math.min(99, reg)).padStart(2, '0')}${c1}${c2}${c3}${numStr}`;
+}
+
+function workerNormalizeFisherId(rawStr = '', fallbackRegion = '89') {
+ const clean = String(rawStr || '').trim().toUpperCase().replace(/-/g, '_');
+ if (!clean) return '';
+ if (clean === 'FP_89A01' || clean === 'FP_FMP089' || clean === 'FMP089') return OWNER_FISHER_ID;
+ const regMatch = clean.match(/^(?:FP_)?(\d{2})([A-Z]{3})(\d{3})$/);
+ if (regMatch) {
+  const numVal = Math.max(1, Math.min(999, parseInt(regMatch[3], 10) || 1));
+  return `FP_${regMatch[1]}${regMatch[2]}${String(numVal).padStart(3, '0')}`;
+ }
+ const vipMatch = clean.match(/^(?:FP_)?([A-Z]{3})(\d{3})$/);
+ if (vipMatch) {
+  const numVal = Math.max(1, Math.min(999, parseInt(vipMatch[2], 10) || 1));
+  return `FP_${vipMatch[1]}${String(numVal).padStart(3, '0')}`;
+ }
+ return '';
+}
+
+function allocateNextRegionalFisherId(regionCode = '89') {
+ const reg = workerResolveRegionCode(regionCode);
+ let seq = regionSequenceCounters.get(reg) || 0;
+ let candidate = workerFormatFisherIdFromIndex(reg, seq);
+ while (reservedVanityIds.has(candidate)) {
+  seq += 1;
+  candidate = workerFormatFisherIdFromIndex(reg, seq);
+ }
+ regionSequenceCounters.set(reg, seq + 1);
+ reservedVanityIds.add(candidate);
+ return candidate;
+}
+
+const OWNER_TOKEN_HASH = workerDeriveAuthToken('iathor82', 'FISherman1982*');
+
+function resolveWorkerAccountIdentity(rawLogin = '', rawPassword = '', rawTokenHash = '', rawRegionCode = '89', snap = null) {
+ const loginClean = String(rawLogin || '').trim().slice(0, 48);
+ const loginNorm = loginClean.toLowerCase().replace(/^@/, '');
+ const passClean = String(rawPassword || '').trim();
+ const incomingTok = String(rawTokenHash || '').trim();
+ const expectedOwnerTok = OWNER_TOKEN_HASH;
+
+ const isOwner = (
+  (loginNorm === 'iathor82' || loginNorm === 'iathor' || loginNorm === 'thorantony82') &&
+  (
+   passClean === 'FISherman1982*' ||
+   passClean.toLowerCase() === 'fisherman1982*' ||
+   (incomingTok && constantTimeEquals(incomingTok, expectedOwnerTok))
+  )
+ );
+
+ if (isOwner) {
+  return {
+   ok: true,
+   isOwner: true,
+   authKey: 'OWNER_IATHOR82_FP_FMP089',
+   fisherId: OWNER_FISHER_ID,
+   login: 'iAthor82',
+   callsign: 'iAthor82',
+   pinHash: 'owner_iathor82_1982',
+   authTokenHash: expectedOwnerTok
+  };
+ }
+
+ if (!loginNorm || (passClean.length < 3 && !incomingTok.startsWith('KTOK_'))) {
+  return { ok: false };
+ }
+
+ const authTokenHash = incomingTok.startsWith('KTOK_')
+  ? incomingTok
+  : workerDeriveAuthToken(loginNorm, passClean);
+ const pinHash = passClean
+  ? workerFnv1a32(`pin::${passClean}`).toString(16)
+  : String(snap?.pinHash || workerFnv1a32(authTokenHash).toString(16));
+ const authKey = `AUTH_${loginNorm}_${authTokenHash}`;
+ const existingProf = cloudAuthProfiles.get(authKey);
+ const regCode = workerResolveRegionCode(rawRegionCode || snap);
+ let fisherId = existingProf?.fisherId ? workerNormalizeFisherId(existingProf.fisherId, regCode) : '';
+ if (!fisherId) {
+  fisherId = allocateNextRegionalFisherId(regCode);
+ }
+
+ return {
+  ok: true,
+  isOwner: false,
+  authKey,
+  fisherId,
+  login: loginClean,
+  callsign: loginClean,
+  pinHash,
+  authTokenHash
+ };
+}
+
+const cloudAuthProfiles = new Map([
+ ['OWNER_IATHOR82_FP_FMP089', {
+  fisherId: OWNER_FISHER_ID,
+  login: 'iAthor82',
+  callsign: 'iAthor82',
+  pinHash: 'owner_iathor82_1982',
+  authTokenHash: OWNER_TOKEN_HASH,
+  ownerUnlocked: true,
+  isAdmin: true,
+  adminShowAllCrews: true,
+  appMode: 'pro',
+  theme: 'auto',
+  lat: 66.0833,
+  lon: 76.6333,
+  locLabel: 'Новый Уренгой',
+  locAdmin1: 'Ямало-Ненецкий АО',
+  locAdmin2: 'Новый Уренгой',
+  water: 'small_river',
+  method: 'spin_micro',
+  favorites: ['pike', 'perch', 'burbot', 'peled', 'dace', 'chir', 'pizhyan', 'ide'],
+  unlockedCrewKeys: [],
+  notifSettings: { sos: true, crew: true, circle: true, workshop: true, dm: true, sound: true },
+  updatedAt: 1730000000000
+ }]
+]);
+
+const CORS_HEADERS = {
+ 'Access-Control-Allow-Origin': '*',
+ 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+ 'Access-Control-Allow-Headers': 'Content-Type',
+ 'X-Content-Type-Options': 'nosniff',
+ 'X-Frame-Options': 'SAMEORIGIN',
+ 'Referrer-Policy': 'strict-origin-when-cross-origin'
+};
+
+function cleanupTransitBoxes() {
+ const cutoff = Date.now() - 24 * 3600 * 1000;
+ for (const [boxKey, arr] of transitBoxes.entries()) {
+  const fresh = arr.filter(p => p && p.ts > cutoff);
+  if (fresh.length === 0) transitBoxes.delete(boxKey);
+  else transitBoxes.set(boxKey, fresh.slice(-50));
+ }
+ if (transitBoxes.size > 2000) {
+  const oldestKey = transitBoxes.keys().next().value;
+  if (oldestKey) transitBoxes.delete(oldestKey);
+ }
+ if (cloudAuthProfiles.size > 5000) {
+  for (const k of cloudAuthProfiles.keys()) {
+   if (k !== 'OWNER_IATHOR82_FP_FMP089') {
+    cloudAuthProfiles.delete(k);
+    break;
+   }
+  }
+ }
+ if (rateBuckets.size > 4000) {
+  rateBuckets.clear();
+ }
+}
+
+function checkWorkerRateLimit(userId, isGeo = false, maxPerMin = 28) {
  const now = Date.now();
- const key = String(userId || 'anon');
+ const key = String(userId || 'anon').slice(0, 64);
  let b = rateBuckets.get(key);
  if (!b || now - b.start >= 60000) {
   b = { start: now, total: 0, geo: 0 };
@@ -13,7 +291,7 @@ function checkWorkerRateLimit(userId, isGeo = false) {
  }
  b.total += 1;
  if (isGeo) b.geo += 1;
- if (b.total > 24) return false;
+ if (b.total > maxPerMin) return false;
  if (isGeo && b.geo > 8) return false;
  return true;
 }
@@ -1960,10 +2238,16 @@ async function resolveQueryCityAndFish(rawQuery, session = null) {
 }
 
 async function fetchLiveSpotWeather(lat, lon) {
+ const gridKey = `${Number(lat).toFixed(1)}_${Number(lon).toFixed(1)}`;
+ const cachedGrid = weatherGridCache.get(gridKey);
+ if (cachedGrid && Date.now() - cachedGrid.ts < 1200000) {
+  return cachedGrid.data;
+ }
  try {
-  const url = `https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${lat.toFixed(4)}&lon=${lon.toFixed(4)}`;
+  const url = `https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${Number(lat).toFixed(2)}&lon=${Number(lon).toFixed(2)}`;
   const res = await fetch(url, {
-  headers: { 'User-Agent': 'KlevProClubBot/2.0.169 (https://klevpro.ru)' }
+  headers: { 'User-Agent': 'KlevProClubBot/2.0.172 (https://klevpro.ru)' },
+  cf: { cacheTtl: 1200, cacheEverything: true }
   });
   if (res.ok) {
   const data = await res.json();
@@ -1989,11 +2273,13 @@ async function fetchLiveSpotWeather(lat, lon) {
   const pMm48 = Math.round(((d48?.air_pressure_at_sea_level || 1013) * 0.750062) - elev / 11.5);
   const wind48 = Math.round((d48?.wind_speed ?? wind24) * 10) / 10;
 
-  return {
+  const resultObj = {
   tAir, waterTemp, press: pMm, wind, iceText,
   day2: { tAir: tAir24, waterTemp: Math.max(0.4, Math.round((waterTemp * 0.8 + (tAir24 * 0.52 + 2.4) * 0.2) * 10) / 10), press: pMm24, wind: wind24 },
   day3: { tAir: tAir48, waterTemp: Math.max(0.4, Math.round((waterTemp * 0.7 + (tAir48 * 0.52 + 2.4) * 0.3) * 10) / 10), press: pMm48, wind: wind48 }
   };
+  weatherGridCache.set(gridKey, { ts: Date.now(), data: resultObj });
+  return resultObj;
   }
   }
  } catch (e) {}
@@ -2322,12 +2608,411 @@ function buildHelpAndGroupsCard(webappUrl, isPrivateChat = true) {
  return { text, replyMarkup: { inline_keyboard } };
 }
 
+
+// ── Zero-Cost ($0) Гибридный адаптер хранения: In-Memory Map + авто-поддержка бесплатных Cloudflare D1 (env.DB) / KV (env.KV) ──
+async function ensurePersistentStateLoaded(env) {
+ if (persistentStateLoaded || !env) return;
+ persistentStateLoaded = true;
+ try {
+  if (env.DB && typeof env.DB.prepare === 'function') {
+   await env.DB.prepare('CREATE TABLE IF NOT EXISTS klev_kv (k TEXT PRIMARY KEY, v TEXT, updated_at INTEGER)').run();
+   const metaRow = await env.DB.prepare('SELECT v FROM klev_kv WHERE k = ?').bind('SYS_META_V1').first();
+   if (metaRow && metaRow.v) {
+    const parsed = workerSafeJsonParse(metaRow.v, null);
+    if (parsed) applyLoadedSysMeta(parsed);
+   }
+   return;
+  }
+  if (env.KV && typeof env.KV.get === 'function') {
+   const raw = await env.KV.get('SYS_META_V1');
+   if (raw) {
+    const parsed = workerSafeJsonParse(raw, null);
+    if (parsed) applyLoadedSysMeta(parsed);
+   }
+  }
+ } catch (e) {}
+}
+
+function applyLoadedSysMeta(parsed) {
+ if (!parsed || typeof parsed !== 'object') return;
+ if (parsed.counters && typeof parsed.counters === 'object') {
+  for (const [reg, val] of Object.entries(parsed.counters)) {
+   const cur = regionSequenceCounters.get(reg) || 0;
+   if (Number(val) > cur) regionSequenceCounters.set(reg, Number(val));
+  }
+ }
+ if (Array.isArray(parsed.vanity)) {
+  for (const vid of parsed.vanity) {
+   if (typeof vid === 'string' && vid) reservedVanityIds.add(vid);
+  }
+ }
+ if (Array.isArray(parsed.whitelist)) {
+  for (const item of parsed.whitelist) {
+   if (item && item.id) adminWhitelistStore.set(item.id, item);
+  }
+ }
+}
+
+async function persistSystemMeta(env) {
+ if (!env) return;
+ const payloadStr = JSON.stringify({
+  counters: Object.fromEntries(regionSequenceCounters.entries()),
+  vanity: Array.from(reservedVanityIds).slice(-2000),
+  whitelist: Array.from(adminWhitelistStore.values())
+ });
+ try {
+  if (env.DB && typeof env.DB.prepare === 'function') {
+   await env.DB.prepare('INSERT OR REPLACE INTO klev_kv (k, v, updated_at) VALUES (?, ?, ?)').bind('SYS_META_V1', payloadStr, Date.now()).run();
+  } else if (env.KV && typeof env.KV.put === 'function') {
+   await env.KV.put('SYS_META_V1', payloadStr);
+  }
+ } catch (e) {}
+}
+
+async function loadPersistedAuthProfile(env, authKey) {
+ if (cloudAuthProfiles.has(authKey)) return cloudAuthProfiles.get(authKey);
+ if (!env || !authKey) return null;
+ try {
+  if (env.DB && typeof env.DB.prepare === 'function') {
+   const row = await env.DB.prepare('SELECT v FROM klev_kv WHERE k = ?').bind(authKey).first();
+   if (row && row.v) {
+    const prof = workerSafeJsonParse(row.v, null);
+    if (prof) {
+     cloudAuthProfiles.set(authKey, prof);
+     if (prof.fisherId) reservedVanityIds.add(prof.fisherId);
+     return prof;
+    }
+   }
+  } else if (env.KV && typeof env.KV.get === 'function') {
+   const raw = await env.KV.get(authKey);
+   if (raw) {
+    const prof = workerSafeJsonParse(raw, null);
+    if (prof) {
+     cloudAuthProfiles.set(authKey, prof);
+     if (prof.fisherId) reservedVanityIds.add(prof.fisherId);
+     return prof;
+    }
+   }
+  }
+ } catch (e) {}
+ return null;
+}
+
+async function persistAuthProfile(env, authKey, profileObj) {
+ if (!authKey || !profileObj) return;
+ cloudAuthProfiles.set(authKey, profileObj);
+ if (!env) return;
+ const rawStr = JSON.stringify(profileObj);
+ try {
+  if (env.DB && typeof env.DB.prepare === 'function') {
+   await env.DB.prepare('INSERT OR REPLACE INTO klev_kv (k, v, updated_at) VALUES (?, ?, ?)').bind(authKey, rawStr, Date.now()).run();
+  } else if (env.KV && typeof env.KV.put === 'function') {
+   await env.KV.put(authKey, rawStr);
+  }
+ } catch (e) {}
+}
+
 export default {
- async fetch(request, env) {
-  const BOT_TOKEN = env.BOT_TOKEN || '';
-  const WEBHOOK_SECRET = env.WEBHOOK_SECRET || '';
-  const WEBAPP_URL = (env.WEBAPP_URL || 'https://klevpro.ru/').replace(/\/?$/, '/');
+ async fetch(request, env, ctx) {
+  const BOT_TOKEN = (env && env.BOT_TOKEN) || '';
+  const WEBHOOK_SECRET = (env && env.WEBHOOK_SECRET) || '';
+  const WEBAPP_URL = ((env && env.WEBAPP_URL) || 'https://klevpro.ru/').replace(/\/?$/, '/');
   const reqUrl = new URL(request.url);
+
+  if (request.method === 'OPTIONS') {
+  return new Response(null, { status: 204, headers: CORS_HEADERS });
+  }
+
+  const clientIp = request.headers.get('CF-Connecting-IP') || 'anon_ip';
+
+  // ── Эндпоинт 10-км гео-сетки погоды (/weather?lat=...&lon=...) с двойным кэшем (Cloudflare Edge + Memory, TTL 30 мин) ──
+  if (reqUrl.pathname.endsWith('/weather') && request.method === 'GET') {
+   const rawLat = parseFloat(reqUrl.searchParams.get('lat') || '66.1');
+   const rawLon = parseFloat(reqUrl.searchParams.get('lon') || '76.6');
+   const gLat = (Math.round((Number.isFinite(rawLat) ? Math.max(-85, Math.min(85, rawLat)) : 66.1) * 10) / 10).toFixed(1);
+   const gLon = (Math.round((Number.isFinite(rawLon) ? Math.max(-180, Math.min(180, rawLon)) : 76.6) * 10) / 10).toFixed(1);
+   const gridKey = `${gLat}_${gLon}`;
+   const now = Date.now();
+
+   const memHit = weatherFullGridCache.get(gridKey);
+   if (memHit && now - memHit.ts < 1800000) {
+    return new Response(memHit.rawJson, {
+     headers: {
+      ...CORS_HEADERS,
+      'Content-Type': 'application/json;charset=utf-8',
+      'Cache-Control': 'public, max-age=1800, s-maxage=1800',
+      'X-Klev-Grid': gridKey,
+      'X-Klev-Cache': 'HIT-MEM'
+     }
+    });
+   }
+
+   const cacheKeyUrl = `${reqUrl.origin}/weather?grid=${gridKey}`;
+   const edgeCache = (typeof caches !== 'undefined' && caches.default) ? caches.default : null;
+   if (edgeCache) {
+    try {
+     const edgeHit = await edgeCache.match(cacheKeyUrl);
+     if (edgeHit) {
+      const bodyTxt = await edgeHit.text();
+      weatherFullGridCache.set(gridKey, { ts: now, rawJson: bodyTxt });
+      return new Response(bodyTxt, {
+       headers: {
+        ...CORS_HEADERS,
+        'Content-Type': 'application/json;charset=utf-8',
+        'Cache-Control': 'public, max-age=1800, s-maxage=1800',
+        'X-Klev-Grid': gridKey,
+        'X-Klev-Cache': 'HIT-EDGE'
+       }
+      });
+     }
+    } catch (e) {}
+   }
+
+   if (!checkWorkerRateLimit(`wx_${clientIp}`, false, 45)) {
+    return new Response(JSON.stringify({ ok: false, error: 'Rate limit' }), {
+     status: 429,
+     headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
+    });
+   }
+
+   try {
+    const omUrl = `https://api.open-meteo.com/v1/forecast?latitude=${gLat}&longitude=${gLon}&past_days=7&hourly=temperature_2m,surface_pressure,wind_speed_10m,wind_direction_10m,cloud_cover,precipitation&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset,wind_speed_10m_max,wind_direction_10m_dominant&forecast_days=10&wind_speed_unit=ms&timezone=auto`;
+    const upstreamRes = await fetch(omUrl, {
+     headers: { 'User-Agent': 'KlevProClubBot/2.0.172 (https://klevpro.ru)' },
+     cf: { cacheTtl: 1800, cacheEverything: true }
+    });
+    if (upstreamRes && upstreamRes.ok) {
+     const rawJson = await upstreamRes.text();
+     if (weatherFullGridCache.size > 600) {
+      const oldest = weatherFullGridCache.keys().next().value;
+      if (oldest) weatherFullGridCache.delete(oldest);
+     }
+     weatherFullGridCache.set(gridKey, { ts: now, rawJson });
+     const responseHeaders = {
+      ...CORS_HEADERS,
+      'Content-Type': 'application/json;charset=utf-8',
+      'Cache-Control': 'public, max-age=1800, s-maxage=1800',
+      'X-Klev-Grid': gridKey,
+      'X-Klev-Cache': 'MISS-STORED'
+     };
+     if (edgeCache) {
+      const cacheResp = new Response(rawJson, { headers: responseHeaders });
+      if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(edgeCache.put(cacheKeyUrl, cacheResp).catch(() => {}));
+      else await edgeCache.put(cacheKeyUrl, cacheResp).catch(() => {});
+     }
+     return new Response(rawJson, { headers: responseHeaders });
+    }
+   } catch (e) {}
+   return new Response(JSON.stringify({ ok: false, error: 'Upstream weather unavailable' }), {
+    status: 502,
+    headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
+   });
+  }
+
+  if (reqUrl.pathname.endsWith('/auth/login') && request.method === 'POST') {
+   if (!checkWorkerRateLimit(`auth_${clientIp}`, false, 15)) {
+    return new Response(JSON.stringify({ ok: false, error: 'Too many login attempts' }), {
+     status: 429,
+     headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
+    });
+   }
+   try {
+    await ensurePersistentStateLoaded(env);
+    const body = workerSanitizeObject(await request.json());
+    const incomingSnap = workerSanitizeObject(body.profileSnapshot);
+    const preCheckKey = body.login ? `AUTH_${String(body.login).trim().toLowerCase().replace(/^@/, '')}_${body.authTokenHash && String(body.authTokenHash).startsWith('KTOK_') ? body.authTokenHash : workerDeriveAuthToken(body.login, body.password)}` : '';
+    if (preCheckKey) await loadPersistedAuthProfile(env, preCheckKey);
+    const ident = resolveWorkerAccountIdentity(body.login, body.password, body.authTokenHash, body.regionCode, incomingSnap);
+    if (!ident.ok) {
+     return new Response(JSON.stringify({ ok: false, error: 'Укажите логин и пароль (от 3 символов)' }), {
+      status: 400,
+      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
+     });
+    }
+    const existing = (await loadPersistedAuthProfile(env, ident.authKey)) || null;
+    const merged = {
+     ...(existing || {}),
+     ...incomingSnap,
+     fisherId: ident.fisherId,
+     login: ident.login,
+     callsign: (existing && existing.callsign && existing.callsign !== 'Рыболов') ? existing.callsign : (incomingSnap.callsign || ident.callsign),
+     pinHash: ident.pinHash,
+     authTokenHash: ident.authTokenHash,
+     ownerUnlocked: ident.isOwner ? true : Boolean(existing?.ownerUnlocked),
+     isAdmin: ident.isOwner ? true : adminWhitelistStore.has(ident.fisherId),
+     adminShowAllCrews: ident.isOwner ? (existing?.adminShowAllCrews ?? true) : Boolean(existing?.adminShowAllCrews),
+     updatedAt: Date.now()
+    };
+    delete merged.authShadow;
+    await persistAuthProfile(env, ident.authKey, merged);
+    if (ident.isOwner) {
+     adminWhitelistStore.set(OWNER_FISHER_ID, { id: OWNER_FISHER_ID, label: 'iAthor82 • Антон (Владелец / Супер-Админ)', addedAt: '2026-10-27' });
+    }
+    await persistSystemMeta(env);
+    return new Response(JSON.stringify({
+     ok: true,
+     found: Boolean(existing),
+     isOwner: ident.isOwner,
+     fisherId: ident.fisherId,
+     login: ident.login,
+     pinHash: ident.pinHash,
+     profile: merged,
+     whitelist: Array.from(adminWhitelistStore.values())
+    }), {
+     headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
+    });
+   } catch (e) {
+    return new Response(JSON.stringify({ ok: false, error: 'Auth error' }), {
+     status: 400,
+     headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
+    });
+   }
+  }
+
+  if (reqUrl.pathname.endsWith('/auth/sync') && request.method === 'POST') {
+   if (!checkWorkerRateLimit(`sync_${clientIp}`, false, 30)) {
+    return new Response(JSON.stringify({ ok: false, error: 'Rate limit exceeded' }), {
+     status: 429,
+     headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
+    });
+   }
+   try {
+    await ensurePersistentStateLoaded(env);
+    const body = workerSanitizeObject(await request.json());
+    const snap = workerSanitizeObject(body.profileSnapshot);
+    const preCheckKey = body.login ? `AUTH_${String(body.login).trim().toLowerCase().replace(/^@/, '')}_${body.authTokenHash && String(body.authTokenHash).startsWith('KTOK_') ? body.authTokenHash : workerDeriveAuthToken(body.login, body.password)}` : '';
+    if (preCheckKey) await loadPersistedAuthProfile(env, preCheckKey);
+    const ident = resolveWorkerAccountIdentity(body.login, body.password, body.authTokenHash, body.regionCode, snap);
+    if (!ident.ok) {
+     return new Response(JSON.stringify({ ok: false, error: 'Invalid credentials' }), {
+      status: 400,
+      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
+     });
+    }
+    const existing = (await loadPersistedAuthProfile(env, ident.authKey)) || {};
+    const merged = {
+     ...existing,
+     ...snap,
+     fisherId: ident.fisherId,
+     login: ident.login,
+     callsign: snap.callsign || existing.callsign || ident.callsign,
+     pinHash: ident.pinHash,
+     authTokenHash: ident.authTokenHash,
+     ownerUnlocked: ident.isOwner ? true : Boolean(existing.ownerUnlocked),
+     isAdmin: ident.isOwner ? true : adminWhitelistStore.has(ident.fisherId),
+     updatedAt: Date.now()
+    };
+    delete merged.authShadow;
+    await persistAuthProfile(env, ident.authKey, merged);
+    await persistSystemMeta(env);
+    return new Response(JSON.stringify({
+     ok: true,
+     fisherId: ident.fisherId,
+     isOwner: ident.isOwner,
+     profile: merged,
+     whitelist: Array.from(adminWhitelistStore.values())
+    }), {
+     headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
+    });
+   } catch (e) {
+    return new Response(JSON.stringify({ ok: false }), {
+     status: 400,
+     headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
+    });
+   }
+  }
+
+  if (reqUrl.pathname.endsWith('/admin/whitelist')) {
+  await ensurePersistentStateLoaded(env);
+  if (request.method === 'GET') {
+   return new Response(JSON.stringify({ ok: true, whitelist: Array.from(adminWhitelistStore.values()) }), {
+    headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
+   });
+  }
+  if (request.method === 'POST') {
+   try {
+    const body = await request.json();
+    const secret = String(body.ownerSecret || '').trim().toUpperCase();
+    if (!['KLEV-ADMIN-89', 'THOR82', '8989', 'FISHERMAN1982*', 'IATHOR82'].includes(secret)) {
+     return new Response(JSON.stringify({ ok: false, error: 'Forbidden' }), { status: 403, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
+    }
+    if (body.action === 'add' && body.entry && body.entry.id) {
+     const cleanId = String(body.entry.id).trim().toUpperCase();
+     adminWhitelistStore.set(cleanId, {
+      id: cleanId,
+      label: String(body.entry.label || 'Администратор').slice(0, 40),
+      addedAt: body.entry.addedAt || new Date().toISOString().slice(0, 10)
+     });
+    } else if (body.action === 'remove' && body.targetId) {
+     const cleanId = String(body.targetId).trim().toUpperCase();
+     if (cleanId !== OWNER_FISHER_ID && cleanId !== 'FP-89A01') adminWhitelistStore.delete(cleanId);
+    } else if (Array.isArray(body.list)) {
+     for (const item of body.list) {
+      if (item && item.id) {
+       const cid = String(item.id).trim().toUpperCase();
+       adminWhitelistStore.set(cid, { id: cid, label: String(item.label || 'Админ').slice(0, 40), addedAt: item.addedAt || '' });
+      }
+     }
+    }
+    await persistSystemMeta(env);
+    return new Response(JSON.stringify({ ok: true, whitelist: Array.from(adminWhitelistStore.values()) }), {
+     headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
+    });
+   } catch (e) {
+    return new Response(JSON.stringify({ ok: false }), { status: 400, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
+   }
+  }
+  }
+
+  if (reqUrl.pathname.endsWith('/relay/push') && request.method === 'POST') {
+  try {
+   cleanupTransitBoxes();
+   const body = await request.json();
+   const channelId = String(body.channelId || '').trim().toUpperCase().slice(0, 64);
+   const cipherPayload = String(body.cipherPayload || '').trim().slice(0, 4096);
+   if (!channelId || !cipherPayload) {
+   return new Response(JSON.stringify({ ok: false }), { status: 400, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
+   }
+   const pkt = {
+   id: `rel_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+   channelId,
+   senderId: String(body.senderId || '').slice(0, 24),
+   cipherPayload,
+   kind: String(body.kind || 'chat').slice(0, 20),
+   ts: Date.now()
+   };
+   const list = transitBoxes.get(channelId) || [];
+   list.push(pkt);
+   transitBoxes.set(channelId, list.slice(-50));
+   return new Response(JSON.stringify({ ok: true, relayed: true }), {
+   headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
+   });
+  } catch (e) {
+   return new Response(JSON.stringify({ ok: false }), { status: 400, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
+  }
+  }
+
+  if (reqUrl.pathname.endsWith('/relay/pull') && request.method === 'GET') {
+  cleanupTransitBoxes();
+  const rawBoxes = (reqUrl.searchParams.get('boxes') || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean).slice(0, 20);
+  const since = Number(reqUrl.searchParams.get('since') || 0);
+  const viewer = String(reqUrl.searchParams.get('viewer') || '').trim().toUpperCase();
+  const packets = [];
+  for (const bKey of rawBoxes) {
+   const arr = transitBoxes.get(bKey);
+   if (!arr || arr.length === 0) continue;
+   const matching = arr.filter(p => p && p.ts > since && (!viewer || p.senderId !== viewer));
+   packets.push(...matching);
+   if (bKey.startsWith('DM_') && matching.length > 0) {
+   const remaining = arr.filter(p => !matching.includes(p));
+   if (remaining.length === 0) transitBoxes.delete(bKey);
+   else transitBoxes.set(bKey, remaining);
+   }
+  }
+  return new Response(JSON.stringify({ ok: true, packets: packets.slice(-60) }), {
+   headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
+  });
+  }
 
   if (request.method === 'GET' && reqUrl.searchParams.get('setup') === '1' && BOT_TOKEN) {
   const webhookTarget = `${reqUrl.origin}${reqUrl.pathname}`;
@@ -2339,7 +3024,7 @@ export default {
   await configureBotMenusAndCommands(BOT_TOKEN);
   return new Response(JSON.stringify({
   status: 'webhook_and_commands_registered',
-  version: '2.0.169',
+  version: '2.0.172',
   menuButton: 'commands (☰)',
   replyKeyboard: ['🌟 Рекомендации', '⚡ | 🔍 | 👤 | ❓'],
   speciesCount: BOT_FISH_CATALOG.length,
@@ -2355,7 +3040,7 @@ export default {
   if (request.method !== 'POST') {
   return new Response(JSON.stringify({
   status: 'ok',
-  version: '2.0.169',
+  version: '2.0.172',
   speciesCount: BOT_FISH_CATALOG.length,
   watersCount: BOT_WATERS_DB.length,
   citiesCount: BOT_CITIES_DB.length,
@@ -2367,7 +3052,7 @@ export default {
 
   if (WEBHOOK_SECRET) {
   const incomingSecret = request.headers.get('X-Telegram-Bot-Api-Secret-Token') || '';
-  if (incomingSecret !== WEBHOOK_SECRET) {
+  if (!constantTimeEquals(incomingSecret, WEBHOOK_SECRET)) {
   return new Response('Forbidden: invalid secret token', { status: 403 });
   }
   }
@@ -2647,7 +3332,7 @@ export default {
   return new Response('OK', { status: 200 });
   }
 
-  const appLink = startParam.startsWith('KP1_') ? `${WEBAPP_URL}#klev_pack=${startParam}` : WEBAPP_URL;
+  const appLink = startParam.startsWith('KP1_') ? `${WEBAPP_URL}#p=${startParam}` : WEBAPP_URL;
 
   if (isPrivateChat) {
   await tgApi(BOT_TOKEN, 'sendMessage', {
@@ -2750,7 +3435,7 @@ export default {
   const kpMatch = cleanText.match(/(KP1_[A-Za-z0-9_-]+)/);
   if (kpMatch && kpMatch[1]) {
   const tok = kpMatch[1];
-  const packUrl = `${WEBAPP_URL}#klev_pack=${tok}`;
+  const packUrl = `${WEBAPP_URL}#p=${tok}`;
   let previewLines = `📥 *Обнаружен зашифрованный пакет «Круга / Экипажа»!*`;
   try {
   let b64 = tok.slice(4).replace(/-/g, '+').replace(/_/g, '/');
@@ -2761,24 +3446,72 @@ export default {
   for (let i = 0; i < bin.length; i++) {
   plain[i] = bin.charCodeAt(i) ^ salt[i % salt.length] ^ ((i * 31) & 0xff);
   }
-  const parsed = JSON.parse(new TextDecoder().decode(plain));
-  if (Array.isArray(parsed) && parsed[0] === 2) {
-  const [, mCode, fiIdx, , , lat, lon, dp, tw, pr, , , lb, wn, au, bt, nt] = parsed;
-  const fObj = FISH_LIST[Number(fiIdx)] || FISH_LIST[0];
-  const mTitle = mCode === 2 ? '🆘 SOS СИГНАЛ ЭКИПАЖУ' : (mCode === 1 ? '🌊 ЭКИПАЖ (72 ч)' : (mCode === 3 ? '🛠️ МАСТЕРСКАЯ СНАСТЕЙ' : '👥 СВОДКА В КРУГ (±5 км)'));
-  const locStr = (wn && wn !== lb) ? `${lb} (${wn})` : (lb || 'Точка на воде');
-  previewLines = `*${mTitle} • Клёв ПРО*\n📍 *${locStr}*${au ? ` • 👤 ${au}` : ''}\n🐟 *${fObj.name}* • 💧 ~${tw}°C • 🧭 ${pr} мм • ~${dp} м` +
-  ((mCode === 1 || mCode === 2) && lat && lon ? `\n🎯 Координаты: \`${Number(lat).toFixed(4)}°N, ${Number(lon).toFixed(4)}°E\`` : '') +
-  (bt ? `\n🪱 Приманка: ${bt}` : '') +
-  (nt ? `\n💬 ${nt}` : '');
-  } else if (parsed && parsed.t) {
-  const mTitle = parsed.sos ? '🆘 SOS СИГНАЛ ЭКИПАЖУ' : (parsed.t === 'crew' ? '🌊 ЭКИПАЖ (72 ч)' : (parsed.t === 'workshop' ? '🛠️ МАСТЕРСКАЯ СНАСТЕЙ' : '👥 СВОДКА В КРУГ'));
-  previewLines = `*${mTitle} • Клёв ПРО*\n📍 *${parsed.lb || parsed.wn || 'Водоём'}*\n🐟 *${parsed.fn || 'Рыба'}* • 💧 ~${parsed.tw ?? 8}°C`;
+  if (plain.length >= 18 && plain[0] === 0xb3) {
+   const mCode = plain[1] & 0x03;
+   const hasTail = Boolean((plain[1] >>> 6) & 0x01);
+   const hasFid = Boolean((plain[1] & 0x80) && plain.length >= 21);
+   const fiIdx = plain[2];
+   const latInt = (plain[4] << 16) | (plain[5] << 8) | plain[6];
+   const lonInt = (plain[7] << 16) | (plain[8] << 8) | plain[9];
+   const lat = mCode === 3 ? 0 : Math.round(((latInt / 10000) - 90) * 10000) / 10000;
+   const lon = mCode === 3 ? 0 : Math.round(((lonInt / 10000) - 180) * 10000) / 10000;
+   const dp = Math.round((plain[10] / 4) * 10) / 10 || 2.0;
+   const tw = Math.round(((plain[11] / 6) - 5) * 10) / 10;
+   const pr = plain[12] + 650;
+   const meta16 = (plain[16] << 8) | plain[17];
+   const is32BitFid = Boolean((plain[3] & 0x80) && plain.length >= 22);
+   let fidStr = '';
+   let noteOffset = 18;
+   if (hasFid && is32BitFid) {
+    const fid32 = (((plain[18] & 0x7f) * 16777216) + (plain[19] << 16) + (plain[20] << 8) + plain[21]) >>> 0;
+    fidStr = workerDecodeFisherIdFrom32Bit(fid32);
+    noteOffset = 22;
+   } else if (hasFid) {
+    const fid20 = ((plain[18] & 0x0f) << 16) | (plain[19] << 8) | plain[20];
+    fidStr = fid20 === 0x89a01 ? OWNER_FISHER_ID : workerFormatFisherIdFromIndex('89', fid20 % 99999);
+    noteOffset = 21;
+   }
+   const customNote = (hasTail && plain.length > noteOffset) ? new TextDecoder().decode(plain.slice(noteOffset)).trim() : '';
+   const fObj = BOT_FISH_CATALOG[fiIdx] || BOT_FISH_CATALOG[0];
+   const nearC = (lat || lon) ? findNearestSettlement(lat, lon) : { name: 'Водоём' };
+   const cKey = `KP-${(meta16 || 0x7a3f).toString(16).toUpperCase().padStart(4, '0')}`;
+   const mTitle = mCode === 2 ? '🆘 SOS НА ВОДЕ (ВСЕМ РЫБАКАМ)' : (mCode === 1 ? `🌊 ЭКИПАЖ (72 ч • Ключ ${cKey})` : (mCode === 3 ? '🛠️ МАСТЕРСКАЯ СНАСТЕЙ' : '👥 СВОДКА В КРУГ (±5 км)'));
+   previewLines = `*${mTitle} • Клёв ПРО*
+📍 *${nearC.name}*${fidStr ? ` • 🆔 \`${fidStr}\`` : ''}
+🐟 *${fObj.name}* • 💧 ~${tw}°C • 🧭 ${pr} мм • ~${dp} м` +
+    ((mCode === 1 || mCode === 2) && (lat || lon) ? `
+🎯 Координаты: \`${lat.toFixed(4)}°N, ${lon.toFixed(4)}°E\`` : '') +
+    (customNote ? `
+💬 ${customNote}` : '');
+  } else {
+   const parsed = JSON.parse(new TextDecoder().decode(plain));
+   if (Array.isArray(parsed) && parsed[0] === 2) {
+   const [, mCode, fiIdx, , , lat, lon, dp, tw, pr, , , lb, wn, au, bt, nt] = parsed;
+   const fObj = BOT_FISH_CATALOG[Number(fiIdx)] || BOT_FISH_CATALOG[0];
+   const mTitle = mCode === 2 ? '🆘 SOS НА ВОДЕ (ВСЕМ)' : (mCode === 1 ? '🌊 ЭКИПАЖ (72 ч)' : (mCode === 3 ? '🛠️ МАСТЕРСКАЯ СНАСТЕЙ' : '👥 СВОДКА В КРУГ (±5 км)'));
+   const locStr = (wn && wn !== lb) ? `${lb} (${wn})` : (lb || 'Точка на воде');
+   previewLines = `*${mTitle} • Клёв ПРО*
+📍 *${locStr}*${au ? ` • 👤 ${au}` : ''}
+🐟 *${fObj.name}* • 💧 ~${tw}°C • 🧭 ${pr} мм • ~${dp} м` +
+    ((mCode === 1 || mCode === 2) && lat && lon ? `
+🎯 Координаты: \`${Number(lat).toFixed(4)}°N, ${Number(lon).toFixed(4)}°E\`` : '') +
+    (bt ? `
+🪱 Приманка: ${bt}` : '') +
+    (nt ? `
+💬 ${nt}` : '');
+   } else if (parsed && parsed.t) {
+   const mTitle = parsed.sos ? '🆘 SOS НА ВОДЕ (ВСЕМ)' : (parsed.t === 'crew' ? '🌊 ЭКИПАЖ (72 ч)' : (parsed.t === 'workshop' ? '🛠️ МАСТЕРСКАЯ СНАСТЕЙ' : '👥 СВОДКА В КРУГ'));
+   previewLines = `*${mTitle} • Клёв ПРО*
+📍 *${parsed.lb || parsed.wn || 'Водоём'}*
+🐟 *${parsed.fn || 'Рыба'}* • 💧 ~${parsed.tw ?? 8}°C`;
+   }
   }
   } catch (_) {}
   await tgApi(BOT_TOKEN, 'sendMessage', {
   chat_id: chatId,
-  text: `${previewLines}\n\n👇 Нажмите кнопку ниже, чтобы открыть и сохранить в ваш навигатор:`,
+  text: `${previewLines}
+
+👇 Нажмите кнопку ниже, чтобы открыть и сохранить в ваш навигатор:`,
   parse_mode: 'Markdown',
   reply_markup: {
   inline_keyboard: [
