@@ -2,6 +2,8 @@
 <html lang="ru" data-theme="dark">
 <head>
   <meta charset="UTF-8">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta http-equiv="X-Content-Type-Options" content="nosniff">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="theme-color" content="#0b1120">
   <meta name="mobile-web-app-capable" content="yes">
@@ -10,18 +12,20 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Клёв ПРО 2.0 • Прогноз клёва, Круг и Атлас Ихтиофауны РФ</title>
     <script src="https://telegram.org/js/telegram-web-app.js" async onload="window.__KLEV_ON_TG_SDK_LOAD__&&window.__KLEV_ON_TG_SDK_LOAD__()"></script>
-  <link rel="manifest" href="manifest.json?v=2.0.170">
-  <link id="dynamicFavicon" rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=2.0.170">
-  <link id="dynamicTouchIcon" rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=2.0.170">
+  <link rel="manifest" href="manifest.json?v=2.0.172">
+  <link id="dynamicFavicon" rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=2.0.172">
+  <link id="dynamicTouchIcon" rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=2.0.172">
   <script>
     (function() {
       try {
         var raw = localStorage.getItem('klev_pro_state_v2.0');
         var saved = raw ? JSON.parse(raw).theme : 'auto';
+        var hr = new Date().getHours();
         var eff = saved === 'auto'
-          ? (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark')
+          ? ((hr >= 7 && hr < 20) ? 'light' : 'dark')
           : (saved || 'dark');
         document.documentElement.setAttribute('data-theme', eff);
+        document.documentElement.setAttribute('data-theme-mode', saved || 'auto');
       } catch (e) {}
 
       // Мгновенная синхронная проверка установленного ярлыка/PWA до отрисовки body (исключает секундное моргание кнопки установки)
@@ -59,7 +63,7 @@
           caches.keys().then(function(keys) {
             return Promise.all(
               keys
-                .filter(function(k) { return k !== 'klev-pro-static-v2.0.170'; })
+                .filter(function(k) { return k !== 'klev-pro-static-v2.0.172'; })
                 .map(function(k) { return caches.delete(k); })
             );
           }).then(function() {
@@ -69,10 +73,10 @@
       } catch (e) {}
     })();
   </script>
-  <link rel="stylesheet" href="css/tokens.css?v=2.0.170">
-  <link rel="stylesheet" href="css/base.css?v=2.0.170">
-  <link rel="stylesheet" href="css/components.css?v=2.0.170">
-  <link rel="stylesheet" href="css/layout.css?v=2.0.170">
+  <link rel="stylesheet" href="css/tokens.css?v=2.0.172">
+  <link rel="stylesheet" href="css/base.css?v=2.0.172">
+  <link rel="stylesheet" href="css/components.css?v=2.0.172">
+  <link rel="stylesheet" href="css/layout.css?v=2.0.172">
   <!-- Неблокирующая асинхронная загрузка картографического движка Leaflet -->
   <script>
     (function() {
@@ -149,6 +153,7 @@
     <section id="secFish" data-route-section="fish" aria-label="Рыбы в месте ловли"></section>
     <section id="secForecast" data-route-section="forecast" aria-label="Прогноз клёва и архив"></section>
     <section id="secCircle" data-route-section="circle" aria-label="Круг, Экипаж 72ч и Мастерская снастей"></section>
+    <section id="secChats" data-route-section="chats" aria-label="Зашифрованные чаты рыбаков и экипажей"></section>
     <section id="secLog" data-route-section="log" aria-label="Журнал уловов"></section>
     <section id="secCalendar" data-route-section="calendar" aria-label="Годовой биоритм и нерест"></section>
   </main>
@@ -161,21 +166,28 @@
       <button type="button" class="nav-tab" data-nav-tab="fish" aria-label="Рыбы водоёма"><span>🐟</span><span>Рыбы</span></button>
       <button type="button" class="nav-tab active" data-nav-tab="forecast" aria-label="Прогноз клёва"><span>🎣</span><span>Прогноз</span></button>
       <button type="button" class="nav-tab" data-nav-tab="circle" aria-label="Круг и Экипаж"><span>👥</span><span>Круг</span></button>
+      <button type="button" class="nav-tab" data-nav-tab="chats" aria-label="Чаты рыбаков и экипажей"><span>💬</span><span>Чаты</span></button>
       <div class="nav-more-wrap">
         <button type="button" class="nav-tab nav-more-btn" id="navMoreBtn" aria-label="Журнал, Календарь и Профиль" aria-expanded="false" title="Журнал, Календарь и Профиль">
           <span>⋮</span>
           <span style="font-size:10px;">Ещё</span>
         </button>
-        <div class="nav-more-popup" id="navMorePopup" role="menu" aria-label="Дополнительные разделы и настройки">
+        <div class="nav-more-popup" id="navMorePopup" role="menu" aria-label="Дополнительные разделы и настройки" style="min-width:236px;">
           <button type="button" class="nav-popup-item" data-nav-tab="log" role="menuitem"><span>📓</span><span>Журнал уловов</span></button>
           <button type="button" class="nav-popup-item" data-nav-tab="calendar" role="menuitem"><span>📅</span><span>Календарь биоритмов</span></button>
-          <button type="button" class="nav-popup-item" data-nav-tab="profile" role="menuitem"><span>👤</span><span>Профиль и настройки</span></button>
+          <div style="height:1px;background:var(--border);margin:2px 0;"></div>
+          <button type="button" class="nav-popup-item" data-settings-zone="auth" role="menuitem"><span>🔐</span><span>Логин, Пароль и Мой ID</span></button>
+          <button type="button" class="nav-popup-item" data-settings-zone="fishing" role="menuitem"><span>🎣</span><span>Моя рыбалка (Рыбы и Снасти)</span></button>
+          <button type="button" class="nav-popup-item" data-settings-zone="app" role="menuitem"><span>⚙️</span><span>Параметры и Тема</span></button>
+          <button type="button" class="nav-popup-item" data-settings-zone="notif" role="menuitem"><span>🔔</span><span>Уведомления (SOS / Круг)</span></button>
+          <button type="button" class="nav-popup-item" data-nav-tab="profile" role="menuitem"><span>👤</span><span>Все разделы настроек</span></button>
+          <button type="button" class="nav-popup-item nav-popup-close-btn" id="navMoreCloseBottomBtn" role="menuitem"><span>✕</span><span>Закрыть меню</span></button>
         </div>
       </div>
     </div>
   </nav>
 
-  <script type="module" src="js/app.js?v=2.0.170"></script>
+  <script type="module" src="js/app.js?v=2.0.172"></script>
   <script>
     // Защитный сторожевой таймер (только на случай полного обрыва загрузки скрипта в старом Service Worker)
     setTimeout(function() {
@@ -186,7 +198,7 @@
           box.className = 'card';
           box.style.cssText = 'border-color:var(--accent);text-align:center;padding:18px;margin-top:24px;';
           box.innerHTML =
-            '<div style="font-size:17px;font-weight:800;margin-bottom:8px;">🚀 Доступна новая сборка «Клёв ПРО 2.0.170»</div>' +
+            '<div style="font-size:17px;font-weight:800;margin-bottom:8px;">🚀 Доступна новая сборка «Клёв ПРО 2.0.172»</div>' +
             '<p style="font-size:14px;color:var(--muted);margin-bottom:14px;line-height:1.45;">Обнаружены устаревшие файлы в кэше телефона. Нажмите кнопку ниже, чтобы обновить модули приложения (ваши точки и уловы сохранятся).</p>' +
             '<button type="button" class="btn btn-good" id="emergencyResetCacheBtn" style="width:100%;">✅ Обновить кэш и запустить новую версию</button>';
           mainEl.prepend(box);
@@ -210,7 +222,7 @@
                   }
                 })
                 .finally(function() {
-                  window.location.replace(window.location.pathname + '?v=2.0.170&reset=' + Date.now());
+                  window.location.replace(window.location.pathname + '?v=2.0.172&reset=' + Date.now());
                 });
             };
           }
