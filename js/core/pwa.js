@@ -1,8 +1,6 @@
 import { showToast } from '../ui/components.js?v=2.1.00';
-
 export const PWA_INSTALLED_KEY = 'klev_pro_pwa_installed';
 let deferredInstallPrompt = null;
-
 export function generateFloatIconDataURL(size = 512) {
   const c = document.createElement('canvas');
   c.width = size;
@@ -11,13 +9,11 @@ export function generateFloatIconDataURL(size = 512) {
   if (!ctx) return '';
   const s = size / 512;
   ctx.scale(s, s);
-
   const g = ctx.createLinearGradient(0, 0, 0, 512);
   g.addColorStop(0, '#0b1120');
   g.addColorStop(1, '#0f2942');
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, 512, 512);
-
   ctx.fillStyle = '#ef4444';
   ctx.fillRect(244, 60, 24, 115);
   ctx.fillStyle = '#f8fafc';
@@ -26,7 +22,6 @@ export function generateFloatIconDataURL(size = 512) {
   ctx.beginPath();
   ctx.ellipse(256, 230, 38, 72, 0, 0, Math.PI * 2);
   ctx.fill();
-
   const pts = [[40, 310], [140, 310], [180, 235], [220, 365], [260, 175], [300, 335], [340, 280], [375, 310], [472, 310]];
   ctx.strokeStyle = '#10b981';
   ctx.lineWidth = 16;
@@ -35,7 +30,6 @@ export function generateFloatIconDataURL(size = 512) {
   ctx.beginPath();
   pts.forEach((p, i) => (i === 0 ? ctx.moveTo(p[0], p[1]) : ctx.lineTo(p[0], p[1])));
   ctx.stroke();
-
   ctx.font = '900 56px system-ui, -apple-system, sans-serif';
   ctx.textAlign = 'center';
   ctx.fillStyle = '#f8fafc';
@@ -44,7 +38,6 @@ export function generateFloatIconDataURL(size = 512) {
   ctx.fillText('PRO', 360, 445);
   return c.toDataURL('image/png');
 }
-
 export function initDynamicTouchIcon() {
   try {
     const fav = document.getElementById('dynamicFavicon');
@@ -53,11 +46,6 @@ export function initDynamicTouchIcon() {
     if (touch) touch.href = 'apple-touch-icon.png?v=2.1.00';
   } catch (e) {}
 }
-
-/**
- * Проверяет, запущено ли приложение внутри Android APK WebView или Telegram Mini App,
- * где кнопка «Установить приложение / На экран» не нужна и должна быть полностью скрыта.
- */
 export function isApkOrTmaContainer() {
   try {
     if (typeof window === 'undefined') return false;
@@ -93,7 +81,6 @@ export function isApkOrTmaContainer() {
   } catch (e) {}
   return false;
 }
-
 export function isStandaloneMode() {
   try {
     if (isApkOrTmaContainer()) return true;
@@ -108,7 +95,6 @@ export function isStandaloneMode() {
   } catch (e) {}
   return false;
 }
-
 export function isAppInstalledOrShortcutPresent() {
   if (isStandaloneMode()) {
     try { localStorage.setItem(PWA_INSTALLED_KEY, '1'); } catch (e) {}
@@ -120,7 +106,6 @@ export function isAppInstalledOrShortcutPresent() {
     return false;
   }
 }
-
 export function markAppInstalled(installed = true) {
   if (isApkOrTmaContainer()) {
     installed = true;
@@ -136,7 +121,6 @@ export function markAppInstalled(installed = true) {
   } catch (e) {}
   syncInstallButtons();
 }
-
 export function syncInstallButtons() {
   const installed = isAppInstalledOrShortcutPresent() || isApkOrTmaContainer();
   if (installed) {
@@ -144,7 +128,6 @@ export function syncInstallButtons() {
   } else {
     document.documentElement.removeAttribute('data-pwa-installed');
   }
-
   document.querySelectorAll('[data-install-app], #installAppBtn, #onbInstallAppBtn').forEach(btn => {
     if (installed) {
       btn.style.display = 'none';
@@ -160,7 +143,6 @@ export function syncInstallButtons() {
     }
   });
 }
-
 export function showInstallModal(htmlText) {
   if (isApkOrTmaContainer()) return;
   let modal = document.getElementById('customInstallModal');
@@ -196,7 +178,6 @@ export function showInstallModal(htmlText) {
   if (txtEl) txtEl.innerHTML = htmlText;
   modal.style.display = 'flex';
 }
-
 export async function installShortcut() {
   if (isApkOrTmaContainer()) return;
   if (deferredInstallPrompt) {
@@ -219,16 +200,13 @@ export async function installShortcut() {
     showInstallModal('1. Нажмите меню браузера <b>«⋮»</b> (в правом верхнем углу).<br>2. Выберите <b>«Установить приложение»</b> или <b>«Добавить на главный экран»</b>.');
   }
 }
-
 export function initPwa() {
   initDynamicTouchIcon();
-
   if (isApkOrTmaContainer()) {
     document.documentElement.setAttribute('data-pwa-installed', '1');
     syncInstallButtons();
     return;
   }
-
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     if (isApkOrTmaContainer()) return;
@@ -237,13 +215,11 @@ export function initPwa() {
       markAppInstalled(false);
     }
   });
-
   window.addEventListener('appinstalled', () => {
     deferredInstallPrompt = null;
     markAppInstalled(true);
     showToast('Приложение «Клёв ПРО 2.0» установлено на главный экран!', 'good');
   });
-
   if (window.matchMedia) {
     try {
       const mq = window.matchMedia('(display-mode: standalone)');
@@ -252,7 +228,6 @@ export function initPwa() {
       }
     } catch (e) {}
   }
-
   if (typeof navigator !== 'undefined' && typeof navigator.getInstalledRelatedApps === 'function') {
     navigator.getInstalledRelatedApps().then(apps => {
       if (Array.isArray(apps) && apps.length > 0) {
@@ -260,10 +235,8 @@ export function initPwa() {
       }
     }).catch(() => {});
   }
-
   syncInstallButtons();
 }
-
 export const pwaModule = {
   generateFloatIconDataURL,
   initDynamicTouchIcon,

@@ -1,7 +1,3 @@
-/**
- * @file config.js
- * @description Конфигурация приложения (Ревизия 2.0.15), слои карт и адаптивные справочники снастей и сезонных наживок (включая нано-джиг и мормышинг по белой и сиговой рыбе)
- */
 
 export const APP_VERSION = '2.1.00';
 export const APP_REVISION = '2026.10.26-r172';
@@ -9,7 +5,6 @@ export const STATE_CACHE_KEY = 'klev_pro_state_v2.0';
 export const WEATHER_CACHE_KEY = 'klev_pro_weather_v2.0';
 export const RELEASE_CACHE_KEY = 'klev_pro_release_v2.0';
 export const WEATHER_TTL_MS = 2 * 60 * 60 * 1000;
-
 export const CURRENT_RELEASE_INFO = {
   "version": "2.1.00",
   "revision": "2026.10.26-r172",
@@ -90,16 +85,13 @@ export const CURRENT_RELEASE_INFO = {
     }
   ]
 };
-
 export const IMG_SEARCH_DIRS = ['assets/fish/', 'fish/', 'https://klevpro.ru/assets/fish/', 'https://klevpro.ru/fish/'];
-
 export const MAP_LAYERS = {
   topo: { name: 'Топо', url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', attr: '© OpenTopoMap' },
   sat: { name: 'Спутник', url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', attr: '© Esri' },
   carto: { name: 'Схема', url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', attr: '© OpenStreetMap' },
   osm: { name: 'OSM', url: 'https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png', attr: '© OSM France' }
 };
-
 export const SEASONAL_BAITS = {
   peace_cold: [
     'Мотыль крупный (уральский насадочный / пучок)',
@@ -147,12 +139,10 @@ export const SEASONAL_BAITS = {
     'Тяжёлая блесна-стукалка с тюлькой/ершом'
   ]
 };
-
 export function getSeasonalBaitsForContext(fish, method, waterTemp = 12, iceState = 'open_water') {
   const fid = fish?.id || '';
   const isCold = waterTemp <= 10.5;
   const isPred = fish && fish.type === 'predator';
-
   if (iceState === 'ice_safe' || (method && method.startsWith('winter_'))) {
     if (method === 'winter_livebait') {
       if (['zander', 'volga_zander', 'burbot'].includes(fid)) {
@@ -213,7 +203,6 @@ export function getSeasonalBaitsForContext(fish, method, waterTemp = 12, iceStat
         'Донная блесна с подсадкой резки'
       ];
     }
-    // winter_jig
     if (['bream', 'white_bream', 'blue_bream', 'sopa', 'carp', 'crucian'].includes(fid)) {
       return [
         'Пучок крупного уральского мотыля на мормышке / коромысле',
@@ -230,8 +219,6 @@ export function getSeasonalBaitsForContext(fish, method, waterTemp = 12, iceStat
       'Опарыш / личинка репейной моли'
     ];
   }
-
-  // Нано-джиг и Мормышинг (spin_micro) — отдельно для мирной/сиговой и для хищной рыбы
   if (method === 'spin_micro') {
     if (!isPred || ['dace', 'peled', 'chir', 'pizhyan', 'tugun', 'whitefish', 'cisco', 'vendace', 'valek', 'crucian', 'roach', 'rudd', 'bleak', 'ide', 'bream', 'white_bream', 'gudgeon', 'tench', 'carp', 'chekhon'].includes(fid)) {
       if (isCold) {
@@ -251,7 +238,6 @@ export function getSeasonalBaitsForContext(fish, method, waterTemp = 12, iceStat
         'Микроколебалка 0.8–2.0 г / Вертушка №00 на снос по струе'
       ];
     }
-
     if (isCold) {
       return [
         'Пассивный слаг 1–1.8 дюйма (Polaris / Tanta) на паузе до 4–5 сек',
@@ -268,7 +254,6 @@ export function getSeasonalBaitsForContext(fish, method, waterTemp = 12, iceStat
       'Микрокрэнк / уокер 25–38 мм (поверхностный бой)'
     ];
   }
-
   if (method === 'spin_jig') {
     if (!isPred) {
       return [
@@ -292,7 +277,6 @@ export function getSeasonalBaitsForContext(fish, method, waterTemp = 12, iceStat
       'Поролоновая рыбка / мандула по русловым бровкам'
     ];
   }
-
   if (method === 'spin_lure') {
     if (['dace', 'peled', 'pizhyan', 'whitefish', 'rudd', 'chekhon', 'bleak'].includes(fid)) {
       return [
@@ -341,7 +325,6 @@ export function getSeasonalBaitsForContext(fish, method, waterTemp = 12, iceStat
       'Воблер-крэнк со средним заглублением'
     ];
   }
-
   if (method === 'bottom') {
     if (['crayfish', 'crab', 'king_crab'].includes(fid)) {
       return [
@@ -393,7 +376,6 @@ export function getSeasonalBaitsForContext(fish, method, waterTemp = 12, iceStat
       'Пареный горох / мастырка / флэт-бойлы 8–12 мм'
     ];
   }
-
   if (method === 'float') {
     if (['silver_carp', 'paddlefish'].includes(fid)) {
       return [
@@ -424,7 +406,6 @@ export function getSeasonalBaitsForContext(fish, method, waterTemp = 12, iceStat
       'Тесто с чесноком / зелень (нитчатые водоросли на плотву и краснопёрку)'
     ];
   }
-
   if (method === 'fly') {
     if (isCold) {
       return [
@@ -440,7 +421,6 @@ export function getSeasonalBaitsForContext(fish, method, waterTemp = 12, iceStat
       'Мокрая мушка / эмерджер в поверхностной плёнке'
     ];
   }
-
   if (method === 'sea_rock') {
     return isCold ? [
       'Стрейчевый червь Marukyu Power Isome на паузе у камней',
@@ -453,7 +433,6 @@ export function getSeasonalBaitsForContext(fish, method, waterTemp = 12, iceStat
       'Морской червь нереис / усик креветки'
     ];
   }
-
   if (method === 'sea_surf') {
     return [
       'Морской червь (нереис / пескожил) на плавающем крючке с зелёным пенопластом',
@@ -462,7 +441,6 @@ export function getSeasonalBaitsForContext(fish, method, waterTemp = 12, iceStat
       'Полоска свежего кальмара'
     ];
   }
-
   if (method === 'sea_boat') {
     return [
       'Тяжёлый морской пилькер 60–250 г с октопусом',
@@ -471,18 +449,15 @@ export function getSeasonalBaitsForContext(fish, method, waterTemp = 12, iceStat
       'Филе сельди / сайды / кальмара на донной оснастке'
     ];
   }
-
   if (isPred) {
     return isCold ? SEASONAL_BAITS.predator_natural : SEASONAL_BAITS.predator_lure;
   }
   return isCold ? SEASONAL_BAITS.peace_cold : SEASONAL_BAITS.peace_warm;
 }
-
 export function getCompatibleMethods(fish, iceState = 'open_water', waterType = 'small_river', waterTemp = 12) {
   const isSea = waterType === 'sea_gulf' || waterType === 'open_sea';
   const isCold = waterTemp <= 10.5;
   const fid = fish?.id || '';
-
   if (iceState === 'ice_safe') {
     if (fish && fish.type === 'predator') {
       if (['burbot', 'cod', 'halibut', 'navaga', 'wolffish'].includes(fid)) {
@@ -523,11 +498,8 @@ export function getCompatibleMethods(fish, iceState = 'open_water', waterType = 
       { val: 'winter_cisco', text: 'Тандем мормышек / Чёртик / Гвоздешарик' }
     ];
   }
-
-  // Open water
   const list = [];
   const isPred = fish && fish.type === 'predator';
-
   if (isSea) {
     if (['flounder', 'starry_flounder', 'turbot', 'plaice', 'halibut', 'wolffish', 'anglerfish'].includes(fid)) {
       list.push({ val: 'sea_surf', text: 'Береговая морская донка (серфкастинг со дна)' });
@@ -553,7 +525,6 @@ export function getCompatibleMethods(fish, iceState = 'open_water', waterType = 
     }
     return list;
   }
-
   if (isPred) {
     if (['zander', 'volga_zander'].includes(fid)) {
       list.push({ val: 'spin_jig', text: 'Спиннинг джиговый: Ступенчатая проводка у дна (10–42 г)' });
@@ -628,26 +599,20 @@ export function getCompatibleMethods(fish, iceState = 'open_water', waterType = 
     list.push({ val: 'bottom', text: 'Донная снасть' });
     return list;
   }
-
-  // МИРНАЯ И СИГОВАЯ РЫБА (белая рыба, карась, елец, пелядь/сырок, плотва, лещ, язь и др.)
   if (['crayfish', 'crab', 'king_crab'].includes(fid)) {
     list.push({ val: 'bottom', text: 'Донная снасть / Разрешённая раколовка с приманкой' });
     return list;
   }
-
   if (['silver_carp', 'paddlefish'].includes(fid)) {
     list.push({ val: 'float', text: 'Поплавочная оснастка «Барилка» на технопланктон (в толще воды)' });
     list.push({ val: 'bottom', text: 'Донная оснастка «Гейзер» с технопланктоном и пенопластом' });
     return list;
   }
-
   if (['grass_carp'].includes(fid)) {
     list.push({ val: 'bottom', text: 'Карповая донная снасть / Флэт-фидер (кукуруза, бойл, камыш)' });
     list.push({ val: 'float', text: 'Матчевая поплавочная оснастка у стенки тростника' });
     return list;
   }
-
-  // Елец (dace), Пелядь/Сырок (peled), Плотва/Сорога (roach), Краснопёрка (rudd), Уклейка (bleak), Пескарь (gudgeon), Чехонь (chekhon), Язь (ide)
   if (['dace', 'peled', 'roach', 'rudd', 'bleak', 'gudgeon', 'chekhon', 'ide'].includes(fid)) {
     if (['dace', 'peled'].includes(fid)) {
       list.push({ val: 'spin_micro', text: 'Нано-джиг / Мормышинг (XUL 0.2–1.2 г, вайтбейт, танта, мотыль в толще и у дна)' });
@@ -672,8 +637,6 @@ export function getCompatibleMethods(fish, iceState = 'open_water', waterType = 
     }
     return list;
   }
-
-  // Карась (crucian), Линь (tench), Тиляпия (tilapia)
   if (['crucian', 'tench', 'tilapia'].includes(fid)) {
     if (isCold) {
       list.push({ val: 'bottom', text: 'Донная снасть: Лёгкий пикер / Фидер на глубине (мотыль, опарыш)' });
@@ -686,8 +649,6 @@ export function getCompatibleMethods(fish, iceState = 'open_water', waterType = 
     }
     return list;
   }
-
-  // Сиговые виды: Щокур/Чир (chir), Пыжьян (pizhyan), Тугун (tugun), Сиг (whitefish), Ряпушка (cisco, vendace), Омуль (omul, omul_arctic), Валёк (valek)
   if (['chir', 'pizhyan', 'cisco', 'tugun', 'whitefish', 'vendace', 'broad_whitefish', 'omul', 'omul_arctic', 'valek'].includes(fid)) {
     if (['tugun', 'cisco', 'vendace', 'omul', 'omul_arctic'].includes(fid)) {
       list.push({ val: 'float', text: 'Поплавочная удочка в проводку / Сбирулино с мушкой' });
@@ -703,33 +664,29 @@ export function getCompatibleMethods(fish, iceState = 'open_water', waterType = 
     list.push({ val: 'spin_lure', text: 'Ультралайт спиннинг: Вращалки №0–№1 и микроколебалки' });
     return list;
   }
-
-  // Лещ, Густера, Синец, Сопа, Подуст, Рыбец, Вобла, Тарань, Карп/Сазан, Усач, Стерлядь, Конь-губарь, Амурский лещ
   if (['carp', 'bream', 'buffalo', 'black_carp', 'parabramis', 'tarpon_carp', 'white_bream', 'blue_bream', 'sopa', 'vimba', 'vobla', 'taran', 'kutum', 'barbel', 'sterlet', 'undermouth', 'loach'].includes(fid)) {
     list.push({ val: 'bottom', text: 'Донная снасть: Фидер / Пикер / Карповая кормушка' });
     list.push({ val: 'float', text: 'Поплавочная удочка: Болонская в проводку / Матчевая / Маховая' });
     list.push({ val: 'spin_micro', text: 'Нано-джиг / Мормышинг (0.3–1.2 г, придонная подача мотыля и слагов)' });
     return list;
   }
-
   list.push({ val: 'bottom', text: 'Донная снасть: Фидер / Пикер' });
   list.push({ val: 'float', text: 'Поплавочная удочка' });
   list.push({ val: 'spin_micro', text: 'Нано-джиг / Мормышинг (0.2–1.2 г)' });
   return list;
 }
-
 export const DEFAULT_STATE = {
   route: 'forecast',
   appMode: 'angler',
   hasUserLocation: false,
-  lat: 55.7558,
-  lon: 37.6173,
+  lat: 66.0833,
+  lon: 76.6800,
   locCountry: 'Россия',
-  locAdmin1: 'Москва',
-  locAdmin2: '',
-  locLabel: 'Москва',
-  basinCode: 'volga_caspian',
-  basinName: 'Волжско-Каспийский бассейн (Волга, Кама, Урал)',
+  locAdmin1: 'Ямало-Ненецкий АО',
+  locAdmin2: 'Новый Уренгой',
+  locLabel: 'Новый Уренгой',
+  basinCode: 'arctic_ob_taz',
+  basinName: 'Обь-Тазовский северный бассейн (Обь, Иртыш, Пур, Таз)',
   isCoastal: false,
   water: 'small_river',
   waterRadiusKm: 50,
@@ -738,13 +695,13 @@ export const DEFAULT_STATE = {
   selectedBait: '',
   depth: 1.5,
   fishId: '',
-  dayIdx: 2, // 0=Позавчера, 1=Вчера, 2=Сегодня (активен Сегодня!)
+  dayIdx: 2, 
   selectedHour: new Date().getHours(),
   showAllSpecies: false,
   onlyFavoritesFilter: false,
   fishSearch: '',
   fishGroup: 'all',
-  favorites: [], // Пункт 1b: Избранное по умолчанию строго пустое!
+  favorites: [], 
   favoritesExplicitlySet: false,
   pinnedDays: [],
   compareSpeciesIds: ['pike', 'perch', 'dace'],

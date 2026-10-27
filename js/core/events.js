@@ -1,5 +1,4 @@
 const listeners = new Map();
-
 export const events = {
   on(event, fn) {
     if (!listeners.has(event)) listeners.set(event, new Set());
