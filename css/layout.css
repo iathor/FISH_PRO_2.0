@@ -492,7 +492,7 @@ body {
 }
 
 
-/* Startup Radar Splash Screen (v2.0.172) */
+/* Startup Radar Splash Screen (v2.1.00) */
 .app-splash-screen {
   position: fixed;
   inset: 0;
@@ -568,7 +568,7 @@ body {
   letter-spacing: 0.2px;
 }
 
-/* Автокопирование ID рыбака (FP-XXXXX) и компактная лента Круга (v2.0.172) */
+/* Автокопирование ID рыбака (FP-XXXXX) и компактная лента Круга (v2.1.00) */
 .fisher-id-copy-badge {
   user-select: none;
   -webkit-user-select: none;

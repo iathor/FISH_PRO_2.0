@@ -533,7 +533,7 @@ html[data-pwa-installed="1"] .btn-install-header {
   display: none !important;
 }
 
-/* Ревизия 2.0.172: Полное скрытие кнопок установки в APK, Telegram Mini App и установленном PWA */
+/* Ревизия 2.1.00: Полное скрытие кнопок установки в APK, Telegram Mini App и установленном PWA */
 [data-pwa-installed="1"] [data-install-app],
 [data-pwa-installed="1"] #installAppBtn,
 [data-pwa-installed="1"] #onbInstallAppBtn,
@@ -547,7 +547,7 @@ html[data-pwa-installed="1"] .btn-install-header {
 }
 
 
-/* Ревизия 2.0.172: Полная защита модальных окон и подменю от горизонтального переполнения на смартфонах */
+/* Ревизия 2.1.00: Полная защита модальных окон и подменю от горизонтального переполнения на смартфонах */
 .modal-box {
   overflow-x: hidden !important;
   box-sizing: border-box !important;
