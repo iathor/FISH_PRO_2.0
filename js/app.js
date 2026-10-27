@@ -1,9 +1,9 @@
-import { initReleaseUpdater, checkForReleaseUpdate } from './core/updater.js?v=2.0.172';
-import { RU } from './i18n/ru.js?v=2.0.172';
-import { events } from './core/events.js?v=2.0.172';
-import { store } from './core/store.js?v=2.0.172';
-import { router } from './core/router.js?v=2.0.172';
-import { installShortcut, initPwa } from './core/pwa.js?v=2.0.172';
+import { initReleaseUpdater, checkForReleaseUpdate } from './core/updater.js?v=2.1.00';
+import { RU } from './i18n/ru.js?v=2.1.00';
+import { events } from './core/events.js?v=2.1.00';
+import { store } from './core/store.js?v=2.1.00';
+import { router } from './core/router.js?v=2.1.00';
+import { installShortcut, initPwa } from './core/pwa.js?v=2.1.00';
 import {
   initTelegramMiniApp,
   extractIncomingDeepLinkParams,
@@ -13,27 +13,33 @@ import {
   syncTelegramTheme,
   syncTelegramBackButton,
   getTelegramUser
-} from './core/telegram.js?v=2.0.172';
-import { FISH_DB } from './data/species.js?v=2.0.172';
-import { WATER_PROFILES } from './data/waters.js?v=2.0.172';
-import { showToast } from './ui/components.js?v=2.0.172';
-import { weatherModule } from './modules/weather/weather.module.js?v=2.0.172';
-import { geoModule } from './modules/geo/geo.module.js?v=2.0.172';
-import { fishModule } from './modules/fish/fish.module.js?v=2.0.172';
-import { forecastModule } from './modules/forecast/forecast.module.js?v=2.0.172';
-import { calendarModule } from './modules/calendar/calendar.module.js?v=2.0.172';
-import { logModule } from './modules/log/log.module.js?v=2.0.172';
-import { circleModule } from './modules/circle/circle.module.js?v=2.0.172';
+} from './core/telegram.js?v=2.1.00';
+import { FISH_DB } from './data/species.js?v=2.1.00';
+import { WATER_PROFILES } from './data/waters.js?v=2.1.00';
+import { showToast } from './ui/components.js?v=2.1.00';
+import { weatherModule } from './modules/weather/weather.module.js?v=2.1.00';
+import { geoModule } from './modules/geo/geo.module.js?v=2.1.00';
+import { fishModule } from './modules/fish/fish.module.js?v=2.1.00';
+import { forecastModule } from './modules/forecast/forecast.module.js?v=2.1.00';
+import { calendarModule } from './modules/calendar/calendar.module.js?v=2.1.00';
+import { logModule } from './modules/log/log.module.js?v=2.1.00';
+import { circleModule } from './modules/circle/circle.module.js?v=2.1.00';
+
 if (typeof window !== 'undefined') {
   window.__KLEV_BOOTSTRAPPED__ = true;
 }
+
 window.addEventListener('error', (e) => {
   console.error('[Global Error]:', e.error || e.message);
 });
+
 window.addEventListener('unhandledrejection', (e) => {
   console.error('[Unhandled Rejection]:', e.reason);
 });
+
+// Переменная для отслеживания живого переключения системной/Telegram темы в режиме «Авто»
 let _liveSystemSchemeOverride = null;
+
 /**
  * Вычисляет эффективную тему ('light' | 'dark') для режима «Авто» во всех 3 средах:
  * - В браузере, Android APK WebView и Telegram Mini App:
@@ -43,13 +49,16 @@ let _liveSystemSchemeOverride = null;
 export function resolveEffectiveTheme(themeMode) {
   if (themeMode === 'dark') return { effective: 'dark', sunriseHr: 7, sunsetHr: 20 };
   if (themeMode === 'light') return { effective: 'light', sunriseHr: 7, sunsetHr: 20 };
+
   const s = store.getState();
   const todayObj = s?.weatherDays?.[2] || s?.weatherDays?.[s?.dayIdx] || s?.weatherDays?.[0] || null;
   const sunriseHr = Number.isFinite(todayObj?.sunriseHr) ? todayObj.sunriseHr : 7;
   const sunsetHr = Number.isFinite(todayObj?.sunsetHr) ? todayObj.sunsetHr : 20;
+
   if (_liveSystemSchemeOverride === 'light' || _liveSystemSchemeOverride === 'dark') {
     return { effective: _liveSystemSchemeOverride, sunriseHr, sunsetHr };
   }
+
   const nowHr = new Date().getHours();
   const isDaylight = nowHr >= sunriseHr && nowHr < sunsetHr;
   return {
@@ -58,6 +67,7 @@ export function resolveEffectiveTheme(themeMode) {
     sunsetHr
   };
 }
+
 function applyTheme(themeMode, showNotificationToast = false) {
   const mode = ['auto', 'dark', 'light'].includes(themeMode) ? themeMode : 'auto';
   if (mode !== 'auto') {
@@ -68,12 +78,15 @@ function applyTheme(themeMode, showNotificationToast = false) {
   root.setAttribute('data-theme', effective);
   root.setAttribute('data-theme-mode', mode);
   syncTelegramTheme(effective);
+
   const metaTheme = document.querySelector('meta[name="theme-color"]');
   if (metaTheme) metaTheme.setAttribute('content', effective === 'dark' ? '#0b1120' : '#f1f5f9');
+
   const btn = document.getElementById('headerThemeBtn');
   if (btn) {
     btn.textContent = mode === 'auto' ? '🌓' : (mode === 'dark' ? '🌙' : '☀️');
   }
+
   if (showNotificationToast) {
     if (mode === 'auto') {
       showToast(
@@ -87,6 +100,7 @@ function applyTheme(themeMode, showNotificationToast = false) {
     }
   }
 }
+
 function initAutoThemeListeners() {
   if (typeof window === 'undefined') return;
   try {
@@ -105,6 +119,7 @@ function initAutoThemeListeners() {
       }
     }
   } catch (e) {}
+
   try {
     if (window.Telegram && window.Telegram.WebApp && typeof window.Telegram.WebApp.onEvent === 'function') {
       window.Telegram.WebApp.onEvent('themeChanged', () => {
@@ -118,24 +133,29 @@ function initAutoThemeListeners() {
       });
     }
   } catch (e) {}
+
+  // Автопроверка перехода восход/закат каждые 60 секунд для режима «Авто»
   setInterval(() => {
     if ((store.getState().theme || 'auto') === 'auto') {
       applyTheme('auto', false);
     }
   }, 60000);
 }
+
 export function applyAppTheme(themeMode, showNotificationToast = false) {
   applyTheme(themeMode, showNotificationToast);
 }
 if (typeof window !== 'undefined') {
   window.__KLEV_APPLY_THEME__ = applyTheme;
 }
+
 function updateHeaderUI() {
   const s = store.getState();
   const locSub = document.getElementById('headerLocSub');
   const locText = document.getElementById('headerLocText');
   const statusEl = document.getElementById('headerStatusPill');
   const seasonStrip = document.getElementById('headerSeasonStrip');
+
   if (locSub) {
     const shortBasin = (s.basinName || '').replace(/\s*\([^)]*\)/g, '').trim();
     const regionPart = s.locAdmin1 && s.locAdmin1 !== s.locLabel ? `${s.locAdmin1} • ` : '';
@@ -159,10 +179,12 @@ function updateHeaderUI() {
     const ice = day?.iceState || s.iceState;
     const thick = day?.iceThickness ?? s.iceThickness;
     const subState = day?.iceSubState || '';
+
     const stripCls = ice === 'ice_safe'
       ? 'ice-safe'
       : (ice === 'ice_danger' ? 'ice-danger' : (ice === 'ice_slush' ? 'ice-slush' : 'open-water'));
     seasonStrip.className = 'season-strip ' + stripCls;
+
     if (ice === 'ice_safe') {
       seasonStrip.innerHTML = `<span>❄️ Безопасный лёд ~${thick} см</span><span>💧 Вода ~${day?.waterTemp ?? 0.5}°C</span>`;
     } else if (ice === 'ice_danger') {
@@ -177,6 +199,7 @@ function updateHeaderUI() {
     }
   }
 }
+
 function bindGlobalShellEvents() {
   const locClickArea = document.getElementById('headerLocClickArea');
   if (locClickArea) {
@@ -191,6 +214,7 @@ function bindGlobalShellEvents() {
   if (installBtn) {
     installBtn.addEventListener('click', () => installShortcut());
   }
+
   const modeBtn = document.getElementById('headerModeBtn');
   if (modeBtn) {
     modeBtn.addEventListener('click', () => {
@@ -208,12 +232,14 @@ function bindGlobalShellEvents() {
       showToast(labels[next] || next, 'good');
     });
   }
+
   const profileBtn = document.getElementById('headerProfileBtn');
   if (profileBtn) {
     profileBtn.addEventListener('click', () => {
       fishModule.openOnboardingModal(true);
     });
   }
+
   const themeBtn = document.getElementById('headerThemeBtn');
   if (themeBtn) {
     themeBtn.addEventListener('click', () => {
@@ -224,6 +250,7 @@ function bindGlobalShellEvents() {
       applyTheme(next, true);
     });
   }
+
   const refreshBtn = document.getElementById('headerRefreshBtn');
   if (refreshBtn) {
     refreshBtn.addEventListener('click', async () => {
@@ -237,18 +264,21 @@ function bindGlobalShellEvents() {
       }
     });
   }
+
   const verBtn = document.getElementById('headerVersionBtn');
   if (verBtn) {
     verBtn.addEventListener('click', () => {
       checkForReleaseUpdate({ manual: true });
     });
   }
+
   const moreBtn = document.getElementById('navMoreBtn');
   const morePopup = document.getElementById('navMorePopup');
   const closeMorePopup = () => {
     if (morePopup) morePopup.classList.remove('open');
     if (moreBtn) moreBtn.setAttribute('aria-expanded', 'false');
   };
+
   if (moreBtn && morePopup) {
     moreBtn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -272,6 +302,7 @@ function bindGlobalShellEvents() {
       });
     }
   }
+
   document.querySelectorAll('[data-settings-zone]').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -281,6 +312,7 @@ function bindGlobalShellEvents() {
       fishModule.openOnboardingModal(true, zone);
     });
   });
+
   document.querySelectorAll('[data-nav-tab]').forEach(btn => {
     btn.addEventListener('click', () => {
       const tab = btn.getAttribute('data-nav-tab');
@@ -293,6 +325,8 @@ function bindGlobalShellEvents() {
       }
     });
   });
+
+  // Делегированный перехватчик для кнопки «✎ Список» (#fishFavEditBtn) во вкладке РЫБЫ (100% надёжность)
   document.addEventListener('click', (e) => {
     const favEdit = e.target && e.target.closest ? e.target.closest('#fishFavEditBtn') : null;
     if (favEdit) {
@@ -301,16 +335,25 @@ function bindGlobalShellEvents() {
       fishModule.openFavoritesEditorModal();
     }
   });
+
+  // Глобальное событие вызова окна шаринга в Круг / Экипаж / Мастерскую
   events.on('circle:openShareModal', (payload = {}) => {
     circleModule.openShareModalForCurrentContext(payload.mode || 'circle', payload.catchObj || null);
   });
+
+  // Глобальное событие отправки улова в Чат
   events.on('circle:shareCatchToChat', (payload = {}) => {
     circleModule.openShareCatchToChatModal(payload.catchObj || null);
   });
 }
+
+// ==========================================
+// DYNAMIC HEADER HEIGHT & SMOOTH SHRINKING FISH BUTTONS (MINIATURES ON SCROLL & FORECAST TAB)
+// ==========================================
 let cachedHeaderH = 66;
 let cachedFullDockH = 212;
 let scrollRafPending = false;
+
 function syncHeaderLayout(forceMeasure = false) {
   if (!forceMeasure && cachedHeaderH > 40) return cachedHeaderH;
   const header = document.querySelector('.app-header');
@@ -320,6 +363,7 @@ function syncHeaderLayout(forceMeasure = false) {
   document.documentElement.style.setProperty('--header-h', `${h}px`);
   return h;
 }
+
 function syncFishDockState(forceMeasure = false) {
   const headerH = syncHeaderLayout(forceMeasure);
   const route = store.getState().route || 'forecast';
@@ -328,12 +372,15 @@ function syncFishDockState(forceMeasure = false) {
   const sentinel = document.getElementById('fishDockSentinel');
   const placeholder = document.getElementById('fishStripPlaceholder');
   const dockWrap = document.getElementById('fishStripDockWrap');
+
   if (!secFish || !dockWrap || !placeholder) {
     document.body.style.paddingTop = `${headerH}px`;
     return;
   }
+
   const cardEl = secFish.querySelector('.card');
   const isDedicatedFishTab = ['forecast', 'calendar'].includes(route);
+
   if (isDedicatedFishTab) {
     if (cardEl && cardEl.getAttribute('data-dock-mode') !== 'mini') {
       cardEl.setAttribute('data-dock-mode', 'mini');
@@ -357,6 +404,9 @@ function syncFishDockState(forceMeasure = false) {
     document.body.style.paddingTop = `${headerH + 46}px`;
     return;
   }
+
+  // При переходе на вкладку «🐟 Рыбы» (или любую другую вкладку) ОБЯЗАТЕЛЬНО снимаем фиксацию мини-полоски,
+  // чтобы она никогда не перекрывала кнопки «⭐ Избранное», «✎ Список» и «Весь атлас РФ»!
   if (cardEl && cardEl.getAttribute('data-dock-mode') === 'mini') {
     cardEl.setAttribute('data-dock-mode', 'full');
     Array.from(cardEl.children).forEach(ch => {
@@ -379,6 +429,7 @@ function syncFishDockState(forceMeasure = false) {
     placeholder.style.height = '';
     placeholder.style.minHeight = '';
   }
+
   if (route !== 'fish') {
     if (dockWrap.classList.contains('docked-mini')) {
       dockWrap.classList.remove('docked-mini');
@@ -388,8 +439,10 @@ function syncFishDockState(forceMeasure = false) {
     document.body.style.paddingTop = `${headerH}px`;
     return;
   }
+
   document.body.style.paddingTop = `${headerH}px`;
   if (!sentinel || secFish.offsetParent === null) return;
+
   const scrollY = typeof window !== 'undefined' ? (window.scrollY || window.pageYOffset || 0) : 0;
   if (scrollY < 95) {
     if (dockWrap.classList.contains('docked-mini')) {
@@ -399,8 +452,10 @@ function syncFishDockState(forceMeasure = false) {
     }
     return;
   }
+
   const sRect = sentinel.getBoundingClientRect();
   const delta = headerH - sRect.top;
+
   if (delta > 36 && scrollY >= 95) {
     if (!dockWrap.classList.contains('docked-mini')) {
       placeholder.style.height = `${cachedFullDockH}px`;
@@ -415,7 +470,9 @@ function syncFishDockState(forceMeasure = false) {
     }
   }
 }
+
 window.syncFishDockState = syncFishDockState;
+
 function safeInit(name, fn) {
   try {
     fn();
@@ -423,6 +480,7 @@ function safeInit(name, fn) {
     console.error(`[Bootstrap] Module ${name} init error:`, err);
   }
 }
+
 function applyIncomingDeepLinkToStore(deepLink, triggerNetworkFetch = false) {
   if (!deepLink) return;
   const hasCoords = Number.isFinite(deepLink.lat) && Number.isFinite(deepLink.lon);
@@ -448,6 +506,7 @@ function applyIncomingDeepLinkToStore(deepLink, triggerNetworkFetch = false) {
       payload: { locLabel: deepLink.city, locAdmin2: deepLink.city }
     });
   }
+
   if (deepLink.fish) {
     const targetFishObj = FISH_DB.find(f => f.id === deepLink.fish);
     if (targetFishObj) {
@@ -483,17 +542,21 @@ function applyIncomingDeepLinkToStore(deepLink, triggerNetworkFetch = false) {
     }
   }
 }
+
 function bootstrapApp() {
   window.__KLEV_BOOTSTRAPPED__ = true;
   applyTheme(store.getState().theme || 'auto', false);
   initAutoThemeListeners();
+
   const earlyDeepLink = extractIncomingDeepLinkParams();
   const earlyShareToken = extractIncomingShareToken();
   if (earlyDeepLink) {
     applyIncomingDeepLinkToStore(earlyDeepLink, false);
   }
+
   safeInit('pwa', () => initPwa());
   safeInit('shellEvents', () => bindGlobalShellEvents());
+
   safeInit('weather', () => weatherModule.init(document.getElementById('secWeather')));
   safeInit('geo', () => geoModule.init(document.getElementById('secGeo')));
   safeInit('fish', () => fishModule.init(document.getElementById('secFish')));
@@ -501,6 +564,7 @@ function bootstrapApp() {
   safeInit('circle', () => circleModule.init(document.getElementById('secCircle'), document.getElementById('secChats')));
   safeInit('calendar', () => calendarModule.init(document.getElementById('secCalendar')));
   safeInit('log', () => logModule.init(document.getElementById('secLog')));
+
   safeInit('router', () => router.init());
   safeInit('telegram', () => {
     initTelegramMiniApp(
@@ -531,8 +595,10 @@ function bootstrapApp() {
       router.navigate('forecast');
     });
   });
+
   updateHeaderUI();
   syncFishDockState();
+
   window.addEventListener('scroll', () => {
     if (!scrollRafPending) {
       scrollRafPending = true;
@@ -542,9 +608,11 @@ function bootstrapApp() {
       });
     }
   }, { passive: true });
+
   window.addEventListener('resize', () => {
     syncFishDockState(true);
   }, { passive: true });
+
   const headerEl = document.querySelector('.app-header');
   if (headerEl && typeof ResizeObserver !== 'undefined') {
     const ro = new ResizeObserver(() => {
@@ -552,12 +620,74 @@ function bootstrapApp() {
     });
     ro.observe(headerEl);
   }
-  const curProfile = store.getState().userProfile;
-  if ((!curProfile || !curProfile.onboarded) && !earlyDeepLink && !earlyShareToken) {
+
+  const isCleanSlateFirstRun = (() => {
+    try {
+      if (typeof localStorage !== 'undefined' && localStorage.getItem('klev_pro_clean_slate_notice_v2_1_00') === '1') {
+        localStorage.removeItem('klev_pro_clean_slate_notice_v2_1_00');
+        return true;
+      }
+    } catch (e) {}
+    return false;
+  })();
+
+  if (isCleanSlateFirstRun) {
+    if (typeof caches !== 'undefined' && typeof caches.keys === 'function') {
+      caches.keys().then(keys => {
+        keys.forEach(k => {
+          if (!k.includes('2.1.00')) caches.delete(k).catch(() => {});
+        });
+      }).catch(() => {});
+    }
     setTimeout(() => {
-      fishModule.openOnboardingModal(false);
+      const ident = circleModule.getCurrentFisherIdentity(store.getState());
+      const cleanSlateHtml = `
+        <div style="display:flex;flex-direction:column;gap:12px;font-size:var(--fs-sm);line-height:1.48;">
+          <div style="padding:12px;background:rgba(16,185,129,0.10);border:1.5px solid var(--good);border-radius:var(--r-sm);">
+            <div style="font-weight:900;font-size:var(--fs-md);color:var(--good);margin-bottom:4px;">
+              🚀 Экосистема «Клёв ПРО» обновлена до версии V.2.1.00!
+            </div>
+            <div style="font-size:var(--fs-xs);color:var(--text);">
+              Для перехода на новую серверную архитектуру и устранения конфликтов старых сборок выполнен автоматический <b>сброс устаревшего кэша и настроек («С чистого листа»)</b>.
+            </div>
+          </div>
+
+          <div class="card" style="background:var(--card);padding:10px 12px;border:1px solid var(--border);display:flex;flex-direction:column;gap:8px;font-size:var(--fs-xs);">
+            <div>🆔 <b>Ваш уникальный серверный ID рыбака:</b> <span class="fisher-id-copy-badge" data-copy-fisher-id="${ident.fisherId}" style="font-family:monospace;font-weight:900;color:var(--accent);cursor:pointer;">${ident.fisherId} 📋</span></div>
+            <div>📡 <b>Живой радар «Круга» и «Экипажей»:</b> все опубликованные точки Круга (±5 км), закрытые Экипажи (по ключу <code>KP-XXXX</code>) и сигналы SOS теперь мгновенно синхронизируются между всеми устройствами через сервер.</div>
+            <div>🔑 <b>Сквозной профиль:</b> если у вас уже есть Логин и Пароль, нажмите кнопку входа ниже, чтобы мгновенно восстановить свой профиль и ID.</div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr;gap:8px;margin-top:2px;">
+            <button type="button" class="btn btn-accent" id="cleanSlateSignInBtn" style="width:100%;font-weight:800;">
+              🔑 Войти по Логину и Паролю (Восстановить профиль)
+            </button>
+            <button type="button" class="btn btn-good" id="cleanSlateSetupBtn" style="width:100%;font-weight:800;">
+              🎯 Настроить водоём, снасти и начать с чистого листа
+            </button>
+          </div>
+        </div>
+      `;
+      openModal('🚀 Обновление V.2.1.00 («С чистого листа»)', cleanSlateHtml, (bodyEl) => {
+        bodyEl.querySelector('#cleanSlateSignInBtn')?.addEventListener('click', () => {
+          closeModal();
+          circleModule.openAuthAndBackupModal();
+        });
+        bodyEl.querySelector('#cleanSlateSetupBtn')?.addEventListener('click', () => {
+          closeModal();
+          fishModule.openOnboardingModal(false);
+        });
+      });
     }, 450);
+  } else {
+    const curProfile = store.getState().userProfile;
+    if ((!curProfile || !curProfile.onboarded) && !earlyDeepLink && !earlyShareToken) {
+      setTimeout(() => {
+        fishModule.openOnboardingModal(false);
+      }, 450);
+    }
   }
+
   store.subscribe(
     s => ({
       theme: s.theme,
@@ -592,6 +722,7 @@ function bootstrapApp() {
       syncFishDockState();
     }
   );
+
   window.addEventListener('hashchange', async () => {
     const tok = extractIncomingShareToken();
     if (tok) {
@@ -611,6 +742,7 @@ function bootstrapApp() {
     }
   }, 1800);
 }
+
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', bootstrapApp);
 } else {
