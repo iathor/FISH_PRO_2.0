@@ -1,1 +1,947 @@
-import{RU as e}from"../../i18n/ru.js?v=2.0.170";import{events as t}from"../../core/events.js?v=2.0.170";import{storage as a}from"../../core/storage.js?v=2.0.170";import{store as r}from"../../core/store.js?v=2.0.170";import{fetchWithTimeout as i,fallbackChain as n}from"../../core/http.js?v=2.0.170";import{formatLocalYYYYMMDD as s,fmtHM as o,fmtDeltaPress as c}from"../../core/format.js?v=2.0.170";import{WATER_PROFILES as d}from"../../data/waters.js?v=2.0.170";import{createPill as l,showToast as h}from"../../ui/components.js?v=2.0.170";const u=["С","СВ","В","ЮВ","Ю","ЮЗ","З","СЗ"];export function computeMoon(e){const t=29.53058867,a=((new Date(e+"T12:00:00Z")-new Date("2026-10-10T15:50:00Z"))/864e5%t+t)%t,r=a/t,i=Math.round(50*(1-Math.cos(2*r*Math.PI))),n=Math.max(1,Math.min(30,Math.floor(a)+1)),s=Math.round((12+24*r)%24),o=(s+12)%24,c=(s+18)%24,d=(s+6)%24;let l="Растущая луна",h="🌒";return 1===n||n>=29?(l="Новолуние",h="🌑"):n>=14&&n<=16?(l="Полнолуние",h="🌕"):n>=7&&n<=8?(l="Первая четверть",h="🌓"):n>=22&&n<=23?(l="Последняя четверть",h="🌗"):n>16&&(l="Убывающая луна",h="🌘"),{moonDay:n,illum:i,transitHour:s,underfootHour:o,riseHour:c,setHour:d,phaseName:l,phaseIcon:h,majorWindows:[`${String(s).padStart(2,"0")}:00–${String((s+2)%24).padStart(2,"0")}:00`,`${String(o).padStart(2,"0")}:00–${String((o+2)%24).padStart(2,"0")}:00`],minorWindows:[`${String(c).padStart(2,"0")}:00–${String((c+1)%24).padStart(2,"0")}:00`,`${String(d).padStart(2,"0")}:00–${String((d+1)%24).padStart(2,"0")}:00`]}}export function computeWaterTempSeries(e,t,a,r="small_river"){if(!Array.isArray(e)||0===e.length)return[8];const i=d[r]||d.small_river,n=Number.isFinite(i.flow)?i.flow:1;if("cooling_reservoir"===r)return e.map((e=>Math.max(8,Math.min(30,Math.round(10*(.22*e+18))/10))));const s="quarry"===r||"big_river"===r?.78:n>=1.2?.72:.68,o=n>=1.8?.75:n>=1.1?.45:0;let c=Math.max(.4,Math.min(25,.54*e[0]+2.6+o));const l=[];for(let r=0;r<e.length;r++){const i=e[r],d=Array.isArray(t)&&Number.isFinite(t[r])?t[r]:i+2.5;Array.isArray(a)&&Number.isFinite(a[r])&&a[r],c=c*s+Math.max(.2,Math.min(25.5,.54*i+2.6+o))*(1-s);let h=.2;d>=-.5&&i>=-3.8?h=n>=1.8?1.5:n>=1.1?1.2:.7:i>=-6&&n>=1.1&&(h=.6);const u=Math.max(h,Math.min(25.5,Math.round(10*c)/10));l.push(u)}return l}export function evaluateDayIce(e,t,a,r,i="small_river",n=""){if("cooling_reservoir"===i)return{iceState:"open_water",iceSubState:"warm_discharge",iceThickness:0,iceNote:"🌊 Тёплый сброс ГРЭС/АЭС — круглогодично открытая вода"};const s=d[i]||d.small_river,o=Number.isFinite(s.flow)?s.flow:1,c=1/Math.pow(Math.max(.4,o),.45),l=o>=1.8?"быстрое течение":o>=1.1?"умеренное течение":"стоячая вода / слабый ток",h=(n?new Date(n+"T12:00:00"):new Date).getMonth()+1,u=h>=3&&h<=5,p=12===h||h<=5,m=Array.isArray(e)&&e.length>0?e:[(t+a)/2];let y=0,f=0,v=0,w=0;for(let e=m.length-1;e>=0;e--){const t=m[e],a=m.length-1-e;if(t<=-.5)f++,y+=Math.max(0,Math.abs(t)-(o>1.5?1.2:o>1?.5:0));else if(a<=3&&t>.5&&(v++,w+=t),a<=2&&t>2.5&&!p)break}const g=(t+a)/2,_=m.slice(-4).every((e=>e>=-3.8&&e<=3.5))&&t>=-2.5&&t<=4&&a>=-6&&a<=2.5,S=Math.round(2.35*Math.sqrt(Math.max(0,y))*c-.85*w),M=Math.max(0,Math.min(120,S));if((u||v>=2)&&(M>=5||f>=4)&&(t>=3||g>=.8||w>=4)){const e=Math.max(4,M||12);return{iceState:"ice_danger",iceSubState:"spring_rotten_ice",iceThickness:e,iceNote:`⚠️ Опасный весенний лёд (~${e} см, ${l}): дневной прогрев до +${t}°C, рыхлый игольчатый лёд, промоины и закраины — выход на лёд смертельно опасен!`}}if(_&&M<10&&y<28)return a<=.5||g<=1.8||r<=2.5?{iceState:"ice_slush",iceSubState:"slush_shore_ice",iceThickness:0,iceNote:`🌊❄️ Шуга и забереги (колебания ${a>0?"+"+a:a}..${t>0?"+"+t:t}°C, ${l}): сплошного ледостава нет, береговая ловля по холодной воде`}:{iceState:"open_water",iceSubState:"cold_open_water",iceThickness:0,iceNote:`🌊 Открытая прохладная вода (${l}, льда нет)`};const x=o>=1.8?12:o>=1.1?10:8;if(f>=(o>=1.8?4:3)&&M>=x&&t<=.5)return{iceState:"ice_safe",iceSubState:"solid_freeze",iceThickness:M,iceNote:`❄️ Устойчивый ледостав: безопасный монолитный лёд ~${M} см (с учётом течения: ${l})`};if((g<=-2||t<=-.5&&a<=-4)&&(M>=2||y>=6)&&r<=2.2){const e=Math.max(2,Math.min(x-1,M||4));return{iceState:"ice_danger",iceSubState:"thin_first_ice",iceThickness:e,iceNote:`⚠️ Тонкий перволёдок (~${e} см, ${l}): лёд ещё не набрал безопасную толщину (${x} см) — выход на лёд запрещён!`}}return a<=-1&&t>=-1&&r<=2.8?{iceState:"ice_slush",iceSubState:"slush_shore_ice",iceThickness:0,iceNote:`🌊❄️ Забереги и редкая шуга (${l}, ледостава нет)`}:{iceState:"open_water",iceSubState:"open_water",iceThickness:0,iceNote:`🌊 Открытая вода (льда нет, ${l})`}}export function computeIceSafetyIndex(e,t="small_river"){const a=d[t]||d.small_river,r=Number.isFinite(a.flow)?a.flow:1,i=e?.iceState||"open_water",n=Number(e?.iceThickness)||0,s=Number(e?.windMax)||3,o=Number(e?.tDay)||0;if("open_water"===i)return{index:100,hasIce:!1,footSafe:!1,sledSafe:!1,minFootCm:r>=1.5?12:10,minSledCm:r>=1.5?25:20,statusText:"Открытая вода (ледостава нет)",vehicleVerdict:"Ловля с берега или лодки (спасжилет обязателен при волне)",recommendation:"Льда нет. При выходе на лодке учитывайте ветер ("+s+" м/с) и температуру воды (~"+(e?.waterTemp??8)+"°C)."};const c=r>=1.8?12:r>=1.1?10:8,l=r>=1.8?25:r>=1.1?22:18;if("ice_danger"===i||"ice_slush"===i){const e="ice_slush"===i?25:Math.max(5,Math.min(38,Math.round(n/c*35)));return{index:e,hasIce:!0,footSafe:!1,sledSafe:!1,minFootCm:c,minSledCm:l,statusText:"ice_slush"===i?"Шуга и забереги (выход запрещён)":`Опасный лёд ~${n} см (индекс ${e}/100)`,vehicleVerdict:"⛔ Пешком и на технике ЗАПРЕЩЕНО!",recommendation:`Несущая способность льда критически низкая (~${n} см при норме от ${c} см на течении). Допустима только береговая ловля!`}}let h=Math.min(98,Math.round(55+2.2*(n-c)));r>=1.8&&(h-=8),o>0&&(h-=12),s>=9&&(h-=6),h=Math.max(45,Math.min(98,h));const u=n>=l&&o<=0;return{index:h,hasIce:!0,footSafe:n>=c&&o<=2,sledSafe:u,minFootCm:c,minSledCm:l,statusText:`Безопасный лёд ~${n} см (индекс надёжности ${h}/100)`,vehicleVerdict:u?`🚶 Пешком: РАЗРЕШЕНО (≥${c} см) • 🛷 Мотобуксировщик/снегоход: РАЗРЕШЕНО (≥${l} см)`:`🚶 Пешком со спасалками: РАЗРЕШЕНО (≥${c} см) • 🛷 Техника/снегоход: ОПАСНО (нужно ≥${l} см!)`,recommendation:u?"Монолитный лёд достаточной толщины для пешего перехода и лёгкой мототехники. Избегайте устьев притоков и быстрин.":`Толщина ~${n} см достаточна для одиночного пешего выхода с пешнёй и спасалками, но выезд на мотобуксировщике или снегоходе запрещён (требуется от ${l} см).`}}function p(e){return-2===e?"Позавчера":-1===e?"Вчера":0===e?"Сегодня":1===e?"Завтра":2===e?"Послезавтра":""}export function buildFallback(t=55.75,a="small_river"){const r=new Date;r.setHours(0,0,0,0);const i=Math.floor((r-new Date(r.getFullYear(),0,0))/864e5),n=-Math.cos((i+10)/365*2*Math.PI),o=Math.abs(t),c=22-.82*(o-40),d=10+.38*(o-40),l=[],h=[],m=[];for(let e=-7;e<=9;e++){const t=Math.round(c+n*d-.2*e),a=t-5;h.push(t),m.push(a),l.push((t+a)/2)}const y=computeWaterTempSeries(l,h,m,a),f=[];for(let t=0;t<12;t++){const i=t-2,n=new Date(r.getTime()+864e5*i),o=s(n),c=computeMoon(o),d=t+5,v=h[d],w=m[d],g=y[d],_=Math.round(754+4*Math.sin(.7*t)),S=Math.round(3*Math.cos(t)),M=Math.round(3+3*Math.abs(Math.sin(t))),x=[];for(let e=0;e<24;e++){const a=Math.sin((e-5)/24*2*Math.PI);x.push({hour:e,tAir:Math.round(10*(w+(a+1)/2*(v-w)))/10,press:Math.round(_+S*(e-12)/24),dp3h:Math.round(S/8*10)/10,wind:Math.max(1,M),windDir:u[(t+e)%8],cloud:65,precip:0})}const b=evaluateDayIce(l.slice(0,d+1),v,w,g,a,o);f.push({date:o,relOffset:i,isArchive:i<0,isReal:!1,relTitle:p(i),label:`${e.daysShort[n.getDay()]}, ${n.getDate()} ${e.monthsGen[n.getMonth()]}`,tDay:v,tNight:w,pressAvg:_,dP:S,windMax:Math.max(1,M),windDir:x[12].windDir,sunriseHr:6.8+.02*t,sunsetHr:18.2-.02*t,waterTemp:g,iceState:b.iceState,iceSubState:b.iceSubState,iceThickness:b.iceThickness,iceNote:b.iceNote,moon:c,hours:x})}const v=f[2]||f[0];return{days:f,archive5Days:f.slice(0,2),hasRealArchive:!1,elevation:90,normPress:752,iceState:v.iceState,iceSubState:v.iceSubState,iceThickness:v.iceThickness,iceNote:v.iceNote}}export function normalizeOpenMeteo(t,a){const r=Math.round(t.elevation||90),i=Math.round(760-r/11.5),n=(t.hourly?.surface_pressure||[]).map((e=>.750062*(e||1010))),o=Array.isArray(t.daily?.time)?t.daily.time:[],c=o.length;if(0===c)return null;const d=s(new Date);let l=o.indexOf(d);if(l<0){const e=new Date(d+"T00:00:00").getTime();let t=1/0;o.forEach(((a,r)=>{const i=Math.abs(new Date(a+"T00:00:00").getTime()-e);i<t&&(t=i,l=r)}))}const h=o.map(((e,a)=>Math.round(t.daily.temperature_2m_max[a]??8))),m=o.map(((e,a)=>Math.round(t.daily.temperature_2m_min[a]??2))),y=o.map(((e,t)=>(h[t]+m[t])/2)),f=computeWaterTempSeries(y,h,m,a),v=[];for(let r=0;r<c;r++){const i=r-l,s=o[r],c=new Date(s+"T00:00:00"),d=t.daily.sunrise?.[r]?new Date(t.daily.sunrise[r]):new Date(s+"T07:00:00"),w=t.daily.sunset?.[r]?new Date(t.daily.sunset[r]):new Date(s+"T18:00:00"),g=[];let _=0;for(let e=0;e<24;e++){const a=24*r+e,i=n[a]||754;_+=i,g.push({hour:e,tAir:Math.round(10*(t.hourly.temperature_2m?.[a]??0))/10,press:Math.round(i),dp3h:Math.round(10*(i-(a>=3&&n[a-3]||i)))/10,wind:Math.round(10*(t.hourly.wind_speed_10m?.[a]??3))/10,windDir:u[Math.round((t.hourly.wind_direction_10m?.[a]||0)/45)%8],cloud:t.hourly.cloud_cover?.[a]??50,precip:t.hourly.precipitation?.[a]??0})}const S=Math.round(_/24),M=r>0?Math.round(n.slice(24*(r-1),24*r).reduce(((e,t)=>e+t),0)/24):S,x=h[r],b=m[r],D=f[r],$=evaluateDayIce(y.slice(0,r+1),x,b,D,a,s);v.push({date:s,relOffset:i,isArchive:i<0,isReal:!0,relTitle:p(i),label:`${e.daysShort[c.getDay()]}, ${c.getDate()} ${e.monthsGen[c.getMonth()]}`,tDay:x,tNight:b,pressAvg:S,dP:S-M,windMax:Math.round(t.daily.wind_speed_10m_max?.[r]||3),windDir:u[Math.round((t.daily.wind_direction_10m_dominant?.[r]||0)/45)%8],sunriseHr:d.getHours()+d.getMinutes()/60,sunsetHr:w.getHours()+w.getMinutes()/60,waterTemp:D,iceState:$.iceState,iceSubState:$.iceSubState,iceThickness:$.iceThickness,iceNote:$.iceNote,moon:computeMoon(s),hours:g})}const w=Math.max(0,Math.min(c-12,l-2)),g=v.slice(w,w+12).map(((e,t)=>({...e,relOffset:t-2,isArchive:t<2,relTitle:p(t-2)}))),_=v.filter((e=>e.date<d)).slice(-5),S=g[2]||g[0];return{days:g,archive5Days:_,extraArchiveDays:v.filter((e=>e.date<d)),hasRealArchive:_.length>=3,elevation:r,normPress:i,iceState:S?.iceState||"open_water",iceSubState:S?.iceSubState||"open_water",iceThickness:S?.iceThickness||0,iceNote:S?.iceNote||""}}export function normalizeMetNo(t,a,r,i=[]){const n=t.geometry?.coordinates||[],o=Math.round(n[2]||90),c=Math.round(760-o/11.5),d={},l={};Array.isArray(i)&&i.forEach((e=>{e&&e.date&&Array.isArray(e.hours)&&24===e.hours.length&&!1!==e.isReal&&(d[e.date]={},e.hours.forEach(((t,a)=>{d[e.date][a]={...t}})),l[e.date]=!0)}));for(const e of t.properties?.timeseries||[]){const t=new Date(e.time),a=s(t),r=t.getHours();d[a]||(d[a]={});const i=e.data?.instant?.details||{},n=.750062*(i.air_pressure_at_sea_level||1013.25)-o/11.5;d[a][r]={hour:r,tAir:Math.round(10*(i.air_temperature??0))/10,press:Math.round(n),dp3h:0,wind:Math.round(10*(i.wind_speed??3))/10,windDir:u[Math.round((i.wind_from_direction||0)/45)%8],cloud:Math.round(i.cloud_area_fraction??50),precip:e.data?.next_1_hours?.details?.precipitation_amount??0},l[a]=!0}const h=new Date;h.setHours(0,0,0,0);const m=s(h);let y=null;for(let e=0;e<=3;e++){const t=s(new Date(h.getTime()+864e5*e));if(d[t]&&Object.keys(d[t]).length>0){y=d[t];break}}const f=[];for(let t=-5;t<=9;t++){const a=new Date(h.getTime()+864e5*t),r=s(a);let i=d[r];const n=Boolean(l[r]&&i&&Object.keys(i).length>0);if(!i||0===Object.keys(i).length){i={};const e=y?Object.values(y):[{tAir:4,press:c,wind:3,windDir:"З",cloud:60,precip:0}],t=e.reduce(((e,t)=>e+t.tAir),0)/e.length,a=Math.round(e.reduce(((e,t)=>e+t.press),0)/e.length),r=Math.round(e.reduce(((e,t)=>e+t.wind),0)/e.length*10)/10,n=e[Math.floor(e.length/2)]?.windDir||"З";for(let e=0;e<24;e++){const s=y&&y[e]?y[e]:null,o=Math.sin((e-5)/24*2*Math.PI),c=s?s.tAir:Math.round(10*(t+2.5*o))/10;i[e]={hour:e,tAir:c,press:s?s.press:a,dp3h:0,wind:s?s.wind:r,windDir:s?s.windDir:n,cloud:s?s.cloud:60,precip:0}}}const o=[];let u=Object.values(i)[0]||{hour:0,tAir:2,press:c,dp3h:0,wind:3,windDir:"З",cloud:50,precip:0};for(let e=0;e<24;e++)i[e]&&(u=i[e]),o.push({...u,hour:e});for(let e=0;e<24;e++){const t=e>=3?o[e-3].press:f.length>0&&f[f.length-1].hours[21+e]?.press||o[0].press;o[e].dp3h=Math.round(10*(o[e].press-t))/10}const m=o.map((e=>e.tAir)),v=o.map((e=>e.press)),w=o.map((e=>e.wind)),g=Math.round(Math.max(...m)),_=Math.round(Math.min(...m)),S=Math.round(v.reduce(((e,t)=>e+t),0)/24),M=f.length>0?f[f.length-1].pressAvg:S;f.push({date:r,relOffset:t,isArchive:t<0,isReal:n,relTitle:p(t),label:`${e.daysShort[a.getDay()]}, ${a.getDate()} ${e.monthsGen[a.getMonth()]}`,tDay:g,tNight:_,pressAvg:S,dP:S-M,windMax:Math.max(1,Math.round(Math.max(...w))),windDir:o[12]?.windDir||"З",sunriseHr:7,sunsetHr:17.8,waterTemp:4,iceState:"open_water",iceSubState:"open_water",iceThickness:0,iceNote:"",moon:computeMoon(r),hours:o})}const v=f.map((e=>e.tDay)),w=f.map((e=>e.tNight)),g=f.map((e=>(e.tDay+e.tNight)/2)),_=computeWaterTempSeries(g,v,w,r);f.forEach(((e,t)=>{e.waterTemp=_[t];const a=evaluateDayIce(g.slice(0,t+1),e.tDay,e.tNight,e.waterTemp,r,e.date);e.iceState=a.iceState,e.iceSubState=a.iceSubState,e.iceThickness=a.iceThickness,e.iceNote=a.iceNote}));const S=f.filter((e=>e.relOffset>=-2&&e.relOffset<=9)),M=f.filter((e=>e.date<m)),x=M.filter((e=>e.isReal)).length,b=S[2]||S[0];return{days:S,archive5Days:M,extraArchiveDays:M.filter((e=>e.isReal)),hasRealArchive:x>=3,elevation:o,normPress:c,iceState:b?.iceState||"open_water",iceSubState:b?.iceSubState||"open_water",iceThickness:b?.iceThickness||0,iceNote:b?.iceNote||""}}export function recalculateIceForWaterType(e,t,a=[]){if(!Array.isArray(e)||0===e.length)return null;const r=e[0]?.date||"",i=Array.isArray(a)?a.filter((e=>e&&e.date&&e.date<r)):[],n=[...i,...e],s=n.map((e=>e.tDay)),o=n.map((e=>e.tNight)),c=n.map((e=>(e.tDay+e.tNight)/2)),d=computeWaterTempSeries(c,s,o,t),l=n.map(((e,a)=>{const r=d[a],i=evaluateDayIce(c.slice(0,a+1),e.tDay,e.tNight,r,t,e.date);return{...e,waterTemp:r,iceState:i.iceState,iceSubState:i.iceSubState,iceThickness:i.iceThickness,iceNote:i.iceNote}})),h=l.slice(i.length),u=l.filter((e=>e.isArchive)).slice(-5),p=h[2]||h[0];return{days:h,archive5Days:u,iceState:p.iceState,iceSubState:p.iceSubState,iceThickness:p.iceThickness,iceNote:p.iceNote}}export async function fetchWeather(o,c,d=!1){const l=r.getState(),h=a.loadWeatherCache(o,c),u=a.getArchiveDaysForLocation(o,c,5);if(h&&h.days&&12===h.days.length&&!d){const a=h.ageMinutes||1,i=a>=60?`${e.cachedPrefix} 10 км (${Math.round(a/60)} ч назад)`:`${e.cachedPrefix} 10 км (${a} мин назад)`,n=recalculateIceForWaterType(h.days,l.water,h.archive5Days||u.days);if(r.dispatch({type:"SET_WEATHER_DATA",payload:{...h,...n||{},hasRealArchive:h.hasRealArchive??u.hasRealArchive,source:i,updatedAt:h.timestamp}}),t.emit("weather:updated",r.getState()),!h.isExpired)return}const p=`https://api.open-meteo.com/v1/forecast?latitude=${o}&longitude=${c}&past_days=7&hourly=temperature_2m,surface_pressure,wind_speed_10m,wind_direction_10m,cloud_cover,precipitation&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset,wind_speed_10m_max,wind_direction_10m_dominant&forecast_days=10&wind_speed_unit=ms&timezone=auto`,m=`https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${o.toFixed(4)}&lon=${c.toFixed(4)}`;try{const d=await n([{name:e.online,run:async()=>{const e=await i(p,6500);return e&&e.hourly&&e.daily?normalizeOpenMeteo(e,l.water):null}},{name:e.online,run:async()=>{const e=`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(p)}`,t=await i(e,7e3);return t&&t.hourly&&t.daily?normalizeOpenMeteo(t,l.water):null}},{name:e.online,run:async()=>{const e=`https://api.allorigins.win/raw?url=${encodeURIComponent(p)}`,t=await i(e,7500);return t&&t.hourly&&t.daily?normalizeOpenMeteo(t,l.water):null}},{name:e.onlineMetNo,run:async()=>{const e=await i(m,7500);if(!e||!e.properties?.timeseries)return null;let t=u.days||[];if(t.filter((e=>e&&!1!==e.isReal)).length<3){const e=await async function(e,t,a){const r=new Date;r.setHours(0,0,0,0);const n=new Date(r.getTime()-432e6),o=new Date(r.getTime()-864e5),c=s(n),d=s(o),l=`https://historical-forecast-api.open-meteo.com/v1/forecast?latitude=${e}&longitude=${t}&start_date=${c}&end_date=${d}&hourly=temperature_2m,surface_pressure,wind_speed_10m,wind_direction_10m,cloud_cover,precipitation&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset,wind_speed_10m_max,wind_direction_10m_dominant&wind_speed_unit=ms&timezone=auto`,h=[l,`https://archive-api.open-meteo.com/v1/archive?latitude=${e}&longitude=${t}&start_date=${c}&end_date=${d}&hourly=temperature_2m,surface_pressure,wind_speed_10m,wind_direction_10m,cloud_cover,precipitation&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset,wind_speed_10m_max,wind_direction_10m_dominant&wind_speed_unit=ms&timezone=auto`,`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(l)}`,`https://api.allorigins.win/raw?url=${encodeURIComponent(l)}`];for(const e of h)try{const t=await i(e,5500);if(t&&t.hourly&&t.daily&&Array.isArray(t.daily.time)&&t.daily.time.length>=3){const e=normalizeOpenMeteo(t,a);if(e&&Array.isArray(e.extraArchiveDays)&&e.extraArchiveDays.length>=3)return e.extraArchiveDays}}catch(e){}return null}(o,c,l.water);Array.isArray(e)&&e.length>=3&&(t=e)}return normalizeMetNo(e,o,l.water,t)}}]),h=a.saveWeatherCache(o,c,d.data,d.data.extraArchiveDays||d.data.archive5Days||[]),y=a.getArchiveDaysForLocation(o,c,5),f=recalculateIceForWaterType(d.data.days.map(((e,t)=>t<2&&h?.daysByDate?.[e.date]?{...h.daysByDate[e.date],relOffset:t-2,isArchive:!0,relTitle:0===t?"Позавчера":"Вчера"}:e)),l.water,y.days);r.dispatch({type:"SET_WEATHER_DATA",payload:{...d.data,...f||{},archive5Days:y.days,hasRealArchive:h?.hasRealArchive??d.data.hasRealArchive,source:d.source,updatedAt:Date.now()}}),t.emit("weather:updated",r.getState())}catch(a){if(!h||!h.days?.length){const a=buildFallback(o,l.water);r.dispatch({type:"SET_WEATHER_DATA",payload:{...a,hasRealArchive:!1,source:e.offlineMode,updatedAt:Date.now()}}),t.emit("weather:updated",r.getState())}}}export function getWeatherState(){const e=r.getState();return{days:e.weatherDays,archive5Days:e.weatherArchive5Days,hasRealArchive:e.hasRealArchive,source:e.weatherSource,normPress:e.normPress,elevation:e.elevation,iceState:e.iceState,iceThickness:e.iceThickness}}export function subscribeWeather(e){return r.subscribe((e=>({route:e.route,days:e.weatherDays,archive5Days:e.weatherArchive5Days,hasRealArchive:e.hasRealArchive,dayIdx:e.dayIdx,source:e.weatherSource,water:e.water})),e)}export function render(t){if(!t)return;const i=r.getState(),n=i.weatherDays[i.dayIdx]||i.weatherDays[2]||i.weatherDays[0];if(!n)return;const s=n.moon,u=d[i.water]||d.small_river,p=u.flow>=1.8?"быстрое течение":u.flow>=1.1?"умеренное течение":"стоячая вода",m=a.getWeatherArchiveStats(i.lat,i.lon),y="ice_safe"===n.iceState?"var(--pill-ice-bg)":"ice_danger"===n.iceState?"var(--pill-bad-bg)":"ice_slush"===n.iceState?"var(--pill-warn-bg)":"var(--pill-good-bg)",f=n.iceNote||("ice_safe"===n.iceState?`❄️ Подлёдный сезон: безопасный лёд ~${n.iceThickness} см`:"ice_danger"===n.iceState?`⚠️ Опасный лёд (~${n.iceThickness} см) — выход на лёд запрещён!`:"ice_slush"===n.iceState?"🌊❄️ Шуга и забереги (ледостава нет)":"🌊 Открытая вода (льда нет)");t.innerHTML=`\n    <div class="card">\n      <div class="section-head">\n        <span class="section-title">🌦️ Погода, ледовый режим, кэш (10 км) и Луна (${n.relTitle?n.relTitle+" • ":""}${n.label})</span>\n        <div class="toolbar-row">\n          ${l({text:i.weatherSource||e.offlineMode,tone:(i.weatherSource||"").includes("Онлайн")?"good":"warn",icon:"📡"})}\n          <button type="button" class="btn btn-sm" id="weatherCleanArchiveBtn" title="Очистить старый архив погоды, кроме последних 5 дней">🧹 Очистить архив погоды</button>\n        </div>\n      </div>\n\n      ${(()=>{const e=computeIceSafetyIndex(n,i.water);return`\n          <div style="margin-bottom:10px;padding:10px 12px;border-radius:var(--r-sm);background:${y};border:1px solid var(--border);font-size:var(--fs-xs);">\n            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;font-weight:800;">\n              <span>${f} • Водоём: <b>${i.selectedWaterName||u.shortName}</b> (${p})</span>\n              <span class="pill ${e.footSafe||!e.hasIce?"pill-good":"pill-bad"}">🛡️ Индекс льда: ${e.index}/100</span>\n            </div>\n            <div style="margin-top:5px;font-weight:700;color:var(--text);">\n              ${e.vehicleVerdict}\n            </div>\n            <div style="margin-top:3px;color:var(--muted);">\n              ℹ️ ${e.recommendation}\n            </div>\n          </div>\n        `})()}\n\n      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;">\n        <div class="card" style="background:var(--card);padding:10px 12px;">\n          <div style="font-size:var(--fs-xs);color:var(--muted);font-weight:700;">ТЕМПЕРАТУРА ВОЗДУХА И ВОДЫ</div>\n          <div style="font-size:var(--fs-md);font-weight:800;margin-top:4px;">Воздух: ${n.tDay>0?"+"+n.tDay:n.tDay}° / ${n.tNight>0?"+"+n.tNight:n.tNight}°C</div>\n          <div style="font-size:var(--fs-sm);color:var(--accent);font-weight:700;margin-top:2px;">💧 Вода (с учётом течения): ~${n.waterTemp}°C</div>\n        </div>\n        <div class="card" style="background:var(--card);padding:10px 12px;">\n          <div style="font-size:var(--fs-xs);color:var(--muted);font-weight:700;">ДАВЛЕНИЕ И ВЕТЕР</div>\n          <div style="font-size:var(--fs-md);font-weight:800;margin-top:4px;">🧭 ${n.pressAvg} мм (${c(n.dP)})</div>\n          <div style="font-size:var(--fs-xs);color:var(--muted);margin-top:2px;">Норма местности (${i.elevation} м): ${i.normPress} мм • 💨 ${n.windDir} ${n.windMax} м/с</div>\n        </div>\n        <div class="card" style="background:var(--card);padding:10px 12px;">\n          <div style="font-size:var(--fs-xs);color:var(--muted);font-weight:700;">ФАЗА ЛУНЫ И СВЕТОВОЙ ДЕНЬ</div>\n          <div style="font-size:var(--fs-md);font-weight:800;margin-top:4px;">${s.phaseIcon} ${s.phaseName} (${s.moonDay} л.д., ${s.illum}%)</div>\n          <div style="font-size:var(--fs-xs);color:var(--muted);margin-top:2px;">🌅 Восход ${o(n.sunriseHr)} • 🌇 Закат ${o(n.sunsetHr)}</div>\n        </div>\n      </div>\n\n      <div style="margin-top:10px;padding:9px 12px;border-radius:var(--r-sm);background:var(--card);border:1px solid var(--border);font-size:var(--fs-xs);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">\n        <div>\n          🗄️ <b>Метеоархив в радиусе 10 км (${i.locLabel}):</b> накоплено <b>${m.localArchiveDays}</b> арх. дн.\n          (всего в памяти устройства: ${m.totalArchiveDays} арх. дн. по ${m.totalLocations} лок.)\n          ${!1===i.hasRealArchive?'<span style="color:var(--warn);font-weight:700;"> • ⚠️ Прогноз может быть менее точным из-за отсутствия архивных данных по погоде</span>':'<span style="color:var(--good);font-weight:700;"> • ✅ 5-дневный архив активен</span>'}\n        </div>\n        <span style="color:var(--muted);">Хранится бессрочно до очистки (очищается всё, кроме последних 5 дней)</span>\n      </div>\n\n      <div style="margin-top:8px;padding:8px 12px;border-radius:var(--r-sm);background:var(--card);font-size:var(--fs-xs);color:var(--muted);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">\n        <span>ℹ️ <b>Приоритет факторов:</b> ${e.moonPriorityNote}</span>\n        <span><b>Главные лунные окна:</b> ${s.majorWindows.join(", ")} • <b>Малые окна:</b> ${s.minorWindows.join(", ")}</span>\n      </div>\n      <details style="margin-top:8px;font-size:var(--fs-xs);color:var(--muted);">\n        <summary style="cursor:pointer;font-weight:700;color:var(--accent);">Памятка рыбаку о влиянии фаз Луны и барического шока</summary>\n        <p style="margin-top:6px;line-height:1.45;">${e.solunarDisclaimer}</p>\n      </details>\n    </div>\n  `;const v=t.querySelector("#weatherCleanArchiveBtn");v&&v.addEventListener("click",(()=>{const e=a.clearWeatherArchiveKeep5Days();h(`🧹 Архив погоды очищен: удалено старых записей — ${e.removedCount}, сохранены последние 5 дней архива (${e.keptArchiveCount} дн.)`,"good"),render(t)}))}let m=null;export function init(t){const a=r.getState();if(!a.weatherDays||12!==a.weatherDays.length){const t=buildFallback(a.lat,a.water);r.dispatch({type:"SET_WEATHER_DATA",payload:{...t,source:e.syncing,updatedAt:Date.now()}})}render(t),m=subscribeWeather(((e,a)=>{if(a&&e.water!==a.water&&Array.isArray(e.days)&&12===e.days.length){const t=recalculateIceForWaterType(e.days,e.water,e.archive5Days);if(t)return void r.dispatch({type:"SET_WEATHER_DATA",payload:{days:t.days,archive5Days:t.archive5Days,iceState:t.iceState,iceSubState:t.iceSubState,iceThickness:t.iceThickness,iceNote:t.iceNote,source:r.getState().weatherSource}})}e.route&&"weather"!==e.route?t&&(t._weatherNeedsRender=!0):(t&&(t._weatherNeedsRender=!1),render(t))})),fetchWeather(a.lat,a.lon)}export function destroy(){m&&m()}export const weatherModule={computeMoon:computeMoon,computeIceSafetyIndex:computeIceSafetyIndex,computeWaterTempSeries:computeWaterTempSeries,evaluateDayIce:evaluateDayIce,recalculateIceForWaterType:recalculateIceForWaterType,buildFallback:buildFallback,normalizeOpenMeteo:normalizeOpenMeteo,normalizeMetNo:normalizeMetNo,fetchWeather:fetchWeather,getWeatherState:getWeatherState,subscribeWeather:subscribeWeather,init:init,render:render,destroy:destroy};
+// Klev PRO 2.0 (v2.0.172 Protected Build)
+import { RU } from '../../i18n/ru.js?v=2.0.172';
+import { events } from '../../core/events.js?v=2.0.172';
+import { storage } from '../../core/storage.js?v=2.0.172';
+import { store } from '../../core/store.js?v=2.0.172';
+import { fetchWithTimeout, fallbackChain } from '../../core/http.js?v=2.0.172';
+import { formatLocalYYYYMMDD, fmtHM, fmtDeltaPress } from '../../core/format.js?v=2.0.172';
+import { WATER_PROFILES } from '../../data/waters.js?v=2.0.172';
+import { createPill, showToast } from '../../ui/components.js?v=2.0.172';
+const DIRS = ['С', 'СВ', 'В', 'ЮВ', 'Ю', 'ЮЗ', 'З', 'СЗ'];
+export function computeMoon(dateStr) {
+const dt = new Date(dateStr + 'T12:00:00Z');
+const syn = 29.53058867;
+const KNOWN_NEW_MOON = new Date('2026-10-10T15:50:00Z');
+const age = (((dt - KNOWN_NEW_MOON) / 86400000) % syn + syn) % syn;
+const ratio = age / syn;
+const illum = Math.round((1 - Math.cos(ratio * 2 * Math.PI)) * 50);
+const moonDay = Math.max(1, Math.min(30, Math.floor(age) + 1));
+const transitHour = Math.round((12 + ratio * 24) % 24);
+const underfootHour = (transitHour + 12) % 24;
+const riseHour = (transitHour + 18) % 24;
+const setHour = (transitHour + 6) % 24;
+let phaseName = 'Растущая луна';
+let phaseIcon = '🌒';
+if (moonDay === 1 || moonDay >= 29) { phaseName = 'Новолуние'; phaseIcon = '🌑'; }
+else if (moonDay >= 14 && moonDay <= 16) { phaseName = 'Полнолуние'; phaseIcon = '🌕'; }
+else if (moonDay >= 7 && moonDay <= 8) { phaseName = 'Первая четверть'; phaseIcon = '🌓'; }
+else if (moonDay >= 22 && moonDay <= 23) { phaseName = 'Последняя четверть'; phaseIcon = '🌗'; }
+else if (moonDay > 16) { phaseName = 'Убывающая луна'; phaseIcon = '🌘'; }
+return {
+moonDay,
+illum,
+transitHour,
+underfootHour,
+riseHour,
+setHour,
+phaseName,
+phaseIcon,
+majorWindows: [`${String(transitHour).padStart(2, '0')}:00–${String((transitHour + 2) % 24).padStart(2, '0')}:00`, `${String(underfootHour).padStart(2, '0')}:00–${String((underfootHour + 2) % 24).padStart(2, '0')}:00`],
+minorWindows: [`${String(riseHour).padStart(2, '0')}:00–${String((riseHour + 1) % 24).padStart(2, '0')}:00`, `${String(setHour).padStart(2, '0')}:00–${String((setHour + 1) % 24).padStart(2, '0')}:00`]
+};
+}
+export function computeWaterTempSeries(dailyMeans, dailyMaxs, dailyMins, waterType = 'small_river') {
+if (!Array.isArray(dailyMeans) || dailyMeans.length === 0) return [8.0];
+const prof = WATER_PROFILES[waterType] || WATER_PROFILES.small_river;
+const flow = Number.isFinite(prof.flow) ? prof.flow : 1.0;
+if (waterType === 'cooling_reservoir') {
+return dailyMeans.map(m => Math.max(8.0, Math.min(30.0, Math.round((m * 0.22 + 18.0) * 10) / 10)));
+}
+const inertia = waterType === 'quarry' || waterType === 'big_river'
+? 0.78
+: (flow >= 1.2 ? 0.72 : 0.68);
+const flowThermalBonus = flow >= 1.8 ? 0.75 : (flow >= 1.1 ? 0.45 : 0.0);
+let runningWT = Math.max(0.4, Math.min(25.0, dailyMeans[0] * 0.54 + 2.6 + flowThermalBonus));
+const result = [];
+for (let i = 0; i < dailyMeans.length; i++) {
+const m = dailyMeans[i];
+const tMax = Array.isArray(dailyMaxs) && Number.isFinite(dailyMaxs[i]) ? dailyMaxs[i] : (m + 2.5);
+const tMin = Array.isArray(dailyMins) && Number.isFinite(dailyMins[i]) ? dailyMins[i] : (m - 2.5);
+const targetWT = Math.max(0.2, Math.min(25.5, m * 0.54 + 2.6 + flowThermalBonus));
+runningWT = runningWT * inertia + targetWT * (1 - inertia);
+let minFloor = 0.2;
+if (tMax >= -0.5 && m >= -3.8) {
+minFloor = flow >= 1.8 ? 1.5 : (flow >= 1.1 ? 1.2 : 0.7);
+} else if (m >= -6.0 && flow >= 1.1) {
+minFloor = 0.6;
+}
+const wt = Math.max(minFloor, Math.min(25.5, Math.round(runningWT * 10) / 10));
+result.push(wt);
+}
+return result;
+}
+export function evaluateDayIce(historyMeanTemps, tDayMax, tNightMin, waterTemp, waterType = 'small_river', dateStr = '') {
+if (waterType === 'cooling_reservoir') {
+return {
+iceState: 'open_water',
+iceSubState: 'warm_discharge',
+iceThickness: 0,
+iceNote: '🌊 Тёплый сброс ГРЭС/АЭС — круглогодично открытая вода'
+};
+}
+const prof = WATER_PROFILES[waterType] || WATER_PROFILES.small_river;
+const flow = Number.isFinite(prof.flow) ? prof.flow : 1.0;
+const flowFactor = 1 / Math.pow(Math.max(0.4, flow), 0.45);
+const flowLabel = flow >= 1.8 ? 'быстрое течение' : (flow >= 1.1 ? 'умеренное течение' : 'стоячая вода / слабый ток');
+const dt = dateStr ? new Date(dateStr + 'T12:00:00') : new Date();
+const monthNum = dt.getMonth() + 1;
+const isSpring = monthNum >= 3 && monthNum <= 5;
+const isWinterOrSpring = monthNum === 12 || monthNum <= 5;
+const recent = Array.isArray(historyMeanTemps) && historyMeanTemps.length > 0
+? historyMeanTemps
+: [(tDayMax + tNightMin) / 2];
+let freezeSum = 0;
+let freezeDays = 0;
+let recentWarmDays = 0;
+let warmDegreeDays = 0;
+for (let i = recent.length - 1; i >= 0; i--) {
+const m = recent[i];
+const daysAgo = recent.length - 1 - i;
+if (m <= -0.5) {
+freezeDays++;
+const effFreeze = Math.max(0, Math.abs(m) - (flow > 1.5 ? 1.2 : (flow > 1.0 ? 0.5 : 0)));
+freezeSum += effFreeze;
+} else {
+if (daysAgo <= 3 && m > 0.5) {
+recentWarmDays++;
+warmDegreeDays += m;
+}
+if (daysAgo <= 2 && m > 2.5 && !isWinterOrSpring) {
+break;
+}
+}
+}
+const tCurMean = (tDayMax + tNightMin) / 2;
+const last4 = recent.slice(-4);
+const isOscillatingAroundZero =
+last4.every(m => m >= -3.8 && m <= 3.5) &&
+tDayMax >= -2.5 && tDayMax <= 4.0 &&
+tNightMin >= -6.0 && tNightMin <= 2.5;
+const rawIceCm = Math.round(2.35 * Math.sqrt(Math.max(0, freezeSum)) * flowFactor - warmDegreeDays * 0.85);
+const effectiveIceCm = Math.max(0, Math.min(120, rawIceCm));
+if ((isSpring || recentWarmDays >= 2) && (effectiveIceCm >= 5 || freezeDays >= 4) && (tDayMax >= 3.0 || tCurMean >= 0.8 || warmDegreeDays >= 4)) {
+const remThick = Math.max(4, effectiveIceCm || 12);
+return {
+iceState: 'ice_danger',
+iceSubState: 'spring_rotten_ice',
+iceThickness: remThick,
+iceNote: `⚠️ Опасный весенний лёд (~${remThick} см, ${flowLabel}): дневной прогрев до +${tDayMax}°C, рыхлый игольчатый лёд, промоины и закраины — выход на лёд смертельно опасен!`
+};
+}
+if (isOscillatingAroundZero && effectiveIceCm < 10 && freezeSum < 28) {
+if (tNightMin <= 0.5 || tCurMean <= 1.8 || waterTemp <= 2.5) {
+return {
+iceState: 'ice_slush',
+iceSubState: 'slush_shore_ice',
+iceThickness: 0,
+iceNote: `🌊❄️ Шуга и забереги (колебания ${tNightMin > 0 ? '+' + tNightMin : tNightMin}..${tDayMax > 0 ? '+' + tDayMax : tDayMax}°C, ${flowLabel}): сплошного ледостава нет, береговая ловля по холодной воде`
+};
+}
+return {
+iceState: 'open_water',
+iceSubState: 'cold_open_water',
+iceThickness: 0,
+iceNote: `🌊 Открытая прохладная вода (${flowLabel}, льда нет)`
+};
+}
+const minSafeCm = flow >= 1.8 ? 12 : (flow >= 1.1 ? 10 : 8);
+const minFreezeDays = flow >= 1.8 ? 4 : 3;
+if (freezeDays >= minFreezeDays && effectiveIceCm >= minSafeCm && tDayMax <= 0.5) {
+return {
+iceState: 'ice_safe',
+iceSubState: 'solid_freeze',
+iceThickness: effectiveIceCm,
+iceNote: `❄️ Устойчивый ледостав: безопасный монолитный лёд ~${effectiveIceCm} см (с учётом течения: ${flowLabel})`
+};
+}
+if ((tCurMean <= -2.0 || (tDayMax <= -0.5 && tNightMin <= -4.0)) && (effectiveIceCm >= 2 || freezeSum >= 6) && waterTemp <= 2.2) {
+const thinCm = Math.max(2, Math.min(minSafeCm - 1, effectiveIceCm || 4));
+return {
+iceState: 'ice_danger',
+iceSubState: 'thin_first_ice',
+iceThickness: thinCm,
+iceNote: `⚠️ Тонкий перволёдок (~${thinCm} см, ${flowLabel}): лёд ещё не набрал безопасную толщину (${minSafeCm} см) — выход на лёд запрещён!`
+};
+}
+if (tNightMin <= -1.0 && tDayMax >= -1.0 && waterTemp <= 2.8) {
+return {
+iceState: 'ice_slush',
+iceSubState: 'slush_shore_ice',
+iceThickness: 0,
+iceNote: `🌊❄️ Забереги и редкая шуга (${flowLabel}, ледостава нет)`
+};
+}
+return {
+iceState: 'open_water',
+iceSubState: 'open_water',
+iceThickness: 0,
+iceNote: `🌊 Открытая вода (льда нет, ${flowLabel})`
+};
+}
+export function computeIceSafetyIndex(day, waterType = "small_river") {
+const prof = WATER_PROFILES[waterType] || WATER_PROFILES.small_river;
+const flow = Number.isFinite(prof.flow) ? prof.flow : 1.0;
+const iceState = day?.iceState || "open_water";
+const thick = Number(day?.iceThickness) || 0;
+const wind = Number(day?.windMax) || 3;
+const tDay = Number(day?.tDay) || 0;
+if (iceState === "open_water") {
+return {
+index: 100,
+hasIce: false,
+footSafe: false,
+sledSafe: false,
+minFootCm: flow >= 1.5 ? 12 : 10,
+minSledCm: flow >= 1.5 ? 25 : 20,
+statusText: "Открытая вода (ледостава нет)",
+vehicleVerdict: "Ловля с берега или лодки (спасжилет обязателен при волне)",
+recommendation: "Льда нет. При выходе на лодке учитывайте ветер (" + wind + " м/с) и температуру воды (~" + (day?.waterTemp ?? 8) + "°C)."
+};
+}
+const minFootCm = flow >= 1.8 ? 12 : (flow >= 1.1 ? 10 : 8);
+const minSledCm = flow >= 1.8 ? 25 : (flow >= 1.1 ? 22 : 18);
+if (iceState === "ice_danger" || iceState === "ice_slush") {
+const rawIdx = iceState === "ice_slush" ? 25 : Math.max(5, Math.min(38, Math.round((thick / minFootCm) * 35)));
+return {
+index: rawIdx,
+hasIce: true,
+footSafe: false,
+sledSafe: false,
+minFootCm,
+minSledCm,
+statusText: iceState === "ice_slush" ? "Шуга и забереги (выход запрещён)" : `Опасный лёд ~${thick} см (индекс ${rawIdx}/100)`,
+vehicleVerdict: "⛔ Пешком и на технике ЗАПРЕЩЕНО!",
+recommendation: `Несущая способность льда критически низкая (~${thick} см при норме от ${minFootCm} см на течении). Допустима только береговая ловля!`
+};
+}
+let score = Math.min(98, Math.round(55 + (thick - minFootCm) * 2.2));
+if (flow >= 1.8) score -= 8;
+if (tDay > 0) score -= 12;
+if (wind >= 9) score -= 6;
+score = Math.max(45, Math.min(98, score));
+const footSafe = thick >= minFootCm && tDay <= 2;
+const sledSafe = thick >= minSledCm && tDay <= 0;
+return {
+index: score,
+hasIce: true,
+footSafe,
+sledSafe,
+minFootCm,
+minSledCm,
+statusText: `Безопасный лёд ~${thick} см (индекс надёжности ${score}/100)`,
+vehicleVerdict: sledSafe
+? `🚶 Пешком: РАЗРЕШЕНО (≥${minFootCm} см) • 🛷 Мотобуксировщик/снегоход: РАЗРЕШЕНО (≥${minSledCm} см)`
+: `🚶 Пешком со спасалками: РАЗРЕШЕНО (≥${minFootCm} см) • 🛷 Техника/снегоход: ОПАСНО (нужно ≥${minSledCm} см!)`,
+recommendation: sledSafe
+? "Монолитный лёд достаточной толщины для пешего перехода и лёгкой мототехники. Избегайте устьев притоков и быстрин."
+: `Толщина ~${thick} см достаточна для одиночного пешего выхода с пешнёй и спасалками, но выезд на мотобуксировщике или снегоходе запрещён (требуется от ${minSledCm} см).`
+};
+}
+function getRelativeDayTitle(relOffset) {
+if (relOffset === -2) return 'Позавчера';
+if (relOffset === -1) return 'Вчера';
+if (relOffset === 0) return 'Сегодня';
+if (relOffset === 1) return 'Завтра';
+if (relOffset === 2) return 'Послезавтра';
+return '';
+}
+export function buildFallback(lat = 55.75, waterType = 'small_river') {
+const todayDt = new Date();
+todayDt.setHours(0, 0, 0, 0);
+const dayOfYear = Math.floor((todayDt - new Date(todayDt.getFullYear(), 0, 0)) / 86400000);
+const seasonOffset = -Math.cos(((dayOfYear + 10) / 365) * 2 * Math.PI);
+const latBase = Math.abs(lat);
+const meanT = 22 - (latBase - 40) * 0.82;
+const amplitude = 10 + (latBase - 40) * 0.38;
+const allMeanT = [];
+const allMaxT = [];
+const allMinT = [];
+for (let rel = -7; rel <= 9; rel++) {
+const tMax = Math.round(meanT + seasonOffset * amplitude - rel * 0.2);
+const tMin = tMax - 5;
+allMaxT.push(tMax);
+allMinT.push(tMin);
+allMeanT.push((tMax + tMin) / 2);
+}
+const wtSeries = computeWaterTempSeries(allMeanT, allMaxT, allMinT, waterType);
+const days = [];
+for (let idx = 0; idx < 12; idx++) {
+const rel = idx - 2; // -2 .. +9
+const cur = new Date(todayDt.getTime() + rel * 86400000);
+const dStr = formatLocalYYYYMMDD(cur);
+const moon = computeMoon(dStr);
+const seriesIdx = idx + 5;
+const tMax = allMaxT[seriesIdx];
+const tMin = allMinT[seriesIdx];
+const waterTemp = wtSeries[seriesIdx];
+const pAvg = Math.round(754 + Math.sin(idx * 0.7) * 4);
+const dP = Math.round(Math.cos(idx) * 3);
+const wMax = Math.round(3 + Math.abs(Math.sin(idx)) * 3);
+const hours = [];
+for (let h = 0; h < 24; h++) {
+const wave = Math.sin(((h - 5) / 24) * 2 * Math.PI);
+hours.push({
+hour: h,
+tAir: Math.round((tMin + (tMax - tMin) * ((wave + 1) / 2)) * 10) / 10,
+press: Math.round(pAvg + (dP * (h - 12)) / 24),
+dp3h: Math.round((dP / 8) * 10) / 10,
+wind: Math.max(1, wMax),
+windDir: DIRS[(idx + h) % 8],
+cloud: 65,
+precip: 0
+});
+}
+const histSlice = allMeanT.slice(0, seriesIdx + 1);
+const ice = evaluateDayIce(histSlice, tMax, tMin, waterTemp, waterType, dStr);
+days.push({
+date: dStr,
+relOffset: rel,
+isArchive: rel < 0,
+isReal: false,
+relTitle: getRelativeDayTitle(rel),
+label: `${RU.daysShort[cur.getDay()]}, ${cur.getDate()} ${RU.monthsGen[cur.getMonth()]}`,
+tDay: tMax,
+tNight: tMin,
+pressAvg: pAvg,
+dP,
+windMax: Math.max(1, wMax),
+windDir: hours[12].windDir,
+sunriseHr: 6.8 + idx * 0.02,
+sunsetHr: 18.2 - idx * 0.02,
+waterTemp,
+iceState: ice.iceState,
+iceSubState: ice.iceSubState,
+iceThickness: ice.iceThickness,
+iceNote: ice.iceNote,
+moon,
+hours
+});
+}
+const todayObj = days[2] || days[0];
+return {
+days,
+archive5Days: days.slice(0, 2),
+hasRealArchive: false,
+elevation: 90,
+normPress: 752,
+iceState: todayObj.iceState,
+iceSubState: todayObj.iceSubState,
+iceThickness: todayObj.iceThickness,
+iceNote: todayObj.iceNote
+};
+}
+export function normalizeOpenMeteo(data, waterType) {
+const elevation = Math.round(data.elevation || 90);
+const normPress = Math.round(760 - elevation / 11.5);
+const allP = (data.hourly?.surface_pressure || []).map(v => (v || 1010) * 0.750062);
+const times = Array.isArray(data.daily?.time) ? data.daily.time : [];
+const totalDays = times.length;
+if (totalDays === 0) return null;
+const todayStr = formatLocalYYYYMMDD(new Date());
+let todayIdx = times.indexOf(todayStr);
+if (todayIdx < 0) {
+const todayMs = new Date(todayStr + 'T00:00:00').getTime();
+let bestDiff = Infinity;
+times.forEach((tStr, idx) => {
+const diff = Math.abs(new Date(tStr + 'T00:00:00').getTime() - todayMs);
+if (diff < bestDiff) {
+bestDiff = diff;
+todayIdx = idx;
+}
+});
+}
+const dailyMaxs = times.map((_, idx) => Math.round(data.daily.temperature_2m_max[idx] ?? 8));
+const dailyMins = times.map((_, idx) => Math.round(data.daily.temperature_2m_min[idx] ?? 2));
+const dailyMeans = times.map((_, idx) => (dailyMaxs[idx] + dailyMins[idx]) / 2);
+const wtSeries = computeWaterTempSeries(dailyMeans, dailyMaxs, dailyMins, waterType);
+const allNormalizedDays = [];
+for (let i = 0; i < totalDays; i++) {
+const rel = i - todayIdx;
+const dStr = times[i];
+const dt = new Date(dStr + 'T00:00:00');
+const srD = data.daily.sunrise?.[i] ? new Date(data.daily.sunrise[i]) : new Date(dStr + 'T07:00:00');
+const ssD = data.daily.sunset?.[i] ? new Date(data.daily.sunset[i]) : new Date(dStr + 'T18:00:00');
+const hours = [];
+let sumP = 0;
+for (let h = 0; h < 24; h++) {
+const g = i * 24 + h;
+const pMm = allP[g] || 754;
+sumP += pMm;
+hours.push({
+hour: h,
+tAir: Math.round((data.hourly.temperature_2m?.[g] ?? 0) * 10) / 10,
+press: Math.round(pMm),
+dp3h: Math.round((pMm - (g >= 3 ? (allP[g - 3] || pMm) : pMm)) * 10) / 10,
+wind: Math.round((data.hourly.wind_speed_10m?.[g] ?? 3) * 10) / 10,
+windDir: DIRS[Math.round(((data.hourly.wind_direction_10m?.[g] || 0) / 45)) % 8],
+cloud: data.hourly.cloud_cover?.[g] ?? 50,
+precip: data.hourly.precipitation?.[g] ?? 0
+});
+}
+const pAvg = Math.round(sumP / 24);
+const prevAvg = i > 0
+? Math.round(allP.slice((i - 1) * 24, i * 24).reduce((a, b) => a + b, 0) / 24)
+: pAvg;
+const tMax = dailyMaxs[i];
+const tMin = dailyMins[i];
+const waterTemp = wtSeries[i];
+const ice = evaluateDayIce(dailyMeans.slice(0, i + 1), tMax, tMin, waterTemp, waterType, dStr);
+allNormalizedDays.push({
+date: dStr,
+relOffset: rel,
+isArchive: rel < 0,
+isReal: true,
+relTitle: getRelativeDayTitle(rel),
+label: `${RU.daysShort[dt.getDay()]}, ${dt.getDate()} ${RU.monthsGen[dt.getMonth()]}`,
+tDay: tMax,
+tNight: tMin,
+pressAvg: pAvg,
+dP: pAvg - prevAvg,
+windMax: Math.round(data.daily.wind_speed_10m_max?.[i] || 3),
+windDir: DIRS[Math.round(((data.daily.wind_direction_10m_dominant?.[i] || 0) / 45)) % 8],
+sunriseHr: srD.getHours() + srD.getMinutes() / 60,
+sunsetHr: ssD.getHours() + ssD.getMinutes() / 60,
+waterTemp,
+iceState: ice.iceState,
+iceSubState: ice.iceSubState,
+iceThickness: ice.iceThickness,
+iceNote: ice.iceNote,
+moon: computeMoon(dStr),
+hours
+});
+}
+const startIdx = Math.max(0, Math.min(totalDays - 12, todayIdx - 2));
+const days = allNormalizedDays.slice(startIdx, startIdx + 12).map((d, idx) => ({
+...d,
+relOffset: idx - 2,
+isArchive: idx < 2,
+relTitle: getRelativeDayTitle(idx - 2)
+}));
+const archive5Days = allNormalizedDays.filter(d => d.date < todayStr).slice(-5);
+const todayObj = days[2] || days[0];
+return {
+days,
+archive5Days,
+extraArchiveDays: allNormalizedDays.filter(d => d.date < todayStr),
+hasRealArchive: archive5Days.length >= 3,
+elevation,
+normPress,
+iceState: todayObj?.iceState || 'open_water',
+iceSubState: todayObj?.iceSubState || 'open_water',
+iceThickness: todayObj?.iceThickness || 0,
+iceNote: todayObj?.iceNote || ''
+};
+}
+export function normalizeMetNo(metNo, lat, waterType, prevArchiveDays = []) {
+const coords = metNo.geometry?.coordinates || [];
+const elevation = Math.round(coords[2] || 90);
+const normPress = Math.round(760 - elevation / 11.5);
+const byDate = {};
+const isRealDateMap = {};
+if (Array.isArray(prevArchiveDays)) {
+prevArchiveDays.forEach(cd => {
+if (cd && cd.date && Array.isArray(cd.hours) && cd.hours.length === 24 && cd.isReal !== false) {
+byDate[cd.date] = {};
+cd.hours.forEach((hObj, hIdx) => {
+byDate[cd.date][hIdx] = { ...hObj };
+});
+isRealDateMap[cd.date] = true;
+}
+});
+}
+for (const item of (metNo.properties?.timeseries || [])) {
+const dt = new Date(item.time);
+const dStr = formatLocalYYYYMMDD(dt);
+const hr = dt.getHours();
+if (!byDate[dStr]) byDate[dStr] = {};
+const inst = item.data?.instant?.details || {};
+const pSea = inst.air_pressure_at_sea_level || 1013.25;
+const pMm = pSea * 0.750062 - elevation / 11.5;
+byDate[dStr][hr] = {
+hour: hr,
+tAir: Math.round((inst.air_temperature ?? 0) * 10) / 10,
+press: Math.round(pMm),
+dp3h: 0,
+wind: Math.round((inst.wind_speed ?? 3) * 10) / 10,
+windDir: DIRS[Math.round(((inst.wind_from_direction || 0) / 45)) % 8],
+cloud: Math.round(inst.cloud_area_fraction ?? 50),
+precip: item.data?.next_1_hours?.details?.precipitation_amount ?? 0
+};
+isRealDateMap[dStr] = true;
+}
+const todayDt = new Date();
+todayDt.setHours(0, 0, 0, 0);
+const todayStr = formatLocalYYYYMMDD(todayDt);
+let anchorHours = null;
+for (let rel = 0; rel <= 3; rel++) {
+const dStr = formatLocalYYYYMMDD(new Date(todayDt.getTime() + rel * 86400000));
+if (byDate[dStr] && Object.keys(byDate[dStr]).length > 0) {
+anchorHours = byDate[dStr];
+break;
+}
+}
+const fullSeries = [];
+for (let rel = -5; rel <= 9; rel++) {
+const cur = new Date(todayDt.getTime() + rel * 86400000);
+const dStr = formatLocalYYYYMMDD(cur);
+let mapH = byDate[dStr];
+const hasReal = Boolean(isRealDateMap[dStr] && mapH && Object.keys(mapH).length > 0);
+if (!mapH || Object.keys(mapH).length === 0) {
+mapH = {};
+const baseList = anchorHours ? Object.values(anchorHours) : [{ tAir: 4, press: normPress, wind: 3, windDir: 'З', cloud: 60, precip: 0 }];
+const baseTAvg = baseList.reduce((a, b) => a + b.tAir, 0) / baseList.length;
+const baseP = Math.round(baseList.reduce((a, b) => a + b.press, 0) / baseList.length);
+const baseW = Math.round(baseList.reduce((a, b) => a + b.wind, 0) / baseList.length * 10) / 10;
+const baseDir = baseList[Math.floor(baseList.length / 2)]?.windDir || 'З';
+for (let h = 0; h < 24; h++) {
+const refH = anchorHours && anchorHours[h] ? anchorHours[h] : null;
+const wave = Math.sin(((h - 5) / 24) * 2 * Math.PI);
+const tAir = refH ? refH.tAir : Math.round((baseTAvg + wave * 2.5) * 10) / 10;
+mapH[h] = {
+hour: h,
+tAir,
+press: refH ? refH.press : baseP,
+dp3h: 0,
+wind: refH ? refH.wind : baseW,
+windDir: refH ? refH.windDir : baseDir,
+cloud: refH ? refH.cloud : 60,
+precip: 0
+};
+}
+}
+const hours = [];
+let last = Object.values(mapH)[0] || { hour: 0, tAir: 2, press: normPress, dp3h: 0, wind: 3, windDir: 'З', cloud: 50, precip: 0 };
+for (let h = 0; h < 24; h++) {
+if (mapH[h]) last = mapH[h];
+hours.push({ ...last, hour: h });
+}
+for (let h = 0; h < 24; h++) {
+const prevP = h >= 3 ? hours[h - 3].press : (fullSeries.length > 0 ? fullSeries[fullSeries.length - 1].hours[21 + h]?.press || hours[0].press : hours[0].press);
+hours[h].dp3h = Math.round((hours[h].press - prevP) * 10) / 10;
+}
+const tArr = hours.map(x => x.tAir);
+const pArr = hours.map(x => x.press);
+const wArr = hours.map(x => x.wind);
+const tMax = Math.round(Math.max(...tArr));
+const tMin = Math.round(Math.min(...tArr));
+const pAvg = Math.round(pArr.reduce((a, b) => a + b, 0) / 24);
+const prevP = fullSeries.length > 0 ? fullSeries[fullSeries.length - 1].pressAvg : pAvg;
+fullSeries.push({
+date: dStr,
+relOffset: rel,
+isArchive: rel < 0,
+isReal: hasReal,
+relTitle: getRelativeDayTitle(rel),
+label: `${RU.daysShort[cur.getDay()]}, ${cur.getDate()} ${RU.monthsGen[cur.getMonth()]}`,
+tDay: tMax,
+tNight: tMin,
+pressAvg: pAvg,
+dP: pAvg - prevP,
+windMax: Math.max(1, Math.round(Math.max(...wArr))),
+windDir: hours[12]?.windDir || 'З',
+sunriseHr: 7.0,
+sunsetHr: 17.8,
+waterTemp: 4.0,
+iceState: 'open_water',
+iceSubState: 'open_water',
+iceThickness: 0,
+iceNote: '',
+moon: computeMoon(dStr),
+hours
+});
+}
+const seriesMaxs = fullSeries.map(d => d.tDay);
+const seriesMins = fullSeries.map(d => d.tNight);
+const seriesMeans = fullSeries.map(d => (d.tDay + d.tNight) / 2);
+const wtSeries = computeWaterTempSeries(seriesMeans, seriesMaxs, seriesMins, waterType);
+fullSeries.forEach((d, idx) => {
+d.waterTemp = wtSeries[idx];
+const ice = evaluateDayIce(seriesMeans.slice(0, idx + 1), d.tDay, d.tNight, d.waterTemp, waterType, d.date);
+d.iceState = ice.iceState;
+d.iceSubState = ice.iceSubState;
+d.iceThickness = ice.iceThickness;
+d.iceNote = ice.iceNote;
+});
+const days = fullSeries.filter(d => d.relOffset >= -2 && d.relOffset <= 9);
+const archive5Days = fullSeries.filter(d => d.date < todayStr);
+const realPastCount = archive5Days.filter(d => d.isReal).length;
+const todayObj = days[2] || days[0];
+return {
+days,
+archive5Days,
+extraArchiveDays: archive5Days.filter(d => d.isReal),
+hasRealArchive: realPastCount >= 3,
+elevation,
+normPress,
+iceState: todayObj?.iceState || 'open_water',
+iceSubState: todayObj?.iceSubState || 'open_water',
+iceThickness: todayObj?.iceThickness || 0,
+iceNote: todayObj?.iceNote || ''
+};
+}
+export function recalculateIceForWaterType(days, waterType, archive5Days = []) {
+if (!Array.isArray(days) || days.length === 0) return null;
+const firstDayDate = days[0]?.date || '';
+const prefixArchive = Array.isArray(archive5Days)
+? archive5Days.filter(a => a && a.date && a.date < firstDayDate)
+: [];
+const combined = [...prefixArchive, ...days];
+const maxs = combined.map(d => d.tDay);
+const mins = combined.map(d => d.tNight);
+const means = combined.map(d => (d.tDay + d.tNight) / 2);
+const wtSeries = computeWaterTempSeries(means, maxs, mins, waterType);
+const updatedCombined = combined.map((d, idx) => {
+const wt = wtSeries[idx];
+const hist = means.slice(0, idx + 1);
+const ice = evaluateDayIce(hist, d.tDay, d.tNight, wt, waterType, d.date);
+return {
+...d,
+waterTemp: wt,
+iceState: ice.iceState,
+iceSubState: ice.iceSubState,
+iceThickness: ice.iceThickness,
+iceNote: ice.iceNote
+};
+});
+const updatedDays = updatedCombined.slice(prefixArchive.length);
+const updatedArchive5 = updatedCombined.filter(d => d.isArchive).slice(-5);
+const todayObj = updatedDays[2] || updatedDays[0];
+return {
+days: updatedDays,
+archive5Days: updatedArchive5,
+iceState: todayObj.iceState,
+iceSubState: todayObj.iceSubState,
+iceThickness: todayObj.iceThickness,
+iceNote: todayObj.iceNote
+};
+}
+const WORKER_WEATHER_EDGE_URL = 'https://klevprohbot.thorantony82.workers.dev/weather';
+const inFlightWeatherRequests = new Map();
+function snapCoord10km(val) {
+return (Math.round((Number(val) || 0) * 10) / 10).toFixed(1);
+}
+async function fetchMissingArchiveDays(lat, lon, waterType) {
+const todayDt = new Date();
+todayDt.setHours(0, 0, 0, 0);
+const startDt = new Date(todayDt.getTime() - 5 * 86400000);
+const endDt = new Date(todayDt.getTime() - 1 * 86400000);
+const startStr = formatLocalYYYYMMDD(startDt);
+const endStr = formatLocalYYYYMMDD(endDt);
+const gLat = snapCoord10km(lat);
+const gLon = snapCoord10km(lon);
+const histForecastUrl = `https://historical-forecast-api.open-meteo.com/v1/forecast?latitude=${gLat}&longitude=${gLon}&start_date=${startStr}&end_date=${endStr}&hourly=temperature_2m,surface_pressure,wind_speed_10m,wind_direction_10m,cloud_cover,precipitation&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset,wind_speed_10m_max,wind_direction_10m_dominant&wind_speed_unit=ms&timezone=auto`;
+const archiveApiUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${gLat}&longitude=${gLon}&start_date=${startStr}&end_date=${endStr}&hourly=temperature_2m,surface_pressure,wind_speed_10m,wind_direction_10m,cloud_cover,precipitation&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset,wind_speed_10m_max,wind_direction_10m_dominant&wind_speed_unit=ms&timezone=auto`;
+const workerEdgeUrl = `${WORKER_WEATHER_EDGE_URL}?lat=${gLat}&lon=${gLon}`;
+const candidates = [
+histForecastUrl,
+archiveApiUrl,
+workerEdgeUrl,
+`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(histForecastUrl)}`,
+`https://api.allorigins.win/raw?url=${encodeURIComponent(histForecastUrl)}`
+];
+for (const url of candidates) {
+try {
+const data = await fetchWithTimeout(url, 5500);
+if (data && data.hourly && data.daily && Array.isArray(data.daily.time) && data.daily.time.length >= 3) {
+const parsed = normalizeOpenMeteo(data, waterType);
+if (parsed && Array.isArray(parsed.extraArchiveDays) && parsed.extraArchiveDays.length >= 3) {
+return parsed.extraArchiveDays;
+}
+}
+} catch (e) {}
+}
+return null;
+}
+export async function fetchWeather(lat, lon, forceNetwork = false) {
+const st = store.getState();
+const cached = storage.loadWeatherCache(lat, lon);
+const localArchiveInfo = storage.getArchiveDaysForLocation(lat, lon, 5);
+if (cached && cached.days && cached.days.length === 12 && !forceNetwork) {
+const mins = cached.ageMinutes || 1;
+const label = mins >= 60 ? `${RU.cachedPrefix} 10 км (${Math.round(mins / 60)} ч назад)` : `${RU.cachedPrefix} 10 км (${mins} мин назад)`;
+const recalc = recalculateIceForWaterType(cached.days, st.water, cached.archive5Days || localArchiveInfo.days);
+store.dispatch({
+type: 'SET_WEATHER_DATA',
+payload: {
+...cached,
+...(recalc || {}),
+hasRealArchive: cached.hasRealArchive ?? localArchiveInfo.hasRealArchive,
+source: label,
+updatedAt: cached.timestamp
+}
+});
+events.emit('weather:updated', store.getState());
+if (!cached.isExpired) return;
+}
+const gLat = snapCoord10km(lat);
+const gLon = snapCoord10km(lon);
+const gridDedupKey = `${gLat}_${gLon}_${st.water || 'small_river'}`;
+if (inFlightWeatherRequests.has(gridDedupKey) && !forceNetwork) {
+return inFlightWeatherRequests.get(gridDedupKey);
+}
+const omUrl = `https://api.open-meteo.com/v1/forecast?latitude=${gLat}&longitude=${gLon}&past_days=7&hourly=temperature_2m,surface_pressure,wind_speed_10m,wind_direction_10m,cloud_cover,precipitation&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset,wind_speed_10m_max,wind_direction_10m_dominant&forecast_days=10&wind_speed_unit=ms&timezone=auto`;
+const workerEdgeWeatherUrl = `${WORKER_WEATHER_EDGE_URL}?lat=${gLat}&lon=${gLon}`;
+const metUrl = `https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${gLat}&lon=${gLon}`;
+const networkPromise = (async () => {
+try {
+const res = await fallbackChain([
+{
+name: RU.online,
+run: async () => {
+const d = await fetchWithTimeout(omUrl, 6000);
+return d && d.hourly && d.daily ? normalizeOpenMeteo(d, st.water) : null;
+}
+},
+{
+name: `${RU.online} (Edge 10 км)`,
+run: async () => {
+const d = await fetchWithTimeout(workerEdgeWeatherUrl, 6500);
+return d && d.hourly && d.daily ? normalizeOpenMeteo(d, st.water) : null;
+}
+},
+{
+name: RU.onlineMetNo,
+run: async () => {
+const d = await fetchWithTimeout(metUrl, 7000);
+if (!d || !d.properties?.timeseries) return null;
+let archiveSeed = localArchiveInfo.days || [];
+if (archiveSeed.filter(x => x && x.isReal !== false).length < 3) {
+const fetchedArchive = await fetchMissingArchiveDays(lat, lon, st.water);
+if (Array.isArray(fetchedArchive) && fetchedArchive.length >= 3) {
+archiveSeed = fetchedArchive;
+}
+}
+return normalizeMetNo(d, lat, st.water, archiveSeed);
+}
+},
+{
+name: RU.online,
+run: async () => {
+const proxy1 = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(omUrl)}`;
+const d = await fetchWithTimeout(proxy1, 7000);
+return d && d.hourly && d.daily ? normalizeOpenMeteo(d, st.water) : null;
+}
+},
+{
+name: RU.online,
+run: async () => {
+const proxy2 = `https://api.allorigins.win/raw?url=${encodeURIComponent(omUrl)}`;
+const d = await fetchWithTimeout(proxy2, 7500);
+return d && d.hourly && d.daily ? normalizeOpenMeteo(d, st.water) : null;
+}
+}
+]);
+const updatedCluster = storage.saveWeatherCache(lat, lon, res.data, res.data.extraArchiveDays || res.data.archive5Days || []);
+const mergedArchiveInfo = storage.getArchiveDaysForLocation(lat, lon, 5);
+const syncedDays = res.data.days.map((d, idx) => {
+if (idx < 2 && updatedCluster?.daysByDate?.[d.date]) {
+return {
+...updatedCluster.daysByDate[d.date],
+relOffset: idx - 2,
+isArchive: true,
+relTitle: idx === 0 ? "Позавчера" : "Вчера"
+};
+}
+return d;
+});
+const recalc = recalculateIceForWaterType(syncedDays, st.water, mergedArchiveInfo.days);
+store.dispatch({
+type: 'SET_WEATHER_DATA',
+payload: {
+...res.data,
+...(recalc || {}),
+archive5Days: mergedArchiveInfo.days,
+hasRealArchive: updatedCluster?.hasRealArchive ?? res.data.hasRealArchive,
+source: res.source,
+updatedAt: Date.now()
+}
+});
+events.emit('weather:updated', store.getState());
+} catch (err) {
+if (!cached || !cached.days?.length) {
+const fb = buildFallback(lat, st.water);
+store.dispatch({
+type: 'SET_WEATHER_DATA',
+payload: { ...fb, hasRealArchive: false, source: RU.offlineMode, updatedAt: Date.now() }
+});
+events.emit('weather:updated', store.getState());
+}
+} finally {
+inFlightWeatherRequests.delete(gridDedupKey);
+}
+})();
+inFlightWeatherRequests.set(gridDedupKey, networkPromise);
+return networkPromise;
+}
+export function getWeatherState() {
+const s = store.getState();
+return {
+days: s.weatherDays,
+archive5Days: s.weatherArchive5Days,
+hasRealArchive: s.hasRealArchive,
+source: s.weatherSource,
+normPress: s.normPress,
+elevation: s.elevation,
+iceState: s.iceState,
+iceThickness: s.iceThickness
+};
+}
+export function subscribeWeather(cb) {
+return store.subscribe(
+s => ({
+route: s.route,
+days: s.weatherDays,
+archive5Days: s.weatherArchive5Days,
+hasRealArchive: s.hasRealArchive,
+dayIdx: s.dayIdx,
+source: s.weatherSource,
+water: s.water
+}),
+cb
+);
+}
+export function render(container) {
+if (!container) return;
+const s = store.getState();
+const day = s.weatherDays[s.dayIdx] || s.weatherDays[2] || s.weatherDays[0];
+if (!day) return;
+const m = day.moon;
+const prof = WATER_PROFILES[s.water] || WATER_PROFILES.small_river;
+const flowLabel = prof.flow >= 1.8 ? 'быстрое течение' : (prof.flow >= 1.1 ? 'умеренное течение' : 'стоячая вода');
+const archiveStats = storage.getWeatherArchiveStats(s.lat, s.lon);
+const iceBannerTone = day.iceState === 'ice_safe'
+? 'var(--pill-ice-bg)'
+: (day.iceState === 'ice_danger' ? 'var(--pill-bad-bg)' : (day.iceState === 'ice_slush' ? 'var(--pill-warn-bg)' : 'var(--pill-good-bg)'));
+const iceBannerText = day.iceNote || (day.iceState === 'ice_safe'
+? `❄️ Подлёдный сезон: безопасный лёд ~${day.iceThickness} см`
+: (day.iceState === 'ice_danger'
+? `⚠️ Опасный лёд (~${day.iceThickness} см) — выход на лёд запрещён!`
+: (day.iceState === 'ice_slush' ? '🌊❄️ Шуга и забереги (ледостава нет)' : '🌊 Открытая вода (льда нет)')));
+container.innerHTML = `
+<div class="card">
+<div class="section-head">
+<span class="section-title">🌦️ Погода, ледовый режим, кэш (10 км) и Луна (${day.relTitle ? day.relTitle + ' • ' : ''}${day.label})</span>
+<div class="toolbar-row">
+${createPill({ text: s.weatherSource || RU.offlineMode, tone: (s.weatherSource || '').includes('Онлайн') ? 'good' : 'warn', icon: '📡' })}
+<button type="button" class="btn btn-sm" id="weatherCleanArchiveBtn" title="Очистить старый архив погоды, кроме последних 5 дней">🧹 Очистить архив погоды</button>
+</div>
+</div>
+${(() => {
+const safety = computeIceSafetyIndex(day, s.water);
+return `
+<div style="margin-bottom:10px;padding:10px 12px;border-radius:var(--r-sm);background:${iceBannerTone};border:1px solid var(--border);font-size:var(--fs-xs);">
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;font-weight:800;">
+<span>${iceBannerText} • Водоём: <b>${s.selectedWaterName || prof.shortName}</b> (${flowLabel})</span>
+<span class="pill ${safety.footSafe || !safety.hasIce ? 'pill-good' : 'pill-bad'}">🛡️ Индекс льда: ${safety.index}/100</span>
+</div>
+<div style="margin-top:5px;font-weight:700;color:var(--text);">
+${safety.vehicleVerdict}
+</div>
+<div style="margin-top:3px;color:var(--muted);">
+ℹ️ ${safety.recommendation}
+</div>
+</div>
+`;
+})()}
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;">
+<div class="card" style="background:var(--card);padding:10px 12px;">
+<div style="font-size:var(--fs-xs);color:var(--muted);font-weight:700;">ТЕМПЕРАТУРА ВОЗДУХА И ВОДЫ</div>
+<div style="font-size:var(--fs-md);font-weight:800;margin-top:4px;">Воздух: ${day.tDay > 0 ? '+' + day.tDay : day.tDay}° / ${day.tNight > 0 ? '+' + day.tNight : day.tNight}°C</div>
+<div style="font-size:var(--fs-sm);color:var(--accent);font-weight:700;margin-top:2px;">💧 Вода (с учётом течения): ~${day.waterTemp}°C</div>
+</div>
+<div class="card" style="background:var(--card);padding:10px 12px;">
+<div style="font-size:var(--fs-xs);color:var(--muted);font-weight:700;">ДАВЛЕНИЕ И ВЕТЕР</div>
+<div style="font-size:var(--fs-md);font-weight:800;margin-top:4px;">🧭 ${day.pressAvg} мм (${fmtDeltaPress(day.dP)})</div>
+<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:2px;">Норма местности (${s.elevation} м): ${s.normPress} мм • 💨 ${day.windDir} ${day.windMax} м/с</div>
+</div>
+<div class="card" style="background:var(--card);padding:10px 12px;">
+<div style="font-size:var(--fs-xs);color:var(--muted);font-weight:700;">ФАЗА ЛУНЫ И СВЕТОВОЙ ДЕНЬ</div>
+<div style="font-size:var(--fs-md);font-weight:800;margin-top:4px;">${m.phaseIcon} ${m.phaseName} (${m.moonDay} л.д., ${m.illum}%)</div>
+<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:2px;">🌅 Восход ${fmtHM(day.sunriseHr)} • 🌇 Закат ${fmtHM(day.sunsetHr)}</div>
+</div>
+</div>
+<div style="margin-top:10px;padding:9px 12px;border-radius:var(--r-sm);background:var(--card);border:1px solid var(--border);font-size:var(--fs-xs);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+<div>
+🗄️ <b>Метеоархив в радиусе 10 км (${s.locLabel}):</b> накоплено <b>${archiveStats.localArchiveDays}</b> арх. дн.
+(всего в памяти устройства: ${archiveStats.totalArchiveDays} арх. дн. по ${archiveStats.totalLocations} лок.)
+${s.hasRealArchive === false ? `<span style="color:var(--warn);font-weight:700;"> • ⚠️ Прогноз может быть менее точным из-за отсутствия архивных данных по погоде</span>` : `<span style="color:var(--good);font-weight:700;"> • ✅ 5-дневный архив активен</span>`}
+</div>
+<span style="color:var(--muted);">Хранится бессрочно до очистки (очищается всё, кроме последних 5 дней)</span>
+</div>
+<div style="margin-top:8px;padding:8px 12px;border-radius:var(--r-sm);background:var(--card);font-size:var(--fs-xs);color:var(--muted);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+<span>ℹ️ <b>Приоритет факторов:</b> ${RU.moonPriorityNote}</span>
+<span><b>Главные лунные окна:</b> ${m.majorWindows.join(', ')} • <b>Малые окна:</b> ${m.minorWindows.join(', ')}</span>
+</div>
+<details style="margin-top:8px;font-size:var(--fs-xs);color:var(--muted);">
+<summary style="cursor:pointer;font-weight:700;color:var(--accent);">Памятка рыбаку о влиянии фаз Луны и барического шока</summary>
+<p style="margin-top:6px;line-height:1.45;">${RU.solunarDisclaimer}</p>
+</details>
+</div>
+`;
+const cleanBtn = container.querySelector('#weatherCleanArchiveBtn');
+if (cleanBtn) {
+cleanBtn.addEventListener('click', () => {
+const res = storage.clearWeatherArchiveKeep5Days();
+showToast(`🧹 Архив погоды очищен: удалено старых записей — ${res.removedCount}, сохранены последние 5 дней архива (${res.keptArchiveCount} дн.)`, 'good');
+render(container);
+});
+}
+}
+let unsub = null;
+export function init(container) {
+const st = store.getState();
+if (!st.weatherDays || st.weatherDays.length !== 12) {
+const fb = buildFallback(st.lat, st.water);
+store.dispatch({
+type: 'SET_WEATHER_DATA',
+payload: { ...fb, source: RU.syncing, updatedAt: Date.now() }
+});
+}
+render(container);
+unsub = subscribeWeather((next, prev) => {
+if (prev && next.water !== prev.water && Array.isArray(next.days) && next.days.length === 12) {
+const recalc = recalculateIceForWaterType(next.days, next.water, next.archive5Days);
+if (recalc) {
+store.dispatch({
+type: 'SET_WEATHER_DATA',
+payload: {
+days: recalc.days,
+archive5Days: recalc.archive5Days,
+iceState: recalc.iceState,
+iceSubState: recalc.iceSubState,
+iceThickness: recalc.iceThickness,
+iceNote: recalc.iceNote,
+source: store.getState().weatherSource
+}
+});
+return;
+}
+}
+if (next.route && next.route !== 'weather') {
+if (container) container._weatherNeedsRender = true;
+return;
+}
+if (container) container._weatherNeedsRender = false;
+render(container);
+});
+fetchWeather(st.lat, st.lon);
+}
+export function destroy() {
+if (unsub) unsub();
+}
+export const weatherModule = {
+computeMoon,
+computeIceSafetyIndex,
+computeWaterTempSeries,
+evaluateDayIce,
+recalculateIceForWaterType,
+buildFallback,
+normalizeOpenMeteo,
+normalizeMetNo,
+fetchWeather,
+getWeatherState,
+subscribeWeather,
+init,
+render,
+destroy
+};
