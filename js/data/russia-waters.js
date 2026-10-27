@@ -3,6 +3,7 @@
  * @description Единая офлайн-база гидрографической сети и населённых пунктов Российской Федерации (Ревизия 2.0.167).
  * Обеспечивает 100% покрытие всех регионов РФ в радиусах «До 50 км» и «До 120 км».
  */
+
 export const RUSSIA_WATERS = [
   {
     "name": "р. Седе-Яха",
@@ -5406,6 +5407,7 @@ export const RUSSIA_WATERS = [
     "region": "Пошехонье"
   }
 ];
+
 export const RUSSIA_CITIES = [
   {
     "name": "Новый Уренгой",
@@ -9062,6 +9064,7 @@ export const RUSSIA_CITIES = [
     "admin1": "Краснодарский край"
   }
 ];
+
 export function calcHaversine(lat1, lon1, lat2, lon2) {
   const R = 6371;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
@@ -9070,6 +9073,7 @@ export function calcHaversine(lat1, lon1, lat2, lon2) {
     Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
   return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 10) / 10;
 }
+
 export function findNearestRussianSettlement(lat, lon) {
   let best = null;
   let bestDist = Infinity;
@@ -9087,6 +9091,7 @@ export function findNearestRussianSettlement(lat, lon) {
     label: bestDist <= 18 ? best.name : (bestDist <= 85 ? `${best.name} (${bestDist} км)` : best.name)
   };
 }
+
 export function getNearestRussianSettlements(lat, lon, maxCount = 10, maxRadiusKm = 120) {
   const withDist = RUSSIA_CITIES.map(c => ({
     name: c.name,
@@ -9095,9 +9100,11 @@ export function getNearestRussianSettlements(lat, lon, maxCount = 10, maxRadiusK
     lon: c.lon,
     distKm: calcHaversine(lat, lon, c.lat, c.lon)
   })).sort((a, b) => a.distKm - b.distKm);
+
   const inRadius = withDist.filter(c => c.distKm <= maxRadiusKm);
   return (inRadius.length > 0 ? inRadius : withDist.slice(0, 5)).slice(0, maxCount);
 }
+
 export function getWaterTypeShortTag(wType) {
   switch (wType) {
     case 'big_river': return 'Река большая';
@@ -9110,11 +9117,14 @@ export function getWaterTypeShortTag(wType) {
     default: return 'Водоём';
   }
 }
+
 export function getNearestRussianWaters(lat, lon, basinCode, isCoastal, maxCount = 14, radiusKm = 50) {
   const effRadius = Number.isFinite(radiusKm) && radiusKm > 0 ? radiusKm : 50;
+
   const calculated = RUSSIA_WATERS.map(w => {
     const distKm = calcHaversine(lat, lon, w.lat, w.lon);
     let penalty = 0;
+    // Небольшой приоритет своего макробассейна (18 км), чтобы реальные близкие водоёмы никогда не перекрывались реками за 200 км!
     if (w.basin !== basinCode) penalty += 18;
     const isLocalSea = (w.wType === 'sea_gulf' || w.wType === 'open_sea') && distKm <= 55;
     if (!isCoastal && !isLocalSea && (w.wType === 'sea_gulf' || w.wType === 'open_sea')) penalty += 2000;
@@ -9124,13 +9134,16 @@ export function getNearestRussianWaters(lat, lon, basinCode, isCoastal, maxCount
       sortScore: distKm + penalty
     };
   });
+
   calculated.sort((a, b) => a.sortScore - b.sortScore);
+
   let withinRadius = calculated.filter(w => w.distKm <= effRadius && (isCoastal || w.distKm <= 55 || !w.wType.startsWith('sea')));
   if (withinRadius.length === 0) {
     withinRadius = calculated.filter(w => isCoastal || !w.wType.startsWith('sea')).slice(0, 4);
   } else {
     withinRadius = withinRadius.slice(0, maxCount);
   }
+
   return withinRadius.map(w => {
     const isRiver = w.wType === 'big_river' || w.wType === 'small_river' || w.name.startsWith('р.');
     const prefix = isRiver ? '🌊 ' : (w.wType.startsWith('sea') ? '⚓ ' : (w.wType === 'cooling_reservoir' ? '♨️ ' : '💧 '));
