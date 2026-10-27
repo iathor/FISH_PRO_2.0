@@ -10,13 +10,8 @@ import { FISH_DB } from '../../data/species.js?v=2.1.00';
 import { renderFiveFish } from '../../ui/svg.js?v=2.1.00';
 import { createPill, showToast, openModal } from '../../ui/components.js?v=2.1.00';
 import { computeIceSafetyIndex } from '../weather/weather.module.js?v=2.1.00';
-import { evaluateCircleFieldConfirmation } from '../circle/circle.module.js?v=2.1.00';
+import { evaluateCircleFieldConfirmation, requireRegisteredFisherId } from '../circle/circle.module.js?v=2.1.00';
 import { isTelegramWebApp, getTelegramUser, shareToTelegramChat, openBotChatInTelegram, buildForecastShareUrls, TELEGRAM_BOT_USERNAME } from '../../core/telegram.js?v=2.1.00';
-
-/**
- * Список морских, проходных и полупроходных видов, которые заходят в пресные реки
- * (big_river, small_river) и эстуарии (sea_gulf) при нересте, сезонных миграциях или приливах/отливах.
- */
 const RIVER_ENTERING_SPECIES = {
   smelt: { runMonths: [12, 1, 2, 3, 4, 5], reason: 'весенне-зимний нерестовый и кормовой ход из заливов в устья рек' },
   navaga: { runMonths: [11, 12, 1, 2, 3], reason: 'зимний приливной и преднерестовый заход в устья северных и дальневосточных рек' },
@@ -42,23 +37,16 @@ const RIVER_ENTERING_SPECIES = {
   goby: { runMonths: [4, 5, 6, 7, 8, 9, 10], reason: 'обитание бычка в эстуариях, водохранилищах и низовьях рек' },
   herring: { runMonths: [4, 5, 6], reason: 'весенний подход сельди в опреснённые заливы и предустьевые зоны' }
 };
-
-/**
- * Собирает до 5 предшествующих архивных дней для указанного дня day из 10-км гео-кэша и ленты прогноза
- */
-// Высокоскоростной кэш расчётов прогноза (устраняет 5000+ повторных циклов при рендере 115 видов рыб)
 const _prev5DaysMemo = new Map();
 const _archiveShockMemo = new Map();
 const _circleFieldMemo = new Map();
 const _dayBestMemo = new Map();
 const _biteWindowMemo = new Map();
-
 function _pruneCache(mapObj, maxEntries = 2500) {
   if (mapObj.size > maxEntries) {
     mapObj.clear();
   }
 }
-
 function _buildStateForecastSignature(st, fishId, day, method, water, depth, normPress, iceState) {
   const pw = (st.appMode === 'pro' && st.proFactorWeights) ? st.proFactorWeights : null;
   const wSig = pw ? `${pw.temp ?? 1}_${pw.press ?? 1}_${pw.archive_shock ?? 1}_${pw.circle_field ?? 1}` : '1';
@@ -66,7 +54,6 @@ function _buildStateForecastSignature(st, fishId, day, method, water, depth, nor
   const cirLen = Array.isArray(st.circleItems) ? st.circleItems.length : 0;
   return `${fishId}|${day.date}|${day.waterTemp}|${day.pressAvg}|${day.dP}|${day.windMax}|${day.iceState || iceState}|${method}|${water}|${depth}|${normPress}|${st.appMode || 'angler'}|${wSig}|${cLen}|${cirLen}|${st.hasRealArchive !== false ? 1 : 0}|${Math.round((st.lat || 0) * 100)}_${Math.round((st.lon || 0) * 100)}`;
 }
-
 export function getPreceding5DaysForTarget(day, state = null) {
   const st = state || store.getState();
   if (!day || !day.date) return [];
@@ -77,7 +64,6 @@ export function getPreceding5DaysForTarget(day, state = null) {
   if (_prev5DaysMemo.has(memoKey)) {
     return _prev5DaysMemo.get(memoKey);
   }
-
   const mapByDate = {};
   if (Array.isArray(st.weatherDays)) {
     for (let i = 0; i < st.weatherDays.length; i++) {
@@ -98,7 +84,6 @@ export function getPreceding5DaysForTarget(day, state = null) {
       if (d && d.date && d.date < targetDate) mapByDate[d.date] = d;
     }
   }
-
   const res = Object.keys(mapByDate)
     .sort()
     .slice(-5)
@@ -107,16 +92,9 @@ export function getPreceding5DaysForTarget(day, state = null) {
   _prev5DaysMemo.set(memoKey, res);
   return res;
 }
-
-/**
- * 7-й ФАКТОР ПРОГНОЗИРОВАНИЯ (Ревизия 2.0.15):
- * Анализ 5-дневного метеоархива (в радиусе 10 км) и эффекта «барического шока» (ступора рыбы после скачков давления за 1–2 суток).
- * Даже если сегодня погода и давление нормализовались, при резких скачках за предыдущие 24–72 часа рыба находится в барическом «шоке» и болеет.
- */
 export function evaluate5DayArchiveAndBaricShock(fish, day, prev5Days = [], hasRealArchive = true) {
   const sens = Number.isFinite(fish?.bladderSens) ? fish.bladderSens : 0.8;
   const isBurbot = fish?.id === 'burbot';
-
   if (!Array.isArray(prev5Days) || prev5Days.length === 0) {
     return {
       val: 0,
@@ -129,14 +107,11 @@ export function evaluate5DayArchiveAndBaricShock(fish, day, prev5Days = [], hasR
         : 'Оценка строится по текущим суткам.'
     };
   }
-
-  const recent2 = prev5Days.slice(-2); // Вчера и Позавчера
+  const recent2 = prev5Days.slice(-2); 
   const allPress = [...prev5Days.map(d => d.pressAvg || 754), day.pressAvg || 754];
   const minP = Math.min(...allPress);
   const maxP = Math.max(...allPress);
   const swing5d = Math.round(maxP - minP);
-
-  // Максимальный суточный скачок за предыдущие 1–2 суток
   let maxRecentJump = 0;
   recent2.forEach(d => {
     const dpAbs = Math.abs(d.dP || 0);
@@ -146,25 +121,18 @@ export function evaluate5DayArchiveAndBaricShock(fish, day, prev5Days = [], hasR
     const diff2d = Math.abs((day.pressAvg || 754) - (recent2[0].pressAvg || 754));
     if (diff2d > maxRecentJump) maxRecentJump = diff2d;
   }
-
   const todayJump = Math.abs(day.dP || 0);
   const todayNormalized = todayJump <= 3;
-
-  // Температурный тренд воды/воздуха за 5 дней
   const firstT = prev5Days[0]?.tDay ?? day.tDay;
   const tempShift5d = Math.round((day.tDay ?? 10) - firstT);
-
   let val = 0;
   let isShock = false;
   let note = '';
   let commentary = '';
-
-  // 1. Сильный барический шок за предыдущие 1–2 суток (скачок >= 6 мм за сутки или >= 9 мм за 48 ч)
   if (maxRecentJump >= 6 || swing5d >= 11) {
     isShock = true;
     const rawPenalty = maxRecentJump >= 9 || swing5d >= 14 ? -16 : -11;
     val = isBurbot ? Math.round(rawPenalty * 0.4) : Math.round(rawPenalty * Math.max(0.65, sens));
-
     if (todayNormalized) {
       note = `Барический «шок» после скачка давления (до ${maxRecentJump} мм за 1–2 сут., размах за 5 дн. ${swing5d} мм)`;
       commentary = `Даже несмотря на то, что сегодня погода выровнялась (Δ ${fmtDeltaPress(day.dP)}), за предыдущие 1–2 суток зафиксирован резкий перепад давления (${maxRecentJump} мм, 5-дневный размах ${minP}–${maxP} мм). После таких качелей плавательный пузырь рыбы не успевает адаптироваться — рыба находится в барическом «шоке» (ступоре) и игнорирует активные приманки.`;
@@ -173,18 +141,14 @@ export function evaluate5DayArchiveAndBaricShock(fish, day, prev5Days = [], hasR
       commentary = `По данным 5-дневного архива локации (10 км) продолжается сильная барическая пила (перепад ${minP}–${maxP} мм). Рыба испытывает выраженный барический шок и стоит в глухой обороне у дна.`;
     }
   } else if (maxRecentJump >= 4 || swing5d >= 7) {
-    // 2. Умеренные колебания давления за 5 дней
     val = isBurbot ? +2 : Math.round(-5 * Math.max(0.6, sens));
     note = `Умеренные качели давления за 5 дней (размах ${swing5d} мм, вчера/позавчера до ${maxRecentJump} мм)`;
     commentary = `За последние ${prev5Days.length} дн. в радиусе 10 км давление менялось в пределах ${minP}–${maxP} мм (${swing5d} мм). Умеренная барическая нестабильность делает поклёвки осторожными и короткими.`;
   } else {
-    // 3. Стабильное барическое плато за 3–5 дней!
     val = Math.round(8 * Math.max(0.75, sens));
     note = `Стабильное плато давления ${prev5Days.length} дн. подряд (размах всего ${swing5d} мм)`;
     commentary = `За последние ${prev5Days.length} дн. в этой локации (10 км) держится ровное атмосферное давление (${minP}–${maxP} мм, без резких скачков). Рыба полностью адаптировалась к горизонту глубины и выходит на уверенную кормёжку.`;
   }
-
-  // Поправка на 5-дневный температурный тренд
   if (Math.abs(tempShift5d) >= 6) {
     if (tempShift5d <= -6 && ['burbot', 'chir', 'pizhyan', 'peled', 'cisco', 'whitefish'].includes(fish?.id)) {
       val += 4;
@@ -194,15 +158,9 @@ export function evaluate5DayArchiveAndBaricShock(fish, day, prev5Days = [], hasR
       commentary += ` Резкое похолодание за 5 дней (${tempShift5d}°C) снизило кормовую активность мирной рыбы.`;
     }
   }
-
   val = Math.max(-20, Math.min(12, val));
   return { val, isShock, note, commentary, swing5d, maxRecentJump };
 }
-
-/**
- * Аналитика Личного журнала рыболова для калибровки прогноза клёва (Ревизия 2.0.15):
- * Сравнивает текущие условия (температура воды, давление, ветер, снасть, час) с реальными уловами пользователя из журнала.
- */
 export function evaluateLogbookInsight(fish, day, hrObj, method, water, catches = []) {
   if (!Array.isArray(catches) || catches.length === 0 || !fish) {
     return {
@@ -212,7 +170,6 @@ export function evaluateLogbookInsight(fish, day, hrObj, method, water, catches 
       commentary: 'Добавляйте свои уловы через кнопку «🎣 Я поймал» (доступна запись за последние 5 дней по календарю), чтобы прогноз автоматически учитывал вашу личную статистику по водоёмам и приманкам.'
     };
   }
-
   const byFish = catches.filter(c => c && c.fishId === fish.id);
   if (byFish.length === 0) {
     return {
@@ -222,33 +179,25 @@ export function evaluateLogbookInsight(fish, day, hrObj, method, water, catches 
       commentary: `В вашем журнале ${catches.length} уловов других видов, но по рыбе «${fish.name}» записей ещё нет.`
     };
   }
-
   const curWT = day.waterTemp ?? 10;
   const curP = hrObj?.press ?? day.pressAvg ?? 754;
   const curHr = hrObj?.hour ?? 12;
-
   const avgWT = Math.round((byFish.reduce((a, b) => a + (Number.isFinite(b.waterTemp) ? b.waterTemp : curWT), 0) / byFish.length) * 10) / 10;
   const avgP = Math.round(byFish.reduce((a, b) => a + (Number.isFinite(b.press) ? b.press : curP), 0) / byFish.length);
-
   const baitCounts = {};
   byFish.forEach(c => {
     if (c.bait) baitCounts[c.bait] = (baitCounts[c.bait] || 0) + 1;
   });
   const topBait = Object.entries(baitCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'проверенная приманка';
-
-  // Ищем уловы при близких метеоусловиях (вода ±3.5°C, давление ±6 мм)
   const similarCatches = byFish.filter(c => {
     const wtDiff = Math.abs((c.waterTemp ?? curWT) - curWT);
     const pDiff = Math.abs((c.press ?? curP) - curP);
     return wtDiff <= 3.5 && pDiff <= 6;
   });
-
   const sameHourCatches = byFish.filter(c => Math.abs((c.hour ?? 12) - curHr) <= 2);
-
   let val = 0;
   let note = '';
   let commentary = '';
-
   if (similarCatches.length > 0) {
     val = Math.min(9, 4 + similarCatches.length * 2 + (sameHourCatches.length > 0 ? 2 : 0));
     note = `Личный журнал (${byFish.length} уловов): текущая погода совпадает с ${similarCatches.length} вашими поимками (+${val}%)`;
@@ -266,22 +215,8 @@ export function evaluateLogbookInsight(fish, day, hrObj, method, water, catches 
       commentary = `Учтена статистика вашего журнала (${byFish.length} уловов вида «${fish.name}», средние условия: вода ~${avgWT}°C, давление ~${avgP} мм, фаворит — «${topBait}»).`;
     }
   }
-
   return { val, hasData: true, topBait, count: byFish.length, note, commentary };
 }
-
-/**
- * Ревизия 2.0.15:
- * 7-факторный расчёт почасового прогноза клёва + калибровка по Личному журналу рыболова:
- * 1) Температура воды (с учётом течения водоёма)
- * 2) Давление и его суточный/3ч ход
- * 3) Метеоархив за 5 дней и барический шок (7-й уникальный фактор из 10-км гео-кэша!)
- * 4) Сезон, биоритм и миграция
- * 5) Глубина, течение, свет и снасть
- * 6) Ветер и волнение
- * 7) Фаза Луны и приливные окна
- * + Учёт Личного журнала уловов пользователя
- */
 export function computeHourFactors(fish, day, hrObj, method, water, depth, normPress = 752, globalIceState = 'open_water', fastScoreOnly = false) {
   const st = store.getState();
   const dayIce = day.iceState || globalIceState;
@@ -289,8 +224,6 @@ export function computeHourFactors(fish, day, hrObj, method, water, depth, normP
   const isIceDanger = dayIce === 'ice_danger' && !method.startsWith('winter_');
   const prof = WATER_PROFILES[water] || WATER_PROFILES.small_river;
   const flowLabel = prof.flow >= 1.8 ? 'быстрое течение' : (prof.flow >= 1.1 ? 'умеренное течение' : 'стоячая вода');
-
-  // 1. Температура воды (с учётом скорости течения)
   const wt = day.waterTemp ?? 8;
   const [tOptMin, tOptMax] = fish.tWaterOpt || [8, 16];
   let tempDelta = 0;
@@ -312,12 +245,9 @@ export function computeHourFactors(fish, day, hrObj, method, water, depth, normP
     tempDelta = Math.max(-30, Math.round(12 - excess * 7));
     tempNote = `Вода ${wt}°C (${flowLabel}) теплее оптимума (${tOptMin}–${tOptMax}°C)`;
   }
-
-  // 2. Давление и текущий барометрический градиент
   const pDiff = Math.abs((hrObj.press || 754) - normPress);
   const dp = hrObj.dp3h ?? (day.dP / 4);
   let pressDelta = Math.round(6 - Math.min(14, pDiff * 0.6 * (fish.bladderSens || 0.8)));
-
   if (fish.type === 'predator') {
     if (dp <= -0.8) pressDelta += 8;
     else if (dp >= 1.0) pressDelta -= 9;
@@ -325,18 +255,14 @@ export function computeHourFactors(fish, day, hrObj, method, water, depth, normP
     if (Math.abs(dp) <= 0.6) pressDelta += 6;
     else if (dp <= -1.0) pressDelta -= 8;
   }
-
   const absDailyDP = Math.abs(day.dP || 0);
   if (absDailyDP >= 8) {
     pressDelta -= 18;
   } else if (absDailyDP >= 5) {
     pressDelta -= 12;
   }
-
   pressDelta = Math.max(-24, Math.min(15, pressDelta));
   const pressNote = `Давление ${hrObj.press} мм (суточный ход ${fmtDeltaPress(day.dP)})`;
-
-  // 3. 7-й ФАКТОР: 5-дневный метеоархив (10 км) и барический шок (с мемоизацией на сутки)
   const hasRealArchive = st.hasRealArchive !== false;
   const archMemoKey = `${fish.id}|${day.date}|${day.pressAvg}|${day.dP}|${day.tDay}|${hasRealArchive ? 1 : 0}|${Math.round((st.lat || 0) * 100)}_${Math.round((st.lon || 0) * 100)}`;
   let archiveEval = _archiveShockMemo.get(archMemoKey);
@@ -348,8 +274,6 @@ export function computeHourFactors(fish, day, hrObj, method, water, depth, normP
   }
   const archiveDelta = archiveEval.val;
   const archiveNote = archiveEval.note;
-
-  // 4. Ветер и волнение
   let windDelta = 0;
   if (dayIce === 'ice_safe') {
     windDelta = hrObj.wind > 9 ? -8 : +3;
@@ -360,23 +284,18 @@ export function computeHourFactors(fish, day, hrObj, method, water, depth, normP
     else if (hrObj.wind >= 8.5) windDelta -= 16;
     else if (hrObj.wind > 6.5) windDelta -= 8;
     else windDelta -= 2;
-
     if (['Ю', 'ЮЗ', 'З'].includes(hrObj.windDir)) windDelta += 4;
     else if (['С', 'СВ', 'В'].includes(hrObj.windDir)) windDelta -= 4;
   }
   const windNote = `Ветер ${hrObj.windDir} ${hrObj.wind} м/с`;
-
-  // 5. Сезонный биоритм, нерест и речной ход морских/проходных рыб
   const dtMonthIdx = day._mIdx !== undefined ? day._mIdx : (day._mIdx = (parseInt(String(day.date || '2026-06').slice(5, 7), 10) - 1) || 0);
   const curMonthNum = dtMonthIdx + 1;
   const mAct = (fish.monthActivity && fish.monthActivity[dtMonthIdx]) ?? 2;
   let seasonDelta = mAct === 3 ? +14 : (mAct === 2 ? +6 : (mAct === 1 ? -6 : -18));
-
   const runInfo = RIVER_ENTERING_SPECIES[fish.id];
   const isRiverWater = water === 'big_river' || water === 'small_river';
   const isSeaWater = water === 'sea_gulf' || water === 'open_sea';
   let seasonNote = `Сезонный биоритм месяца: ${mAct} из 3`;
-
   if (runInfo && isRiverWater) {
     if (runInfo.runMonths.includes(curMonthNum)) {
       seasonDelta += 10;
@@ -397,7 +316,6 @@ export function computeHourFactors(fish, day, hrObj, method, water, depth, normP
       seasonNote = 'Период нереста — кормовая активность снижена';
     }
   }
-
   if (dayIce === 'ice_safe' && ['crucian', 'carp', 'tench', 'catfish', 'tilapia', 'silver_carp', 'grass_carp', 'snakehead'].includes(fish.id)) {
     seasonDelta = -28;
   }
@@ -408,8 +326,6 @@ export function computeHourFactors(fish, day, hrObj, method, water, depth, normP
       seasonDelta -= 5;
     }
   }
-
-  // 6. Глубина, освещённость, прилив и снасть
   let gearDelta = 0;
   if (depth > fish.depthMax) {
     gearDelta -= 22;
@@ -419,7 +335,6 @@ export function computeHourFactors(fish, day, hrObj, method, water, depth, normP
     gearDelta -= 6;
   }
   gearDelta += getMethodCompatibility(fish, method, water);
-
   const h = hrObj.hour;
   const sr = day.sunriseHr ?? 7;
   const ss = day.sunsetHr ?? 18;
@@ -430,8 +345,6 @@ export function computeHourFactors(fish, day, hrObj, method, water, depth, normP
   else if (fish.feedMode === 'diurnal') gearDelta += isDay ? 5 : -12;
   gearDelta = Math.max(-22, Math.min(16, gearDelta));
   const gearNote = `Глубина ${depth} м (оптимум ${fish.depthOpt[0]}–${fish.depthOpt[1]} м)`;
-
-  // 7. Луна и приливно-отливная фаза
   const md = day.moon?.moonDay || 10;
   let moonDelta = 0;
   if (md >= 28 || md <= 2 || (md >= 14 && md <= 17)) moonDelta += 3;
@@ -444,14 +357,10 @@ export function computeHourFactors(fish, day, hrObj, method, water, depth, normP
   const moonNote = (isSeaWater || runInfo)
     ? `${day.moon?.phaseName || 'Луна'} (${md} л.д. • приливное окно)`
     : `${day.moon?.phaseName || 'Луна'} (${md} л.д.)`;
-
-  // Калибровка по Личному журналу рыболова
   const catchesArr = st.catches || [];
   const logInsight = catchesArr.length > 0
     ? evaluateLogbookInsight(fish, day, hrObj, method, water, catchesArr)
     : { val: 0, hasData: false, note: 'Журнал уловов: пока нет записей для личной калибровки', commentary: 'Добавляйте свои уловы через кнопку «🎣 Я поймал» (доступна запись за последние 5 дней по календарю), чтобы прогноз автоматически учитывал вашу личную статистику по водоёмам и приманкам.' };
-
-  // 8-й фактор: Полевое подтверждение «Круга» (с мемоизацией по локации и виду рыбы)
   const circleArr = st.circleItems || [];
   let circleEval;
   if (circleArr.length === 0) {
@@ -465,25 +374,20 @@ export function computeHourFactors(fish, day, hrObj, method, water, depth, normP
       _circleFieldMemo.set(cirMemoKey, circleEval);
     }
   }
-
-  // Учёт пользовательских весов в режиме «🔴 Профи»
   const w = (st.appMode === "pro" && st.proFactorWeights) ? st.proFactorWeights : { temp: 1, press: 1, archive_shock: 1, circle_field: 1 };
   tempDelta = Math.round(tempDelta * (w.temp ?? 1));
   pressDelta = Math.round(pressDelta * (w.press ?? 1));
   const weightedArchiveDelta = Math.round(archiveDelta * (w.archive_shock ?? 1));
   const circleDelta = Math.round((circleEval.val || 0) * (w.circle_field ?? 1));
-
   const baseScore = 52;
   let rawTotal = baseScore + tempDelta + pressDelta + weightedArchiveDelta + windDelta + seasonDelta + gearDelta + moonDelta + logInsight.val + circleDelta;
   if (isIceDanger) {
     rawTotal = Math.min(28, rawTotal - 18);
   }
   const total = Math.max(4, Math.min(98, Math.round(rawTotal)));
-
   if (fastScoreOnly) {
     return { total, forbidden: isRedBook, iceDanger: isIceDanger };
   }
-
   const factors = [
     { id: 'temp', name: '1. Температура воды (с учётом течения)', val: tempDelta, note: tempNote },
     { id: 'press', name: '2. Давление и его текущий ход', val: pressDelta, note: pressNote },
@@ -493,7 +397,6 @@ export function computeHourFactors(fish, day, hrObj, method, water, depth, normP
     { id: 'wind', name: '6. Ветер и волнение', val: windDelta, note: windNote },
     { id: 'moon', name: (isSeaWater || runInfo) ? '7. Фаза Луны и прилив' : '7. Фаза Луны', val: moonDelta, note: moonNote }
   ];
-
   if (circleEval.hasSignal || st.appMode === "pro") {
     factors.push({
       id: 'circle_field',
@@ -502,7 +405,6 @@ export function computeHourFactors(fish, day, hrObj, method, water, depth, normP
       note: circleEval.note
     });
   }
-
   if (logInsight.hasData) {
     factors.push({
       id: 'logbook',
@@ -511,7 +413,6 @@ export function computeHourFactors(fish, day, hrObj, method, water, depth, normP
       note: logInsight.note
     });
   }
-
   return {
     total,
     forbidden: isRedBook,
@@ -523,7 +424,6 @@ export function computeHourFactors(fish, day, hrObj, method, water, depth, normP
     factors
   };
 }
-
 const _WINTER_LURE_SET = new Set(['perch', 'pike', 'zander', 'grayling', 'smelt', 'trout', 'cod', 'navaga', 'lenok', 'volga_zander', 'char', 'broad_whitefish', 'saffron_cod', 'peled', 'chir', 'pizhyan', 'whitefish', 'omul', 'baikal_grayling', 'kundzha', 'nelma', 'taimen']);
 const _WINTER_JIG_SET = new Set(['chir', 'pizhyan', 'peled', 'cisco', 'roach', 'perch', 'whitefish', 'ruffe', 'smelt', 'bream', 'ide', 'dace', 'white_bream', 'vendace', 'omul', 'omul_arctic', 'valek', 'baikal_grayling', 'tugun', 'crucian', 'rudd', 'gudgeon', 'muksun']);
 const _WINTER_STUKA_SET = new Set(['burbot', 'cod', 'halibut', 'navaga', 'wolffish']);
@@ -542,7 +442,6 @@ const _SPIN_LURE_SET = new Set(['ide', 'dace', 'chekhon', 'peled', 'chir', 'pizh
 const _BOTTOM_EXTRA_SET = new Set(['catfish', 'burbot', 'channel_catfish', 'amur_catfish', 'ruffe', 'flounder', 'starry_flounder', 'turbot', 'plaice', 'goby', 'perch', 'pike', 'zander', 'beluga', 'kaluga']);
 const _FLOAT_EXTRA_SET = new Set(['perch', 'rotan', 'ruffe', 'chub', 'grayling', 'baikal_grayling', 'trout', 'dolly_varden', 'garfish']);
 const _FLY_SET = new Set(['grayling', 'baikal_grayling', 'lenok', 'salmon', 'trout', 'chub', 'ide', 'tugun', 'dace', 'peled', 'chir', 'pizhyan', 'whitefish', 'cisco', 'valek', 'brown_trout', 'sockeye_salmon', 'char', 'dolly_varden', 'bleak', 'rudd', 'chekhon', 'roach', 'taimen', 'nelma']);
-
 function getMethodCompatibility(fish, method, water = 'small_river') {
   const fid = fish.id;
   const isRiverEntering = Boolean(RIVER_ENTERING_SPECIES[fid]);
@@ -560,17 +459,14 @@ function getMethodCompatibility(fish, method, water = 'small_river') {
   if (method.startsWith('sea_')) return (fish.habitat === 'sea' || isRiverEntering || water === 'sea_gulf' || water === 'open_sea') ? 8 : -12;
   return 0;
 }
-
 export function calcHourly(fish, day, hrObj, method, water, depth, normPress = 752, iceState = 'open_water') {
   return computeHourFactors(fish, day, hrObj, method, water, depth, normPress, iceState, true).total;
 }
-
 function _computeDaySummaryFast(fish, day, method, water, depth, normPress = 752, iceState = 'open_water') {
   const st = store.getState();
   const sig = _buildStateForecastSignature(st, fish.id, day, method, water, depth, normPress, iceState);
   const cached = _dayBestMemo.get(sig);
   if (cached) return cached;
-
   let s0 = -1, s1 = -1, s2 = -1, s3 = -1;
   let bestHr = 7;
   let bestScore = -1;
@@ -595,17 +491,14 @@ function _computeDaySummaryFast(fish, day, method, water, depth, normPress = 752
   _dayBestMemo.set(sig, summary);
   return summary;
 }
-
 export function calcDayBest(fish, day, method, water, depth, normPress = 752, iceState = 'open_water') {
   if (!fish || !day?.hours?.length) return 0;
   return _computeDaySummaryFast(fish, day, method, water, depth, normPress, iceState).score;
 }
-
 export function getBestBiteWindowText(fish, day, method, water, depth, normPress = 752, iceState = 'open_water') {
   if (!fish || !day?.hours?.length) return '06:00–09:00';
   return _computeDaySummaryFast(fish, day, method, water, depth, normPress, iceState).windowText;
 }
-
 export function getFactorBreakdown(fish, day, method, water, depth, normPress = 752, iceState = 'open_water', hourIdx = null) {
   if (!day || !day.hours?.length) return { total: 0, factors: [] };
   let targetHr = day.hours[12];
@@ -620,7 +513,6 @@ export function getFactorBreakdown(fish, day, method, water, depth, normPress = 
   }
   return computeHourFactors(fish, day, targetHr, method, water, depth, normPress, iceState);
 }
-
 export function calcDynamicRig(method, water, depth, wind, fish = null, waterTemp = 12, iceState = 'open_water') {
   const prof = WATER_PROFILES[water] || WATER_PROFILES.small_river;
   const flowCoeff = prof.flow;
@@ -630,7 +522,6 @@ export function calcDynamicRig(method, water, depth, wind, fish = null, waterTem
   const isTrophy = ['catfish', 'amur_catfish', 'carp', 'grass_carp', 'silver_carp', 'salmon', 'chinook_salmon', 'taimen', 'halibut', 'cod', 'turbot', 'beluga', 'kaluga'].includes(fid);
   const isDelicate = ['roach', 'rudd', 'bleak', 'dace', 'peled', 'gudgeon', 'crucian', 'white_bream', 'tugun', 'cisco', 'vendace', 'smelt', 'rotan', 'ruffe'].includes(fid);
   const isWhiteNano = fish && (fish.type === 'peace' || ['dace', 'peled', 'chir', 'pizhyan', 'tugun', 'whitefish', 'cisco', 'vendace', 'valek', 'crucian', 'roach', 'rudd', 'bleak', 'ide', 'bream', 'white_bream', 'tench', 'gudgeon', 'chekhon', 'muksun'].includes(fid));
-
   if (method === 'winter_jig') {
     const w = Math.min(3.8, Math.max(0.3, Math.round(depth * (isDelicate ? 0.28 : 0.40) * flowCoeff * 10) / 10));
     const line = isDelicate ? 'Зимняя флюорокарбоновая леска 0.08–0.10 мм' : 'Зимняя леска 0.11–0.14 мм';
@@ -747,7 +638,6 @@ export function calcDynamicRig(method, water, depth, wind, fish = null, waterTem
     tactic: `Морской лов (${fName}, вода ${waterTemp}°C): облов береговых свалов, ракушечника и каменистых банок`
   };
 }
-
 export function generateAdaptiveGuides(fish, water, depth, day, method, globalIceState) {
   const iceState = day.iceState || globalIceState;
   const iceThickness = day.iceThickness ?? 0;
@@ -757,7 +647,6 @@ export function generateAdaptiveGuides(fish, water, depth, day, method, globalIc
   const migrationBlock = runInfo
     ? `<div style="margin-top:5px;color:var(--good);font-weight:700;">🌊 <b>Миграция и заход в реки:</b> ${runInfo.reason}.</div>`
     : '';
-
   let standAdvice = '';
   if (fish.legal === 'redbook') {
     standAdvice = `⛔ <b>КРАСНАЯ КНИГА (ПОЙМАЛ — ОТПУСТИ):</b> ${fish.baseAdvice} ${fish.handlingAdvice || 'При случайной поимке в прилове бережно отпустите рыбу в воду!'}${migrationBlock}${sizeBlock}${traitsBlock}`;
@@ -772,12 +661,10 @@ export function generateAdaptiveGuides(fish, water, depth, day, method, globalIc
   } else {
     standAdvice = `📍 <b>Биотоп (${WATER_PROFILES[water]?.shortName || 'водоём'}, горизонт ${depth.toFixed(1)} м):</b> ${fish.baseAdvice}${migrationBlock}${sizeBlock}${traitsBlock}`;
   }
-
   const rigInfo = calcDynamicRig(method, water, depth, day.windMax, fish, day.waterTemp, iceState);
   const tackleAdvice = fish.legal === 'redbook'
     ? `<div><b>Вероятность прилова на снасть:</b> ${rigInfo.weight} (${rigInfo.line}).</div><div style="margin-top:5px;color:var(--bad);font-weight:700;">⚠️ Целенаправленное изъятие запрещено! Используйте безбородые крючки и отпускайте рыбу прямо в воде.</div>`
     : `<div><b>Оптимальный монтаж сейчас:</b> ${rigInfo.weight} (${rigInfo.line}).</div><div style="margin-top:5px;"><b>Подача и анимация:</b> ${rigInfo.tactic}.</div><div style="margin-top:5px;color:var(--muted);"><b>Арсенал по виду:</b> ${fish.topGear}</div>`;
-
   let baitAdvice = '';
   const seasonTone = iceState === 'ice_safe'
     ? `❄️ <b>Подлёдный сезон (вода ~${day.waterTemp}°C):</b> приоритет животным насадкам (мотыль, мормыш/бокоплав, опарыш, резка) и деликатным зимним приманкам.`
@@ -785,19 +672,13 @@ export function generateAdaptiveGuides(fish, water, depth, day, method, globalIc
         ? `💧 <b>Холодная вода (~${day.waterTemp}°C):</b> рыба избирательна — лучше всего работают животные насадки, нано-джиг с пассивными слагами/нимфами (0.2–0.8 г) и приманки на длинной паузе.`
         : `☀️ <b>Прогретая вода (~${day.waterTemp}°C):</b> высокая кормовая активность в толще и у дна, отлично работают как животные/растительные насадки, так и мормышинг (нано-джиг), вертушки и мушки.`);
   baitAdvice = `<div>${fish.feedBase || 'Естественный бентос, зоопланктон и сезонные приманки.'}</div><div style="margin-top:6px;color:var(--accent);">${seasonTone}</div>`;
-
   return { standAdvice, tackleAdvice, baitAdvice };
 }
-
-/**
- * Формирует простое человеческое объяснение прогноза в одно предложение для режима «🟢 Новичок»
- */
 export function buildPlainLanguageSummary(fish, day, bd, bestScore) {
   const wt = day?.waterTemp ?? 8;
   const dp = Math.abs(day?.dP || 0);
   const wMax = day?.windMax || 3;
   const shock = bd?.archiveEval?.isShock;
-
   if (day?.iceState === "ice_danger") {
     return "Выход на лёд сейчас смертельно опасен из-за малой толщины или промоин — рыбалка возможна только с безопасного берега.";
   }
@@ -812,10 +693,6 @@ export function buildPlainLanguageSummary(fish, day, bd, bestScore) {
   }
   return `Умеренная кормовая активность вида «${fish.name}» при воде ~${wt}°C — лучший шанс на уверенную поклёвку будет в часы утренней и вечерней зорьки.`;
 }
-
-/**
- * Вычисляет 30-дневную ретроспективную точность модели прогноза по данным личного Журнала уловов пользователя
- */
 export function computeModel30DayValidation(catches = []) {
   const now = Date.now();
   const window30d = 30 * 86400 * 1000;
@@ -838,24 +715,18 @@ export function computeModel30DayValidation(catches = []) {
     label: `Подтверждённая точность на ваших водоёмах за 30 дн.: ${pct}% (${matched} из ${sample.length} выездов)`
   };
 }
-
-/**
- * Автоматический генератор чек-листа сборов и безопасности на выезд (под текущую рыбу, снасть, температуру и лёд)
- */
 export function generateTripChecklist(fish, day, method, water, depth) {
   const s = store.getState();
   const rig = calcDynamicRig(method, water, depth, day?.windMax || 3, fish, day?.waterTemp ?? 10, day?.iceState || s.iceState);
   const baits = getSeasonalBaitsForContext(fish, method, day?.waterTemp ?? 10, day?.iceState || s.iceState);
   const iceSafety = computeIceSafetyIndex(day, water);
   const isWinter = (day?.iceState && day.iceState !== "open_water") || (day?.tDay ?? 10) <= 2 || (method && method.startsWith("winter_"));
-
   const gearItems = [
     `🎣 Основная снасть: ${rig.weight} (${rig.line})`,
     `🪱 Рабочие насадки/приманки: ${baits.slice(0, 3).join("; ")}`,
     `📏 Глубиномер / эхолот (целевой горизонт стоянки ${fish.name}: ~${depth.toFixed(1)} м)`,
     `🧰 Запасные поводки, карабины, экстрактор / зевник и рулетка (контроль разрешённого размера)`
   ];
-
   const safetyItems = isWinter
     ? [
         `🦺 Спасалки («когти» на шнуре поверх куртки) и пешня для проверки льда (${iceSafety.statusText})`,
@@ -869,16 +740,13 @@ export function generateTripChecklist(fish, day, method, water, depth) {
         `🔋 Заряженный телефон с офлайн-кэшем «Клёв ПРО» и аптечка`,
         `♻️ Пакет под мусор и бережное отношение к прилову («Поймал — отпусти»)`
       ];
-
   return { gearItems, safetyItems, iceSafety, rig };
 }
-
 export function openTripChecklistModal() {
   const s = store.getState();
   const fish = FISH_DB.find(f => f.id === s.fishId) || FISH_DB[0];
   const day = s.weatherDays?.[s.dayIdx] || s.weatherDays?.[2] || s.weatherDays?.[0] || {};
   const cl = generateTripChecklist(fish, day, s.method, s.water, s.depth);
-
   const html = `
     <div style="display:flex;flex-direction:column;gap:12px;font-size:var(--fs-sm);">
       <div style="padding:10px 12px;background:var(--card);border:1px solid var(--accent);border-radius:var(--r-sm);font-size:var(--fs-xs);">
@@ -886,7 +754,6 @@ export function openTripChecklistModal() {
         🌡️ <b>Погода:</b> воздух ${day.tDay > 0 ? "+" + day.tDay : day.tDay}°/${day.tNight > 0 ? "+" + day.tNight : day.tNight}°C, вода ~${day.waterTemp}°C, ветер ${day.windDir} ${day.windMax} м/с<br>
         🛡️ <b>Безопасность льда/воды:</b> ${cl.iceSafety.vehicleVerdict}
       </div>
-
       <div>
         <div style="font-weight:800;font-size:var(--fs-xs);color:var(--accent);text-transform:uppercase;margin-bottom:6px;">
           🎣 1. Снасти, оснастка и приманки под условия дня:
@@ -900,7 +767,6 @@ export function openTripChecklistModal() {
           `).join("")}
         </div>
       </div>
-
       <div>
         <div style="font-weight:800;font-size:var(--fs-xs);color:var(--good);text-transform:uppercase;margin-bottom:6px;">
           🦺 2. Экипировка и безопасность на водоёме:
@@ -916,17 +782,14 @@ export function openTripChecklistModal() {
       </div>
     </div>
   `;
-
   openModal("🎒 Чек-лист сборов и безопасности на выезд", html);
 }
-
 export function renderExpress(container) {
   if (!container) return;
   const s = store.getState();
   const fish = FISH_DB.find(f => f.id === s.fishId) || FISH_DB[0];
-  const expressIndices = [2, 3, 4]; // Сегодня, Завтра, Послезавтра
+  const expressIndices = [2, 3, 4]; 
   const curTheme = document.documentElement.getAttribute('data-theme') || 'dark';
-
   const cardsHtml = expressIndices.map((dayIdx, pos) => {
     const d = s.weatherDays[dayIdx];
     if (!d) return '';
@@ -934,7 +797,6 @@ export function renderExpress(container) {
     const score = calcDayBest(fish, d, s.method, s.water, s.depth, s.normPress, s.iceState);
     const dayIce = d.iceState || s.iceState;
     const bd = getFactorBreakdown(fish, d, s.method, s.water, s.depth, s.normPress, s.iceState);
-
     const wtOk = d.waterTemp >= fish.tWaterOpt[0] && d.waterTemp <= fish.tWaterOpt[1];
     const wtTone = d.waterTemp < fish.tMinStop ? 'bad' : (wtOk ? 'good' : 'warn');
     const pTone = Math.abs(d.dP) <= 2 && !bd.archiveEval?.isShock ? 'good' : (Math.abs(d.dP) <= 4 && !bd.archiveEval?.isShock ? 'warn' : 'bad');
@@ -943,16 +805,13 @@ export function renderExpress(container) {
     const iceText = dayIce === 'ice_danger'
       ? (d.iceSubState === 'spring_rotten_ice' ? `Рыхлый лёд ~${d.iceThickness} см` : `Опасный лёд ~${d.iceThickness} см`)
       : (dayIce === 'ice_safe' ? `Лёд ~${d.iceThickness} см` : (dayIce === 'ice_slush' ? 'Шуга и забереги' : 'Открытая вода'));
-
     const isPressJump = Math.abs(d.dP) >= 5;
     const isArchiveShock = Boolean(bd.archiveEval?.isShock);
     const isGale = d.windMax >= 8.5;
     const isIceDanger = dayIce === 'ice_danger';
-
     let verdict = RU.verdictGo;
     let verdictTone = 'good';
     let customRatingWord = null;
-
     if (fish.legal === 'redbook') {
       verdict = `⛔ Кр. книга (прилов ~${score}%)`;
       verdictTone = 'bad';
@@ -983,9 +842,7 @@ export function renderExpress(container) {
       verdictTone = 'warn';
       customRatingWord = 'Умеренный клёв';
     }
-
     const topNotes = bd.factors.slice(0, 3).map(f => `${f.note} (${f.val >= 0 ? '+' + f.val : f.val}%)`).join('; ');
-
     return `
       <div class="card express-card ${s.dayIdx === dayIdx ? 'active' : ''}" data-express-day="${dayIdx}">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
@@ -1020,33 +877,48 @@ export function renderExpress(container) {
       </div>
     `;
   }).join('');
-
-  // Построение карточки «🟢 Новичок» (Один экран: Клюёт/Не клюёт + ТОП-3 рыбы + ближайший водоём + кнопка Почему?)
   const appMode = s.appMode || "angler";
   const todayObj = s.weatherDays[2] || s.weatherDays[0];
   const tomorrowObj = s.weatherDays[3] || todayObj;
   const nearWaterTitle = s.selectedWaterName || s.nearbyWaters?.[0]?.name || WATER_PROFILES[s.water]?.shortName || "Ближайший водоём";
-
   let modeBannerHtml = '';
-  const inTg = isTelegramWebApp();
-  const tgUser = getTelegramUser();
-  const tgIdentityText = tgUser
-    ? `✈️ Вы в Telegram Mini App: <b>${tgUser.displayName}</b>${tgUser.username ? ' (@' + tgUser.username + ')' : ''} • ☁️ Облако Telegram подключено`
-    : `✈️ Клубный навигатор Telegram (<b>@${TELEGRAM_BOT_USERNAME}</b>) • Мгновенная отправка прогноза и точек напарникам`;
-
+  const activeDayForTackle = s.weatherDays[s.dayIdx] || todayObj || {};
+  const effIceForTackle = activeDayForTackle.iceState || s.iceState || 'open_water';
+  const effWaterTempForTackle = activeDayForTackle.waterTemp ?? 10;
+  const compatibleMethodsTop = getCompatibleMethods(fish, effIceForTackle, s.water, effWaterTempForTackle);
+  const seasonalBaitsTop = getSeasonalBaitsForContext(fish, s.method, effWaterTempForTackle, effIceForTackle);
+  const activeBaitTop = s.selectedBait && seasonalBaitsTop.includes(s.selectedBait) ? s.selectedBait : (seasonalBaitsTop[0] || '');
+  const rigTop = calcDynamicRig(s.method, s.water, s.depth, activeDayForTackle.windMax || 3, fish, effWaterTempForTackle, effIceForTackle);
   modeBannerHtml += `
-    <div class="card" style="margin-bottom:10px;padding:9px 12px;background:rgba(56,189,248,0.09);border:1px solid var(--accent);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-      <div style="font-size:var(--fs-xs);color:var(--text);line-height:1.35;">
-        ${tgIdentityText}
+    <div class="card" style="margin-bottom:12px;padding:10px 12px;background:var(--card);border:1.5px solid var(--accent);">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
+        <div>
+          <span style="font-size:var(--fs-xs);font-weight:900;color:var(--accent);text-transform:uppercase;">🎣 Снасть и приманка для рыбы «${fish.name}»</span>
+          <div style="font-size:11.5px;color:var(--muted);margin-top:2px;">
+            📍 ${nearWaterTitle} (${s.depth.toFixed(1)} м) • Рекомендуемый монтаж: <b style="color:var(--text);">${rigTop.weight}</b> (${rigTop.line})
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <button type="button" class="btn btn-sm" id="fcOpenChecklistBtn" style="min-height:30px;padding:3px 10px;font-size:11.5px;">🎒 Чек-лист</button>
+          <button type="button" class="btn btn-sm btn-accent" id="fcShareForecastTgBtn" style="min-height:30px;padding:3px 10px;font-size:11.5px;">📤 Поделиться прогнозом</button>
+        </div>
       </div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;">
-        <button type="button" class="btn btn-sm btn-accent" id="fcShareForecastTgBtn" style="min-height:28px;padding:3px 10px;font-size:11.5px;">📤 Отправить прогноз в Telegram</button>
-        <button type="button" class="btn btn-sm" id="fcShareCrewTgBtn" style="min-height:28px;padding:3px 10px;font-size:11.5px;">🌊 Экипаж (72ч)</button>
-        ${!inTg ? `<button type="button" class="btn btn-sm" id="fcOpenBotTgBtn" style="min-height:28px;padding:3px 10px;font-size:11.5px;">🤖 Чат с ботом</button>` : ''}
+      <div class="controls-grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;">
+        <div>
+          <label for="fcTopMethodSelect" style="display:block;font-size:11px;color:var(--muted);font-weight:800;margin-bottom:3px;">1. СНАСТЬ И СПОСОБ ЛОВЛИ (ПОД РЫБУ И ПРОГНОЗ):</label>
+          <select id="fcTopMethodSelect" style="width:100%;">
+            ${compatibleMethodsTop.map(m => `<option value="${m.val}" ${m.val === s.method ? 'selected' : ''}>${m.text}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label for="fcTopBaitSelect" style="display:block;font-size:11px;color:var(--muted);font-weight:800;margin-bottom:3px;">2. СЕЗОННАЯ НАЖИВКА / ПРИМАНКА (💧 ${effWaterTempForTackle}°C):</label>
+          <select id="fcTopBaitSelect" style="width:100%;">
+            ${seasonalBaitsTop.map(b => `<option value="${b}" ${b === activeBaitTop ? 'selected' : ''}>${b}</option>`).join('')}
+          </select>
+        </div>
       </div>
     </div>
   `;
-
   if (appMode === "novice" && todayObj) {
     const ecoregNovice = getSpotEcoregion(s.lat, s.lon, s.basinCode, s.water, s.selectedWaterName);
     const sigOrderNovice = ecoregNovice.signatureSpecies || [];
@@ -1069,14 +941,12 @@ export function renderExpress(container) {
       })
       .sort((a, b) => b.rankSc - a.rankSc)
       .slice(0, 3);
-
     const bestScore = top3[0]?.bestSc || calcDayBest(fish, todayObj, s.method, s.water, s.depth, s.normPress, s.iceState);
     const trafficTone = bestScore >= 60 ? "var(--good)" : (bestScore >= 38 ? "var(--warn)" : "var(--bad)");
     const trafficTitle = bestScore >= 60
       ? "🟢 КЛЮЁТ! ОТЛИЧНОЕ ВРЕМЯ ДЛЯ ВЫЕЗДА"
       : (bestScore >= 38 ? "🟡 ОСТОРОЖНЫЙ КЛЁВ (ЛОВИТЕ НА ЗОРЬКЕ)" : "🔴 НЕ КЛЮЁТ (РЫБА В СТУПОРЕ / СЛОМ ПОГОДЫ)");
     const bdNovice = getFactorBreakdown(fish, todayObj, s.method, s.water, s.depth, s.normPress, s.iceState);
-
     modeBannerHtml += `
       <div class="card" style="margin-bottom:14px;border:2px solid ${trafficTone};padding:14px;">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
@@ -1088,11 +958,9 @@ export function renderExpress(container) {
           </div>
           <button type="button" class="btn btn-sm btn-good" data-catch-today="2">🎣 Я поймал</button>
         </div>
-
         <div style="padding:9px 11px;margin-bottom:10px;background:var(--card);border-left:3px solid ${trafficTone};border-radius:6px;font-size:var(--fs-sm);font-weight:700;line-height:1.42;">
           💬 <b>Главное простыми словами:</b> ${buildPlainLanguageSummary(fish, todayObj, bdNovice, bestScore)}
         </div>
-
         <div style="font-size:var(--fs-xs);font-weight:800;color:var(--muted);margin-bottom:6px;">
           🏆 ТОП-3 РЫБЫ НА СЕГОДНЯ И ЗАВТРА (НАЖМИТЕ ДЛЯ ВЫБОРА СНАСТИ):
         </div>
@@ -1110,7 +978,6 @@ export function renderExpress(container) {
             </button>
           `).join("")}
         </div>
-
         <details style="background:var(--card);padding:10px 12px;border-radius:var(--r-sm);border:1px solid var(--border);">
           <summary style="cursor:pointer;font-weight:800;font-size:var(--fs-sm);color:var(--accent);">
             🔍 Почему такой прогноз по рыбе «${fish.name}»? (Нажмите для раскрытия факторов)
@@ -1128,7 +995,6 @@ export function renderExpress(container) {
       </div>
     `;
   }
-
   if (appMode === "pro") {
     const pw = s.proFactorWeights || { temp: 1.0, press: 1.0, archive_shock: 1.0, circle_field: 1.0 };
     modeBannerHtml += `
@@ -1177,7 +1043,6 @@ export function renderExpress(container) {
       </div>
     `;
   }
-
   container.innerHTML = `
     <div>
       ${modeBannerHtml}
@@ -1189,10 +1054,6 @@ export function renderExpress(container) {
     </div>
   `;
 }
-
-/**
- * Плитки в прогнозе не меняем: остаются 2 архивных (Позавчера, Вчера), Сегодняшний и 9 будущих (всего 12 плиток).
- */
 export function renderWeek(container) {
   if (!container) return;
   const prevScroll = container.querySelector('.week-strip')?.scrollLeft || 0;
@@ -1200,7 +1061,6 @@ export function renderWeek(container) {
   const fish = FISH_DB.find(f => f.id === s.fishId) || FISH_DB[0];
   const curTheme = document.documentElement.getAttribute('data-theme') || 'dark';
   const days = s.weatherDays || [];
-
   container.innerHTML = `
     <div class="card">
       <div class="section-head">
@@ -1215,7 +1075,6 @@ export function renderWeek(container) {
           const score = calcDayBest(fish, d, s.method, s.water, s.depth, s.normPress, s.iceState);
           const isPriority = idx === 2 || idx === 3;
           const col = d.isArchive ? '#94a3b8' : (score >= 60 ? 'var(--good)' : (score >= 38 ? 'var(--warn)' : 'var(--bad)'));
-
           if (d.isArchive) {
             return `
               <div class="day-card archive-day ${idx === s.dayIdx ? 'active' : ''}" data-week-day="${idx}">
@@ -1232,15 +1091,12 @@ export function renderWeek(container) {
               </div>
             `;
           }
-
           const topBadge = idx === 2
             ? `<span class="pill pill-good" style="font-size:11px;padding:2px 8px;">🔥 Сегодня</span>`
             : (idx === 3
                 ? `<span class="pill pill-ice" style="font-size:11px;padding:2px 8px;">⚡ Завтра</span>`
                 : (d.relTitle ? `<span style="font-size:var(--fs-xs);color:var(--accent);font-weight:700;">${d.relTitle}</span>` : ''));
-
           const bestWindow = isPriority ? getBestBiteWindowText(fish, d, s.method, s.water, s.depth, s.normPress, s.iceState) : '';
-
           return `
             <div class="day-card ${isPriority ? 'priority-day' : ''} ${idx === s.dayIdx ? 'active' : ''}" data-week-day="${idx}">
               <div class="day-status-stripe" style="background:${col};"></div>
@@ -1274,7 +1130,6 @@ export function renderWeek(container) {
     if (strip) strip.scrollLeft = prevScroll;
   }
 }
-
 export function renderHourly(container) {
   if (!container) return;
   const prevScroll = container.querySelector('.bite-timeline')?.scrollLeft || 0;
@@ -1282,12 +1137,10 @@ export function renderHourly(container) {
   const fish = FISH_DB.find(f => f.id === s.fishId) || FISH_DB[0];
   const day = s.weatherDays[s.dayIdx] || s.weatherDays[2] || s.weatherDays[0];
   if (!day) return;
-
   if (day.isArchive) {
     renderArchiveDayLogger(container, s, day, fish);
     return;
   }
-
   const curTheme = document.documentElement.getAttribute('data-theme') || 'dark';
   const curH = new Date().getHours();
   const selH = clampHour(s.selectedHour);
@@ -1297,20 +1150,17 @@ export function renderHourly(container) {
   const seasonalBaits = getSeasonalBaitsForContext(fish, s.method, day.waterTemp, day.iceState || s.iceState);
   const activeBait = s.selectedBait && seasonalBaits.includes(s.selectedBait) ? s.selectedBait : seasonalBaits[0];
   const guides = generateAdaptiveGuides(fish, s.water, s.depth, day, s.method, s.iceState);
-
   container.innerHTML = `
     <div class="card">
       <div class="section-head">
         <span class="section-title">⏱️ Почасовой график клёва (0–24 ч) • ${day.relTitle ? day.relTitle + ' (' + day.label + ')' : day.label}</span>
         <span style="font-size:var(--fs-xs);color:var(--muted);">🌅 Зорьки и 🌕 лунные выходы отмечены значками • Нажмите на час для подробностей</span>
       </div>
-
       ${fish.legal === 'redbook' ? `
         <div style="padding:10px 12px;margin-bottom:10px;border-radius:var(--r-sm);background:var(--pill-bad-bg);border:1px solid var(--bad);color:var(--pill-bad-text);font-weight:700;line-height:1.42;font-size:var(--fs-xs);">
           ⛔ <b>${fish.name} — Красная книга (изъятие запрещено).</b> Ниже показан биологический прогноз активности вида (вероятность поклёвки в прилове). При поимке бережно отпустите рыбу!
         </div>
       ` : ''}
-
       <div class="bite-timeline" role="listbox" aria-label="Почасовой график клёва">
         ${day.hours.map(hr => {
           const sc = calcHourly(fish, day, hr, s.method, s.water, s.depth, s.normPress, s.iceState);
@@ -1329,7 +1179,6 @@ export function renderHourly(container) {
           `;
         }).join('')}
       </div>
-
       <div class="card" style="margin-top:10px;background:var(--card);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
         <div style="flex:1;min-width:240px;">
           <div style="font-size:var(--fs-xs);color:var(--muted);font-weight:700;">УСЛОВИЯ В ВЫБРАННЫЙ ЧАС: ${String(selH).padStart(2, '0')}:00 (${day.label})</div>
@@ -1339,20 +1188,14 @@ export function renderHourly(container) {
           <div style="font-size:var(--fs-xs);color:var(--accent);margin-top:5px;line-height:1.42;">
             Рекомендуемая оснастка: <b>${rig.weight}</b> (${rig.line}) • ${rig.tactic}
           </div>
-          <div style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-            <label for="fcSeasonalBaitSel" style="font-size:var(--fs-xs);color:var(--muted);font-weight:700;">СЕЗОННАЯ НАЖИВКА / ПРИМАНКА:</label>
-            <select id="fcSeasonalBaitSel" style="max-width:320px;min-height:36px;padding:4px 10px;font-size:var(--fs-xs);">
-              ${seasonalBaits.map(b => `<option value="${b}" ${b === activeBait ? 'selected' : ''}>${b}</option>`).join('')}
-            </select>
-            <button type="button" class="btn btn-sm" id="fcShareWorkshopBtn" title="Отправить карточку этой оснастки в Мастерскую или Круг">🛠️ В Мастерскую / Круг</button>
-            <button type="button" class="btn btn-sm" id="fcOpenChecklistBtn" title="Открыть автоматический чек-лист снаряжения и безопасности на выезд">🎒 Чек-лист сборов</button>
+          <div style="margin-top:6px;font-size:var(--fs-xs);color:var(--good);font-weight:700;">
+            🪱 Рабочая приманка в этот час: <b>${activeBait}</b>
           </div>
         </div>
         <div>
           ${renderFiveFish(selBreakdown.total, 19, curTheme, true, fish.legal === 'redbook' ? `Активность ${selBreakdown.total}% • Отпусти` : null)}
         </div>
       </div>
-
       <details open style="margin-top:12px;">
         <summary style="cursor:pointer;font-weight:800;font-size:var(--fs-md);color:var(--accent);">
           🔍 Почему такой прогноз? (7-факторный анализ + кэш 10 км и Журнал на ${String(selH).padStart(2, '0')}:00 — Итог ${selBreakdown.total}%)
@@ -1363,13 +1206,11 @@ export function renderHourly(container) {
               ⚠️ Прогноз может быть менее точным из-за отсутствия архивных данных по погоде (это первый запрос в данной локации 10 км при недоступности внешнего сервера архива; со следующего дня архив накопится автоматически на вашем устройстве).
             </div>
           ` : ''}
-
           <div style="padding:9px 11px;margin-bottom:10px;border-radius:var(--r-sm);background:var(--panel);border:1px solid var(--border);font-size:var(--fs-xs);line-height:1.45;">
             <div><b>📊 Анализ 5-дневного метеоархива (радиус 10 км):</b> ${selBreakdown.archiveEval?.commentary || ''}</div>
             <div style="margin-top:5px;color:var(--accent);"><b>📓 Анализ вашего Журнала уловов:</b> ${selBreakdown.logInsight?.commentary || ''}</div>
             <div style="margin-top:5px;color:var(--good);"><b>👥 Полевая сводка «Круга» (радиус 35 км):</b> ${selBreakdown.circleEval?.commentary || ''}</div>
           </div>
-
           <div style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:8px;">
             Базовая активность в водоёме: <b>52%</b>. Поправки по 7 факторам и личной статистике:
           </div>
@@ -1395,7 +1236,6 @@ export function renderHourly(container) {
           </p>
         </div>
       </details>
-
       <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);">
         <div class="section-title">🧭 Ихтиология, снасти и кормовая база: ${fish.name} (${s.depth.toFixed(1)} м)</div>
         <div class="guide-grid">
@@ -1411,19 +1251,11 @@ export function renderHourly(container) {
     if (strip) strip.scrollLeft = prevScroll;
   }
 }
-
-/**
- * Блок записи архивного улова с обычным календарём (<input type="date">) и быстрыми кнопками за предыдущие 5 дней
- * с автоматической подгрузкой почасового прогноза из кэша 10 км!
- */
 let selectedArchiveDateOverride = null;
-
 function renderArchiveDayLogger(container, s, defaultDay, currentFish) {
   const todayDt = new Date();
   todayDt.setHours(0, 0, 0, 0);
   const todayStr = formatLocalYYYYMMDD(todayDt);
-
-  // Формируем список последних 5 архивных дней (и любых других дат в кэше)
   const past5Dates = [];
   for (let offset = -1; offset >= -5; offset--) {
     const dt = new Date(todayDt.getTime() + offset * 86400000);
@@ -1440,13 +1272,11 @@ function renderArchiveDayLogger(container, s, defaultDay, currentFish) {
       dayObj: cachedDay
     });
   }
-
   const activeDateStr = selectedArchiveDateOverride || defaultDay.date || past5Dates[0].date;
   const activeDayObj = storage.getDayWeatherByDate(s.lat, s.lon, activeDateStr) ||
     (s.weatherDays || []).find(x => x.date === activeDateStr) ||
     (s.weatherArchive5Days || []).find(x => x.date === activeDateStr) ||
     defaultDay;
-
   const selH = clampHour(s.selectedHour);
   const selHrObj = (activeDayObj.hours && activeDayObj.hours[selH]) || activeDayObj.hours?.[12] || { hour: selH, tAir: activeDayObj.tDay || 5, press: activeDayObj.pressAvg || 754, wind: activeDayObj.windMax || 3, windDir: 'З' };
   const availWaters = getAvailableWaterTypes(s.basinCode, s.lat, s.lon);
@@ -1454,12 +1284,10 @@ function renderArchiveDayLogger(container, s, defaultDay, currentFish) {
   const currentMethodVal = compatibleMethods.some(m => m.val === s.method) ? s.method : compatibleMethods[0]?.val;
   const seasonalBaits = getSeasonalBaitsForContext(currentFish, currentMethodVal, activeDayObj.waterTemp, activeDayObj.iceState || s.iceState);
   const activeBait = s.selectedBait && seasonalBaits.includes(s.selectedBait) ? s.selectedBait : seasonalBaits[0];
-
   const favSet = new Set(s.favorites || []);
   const legalSpecies = [...FISH_DB]
     .filter(f => f.legal !== 'redbook' && isSpeciesInGeoRange(f, s.lat, s.lon, s.basinCode, s.water, 120, new Set(['small_river', 'big_river', 'quarry', 'tundra_lake', ...(s.isCoastal ? ['sea_gulf', 'open_sea'] : [])]), s.isCoastal, true, s.selectedWaterName))
     .sort((a, b) => (favSet.has(b.id) ? 1 : 0) - (favSet.has(a.id) ? 1 : 0));
-
   container.innerHTML = `
     <div class="card" style="border-color:var(--accent);">
       <div class="section-head">
@@ -1471,7 +1299,6 @@ function renderArchiveDayLogger(container, s, defaultDay, currentFish) {
         </div>
         ${createPill({ text: `Архив: ${activeDateStr}`, tone: 'purple', icon: '📅' })}
       </div>
-
       <div style="margin-bottom:12px;padding:10px 12px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
           <label for="archCalendarDate" style="font-size:var(--fs-xs);font-weight:800;color:var(--accent);">📅 ВЫБЕРИТЕ ДАТУ ВЫЕЗДА (КАЛЕНДАРЬ ИЛИ БЫСТРЫЕ 5 ДНЕЙ):</label>
@@ -1485,11 +1312,9 @@ function renderArchiveDayLogger(container, s, defaultDay, currentFish) {
           `).join('')}
         </div>
       </div>
-
       <div style="padding:10px 12px;border-radius:var(--r-sm);background:var(--card);margin-bottom:12px;font-size:var(--fs-xs);color:var(--accent);font-weight:700;">
         📸 Почасовой метеоархив из кэша 10 км (${activeDayObj.label || activeDateStr}, ${String(selH).padStart(2, '0')}:00): Воздух ${selHrObj.tAir > 0 ? '+' + selHrObj.tAir : selHrObj.tAir}°C • Вода ~${activeDayObj.waterTemp}°C • 🧭 ${selHrObj.press} мм (Δ ${fmtDeltaPress(activeDayObj.dP)}) • 💨 ${selHrObj.windDir} ${selHrObj.wind} м/с • ${activeDayObj.moon?.phaseIcon || '🌒'} ${activeDayObj.moon?.moonDay || 12} л.д.
       </div>
-
       <div class="controls-grid" style="margin-bottom:12px;">
         <div>
           <label style="display:block;font-size:var(--fs-xs);color:var(--muted);font-weight:700;margin-bottom:3px;">ШАГ 1. ПОЙМАННАЯ РЫБА (ИЗБРАННЫЕ ВВЕРХУ)</label>
@@ -1497,21 +1322,18 @@ function renderArchiveDayLogger(container, s, defaultDay, currentFish) {
             ${legalSpecies.map(f => `<option value="${f.id}" ${f.id === currentFish.id ? 'selected' : ''}>${favSet.has(f.id) ? '⭐ ' : ''}${f.name}</option>`).join('')}
           </select>
         </div>
-
         <div>
           <label style="display:block;font-size:var(--fs-xs);color:var(--muted);font-weight:700;margin-bottom:3px;">ШАГ 2. СНАСТЬ (ПОДХОДЯЩАЯ ПОД РЫБУ)</label>
           <select id="archMethodSel">
             ${compatibleMethods.map(m => `<option value="${m.val}" ${m.val === currentMethodVal ? 'selected' : ''}>${m.text}</option>`).join('')}
           </select>
         </div>
-
         <div>
           <label style="display:block;font-size:var(--fs-xs);color:var(--muted);font-weight:700;margin-bottom:3px;">ШАГ 3. СЕЗОННАЯ НАЖИВКА / ПРИМАНКА</label>
           <select id="archBaitSel">
             ${seasonalBaits.map(b => `<option value="${b}" ${b === activeBait ? 'selected' : ''}>${b}</option>`).join('')}
           </select>
         </div>
-
         <div>
           <label style="display:block;font-size:var(--fs-xs);color:var(--muted);font-weight:700;margin-bottom:3px;">ШАГ 4. ВОДОЁМ / БИОТОП</label>
           <select id="archWaterSel">
@@ -1519,14 +1341,12 @@ function renderArchiveDayLogger(container, s, defaultDay, currentFish) {
             ${availWaters.map(w => `<option value="${w.id}|${w.shortName}">${w.name}</option>`).join('')}
           </select>
         </div>
-
         <div>
           <label style="display:block;font-size:var(--fs-xs);color:var(--muted);font-weight:700;margin-bottom:3px;">ШАГ 5. ЧАС ПОИМКИ (ПОЧАСОВОЙ КЭШ НА ${activeDateStr})</label>
           <select id="archHourSel">
             ${(activeDayObj.hours || []).map(hr => `<option value="${hr.hour}" ${hr.hour === selH ? 'selected' : ''}>${String(hr.hour).padStart(2, '0')}:00 (воздух ${hr.tAir > 0 ? '+' + hr.tAir : hr.tAir}°C, ${hr.press} мм, ${hr.windDir} ${hr.wind} м/с)</option>`).join('')}
           </select>
         </div>
-
         <div style="display:flex;align-items:flex-end;">
           <button type="button" class="btn btn-good" id="archOpenCatchBtn" data-arch-active-date="${activeDateStr}" style="width:100%;">🎣 Записать улов (${activeDayObj.label || activeDateStr}, ${String(selH).padStart(2, '0')}:00)</button>
         </div>
@@ -1534,12 +1354,10 @@ function renderArchiveDayLogger(container, s, defaultDay, currentFish) {
     </div>
   `;
 }
-
 function clampHour(h) {
   const n = parseInt(h, 10);
   return Number.isFinite(n) ? Math.max(0, Math.min(23, n)) : 12;
 }
-
 export function render(container) {
   if (!container) return;
   if (!container.querySelector('#fcWeekBox')) {
@@ -1554,7 +1372,6 @@ export function render(container) {
   renderHourly(container.querySelector('#fcHourlyBox'));
   bindForecastEvents(container);
 }
-
 function bindForecastEvents(container) {
   container.querySelectorAll('[data-express-day]').forEach(card => {
     card.addEventListener('click', (e) => {
@@ -1564,7 +1381,6 @@ function bindForecastEvents(container) {
       store.dispatch({ type: 'SET_DAY', payload: idx });
     });
   });
-
   const catchTodayBtn = container.querySelector('[data-catch-today]');
   if (catchTodayBtn) {
     catchTodayBtn.addEventListener('click', (e) => {
@@ -1575,7 +1391,6 @@ function bindForecastEvents(container) {
       events.emit('forecast:hourSelected', { dayIdx: 2, date: s.weatherDays[2]?.date, hour: s.selectedHour, bait: s.selectedBait });
     });
   }
-
   container.querySelectorAll('[data-week-day]').forEach(card => {
     card.addEventListener('click', () => {
       selectedArchiveDateOverride = null;
@@ -1583,7 +1398,6 @@ function bindForecastEvents(container) {
       store.dispatch({ type: 'SET_DAY', payload: idx });
     });
   });
-
   const cleanBtn = container.querySelector('#fcCleanArchiveBtn');
   if (cleanBtn) {
     cleanBtn.addEventListener('click', () => {
@@ -1592,14 +1406,12 @@ function bindForecastEvents(container) {
       render(container);
     });
   }
-
   container.querySelectorAll('[data-scrub-hour]').forEach(btn => {
     btn.addEventListener('click', () => {
       const hr = parseInt(btn.getAttribute('data-scrub-hour'), 10);
       store.dispatch({ type: 'SET_HOUR', payload: hr });
     });
   });
-
   container.querySelectorAll('[data-set-app-mode]').forEach(btn => {
     btn.addEventListener('click', () => {
       const m = btn.getAttribute('data-set-app-mode');
@@ -1608,14 +1420,12 @@ function bindForecastEvents(container) {
       showToast(`Включён ${titles[m] || m}`, 'good');
     });
   });
-
   container.querySelectorAll('[data-novice-pick-fish]').forEach(btn => {
     btn.addEventListener('click', () => {
       const fid = btn.getAttribute('data-novice-pick-fish');
       if (fid) store.dispatch({ type: 'SET_FISH', payload: fid });
     });
   });
-
   container.querySelectorAll('[data-pro-weight]').forEach(rng => {
     rng.addEventListener('change', (e) => {
       const key = rng.getAttribute('data-pro-weight');
@@ -1623,7 +1433,6 @@ function bindForecastEvents(container) {
       store.dispatch({ type: 'SET_PRO_FACTOR_WEIGHTS', payload: { [key]: val } });
     });
   });
-
   const proResetBtn = container.querySelector('#proResetWeightsBtn');
   if (proResetBtn) {
     proResetBtn.addEventListener('click', () => {
@@ -1634,17 +1443,28 @@ function bindForecastEvents(container) {
       showToast('Веса факторов сброшены к эталонным (1.0x)', 'info');
     });
   }
-
   const wsBtn = container.querySelector('#fcShareWorkshopBtn');
   if (wsBtn) {
     wsBtn.addEventListener('click', () => {
       events.emit('circle:openShareModal', { mode: 'workshop' });
     });
   }
-
+  const topMethodSel = container.querySelector('#fcTopMethodSelect');
+  if (topMethodSel) {
+    topMethodSel.addEventListener('change', (e) => {
+      store.dispatch({ type: 'SET_METHOD', payload: e.target.value });
+    });
+  }
+  const topBaitSel = container.querySelector('#fcTopBaitSelect');
+  if (topBaitSel) {
+    topBaitSel.addEventListener('change', (e) => {
+      store.dispatch({ type: 'SET_BAIT', payload: e.target.value });
+    });
+  }
   const shareFcTgBtn = container.querySelector('#fcShareForecastTgBtn');
   if (shareFcTgBtn) {
     shareFcTgBtn.addEventListener('click', () => {
+      if (!requireRegisteredFisherId('отправки прогноза в Telegram')) return;
       const s = store.getState();
       const fish = FISH_DB.find(f => f.id === s.fishId) || FISH_DB[0];
       const day = s.weatherDays[s.dayIdx] || s.weatherDays[2] || s.weatherDays[0];
@@ -1671,33 +1491,27 @@ function bindForecastEvents(container) {
       shareToTelegramChat(webUrl, summary);
     });
   }
-
   const shareCrewTgBtn = container.querySelector('#fcShareCrewTgBtn');
   if (shareCrewTgBtn) {
     shareCrewTgBtn.addEventListener('click', () => {
       events.emit('circle:openShareModal', { mode: 'crew' });
     });
   }
-
   const openBotTgBtn = container.querySelector('#fcOpenBotTgBtn');
   if (openBotTgBtn) {
     openBotTgBtn.addEventListener('click', () => {
       openBotChatInTelegram();
     });
   }
-
   container.querySelectorAll('#fcOpenChecklistBtn, #proOpenChecklistBtn').forEach(btn => {
     btn.addEventListener('click', () => openTripChecklistModal());
   });
-
   const baitSel = container.querySelector('#fcSeasonalBaitSel');
   if (baitSel) {
     baitSel.addEventListener('change', (e) => {
       store.dispatch({ type: 'SET_BAIT', payload: e.target.value });
     });
   }
-
-  // Обработчики выбора даты в 5-дневном архиве и обычном календаре
   const archCalInput = container.querySelector('#archCalendarDate');
   if (archCalInput) {
     archCalInput.addEventListener('change', (e) => {
@@ -1708,7 +1522,6 @@ function bindForecastEvents(container) {
       }
     });
   }
-
   container.querySelectorAll('[data-arch-quick-date]').forEach(btn => {
     btn.addEventListener('click', () => {
       const dStr = btn.getAttribute('data-arch-quick-date');
@@ -1719,25 +1532,21 @@ function bindForecastEvents(container) {
       }
     });
   });
-
   const archFish = container.querySelector('#archFishSel');
   const archMethod = container.querySelector('#archMethodSel');
   const archBait = container.querySelector('#archBaitSel');
-
   if (archFish) {
     archFish.addEventListener('change', (e) => {
       const newFishId = e.target.value;
       const s = store.getState();
       const fObj = FISH_DB.find(x => x.id === newFishId) || FISH_DB[0];
       store.dispatch({ type: 'SET_FISH', payload: newFishId });
-
       const dayObj = s.weatherDays[s.dayIdx] || s.weatherDays[2] || s.weatherDays[0] || {};
       const newMethods = getCompatibleMethods(fObj, dayObj.iceState || s.iceState, s.water, dayObj.waterTemp ?? 12);
       if (archMethod) {
         archMethod.innerHTML = newMethods.map(m => `<option value="${m.val}">${m.text}</option>`).join('');
         const chosenMethod = newMethods[0]?.val;
         store.dispatch({ type: 'SET_METHOD', payload: chosenMethod });
-
         const day = s.weatherDays[s.dayIdx] || s.weatherDays[2] || s.weatherDays[0] || {};
         const newBaits = getSeasonalBaitsForContext(fObj, chosenMethod, day.waterTemp ?? 12, day.iceState || s.iceState);
         if (archBait) {
@@ -1747,7 +1556,6 @@ function bindForecastEvents(container) {
       }
     });
   }
-
   if (archMethod) {
     archMethod.addEventListener('change', (e) => {
       const chosenMethod = e.target.value;
@@ -1762,20 +1570,17 @@ function bindForecastEvents(container) {
       }
     });
   }
-
   if (archBait) {
     archBait.addEventListener('change', (e) => {
       store.dispatch({ type: 'SET_BAIT', payload: e.target.value });
     });
   }
-
   const archHour = container.querySelector('#archHourSel');
   if (archHour) {
     archHour.addEventListener('change', (e) => {
       store.dispatch({ type: 'SET_HOUR', payload: parseInt(e.target.value, 10) });
     });
   }
-
   const archWater = container.querySelector('#archWaterSel');
   if (archWater) {
     archWater.addEventListener('change', (e) => {
@@ -1783,7 +1588,6 @@ function bindForecastEvents(container) {
       store.dispatch({ type: 'SET_WATER', payload: { water: wType, selectedWaterName: wName } });
     });
   }
-
   const archBtn = container.querySelector('#archOpenCatchBtn');
   if (archBtn) {
     archBtn.addEventListener('click', () => {
@@ -1800,10 +1604,8 @@ function bindForecastEvents(container) {
     });
   }
 }
-
 let unsub = null;
 let _fcNeedsRender = false;
-
 export function init(container) {
   render(container);
   unsub = store.subscribe(
@@ -1840,11 +1642,9 @@ export function init(container) {
     }
   );
 }
-
 export function destroy() {
   if (unsub) unsub();
 }
-
 export const forecastModule = {
   RIVER_ENTERING_SPECIES,
   getPreceding5DaysForTarget,
