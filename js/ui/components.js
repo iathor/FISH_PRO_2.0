@@ -1,6 +1,4 @@
-/**
- * Экранирует пользовательские строки перед вставкой в HTML (защита от DOM XSS и инъекций тегов)
- */
+
 export function escapeHtml(raw) {
   if (raw === null || raw === undefined) return '';
   return String(raw)
@@ -10,24 +8,20 @@ export function escapeHtml(raw) {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 }
-
 export function createPill({ text, tone = 'neutral', icon = '', ariaLabel = '' }) {
   const cls = `pill pill-${tone}`;
   const aria = ariaLabel ? ` aria-label="${ariaLabel}"` : '';
   return `<span class="${cls}"${aria}>${icon ? `<span aria-hidden="true">${icon}</span>` : ''}<span>${text}</span></span>`;
 }
-
 export function createChip({ label, active = false, attrs = '' }) {
   return `<button type="button" class="btn btn-sm chip-interactive ${active ? 'btn-accent' : ''}" ${attrs}>${label}</button>`;
 }
-
 export function createCard({ title = '', rightHtml = '', bodyHtml = '', extraClass = '' }) {
   const head = (title || rightHtml)
     ? `<div class="section-head"><span class="section-title">${title}</span><div>${rightHtml}</div></div>`
     : '';
   return `<div class="card ${extraClass}">${head}${bodyHtml}</div>`;
 }
-
 export function createSkeleton(lines = 3) {
   let out = '<div class="card" aria-busy="true">';
   for (let i = 0; i < lines; i++) {
@@ -35,7 +29,6 @@ export function createSkeleton(lines = 3) {
   }
   return out + '</div>';
 }
-
 export function showToast(message, tone = 'info') {
   let box = document.getElementById('toastContainer');
   if (!box) {
@@ -55,7 +48,6 @@ export function showToast(message, tone = 'info') {
     item.remove();
   }, 3800);
 }
-
 /**
  * Автокопирование Рыболовного ID (FP_FMP089 / FP_89AAA001) или ключа Экипажа (KP-XXXX) в буфер обмена
  * в 1 нажатие (работает в браузере, Android APK WebView и Telegram Mini App без ручного выделения)
@@ -64,14 +56,12 @@ export async function copyFisherIdToClipboard(rawId, labelPrefix = 'ID рыба�
   const cleanId = String(rawId || '').trim();
   if (!cleanId) return false;
   let copied = false;
-
   try {
     if (typeof navigator !== 'undefined' && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
       await navigator.clipboard.writeText(cleanId);
       copied = true;
     }
   } catch (e) {}
-
   if (!copied && typeof document !== 'undefined') {
     try {
       const ta = document.createElement('textarea');
@@ -86,11 +76,9 @@ export async function copyFisherIdToClipboard(rawId, labelPrefix = 'ID рыба�
       ta.remove();
     } catch (e) {}
   }
-
   showToast(`📋 ${labelPrefix} ${cleanId} скопирован в буфер обмена!`, 'good');
   return copied;
 }
-
 if (typeof document !== 'undefined' && !window.__KLEV_COPY_ID_BOUND__) {
   window.__KLEV_COPY_ID_BOUND__ = true;
   document.addEventListener('click', (e) => {
@@ -110,7 +98,6 @@ if (typeof document !== 'undefined' && !window.__KLEV_COPY_ID_BOUND__) {
     }
   });
 }
-
 /**
  * Открывает адаптивное модальное окно / подменю.
  * Ревизия 2.1.00:
@@ -130,12 +117,10 @@ export function openModal(title, contentHtml, onMount = null, canClose = true, o
   backdrop.onclick = (e) => {
     if (canClose && e.target === backdrop) closeModal();
   };
-
   const onBackFn = (options && typeof options.onBack === 'function') ? options.onBack : null;
   if (typeof window !== 'undefined') {
     window.__KLEV_MODAL_BACK_FN__ = onBackFn;
   }
-
   let footerHtml = (options && options.footerHtml) ? String(options.footerHtml) : '';
   if (!footerHtml && canClose) {
     const backBtnPart = onBackFn
@@ -148,9 +133,7 @@ export function openModal(title, contentHtml, onMount = null, canClose = true, o
   } else if (footerHtml && canClose && !footerHtml.includes('data-modal-close') && !footerHtml.includes('modalCloseBtn')) {
     footerHtml += `<button type="button" class="btn" id="modalCloseBtn" data-modal-close style="flex:1;min-width:0;">✕ Закрыть</button>`;
   }
-
   const headerRightHtml = (options && options.headerRightHtml) ? String(options.headerRightHtml) : '';
-
   backdrop.innerHTML = `
     <div class="modal-box ${footerHtml ? 'modal-has-sticky-footer' : ''}" role="dialog" aria-modal="true" aria-label="${title}">
       <div class="section-head" style="margin-bottom:10px;">
@@ -162,11 +145,9 @@ export function openModal(title, contentHtml, onMount = null, canClose = true, o
     </div>
   `;
   backdrop.classList.add('open');
-
   if (typeof window !== 'undefined' && typeof window.__KLEV_PUSH_BACK_GUARD__ === 'function') {
     window.__KLEV_PUSH_BACK_GUARD__('modal');
   }
-
   const closeBtn = backdrop.querySelector('#modalCloseBtn');
   if (closeBtn) closeBtn.addEventListener('click', closeModal);
   backdrop.querySelectorAll('[data-modal-close]').forEach(btn => {
@@ -181,12 +162,10 @@ export function openModal(title, contentHtml, onMount = null, canClose = true, o
       fn();
     });
   }
-
   if (typeof onMount === 'function') {
     onMount(backdrop.querySelector('#modalDynamicBody'), backdrop.querySelector('#modalStickyFooter'));
   }
 }
-
 export function closeModal() {
   if (typeof window !== 'undefined') {
     window.__KLEV_MODAL_BACK_FN__ = null;
@@ -194,7 +173,6 @@ export function closeModal() {
   const backdrop = document.getElementById('appModalBackdrop');
   if (backdrop) backdrop.classList.remove('open');
 }
-
 export function openFishLightbox(fishTitle, latinTitle, visualHtml) {
   let lb = document.getElementById('fishImageLightbox');
   if (!lb) {
