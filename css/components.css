@@ -533,7 +533,7 @@ html[data-pwa-installed="1"] .btn-install-header {
   display: none !important;
 }
 
-/* Ревизия 2.0.170: Полное скрытие кнопок установки в APK, Telegram Mini App и установленном PWA */
+/* Ревизия 2.0.172: Полное скрытие кнопок установки в APK, Telegram Mini App и установленном PWA */
 [data-pwa-installed="1"] [data-install-app],
 [data-pwa-installed="1"] #installAppBtn,
 [data-pwa-installed="1"] #onbInstallAppBtn,
@@ -544,4 +544,148 @@ html[data-pwa-installed="1"] .btn-install-header {
 [data-apk-webview="1"] #installAppBtn,
 [data-apk-webview="1"] #onbInstallAppBtn {
   display: none !important;
+}
+
+
+/* Ревизия 2.0.172: Полная защита модальных окон и подменю от горизонтального переполнения на смартфонах */
+.modal-box {
+  overflow-x: hidden !important;
+  box-sizing: border-box !important;
+}
+.modal-dynamic-body {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
+  padding-bottom: 4px;
+}
+.modal-box .w-chip,
+.modal-chip-wrap .w-chip {
+  white-space: normal !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  flex-shrink: 1 !important;
+  text-align: left;
+  height: auto;
+  line-height: 1.28;
+  word-break: break-word;
+  padding: 6px 10px;
+}
+.modal-chip-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  width: 100%;
+  max-width: 100%;
+}
+.modal-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  width: 100%;
+}
+.modal-grid-3 .btn,
+.modal-box .btn {
+  min-width: 0;
+  max-width: 100%;
+}
+.modal-grid-3 .btn {
+  padding: 6px 4px;
+  font-size: 12px;
+  white-space: normal;
+  text-align: center;
+  line-height: 1.2;
+  word-break: break-word;
+}
+
+/* Шапка переключения 4 раздельных зон настроек (Вход и ID | Рыбалка | Параметры | Уведомления) */
+.settings-zone-bar {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 5px;
+  width: 100%;
+  padding: 4px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}
+.settings-zone-tab {
+  min-width: 0 !important;
+  width: 100%;
+  min-height: 40px !important;
+  padding: 4px 2px !important;
+  font-size: 11px !important;
+  font-weight: 800 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 2px !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Карточки хаба 4 разделов профиля и настроек */
+.settings-hub-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 11px 12px;
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-md);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.12s ease, background-color 0.15s ease;
+}
+.settings-hub-card:hover,
+.settings-hub-card:active {
+  border-color: var(--accent);
+  background: rgba(56, 189, 248, 0.08);
+}
+.settings-hub-card-icon {
+  font-size: 22px;
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}
+.settings-hub-card-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.settings-hub-card-title {
+  font-size: var(--fs-sm);
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1.25;
+}
+.settings-hub-card-sub {
+  font-size: 11.5px;
+  color: var(--muted);
+  line-height: 1.35;
+  word-break: break-word;
+}
+.settings-hub-card-arrow {
+  font-size: 20px;
+  font-weight: 900;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.nav-popup-close-btn {
+  margin-top: 2px;
+  border-top: 1px solid var(--border) !important;
+  color: var(--muted) !important;
+  justify-content: center !important;
 }
