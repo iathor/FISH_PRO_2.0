@@ -56,14 +56,22 @@
         }
       } catch (e) {}
 
-      // Безопасная фоновая очистка устаревших кэшей прошлых сборок (без принудительной перезагрузки страницы)
+      // Принудительная очистка старых кэшей и Service Worker в Android APK WebView (чтобы исключить залипание старых сборок)
       try {
-        var MIGRATION_KEY = 'klev_pro_migrated_v20162';
-        if (localStorage.getItem(MIGRATION_KEY) !== '1' && 'caches' in window) {
+        var hostNow = (window.location && window.location.hostname ? window.location.hostname : '').toLowerCase();
+        var uaNow = navigator.userAgent || '';
+        var inApkNow = hostNow.indexOf('androidplatform.net') !== -1 || /;\s*wv\)|KlevProAPK/i.test(uaNow) || typeof window.AndroidBridge !== 'undefined';
+        if (inApkNow && 'serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then(function(regs) {
+            regs.forEach(function(r) { r.unregister(); });
+          }).catch(function() {});
+        }
+        var MIGRATION_KEY = 'klev_pro_migrated_v2100_r175';
+        if ((inApkNow || localStorage.getItem(MIGRATION_KEY) !== '1') && 'caches' in window) {
           caches.keys().then(function(keys) {
             return Promise.all(
               keys
-                .filter(function(k) { return k !== 'klev-pro-static-v2.1.00'; })
+                .filter(function(k) { return k !== 'klev-pro-map-tiles-v2.1.00' && (inApkNow || k !== 'klev-pro-v2.1.00-r175-static'); })
                 .map(function(k) { return caches.delete(k); })
             );
           }).then(function() {

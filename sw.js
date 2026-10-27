@@ -1,156 +1,142 @@
-
-const CACHE_VERSION = 'klev-pro-v2.1.00-r173';
+const CACHE_VERSION = 'klev-pro-v2.1.00-r175';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const MAP_TILES_CACHE = 'klev-pro-map-tiles-v2.1.00';
 const MAX_MAP_TILES = 650;
 const CORE_ASSETS = [
-  './',
-  './index.html',
-  './klev-pro-v2.html',
-  './manifest.json',
-  './css/variables.css',
-  './css/reset.css',
-  './css/layout.css',
-  './css/components.css',
-  './css/themes.css',
-  './js/app.js',
-  './js/config.js',
-  './js/core/events.js',
-  './js/core/router.js',
-  './js/core/storage.js',
-  './js/core/store.js',
-  './js/core/utils.js',
-  './js/data/baits.db.js',
-  './js/data/fish.db.js',
-  './js/data/knots.db.js',
-  './js/data/methods.db.js',
-  './js/data/Preserve.db.js',
-  './js/data/presets.db.js',
-  './js/data/rigs.db.js',
-  './js/data/seasonal-tips.db.js',
-  './js/data/waters.db.js',
-  './js/data/russia-waters.db.js',
-  './js/data/locales/ru.js',
-  './js/modules/Arsenal/arsenal.module.js',
-  './js/modules/calendar/calendar.module.js',
-  './js/modules/checklist/checklist.module.js',
-  './js/modules/diary/diary.module.js',
-  './js/modules/echolot/echolot.module.js',
-  './js/modules/explain/explain.module.js',
-  './js/modules/fish/fish.module.js',
-  './js/modules/forecast/forecast.module.js',
-  './js/modules/geo/geo.module.js',
-  './js/modules/header/header.module.js',
-  './js/modules/knots/knots.module.js',
-  './js/modules/map/map.module.js',
-  './js/modules/Preserve/Preserve.module.js',
-  './js/modules/profile/profile.module.js',
-  './js/modules/safety/safety.module.js',
-  './js/modules/seasonal/seasonal.module.js',
-  './js/modules/share/share.module.js',
-  './js/modules/tackle/tackle.module.js',
-  './js/modules/trophy/trophy.module.js',
-  './js/modules/voice/voice.module.js',
-  './js/modules/weather/weather.module.js',
-  './js/ui/chart-renderer.js',
-  './js/ui/components.js',
-  './js/ui/modal.js',
-  './js/ui/svg-fish.js',
-  './js/ui/toast.js'
+'./',
+'./index.html',
+'./manifest.json',
+'./version.json',
+'./css/tokens.css?v=2.1.00',
+'./css/base.css?v=2.1.00',
+'./css/components.css?v=2.1.00',
+'./css/layout.css?v=2.1.00',
+'./js/app.js?v=2.1.00',
+'./js/core/config.js?v=2.1.00',
+'./js/core/events.js?v=2.1.00',
+'./js/core/format.js?v=2.1.00',
+'./js/core/http.js?v=2.1.00',
+'./js/core/pwa.js?v=2.1.00',
+'./js/core/router.js?v=2.1.00',
+'./js/core/storage.js?v=2.1.00',
+'./js/core/store.js?v=2.1.00',
+'./js/core/telegram.js?v=2.1.00',
+'./js/core/updater.js?v=2.1.00',
+'./js/data/basins.js?v=2.1.00',
+'./js/data/russia-waters.js?v=2.1.00',
+'./js/data/species.js?v=2.1.00',
+'./js/data/waters.js?v=2.1.00',
+'./js/i18n/ru.js?v=2.1.00',
+'./js/modules/calendar/calendar.module.js?v=2.1.00',
+'./js/modules/circle/circle.module.js?v=2.1.00',
+'./js/modules/fish/fish.module.js?v=2.1.00',
+'./js/modules/forecast/forecast.module.js?v=2.1.00',
+'./js/modules/geo/geo.module.js?v=2.1.00',
+'./js/modules/log/log.module.js?v=2.1.00',
+'./js/modules/weather/weather.module.js?v=2.1.00',
+'./js/ui/components.js?v=2.1.00',
+'./js/ui/svg.js?v=2.1.00'
 ];
 function isMapTileHostname(hostname = '') {
-  return /(tile\.opentopomap\.org|tile\.openstreetmap\.org|openstreetmap\.fr|arcgisonline\.com|core-renderer-tiles\.maps\.yandex\.net|maps\.mail\.ru)/i.test(String(hostname || ''));
+return /(tile\.opentopomap\.org|tile\.openstreetmap\.org|openstreetmap\.fr|arcgisonline\.com|core-renderer-tiles\.maps\.yandex\.net|maps\.mail\.ru)/i.test(String(hostname || ''));
 }
 async function trimMapTileCache() {
-  try {
-    const cache = await caches.open(MAP_TILES_CACHE);
-    const keys = await cache.keys();
-    if (keys.length > MAX_MAP_TILES) {
-      const toDelete = keys.slice(0, keys.length - MAX_MAP_TILES);
-      await Promise.all(toDelete.map(req => cache.delete(req)));
-    }
-  } catch (e) {}
+try {
+const cache = await caches.open(MAP_TILES_CACHE);
+const keys = await cache.keys();
+if (keys.length > MAX_MAP_TILES) {
+const toDelete = keys.slice(0, keys.length - MAX_MAP_TILES);
+await Promise.all(toDelete.map(req => cache.delete(req)));
+}
+} catch (e) {}
 }
 self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(STATIC_CACHE).then(cache => {
-      return Promise.allSettled(
-        CORE_ASSETS.map(url =>
-          fetch(url, { cache: 'no-cache' }).then(res => {
-            if (res && res.ok) return cache.put(url, res);
-          }).catch(() => {})
-        )
-      );
-    }).then(() => self.skipWaiting())
-  );
+if (self.location && self.location.hostname === 'appassets.androidplatform.net') {
+self.skipWaiting();
+return;
+}
+event.waitUntil(
+caches.open(STATIC_CACHE).then(cache => {
+return Promise.allSettled(
+CORE_ASSETS.map(url =>
+fetch(url, { cache: 'no-cache' }).then(res => {
+if (res && res.ok) return cache.put(url, res);
+}).catch(() => {})
+)
+);
+}).then(() => self.skipWaiting())
+);
 });
 self.addEventListener('activate', event => {
-  event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(
-        keys
-          .filter(key => key !== STATIC_CACHE && key !== MAP_TILES_CACHE)
-          .map(key => caches.delete(key))
-      )
-    ).then(() => self.clients.claim())
-  );
+event.waitUntil(
+caches.keys().then(keys =>
+Promise.all(
+keys
+.filter(key => key !== STATIC_CACHE && key !== MAP_TILES_CACHE)
+.map(key => caches.delete(key))
+)
+).then(() => self.clients.claim())
+);
 });
 self.addEventListener('message', event => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
-    self.skipWaiting();
-  }
+if (event.data && event.data.type === 'SKIP_WAITING') {
+self.skipWaiting();
+}
 });
 self.addEventListener('fetch', event => {
-  const req = event.request;
-  if (req.method !== 'GET') return;
-  const url = new URL(req.url);
-  if (isMapTileHostname(url.hostname)) {
-    event.respondWith(
-      caches.open(MAP_TILES_CACHE).then(async cache => {
-        const cachedTile = await cache.match(req);
-        if (cachedTile) {
-          return cachedTile;
-        }
-        try {
-          const netRes = await fetch(req);
-          if (netRes && (netRes.status === 200 || netRes.type === 'opaque')) {
-            cache.put(req, netRes.clone()).then(() => trimMapTileCache()).catch(() => {});
-          }
-          return netRes;
-        } catch (err) {
-          return cachedTile || new Response('', { status: 408, statusText: 'Offline Map Tile Unavailable' });
-        }
-      })
-    );
-    return;
-  }
-  if (url.origin !== self.location.origin) {
-    return;
-  }
-  if (req.mode === 'navigate') {
-    event.respondWith(
-      fetch(req)
-        .then(res => {
-          const copy = res.clone();
-          caches.open(STATIC_CACHE).then(c => c.put('./index.html', copy)).catch(() => {});
-          return res;
-        })
-        .catch(() => caches.match('./index.html').then(r => r || caches.match('./')))
-    );
-    return;
-  }
-  event.respondWith(
-    caches.match(req).then(cached => {
-      const networkFetch = fetch(req)
-        .then(res => {
-          if (res && res.status === 200 && res.type === 'basic') {
-            const copy = res.clone();
-            caches.open(STATIC_CACHE).then(cache => cache.put(req, copy)).catch(() => {});
-          }
-          return res;
-        })
-        .catch(() => cached);
-      return cached || networkFetch;
-    })
-  );
+const req = event.request;
+if (req.method !== 'GET') return;
+const url = new URL(req.url);
+if (isMapTileHostname(url.hostname)) {
+event.respondWith(
+caches.open(MAP_TILES_CACHE).then(async cache => {
+const cachedTile = await cache.match(req);
+if (cachedTile) {
+return cachedTile;
+}
+try {
+const netRes = await fetch(req);
+if (netRes && (netRes.status === 200 || netRes.type === 'opaque')) {
+cache.put(req, netRes.clone()).then(() => trimMapTileCache()).catch(() => {});
+}
+return netRes;
+} catch (err) {
+return cachedTile || new Response('', { status: 408, statusText: 'Offline Map Tile Unavailable' });
+}
+})
+);
+return;
+}
+if (url.hostname === 'appassets.androidplatform.net') {
+return;
+}
+if (url.origin !== self.location.origin) {
+return;
+}
+if (req.mode === 'navigate') {
+event.respondWith(
+fetch(req)
+.then(res => {
+const copy = res.clone();
+caches.open(STATIC_CACHE).then(c => c.put('./index.html', copy)).catch(() => {});
+return res;
+})
+.catch(() => caches.match('./index.html').then(r => r || caches.match('./')))
+);
+return;
+}
+event.respondWith(
+caches.match(req).then(cached => {
+const networkFetch = fetch(req)
+.then(res => {
+if (res && res.status === 200 && res.type === 'basic') {
+const copy = res.clone();
+caches.open(STATIC_CACHE).then(cache => cache.put(req, copy)).catch(() => {});
+}
+return res;
+})
+.catch(() => cached);
+return cached || networkFetch;
+})
+);
 });

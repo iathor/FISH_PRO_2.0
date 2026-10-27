@@ -66,5 +66,5 @@
 ## 🌐 Доступ к платформе
 
 * **Основной веб-навигатор (PWA для ПК, Android и iOS):** [https://klevpro.ru/](https://klevpro.ru/) (`https://клёвпро.рф/`)
-* **Клубный бот и мини-приложение в Telegram:** [@KlevProClubBot](https://t.me/KlevProClubBot)
+* **Клубный бот и мини-приложение в Telegram:** [@KlevProClubBot](https://www.google.com/search?q=https://t.me/KlevProClubBot)
 * **Мобильное приложение Android (`.APK`):** автономный пакет со встроенным векторным атласом рыб и поддержкой системного жеста «Назад».

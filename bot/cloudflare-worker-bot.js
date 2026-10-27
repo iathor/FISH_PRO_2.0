@@ -244,30 +244,44 @@ function isValidOwnerAdminToken(tok = '') {
  );
 }
 
+function workerNormalizeLogin(raw = '') {
+ return String(raw || '').trim().toLowerCase().replace(/[@\s]/g, '');
+}
+
+function workerIsOwnerLogin(raw = '') {
+ const n = workerNormalizeLogin(raw);
+ return (
+  n === 'iathor' ||
+  n === 'iathor82' ||
+  n === 'thorantony82' ||
+  n === 'fp_89vip089' ||
+  n === 'fp_fmp089' ||
+  n === 'antonthor' ||
+  n === '89vip089' ||
+  n === 'fmp089'
+ );
+}
+
 function resolveWorkerAccountIdentity(rawLogin = '', rawPassword = '', rawTokenHash = '', rawRegionCode = '89', snap = null) {
  const rawInputClean = String(rawLogin || '').trim().slice(0, 48);
  let loginClean = rawInputClean;
- let loginNorm = loginClean.toLowerCase().replace(/^@/, '');
+ let loginNorm = workerNormalizeLogin(loginClean);
  const passClean = String(rawPassword || '').trim();
  const incomingTok = String(rawTokenHash || '').trim();
 
- const isOwnerLogin = (
-  loginNorm === 'iathor' ||
-  loginNorm === 'iathor82' ||
-  loginNorm === 'thorantony82' ||
-  loginNorm === 'fp_89vip089' ||
-  loginNorm === 'fp_fmp089'
- );
+ const isOwnerLogin = workerIsOwnerLogin(loginClean) || workerIsOwnerLogin(snap?.login) || isOwnerFisherId(snap?.fisherId);
+ const passNorm = passClean.toLowerCase();
+ const passNormNoStar = passNorm.replace(/\*+$/, '');
  const isOwnerPass = (
   passClean === 'FISherman1982*' ||
-  passClean.toLowerCase() === 'fisherman1982*' ||
+  passNorm === 'fisherman1982*' ||
+  passNormNoStar === 'fisherman1982' ||
   (incomingTok && (
    constantTimeEquals(incomingTok, OWNER_TOKEN_HASH_IATHOR) ||
    constantTimeEquals(incomingTok, OWNER_TOKEN_HASH_IATHOR82) ||
    constantTimeEquals(incomingTok, OWNER_ADMIN_CONSOLE_TOKEN)
   ))
  );
-
  if (isOwnerLogin && isOwnerPass) {
   const preferredOwnerFid = (loginNorm === 'fp_fmp089' || String(snap?.fisherId || '').toUpperCase() === OWNER_SECONDARY_ID)
    ? OWNER_SECONDARY_ID
@@ -2894,12 +2908,12 @@ function bindTelegramToFisherProfile(params = {}) {
  const tgFirstName = String(params.tgFirstName || '').trim();
  const deviceId = String(params.deviceId || '').trim();
  const loginClean = String(params.login || '').trim();
- const loginNorm = loginClean.toLowerCase().replace(/^@/, '');
- const unameNorm = tgUsernameClean.toLowerCase();
+ const loginNorm = workerNormalizeLogin(loginClean);
+ const unameNorm = workerNormalizeLogin(tgUsernameClean);
  const isOwner = (
-  loginNorm === 'iathor' || loginNorm === 'iathor82' || loginNorm === 'thorantony82' ||
-  unameNorm === 'iathor' || unameNorm === 'iathor82' || unameNorm === 'thorantony82' ||
-  params.fisherId === OWNER_FISHER_ID || params.fisherId === 'FP_FMP089'
+  workerIsOwnerLogin(loginClean) ||
+  workerIsOwnerLogin(tgUsernameClean) ||
+  isOwnerFisherId(params.fisherId)
  );
  const regCode = workerResolveRegionCode(params.regionCode || params.locLabel || '89');
  let fid = isOwner ? OWNER_FISHER_ID : workerNormalizeFisherId(params.fisherId || '', regCode);
@@ -3751,15 +3765,27 @@ export default {
     const qFid = workerNormalizeFisherId(reqUrl.searchParams.get('fid') || '', '89');
     const qDev = String(reqUrl.searchParams.get('deviceId') || '').trim();
     const qTg = String(reqUrl.searchParams.get('tgId') || '').trim();
-    const effFid = qFid || (qTg ? tgToFisherIdMap.get(qTg) : '') || (qDev ? deviceToFisherIdMap.get(qDev) : '') || '';
-    const u = effFid ? usersRegistryStore.get(effFid) : null;
+    const qLoginRaw = String(reqUrl.searchParams.get('login') || '').trim();
+    const isOwnerReq = workerIsOwnerLogin(qLoginRaw) || isOwnerFisherId(qFid);
+    let effFid = qFid || (qTg ? tgToFisherIdMap.get(qTg) : '') || (qDev ? deviceToFisherIdMap.get(qDev) : '') || '';
+    if (isOwnerReq && !effFid) effFid = OWNER_FISHER_ID;
+    let u = effFid ? usersRegistryStore.get(effFid) : null;
+    if (!u && isOwnerReq) {
+     u = {
+      fisherId: OWNER_FISHER_ID,
+      login: 'iAthor',
+      tgUsername: 'thorantony82',
+      tgId: tgToFisherIdMap.get('owner_tg') || ''
+     };
+    }
+    const isBound = Boolean(u && (u.tgId || u.tgUsername || isOwnerReq));
     return new Response(JSON.stringify({
      ok: true,
-     bound: Boolean(u && u.tgId),
-     fisherId: u?.fisherId || effFid || '',
-     tgId: u?.tgId || '',
-     tgUsername: u?.tgUsername || '',
-     login: u?.login || ''
+     bound: isBound,
+     fisherId: u?.fisherId || effFid || (isOwnerReq ? OWNER_FISHER_ID : ''),
+     tgId: u?.tgId || (isOwnerReq ? 'owner_tg' : ''),
+     tgUsername: u?.tgUsername || (isOwnerReq ? 'thorantony82' : ''),
+     login: u?.login || (isOwnerReq ? 'iAthor' : '')
     }), { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
    }
    if (request.method === 'POST') {
@@ -4000,12 +4026,12 @@ export default {
   if (reqUrl.pathname.endsWith('/auth/check-login') && request.method === 'GET') {
    await ensurePersistentStateLoaded(env);
    const rawL = String(reqUrl.searchParams.get('login') || '').trim();
-   const normL = rawL.toLowerCase().replace(/^@/, '');
+   const normL = workerNormalizeLogin(rawL);
    const devId = String(reqUrl.searchParams.get('deviceId') || '').trim();
    if (!normL || normL.length < 2) {
     return new Response(JSON.stringify({ ok: false, available: false, reason: 'short' }), { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
    }
-   if (normL === 'iathor' || normL === 'iathor82' || normL === 'thorantony82') {
+   if (workerIsOwnerLogin(rawL)) {
     return new Response(JSON.stringify({ ok: true, available: false, isOwnerLogin: true, message: 'Эксклюзивный логин Владельца (FP_89VIP089)' }), { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
    }
    const aKey = loginToAuthKeyMap.get(normL);
