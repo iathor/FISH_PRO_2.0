@@ -1,19 +1,8 @@
-/**
- * @file sw.js
- * @description Service Worker для PWA «Клёв ПРО 2.0: Круг».
- * Обеспечивает:
- * - Мгновенную работу офлайн в тундре/тайге без связи (Cache-First для статики и иконок рыб)
- * - Oфлайн-кэш тайлов карт (OpenTopoMap / OSM / Esri) в отдельном хранилище klev-pro-map-tiles-v2.1.00
- *   с автоматической ротацией LRU (до 650 тайлов ≈ 15–18 МБ), снижающий нагрузку на серверы карт на 90%+
- * - Stale-While-Revalidate для гео- и погодных модулей
- * - Корректное кэширование на мобильных браузерах (iOS Safari, Android Chrome, Telegram WebView)
- */
 
-const CACHE_VERSION = 'klev-pro-v2.1.00';
+const CACHE_VERSION = 'klev-pro-v2.1.00-r173';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const MAP_TILES_CACHE = 'klev-pro-map-tiles-v2.1.00';
 const MAX_MAP_TILES = 650;
-
 const CORE_ASSETS = [
   './',
   './index.html',
@@ -69,11 +58,9 @@ const CORE_ASSETS = [
   './js/ui/svg-fish.js',
   './js/ui/toast.js'
 ];
-
 function isMapTileHostname(hostname = '') {
   return /(tile\.opentopomap\.org|tile\.openstreetmap\.org|openstreetmap\.fr|arcgisonline\.com|core-renderer-tiles\.maps\.yandex\.net|maps\.mail\.ru)/i.test(String(hostname || ''));
 }
-
 async function trimMapTileCache() {
   try {
     const cache = await caches.open(MAP_TILES_CACHE);
@@ -84,7 +71,6 @@ async function trimMapTileCache() {
     }
   } catch (e) {}
 }
-
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(STATIC_CACHE).then(cache => {
@@ -98,7 +84,6 @@ self.addEventListener('install', event => {
     }).then(() => self.skipWaiting())
   );
 });
-
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys =>
@@ -110,21 +95,15 @@ self.addEventListener('activate', event => {
     ).then(() => self.clients.claim())
   );
 });
-
 self.addEventListener('message', event => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
 });
-
 self.addEventListener('fetch', event => {
   const req = event.request;
   if (req.method !== 'GET') return;
-
   const url = new URL(req.url);
-
-  // Офлайн-кэш тайлов карт (OpenTopoMap / OSM / Esri) с LRU-ограничением 650 тайлов
-  // Снижает нагрузку на внешние серверы карт на 90%+ и сохраняет карты в тундре/тайге без связи
   if (isMapTileHostname(url.hostname)) {
     event.respondWith(
       caches.open(MAP_TILES_CACHE).then(async cache => {
@@ -145,13 +124,9 @@ self.addEventListener('fetch', event => {
     );
     return;
   }
-
-  // Пропускаем прочие внешние API-запросы (Open-Meteo, Nominatim и т.д. — у них свой 10-км гео-кэш в IndexedDB/localStorage)
   if (url.origin !== self.location.origin) {
     return;
   }
-
-  // Навигационные запросы (открытие приложения офлайн в тундре / на реке)
   if (req.mode === 'navigate') {
     event.respondWith(
       fetch(req)
@@ -164,8 +139,6 @@ self.addEventListener('fetch', event => {
     );
     return;
   }
-
-  // Для локальных ресурсов (JS, CSS, SVG, иконки рыб): Stale-While-Revalidate
   event.respondWith(
     caches.match(req).then(cached => {
       const networkFetch = fetch(req)
@@ -177,7 +150,6 @@ self.addEventListener('fetch', event => {
           return res;
         })
         .catch(() => cached);
-
       return cached || networkFetch;
     })
   );

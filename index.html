@@ -131,8 +131,8 @@
     }, 1350);
   </script>
   <header class="app-header">
-    <div class="header-bar">
-      <div class="loc-summary" id="headerLocClickArea" title="Нажмите для выбора точки и водоёма на карте" style="cursor:pointer;">
+    <div class="header-bar" style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+      <div class="loc-summary" id="headerLocClickArea" title="Нажмите для выбора точки и водоёма на карте" style="cursor:pointer;flex:1;min-width:0;">
         <div class="header-top-row">
           <div class="loc-sub" id="headerLocSub">Волжско-Каспийский бассейн</div>
           <span class="pill pill-good header-status-pill" id="headerStatusPill" role="status">🟢 Онлайн</span>
@@ -140,6 +140,11 @@
         <div class="loc-main" id="headerLocMain">
           <span class="loc-main-text" id="headerLocText">📍 Москва</span>
         </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+        <button type="button" class="btn btn-sm" id="headerProfileBtn" title="Ваш рыболовный ID, вход по логину и настройки профиля" style="min-height:32px;padding:3px 9px;font-size:11.5px;font-family:monospace;font-weight:900;">
+          🆔 Профиль
+        </button>
       </div>
     </div>
     <div class="season-strip open-water" id="headerSeasonStrip" role="region" aria-label="Ледовая обстановка">
@@ -156,9 +161,10 @@
     <section id="secChats" data-route-section="chats" aria-label="Зашифрованные чаты рыбаков и экипажей"></section>
     <section id="secLog" data-route-section="log" aria-label="Журнал уловов"></section>
     <section id="secCalendar" data-route-section="calendar" aria-label="Годовой биоритм и нерест"></section>
+    <section id="secAdmin" data-route-section="admin" aria-label="Панель Супер-Админа и Статистика БД"></section>
   </main>
 
-  <!-- Логическая цепочка вкладок: 1. Карта -> 2. Погода -> 3. Рыбы -> 4. Прогноз -> 5. Круг + ⋮ Ещё (Журнал, Календарь, Профиль) -->
+  <!-- Логическая цепочка вкладок: 1. Карта -> 2. Погода -> 3. Рыбы -> 4. Прогноз -> 5. Круг (+ 👑 Админ для Владельца) + ⋮ Ещё -->
   <nav class="bottom-nav" aria-label="Навигация по разделам">
     <div class="bottom-nav-inner">
       <button type="button" class="nav-tab" data-nav-tab="geo" aria-label="Карта и водоём"><span>📍</span><span>Карта</span></button>
@@ -166,22 +172,21 @@
       <button type="button" class="nav-tab" data-nav-tab="fish" aria-label="Рыбы водоёма"><span>🐟</span><span>Рыбы</span></button>
       <button type="button" class="nav-tab active" data-nav-tab="forecast" aria-label="Прогноз клёва"><span>🎣</span><span>Прогноз</span></button>
       <button type="button" class="nav-tab" data-nav-tab="circle" aria-label="Круг и Экипаж"><span>👥</span><span>Круг</span></button>
-      <button type="button" class="nav-tab" data-nav-tab="chats" aria-label="Чаты рыбаков и экипажей"><span>💬</span><span>Чаты</span></button>
+      <button type="button" class="nav-tab" data-nav-tab="admin" id="navAdminTabBtn" aria-label="Супер-Админ и Статистика БД" style="display:none;color:var(--good);font-weight:900;"><span>👑</span><span>Админ</span></button>
       <div class="nav-more-wrap">
-        <button type="button" class="nav-tab nav-more-btn" id="navMoreBtn" aria-label="Журнал, Календарь и Профиль" aria-expanded="false" title="Журнал, Календарь и Профиль">
+        <button type="button" class="nav-tab nav-more-btn" id="navMoreBtn" aria-label="Дополнительные разделы" aria-expanded="false" title="Чаты, Журнал, Календарь и Профиль">
           <span>⋮</span>
           <span style="font-size:10px;">Ещё</span>
         </button>
-        <div class="nav-more-popup" id="navMorePopup" role="menu" aria-label="Дополнительные разделы и настройки" style="min-width:236px;">
+        <div class="nav-more-popup" id="navMorePopup" role="menu" aria-label="Дополнительные разделы и настройки" style="min-width:225px;">
+          <button type="button" class="nav-popup-item" data-nav-tab="chats" role="menuitem"><span>💬</span><span>Чаты экипажей</span></button>
           <button type="button" class="nav-popup-item" data-nav-tab="log" role="menuitem"><span>📓</span><span>Журнал уловов</span></button>
           <button type="button" class="nav-popup-item" data-nav-tab="calendar" role="menuitem"><span>📅</span><span>Календарь биоритмов</span></button>
+          <button type="button" class="nav-popup-item" data-nav-tab="admin" id="navMoreAdminItem" role="menuitem" style="display:none;color:var(--good);font-weight:800;"><span>👑</span><span>Супер-Админ и БД</span></button>
           <div style="height:1px;background:var(--border);margin:2px 0;"></div>
-          <button type="button" class="nav-popup-item" data-settings-zone="auth" role="menuitem"><span>🔐</span><span>Логин, Пароль и Мой ID</span></button>
-          <button type="button" class="nav-popup-item" data-settings-zone="fishing" role="menuitem"><span>🎣</span><span>Моя рыбалка (Рыбы и Снасти)</span></button>
-          <button type="button" class="nav-popup-item" data-settings-zone="app" role="menuitem"><span>⚙️</span><span>Параметры и Тема</span></button>
-          <button type="button" class="nav-popup-item" data-settings-zone="notif" role="menuitem"><span>🔔</span><span>Уведомления (SOS / Круг)</span></button>
-          <button type="button" class="nav-popup-item" data-nav-tab="profile" role="menuitem"><span>👤</span><span>Все разделы настроек</span></button>
-          <button type="button" class="nav-popup-item nav-popup-close-btn" id="navMoreCloseBottomBtn" role="menuitem"><span>✕</span><span>Закрыть меню</span></button>
+          <button type="button" class="nav-popup-item" data-settings-zone="auth" role="menuitem"><span>🔐</span><span>Вход, Пароль и Мой ID</span></button>
+          <button type="button" class="nav-popup-item" data-nav-tab="profile" role="menuitem"><span>⚙️</span><span>Настройки профиля</span></button>
+          <button type="button" class="nav-popup-item nav-popup-close-btn" id="navMoreCloseBottomBtn" role="menuitem"><span>✕</span><span>Закрыть</span></button>
         </div>
       </div>
     </div>
