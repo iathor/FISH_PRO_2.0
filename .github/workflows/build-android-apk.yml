@@ -15,7 +15,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Locate & Self-Heal Android Project (Eliminate Duplicate Resources)
+      - name: Locate & Self-Heal Android Project (Permanent Keystore & Clean Resources)
         id: locate
         run: |
           if [ -f "android/build.gradle" ]; then
@@ -37,7 +37,7 @@ jobs:
 
           # 1. Копируем свежие веб-ресурсы в assets/www, если они лежат в корне репозитория
           mkdir -p "$PROJ_DIR/app/src/main/assets/www"
-          for f in index.html manifest.json version.json icon.svg apple-touch-icon.png sw.js css js assets; do
+          for f in index.html manifest.json version.json icon.svg icon-192.png icon-512.png apple-touch-icon.png sw.js css js assets; do
             if [ -e "$f" ]; then
               cp -r "$f" "$PROJ_DIR/app/src/main/assets/www/"
             fi
@@ -46,18 +46,22 @@ jobs:
           # 2. Удаляем ВСЕ скрытые файлы (.gitkeep и др.) из assets и res
           find "$PROJ_DIR/app/src/main" -name ".*" -type f -delete || true
 
-          # 3. ИСПРАВЛЕНИЕ DUPLICATE RESOURCES:
-          # При загрузке файлов через веб-интерфейс GitHub старый ic_launcher.xml остаётся рядом с новым ic_launcher.png.
-          # Удаляем все лишние .xml из res/drawable и оставляем ровно одну иконку ic_launcher.png!
+          # 3. Устраняем конфликты дублирующихся ресурсов в res/drawable
           mkdir -p "$PROJ_DIR/app/src/main/res/drawable" "$PROJ_DIR/app/src/main/res/values" "$PROJ_DIR/app/src/main/java/ru/klevpro/app"
           rm -f "$PROJ_DIR/app/src/main/res/drawable/"*.xml
           rm -rf "$PROJ_DIR/app/src/main/res/drawable-v24" "$PROJ_DIR/app/src/main/res/mipmap"*
 
-          if [ ! -f "$PROJ_DIR/app/src/main/res/drawable/ic_launcher.png" ]; then
+          if [ -f "icon-512.png" ]; then
+            cp -f "icon-512.png" "$PROJ_DIR/app/src/main/res/drawable/ic_launcher.png"
+          elif [ ! -f "$PROJ_DIR/app/src/main/res/drawable/ic_launcher.png" ]; then
             python3 -c 'import struct,zlib;w=h=192;raw=b"".join(b"\x00"+b"\x0e\xa5\xe9\xff"*w for _ in range(h));chunk=lambda t,d:struct.pack("!I",len(d))+t+d+struct.pack("!I",zlib.crc32(t+d)&0xffffffff);open("'"$PROJ_DIR"'/app/src/main/res/drawable/ic_launcher.png","wb").write(b"\x89PNG\r\n\x1a\n"+chunk(b"IHDR",struct.pack("!IIBBBBB",w,h,8,6,0,0,0))+chunk(b"IDAT",zlib.compress(raw))+chunk(b"IEND",b""))'
           fi
 
-          # 4. Гарантируем эталонные конфиги Gradle, Manifest и MainActivity (0 внешних зависимостей + SDK 34 + отключённый lintVitalRelease)
+          # 4. Вычисляем строго возрастающий versionCode (чтобы Android всегда обновлял APK поверх старой версии)
+          RUN_NUM=${GITHUB_RUN_NUMBER:-0}
+          VER_CODE=$((20172 + RUN_NUM))
+          echo "Using versionCode=$VER_CODE"
+
           cat << 'EOF' > "$PROJ_DIR/settings.gradle"
           pluginManagement {
               repositories {
@@ -88,7 +92,7 @@ jobs:
           android.useAndroidX=true
           EOF
 
-          cat << 'EOF' > "$PROJ_DIR/app/build.gradle"
+          cat << EOF > "$PROJ_DIR/app/build.gradle"
           plugins {
               id 'com.android.application'
           }
@@ -99,8 +103,8 @@ jobs:
                   applicationId "ru.klevpro.app"
                   minSdk 24
                   targetSdk 34
-                  versionCode 20166
-                  versionName "2.0.166"
+                  versionCode ${VER_CODE}
+                  versionName "2.0.172"
               }
               signingConfigs {
                   release {
@@ -114,6 +118,9 @@ jobs:
                   }
               }
               buildTypes {
+                  debug {
+                      signingConfig signingConfigs.release
+                  }
                   release {
                       signingConfig signingConfigs.release
                       minifyEnabled true
@@ -162,6 +169,7 @@ jobs:
               <uses-permission android:name="android.permission.VIBRATE" />
               <application
                   android:allowBackup="true"
+                  android:enableOnBackInvokedCallback="true"
                   android:icon="@drawable/ic_launcher"
                   android:roundIcon="@drawable/ic_launcher"
                   android:label="@string/app_name"
@@ -189,181 +197,268 @@ jobs:
           EOF
 
           cat << 'EOF' > "$PROJ_DIR/app/src/main/java/ru/klevpro/app/MainActivity.java"
-          package ru.klevpro.app;
+package ru.klevpro.app;
 
-          import android.Manifest;
-          import android.annotation.SuppressLint;
-          import android.app.Activity;
-          import android.content.Intent;
-          import android.content.pm.PackageManager;
-          import android.graphics.Color;
-          import android.net.Uri;
-          import android.os.Build;
-          import android.os.Bundle;
-          import android.view.Window;
-          import android.webkit.GeolocationPermissions;
-          import android.webkit.ValueCallback;
-          import android.webkit.WebChromeClient;
-          import android.webkit.WebResourceRequest;
-          import android.webkit.WebResourceResponse;
-          import android.webkit.WebSettings;
-          import android.webkit.WebView;
-          import android.webkit.WebViewClient;
-          import java.io.InputStream;
-          import java.util.HashMap;
-          import java.util.Map;
+import android.Manifest;
+import android.annotation.SuppressLint;
+import android.app.Activity;
+import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.graphics.Color;
+import android.net.Uri;
+import android.os.Build;
+import android.os.Bundle;
+import android.view.Window;
+import android.webkit.GeolocationPermissions;
+import android.webkit.ValueCallback;
+import android.webkit.WebChromeClient;
+import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
+import android.widget.Toast;
+import android.window.OnBackInvokedCallback;
+import android.window.OnBackInvokedDispatcher;
+import java.io.InputStream;
+import java.util.HashMap;
+import java.util.Map;
 
-          public class MainActivity extends Activity {
-              private static final int REQ_LOCATION = 1001;
-              private static final int REQ_FILE_CHOOSER = 1002;
-              private static final String VIRTUAL_HOST = "appassets.androidplatform.net";
-              private WebView webView;
-              private ValueCallback<Uri[]> fileUploadCallback;
+public class MainActivity extends Activity {
+    private static final int REQ_LOCATION = 1001;
+    private static final int REQ_FILE_CHOOSER = 1002;
+    private static final String VIRTUAL_HOST = "appassets.androidplatform.net";
+    private WebView webView;
+    private ValueCallback<Uri[]> fileUploadCallback;
+    private long lastRootBackPressMs = 0L;
+    private OnBackInvokedCallback backInvokedCallback;
 
-              private static String guessMimeType(String path) {
-                  String p = path.toLowerCase();
-                  if (p.endsWith(".html") || p.endsWith(".htm")) return "text/html";
-                  if (p.endsWith(".js") || p.endsWith(".mjs")) return "application/javascript";
-                  if (p.endsWith(".css")) return "text/css";
-                  if (p.endsWith(".json")) return "application/json";
-                  if (p.endsWith(".svg")) return "image/svg+xml";
-                  if (p.endsWith(".png")) return "image/png";
-                  if (p.endsWith(".jpg") || p.endsWith(".jpeg")) return "image/jpeg";
-                  if (p.endsWith(".webp")) return "image/webp";
-                  if (p.endsWith(".ico")) return "image/x-icon";
-                  return "application/octet-stream";
-              }
+    private static String guessMimeType(String path) {
+        String p = path.toLowerCase();
+        if (p.endsWith(".html") || p.endsWith(".htm")) return "text/html";
+        if (p.endsWith(".js") || p.endsWith(".mjs")) return "application/javascript";
+        if (p.endsWith(".css")) return "text/css";
+        if (p.endsWith(".json")) return "application/json";
+        if (p.endsWith(".svg")) return "image/svg+xml";
+        if (p.endsWith(".png")) return "image/png";
+        if (p.endsWith(".jpg") || p.endsWith(".jpeg")) return "image/jpeg";
+        if (p.endsWith(".webp")) return "image/webp";
+        if (p.endsWith(".ico")) return "image/x-icon";
+        return "application/octet-stream";
+    }
 
-              @SuppressLint("SetJavaScriptEnabled")
-              @Override
-              protected void onCreate(Bundle savedInstanceState) {
-                  super.onCreate(savedInstanceState);
+    @SuppressLint("SetJavaScriptEnabled")
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
 
-                  Window window = getWindow();
-                  if (window != null) {
-                      window.setStatusBarColor(Color.parseColor("#0b1120"));
-                      window.setNavigationBarColor(Color.parseColor("#151f32"));
-                  }
+        Window window = getWindow();
+        if (window != null) {
+            window.setStatusBarColor(Color.parseColor("#0b1120"));
+            window.setNavigationBarColor(Color.parseColor("#151f32"));
+        }
 
-                  webView = new WebView(this);
-                  webView.setBackgroundColor(Color.parseColor("#0b1120"));
-                  setContentView(webView);
+        webView = new WebView(this);
+        webView.setBackgroundColor(Color.parseColor("#0b1120"));
+        setContentView(webView);
 
-                  WebView.setWebContentsDebuggingEnabled(false);
+        WebView.setWebContentsDebuggingEnabled(false);
 
-                  WebSettings ws = webView.getSettings();
-                  ws.setJavaScriptEnabled(true);
-                  ws.setDomStorageEnabled(true);
-                  ws.setDatabaseEnabled(true);
-                  ws.setGeolocationEnabled(true);
-                  ws.setAllowFileAccess(false);
-                  ws.setAllowContentAccess(true);
-                  ws.setCacheMode(WebSettings.LOAD_DEFAULT);
+        WebSettings ws = webView.getSettings();
+        ws.setJavaScriptEnabled(true);
+        ws.setDomStorageEnabled(true);
+        ws.setDatabaseEnabled(true);
+        ws.setGeolocationEnabled(true);
+        ws.setAllowFileAccess(false);
+        ws.setAllowContentAccess(true);
+        ws.setCacheMode(WebSettings.LOAD_DEFAULT);
+        String baseUa = ws.getUserAgentString();
+        ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.0.172");
 
-                  webView.setWebViewClient(new WebViewClient() {
-                      @Override
-                      public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
-                          Uri uri = request.getUrl();
-                          if (uri != null && VIRTUAL_HOST.equalsIgnoreCase(uri.getHost())) {
-                              String path = uri.getPath();
-                              if (path == null || path.isEmpty() || path.equals("/")) {
-                                  path = "/assets/www/index.html";
-                              }
-                              String assetPath = path.startsWith("/assets/") ? path.substring("/assets/".length()) : path.replaceFirst("^/+", "");
-                              try {
-                                  InputStream is = getAssets().open(assetPath);
-                                  String mime = guessMimeType(assetPath);
-                                  Map<String, String> headers = new HashMap<>();
-                                  headers.put("Access-Control-Allow-Origin", "*");
-                                  headers.put("Cache-Control", "public, max-age=31536000");
-                                  return new WebResourceResponse(mime, "UTF-8", 200, "OK", headers, is);
-                              } catch (Exception e) {
-                                  return new WebResourceResponse("text/plain", "UTF-8", 404, "Not Found", null, null);
-                              }
-                          }
-                          return super.shouldInterceptRequest(view, request);
-                      }
+        webView.setWebViewClient(new WebViewClient() {
+            @Override
+            public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+                Uri uri = request.getUrl();
+                if (uri != null && VIRTUAL_HOST.equalsIgnoreCase(uri.getHost())) {
+                    String path = uri.getPath();
+                    if (path == null || path.isEmpty() || path.equals("/")) {
+                        path = "/assets/www/index.html";
+                    }
+                    String assetPath = path.startsWith("/assets/") ? path.substring("/assets/".length()) : path.replaceFirst("^/+", "");
+                    try {
+                        InputStream is = getAssets().open(assetPath);
+                        String mime = guessMimeType(assetPath);
+                        Map<String, String> headers = new HashMap<>();
+                        headers.put("Access-Control-Allow-Origin", "*");
+                        headers.put("Cache-Control", "public, max-age=31536000");
+                        return new WebResourceResponse(mime, "UTF-8", 200, "OK", headers, is);
+                    } catch (Exception e) {
+                        return new WebResourceResponse("text/plain", "UTF-8", 404, "Not Found", null, null);
+                    }
+                }
+                return super.shouldInterceptRequest(view, request);
+            }
 
-                      @Override
-                      public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
-                          Uri uri = request.getUrl();
-                          if (uri == null) return false;
-                          String host = uri.getHost() != null ? uri.getHost().toLowerCase() : "";
-                          String scheme = uri.getScheme() != null ? uri.getScheme().toLowerCase() : "";
-                          if (host.equals(VIRTUAL_HOST) || host.equals("klevpro.ru")) {
-                              return false;
-                          }
-                          if (host.equals("t.me") || host.equals("telegram.me") || scheme.equals("tg")) {
-                              try {
-                                  Intent intent = new Intent(Intent.ACTION_VIEW, uri);
-                                  startActivity(intent);
-                                  return true;
-                              } catch (Exception ignored) {}
-                          }
-                          return false;
-                      }
-                  });
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                Uri uri = request.getUrl();
+                if (uri == null) return false;
+                String host = uri.getHost() != null ? uri.getHost().toLowerCase() : "";
+                String scheme = uri.getScheme() != null ? uri.getScheme().toLowerCase() : "";
+                if (host.equals(VIRTUAL_HOST)) {
+                    return false;
+                }
+                if (host.equals("klevpro.ru") || host.equals("www.klevpro.ru")) {
+                    String q = uri.getEncodedQuery();
+                    String frag = uri.getEncodedFragment();
+                    StringBuilder sb = new StringBuilder("https://" + VIRTUAL_HOST + "/assets/www/index.html");
+                    if (q != null && !q.isEmpty()) sb.append("?").append(q);
+                    if (frag != null && !frag.isEmpty()) sb.append("#").append(frag);
+                    view.loadUrl(sb.toString());
+                    return true;
+                }
+                if (host.equals("t.me") || host.equals("telegram.me") || scheme.equals("tg")) {
+                    try {
+                        Intent intent = new Intent(Intent.ACTION_VIEW, uri);
+                        startActivity(intent);
+                        return true;
+                    } catch (Exception ignored) {}
+                }
+                return false;
+            }
+        });
 
-                  webView.setWebChromeClient(new WebChromeClient() {
-                      @Override
-                      public void onGeolocationPermissionsShowPrompt(final String origin, final GeolocationPermissions.Callback callback) {
-                          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                              if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                                  requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION}, REQ_LOCATION);
-                              }
-                          }
-                          callback.invoke(origin, true, false);
-                      }
+        webView.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public void onGeolocationPermissionsShowPrompt(final String origin, final GeolocationPermissions.Callback callback) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                        requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION}, REQ_LOCATION);
+                    }
+                }
+                callback.invoke(origin, true, false);
+            }
 
-                      @Override
-                      public boolean onShowFileChooser(WebView webView, ValueCallback<Uri[]> filePathCallback, FileChooserParams fileChooserParams) {
-                          if (fileUploadCallback != null) {
-                              fileUploadCallback.onReceiveValue(null);
-                          }
-                          fileUploadCallback = filePathCallback;
-                          try {
-                              Intent intent = fileChooserParams.createIntent();
-                              startActivityForResult(intent, REQ_FILE_CHOOSER);
-                          } catch (Exception e) {
-                              fileUploadCallback = null;
-                              return false;
-                          }
-                          return true;
-                      }
-                  });
+            @Override
+            public boolean onShowFileChooser(WebView webView, ValueCallback<Uri[]> filePathCallback, FileChooserParams fileChooserParams) {
+                if (fileUploadCallback != null) {
+                    fileUploadCallback.onReceiveValue(null);
+                }
+                fileUploadCallback = filePathCallback;
+                try {
+                    Intent intent = fileChooserParams.createIntent();
+                    startActivityForResult(intent, REQ_FILE_CHOOSER);
+                } catch (Exception e) {
+                    fileUploadCallback = null;
+                    return false;
+                }
+                return true;
+            }
+        });
 
-                  requestLocationPermissionIfNeeded();
-                  webView.loadUrl("https://" + VIRTUAL_HOST + "/assets/www/index.html");
-              }
+        if (Build.VERSION.SDK_INT >= 33) {
+            backInvokedCallback = new OnBackInvokedCallback() {
+                @Override
+                public void onBackInvoked() {
+                    handleAppBackGesture();
+                }
+            };
+            getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
+                OnBackInvokedDispatcher.PRIORITY_DEFAULT,
+                backInvokedCallback
+            );
+        }
 
-              private void requestLocationPermissionIfNeeded() {
-                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                      if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                          requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION}, REQ_LOCATION);
-                      }
-                  }
-              }
+        requestLocationPermissionIfNeeded();
+        loadEntryUrlFromIntent(getIntent());
+    }
 
-              @Override
-              protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-                  super.onActivityResult(requestCode, resultCode, data);
-                  if (requestCode == REQ_FILE_CHOOSER && fileUploadCallback != null) {
-                      Uri[] results = WebChromeClient.FileChooserParams.parseResult(resultCode, data);
-                      fileUploadCallback.onReceiveValue(results);
-                      fileUploadCallback = null;
-                  }
-              }
+    @Override
+    protected void onDestroy() {
+        if (Build.VERSION.SDK_INT >= 33 && backInvokedCallback != null) {
+            try {
+                getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback(backInvokedCallback);
+            } catch (Exception ignored) {}
+        }
+        super.onDestroy();
+    }
 
-              @Override
-              @SuppressWarnings("deprecation")
-              public void onBackPressed() {
-                  if (webView != null && webView.canGoBack()) {
-                      webView.goBack();
-                  } else {
-                      super.onBackPressed();
-                  }
-              }
-          }
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        loadEntryUrlFromIntent(intent);
+    }
+
+    private void loadEntryUrlFromIntent(Intent intent) {
+        String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/index.html";
+        if (intent != null && intent.getData() != null) {
+            Uri data = intent.getData();
+            String q = data.getEncodedQuery();
+            String frag = data.getEncodedFragment();
+            StringBuilder sb = new StringBuilder(baseUrl);
+            if (q != null && !q.isEmpty()) {
+                sb.append("?").append(q);
+            }
+            if (frag != null && !frag.isEmpty()) {
+                sb.append("#").append(frag);
+            }
+            webView.loadUrl(sb.toString());
+        } else {
+            webView.loadUrl(baseUrl);
+        }
+    }
+
+    private void requestLocationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION}, REQ_LOCATION);
+            }
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQ_FILE_CHOOSER && fileUploadCallback != null) {
+            Uri[] results = WebChromeClient.FileChooserParams.parseResult(resultCode, data);
+            fileUploadCallback.onReceiveValue(results);
+            fileUploadCallback = null;
+        }
+    }
+
+    private void handleAppBackGesture() {
+        if (webView == null) {
+            finish();
+            return;
+        }
+        webView.evaluateJavascript(
+            "(function(){ try { if (typeof window.__KLEV_HANDLE_BACK__ === 'function') { return window.__KLEV_HANDLE_BACK__('android') ? 'HANDLED' : 'ROOT'; } } catch(e){} return 'ROOT'; })()",
+            new ValueCallback<String>() {
+                @Override
+                public void onReceiveValue(String value) {
+                    if (value != null && value.contains("HANDLED")) {
+                        return;
+                    }
+                    long now = System.currentTimeMillis();
+                    if (now - lastRootBackPressMs < 2200L) {
+                        finish();
+                    } else {
+                        lastRootBackPressMs = now;
+                        Toast.makeText(MainActivity.this, "Смахните «Назад» ещё раз для выхода из приложения", Toast.LENGTH_SHORT).show();
+                    }
+                }
+            }
+        );
+    }
+
+    @Override
+    @SuppressWarnings("deprecation")
+    public void onBackPressed() {
+        handleAppBackGesture();
+    }
+}
+
           EOF
 
       - name: Configure JDK 17 & Android SDK
@@ -377,16 +472,11 @@ jobs:
             yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null 2>&1 || true
           fi
 
-      - name: Generate Release Signing Keystore
+      - name: Restore Permanent Release Signing Keystore (Identical Signature Across All Updates)
         working-directory: ${{ steps.locate.outputs.proj_dir }}/app
         run: |
-          rm -f klevpro-release.keystore
-          keytool -genkeypair -v \
-            -keystore klevpro-release.keystore \
-            -alias klevpro \
-            -keyalg RSA -keysize 2048 -validity 10000 \
-            -storepass KlevPro2026! -keypass KlevPro2026! \
-            -dname "CN=Klev PRO 2.0, OU=Fishing Club, O=KlevPro, L=Novy Urengoy, ST=YANAO, C=RU"
+          echo "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" | base64 -d > klevpro-release.keystore
+          ls -la klevpro-release.keystore
 
       - name: Build Signed Obfuscated Release APK with Gradle 8.7
         working-directory: ${{ steps.locate.outputs.proj_dir }}
@@ -408,5 +498,5 @@ jobs:
       - name: Upload Signed APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: KlevPro-v2.0.166-Android-APK
+          name: KlevPro-v2.0.172-Android-APK
           path: ${{ steps.locate.outputs.proj_dir }}/app/build/outputs/apk/release/*.apk
