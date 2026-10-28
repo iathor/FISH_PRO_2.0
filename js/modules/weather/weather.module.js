@@ -1,11 +1,11 @@
-import { RU } from '../../i18n/ru.js?v=2.1.00';
-import { events } from '../../core/events.js?v=2.1.00';
-import { storage } from '../../core/storage.js?v=2.1.00';
-import { store } from '../../core/store.js?v=2.1.00';
-import { fetchWithTimeout, fallbackChain } from '../../core/http.js?v=2.1.00';
-import { formatLocalYYYYMMDD, fmtHM, fmtDeltaPress } from '../../core/format.js?v=2.1.00';
-import { WATER_PROFILES } from '../../data/waters.js?v=2.1.00';
-import { createPill, showToast } from '../../ui/components.js?v=2.1.00';
+import { RU } from '../../i18n/ru.js?v=2.1.1';
+import { events } from '../../core/events.js?v=2.1.1';
+import { storage } from '../../core/storage.js?v=2.1.1';
+import { store } from '../../core/store.js?v=2.1.1';
+import { fetchWithTimeout, fallbackChain } from '../../core/http.js?v=2.1.1';
+import { formatLocalYYYYMMDD, fmtHM, fmtDeltaPress } from '../../core/format.js?v=2.1.1';
+import { WATER_PROFILES } from '../../data/waters.js?v=2.1.1';
+import { createPill, showToast } from '../../ui/components.js?v=2.1.1';
 const DIRS = ['С', 'СВ', 'В', 'ЮВ', 'Ю', 'ЮЗ', 'З', 'СЗ'];
 export function computeMoon(dateStr) {
 const dt = new Date(dateStr + 'T12:00:00Z');
