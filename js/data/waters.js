@@ -1,4 +1,4 @@
-import { isCoastalInBasin } from './basins.js?v=2.1.00';
+import { isCoastalInBasin } from './basins.js?v=2.1.1';
 export const WATER_PROFILES = {
 small_river: { name: 'Малая / средняя река (0.2–6 м)', shortName: 'Малая/средняя река', minD: 0.2, maxD: 6.0, defD: 1.4, flow: 1.3, isSea: false },
 big_river: { name: 'Крупная магистральная река / фарватер (0.5–18 м)', shortName: 'Крупная река', minD: 0.5, maxD: 18.0, defD: 4.5, flow: 2.2, isSea: false },
