@@ -1,8 +1,8 @@
-import { STATE_CACHE_KEY, WEATHER_CACHE_KEY, WEATHER_TTL_MS } from './config.js?v=2.1.00';
-import { formatLocalYYYYMMDD } from './format.js?v=2.1.00';
-const DB_NAME = 'KlevProDB_v2_1_00';
-export const CLEAN_SLATE_FLAG_KEY = 'klev_pro_clean_slate_v2_1_00_r4';
-export const CLEAN_SLATE_NOTICE_KEY = 'klev_pro_clean_slate_notice_v2_1_00_r4';
+import { STATE_CACHE_KEY, WEATHER_CACHE_KEY, WEATHER_TTL_MS } from './config.js?v=2.1.1';
+import { formatLocalYYYYMMDD } from './format.js?v=2.1.1';
+const DB_NAME = 'KlevProDB_v2_1_1';
+export const CLEAN_SLATE_FLAG_KEY = 'klev_pro_clean_slate_v2_1_1_r4';
+export const CLEAN_SLATE_NOTICE_KEY = 'klev_pro_clean_slate_notice_v2_1_1_r4';
 export function runCleanSlateMigrationV2100() {
 if (typeof localStorage === 'undefined') return false;
 try {
@@ -414,7 +414,7 @@ localStorage.setItem(CIRCLE_NOTIFS_CACHE_KEY, JSON.stringify(list.slice(0, 120))
 exportFullProfileBackup(state) {
 return {
 schema: 'KlevProProfileBackup_v2',
-version: '2.1.00',
+version: '2.1.1',
 exportedAt: new Date().toISOString(),
 deviceId: this.getDeviceId(),
 userProfile: (() => {

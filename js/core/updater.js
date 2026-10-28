@@ -1,5 +1,5 @@
-import { APP_VERSION, APP_REVISION, RELEASE_CACHE_KEY, CURRENT_RELEASE_INFO } from './config.js?v=2.1.00';
-import { showToast } from '../ui/components.js?v=2.1.00';
+import { APP_VERSION, APP_REVISION, RELEASE_CACHE_KEY, CURRENT_RELEASE_INFO } from './config.js?v=2.1.1';
+import { showToast } from '../ui/components.js?v=2.1.1';
 let pendingSwRegistration = null;
 let pendingReleaseInfo = null;
 let updateBannerShown = false;

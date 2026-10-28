@@ -1,7 +1,7 @@
-import { showToast } from '../ui/components.js?v=2.1.00';
-import { syncInstallButtons } from './pwa.js?v=2.1.00';
-import { store } from './store.js?v=2.1.00';
-import { storage } from './storage.js?v=2.1.00';
+import { showToast } from '../ui/components.js?v=2.1.1';
+import { syncInstallButtons } from './pwa.js?v=2.1.1';
+import { store } from './store.js?v=2.1.1';
+import { storage } from './storage.js?v=2.1.1';
 export const TELEGRAM_BOT_USERNAME = 'KlevProClubBot';
 export const PUBLIC_APP_URL = 'https://klevpro.ru/';
 export const RELAY_WORKER_URL = 'https://klevprohbot.thorantony82.workers.dev';
