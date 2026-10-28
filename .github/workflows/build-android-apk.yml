@@ -104,7 +104,7 @@ jobs:
                   minSdk 24
                   targetSdk 34
                   versionCode ${VER_CODE}
-                  versionName "2.1.00"
+                  versionName "2.1.1"
               }
               signingConfigs {
                   release {
@@ -255,7 +255,7 @@ jobs:
 
                   @JavascriptInterface
                   public String getAppVersion() {
-                      return "2.1.00";
+                      return "2.1.1";
                   }
               }
 
@@ -300,7 +300,7 @@ jobs:
                   ws.setCacheMode(WebSettings.LOAD_NO_CACHE);
                   webView.clearCache(true);
                   String baseUa = ws.getUserAgentString();
-                  ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.1.00");
+                  ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.1.1");
 
                   webView.addJavascriptInterface(new NativeBridge(this), "AndroidBridge");
 
@@ -420,7 +420,7 @@ jobs:
               }
 
               private void loadEntryUrlFromIntent(Intent intent) {
-                  String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/index.html?v=2.1.00_r4";
+                  String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/index.html?v=2.1.1_r4";
                   if (intent != null && intent.getData() != null) {
                       Uri data = intent.getData();
                       String q = data.getEncodedQuery();
@@ -526,5 +526,5 @@ jobs:
       - name: Upload Signed APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: KlevPro-v2.1.00-Android-APK
+          name: KlevPro-v2.1.1-Android-APK
           path: ${{ steps.locate.outputs.proj_dir }}/app/build/outputs/apk/release/*.apk
