@@ -66,12 +66,24 @@
             regs.forEach(function(r) { r.unregister(); });
           }).catch(function() {});
         }
-        var MIGRATION_KEY = 'klev_pro_migrated_v2100_r175';
+        var MIGRATION_KEY = 'klev_pro_migrated_v212_r177';
+        if (localStorage.getItem(MIGRATION_KEY) !== '1') {
+          try {
+            var stRaw = localStorage.getItem('klev_pro_state_v2.0');
+            if (stRaw) {
+              var stObj = JSON.parse(stRaw);
+              stObj.onlyFavoritesFilter = false;
+              stObj.fishGroup = 'all';
+              stObj.fishSearch = '';
+              localStorage.setItem('klev_pro_state_v2.0', JSON.stringify(stObj));
+            }
+          } catch (e) {}
+        }
         if ((inApkNow || localStorage.getItem(MIGRATION_KEY) !== '1') && 'caches' in window) {
           caches.keys().then(function(keys) {
             return Promise.all(
               keys
-                .filter(function(k) { return k !== 'klev-pro-map-tiles-v2.1.2' && (inApkNow || k !== 'klev-pro-v2.1.2-r175-static'); })
+                .filter(function(k) { return k !== 'klev-pro-map-tiles-v2.1.2' && (inApkNow || k !== 'klev-pro-v2.1.2-r177-static'); })
                 .map(function(k) { return caches.delete(k); })
             );
           }).then(function() {
