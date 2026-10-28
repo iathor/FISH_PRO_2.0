@@ -1,13 +1,13 @@
-import { events } from '../../core/events.js?v=2.1.00';
-import { store } from '../../core/store.js?v=2.1.00';
-import { storage, calcGeoDistanceKm, safeJsonParse } from '../../core/storage.js?v=2.1.00';
-import { router } from '../../core/router.js?v=2.1.00';
-import { getSeasonalBaitsForContext } from '../../core/config.js?v=2.1.00';
-import { detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.1.00';
-import { findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.1.00';
-import { WATER_PROFILES } from '../../data/waters.js?v=2.1.00';
-import { FISH_DB } from '../../data/species.js?v=2.1.00';
-import { escapeHtml, createPill, showToast, openModal, closeModal, copyFisherIdToClipboard } from '../../ui/components.js?v=2.1.00';
+import { events } from '../../core/events.js?v=2.1.1';
+import { store } from '../../core/store.js?v=2.1.1';
+import { storage, calcGeoDistanceKm, safeJsonParse } from '../../core/storage.js?v=2.1.1';
+import { router } from '../../core/router.js?v=2.1.1';
+import { getSeasonalBaitsForContext } from '../../core/config.js?v=2.1.1';
+import { detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.1.1';
+import { findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.1.1';
+import { WATER_PROFILES } from '../../data/waters.js?v=2.1.1';
+import { FISH_DB } from '../../data/species.js?v=2.1.1';
+import { escapeHtml, createPill, showToast, openModal, closeModal, copyFisherIdToClipboard } from '../../ui/components.js?v=2.1.1';
 import {
 RELAY_WORKER_URL,
 buildShareUrls,
@@ -20,9 +20,9 @@ openBotChatInTelegram,
 syncToTelegramCloud,
 readFromTelegramCloud,
 triggerHaptic
-} from '../../core/telegram.js?v=2.1.00';
-import { setLocation } from '../geo/geo.module.js?v=2.1.00';
-import { calcDynamicRig } from '../forecast/forecast.module.js?v=2.1.00';
+} from '../../core/telegram.js?v=2.1.1';
+import { setLocation } from '../geo/geo.module.js?v=2.1.1';
+import { calcDynamicRig } from '../forecast/forecast.module.js?v=2.1.1';
 export const CREW_TTL_MS = 72 * 60 * 60 * 1000;
 export const CIRCLE_BLUR_RADIUS_KM = 5.0;
 export const CIRCLE_OLDER_BLUR_RADIUS_KM = 10.0;
@@ -39,8 +39,9 @@ const DEFAULT_ADMIN_IDS = [OWNER_BOUND_FISHER_ID, OWNER_SECONDARY_FISHER_ID];
 export const OWNER_BOUND_PIN_HASH = 'owner_iathor_vip089';
 let _adminDashboardCache = null;
 let _adminDashboardLoading = false;
-const OWNER_TOKEN_HASH_IATHOR = 'KTOK_6AE3BD91_21C90CF5';
-const OWNER_TOKEN_HASH_IATHOR82 = 'KTOK_9D1A180D_2F2E289F';
+const OWNER_ADMIN_CONSOLE_TOKEN = 'VIP089_D854A7F4_38D816DA';
+const OWNER_TOKEN_HASH_IATHOR = 'KTOK_1E665A58_64E3DB80';
+const OWNER_TOKEN_HASH_IATHOR82 = 'KTOK_52183B6B_39DEECFC';
 let _serverDynamicAdminSlotHtml = '';
 let _serverAdminSessionToken = '';
 let _idAllocationInFlight = false;
@@ -635,7 +636,7 @@ callsign: ident.callsign || 'Гость (Резерв)',
 tgId: ident.isRegistered ? (ident.tgLinkedId || '') : '',
 tgUsername: ident.isRegistered ? (ident.tgUsername || '') : '',
 platform: detectClientPlatformLabel(),
-version: '2.1.00',
+version: '2.1.1',
 lat: s.lat,
 lon: s.lon
 })
@@ -690,7 +691,7 @@ au: itemObj.au || ident.callsign
 packToken,
 deviceId: ident.deviceId,
 platform: detectClientPlatformLabel(),
-version: '2.1.00'
+version: '2.1.1'
 })
 });
 return res.ok;
@@ -737,7 +738,7 @@ deviceId: ident.deviceId,
 crewKeys: crewKeysParam,
 adminToken: adminTok,
 platform: detectClientPlatformLabel(),
-version: '2.1.00',
+version: '2.1.1',
 locLabel: s.locLabel || ''
 });
 const res = await fetch(`${RELAY_WORKER_URL}/api/circle/nearby?${qs.toString()}`, { method: 'GET' });
@@ -973,7 +974,7 @@ authTokenHash: creds.authTokenHash,
 pinHash: creds.pinHash,
 regionCode: regCode,
 platform: detectClientPlatformLabel(),
-version: '2.1.00',
+version: '2.1.1',
 profileSnapshot: snapshot
 })
 });
@@ -1077,7 +1078,7 @@ authTokenHash: tokenHash,
 pinHash: up.pinHash || '',
 regionCode: resolveRussianRegionCode(s),
 platform: detectClientPlatformLabel(),
-version: '2.1.00',
+version: '2.1.1',
 profileSnapshot: snapshot
 })
 });
@@ -1869,7 +1870,7 @@ return false;
 return true;
 });
 }
-export async function pushEncryptedRelayPacket({ channelId, cipherPayload, kind = 'chat', regionGrid = '' }) {
+export async function pushEncryptedRelayPacket({ channelId, cipherPayload, kind = 'chat', regionGrid = '', crewKey = '', peerId = '' }) {
 try {
 const ident = getCurrentFisherIdentity();
 const res = await fetch(`${RELAY_WORKER_URL}/relay/push`, {
@@ -1880,6 +1881,8 @@ channelId: String(channelId || '').toUpperCase(),
 senderId: ident.fisherId,
 cipherPayload,
 kind,
+crewKey: String(crewKey || '').toUpperCase(),
+peerId: String(peerId || '').toUpperCase(),
 regionGrid,
 ts: Date.now()
 })
@@ -1895,7 +1898,15 @@ const s = store.getState();
 const ident = getCurrentFisherIdentity(s);
 const gridKey = `GRID_${Math.round(s.lat)}_${Math.round(s.lon)}`;
 const crewBoxes = ident.unlockedCrewKeys.map(k => `CREW_${String(k).toUpperCase()}`);
-const boxes = [`DM_${ident.fisherId}`, gridKey, 'SOS_ALL', ...crewBoxes].slice(0, 16);
+if (activeChatChannelId && activeChatChannelId.startsWith('crew:')) {
+const actCrewBox = `CREW_${activeChatChannelId.replace(/^crew:/, '').toUpperCase()}`;
+if (!crewBoxes.includes(actCrewBox)) crewBoxes.push(actCrewBox);
+}
+const dmBoxes = [`DM_${ident.fisherId}`];
+if (ident.isOwner) {
+dmBoxes.push(`DM_${OWNER_BOUND_FISHER_ID}`, `DM_${OWNER_SECONDARY_FISHER_ID}`);
+}
+const boxes = Array.from(new Set([...dmBoxes, gridKey, 'SOS_ALL', ...crewBoxes])).slice(0, 24);
 const url = `${RELAY_WORKER_URL}/relay/pull?boxes=${encodeURIComponent(boxes.join(','))}&since=${lastRelayPullTs}&viewer=${encodeURIComponent(ident.fisherId)}`;
 const res = await fetch(url, { method: 'GET' });
 if (!res.ok) {
@@ -1917,11 +1928,29 @@ await importSharePackToken(pkt.cipherPayload, true, false);
 newCount++;
 }
 } else if (pkt.kind === 'crew_chat' || pkt.kind === 'dm_chat') {
-const chKey = pkt.channelKey || pkt.channelId || 'default';
-const msgObj = decryptChatPayload(pkt.cipherPayload, chKey);
+let msgObj = null;
+const candidates = [];
+if (pkt.crewKey) candidates.push(pkt.crewKey);
+if (pkt.channelId && pkt.channelId.startsWith('CREW_')) candidates.push(pkt.channelId.replace(/^CREW_/, ''));
+if (pkt.channelKey) candidates.push(pkt.channelKey);
+if (pkt.channelId) candidates.push(pkt.channelId);
+if (pkt.senderId) candidates.push([ident.fisherId, pkt.senderId].sort().join(':'));
+if (pkt.peerId) candidates.push([ident.fisherId, pkt.peerId].sort().join(':'));
+if (pkt.channelId && pkt.channelId.startsWith('DM_')) candidates.push(pkt.channelId.replace(/^DM_/, ''));
+for (const k of candidates) {
+if (!k) continue;
+msgObj = decryptChatPayload(pkt.cipherPayload, k);
+if (msgObj && msgObj.id) break;
+}
 if (msgObj && msgObj.id) {
 const added = appendIncomingChatMessage(msgObj, true);
-if (added) newCount++;
+if (added) {
+newCount++;
+const secChats = document.getElementById('secChats');
+if (secChats && secChats.classList.contains('active')) {
+renderChatsSection(secChats);
+}
+}
 }
 }
 }
@@ -1992,7 +2021,9 @@ const relayBox = isCrew ? `CREW_${encryptionKey}` : `DM_${String(peerId || '').t
 pushEncryptedRelayPacket({
 channelId: relayBox,
 cipherPayload,
-kind: isCrew ? 'crew_chat' : 'dm_chat'
+kind: isCrew ? 'crew_chat' : 'dm_chat',
+crewKey: isCrew ? encryptionKey : '',
+peerId: !isCrew ? String(peerId || '').toUpperCase() : ''
 });
 triggerHaptic('light');
 return { msgObj, cipherPayload, encryptionKey };
@@ -3034,9 +3065,12 @@ return `
         </div>
 
         <div class="card" style="background:var(--card);padding:8px 10px;border:1px solid var(--border);">
-          <div style="font-weight:800;font-size:11px;color:var(--good);margin-bottom:4px;">💬 ЛИЧНЫЙ ЧАТ ПО ПОСТОЯННОМУ ID (FP_XXAAA001):</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:4px;">
+            <div style="font-weight:800;font-size:11px;color:var(--good);">💬 ЛИЧНЫЙ ЧАТ ПО ЛОГИНУ ИЛИ ID:</div>
+            <button type="button" class="btn btn-sm" id="chatWriteAdminBtn" style="min-height:28px;padding:2px 8px;font-size:11px;border-color:var(--good);color:var(--good);font-weight:800;">👑 Написать Админу</button>
+          </div>
           <div style="display:flex;gap:6px;">
-            <input type="text" id="chatStartDmIdInput" class="input" placeholder="ID напарника (напр. FP_89AAA001)" style="flex:1;min-height:34px;text-transform:uppercase;">
+            <input type="text" id="chatStartDmIdInput" class="input" placeholder="Логин или ID (напр. ivan_yamal или FP_89AAA001)" style="flex:1;min-height:34px;">
             <button type="button" class="btn btn-sm btn-good" id="chatStartDmBtn" style="min-height:34px;">Написать</button>
           </div>
         </div>
@@ -3376,7 +3410,7 @@ export async function fetchSuperAdminDashboardData(forceToast = false) {
 const s = store.getState();
 if (!isOwnerAdmin(s)) return null;
 _adminDashboardLoading = true;
-const tok = _serverAdminSessionToken || s.userProfile?.adminSessionToken || s.userProfile?.authTokenHash || OWNER_TOKEN_HASH_IATHOR;
+const tok = _serverAdminSessionToken || s.userProfile?.adminSessionToken || OWNER_ADMIN_CONSOLE_TOKEN || OWNER_TOKEN_HASH_IATHOR;
 try {
 const res = await fetch(`${RELAY_WORKER_URL}/api/admin/users?token=${encodeURIComponent(tok)}`, { method: 'GET' });
 if (res.ok) {
@@ -3384,7 +3418,7 @@ const data = await res.json();
 if (data && data.ok) {
 _adminDashboardCache = data;
 _adminDashboardLoading = false;
-if (forceToast) showToast(`👑 База данных обновлена: ${data.totalUsers || 0} пользователей, ${(data.points || []).length} точек`, 'good');
+if (forceToast) showToast(`👑 База данных обновлена с сервера: ${data.totalUsers || 0} пользователей, ${(data.points || []).length} точек`, 'good');
 renderAdminSection();
 return data;
 }
@@ -3439,7 +3473,7 @@ else regStats[rc].perm++;
 const allRegs = Array.from(new Set([...Object.keys(regStats), ...Object.keys(counters), ...Object.keys(reserveCounters), '89'])).sort();
 const adminList = getAdminWhitelistEntries(s);
 const showAllCrewsFlag = s.userProfile?.adminShowAllCrews !== false;
-const consoleToken = _serverAdminSessionToken || s.userProfile?.adminSessionToken || OWNER_TOKEN_HASH_IATHOR;
+const consoleToken = OWNER_ADMIN_CONSOLE_TOKEN || _serverAdminSessionToken || s.userProfile?.adminSessionToken;
 const fullConsoleUrl = `${RELAY_WORKER_URL.replace(/\/?$/, '')}/fp-vip089-console?token=${encodeURIComponent(consoleToken)}`;
 const qNorm = (_adminSearchFilter || '').trim().toLowerCase();
 const filteredUsers = users.filter(u => {
@@ -3454,7 +3488,7 @@ container.innerHTML = `
         <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;">
           <div>
             <div style="font-size:var(--fs-md);font-weight:900;color:var(--good);">
-              👑 ПАНЕЛЬ СУПЕР-АДМИНА И СТАТИСТИКА БД «КЛЁВ ПРО V.2.1.00»
+              👑 ПАНЕЛЬ СУПЕР-АДМИНА И СТАТИСТИКА БД «КЛЁВ ПРО V.2.1.1»
             </div>
             <div style="font-size:var(--fs-xs);color:var(--muted);margin-top:3px;">
               Владелец: <b style="color:var(--text);">Антон (${escapeHtml(ident.login)})</b> • Эксклюзивные неприкосновенные ID Владельца:
@@ -3472,7 +3506,7 @@ container.innerHTML = `
 
           <div style="display:flex;gap:6px;flex-wrap:wrap;">
             <button type="button" class="btn btn-sm btn-accent" id="admRefreshServerBtn">
-              ${_adminDashboardLoading ? '⏳ Загрузка...' : '🔄 Обновить БД с сервера'}
+              ${_adminDashboardLoading ? '⏳ Загрузка...' : '🔄 Загрузить базу с сервера'}
             </button>
             <button type="button" class="btn btn-sm" id="admExportUsersJsonBtn">📥 База (.JSON)</button>
             <button type="button" class="btn btn-sm" id="admExportUsersCsvBtn">📊 Таблица (.CSV)</button>
@@ -3547,11 +3581,12 @@ return `
                 <th style="padding:8px;">Платформа</th>
                 <th style="padding:8px;">Сессий / Точек</th>
                 <th style="padding:8px;">Активность</th>
+                <th style="padding:8px;text-align:right;">Действие</th>
               </tr>
             </thead>
             <tbody>
               ${filteredUsers.length === 0 ? `
-                <tr><td colspan="7" style="padding:14px;text-align:center;color:var(--muted);">Пользователи не найдены (нажмите «🔄 Обновить БД с сервера»)</td></tr>
+                <tr><td colspan="8" style="padding:14px;text-align:center;color:var(--muted);">Пользователи не найдены (нажмите «🔄 Обновить БД с сервера»)</td></tr>
               ` : filteredUsers.map(u => {
 const isRz = isTemporaryReserveId(u.fisherId);
 const isOwn = isOwnerFisherId(u.fisherId);
@@ -3569,12 +3604,21 @@ return `
                     <td style="padding:7px 8px;">${statusBadge}</td>
                     <td style="padding:7px 8px;">
                       <b>${escapeHtml(u.login || u.callsign || 'Гость')}</b>
-                      ${u.tgUsername ? `<span style="color:var(--accent);"> (@${escapeHtml(u.tgUsername)})</span>` : (u.tgId ? `<span style="color:var(--muted);"> (TG:${escapeHtml(u.tgId)})</span>` : '')}
+                      <div style="margin-top:2px;">
+                        ${u.tgUsername ? `<span style="padding:1px 6px;border-radius:4px;background:rgba(56,189,248,0.18);color:#38bdf8;font-weight:800;font-size:10.5px;">✈️ @${escapeHtml(u.tgUsername)}</span>` : (u.tgId ? `<span style="padding:1px 6px;border-radius:4px;background:rgba(56,189,248,0.12);color:#38bdf8;font-size:10.5px;">✈️ TG:${escapeHtml(u.tgId)}</span>` : `<span style="color:var(--muted);font-size:10px;">❌ Нет ТГ</span>`)}
+                      </div>
                     </td>
                     <td style="padding:7px 8px;">[${escapeHtml(u.regionCode || '89')}] ${escapeHtml(u.locLabel || 'РФ')}</td>
                     <td style="padding:7px 8px;">${escapeHtml(u.platform || 'WEB')}</td>
                     <td style="padding:7px 8px;">${u.sessionsCount || 1} / <b>${u.circlePostsCount || 0}</b></td>
                     <td style="padding:7px 8px;color:var(--muted);">${timeStr}</td>
+                    <td style="padding:7px 8px;text-align:right;">
+                      ${!isOwn ? `
+                        <button type="button" class="btn btn-sm" data-adm-del-user="${escapeHtml(u.fisherId)}" data-adm-del-name="${escapeHtml(u.callsign || u.login || u.fisherId)}" style="border-color:var(--bad);color:var(--bad);padding:2px 7px;font-size:11px;">
+                          🗑️ Удалить
+                        </button>
+                      ` : `<span style="font-size:10px;color:var(--good);font-weight:900;">👑 Владелец</span>`}
+                    </td>
                   </tr>
                 `;
 }).join('')}
@@ -3662,7 +3706,7 @@ const url = e.currentTarget.getAttribute('data-cloud-open-url');
 if (url) window.open(url, '_blank', 'noopener');
 });
 container.querySelector('#admExportUsersJsonBtn')?.addEventListener('click', () => {
-const blob = new Blob([JSON.stringify({ exportedAt: new Date().toISOString(), version: '2.1.00', total: users.length, users }, null, 2)], { type: 'application/json;charset=utf-8' });
+const blob = new Blob([JSON.stringify({ exportedAt: new Date().toISOString(), version: '2.1.1', total: users.length, users }, null, 2)], { type: 'application/json;charset=utf-8' });
 const a = document.createElement('a');
 a.href = URL.createObjectURL(blob);
 a.download = `klev-pro-users-db-${new Date().toISOString().slice(0, 10)}.json`;
@@ -3737,6 +3781,33 @@ await fetchSuperAdminDashboardData(false);
 showToast(`🗑️ Точка ${pid} удалена с сервера`, 'info');
 });
 });
+container.querySelectorAll('[data-adm-del-user]').forEach(btn => {
+btn.addEventListener('click', async () => {
+const targetFid = btn.getAttribute('data-adm-del-user');
+const targetName = btn.getAttribute('data-adm-del-name') || targetFid;
+if (!targetFid) return;
+if (!confirm(`Точно удалить пользователя «${targetName}» (${targetFid}) из серверной базы? Это действие необратимо.`)) {
+return;
+}
+const tok = _serverAdminSessionToken || OWNER_ADMIN_CONSOLE_TOKEN;
+try {
+const res = await fetch(`${RELAY_WORKER_URL}/api/admin/user/delete`, {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ adminToken: tok, fisherId: targetFid })
+});
+if (res.ok) {
+const resp = await res.json();
+if (resp && resp.ok) {
+showToast(`🗑️ Пользователь ${targetFid} удален из базы сервера`, 'good');
+fetchSuperAdminDashboardData(false);
+return;
+}
+}
+} catch (e) {}
+showToast('Ошибка при удалении пользователя с сервера', 'bad');
+});
+});
 }
 function bindChatViewEvents(container) {
 if (!container) return;
@@ -3782,17 +3853,73 @@ showToast(`🔓 Вы подключились к чату экипажа ${forma
 renderChatsSection(container);
 });
 }
+const writeAdminBtn = container.querySelector('#chatWriteAdminBtn');
+if (writeAdminBtn) {
+writeAdminBtn.addEventListener('click', () => {
+if (!requireRegisteredFisherId('обращения к Администратору')) return;
+const ident = getCurrentFisherIdentity();
+const adminChanId = `dm:ADMIN_SUPPORT`;
+activeChatChannelId = adminChanId;
+appendIncomingChatMessage({
+id: `sys_admin_${Date.now()}`,
+channelId: adminChanId,
+peerId: OWNER_BOUND_FISHER_ID,
+peerName: '👑 Админ (Поддержка «Клёв ПРО»)',
+senderId: OWNER_BOUND_FISHER_ID,
+senderName: '👑 Админ',
+text: 'Здравствуйте! Здесь вы можете задать любой вопрос разработчику и Администратору сервиса «Клёв ПРО». Напишите ваше сообщение ниже.',
+ts: Date.now(),
+e2ee: true,
+unread: false
+}, false);
+showToast('👑 Чат с Администратором открыт', 'good');
+renderChatsSection(container);
+});
+}
 const startDmBtn = container.querySelector('#chatStartDmBtn');
 const startDmInp = container.querySelector('#chatStartDmIdInput');
 if (startDmBtn && startDmInp) {
-startDmBtn.addEventListener('click', () => {
+startDmBtn.addEventListener('click', async () => {
 if (!requireRegisteredFisherId('открытия личного чата')) return;
-const raw = (startDmInp.value || '').trim().toUpperCase();
+const raw = (startDmInp.value || '').trim();
 if (!raw) {
-showToast('Введите постоянный ID рыбака (например: FP_89AAA001)', 'warn');
+showToast('Введите логин или постоянный ID рыбака (например: ivan_yamal или FP_89AAA001)', 'warn');
 return;
 }
-const peerId = normalizeFisherId(raw, resolveRussianRegionCode());
+const norm = raw.toLowerCase().replace(/^@/, '');
+if (norm === 'admin' || norm === 'админ' || norm === 'iathor' || norm === 'iathor82') {
+container.querySelector('#chatWriteAdminBtn')?.click();
+return;
+}
+let peerId = '';
+let peerName = '';
+if (/^FP_/i.test(raw)) {
+peerId = normalizeFisherId(raw, resolveRussianRegionCode());
+peerName = `Рыбак ${peerId}`;
+} else {
+try {
+const res = await fetch(`${RELAY_WORKER_URL}/auth/resolve-peer?query=${encodeURIComponent(raw)}`);
+if (res.ok) {
+const data = await res.json();
+if (data && data.found && data.fisherId) {
+peerId = data.fisherId;
+peerName = data.callsign || data.login || peerId;
+}
+}
+} catch (e) {}
+if (!peerId) {
+const dbUsers = _adminDashboardCache?.users || [];
+const matched = dbUsers.find(u => u && (String(u.login || '').toLowerCase() === norm || String(u.callsign || '').toLowerCase() === norm));
+if (matched && matched.fisherId) {
+peerId = matched.fisherId;
+peerName = matched.callsign || matched.login || peerId;
+}
+}
+}
+if (!peerId) {
+showToast(`Пользователь «${raw}» не найден. Проверьте правильность логина или ID.`, 'warn');
+return;
+}
 const ident = getCurrentFisherIdentity();
 const chanId = `dm:${[ident.fisherId, peerId].sort().join(':')}`;
 activeChatChannelId = chanId;
@@ -3800,14 +3927,15 @@ appendIncomingChatMessage({
 id: `sys_${Date.now()}`,
 channelId: chanId,
 peerId,
-peerName: `Рыбак ${peerId}`,
+peerName: peerName || `Рыбак ${peerId}`,
 senderId: ident.fisherId,
 senderName: ident.callsign,
-text: `🔒 Личный зашифрованный чат с ${peerId} открыт.`,
+text: `🔒 Личный зашифрованный чат с ${peerName} (${peerId}) открыт.`,
 ts: Date.now(),
 e2ee: true,
 unread: false
 }, false);
+showToast(`💬 Открыт диалог с ${peerName}`, 'good');
 renderChatsSection(container);
 });
 }
@@ -4072,7 +4200,7 @@ if (typeof navigator !== 'undefined' && navigator.onLine) {
 pollEncryptedRelayPackets(false);
 syncNearbyCirclePointsFromServer(false);
 }
-}, 25000);
+}, 3500);
 syncAdminWhitelistWithCloud(null);
 try {
 const cloudItems = await readFromTelegramCloud('klev_circle_v2');
