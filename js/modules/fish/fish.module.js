@@ -1,14 +1,14 @@
-import { RU } from '../../i18n/ru.js?v=2.1.00';
-import { events } from '../../core/events.js?v=2.1.00';
-import { store } from '../../core/store.js?v=2.1.00';
-import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.1.00';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.1.00';
-import { RUSSIA_CITIES, findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.1.00';
-import { FISH_DB } from '../../data/species.js?v=2.1.00';
-import { renderFishVisual, renderFiveFish } from '../../ui/svg.js?v=2.1.00';
-import { createPill, showToast, openModal, closeModal, openFishLightbox } from '../../ui/components.js?v=2.1.00';
-import { setLocation, detectUserPosition } from '../geo/geo.module.js?v=2.1.00';
-import { installShortcut, isApkOrTmaContainer, isAppInstalledOrShortcutPresent } from '../../core/pwa.js?v=2.1.00';
+import { RU } from '../../i18n/ru.js?v=2.1.1';
+import { events } from '../../core/events.js?v=2.1.1';
+import { store } from '../../core/store.js?v=2.1.1';
+import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.1.1';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.1.1';
+import { RUSSIA_CITIES, findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.1.1';
+import { FISH_DB } from '../../data/species.js?v=2.1.1';
+import { renderFishVisual, renderFiveFish } from '../../ui/svg.js?v=2.1.1';
+import { createPill, showToast, openModal, closeModal, openFishLightbox } from '../../ui/components.js?v=2.1.1';
+import { setLocation, detectUserPosition } from '../geo/geo.module.js?v=2.1.1';
+import { installShortcut, isApkOrTmaContainer, isAppInstalledOrShortcutPresent } from '../../core/pwa.js?v=2.1.1';
 import {
 openAuthAndBackupModal,
 openNotificationsModal,
@@ -18,10 +18,10 @@ isUserAdmin,
 syncCurrentProfileToCloudIfLoggedIn,
 renderSettingsZoneTabsHtml,
 bindSettingsZoneTabs
-} from '../circle/circle.module.js?v=2.1.00';
-import { fetchWeather } from '../weather/weather.module.js?v=2.1.00';
-import { checkForReleaseUpdate } from '../../core/updater.js?v=2.1.00';
-import { calcDayBest } from '../forecast/forecast.module.js?v=2.1.00';
+} from '../circle/circle.module.js?v=2.1.1';
+import { fetchWeather } from '../weather/weather.module.js?v=2.1.1';
+import { checkForReleaseUpdate } from '../../core/updater.js?v=2.1.1';
+import { calcDayBest } from '../forecast/forecast.module.js?v=2.1.1';
 const REGIONAL_SIGNATURE_SPECIES = {
 arctic_ob_taz: ['pike', 'perch', 'dace', 'peled', 'chir', 'pizhyan', 'ide', 'roach', 'crucian', 'burbot', 'grayling', 'tugun', 'cisco', 'ruffe', 'smelt'],
 yenisei_lena: ['pike', 'perch', 'grayling', 'lenok', 'dace', 'peled', 'chir', 'pizhyan', 'tugun', 'valek', 'ide', 'roach', 'crucian', 'burbot', 'char'],
