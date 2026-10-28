@@ -1,12 +1,12 @@
-import { MAP_LAYERS, getCompatibleMethods } from '../../core/config.js?v=2.1.00';
-import { events } from '../../core/events.js?v=2.1.00';
-import { storage, safeJsonParse } from '../../core/storage.js?v=2.1.00';
-import { store } from '../../core/store.js?v=2.1.00';
-import { fetchWithTimeout } from '../../core/http.js?v=2.1.00';
-import { installShortcut, syncInstallButtons } from '../../core/pwa.js?v=2.1.00';
-import { triggerHaptic } from '../../core/telegram.js?v=2.1.00';
-import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.1.00';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.1.00';
+import { MAP_LAYERS, getCompatibleMethods } from '../../core/config.js?v=2.1.1';
+import { events } from '../../core/events.js?v=2.1.1';
+import { storage, safeJsonParse } from '../../core/storage.js?v=2.1.1';
+import { store } from '../../core/store.js?v=2.1.1';
+import { fetchWithTimeout } from '../../core/http.js?v=2.1.1';
+import { installShortcut, syncInstallButtons } from '../../core/pwa.js?v=2.1.1';
+import { triggerHaptic } from '../../core/telegram.js?v=2.1.1';
+import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.1.1';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.1.1';
 import {
 RUSSIA_CITIES,
 RUSSIA_WATERS,
@@ -14,12 +14,12 @@ findNearestRussianSettlement,
 getNearestRussianSettlements,
 getNearestRussianWaters,
 getWaterTypeShortTag
-} from '../../data/russia-waters.js?v=2.1.00';
-import { FISH_DB } from '../../data/species.js?v=2.1.00';
-import { createPill, showToast } from '../../ui/components.js?v=2.1.00';
-import { fetchWeather } from '../weather/weather.module.js?v=2.1.00';
-import { calcDayBest } from '../forecast/forecast.module.js?v=2.1.00';
-import { computeHexPolygonForCircle, getEffectiveCircleRadiusKm, canUserAccessCrewItem, getCurrentFisherIdentity, isCircleItemMine, isCircleItemHidden } from '../circle/circle.module.js?v=2.1.00';
+} from '../../data/russia-waters.js?v=2.1.1';
+import { FISH_DB } from '../../data/species.js?v=2.1.1';
+import { createPill, showToast } from '../../ui/components.js?v=2.1.1';
+import { fetchWeather } from '../weather/weather.module.js?v=2.1.1';
+import { calcDayBest } from '../forecast/forecast.module.js?v=2.1.1';
+import { computeHexPolygonForCircle, getEffectiveCircleRadiusKm, canUserAccessCrewItem, getCurrentFisherIdentity, isCircleItemMine, isCircleItemHidden } from '../circle/circle.module.js?v=2.1.1';
 let mapInstance = null;
 let mapMarker = null;
 let scoutMarker = null;
