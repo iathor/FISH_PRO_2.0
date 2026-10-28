@@ -1,17 +1,17 @@
-import { getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.1.00';
-import { RU } from '../../i18n/ru.js?v=2.1.00';
-import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.1.00';
-import { events } from '../../core/events.js?v=2.1.00';
-import { storage } from '../../core/storage.js?v=2.1.00';
-import { store } from '../../core/store.js?v=2.1.00';
-import { formatLocalYYYYMMDD, fmtDeltaPress, fmtHM } from '../../core/format.js?v=2.1.00';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.1.00';
-import { FISH_DB } from '../../data/species.js?v=2.1.00';
-import { renderFiveFish } from '../../ui/svg.js?v=2.1.00';
-import { createPill, showToast, openModal } from '../../ui/components.js?v=2.1.00';
-import { computeIceSafetyIndex } from '../weather/weather.module.js?v=2.1.00';
-import { evaluateCircleFieldConfirmation, requireRegisteredFisherId } from '../circle/circle.module.js?v=2.1.00';
-import { isTelegramWebApp, getTelegramUser, shareToTelegramChat, openBotChatInTelegram, buildForecastShareUrls, TELEGRAM_BOT_USERNAME } from '../../core/telegram.js?v=2.1.00';
+import { getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.1.1';
+import { RU } from '../../i18n/ru.js?v=2.1.1';
+import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.1.1';
+import { events } from '../../core/events.js?v=2.1.1';
+import { storage } from '../../core/storage.js?v=2.1.1';
+import { store } from '../../core/store.js?v=2.1.1';
+import { formatLocalYYYYMMDD, fmtDeltaPress, fmtHM } from '../../core/format.js?v=2.1.1';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.1.1';
+import { FISH_DB } from '../../data/species.js?v=2.1.1';
+import { renderFiveFish } from '../../ui/svg.js?v=2.1.1';
+import { createPill, showToast, openModal } from '../../ui/components.js?v=2.1.1';
+import { computeIceSafetyIndex } from '../weather/weather.module.js?v=2.1.1';
+import { evaluateCircleFieldConfirmation, requireRegisteredFisherId } from '../circle/circle.module.js?v=2.1.1';
+import { isTelegramWebApp, getTelegramUser, shareToTelegramChat, openBotChatInTelegram, buildForecastShareUrls, TELEGRAM_BOT_USERNAME } from '../../core/telegram.js?v=2.1.1';
 const RIVER_ENTERING_SPECIES = {
 smelt: { runMonths: [12, 1, 2, 3, 4, 5], reason: 'весенне-зимний нерестовый и кормовой ход из заливов в устья рек' },
 navaga: { runMonths: [11, 12, 1, 2, 3], reason: 'зимний приливной и преднерестовый заход в устья северных и дальневосточных рек' },
