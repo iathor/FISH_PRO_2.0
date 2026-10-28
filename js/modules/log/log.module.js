@@ -1,15 +1,15 @@
-import { isSpeciesInGeoRange } from '../../data/basins.js?v=2.1.00';
-import { RU } from '../../i18n/ru.js?v=2.1.00';
-import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.1.00';
-import { events } from '../../core/events.js?v=2.1.00';
-import { storage } from '../../core/storage.js?v=2.1.00';
-import { store } from '../../core/store.js?v=2.1.00';
-import { formatLocalYYYYMMDD, fmtDeltaPress } from '../../core/format.js?v=2.1.00';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.1.00';
-import { FISH_DB } from '../../data/species.js?v=2.1.00';
-import { escapeHtml, createPill, showToast, openModal, closeModal } from '../../ui/components.js?v=2.1.00';
-import { computeMoon } from '../weather/weather.module.js?v=2.1.00';
-import { calcHourly } from '../forecast/forecast.module.js?v=2.1.00';
+import { isSpeciesInGeoRange } from '../../data/basins.js?v=2.1.1';
+import { RU } from '../../i18n/ru.js?v=2.1.1';
+import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.1.1';
+import { events } from '../../core/events.js?v=2.1.1';
+import { storage } from '../../core/storage.js?v=2.1.1';
+import { store } from '../../core/store.js?v=2.1.1';
+import { formatLocalYYYYMMDD, fmtDeltaPress } from '../../core/format.js?v=2.1.1';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.1.1';
+import { FISH_DB } from '../../data/species.js?v=2.1.1';
+import { escapeHtml, createPill, showToast, openModal, closeModal } from '../../ui/components.js?v=2.1.1';
+import { computeMoon } from '../weather/weather.module.js?v=2.1.1';
+import { calcHourly } from '../forecast/forecast.module.js?v=2.1.1';
 let currentFilter = { fishId: 'all', cond: 'all' };
 const SPECIES_MAX_WEIGHT_KG = {
 bleak: 0.25, gudgeon: 0.30, tugun: 0.25, smelt: 0.45, vendace: 0.8, cisco: 1.2,
