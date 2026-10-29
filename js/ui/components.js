@@ -306,17 +306,17 @@ ${requireVerification ? `
 ✓ Конец текста Пользовательского соглашения «Клёв ПРО 2.0»
 </div>
 </div>
-<div style="display:flex;gap:8px;flex-wrap:wrap;padding-top:4px;">
-<button type="button" class="btn" id="uaCancelCloseBtn" style="flex:1;min-width:110px;min-height:40px;">
+<div style="display:grid;grid-template-columns:minmax(100px,1fr) minmax(150px,1.6fr);gap:8px;padding-top:4px;width:100%;">
+<button type="button" class="btn btn-sm" id="uaCancelCloseBtn" style="width:100%;min-height:42px;padding:6px 10px;font-size:13px;font-weight:800;">
 ✕ Закрыть
 </button>
 ${requireVerification ? `
-<button type="button" class="btn" id="uaAcceptConfirmBtn" disabled style="flex:2;min-width:210px;min-height:40px;font-weight:800;opacity:0.55;cursor:not-allowed;">
-⏳ Прочитайте до конца (${secondsLeft} сек.)
+<button type="button" class="btn btn-sm" id="uaAcceptConfirmBtn" disabled style="width:100%;min-height:42px;padding:6px 10px;font-size:12.5px;font-weight:800;line-height:1.2;white-space:normal;text-align:center;opacity:0.55;cursor:not-allowed;">
+⏳ Прочитайте (${secondsLeft} с)
 </button>
 ` : `
-<button type="button" class="btn btn-good" id="uaAcceptConfirmBtn" style="flex:2;min-width:180px;min-height:40px;font-weight:800;">
-✅ Понятно (${isUserAgreementAccepted() ? 'Соглашение принято' : 'Принять соглашение'})
+<button type="button" class="btn btn-sm btn-good" id="uaAcceptConfirmBtn" style="width:100%;min-height:42px;padding:6px 10px;font-size:13px;font-weight:800;line-height:1.2;white-space:normal;text-align:center;">
+✓ ${isUserAgreementAccepted() ? 'Понятно (Принято)' : 'Принять соглашение'}
 </button>
 `}
 </div>
@@ -352,16 +352,16 @@ if (acceptBtn) {
 const unlocked = scrolledToBottom && secondsLeft <= 0;
 acceptBtn.disabled = !unlocked;
 if (unlocked) {
-acceptBtn.className = 'btn btn-good';
+acceptBtn.className = 'btn btn-sm btn-good';
 acceptBtn.style.opacity = '1';
 acceptBtn.style.cursor = 'pointer';
-acceptBtn.textContent = '✅ Принять соглашение и зарегистрироваться';
+acceptBtn.textContent = '✓ Принять и продолжить';
 } else if (!scrolledToBottom && secondsLeft > 0) {
-acceptBtn.textContent = `⏳ Пролистайте до конца (${secondsLeft} сек.)`;
+acceptBtn.textContent = `⏳ Листайте вниз (${secondsLeft} с)`;
 } else if (!scrolledToBottom) {
-acceptBtn.textContent = '📜 Пролистайте текст соглашения до самого конца ↓';
+acceptBtn.textContent = '📜 Пролистайте до конца ↓';
 } else {
-acceptBtn.textContent = `⏳ Ознакомление с текстом (${secondsLeft} сек.)...`;
+acceptBtn.textContent = `⏳ Чтение (${secondsLeft} с)...`;
 }
 }
 };

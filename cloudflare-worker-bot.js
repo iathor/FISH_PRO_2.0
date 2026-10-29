@@ -459,7 +459,7 @@ function upsertUserInRegistry(params = {}, env = null) {
   callsign: params.callsign || existing.callsign || (isOwner ? 'iAthor' : (params.login || 'Рыболов')),
   tgId: params.tgId || existing.tgId || '',
   tgUsername: params.tgUsername !== undefined ? params.tgUsername : (existing.tgUsername || ''),
-  regionCode: params.regionCode || existing.regionCode || fid.slice(3, 5) || '89',
+  regionCode: workerResolveRegionCode(params.regionCode || existing.regionCode || fid.slice(3, 5) || '89'),
   locLabel: params.locLabel || existing.locLabel || 'Водоём РФ',
   platform: params.platform || existing.platform || 'WEB',
   version: params.version || existing.version || WORKER_VERSION,
@@ -482,12 +482,7 @@ function upsertUserInRegistry(params = {}, env = null) {
  if (user.tgId) {
   tgToFisherIdMap.set(String(user.tgId), fid);
  }
- if (user.login) {
-  const normL = workerNormalizeLogin(user.login);
-  if (!loginToAuthKeyMap.has(normL)) {
-   loginToAuthKeyMap.set(normL, `AUTH_${normL}`);
-  }
- }
+ // loginToAuthKeyMap обновляется только реальным authKey (AUTH_<login>_<tokenHash>) при авторизации
  if (!isTemp) {
   reservedVanityIds.add(fid);
  }
@@ -3039,7 +3034,7 @@ async function d1SaveAuthProfile(env, authKey, loginNorm, fisherId, profileObj) 
   await d1.prepare(`
    INSERT INTO auth_profiles (auth_key, login_norm, fisher_id, payload, updated_at)
    VALUES (?, ?, ?, ?, ?)
-   ON CONFLICT(auth_key) DO UPDATE SET payload = excluded.payload, updated_at = excluded.updated_at
+   ON CONFLICT(auth_key) DO UPDATE SET login_norm = excluded.login_norm, fisher_id = excluded.fisher_id, payload = excluded.payload, updated_at = excluded.updated_at
   `).bind(
    authKey, loginNorm || '', fisherId || '', JSON.stringify(profileObj), Date.now()
   ).run();
@@ -3108,6 +3103,9 @@ async function ensurePersistentStateLoaded(env, forceReload = false) {
   try {
    const userRows = await d1.prepare('SELECT payload FROM users_registry ORDER BY last_seen DESC LIMIT 5000').all();
    if (userRows && Array.isArray(userRows.results)) {
+    const ownerBackup = usersRegistryStore.get(OWNER_FISHER_ID);
+    usersRegistryStore.clear();
+    if (ownerBackup) usersRegistryStore.set(OWNER_FISHER_ID, ownerBackup);
     for (const r of userRows.results) {
      const u = workerSafeJsonParse(r.payload, null);
      if (u && u.fisherId) {
@@ -3115,7 +3113,6 @@ async function ensurePersistentStateLoaded(env, forceReload = false) {
       if (!isTemporaryReserveId(u.fisherId)) reservedVanityIds.add(u.fisherId);
       if (u.deviceId && !isTemporaryReserveId(u.fisherId)) deviceToFisherIdMap.set(u.deviceId, u.fisherId);
       if (u.tgId) tgToFisherIdMap.set(String(u.tgId), u.fisherId);
-      if (u.login && !loginToAuthKeyMap.has(workerNormalizeLogin(u.login))) loginToAuthKeyMap.set(workerNormalizeLogin(u.login), `AUTH_${workerNormalizeLogin(u.login)}`);
      }
     }
    }
@@ -3125,11 +3122,31 @@ async function ensurePersistentStateLoaded(env, forceReload = false) {
     for (const r of profRows.results) {
      const p = workerSafeJsonParse(r.payload, null);
      if (p && r.auth_key) {
+      const effFid = r.fisher_id || p.fisherId || '';
+      if (effFid) p.fisherId = effFid;
       cloudAuthProfiles.set(r.auth_key, p);
-      if (r.login_norm) loginToAuthKeyMap.set(r.login_norm, r.auth_key);
-      if (r.fisher_id) {
-       fisherIdToAuthKeyMap.set(r.fisher_id, r.auth_key);
-       reservedVanityIds.add(r.fisher_id);
+      const effLoginNorm = r.login_norm || workerNormalizeLogin(p.login || '');
+      if (effLoginNorm) loginToAuthKeyMap.set(effLoginNorm, r.auth_key);
+      if (effFid) {
+       fisherIdToAuthKeyMap.set(effFid, r.auth_key);
+       reservedVanityIds.add(effFid);
+       if (!isTemporaryReserveId(effFid) && !usersRegistryStore.has(effFid)) {
+        const restoredRec = upsertUserInRegistry({
+         fisherId: effFid,
+         deviceId: p.deviceId || '',
+         login: p.login || effLoginNorm || '',
+         callsign: p.callsign || p.login || 'Рыболов',
+         tgId: p.tgLinkedId || '',
+         tgUsername: p.tgUsername || '',
+         regionCode: effFid.slice(3, 5) || workerResolveRegionCode(p.locAdmin1 || p.locLabel || '89'),
+         locLabel: p.locLabel || 'Новый Уренгой',
+         platform: 'WEB',
+         version: WORKER_VERSION,
+         lat: p.lat,
+         lon: p.lon
+        });
+        if (restoredRec) d1SaveUser(env, restoredRec).catch(() => {});
+       }
       }
      }
     }
@@ -3188,10 +3205,12 @@ function bindTelegramToFisherProfile(params = {}) {
  const loginClean = String(params.login || '').trim();
  const loginNorm = workerNormalizeLogin(loginClean);
  const unameNorm = workerNormalizeLogin(tgUsernameClean);
- const isOwner = (
+ const hasNonOwnerExplicitFid = Boolean(params.fisherId && !isOwnerFisherId(params.fisherId));
+ const hasNonOwnerExplicitLogin = Boolean(loginClean && !workerIsOwnerLogin(loginClean));
+ const isOwner = !hasNonOwnerExplicitFid && !hasNonOwnerExplicitLogin && (
   workerIsOwnerLogin(loginClean) ||
-  workerIsOwnerLogin(tgUsernameClean) ||
-  isOwnerFisherId(params.fisherId)
+  isOwnerFisherId(params.fisherId) ||
+  (!loginClean && !params.fisherId && workerIsOwnerLogin(tgUsernameClean))
  );
  const regCode = workerResolveRegionCode(params.regionCode || params.locLabel || '89');
  let fid = isOwner ? OWNER_FISHER_ID : workerNormalizeFisherId(params.fisherId || '', regCode);
@@ -3803,26 +3822,54 @@ export default {
      return new Response(JSON.stringify({ ok: false, error: 'Нельзя удалить Владельца (FP_89VIP089)' }), { status: 400, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
     }
     const exUser = usersRegistryStore.get(targetFid);
+    const exLoginNorm = exUser?.login ? workerNormalizeLogin(exUser.login) : '';
     usersRegistryStore.delete(targetFid);
     reservedVanityIds.delete(targetFid);
     if (exUser) {
      if (exUser.deviceId) deviceToFisherIdMap.delete(exUser.deviceId);
      if (exUser.tgId) tgToFisherIdMap.delete(String(exUser.tgId));
-     if (exUser.login) {
-      const normL = workerNormalizeLogin(exUser.login);
-      const aKey = loginToAuthKeyMap.get(normL);
-      if (aKey) {
-       loginToAuthKeyMap.delete(normL);
-       cloudAuthProfiles.delete(aKey);
-      }
+    }
+    for (const [devK, devFid] of deviceToFisherIdMap.entries()) {
+     if (devFid === targetFid) deviceToFisherIdMap.delete(devK);
+    }
+    for (const [tgK, tgFid] of tgToFisherIdMap.entries()) {
+     if (tgFid === targetFid) tgToFisherIdMap.delete(tgK);
+    }
+    const mappedAuthKey = fisherIdToAuthKeyMap.get(targetFid);
+    if (mappedAuthKey) cloudAuthProfiles.delete(mappedAuthKey);
+    fisherIdToAuthKeyMap.delete(targetFid);
+
+    const loginsToDelete = new Set();
+    if (exLoginNorm) loginsToDelete.add(exLoginNorm);
+    for (const [aKey, prof] of cloudAuthProfiles.entries()) {
+     if (!prof) continue;
+     const pFid = workerNormalizeFisherId(prof.fisherId || '', '89');
+     const pLogin = workerNormalizeLogin(prof.login || '');
+     if (pFid === targetFid || (exLoginNorm && pLogin === exLoginNorm)) {
+      cloudAuthProfiles.delete(aKey);
+      if (pLogin) loginsToDelete.add(pLogin);
      }
     }
-    fisherIdToAuthKeyMap.delete(targetFid);
+    for (const ln of loginsToDelete) {
+     const ak = loginToAuthKeyMap.get(ln);
+     if (ak) cloudAuthProfiles.delete(ak);
+     loginToAuthKeyMap.delete(ln);
+    }
+    for (const [ln, ak] of loginToAuthKeyMap.entries()) {
+     if (ak === mappedAuthKey || (exLoginNorm && ak.startsWith(`AUTH_${exLoginNorm}_`))) {
+      cloudAuthProfiles.delete(ak);
+      loginToAuthKeyMap.delete(ln);
+     }
+    }
+
     const d1Info = getD1(env);
     const d1 = d1Info?.db;
     if (d1) {
      await d1.prepare('DELETE FROM users_registry WHERE fisher_id = ?').bind(targetFid).run().catch(() => {});
      await d1.prepare('DELETE FROM auth_profiles WHERE fisher_id = ?').bind(targetFid).run().catch(() => {});
+     for (const ln of loginsToDelete) {
+      await d1.prepare('DELETE FROM auth_profiles WHERE login_norm = ?').bind(ln).run().catch(() => {});
+     }
      await d1.prepare('DELETE FROM circle_points WHERE fid = ?').bind(targetFid).run().catch(() => {});
     }
     await persistSystemMeta(env, ctx);
@@ -3926,7 +3973,7 @@ export default {
         if (!isTemporaryReserveId(u.fisherId)) reservedVanityIds.add(u.fisherId);
         if (u.deviceId && !isTemporaryReserveId(u.fisherId)) deviceToFisherIdMap.set(u.deviceId, u.fisherId);
         if (u.tgId) tgToFisherIdMap.set(String(u.tgId), u.fisherId);
-        if (u.login && !loginToAuthKeyMap.has(workerNormalizeLogin(u.login))) loginToAuthKeyMap.set(workerNormalizeLogin(u.login), `AUTH_${workerNormalizeLogin(u.login)}`);
+        
        }
       }
      }
@@ -4262,7 +4309,7 @@ function generateSyntheticWeatherJson(lat, lon) {
     let verifiedProf = null;
     if (reqLoginNorm && reqAuthToken.startsWith('KTOK_')) {
      const aKey = loginToAuthKeyMap.get(reqLoginNorm) || `AUTH_${reqLoginNorm}_${reqAuthToken}`;
-     const prof = await loadPersistedAuthProfile(env, aKey);
+     const prof = await loadPersistedAuthProfile(env, aKey, reqLoginNorm, reqCurId);
      if (prof && prof.authTokenHash && constantTimeEquals(reqAuthToken, prof.authTokenHash) && prof.fisherId && !isTemporaryReserveId(prof.fisherId)) {
       verifiedPermanentId = workerNormalizeFisherId(prof.fisherId, regCode);
       verifiedProf = prof;
@@ -4733,12 +4780,16 @@ function generateSyntheticWeatherJson(lat, lon) {
     if (ident.isOwner) {
      adminWhitelistStore.set(OWNER_FISHER_ID, { id: OWNER_FISHER_ID, label: 'iAthor • Антон (Владелец / Супер-Админ)', addedAt: '2026-10-27' });
     }
+    const resolvedRegCode = ident.isOwner
+     ? '89'
+     : (ident.fisherId.slice(3, 5) || workerResolveRegionCode(body.regionCode || incomingSnap.locAdmin1 || incomingSnap.locLabel || '89'));
     bindTelegramToFisherProfile({
      fisherId: ident.fisherId,
      deviceId: incomingSnap.deviceId || body.deviceId || '',
      login: ident.login,
-     tgId: mergedTgId,
-     tgUsername: mergedTgUser,
+     tgId: ident.isOwner ? mergedTgId : (workerIsOwnerLogin(mergedTgUser) ? '' : mergedTgId),
+     tgUsername: ident.isOwner ? mergedTgUser : (workerIsOwnerLogin(mergedTgUser) ? '' : mergedTgUser),
+     regionCode: resolvedRegCode,
      locLabel: incomingSnap.locLabel || 'Новый Уренгой'
     });
     const regRec = upsertUserInRegistry({
@@ -4746,9 +4797,9 @@ function generateSyntheticWeatherJson(lat, lon) {
      deviceId: incomingSnap.deviceId || body.deviceId || '',
      login: ident.login,
      callsign: merged.callsign,
-     tgId: mergedTgId,
-     tgUsername: mergedTgUser,
-     regionCode: body.regionCode || incomingSnap.locAdmin1 || '89',
+     tgId: ident.isOwner ? mergedTgId : (workerIsOwnerLogin(mergedTgUser) ? '' : mergedTgId),
+     tgUsername: ident.isOwner ? mergedTgUser : (workerIsOwnerLogin(mergedTgUser) ? '' : mergedTgUser),
+     regionCode: resolvedRegCode,
      locLabel: incomingSnap.locLabel || 'Новый Уренгой',
      platform: body.platform || 'WEB',
      version: body.version || WORKER_VERSION,
@@ -4876,14 +4927,17 @@ function generateSyntheticWeatherJson(lat, lon) {
     };
     delete merged.authShadow;
     await persistAuthProfile(env, ident.authKey, merged, ctx);
+    const resolvedSyncRegCode = ident.isOwner
+     ? '89'
+     : (ident.fisherId.slice(3, 5) || workerResolveRegionCode(body.regionCode || snap.locAdmin1 || snap.locLabel || '89'));
     const syncRec = upsertUserInRegistry({
      fisherId: ident.fisherId,
      deviceId: snap.deviceId || body.deviceId || '',
      login: ident.login,
      callsign: merged.callsign,
-     tgId: snap.tgLinkedId || '',
-     tgUsername: snap.tgUsername || '',
-     regionCode: body.regionCode || snap.locAdmin1 || '89',
+     tgId: ident.isOwner ? (snap.tgLinkedId || '') : (workerIsOwnerLogin(snap.tgUsername) ? '' : (snap.tgLinkedId || '')),
+     tgUsername: ident.isOwner ? (snap.tgUsername || '') : (workerIsOwnerLogin(snap.tgUsername) ? '' : (snap.tgUsername || '')),
+     regionCode: resolvedSyncRegCode,
      locLabel: snap.locLabel || 'Новый Уренгой',
      platform: body.platform || 'WEB',
      version: body.version || WORKER_VERSION,

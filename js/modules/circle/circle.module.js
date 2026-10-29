@@ -799,6 +799,8 @@ const srvReg = data.regionCode || regCode;
 let srvFid = normalizeFisherId(data.fisherId, srvReg);
 if (curIdent.isOwner) {
 srvFid = curIdent.fisherId;
+} else if (curIdent.isRegistered && !curIdent.isTemporaryReserve && isTemporaryReserveId(srvFid)) {
+srvFid = curIdent.fisherId;
 }
 store.dispatch({
 type: 'UPDATE_USER_PROFILE',
@@ -1198,9 +1200,15 @@ return { ok: false, error: creds.error || 'Укажите логин и паро
 }
 const tgUser = getTelegramUser();
 const prevUp = s.userProfile || {};
+const isSamePrevLogin = Boolean(prevUp.login && prevUp.login.toLowerCase() === creds.login.toLowerCase());
 let effectiveFisherId = creds.fisherId;
-if (!creds.isOwner && prevUp.login && prevUp.login.toLowerCase() === creds.login.toLowerCase() && prevUp.fisherId && !isTemporaryReserveId(prevUp.fisherId) && !isOwnerFisherId(prevUp.fisherId)) {
+if (!creds.isOwner && isSamePrevLogin && prevUp.fisherId && !isTemporaryReserveId(prevUp.fisherId) && !isOwnerFisherId(prevUp.fisherId)) {
 effectiveFisherId = normalizeFisherId(prevUp.fisherId, regCode);
+}
+const rawTgId = tgUser?.id || (isSamePrevLogin ? prevUp.tgLinkedId : '') || '';
+let rawTgUname = tgUser?.username || (isSamePrevLogin ? prevUp.tgUsername : '') || '';
+if (!creds.isOwner && isLoginOwnerMatch(rawTgUname)) {
+rawTgUname = '';
 }
 store.dispatch({
 type: 'UPDATE_USER_PROFILE',
@@ -1214,8 +1222,8 @@ authTokenHash: creds.authTokenHash,
 authShadow: '',
 ownerUnlocked: creds.isOwner ? true : false,
 adminShowAllCrews: creds.isOwner ? true : (prevUp.adminShowAllCrews !== false),
-tgLinkedId: tgUser?.id || prevUp.tgLinkedId || '',
-tgUsername: tgUser?.username || prevUp.tgUsername || ''
+tgLinkedId: rawTgId,
+tgUsername: rawTgUname
 }
 });
 if (creds.isOwner) {
@@ -3095,19 +3103,19 @@ ${ident.isRegistered
 </div>
 <div>
 <label style="display:block;font-size:var(--fs-xs);color:var(--muted);font-weight:700;margin-bottom:3px;">ПАРОЛЬ (ОТ 3 СИМВОЛОВ):</label>
-<div style="display:flex;gap:6px;align-items:center;">
-<input type="password" id="authPinInput" class="input" autocomplete="current-password" placeholder="${ident.isRegistered ? '•••••••• (введите пароль для синхронизации)' : 'Придумайте или введите ваш пароль...'}" style="flex:1;">
-<button type="button" class="btn btn-sm" id="authTogglePassVisBtn" title="Показать / скрыть пароль" style="min-height:40px;padding:0 10px;">👁️</button>
+<div style="display:flex;gap:6px;align-items:center;width:100%;">
+<input type="password" id="authPinInput" class="input" autocomplete="current-password" placeholder="${ident.isRegistered ? '•••••••• (пароль для синхронизации)' : 'Введите пароль (от 3 симв.)...'}" style="flex:1;min-width:0;font-size:13.5px;">
+<button type="button" class="btn btn-sm" id="authTogglePassVisBtn" title="Показать / скрыть пароль" style="min-height:40px;width:42px;min-width:42px;padding:0;flex-shrink:0;">👁️</button>
 </div>
 </div>
-<div style="display:flex;gap:8px;flex-wrap:wrap;">
-<button type="button" class="btn btn-accent" id="authSaveBtn" style="flex:2;min-width:190px;font-weight:800;">
+<div style="display:flex;flex-direction:column;gap:8px;width:100%;">
+<button type="button" class="btn btn-accent" id="authSaveBtn" style="width:100%;min-height:42px;padding:8px 12px;font-size:13.5px;font-weight:800;line-height:1.25;white-space:normal;text-align:center;">
 ${ident.isRegistered
-? `🔄 Синхронизировать профиль (${ident.fisherId})`
-: '🔑 Зарегистрироваться / Войти и получить постоянный ID'}
+? `🔄 Синхронизировать (${ident.fisherId})`
+: '🔑 Войти / Зарегистрировать ID'}
 </button>
 ${ident.isRegistered ? `
-<button type="button" class="btn btn-sm" id="authLogoutBtn" style="flex:1;min-width:110px;color:var(--bad);border-color:rgba(239,68,68,0.4);">
+<button type="button" class="btn btn-sm" id="authLogoutBtn" style="width:100%;min-height:38px;color:var(--bad);border-color:rgba(239,68,68,0.4);font-weight:800;">
 🚪 Выйти
 </button>
 ` : ''}
@@ -3235,13 +3243,13 @@ const executeAuthLoginOrRegister = async (rawLogin, rawPin) => {
 const saveBtn = bodyEl.querySelector('#authSaveBtn');
 if (saveBtn) {
 saveBtn.disabled = true;
-saveBtn.textContent = '⏳ Подключение к серверу и синхронизация ID...';
+saveBtn.textContent = '⏳ Синхронизация с сервером...';
 }
 const res = await authenticateAndSyncAccount(rawLogin, rawPin, 'login');
 if (!res.ok) {
 if (saveBtn) {
 saveBtn.disabled = false;
-saveBtn.textContent = '🔑 Зарегистрироваться / Войти и получить постоянный ID';
+saveBtn.textContent = '🔑 Войти / Зарегистрировать ID';
 }
 showToast(`❌ ${res.error || 'Ошибка входа'}`, 'bad');
 return;
@@ -3798,10 +3806,12 @@ ${activeOwnershipFilter === 'mine'
 `;
 bindCircleEvents(container);
 }
+let _lastAdminDashboardFetchTs = 0;
 export async function fetchSuperAdminDashboardData(forceToast = false) {
 const s = store.getState();
 if (!isOwnerAdmin(s)) return null;
 _adminDashboardLoading = true;
+_lastAdminDashboardFetchTs = Date.now();
 const tok = _serverAdminSessionToken || s.userProfile?.adminSessionToken || OWNER_ADMIN_CONSOLE_TOKEN || OWNER_TOKEN_HASH_IATHOR;
 try {
 const res = await workerFetch(`/api/admin/users?token=${encodeURIComponent(tok)}`, { method: 'GET' }, 6500, 1);
@@ -3842,7 +3852,7 @@ container.querySelector('#adminLockedSignInBtn')?.addEventListener('click', () =
 container.querySelector('#adminLockedBackBtn')?.addEventListener('click', () => router.navigate('forecast'));
 return;
 }
-if (!_adminDashboardCache && !_adminDashboardLoading) {
+if ((!_adminDashboardCache || (Date.now() - _lastAdminDashboardFetchTs > 2500)) && !_adminDashboardLoading) {
 fetchSuperAdminDashboardData(false);
 }
 const db = _adminDashboardCache || {};
