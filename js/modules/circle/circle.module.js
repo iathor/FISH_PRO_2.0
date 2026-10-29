@@ -10,16 +10,16 @@
  * - Закрытый режим Супер-Админа (только для Владельца + управляемая База Администраторов с синхронизацией).
  */
 
-import { events } from '../../core/events.js?v=2.1.3';
-import { store } from '../../core/store.js?v=2.1.3';
-import { storage, calcGeoDistanceKm, safeJsonParse } from '../../core/storage.js?v=2.1.3';
-import { router } from '../../core/router.js?v=2.1.3';
-import { getSeasonalBaitsForContext } from '../../core/config.js?v=2.1.3';
-import { detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.1.3';
-import { findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.1.3';
-import { WATER_PROFILES } from '../../data/waters.js?v=2.1.3';
-import { FISH_DB } from '../../data/species.js?v=2.1.3';
-import { escapeHtml, createPill, showToast, openModal, closeModal, copyFisherIdToClipboard, openConfirmDeleteModal, openUserAgreementModal, isUserAgreementAccepted } from '../../ui/components.js?v=2.1.3';
+import { events } from '../../core/events.js?v=2.2.0';
+import { store } from '../../core/store.js?v=2.2.0';
+import { storage, calcGeoDistanceKm, safeJsonParse } from '../../core/storage.js?v=2.2.0';
+import { router } from '../../core/router.js?v=2.2.0';
+import { getSeasonalBaitsForContext } from '../../core/config.js?v=2.2.0';
+import { detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.2.0';
+import { findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.2.0';
+import { WATER_PROFILES } from '../../data/waters.js?v=2.2.0';
+import { FISH_DB } from '../../data/species.js?v=2.2.0';
+import { escapeHtml, createPill, showToast, openModal, closeModal, copyFisherIdToClipboard, openConfirmDeleteModal, openUserAgreementModal, isUserAgreementAccepted } from '../../ui/components.js?v=2.2.0';
 import {
   RELAY_WORKER_URL,
   buildShareUrls,
@@ -32,9 +32,9 @@ import {
   syncToTelegramCloud,
   readFromTelegramCloud,
   triggerHaptic
-} from '../../core/telegram.js?v=2.1.3';
-import { setLocation } from '../geo/geo.module.js?v=2.1.3';
-import { calcDynamicRig } from '../forecast/forecast.module.js?v=2.1.3';
+} from '../../core/telegram.js?v=2.2.0';
+import { setLocation } from '../geo/geo.module.js?v=2.2.0';
+import { calcDynamicRig } from '../forecast/forecast.module.js?v=2.2.0';
 
 export const CREW_TTL_MS = 72 * 60 * 60 * 1000;
 export const CIRCLE_BLUR_RADIUS_KM = 5.0;
@@ -849,7 +849,7 @@ export async function ensureFisherIdentityInitialized(forceReallocateForRegion =
         tgId: ident.isRegistered ? (ident.tgLinkedId || '') : '',
         tgUsername: ident.isRegistered ? (ident.tgUsername || '') : '',
         platform: detectClientPlatformLabel(),
-        version: '2.1.3',
+        version: '2.2.0',
         lat: s.lat,
         lon: s.lon
       })
@@ -909,7 +909,7 @@ export async function publishCircleItemToServer(itemObj, packToken = '') {
         packToken,
         deviceId: ident.deviceId,
         platform: detectClientPlatformLabel(),
-        version: '2.1.3'
+        version: '2.2.0'
       })
     });
     return res.ok;
@@ -961,7 +961,7 @@ export async function syncNearbyCirclePointsFromServer(showFeedbackToast = false
       crewKeys: crewKeysParam,
       adminToken: adminTok,
       platform: detectClientPlatformLabel(),
-      version: '2.1.3',
+      version: '2.2.0',
       locLabel: s.locLabel || ''
     });
     const res = await workerFetch(`/api/circle/nearby?${qs.toString()}`, { method: 'GET' }, 5500, 1);
@@ -1253,7 +1253,7 @@ export async function authenticateAndSyncAccount(rawLogin, rawPassword, mode = '
         pinHash: creds.pinHash,
         regionCode: regCode,
         platform: detectClientPlatformLabel(),
-        version: '2.1.3',
+        version: '2.2.0',
         profileSnapshot: snapshot
       })
     });
@@ -1366,7 +1366,7 @@ export async function syncCurrentProfileToCloudIfLoggedIn() {
         pinHash: up.pinHash || '',
         regionCode: resolveRussianRegionCode(s),
         platform: detectClientPlatformLabel(),
-        version: '2.1.3',
+        version: '2.2.0',
         profileSnapshot: snapshot
       })
     });
@@ -4191,7 +4191,7 @@ export function renderAdminSection(customContainer = null) {
         <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;">
           <div>
             <div style="font-size:var(--fs-md);font-weight:900;color:var(--good);">
-              👑 ПАНЕЛЬ СУПЕР-АДМИНА И СТАТИСТИКА БД «КЛЁВ ПРО V.2.1.3»
+              👑 ПАНЕЛЬ СУПЕР-АДМИНА И СТАТИСТИКА БД «КЛЁВ ПРО V.2.2.0»
             </div>
             <div style="font-size:var(--fs-xs);color:var(--muted);margin-top:3px;">
               Владелец: <b style="color:var(--text);">Антон (${escapeHtml(ident.login)})</b> • Эксклюзивные неприкосновенные ID Владельца:
@@ -4228,7 +4228,7 @@ export function renderAdminSection(customContainer = null) {
             <div style="font-weight:900;color:var(--good);font-size:13px;">🟢 Cloudflare D1 База Данных: ПОДКЛЮЧЕНА (${escapeHtml(db.d1BindingName || 'DB')})</div>
             <div style="font-size:11px;color:var(--muted);margin-top:2px;">Все постоянные ID, реестр пользователей, чаты и точки Круга сохраняются в SQL-таблицах D1.</div>
           </div>
-          <span class="pill pill-good" style="font-size:11px;font-weight:800;">D1 Engine 2.1.3</span>
+          <span class="pill pill-good" style="font-size:11px;font-weight:800;">D1 Engine 2.2.0</span>
         </div>
       ` : `
         <div class="card" style="border:1.5px solid var(--warn);background:rgba(245,158,11,0.10);padding:10px 14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
@@ -4455,7 +4455,7 @@ function bindAdminSectionEvents(container, users) {
   });
 
   container.querySelector('#admExportUsersJsonBtn')?.addEventListener('click', () => {
-    const blob = new Blob([JSON.stringify({ exportedAt: new Date().toISOString(), version: '2.1.3', total: users.length, users }, null, 2)], { type: 'application/json;charset=utf-8' });
+    const blob = new Blob([JSON.stringify({ exportedAt: new Date().toISOString(), version: '2.2.0', total: users.length, users }, null, 2)], { type: 'application/json;charset=utf-8' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = `klev-pro-users-db-${new Date().toISOString().slice(0, 10)}.json`;
