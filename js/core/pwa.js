@@ -1,4 +1,4 @@
-import { showToast } from '../ui/components.js?v=2.1.21';
+import { showToast } from '../ui/components.js?v=2.3.0';
 export const PWA_INSTALLED_KEY = 'klev_pro_pwa_installed';
 let deferredInstallPrompt = null;
 export function generateFloatIconDataURL(size = 512) {
@@ -42,8 +42,8 @@ export function initDynamicTouchIcon() {
 try {
 const fav = document.getElementById('dynamicFavicon');
 const touch = document.getElementById('dynamicTouchIcon');
-if (fav) fav.href = 'icon-192.png?v=2.1.21';
-if (touch) touch.href = 'apple-touch-icon.png?v=2.1.21';
+if (fav) fav.href = 'icon-192.png?v=2.3.0';
+if (touch) touch.href = 'apple-touch-icon.png?v=2.3.0';
 } catch (e) {}
 }
 export function isApkOrTmaContainer() {
@@ -173,9 +173,19 @@ showToast('Кнопка установки скрыта (ярлык уже до�
 });
 }
 const iconEl = modal.querySelector('#modalIconPreview');
-if (iconEl) iconEl.src = 'icon-192.png?v=2.1.21';
+if (iconEl) iconEl.src = 'icon-192.png?v=2.3.0';
 const txtEl = modal.querySelector('#modalInstallText');
-if (txtEl) txtEl.innerHTML = htmlText;
+if (txtEl) {
+const safeHtml = String(htmlText || '')
+.replace(/&/g, '&amp;')
+.replace(/</g, '&lt;')
+.replace(/>/g, '&gt;')
+.replace(/"/g, '&quot;')
+.replace(/&lt;b&gt;/gi, '<b>')
+.replace(/&lt;\/b&gt;/gi, '</b>')
+.replace(/&lt;br\s*\/?&gt;/gi, '<br>');
+txtEl.innerHTML = safeHtml;
+}
 modal.style.display = 'flex';
 }
 export async function installShortcut() {

@@ -1,21 +1,21 @@
 {
   "appName": "Клёв ПРО 2.0",
   "packageName": "ru.klevpro.app",
-  "version": "2.1.21",
-  "versionCode": 21210,
-  "buildRevision": "2026.10.29-r181",
+  "version": "2.3.0",
+  "versionCode": 23000,
+  "buildRevision": "2026.10.29-r182",
   "releaseDate": "2026-10-29",
   "minAndroidVersion": "7.0",
   "minAndroidSdk": 24,
-  "apkFileName": "klev-pro-v2.1.21.apk",
-  "apkDownloadUrl": "https://klevpro.ru/apk/klev-pro-v2.1.21.apk",
-  "apkFallbackReleaseUrl": "https://github.com/thorantony82-create/klev-pro/releases/latest/download/klev-pro-v2.1.21.apk",
+  "apkFileName": "klev-pro-v2.3.0.apk",
+  "apkDownloadUrl": "https://klevpro.ru/apk/klev-pro-v2.3.0.apk",
+  "apkFallbackReleaseUrl": "https://github.com/thorantony82-create/klev-pro/releases/latest/download/klev-pro-v2.3.0.apk",
   "apkSizeMb": "37.8 МБ",
   "title": "Выпущена новая версия приложения Клёв ПРО 2.0.",
-  "whatsNewTitle": "Что изменилось в версии 2.1.21:",
+  "whatsNewTitle": "Что изменилось в версии 2.3.0:",
   "changelog": [
-    "Ускорена работа сервисов синхронизации профиля, точек Круга и чатов",
-    "Ускорена загрузка метеоданных и кэша карт водоёмов",
-    "Исправлены ошибки, устранены баги и повышена плавность работы интерфейса"
+    "Усилена защита профиля, чатов и точек Экипажа",
+    "Ускорена работа сервисов синхронизации и загрузки метеоданных",
+    "Исправлены ошибки, устранены баги и повышена плавность интерфейса"
   ]
 }

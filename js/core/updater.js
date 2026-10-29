@@ -1,9 +1,9 @@
-import { APP_VERSION, APP_REVISION, RELEASE_CACHE_KEY, CURRENT_RELEASE_INFO } from './config.js?v=2.1.21';
-import { showToast } from '../ui/components.js?v=2.1.21';
+import { APP_VERSION, APP_REVISION, RELEASE_CACHE_KEY, CURRENT_RELEASE_INFO } from './config.js?v=2.3.0';
+import { showToast } from '../ui/components.js?v=2.3.0';
 export const PUBLIC_SITE_ORIGIN = 'https://klevpro.ru';
 export const APK_MANIFEST_PATH = '/apk/apk-version.json';
-export const DEFAULT_APK_DOWNLOAD_URL = 'https://klevpro.ru/apk/klev-pro-v2.1.21.apk';
-export const APK_BANNER_DISMISSED_KEY = 'klev_pro_hide_apk_banner_v2.1.21';
+export const DEFAULT_APK_DOWNLOAD_URL = 'https://klevpro.ru/apk/klev-pro-v2.3.0.apk';
+export const APK_BANNER_DISMISSED_KEY = 'klev_pro_hide_apk_banner_v2.3.0';
 let pendingSwRegistration = null;
 let pendingReleaseInfo = null;
 let updateBannerShown = false;

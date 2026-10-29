@@ -1,9 +1,9 @@
-import { RU } from '../../i18n/ru.js?v=2.1.21';
-import { store } from '../../core/store.js?v=2.1.21';
-import { generateSpawnICS } from '../../core/format.js?v=2.1.21';
-import { BASIN_CONFIGS, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.1.21';
-import { FISH_DB } from '../../data/species.js?v=2.1.21';
-import { showToast } from '../../ui/components.js?v=2.1.21';
+import { RU } from '../../i18n/ru.js?v=2.3.0';
+import { store } from '../../core/store.js?v=2.3.0';
+import { generateSpawnICS } from '../../core/format.js?v=2.3.0';
+import { BASIN_CONFIGS, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.3.0';
+import { FISH_DB } from '../../data/species.js?v=2.3.0';
+import { showToast } from '../../ui/components.js?v=2.3.0';
 const COMPARE_COLORS = ['#10b981', '#38bdf8', '#a855f7'];
 export function getSpawnWindows(fishId, basinCode) {
 const fish = FISH_DB.find(f => f.id === fishId) || FISH_DB[0];

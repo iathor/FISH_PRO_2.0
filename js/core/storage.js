@@ -1,5 +1,5 @@
-import { STATE_CACHE_KEY, WEATHER_CACHE_KEY, WEATHER_TTL_MS } from './config.js?v=2.1.21';
-import { formatLocalYYYYMMDD } from './format.js?v=2.1.21';
+import { STATE_CACHE_KEY, WEATHER_CACHE_KEY, WEATHER_TTL_MS } from './config.js?v=2.3.0';
+import { formatLocalYYYYMMDD } from './format.js?v=2.3.0';
 const DB_NAME = 'KlevProDB_v2_1_1';
 export const CLEAN_SLATE_FLAG_KEY = 'klev_pro_clean_slate_v2_1_1_r4';
 export const CLEAN_SLATE_NOTICE_KEY = 'klev_pro_clean_slate_notice_v2_1_1_r4';
@@ -9,14 +9,14 @@ try {
 if (localStorage.getItem(CLEAN_SLATE_FLAG_KEY) === '1') {
 return false;
 }
-let wasOwnerLogged = false;
+let preservedUserProfile = null;
 try {
 const prevRaw = localStorage.getItem(STATE_CACHE_KEY);
 if (prevRaw) {
 const prevParsed = JSON.parse(prevRaw);
-const prevLogin = String(prevParsed?.userProfile?.login || prevParsed?.userProfile?.callsign || '').trim().toLowerCase();
-if (prevLogin === 'iathor' || prevLogin === 'iathor82' || prevParsed?.userProfile?.ownerUnlocked) {
-wasOwnerLogged = true;
+if (prevParsed && prevParsed.userProfile && prevParsed.userProfile.login) {
+preservedUserProfile = { ...prevParsed.userProfile };
+delete preservedUserProfile.authShadow;
 }
 }
 } catch (_) {}
@@ -33,10 +33,10 @@ try { localStorage.removeItem(k); } catch (e) {}
 if (typeof indexedDB !== 'undefined' && typeof indexedDB.deleteDatabase === 'function') {
 try { indexedDB.deleteDatabase('KlevProDB_v2'); } catch (e) {}
 }
-if (wasOwnerLogged) {
+if (preservedUserProfile) {
 try {
 localStorage.setItem(STATE_CACHE_KEY, JSON.stringify({
-appMode: 'pro',
+appMode: preservedUserProfile.appMode || 'angler',
 hasUserLocation: false,
 lat: 66.0833,
 lon: 76.6800,
@@ -44,18 +44,7 @@ locCountry: 'Россия',
 locAdmin1: 'Ямало-Ненецкий АО',
 locAdmin2: 'Новый Уренгой',
 locLabel: 'Новый Уренгой',
-userProfile: {
-onboarded: true,
-appMode: 'pro',
-login: 'iAthor',
-callsign: 'iAthor',
-fisherId: 'FP_89VIP089',
-pinHash: 'owner_iathor_vip089',
-authTokenHash: 'KTOK_6AE3BD91_21C90CF5',
-ownerUnlocked: true,
-isAdmin: true,
-adminShowAllCrews: true
-}
+userProfile: preservedUserProfile
 }));
 } catch (_) {}
 }
@@ -425,6 +414,10 @@ deviceId: this.getDeviceId(),
 userProfile: (() => {
 const up = { ...(state?.userProfile || {}) };
 delete up.authShadow;
+delete up.authTokenHash;
+delete up.secureTokenHash;
+delete up.pinHash;
+delete up.adminSessionToken;
 return up;
 })(),
 favorites: state?.favorites || [],

@@ -1,13 +1,13 @@
-import { events } from '../../core/events.js?v=2.1.21';
-import { store } from '../../core/store.js?v=2.1.21';
-import { storage, calcGeoDistanceKm, safeJsonParse } from '../../core/storage.js?v=2.1.21';
-import { router } from '../../core/router.js?v=2.1.21';
-import { getSeasonalBaitsForContext } from '../../core/config.js?v=2.1.21';
-import { detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.1.21';
-import { findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.1.21';
-import { WATER_PROFILES } from '../../data/waters.js?v=2.1.21';
-import { FISH_DB } from '../../data/species.js?v=2.1.21';
-import { escapeHtml, createPill, showToast, openModal, closeModal, copyFisherIdToClipboard, openConfirmDeleteModal, openUserAgreementModal, isUserAgreementAccepted } from '../../ui/components.js?v=2.1.21';
+import { events } from '../../core/events.js?v=2.3.0';
+import { store } from '../../core/store.js?v=2.3.0';
+import { storage, calcGeoDistanceKm, safeJsonParse } from '../../core/storage.js?v=2.3.0';
+import { router } from '../../core/router.js?v=2.3.0';
+import { getSeasonalBaitsForContext } from '../../core/config.js?v=2.3.0';
+import { detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.3.0';
+import { findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.3.0';
+import { WATER_PROFILES } from '../../data/waters.js?v=2.3.0';
+import { FISH_DB } from '../../data/species.js?v=2.3.0';
+import { escapeHtml, createPill, showToast, openModal, closeModal, copyFisherIdToClipboard, openConfirmDeleteModal, openUserAgreementModal, isUserAgreementAccepted } from '../../ui/components.js?v=2.3.0';
 import {
 RELAY_WORKER_URL,
 buildShareUrls,
@@ -20,9 +20,9 @@ openBotChatInTelegram,
 syncToTelegramCloud,
 readFromTelegramCloud,
 triggerHaptic
-} from '../../core/telegram.js?v=2.1.21';
-import { setLocation } from '../geo/geo.module.js?v=2.1.21';
-import { calcDynamicRig } from '../forecast/forecast.module.js?v=2.1.21';
+} from '../../core/telegram.js?v=2.3.0';
+import { setLocation } from '../geo/geo.module.js?v=2.3.0';
+import { calcDynamicRig } from '../forecast/forecast.module.js?v=2.3.0';
 export const CREW_TTL_MS = 72 * 60 * 60 * 1000;
 export const CIRCLE_BLUR_RADIUS_KM = 5.0;
 export const CIRCLE_OLDER_BLUR_RADIUS_KM = 10.0;
@@ -489,12 +489,9 @@ const isOwnerLogin = isLoginOwnerMatch(loginClean);
 const passNorm = passClean.toLowerCase();
 const passNormNoStar = passNorm.replace(/\*+$/, '');
 const isOwnerPassHash = (
-passClean === 'FISherman1982*' ||
-passNorm === 'fisherman1982*' ||
-passNormNoStar === 'fisherman1982' ||
 fnv1a32(`pin::${passClean}`).toString(16) === '5c4be2a9' ||
 fnv1a32(`pin::${passNorm}`).toString(16) === '17b24989' ||
-fnv1a32(`pin::${passNormNoStar}`).toString(16) === fnv1a32('pin::fisherman1982').toString(16) ||
+fnv1a32(`pin::${passNormNoStar}`).toString(16) === '76722d9b' ||
 computedToken === OWNER_TOKEN_HASH_IATHOR ||
 computedToken === OWNER_TOKEN_HASH_IATHOR82 ||
 computedTokenLower === OWNER_TOKEN_HASH_IATHOR
@@ -784,7 +781,7 @@ callsign: ident.callsign || 'Гость (Резерв)',
 tgId: ident.isRegistered ? (ident.tgLinkedId || '') : '',
 tgUsername: ident.isRegistered ? (ident.tgUsername || '') : '',
 platform: detectClientPlatformLabel(),
-version: '2.1.21',
+version: '2.3.0',
 lat: s.lat,
 lon: s.lon
 })
@@ -851,8 +848,10 @@ body: JSON.stringify({
 item: itemPayload,
 packToken: packToken || itemObj.packToken || '',
 deviceId: ident.deviceId,
+authTokenHash: s.userProfile?.authTokenHash || '',
+adminToken: _serverAdminSessionToken || s.userProfile?.adminSessionToken || '',
 platform: detectClientPlatformLabel(),
-version: '2.1.21'
+version: '2.3.0'
 })
 }, 4800, 2);
 if (res && res.ok) {
@@ -935,6 +934,7 @@ body: JSON.stringify({
 id: itemId,
 fid: ident.fisherId,
 deviceId: ident.deviceId,
+authTokenHash: s.userProfile?.authTokenHash || '',
 adminToken: _serverAdminSessionToken || s.userProfile?.adminSessionToken || ''
 })
 }, 4800, 2);
@@ -961,10 +961,11 @@ lon: String(Number(s.lon || 76.6333).toFixed(4)),
 radius: String(radiusKm),
 fid: ident.fisherId,
 deviceId: ident.deviceId,
+authTokenHash: s.userProfile?.authTokenHash || '',
 crewKeys: crewKeysParam,
 adminToken: adminTok,
 platform: detectClientPlatformLabel(),
-version: '2.1.21',
+version: '2.3.0',
 locLabel: s.locLabel || ''
 });
 const res = await workerFetch(`/api/circle/nearby?${qs.toString()}`, { method: 'GET' }, 4800, 1);
@@ -1252,7 +1253,7 @@ authTokenHash: creds.authTokenHash,
 pinHash: creds.pinHash,
 regionCode: regCode,
 platform: detectClientPlatformLabel(),
-version: '2.1.21',
+version: '2.3.0',
 profileSnapshot: snapshot
 })
 });
@@ -1358,7 +1359,7 @@ authTokenHash: tokenHash,
 pinHash: up.pinHash || '',
 regionCode: resolveRussianRegionCode(s),
 platform: detectClientPlatformLabel(),
-version: '2.1.21',
+version: '2.3.0',
 profileSnapshot: snapshot
 })
 });
@@ -2167,9 +2168,13 @@ return true;
 export async function pushEncryptedRelayPacket({ channelId, cipherPayload, kind = 'chat', regionGrid = '', crewKey = '', peerId = '' }, fromOutbox = false) {
 const ident = getCurrentFisherIdentity();
 if (!ident.isRegistered || ident.isTemporaryReserve) return false;
+const sNow = store.getState();
 const pktPayload = {
 channelId: String(channelId || '').toUpperCase(),
 senderId: ident.fisherId,
+deviceId: ident.deviceId,
+authTokenHash: sNow?.userProfile?.authTokenHash || '',
+adminToken: _serverAdminSessionToken || sNow?.userProfile?.adminSessionToken || '',
 cipherPayload,
 kind,
 crewKey: String(crewKey || '').toUpperCase(),
@@ -2213,7 +2218,10 @@ if (ident.isOwner) {
 dmBoxes.push(`DM_${OWNER_BOUND_FISHER_ID}`, `DM_${OWNER_SECONDARY_FISHER_ID}`);
 }
 const boxes = Array.from(new Set([...dmBoxes, gridKey, 'SOS_ALL', ...crewBoxes])).slice(0, 24);
-const url = `${RELAY_WORKER_URL}/relay/pull?boxes=${encodeURIComponent(boxes.join(','))}&since=${lastRelayPullTs}&viewer=${encodeURIComponent(ident.fisherId)}`;
+const authTokParam = encodeURIComponent(s.userProfile?.authTokenHash || '');
+const admTokParam = encodeURIComponent(_serverAdminSessionToken || s.userProfile?.adminSessionToken || '');
+const devIdParam = encodeURIComponent(ident.deviceId || '');
+const url = `${RELAY_WORKER_URL}/relay/pull?boxes=${encodeURIComponent(boxes.join(','))}&since=${lastRelayPullTs}&viewer=${encodeURIComponent(ident.fisherId)}&deviceId=${devIdParam}&authTokenHash=${authTokParam}&adminToken=${admTokParam}`;
 const res = await workerFetch(url, { method: 'GET' }, 4500, 0);
 if (!res.ok) {
 if (manual) showToast('Локальный режим чатов активен (транзитный ретранслятор офлайн)', 'info');
@@ -3895,7 +3903,7 @@ container.innerHTML = `
 <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;">
 <div>
 <div style="font-size:var(--fs-md);font-weight:900;color:var(--good);">
-👑 ПАНЕЛЬ СУПЕР-АДМИНА И СТАТИСТИКА БД «КЛЁВ ПРО V.2.1.21»
+👑 ПАНЕЛЬ СУПЕР-АДМИНА И СТАТИСТИКА БД «КЛЁВ ПРО V.2.3.0»
 </div>
 <div style="font-size:var(--fs-xs);color:var(--muted);margin-top:3px;">
 Владелец: <b style="color:var(--text);">Антон (${escapeHtml(ident.login)})</b> • Эксклюзивные неприкосновенные ID Владельца:
@@ -3930,7 +3938,7 @@ ${db.d1Status === 'CONNECTED' ? `
 <div style="font-weight:900;color:var(--good);font-size:13px;">🟢 Cloudflare D1 База Данных: ПОДКЛЮЧЕНА (${escapeHtml(db.d1BindingName || 'DB')})</div>
 <div style="font-size:11px;color:var(--muted);margin-top:2px;">Все постоянные ID, реестр пользователей, чаты и точки Круга сохраняются в SQL-таблицах D1.</div>
 </div>
-<span class="pill pill-good" style="font-size:11px;font-weight:800;">D1 Engine 2.1.21</span>
+<span class="pill pill-good" style="font-size:11px;font-weight:800;">D1 Engine 2.3.0</span>
 </div>
 ` : `
 <div class="card" style="border:1.5px solid var(--warn);background:rgba(245,158,11,0.10);padding:10px 14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
@@ -4141,7 +4149,7 @@ if (ifr) ifr.src = url + '&_t=' + Date.now();
 }, true);
 });
 container.querySelector('#admExportUsersJsonBtn')?.addEventListener('click', () => {
-const blob = new Blob([JSON.stringify({ exportedAt: new Date().toISOString(), version: '2.1.21', total: users.length, users }, null, 2)], { type: 'application/json;charset=utf-8' });
+const blob = new Blob([JSON.stringify({ exportedAt: new Date().toISOString(), version: '2.3.0', total: users.length, users }, null, 2)], { type: 'application/json;charset=utf-8' });
 const a = document.createElement('a');
 a.href = URL.createObjectURL(blob);
 a.download = `klev-pro-users-db-${new Date().toISOString().slice(0, 10)}.json`;

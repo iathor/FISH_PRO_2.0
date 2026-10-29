@@ -1,7 +1,7 @@
 // @file bot/cloudflare-worker-bot.js — @KlevProClubBot (V.2.1.1)
 // Компактная сборка для Cloudflare Workers (115 рыб, 491 водоём, 609 городов РФ + Triple-Engine $0 DB + E2EE Relay + Обмен точками Круга/Экипажа/SOS + Уникальные Региональные ID FP_89AAA001 & Эксклюзивный VIP ID владельца FP_89VIP089 + Секретная Серверная Консоль Супер-Админа)
 
-const WORKER_VERSION = '2.1.21';
+const WORKER_VERSION = '2.3.0';
 const rateBuckets = new Map();
 const transitBoxes = new Map(); // Транзитная очередь зашифрованных пакетов (Zero-Storage: удаляется при доставке/по TTL)
 const weatherGridCache = new Map(); // Кэш погоды бота по гео-сетке 0.1° × 0.1° (~8-10 км) на 20 минут
@@ -230,27 +230,272 @@ function allocateNextReserveFisherId(regionCode = '89', seedDeviceId = '') {
  return candidate;
 }
 
-const OWNER_TOKEN_HASH_IATHOR = workerDeriveAuthToken('iathor', 'FISherman1982*');
-const OWNER_TOKEN_HASH_IATHOR82 = workerDeriveAuthToken('iathor82', 'FISherman1982*');
-const OWNER_ADMIN_CONSOLE_TOKEN = `VIP089_${workerFnv1a32('iAthor::FP_89VIP089::FISherman1982*::Console_v2.1').toString(16).toUpperCase()}_${workerFnv1a32('Salt2::89VIP089::ThorAntony').toString(16).toUpperCase()}`;
+// Предвычисленные криптографические дайджесты Владельца (без хранения открытого пароля в исходном коде)
+const OWNER_TOKEN_HASH_IATHOR = 'KTOK_6AE3BD91_21C90CF5';
+const OWNER_TOKEN_HASH_IATHOR82 = 'KTOK_52183B6B_39DEECFC';
+const OWNER_TOKEN_HASH_IATHOR_LOWER = 'KTOK_1E665A58_64E3DB80';
+const OWNER_ADMIN_CONSOLE_TOKEN = 'VIP089_D854A7F4_38D816DA';
+const OWNER_PIN_FNV_EXACT = '5c4be2a9';
+const OWNER_PIN_FNV_LOWER = '17b24989';
+const recentActionDedupMap = new Map();
 
-function isValidOwnerAdminToken(tok = '') {
+function clampLat(val, fallback = 66.0833) {
+ const n = Number(val);
+ return Number.isFinite(n) ? Math.max(-90, Math.min(90, n)) : fallback;
+}
+
+function clampLon(val, fallback = 76.6333) {
+ const n = Number(val);
+ return Number.isFinite(n) ? Math.max(-180, Math.min(180, n)) : fallback;
+}
+
+function isOwnerPasswordMatch(rawPass = '', env = null) {
+ const clean = String(rawPass || '').trim();
+ if (!clean) return false;
+ if (env && env.ADMIN_SECRET_PASSWORD && constantTimeEquals(clean, String(env.ADMIN_SECRET_PASSWORD))) {
+  return true;
+ }
+ const hExact = workerFnv1a32(`pin::${clean}`).toString(16);
+ const hLower = workerFnv1a32(`pin::${clean.toLowerCase()}`).toString(16);
+ const derived1 = workerDeriveAuthToken('iathor', clean);
+ const derived2 = workerDeriveAuthToken('iathor82', clean);
+ return (
+  constantTimeEquals(hExact, OWNER_PIN_FNV_EXACT) ||
+  constantTimeEquals(hLower, OWNER_PIN_FNV_LOWER) ||
+  constantTimeEquals(derived1, OWNER_TOKEN_HASH_IATHOR) ||
+  constantTimeEquals(derived1, OWNER_TOKEN_HASH_IATHOR_LOWER) ||
+  constantTimeEquals(derived2, OWNER_TOKEN_HASH_IATHOR82)
+ );
+}
+
+function getAdminConsoleToken(env = null) {
+ if (env && env.ADMIN_CONSOLE_TOKEN && String(env.ADMIN_CONSOLE_TOKEN).trim().length >= 12) {
+  return String(env.ADMIN_CONSOLE_TOKEN).trim();
+ }
+ return OWNER_ADMIN_CONSOLE_TOKEN;
+}
+
+function isValidOwnerAdminToken(tok = '', env = null) {
  const clean = String(tok || '').trim();
  if (!clean) return false;
+ const envConsoleTok = getAdminConsoleToken(env);
  return (
+  constantTimeEquals(clean, envConsoleTok) ||
   constantTimeEquals(clean, OWNER_ADMIN_CONSOLE_TOKEN) ||
   constantTimeEquals(clean, OWNER_TOKEN_HASH_IATHOR) ||
   constantTimeEquals(clean, OWNER_TOKEN_HASH_IATHOR82) ||
-  constantTimeEquals(clean, 'KTOK_6AE3BD91_21C90CF5') ||
-  constantTimeEquals(clean, 'KTOK_1E665A58_64E3DB80') ||
-  constantTimeEquals(clean, 'KTOK_52183B6B_39DEECFC') ||
-  constantTimeEquals(clean, 'KTOK_B12830BD_FDEBEC8C') ||
-  constantTimeEquals(clean, 'VIP089_D854A7F4_38D816DA') ||
-  constantTimeEquals(clean, 'FISherman1982*') ||
-  clean.startsWith('VIP089_') ||
-  clean.includes('VIP089') ||
-  clean.includes('89VIP089')
+  constantTimeEquals(clean, OWNER_TOKEN_HASH_IATHOR_LOWER) ||
+  isOwnerPasswordMatch(clean, env)
  );
+}
+
+function parseCookieValue(cookieHeader = '', cookieName = 'klev_admin_session') {
+ if (!cookieHeader || typeof cookieHeader !== 'string') return '';
+ const parts = cookieHeader.split(';');
+ for (const part of parts) {
+  const [k, ...rest] = part.trim().split('=');
+  if (k === cookieName) return decodeURIComponent(rest.join('=') || '').trim();
+ }
+ return '';
+}
+
+function extractAdminTokenFromRequest(request, reqUrl, body = null) {
+ if (body && typeof body === 'object') {
+  const fromBody = body.adminToken || body.token || body.ownerSecret || '';
+  if (fromBody) return String(fromBody).trim();
+ }
+ if (request && request.headers) {
+  const hdrTok = request.headers.get('X-Admin-Token') || request.headers.get('Authorization')?.replace(/^Bearer\s+/i, '') || '';
+  if (hdrTok) return String(hdrTok).trim();
+  const cookieTok = parseCookieValue(request.headers.get('Cookie') || '', 'klev_admin_session');
+  if (cookieTok) return cookieTok;
+ }
+ if (reqUrl && reqUrl.searchParams) {
+  return String(reqUrl.searchParams.get('adminToken') || reqUrl.searchParams.get('token') || '').trim();
+ }
+ return '';
+}
+
+async function workerSha256Hex(inputStr = '') {
+ const str = String(inputStr || '');
+ if (typeof crypto !== 'undefined' && crypto.subtle && typeof crypto.subtle.digest === 'function') {
+  try {
+   const data = new TextEncoder().encode(str);
+   const hashBuf = await crypto.subtle.digest('SHA-256', data);
+   return Array.from(new Uint8Array(hashBuf), b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
+  } catch (e) {}
+ }
+ let h1 = workerFnv1a32(`sha_fb1::${str}`);
+ let h2 = workerFnv1a32(`sha_fb2::${str}::${h1}`);
+ let h3 = workerFnv1a32(`sha_fb3::${h2}::${str}`);
+ let h4 = workerFnv1a32(`sha_fb4::${h3}::${h1}`);
+ return [h1, h2, h3, h4].map(n => (n >>> 0).toString(16).toUpperCase().padStart(8, '0')).join('');
+}
+
+async function workerDeriveSecureAuthToken(loginNorm = '', passClean = '', env = null) {
+ const cleanL = String(loginNorm || '').trim().toLowerCase().replace(/^@/, '');
+ const cleanP = String(passClean || '').trim();
+ const salt = (env && env.AUTH_SERVER_SALT) ? String(env.AUTH_SERVER_SALT) : 'KlevProCircle_v2.3_ServerSalt_RU';
+ const hex = await workerSha256Hex(`klev_auth_sha256::${cleanL}::${cleanP}::${salt}`);
+ return `KTOK2_${hex.slice(0, 16)}_${hex.slice(16, 32)}`;
+}
+
+async function verifyTelegramWebAppInitData(initDataRaw = '', botToken = '') {
+ if (!initDataRaw || !botToken || typeof initDataRaw !== 'string') return false;
+ try {
+  const params = new URLSearchParams(initDataRaw);
+  const hash = params.get('hash') || '';
+  if (!hash) return false;
+  params.delete('hash');
+  const sorted = Array.from(params.entries())
+   .sort(([a], [b]) => a.localeCompare(b))
+   .map(([k, v]) => `${k}=${v}`)
+   .join('\n');
+  const enc = new TextEncoder();
+  const secretKey = await crypto.subtle.importKey('raw', enc.encode('WebAppData'), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const secretBytes = await crypto.subtle.sign('HMAC', secretKey, enc.encode(botToken));
+  const dataKey = await crypto.subtle.importKey('raw', secretBytes, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const sigBytes = await crypto.subtle.sign('HMAC', dataKey, enc.encode(sorted));
+  const calcHex = Array.from(new Uint8Array(sigBytes), b => b.toString(16).padStart(2, '0')).join('');
+  return constantTimeEquals(calcHex.toLowerCase(), hash.toLowerCase());
+ } catch (e) {
+  return false;
+ }
+}
+
+function pickAllowedProfileFields(snap = null) {
+ if (!snap || typeof snap !== 'object') return {};
+ const out = {};
+ if (typeof snap.callsign === 'string') out.callsign = snap.callsign.trim().slice(0, 48);
+ if (typeof snap.deviceId === 'string') out.deviceId = snap.deviceId.trim().slice(0, 80);
+ if (typeof snap.tgLinkedId === 'string' || typeof snap.tgLinkedId === 'number') out.tgLinkedId = String(snap.tgLinkedId).trim().slice(0, 32);
+ if (typeof snap.tgUsername === 'string') out.tgUsername = snap.tgUsername.trim().replace(/^@/, '').slice(0, 48);
+ if (typeof snap.pinHash === 'string') out.pinHash = snap.pinHash.trim().slice(0, 64);
+ if (typeof snap.appMode === 'string' && ['novice', 'angler', 'pro'].includes(snap.appMode)) out.appMode = snap.appMode;
+ if (typeof snap.theme === 'string' && ['auto', 'dark', 'light'].includes(snap.theme)) out.theme = snap.theme;
+ if (snap.lat !== undefined) out.lat = clampLat(snap.lat, 66.0833);
+ if (snap.lon !== undefined) out.lon = clampLon(snap.lon, 76.6333);
+ if (typeof snap.locLabel === 'string') out.locLabel = snap.locLabel.trim().slice(0, 80);
+ if (typeof snap.locAdmin1 === 'string') out.locAdmin1 = snap.locAdmin1.trim().slice(0, 80);
+ if (typeof snap.locAdmin2 === 'string') out.locAdmin2 = snap.locAdmin2.trim().slice(0, 80);
+ if (typeof snap.water === 'string') out.water = snap.water.trim().slice(0, 32);
+ if (typeof snap.method === 'string') out.method = snap.method.trim().slice(0, 32);
+ if (Array.isArray(snap.preferredWaters)) out.preferredWaters = snap.preferredWaters.map(x => String(x || '').slice(0, 32)).slice(0, 10);
+ if (Array.isArray(snap.preferredMethods)) out.preferredMethods = snap.preferredMethods.map(x => String(x || '').slice(0, 32)).slice(0, 12);
+ if (Array.isArray(snap.favorites)) out.favorites = snap.favorites.map(x => String(x || '').slice(0, 32)).slice(0, 40);
+ if (Array.isArray(snap.unlockedCrewKeys)) out.unlockedCrewKeys = snap.unlockedCrewKeys.map(x => String(x || '').trim().toUpperCase().slice(0, 16)).slice(0, 50);
+ if (Array.isArray(snap.deletedChatChannels)) out.deletedChatChannels = snap.deletedChatChannels.map(x => String(x || '').slice(0, 64)).slice(0, 60);
+ if (Array.isArray(snap.hiddenCircleIds)) out.hiddenCircleIds = snap.hiddenCircleIds.map(x => String(x || '').slice(0, 64)).slice(0, 100);
+ if (Array.isArray(snap.savedSpots)) {
+  out.savedSpots = snap.savedSpots.slice(0, 25).map(sp => ({
+   id: String(sp?.id || '').slice(0, 48),
+   name: String(sp?.name || '').slice(0, 48),
+   lat: clampLat(sp?.lat, 66.0833),
+   lon: clampLon(sp?.lon, 76.6333),
+   water: String(sp?.water || 'small_river').slice(0, 32),
+   depth: Math.max(0.1, Math.min(200, Number(sp?.depth) || 2))
+  }));
+ }
+ if (snap.notifSettings && typeof snap.notifSettings === 'object') {
+  out.notifSettings = {
+   sos: snap.notifSettings.sos !== false,
+   crew: snap.notifSettings.crew !== false,
+   circle: snap.notifSettings.circle !== false,
+   workshop: snap.notifSettings.workshop !== false,
+   dm: snap.notifSettings.dm !== false,
+   sound: snap.notifSettings.sound !== false
+  };
+ }
+ return out;
+}
+
+function sanitizePublicUserResponse(u, isAdminView = false) {
+ if (!u || typeof u !== 'object') return null;
+ if (isAdminView) {
+  const copy = { ...u };
+  delete copy.authShadow;
+  delete copy.authTokenHash;
+  delete copy.pinHash;
+  delete copy.adminSessionToken;
+  return copy;
+ }
+ return {
+  fisherId: u.fisherId || '',
+  login: u.login || '',
+  callsign: u.callsign || 'Рыболов',
+  regionCode: u.regionCode || '89',
+  locLabel: u.locLabel || '',
+  isOwner: Boolean(u.isOwner),
+  isAdmin: Boolean(u.isAdmin),
+  isTemporaryReserve: Boolean(u.isTemporaryReserve)
+ };
+}
+
+async function verifyUserAuth(env, { fid = '', authTokenHash = '', deviceId = '', adminToken = '', request = null } = {}) {
+ const hdrAuth = request?.headers?.get('X-Auth-Token') || '';
+ const hdrAdm = request?.headers?.get('X-Admin-Token') || parseCookieValue(request?.headers?.get('Cookie') || '', 'klev_admin_session') || '';
+ const effToken = String(authTokenHash || hdrAuth || '').trim();
+ const effAdmin = String(adminToken || hdrAdm || '').trim();
+
+ if (isValidOwnerAdminToken(effAdmin, env) || isValidOwnerAdminToken(effToken, env)) {
+  return { ok: true, isAdmin: true, isOwner: true };
+ }
+ const normFid = workerNormalizeFisherId(fid || '', '89');
+ if (!normFid) return { ok: false, isAdmin: false, isOwner: false };
+ if (isOwnerFisherId(normFid)) {
+  return { ok: false, isAdmin: false, isOwner: false };
+ }
+ if (isTemporaryReserveId(normFid)) {
+  return { ok: true, isAdmin: false, isOwner: false, isReserve: true };
+ }
+
+ const aKey = fisherIdToAuthKeyMap.get(normFid) || '';
+ const prof = (aKey ? cloudAuthProfiles.get(aKey) : null) || (await loadPersistedAuthProfile(env, aKey, '', normFid));
+ const regUser = usersRegistryStore.get(normFid) || null;
+
+ if (effToken && prof) {
+  if (
+   (prof.authTokenHash && constantTimeEquals(effToken, prof.authTokenHash)) ||
+   (prof.secureTokenHash && constantTimeEquals(effToken, prof.secureTokenHash))
+  ) {
+   return { ok: true, isAdmin: adminWhitelistStore.has(normFid), isOwner: false };
+  }
+ }
+
+ const cleanDev = String(deviceId || '').trim();
+ if (cleanDev) {
+  const mappedFid = deviceToFisherIdMap.get(cleanDev) || '';
+  if (
+   (mappedFid && constantTimeEquals(mappedFid, normFid)) ||
+   (prof?.deviceId && constantTimeEquals(cleanDev, prof.deviceId)) ||
+   (regUser?.deviceId && constantTimeEquals(cleanDev, regUser.deviceId))
+  ) {
+   return { ok: true, isAdmin: adminWhitelistStore.has(normFid), isOwner: false };
+  }
+ }
+
+ // Для обратной совместимости с уже выданными сессиями v2.3.0, если профиль ещё не связан с другим устройством
+ if (!prof && !regUser) {
+  return { ok: true, isAdmin: false, isOwner: false };
+ }
+ if (prof && !prof.deviceId && (!regUser || !regUser.deviceId) && !effToken) {
+  return { ok: true, isAdmin: adminWhitelistStore.has(normFid), isOwner: false };
+ }
+ return { ok: false, isAdmin: false, isOwner: false };
+}
+
+function isDuplicateRecentAction(dedupKey = '', ttlMs = 15000) {
+ if (!dedupKey) return false;
+ const now = Date.now();
+ if (recentActionDedupMap.size > 1000) {
+  for (const [k, ts] of recentActionDedupMap.entries()) {
+   if (now - ts > ttlMs) recentActionDedupMap.delete(k);
+  }
+ }
+ const prev = recentActionDedupMap.get(dedupKey) || 0;
+ if (now - prev < ttlMs) return true;
+ recentActionDedupMap.set(dedupKey, now);
+ return false;
 }
 
 function workerNormalizeLogin(raw = '') {
@@ -279,17 +524,9 @@ function resolveWorkerAccountIdentity(rawLogin = '', rawPassword = '', rawTokenH
  const incomingTok = String(rawTokenHash || '').trim();
 
  const isOwnerLogin = workerIsOwnerLogin(loginClean) || workerIsOwnerLogin(snap?.login) || isOwnerFisherId(snap?.fisherId);
- const passNorm = passClean.toLowerCase();
- const passNormNoStar = passNorm.replace(/\*+$/, '');
  const isOwnerPass = (
-  passClean === 'FISherman1982*' ||
-  passNorm === 'fisherman1982*' ||
-  passNormNoStar === 'fisherman1982' ||
-  (incomingTok && (
-   constantTimeEquals(incomingTok, OWNER_TOKEN_HASH_IATHOR) ||
-   constantTimeEquals(incomingTok, OWNER_TOKEN_HASH_IATHOR82) ||
-   constantTimeEquals(incomingTok, OWNER_ADMIN_CONSOLE_TOKEN)
-  ))
+  isOwnerPasswordMatch(passClean) ||
+  (incomingTok && isValidOwnerAdminToken(incomingTok))
  );
  if (isOwnerLogin && isOwnerPass) {
   const preferredOwnerFid = (loginNorm === 'fp_fmp089' || String(snap?.fisherId || '').toUpperCase() === OWNER_SECONDARY_ID)
@@ -499,33 +736,70 @@ function upsertUserInRegistry(params = {}, env = null) {
 const CORS_HEADERS = {
  'Access-Control-Allow-Origin': '*',
  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
- 'Access-Control-Allow-Headers': 'Content-Type, Accept, Authorization, X-Requested-With',
+ 'Access-Control-Allow-Headers': 'Content-Type, Accept, Authorization, X-Requested-With, X-Auth-Token, X-Admin-Token',
  'Access-Control-Max-Age': '86400',
  'Cache-Control': 'no-store, no-cache, must-revalidate',
  'Pragma': 'no-cache',
  'Alt-Svc': 'clear',
  'X-Content-Type-Options': 'nosniff',
+ 'X-Frame-Options': 'SAMEORIGIN',
+ 'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+ 'X-XSS-Protection': '1; mode=block',
  'Referrer-Policy': 'strict-origin-when-cross-origin'
 };
+
+const MAX_REQUEST_BODY_BYTES = 65536;
 
 async function readWorkerRequestPayload(request, reqUrl) {
  try {
   if (reqUrl && reqUrl.searchParams && reqUrl.searchParams.has('payload')) {
-   const rawQ = reqUrl.searchParams.get('payload') || '';
-   if (rawQ) return workerSanitizeObject(JSON.parse(rawQ));
+   const rawQ = String(reqUrl.searchParams.get('payload') || '');
+   if (rawQ.length > MAX_REQUEST_BODY_BYTES) {
+    const err = new Error('Payload Too Large');
+    err.status = 413;
+    throw err;
+   }
+   if (rawQ) return workerSanitizeObject(workerSafeJsonParse(rawQ, {}));
   }
- } catch (e) {}
+ } catch (e) {
+  if (e && e.status === 413) throw e;
+ }
+ const contentLen = Number(request?.headers?.get('content-length') || 0);
+ if (contentLen > MAX_REQUEST_BODY_BYTES) {
+  const err = new Error('Payload Too Large');
+  err.status = 413;
+  throw err;
+ }
  try {
   const txt = await request.text();
   if (!txt) return {};
-  return workerSanitizeObject(JSON.parse(txt));
+  if (txt.length > MAX_REQUEST_BODY_BYTES) {
+   const err = new Error('Payload Too Large');
+   err.status = 413;
+   throw err;
+  }
+  const trimmed = txt.trim();
+  if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+   return workerSanitizeObject(workerSafeJsonParse(trimmed, {}));
+  }
+  // Поддержка form-urlencoded (например, POST-форма входа в /fp-vip089-console)
+  const params = new URLSearchParams(trimmed);
+  const formObj = {};
+  for (const [k, v] of params.entries()) {
+   if (k !== '__proto__' && k !== 'constructor' && k !== 'prototype') {
+    formObj[k] = v;
+   }
+  }
+  return formObj;
  } catch (e) {
+  if (e && e.status === 413) throw e;
   return {};
  }
 }
 
 function cleanupTransitBoxes() {
- const cutoff = Date.now() - 24 * 3600 * 1000;
+ const now = Date.now();
+ const cutoff = now - 24 * 3600 * 1000;
  for (const [boxKey, arr] of transitBoxes.entries()) {
   const fresh = arr.filter(p => p && p.ts > cutoff);
   if (fresh.length === 0) transitBoxes.delete(boxKey);
@@ -543,8 +817,19 @@ function cleanupTransitBoxes() {
    }
   }
  }
- if (rateBuckets.size > 4000) {
-  rateBuckets.clear();
+ if (rateBuckets.size > 1000) {
+  for (const [rk, b] of rateBuckets.entries()) {
+   if (!b || now - b.start >= 60000) {
+    rateBuckets.delete(rk);
+   }
+  }
+  if (rateBuckets.size > 4000) {
+   let removed = 0;
+   for (const rk of rateBuckets.keys()) {
+    rateBuckets.delete(rk);
+    if (++removed >= 500) break;
+   }
+  }
  }
 }
 
@@ -3486,12 +3771,13 @@ async function persistAuthProfile(env, authKey, profileObj, ctx = null) {
 }
 
 function buildOwnerServerPortalSlotHtml(originUrl = 'https://klevprohbot.thorantony82.workers.dev', d1Info = null) {
- const consoleUrl = `${originUrl.replace(/\/?$/, '')}/fp-vip089-console?token=${encodeURIComponent(OWNER_ADMIN_CONSOLE_TOKEN)}`;
+ const consoleUrl = `${originUrl.replace(/\/?$/, '')}/fp-vip089-console`;
  const totalUsers = usersRegistryStore.size;
  const activePoints = circlePointsStore.size;
  const now = Date.now();
  const active24h = Array.from(usersRegistryStore.values()).filter(u => u && (now - (u.lastSeen || 0)) < 86400000).length;
- const d1Badge = d1Info ? `<span class="pill pill-good" style="font-size:10px;">🟢 D1 (${d1Info.name})</span>` : `<span class="pill pill-bad" style="font-size:10px;">🔴 D1 не привязана</span>`;
+ const safeD1Name = d1Info && d1Info.name ? String(d1Info.name).replace(/[&<>"']/g, '') : 'DB';
+ const d1Badge = d1Info ? `<span class="pill pill-good" style="font-size:10px;">🟢 D1 (${safeD1Name})</span>` : `<span class="pill pill-bad" style="font-size:10px;">🔴 D1 не привязана</span>`;
  return `
   <div style="margin-top:8px;padding:10px 12px;background:rgba(56,189,248,0.12);border:1.5px solid var(--accent);border-radius:8px;display:flex;flex-direction:column;gap:8px;">
    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
@@ -3547,10 +3833,10 @@ function renderSuperAdminConsoleHtml(originUrl = '', d1Info = null) {
  const d1BannerHtml = d1Info
   ? `<div style="padding:10px 14px;border-radius:10px;background:rgba(16,185,129,0.15);border:1.5px solid #10b981;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
       <div>
-       <div style="font-weight:900;color:#34d399;font-size:14px;">🟢 Cloudflare D1 База Данных: ПОДКЛЮЧЕНА (Имя привязки: ${d1Info.name})</div>
+       <div style="font-weight:900;color:#34d399;font-size:14px;">🟢 Cloudflare D1 База Данных: ПОДКЛЮЧЕНА (Имя привязки: ${esc(d1Info.name)})</div>
        <div style="font-size:12px;color:#94a3b8;margin-top:2px;">Все постоянные ID, реестр пользователей, чаты и точки сохраняются в постоянных SQL-таблицах D1.</div>
       </div>
-      <span style="padding:4px 10px;border-radius:6px;background:#1e293b;border:1px solid #334155;font-size:11px;font-weight:800;color:#38bdf8;">D1 Engine 2.1.21</span>
+      <span style="padding:4px 10px;border-radius:6px;background:#1e293b;border:1px solid #334155;font-size:11px;font-weight:800;color:#38bdf8;">D1 Engine 2.3.0</span>
      </div>`
   : `<div style="padding:12px 14px;border-radius:10px;background:rgba(239,68,68,0.15);border:1.5px solid #ef4444;margin-bottom:12px;display:flex;flex-direction:column;gap:6px;">
       <div style="font-weight:900;color:#f87171;font-size:14px;">🔴 ВНИМАНИЕ: Cloudflare D1 База Данных НЕ ПРИВЯЗАНА!</div>
@@ -3695,7 +3981,7 @@ function renderSuperAdminConsoleHtml(originUrl = '', d1Info = null) {
  </div>
 </div>
 <script>
- const RAW_USERS = ${JSON.stringify(users)};
+ const RAW_USERS = ${JSON.stringify(users.map(u => sanitizePublicUserResponse(u, true))).replace(/</g, '\\u003c').replace(/>/g, '\\u003e').replace(/&/g, '\\u0026')};
  const ADMIN_TOKEN = ${JSON.stringify(OWNER_ADMIN_CONSOLE_TOKEN)};
  function filterUsers(q) {
   const norm = (q || '').trim().toLowerCase();
@@ -3778,43 +4064,65 @@ export default {
   const WEBAPP_URL = ((env && env.WEBAPP_URL) || 'https://klevpro.ru/').replace(/\/?$/, '/');
   const reqUrl = new URL(request.url);
 
+  // Пункт 19: Принудительный HTTPS (кроме локальной отладки)
+  if (reqUrl.protocol === 'http:' && reqUrl.hostname !== 'localhost' && reqUrl.hostname !== '127.0.0.1') {
+   return Response.redirect(reqUrl.toString().replace(/^http:/, 'https:'), 301);
+  }
+
   if (request.method === 'OPTIONS') {
-  return new Response(null, { status: 204, headers: CORS_HEADERS });
+   return new Response(null, { status: 204, headers: CORS_HEADERS });
   }
 
   const clientIp = request.headers.get('CF-Connecting-IP') || 'anon_ip';
 
-  // ── 0. Секретная серверная страница Базы Пользователей и Статистики (ТОЛЬКО для iAthor / FP_89VIP089, не отслеживается в клиенте) ──
+  // ── 0. Секретная серверная страница Базы Пользователей и Статистики (ТОЛЬКО для iAthor / FP_89VIP089) ──
   if (reqUrl.pathname.endsWith('/fp-vip089-console') && (request.method === 'GET' || request.method === 'POST')) {
+   if (!checkWorkerRateLimit(`console_${clientIp}`, false, 10)) {
+    return new Response('Too many requests', { status: 429, headers: CORS_HEADERS });
+   }
    await ensurePersistentStateLoaded(env);
-   let tok = reqUrl.searchParams.get('token') || '';
+   let body = {};
    if (request.method === 'POST') {
     try {
-     const b = await request.json();
-     tok = b.token || b.adminToken || tok;
+     body = await readWorkerRequestPayload(request, reqUrl);
     } catch (e) {}
    }
-   if (!isValidOwnerAdminToken(tok)) {
-    const loginHtml = '<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8"><title>👑 Вход в Веб-Консоль Владельца</title><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{background:#090d16;color:#e2e8f0;font-family:system-ui,-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:16px;} .box{background:#0f172a;border:1px solid #334155;border-radius:12px;padding:24px;max-width:380px;width:100%;text-align:center;box-shadow:0 10px 25px rgba(0,0,0,0.5);} input{width:100%;box-sizing:border-box;padding:11px 14px;background:#1e293b;border:1px solid #475569;border-radius:8px;color:#fff;font-size:14px;margin-bottom:12px;outline:none;} button{width:100%;padding:11px;background:#0284c7;color:#fff;font-weight:700;border:none;border-radius:8px;cursor:pointer;font-size:15px;}</style></head><body><div class="box"><div style="font-size:36px;margin-bottom:6px;">👑</div><h2 style="margin:0 0 6px;color:#38bdf8;">Веб-Консоль Супер-Админа</h2><p style="font-size:12px;color:#94a3b8;margin-bottom:18px;">Клёв ПРО 2.0 • Введите пароль Владельца или токен доступа</p><form method="GET" action="' + reqUrl.pathname + '"><input type="password" name="token" placeholder="Пароль или токен доступа" autofocus required><button type="submit">Войти в консоль</button></form></div></body></html>';
-    return new Response(loginHtml, { status: 200, headers: { ...CORS_HEADERS, 'Content-Type': 'text/html;charset=utf-8' } });
+   const tok = extractAdminTokenFromRequest(request, reqUrl, body);
+   const consoleCsp = "default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; frame-ancestors 'self' https://klevpro.ru;";
+   if (!isValidOwnerAdminToken(tok, env)) {
+    const loginHtml = '<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8"><title>👑 Вход в Веб-Консоль Владельца</title><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{background:#090d16;color:#e2e8f0;font-family:system-ui,-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:16px;} .box{background:#0f172a;border:1px solid #334155;border-radius:12px;padding:24px;max-width:380px;width:100%;text-align:center;box-shadow:0 10px 25px rgba(0,0,0,0.5);} input{width:100%;box-sizing:border-box;padding:11px 14px;background:#1e293b;border:1px solid #475569;border-radius:8px;color:#fff;font-size:14px;margin-bottom:12px;outline:none;} button{width:100%;padding:11px;background:#0284c7;color:#fff;font-weight:700;border:none;border-radius:8px;cursor:pointer;font-size:15px;}</style></head><body><div class="box"><div style="font-size:36px;margin-bottom:6px;">👑</div><h2 style="margin:0 0 6px;color:#38bdf8;">Веб-Консоль Супер-Админа</h2><p style="font-size:12px;color:#94a3b8;margin-bottom:18px;">Клёв ПРО 2.0 • Введите пароль Владельца или токен доступа</p><form method="POST" action="' + reqUrl.pathname + '"><input type="password" name="token" placeholder="Пароль или токен доступа" autofocus required><button type="submit">Войти в консоль</button></form></div></body></html>';
+    return new Response(loginHtml, {
+     status: 200,
+     headers: {
+      ...CORS_HEADERS,
+      'Content-Type': 'text/html;charset=utf-8',
+      'Content-Security-Policy': consoleCsp
+     }
+    });
    }
    const d1Info = getD1(env);
+   const sessionCookie = `klev_admin_session=${encodeURIComponent(getAdminConsoleToken(env))}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=86400`;
    return new Response(renderSuperAdminConsoleHtml(reqUrl.origin, d1Info), {
     headers: {
      ...CORS_HEADERS,
      'Content-Type': 'text/html;charset=utf-8',
-     'Cache-Control': 'no-store, no-cache, must-revalidate'
+     'Cache-Control': 'no-store, no-cache, must-revalidate',
+     'Content-Security-Policy': consoleCsp,
+     'Set-Cookie': sessionCookie
     }
    });
   }
 
   // ── Удаление пользователя из базы данных сервера Супер-Админом (/api/admin/user/delete) ──
   if (reqUrl.pathname.endsWith('/api/admin/user/delete') && (request.method === 'POST' || reqUrl.searchParams.has('payload'))) {
+   if (!checkWorkerRateLimit(`admdel_${clientIp}`, false, 20)) {
+    return new Response(JSON.stringify({ ok: false, error: 'Rate limit' }), { status: 429, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
+   }
    await ensurePersistentStateLoaded(env);
    try {
     const body = await readWorkerRequestPayload(request, reqUrl);
-    const tok = body.adminToken || body.token || '';
-    if (!isValidOwnerAdminToken(tok)) {
+    const tok = extractAdminTokenFromRequest(request, reqUrl, body);
+    if (!isValidOwnerAdminToken(tok, env)) {
      return new Response(JSON.stringify({ ok: false, error: 'Forbidden: invalid admin token' }), { status: 403, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
     }
     const targetFid = workerNormalizeFisherId(body.fisherId || '', '89');
@@ -3947,15 +4255,18 @@ export default {
   }
 
   if (reqUrl.pathname.endsWith('/api/admin/users') && (request.method === 'GET' || request.method === 'POST')) {
+   if (!checkWorkerRateLimit(`admusers_${clientIp}`, false, 30)) {
+    return new Response(JSON.stringify({ ok: false, error: 'Rate limit' }), { status: 429, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
+   }
    await ensurePersistentStateLoaded(env, true);
-   let tok = reqUrl.searchParams.get('token') || '';
+   let b = {};
    if (request.method === 'POST') {
     try {
-     const b = await request.json();
-     tok = b.adminToken || b.token || tok;
+     b = await readWorkerRequestPayload(request, reqUrl);
     } catch (e) {}
    }
-   if (!isValidOwnerAdminToken(tok)) {
+   const tok = extractAdminTokenFromRequest(request, reqUrl, b);
+   if (!isValidOwnerAdminToken(tok, env)) {
     return new Response(JSON.stringify({ ok: false, error: 'Not found' }), { status: 404, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
    }
    purgeExpiredServerCirclePoints();
@@ -4151,7 +4462,7 @@ function generateSyntheticWeatherJson(lat, lon) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 4500);
     const upstreamRes = await fetch(omUrl, {
-     headers: { 'User-Agent': 'KlevProClubBot/2.1.21 (https://klevpro.ru)' },
+     headers: { 'User-Agent': 'KlevProClubBot/2.3.0 (https://klevpro.ru)' },
      signal: controller.signal,
      cf: { cacheTtl: 1800, cacheEverything: true }
     }).catch(() => null);
@@ -4167,7 +4478,7 @@ function generateSyntheticWeatherJson(lat, lon) {
     try {
      const metUrl = `https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${gLat}&lon=${gLon}`;
      const metRes = await fetch(metUrl, {
-      headers: { 'User-Agent': 'KlevProClubBot/2.1.21 (https://klevpro.ru, thorantony82@yandex.ru)' }
+      headers: { 'User-Agent': 'KlevProClubBot/2.3.0 (https://klevpro.ru, thorantony82@yandex.ru)' }
      }).catch(() => null);
      if (metRes && metRes.ok) {
       const metJson = await metRes.json();
@@ -4265,7 +4576,7 @@ function generateSyntheticWeatherJson(lat, lon) {
     const reqLoginNorm = String(body.login || '').trim().toLowerCase().replace(/^@/, '');
     const reqAuthToken = String(body.authTokenHash || '').trim();
 
-    // 1. Проверяем, авторизован ли Владелец (iAthor / iAthor82 + токен пароля FISherman1982*)
+    // 1. Проверяем, авторизован ли Владелец (iAthor / iAthor82 + токен пароля [REDACTED_OWNER_SECRET])
     const isVerifiedOwner = (
      (reqLoginNorm === 'iathor' || reqLoginNorm === 'iathor82' || reqLoginNorm === 'thorantony82' || isOwnerFisherId(reqCurId)) &&
      isValidOwnerAdminToken(reqAuthToken)
@@ -4300,7 +4611,7 @@ function generateSyntheticWeatherJson(lat, lon) {
       tgId: ownerRecord?.tgId || '',
       tgUsername: ownerRecord?.tgUsername || '',
       login: 'iAthor',
-      user: ownerRecord
+      user: sanitizePublicUserResponse(ownerRecord, false)
      }), { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
     }
 
@@ -4345,7 +4656,7 @@ function generateSyntheticWeatherJson(lat, lon) {
       tgId: userRecord?.tgId || '',
       tgUsername: userRecord?.tgUsername || '',
       login: userRecord?.login || '',
-      user: userRecord
+      user: sanitizePublicUserResponse(userRecord, false)
      }), { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
     }
 
@@ -4405,7 +4716,7 @@ function generateSyntheticWeatherJson(lat, lon) {
      tgId: '',
      tgUsername: '',
      login: '',
-     user: tempRecord
+     user: sanitizePublicUserResponse(tempRecord, false)
     }), {
      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
     });
@@ -4445,8 +4756,17 @@ function generateSyntheticWeatherJson(lat, lon) {
     }), { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
    }
    if (request.method === 'POST' || reqUrl.searchParams.has('payload')) {
+    if (!checkWorkerRateLimit(`tgbind_${clientIp}`, false, 20)) {
+     return new Response(JSON.stringify({ ok: false, error: 'Rate limit' }), { status: 429, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
+    }
     try {
      const body = await readWorkerRequestPayload(request, reqUrl);
+     if (body.initData && BOT_TOKEN) {
+      const validInit = await verifyTelegramWebAppInitData(body.initData, BOT_TOKEN);
+      if (!validInit) {
+       return new Response(JSON.stringify({ ok: false, error: 'Invalid Telegram initData signature' }), { status: 403, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
+      }
+     }
      const rec = bindTelegramToFisherProfile({
       fisherId: body.fisherId || '',
       deviceId: body.deviceId || '',
@@ -4464,7 +4784,7 @@ function generateSyntheticWeatherJson(lat, lon) {
       tgId: rec?.tgId || '',
       tgUsername: rec?.tgUsername || '',
       login: rec?.login || '',
-      user: rec
+      user: sanitizePublicUserResponse(rec, false)
      }), { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
     } catch (e) {
      return new Response(JSON.stringify({ ok: false, error: 'Bind error' }), { status: 400, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
@@ -4494,6 +4814,21 @@ function generateSyntheticWeatherJson(lat, lon) {
       error: 'Сначала зарегистрируйте логин и пароль, чтобы получить постоянный ID рыбака и отправлять точки!'
      }), { status: 403, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
     }
+    const pubAuth = await verifyUserAuth(env, {
+     fid,
+     authTokenHash: body.authTokenHash || '',
+     deviceId: rawItem.did || body.deviceId || '',
+     adminToken: body.adminToken || '',
+     request
+    });
+    if (!pubAuth.ok) {
+     return new Response(JSON.stringify({ ok: false, error: 'Forbidden: unverified fisher identity' }), { status: 403, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
+    }
+    const dedupKey = `pub_${fid}_${rawItem.t}_${rawItem.fi || ''}_${Math.round(clampLat(rawItem.lat) * 100)}_${Math.round(clampLon(rawItem.lon) * 100)}`;
+    if (isDuplicateRecentAction(dedupKey, 5000) && circlePointsStore.has(String(rawItem.id || ''))) {
+     const exPt = circlePointsStore.get(String(rawItem.id || ''));
+     return new Response(JSON.stringify({ ok: true, id: exPt.id, item: exPt, deduplicated: true, totalActivePoints: circlePointsStore.size }), { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
+    }
     const cleanItem = {
      id: String(rawItem.id || `cir_${now.toString(36)}_${Math.random().toString(36).slice(2, 6)}`).slice(0, 64),
      t: ['circle', 'crew', 'workshop'].includes(rawItem.t) ? rawItem.t : 'circle',
@@ -4511,8 +4846,8 @@ function generateSyntheticWeatherJson(lat, lon) {
      mt: String(rawItem.mt || 'spin_light').slice(0, 32),
      bt: String(rawItem.bt || '').slice(0, 80),
      nt: String(rawItem.nt || '').slice(0, 240),
-     lat: Number.isFinite(Number(rawItem.lat)) ? Number(rawItem.lat) : 66.0833,
-     lon: Number.isFinite(Number(rawItem.lon)) ? Number(rawItem.lon) : 76.6333,
+     lat: clampLat(rawItem.lat, 66.0833),
+     lon: clampLon(rawItem.lon, 76.6333),
      dp: Number.isFinite(Number(rawItem.dp)) ? Number(rawItem.dp) : 2.5,
      tw: Number.isFinite(Number(rawItem.tw)) ? Number(rawItem.tw) : 8,
      ta: Number.isFinite(Number(rawItem.ta)) ? Number(rawItem.ta) : 10,
@@ -4590,25 +4925,33 @@ function generateSyntheticWeatherJson(lat, lon) {
      }
     } catch (e) {}
    }
-   const lat = parseFloat(reqUrl.searchParams.get('lat') || '66.0833');
-   const lon = parseFloat(reqUrl.searchParams.get('lon') || '76.6333');
+   const lat = clampLat(reqUrl.searchParams.get('lat'), 66.0833);
+   const lon = clampLon(reqUrl.searchParams.get('lon'), 76.6333);
    const radiusKm = Math.max(10, Math.min(500, parseFloat(reqUrl.searchParams.get('radius') || '120') || 120));
    const viewerFid = workerNormalizeFisherId(reqUrl.searchParams.get('fid') || '', '89');
    const viewerDevId = String(reqUrl.searchParams.get('deviceId') || '').trim();
+   const viewerAuthTok = String(reqUrl.searchParams.get('authTokenHash') || '').trim();
    const crewKeysSet = new Set(
     String(reqUrl.searchParams.get('crewKeys') || '')
      .split(',')
      .map(k => k.trim().toUpperCase())
      .filter(Boolean)
    );
-   const adminTok = reqUrl.searchParams.get('adminToken') || '';
-   const isViewerAdmin = (
-    viewerFid === OWNER_FISHER_ID ||
-    adminWhitelistStore.has(viewerFid) ||
-    isValidOwnerAdminToken(adminTok)
+   const adminTok = extractAdminTokenFromRequest(request, reqUrl, null);
+   const nearbyAuth = await verifyUserAuth(env, {
+    fid: viewerFid,
+    authTokenHash: viewerAuthTok,
+    deviceId: viewerDevId,
+    adminToken: adminTok,
+    request
+   });
+   const isViewerAdmin = Boolean(
+    nearbyAuth.isAdmin ||
+    isValidOwnerAdminToken(adminTok, env) ||
+    (nearbyAuth.ok && viewerFid && adminWhitelistStore.has(viewerFid))
    );
 
-   if (viewerFid) {
+   if (viewerFid && (nearbyAuth.ok || isTemporaryReserveId(viewerFid))) {
     upsertUserInRegistry({
      fisherId: viewerFid,
      deviceId: viewerDevId,
@@ -4626,7 +4969,7 @@ function generateSyntheticWeatherJson(lat, lon) {
    const results = [];
    for (const pt of circlePointsStore.values()) {
     if (!pt) continue;
-    const isMine = (viewerFid && pt.fid === viewerFid) || (viewerDevId && pt.did === viewerDevId);
+    const isMine = (viewerFid && pt.fid === viewerFid && nearbyAuth.ok) || (viewerDevId && pt.did && pt.did === viewerDevId);
     if (pt.t === 'workshop') {
      results.push(pt);
      continue;
@@ -4670,12 +5013,21 @@ function generateSyntheticWeatherJson(lat, lon) {
     const id = String(body.id || '').trim();
     const fid = workerNormalizeFisherId(body.fid || '', '89');
     const devId = String(body.deviceId || '').trim();
-    const isAdm = fid === OWNER_FISHER_ID || isValidOwnerAdminToken(body.adminToken || '');
+    const admTok = extractAdminTokenFromRequest(request, reqUrl, body);
+    const isAdm = isValidOwnerAdminToken(admTok, env);
     const target = circlePointsStore.get(id);
     if (!target) {
      return new Response(JSON.stringify({ ok: true, deleted: false }), { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
     }
-    if (!isAdm && target.fid !== fid && (!devId || target.did !== devId)) {
+    const delAuth = await verifyUserAuth(env, {
+     fid: target.fid,
+     authTokenHash: body.authTokenHash || '',
+     deviceId: devId,
+     adminToken: admTok,
+     request
+    });
+    const isVerifiedAuthor = (target.fid === fid && delAuth.ok) || Boolean(devId && target.did && target.did === devId);
+    if (!isAdm && !isVerifiedAuthor) {
      return new Response(JSON.stringify({ ok: false, error: 'Forbidden' }), { status: 403, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
     }
     circlePointsStore.delete(id);
@@ -4710,6 +5062,9 @@ function generateSyntheticWeatherJson(lat, lon) {
   }
 
   if (reqUrl.pathname.endsWith('/auth/check-login') && request.method === 'GET') {
+   if (!checkWorkerRateLimit(`chklogin_${clientIp}`, false, 30)) {
+    return new Response(JSON.stringify({ ok: false, available: false, error: 'Rate limit' }), { status: 429, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
+   }
    await ensurePersistentStateLoaded(env);
    const rawL = String(reqUrl.searchParams.get('login') || '').trim();
    const normL = workerNormalizeLogin(rawL);
@@ -4742,7 +5097,7 @@ function generateSyntheticWeatherJson(lat, lon) {
    try {
     await ensurePersistentStateLoaded(env);
     const body = await readWorkerRequestPayload(request, reqUrl);
-    const incomingSnap = workerSanitizeObject(body.profileSnapshot);
+    const incomingSnap = pickAllowedProfileFields(workerSanitizeObject(body.profileSnapshot));
     const rawLoginClean = String(body.login || '').trim();
     const normLoginPre = workerNormalizeLogin(rawLoginClean);
     const normFidPre = /^FP_/i.test(rawLoginClean) ? workerNormalizeFisherId(rawLoginClean, '89') : '';
@@ -4759,8 +5114,9 @@ function generateSyntheticWeatherJson(lat, lon) {
     const regUser = usersRegistryStore.get(ident.fisherId) || null;
     const mergedTgId = String(incomingSnap.tgLinkedId || existing?.tgLinkedId || regUser?.tgId || '').trim();
     const mergedTgUser = String(incomingSnap.tgUsername || existing?.tgUsername || regUser?.tgUsername || '').trim().replace(/^@/, '');
+    const secureTok = body.password ? await workerDeriveSecureAuthToken(ident.login, body.password, env) : (existing?.secureTokenHash || '');
     const merged = {
-     ...(existing || {}),
+     ...pickAllowedProfileFields(existing || {}),
      ...incomingSnap,
      fisherId: ident.fisherId,
      login: ident.login,
@@ -4769,7 +5125,8 @@ function generateSyntheticWeatherJson(lat, lon) {
      tgUsername: mergedTgUser,
      pinHash: ident.pinHash,
      authTokenHash: ident.authTokenHash,
-     adminSessionToken: ident.isOwner ? OWNER_ADMIN_CONSOLE_TOKEN : '',
+     secureTokenHash: secureTok,
+     adminSessionToken: ident.isOwner ? getAdminConsoleToken(env) : '',
      ownerUnlocked: ident.isOwner ? true : Boolean(existing?.ownerUnlocked),
      isAdmin: ident.isOwner ? true : adminWhitelistStore.has(ident.fisherId),
      adminShowAllCrews: ident.isOwner ? (existing?.adminShowAllCrews ?? true) : Boolean(existing?.adminShowAllCrews),
@@ -4825,13 +5182,13 @@ function generateSyntheticWeatherJson(lat, lon) {
     });
    } catch (e) {
     console.error('[Worker Auth Error Caught]', e);
-    // Защита Владельца: если вход совершает iAthor с паролем FISherman1982*, авторизуем безоговорочно в памяти!
+    // Защита Владельца: если вход совершает iAthor с паролем [REDACTED_OWNER_SECRET], авторизуем безоговорочно в памяти!
     let reqBody = null;
     try { reqBody = await readWorkerRequestPayload(request.clone(), reqUrl); } catch(err) {}
     const rawL = reqBody ? (reqBody.login || '') : '';
     const rawP = reqBody ? (reqBody.password || '') : '';
     const rawT = reqBody ? (reqBody.authTokenHash || '') : '';
-    if (workerIsOwnerLogin(rawL) && (rawP === 'FISherman1982*' || isValidOwnerAdminToken(rawT))) {
+    if (workerIsOwnerLogin(rawL) && (isOwnerPasswordMatch(rawP, env) || isValidOwnerAdminToken(rawT, env))) {
      const ownerFid = OWNER_FISHER_ID;
      adminWhitelistStore.set(ownerFid, { id: ownerFid, label: 'iAthor • Антон (Владелец / Супер-Админ)', addedAt: '2026-10-27' });
      adminWhitelistStore.set(OWNER_SECONDARY_ID, { id: OWNER_SECONDARY_ID, label: 'iAthor82 • Антон (Владелец / Спец-ID FP_FMP089)', addedAt: '2026-10-27' });
@@ -4879,8 +5236,7 @@ function generateSyntheticWeatherJson(lat, lon) {
 
     return new Response(JSON.stringify({
      ok: false,
-     error: 'Ошибка авторизации: ' + (e?.message || 'проверьте правильность логина и пароля'),
-     details: String(e?.stack || e)
+     error: 'Ошибка авторизации: проверьте правильность логина и пароля'
     }), {
      status: 200,
      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
@@ -4898,7 +5254,7 @@ function generateSyntheticWeatherJson(lat, lon) {
    try {
     await ensurePersistentStateLoaded(env);
     const body = await readWorkerRequestPayload(request, reqUrl);
-    const snap = workerSanitizeObject(body.profileSnapshot);
+    const snap = pickAllowedProfileFields(workerSanitizeObject(body.profileSnapshot));
     const rawLoginClean = String(body.login || '').trim();
     const normLoginPre = workerNormalizeLogin(rawLoginClean);
     const normFidPre = /^FP_/i.test(rawLoginClean) ? workerNormalizeFisherId(rawLoginClean, '89') : '';
@@ -4966,17 +5322,23 @@ function generateSyntheticWeatherJson(lat, lon) {
   }
 
   if (reqUrl.pathname.endsWith('/admin/whitelist')) {
+  if (!checkWorkerRateLimit(`wl_${clientIp}`, false, 15)) {
+   return new Response(JSON.stringify({ ok: false, error: 'Rate limit' }), { status: 429, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
+  }
   await ensurePersistentStateLoaded(env);
   if (request.method === 'GET' && !reqUrl.searchParams.has('payload')) {
-   return new Response(JSON.stringify({ ok: true, whitelist: Array.from(adminWhitelistStore.values()) }), {
+   const admTok = extractAdminTokenFromRequest(request, reqUrl, null);
+   const isFullAdm = isValidOwnerAdminToken(admTok, env);
+   const listOut = Array.from(adminWhitelistStore.values()).map(item => isFullAdm ? item : { id: item.id });
+   return new Response(JSON.stringify({ ok: true, whitelist: listOut }), {
     headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
    });
   }
   if (request.method === 'POST' || reqUrl.searchParams.has('payload')) {
    try {
     const body = await readWorkerRequestPayload(request, reqUrl);
-    const secret = String(body.ownerSecret || '').trim();
-    if (!isValidOwnerAdminToken(secret) && !['KLEV-ADMIN-89', 'THOR82', '8989', 'FISHERMAN1982*', 'IATHOR82', 'IATHOR'].includes(secret.toUpperCase())) {
+    const secret = extractAdminTokenFromRequest(request, reqUrl, body);
+    if (!isValidOwnerAdminToken(secret, env)) {
      return new Response(JSON.stringify({ ok: false, error: 'Forbidden' }), { status: 403, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
     }
     if (body.action === 'add' && body.entry && body.entry.id) {
@@ -5008,25 +5370,42 @@ function generateSyntheticWeatherJson(lat, lon) {
   }
 
   if (reqUrl.pathname.endsWith('/relay/push') && (request.method === 'POST' || reqUrl.searchParams.has('payload'))) {
+  if (!checkWorkerRateLimit(`rpush_${clientIp}`, false, 45)) {
+   return new Response(JSON.stringify({ ok: false, error: 'Rate limit' }), { status: 429, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
+  }
   try {
    await ensurePersistentStateLoaded(env);
    cleanupTransitBoxes();
    const body = await readWorkerRequestPayload(request, reqUrl);
-   const channelId = String(body.channelId || '').trim().toUpperCase().slice(0, 64);
+   const channelId = String(body.channelId || '').trim().toUpperCase().replace(/[^A-Z0-9_:-]/g, '').slice(0, 64);
    const cipherPayload = String(body.cipherPayload || '').trim().slice(0, 8192);
    const senderFid = workerNormalizeFisherId(body.senderId || '', '89');
    if (!channelId || !cipherPayload || !senderFid || isTemporaryReserveId(senderFid)) {
-   return new Response(JSON.stringify({ ok: false, code: 'REGISTRATION_REQUIRED', error: 'Сначала зарегистрируйтесь для отправки сообщений' }), { status: 403, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
+    return new Response(JSON.stringify({ ok: false, code: 'REGISTRATION_REQUIRED', error: 'Сначала зарегистрируйтесь для отправки сообщений' }), { status: 403, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
+   }
+   const pushAuth = await verifyUserAuth(env, {
+    fid: senderFid,
+    authTokenHash: body.authTokenHash || '',
+    deviceId: body.deviceId || '',
+    adminToken: body.adminToken || '',
+    request
+   });
+   if (!pushAuth.ok) {
+    return new Response(JSON.stringify({ ok: false, error: 'Forbidden: sender auth failed' }), { status: 403, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
+   }
+   const dedupRelayKey = `rel_${senderFid}_${channelId}_${cipherPayload.slice(-32)}`;
+   if (isDuplicateRecentAction(dedupRelayKey, 4000)) {
+    return new Response(JSON.stringify({ ok: true, relayed: true, deduplicated: true }), { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
    }
    const pkt = {
-   id: `rel_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-   channelId,
-   senderId: senderFid,
-   cipherPayload,
-   kind: String(body.kind || 'chat').slice(0, 20),
-   crewKey: body.crewKey ? String(body.crewKey).trim().toUpperCase() : '',
-   peerId: body.peerId ? String(body.peerId).trim().toUpperCase() : '',
-   ts: Date.now()
+    id: `rel_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    channelId,
+    senderId: senderFid,
+    cipherPayload,
+    kind: String(body.kind || 'chat').slice(0, 20),
+    crewKey: body.crewKey ? String(body.crewKey).trim().toUpperCase().slice(0, 16) : '',
+    peerId: body.peerId ? String(body.peerId).trim().toUpperCase().slice(0, 24) : '',
+    ts: Date.now()
    };
    const list = transitBoxes.get(channelId) || [];
    list.push(pkt);
@@ -5034,19 +5413,46 @@ function generateSyntheticWeatherJson(lat, lon) {
    await d1PushRelay(env, pkt);
    await persistSystemMeta(env, ctx);
    return new Response(JSON.stringify({ ok: true, relayed: true, packetId: pkt.id }), {
-   headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
+    headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
    });
   } catch (e) {
-   return new Response(JSON.stringify({ ok: false, error: 'Push failed' }), { status: 400, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
+   const status = e && e.status === 413 ? 413 : 400;
+   return new Response(JSON.stringify({ ok: false, error: status === 413 ? 'Payload Too Large' : 'Push failed' }), { status, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
   }
   }
 
   if (reqUrl.pathname.endsWith('/relay/pull') && request.method === 'GET') {
+  if (!checkWorkerRateLimit(`rpull_${clientIp}`, false, 60)) {
+   return new Response(JSON.stringify({ ok: false, packets: [] }), { status: 429, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
+  }
   await ensurePersistentStateLoaded(env);
   cleanupTransitBoxes();
-  const rawBoxes = (reqUrl.searchParams.get('boxes') || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean).slice(0, 30);
-  const since = Number(reqUrl.searchParams.get('since') || 0);
-  const viewer = String(reqUrl.searchParams.get('viewer') || '').trim().toUpperCase();
+  const viewer = workerNormalizeFisherId(reqUrl.searchParams.get('viewer') || '', '89') || String(reqUrl.searchParams.get('viewer') || '').trim().toUpperCase();
+  const viewerDevId = String(reqUrl.searchParams.get('deviceId') || '').trim();
+  const viewerAuthTok = String(reqUrl.searchParams.get('authTokenHash') || '').trim();
+  const viewerAdmTok = extractAdminTokenFromRequest(request, reqUrl, null);
+  const pullAuth = await verifyUserAuth(env, {
+   fid: viewer,
+   authTokenHash: viewerAuthTok,
+   deviceId: viewerDevId,
+   adminToken: viewerAdmTok,
+   request
+  });
+  // Защита от IDOR (Пункт 7): доступ к личным боксам DM_<FID> разрешён только самому подтверждённому получателю или Супер-Админу
+  const rawBoxes = (reqUrl.searchParams.get('boxes') || '')
+   .split(',')
+   .map(s => s.trim().toUpperCase().replace(/[^A-Z0-9_:-]/g, ''))
+   .filter(bKey => {
+    if (!bKey) return false;
+    if (bKey.startsWith('DM_')) {
+     const dmTarget = bKey.slice(3);
+     if (pullAuth.isAdmin) return true;
+     return Boolean(pullAuth.ok && viewer && dmTarget === viewer);
+    }
+    return true;
+   })
+   .slice(0, 30);
+  const since = Math.max(0, Number(reqUrl.searchParams.get('since') || 0));
   const packets = [];
   const seenPktIds = new Set();
 

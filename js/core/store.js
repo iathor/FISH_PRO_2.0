@@ -1,8 +1,8 @@
-import { DEFAULT_STATE, getCompatibleMethods, getSeasonalBaitsForContext } from './config.js?v=2.1.21';
-import { storage } from './storage.js?v=2.1.21';
-import { detectBasinByCoords, BASIN_CONFIGS, isCoastalInBasin, getSpotEcoregion } from '../data/basins.js?v=2.1.21';
-import { findNearestRussianSettlement } from '../data/russia-waters.js?v=2.1.21';
-import { FISH_DB } from '../data/species.js?v=2.1.21';
+import { DEFAULT_STATE, getCompatibleMethods, getSeasonalBaitsForContext } from './config.js?v=2.3.0';
+import { storage } from './storage.js?v=2.3.0';
+import { detectBasinByCoords, BASIN_CONFIGS, isCoastalInBasin, getSpotEcoregion } from '../data/basins.js?v=2.3.0';
+import { findNearestRussianSettlement } from '../data/russia-waters.js?v=2.3.0';
+import { FISH_DB } from '../data/species.js?v=2.3.0';
 function getActiveDaySeasonContext(state, overrideDays = null, overrideDayIdx = null, overrideIceState = null) {
 const rawDays = overrideDays ?? state?.weatherDays;
 const days = Array.isArray(rawDays) ? rawDays : [];

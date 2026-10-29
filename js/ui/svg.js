@@ -1,6 +1,6 @@
-import { APP_VERSION, IMG_SEARCH_DIRS } from '../core/config.js?v=2.1.21';
-import { getRatingWord } from '../core/format.js?v=2.1.21';
-import { FISH_DB } from '../data/species.js?v=2.1.21';
+import { APP_VERSION, IMG_SEARCH_DIRS } from '../core/config.js?v=2.3.0';
+import { getRatingWord } from '../core/format.js?v=2.3.0';
+import { FISH_DB } from '../data/species.js?v=2.3.0';
 let clipSeq = 0;
 const pngStatusCache = new Map();
 const PNG_CACHE_STORAGE_KEY = 'klev_pro_png_status_v2_166';
