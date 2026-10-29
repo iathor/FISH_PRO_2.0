@@ -133,6 +133,11 @@ self.addEventListener('fetch', event => {
     return;
   }
 
+  // Никогда не кэшируем в Service Worker скачивание .apk файлов и манифесты версий
+  if (url.pathname.includes('/apk/') || url.pathname.endsWith('.apk') || url.pathname.endsWith('version.json')) {
+    return;
+  }
+
   if (req.mode === 'navigate') {
     event.respondWith(
       fetch(req)

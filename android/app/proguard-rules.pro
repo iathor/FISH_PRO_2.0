@@ -1,0 +1,5 @@
+-dontusemixedcaseclassnames
+-dontskipnonpubliclibraryclasses
+-keepattributes *Annotation*,Signature,InnerClasses,EnclosingMethod
+-keep class ru.klevpro.app.** { *; }
+-dontwarn **

@@ -4,6 +4,11 @@ on:
   workflow_dispatch:
   push:
     branches: [ main, master ]
+    paths-ignore:
+      - 'apk/**.apk'
+
+permissions:
+  contents: write
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
@@ -35,13 +40,18 @@ jobs:
           echo "proj_dir=$PROJ_DIR" >> $GITHUB_ENV
           echo "proj_dir=$PROJ_DIR" >> $GITHUB_OUTPUT
 
-          # 1. Копируем свежие веб-ресурсы в assets/www, если они лежат в корне репозитория
+          # 1. Очищаем и копируем свежие веб-ресурсы из общего корня репозитория в assets/www (без вложения старого .apk внутрь нового .apk)
+          rm -rf "$PROJ_DIR/app/src/main/assets/www"
           mkdir -p "$PROJ_DIR/app/src/main/assets/www"
           for f in index.html manifest.json version.json icon.svg icon-192.png icon-512.png apple-touch-icon.png sw.js css js assets; do
             if [ -e "$f" ]; then
               cp -r "$f" "$PROJ_DIR/app/src/main/assets/www/"
             fi
           done
+          if [ -f "apk/apk-version.json" ]; then
+            mkdir -p "$PROJ_DIR/app/src/main/assets/www/apk"
+            cp -f "apk/apk-version.json" "$PROJ_DIR/app/src/main/assets/www/apk/apk-version.json"
+          fi
 
           # 2. Удаляем ВСЕ скрытые файлы (.gitkeep и др.) из assets и res
           find "$PROJ_DIR/app/src/main" -name ".*" -type f -delete || true
@@ -59,7 +69,7 @@ jobs:
 
           # 4. Вычисляем строго возрастающий versionCode (чтобы Android всегда обновлял APK поверх старой версии)
           RUN_NUM=${GITHUB_RUN_NUMBER:-0}
-          VER_CODE=$((21050 + RUN_NUM))
+          VER_CODE=$((22000 + RUN_NUM))
           echo "Using versionCode=$VER_CODE"
 
           cat << 'EOF' > "$PROJ_DIR/settings.gradle"
@@ -104,7 +114,7 @@ jobs:
                   minSdk 24
                   targetSdk 34
                   versionCode ${VER_CODE}
-                  versionName "2.1.2"
+                  versionName "2.2.0"
               }
               signingConfigs {
                   release {
@@ -211,6 +221,7 @@ jobs:
           import android.os.Bundle;
           import android.provider.Settings;
           import android.view.Window;
+          import android.webkit.DownloadListener;
           import android.webkit.GeolocationPermissions;
           import android.webkit.JavascriptInterface;
           import android.webkit.ValueCallback;
@@ -255,7 +266,17 @@ jobs:
 
                   @JavascriptInterface
                   public String getAppVersion() {
-                      return "2.1.2";
+                      return "2.2.0";
+                  }
+
+                  @JavascriptInterface
+                  public void downloadApkUpdate(String url) {
+                      if (url == null || url.trim().isEmpty()) return;
+                      try {
+                          Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url.trim()));
+                          intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                          ctx.startActivity(intent);
+                      } catch (Exception ignored) {}
                   }
               }
 
@@ -270,6 +291,7 @@ jobs:
                   if (p.endsWith(".jpg") || p.endsWith(".jpeg")) return "image/jpeg";
                   if (p.endsWith(".webp")) return "image/webp";
                   if (p.endsWith(".ico")) return "image/x-icon";
+                  if (p.endsWith(".apk")) return "application/vnd.android.package-archive";
                   return "application/octet-stream";
               }
 
@@ -300,9 +322,19 @@ jobs:
                   ws.setCacheMode(WebSettings.LOAD_NO_CACHE);
                   webView.clearCache(true);
                   String baseUa = ws.getUserAgentString();
-                  ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.1.2");
+                  ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.2.0");
 
                   webView.addJavascriptInterface(new NativeBridge(this), "AndroidBridge");
+
+                  webView.setDownloadListener(new DownloadListener() {
+                      @Override
+                      public void onDownloadStart(String url, String userAgent, String contentDisposition, String mimetype, long contentLength) {
+                          try {
+                              Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+                              startActivity(intent);
+                          } catch (Exception ignored) {}
+                      }
+                  });
 
                   webView.setWebViewClient(new WebViewClient() {
                       @Override
@@ -334,8 +366,17 @@ jobs:
                           if (uri == null) return false;
                           String host = uri.getHost() != null ? uri.getHost().toLowerCase() : "";
                           String scheme = uri.getScheme() != null ? uri.getScheme().toLowerCase() : "";
+                          String path = uri.getPath() != null ? uri.getPath().toLowerCase() : "";
                           if (host.equals(VIRTUAL_HOST)) {
                               return false;
+                          }
+                          // Если запрашивается скачивание .apk обновления — передаём ссылку системному загрузчику Android
+                          if (path.endsWith(".apk") || path.startsWith("/apk/")) {
+                              try {
+                                  Intent intent = new Intent(Intent.ACTION_VIEW, uri);
+                                  startActivity(intent);
+                                  return true;
+                              } catch (Exception ignored) {}
                           }
                           if (host.equals("klevpro.ru") || host.equals("www.klevpro.ru")) {
                               String q = uri.getEncodedQuery();
@@ -420,7 +461,7 @@ jobs:
               }
 
               private void loadEntryUrlFromIntent(Intent intent) {
-                  String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/index.html?v=2.1.2_r177";
+                  String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/index.html?v=2.2.0_r180";
                   if (intent != null && intent.getData() != null) {
                       Uri data = intent.getData();
                       String q = data.getEncodedQuery();
@@ -523,8 +564,37 @@ jobs:
             exit $GRADLE_EXIT
           fi
 
+      - name: Rename Signed APK to klev-pro-v2.2.0.apk
+        run: |
+          REL_DIR="${{ steps.locate.outputs.proj_dir }}/app/build/outputs/apk/release"
+          SRC_APK=$(ls "$REL_DIR"/*.apk | head -n 1)
+          if [ -n "$SRC_APK" ]; then
+            cp -f "$SRC_APK" "$REL_DIR/klev-pro-v2.2.0.apk"
+          fi
+
+      - name: Auto-Save Signed APK to Repository (/apk/klev-pro-v2.2.0.apk)
+        run: |
+          REL_APK="${{ steps.locate.outputs.proj_dir }}/app/build/outputs/apk/release/klev-pro-v2.2.0.apk"
+          if [ -f "$REL_APK" ]; then
+            mkdir -p apk
+            rm -f apk/*.apk
+            cp -f "$REL_APK" apk/klev-pro-v2.2.0.apk
+            ls -lh apk/klev-pro-v2.2.0.apk
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add apk/klev-pro-v2.2.0.apk
+            if ! git diff --cached --quiet; then
+              git commit -m "chore(apk): auto-publish klev-pro-v2.2.0.apk to /apk/ [skip ci]"
+              git pull --rebase origin "${GITHUB_REF_NAME:-main}" || true
+              git push origin HEAD:"${GITHUB_REF_NAME:-main}"
+              echo "✅ Файл apk/klev-pro-v2.2.0.apk автоматически сохранён в каталог /apk/ репозитория!"
+            else
+              echo "ℹ️ Файл apk/klev-pro-v2.2.0.apk уже актуален."
+            fi
+          fi
+
       - name: Upload Signed APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: KlevPro-v2.1.2-Android-APK
-          path: ${{ steps.locate.outputs.proj_dir }}/app/build/outputs/apk/release/*.apk
+          name: KlevPro-v2.2.0-Android-APK
+          path: ${{ steps.locate.outputs.proj_dir }}/app/build/outputs/apk/release/klev-pro-v2.2.0.apk
