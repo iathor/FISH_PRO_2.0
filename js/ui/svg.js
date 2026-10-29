@@ -1,6 +1,6 @@
-import { APP_VERSION, IMG_SEARCH_DIRS } from '../core/config.js?v=2.1.3';
-import { getRatingWord } from '../core/format.js?v=2.1.3';
-import { FISH_DB } from '../data/species.js?v=2.1.3';
+import { APP_VERSION, IMG_SEARCH_DIRS } from '../core/config.js?v=2.2.0';
+import { getRatingWord } from '../core/format.js?v=2.2.0';
+import { FISH_DB } from '../data/species.js?v=2.2.0';
 
 let clipSeq = 0;
 
