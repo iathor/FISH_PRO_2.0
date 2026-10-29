@@ -1,1 +1,242 @@
-import{store as t}from"./store.js?v=2.1.2";import{renderMap as e}from"../modules/geo/geo.module.js?v=2.1.2";import{closeModal as o}from"../ui/components.js?v=2.1.2";const n=["geo","weather","fish","forecast","circle","chats","log","calendar","admin"],i="forecast",a=[i];let s=!1;export function pushBackGuardState(e="guard"){if("undefined"!=typeof window&&window.history&&"function"==typeof window.history.pushState)try{const o=window.history.state,n=t.getState().route||i;if("init"===e&&o&&o.klevGuard)return;window.history.pushState({klevGuard:!0,reason:e,route:n,ts:Date.now()},"",window.location.hash||`#/${n}`)}catch(t){}}export function handleAppBackAction(e="popstate"){if("undefined"==typeof document)return!1;const n=document.getElementById("fishImageLightbox");if(n&&n.classList.contains("open"))return n.classList.remove("open"),!0;const s=document.getElementById("releaseUpdateModal");if(s&&s.classList.contains("open"))return s.classList.remove("open"),!0;const c=document.getElementById("appModalBackdrop");if(c&&c.classList.contains("open")){if("undefined"!=typeof window&&"function"==typeof window.__KLEV_MODAL_BACK_FN__){const t=window.__KLEV_MODAL_BACK_FN__;return window.__KLEV_MODAL_BACK_FN__=null,t(),!0}return o(),!0}const r=document.getElementById("navMorePopup"),d=document.getElementById("navMoreBtn");if(r&&r.classList.contains("open"))return r.classList.remove("open"),d&&d.setAttribute("aria-expanded","false"),!0;const l=document.getElementById("scoutCloseBtn");if(l&&null!==l.offsetParent)return l.click(),!0;const p=t.getState().route||i;if(p!==i){for(;a.length>0&&a[a.length-1]===p;)a.pop();const t=a.pop()||i;return router.navigate(t,{fromBack:!0}),!0}return!1}"undefined"!=typeof window&&(window.__KLEV_PUSH_BACK_GUARD__=pushBackGuardState,window.__KLEV_HANDLE_BACK__=handleAppBackAction);export const router={init(){if(this.syncFromHash(),"undefined"!=typeof window){try{const e=t.getState().route||i;window.history.replaceState({klevRoot:!0,route:e},"",window.location.hash||`#/${e}`),pushBackGuardState("init")}catch(t){}window.addEventListener("popstate",(()=>{if(s)return void(s=!1);const t=(window.location.hash||"").replace(/^#\/?/,"").trim();if(t.startsWith("klev_pack=")||t.startsWith("pack=KP1_")||t.startsWith("p=KP1_"))return this.syncFromHash(),void pushBackGuardState("pack");handleAppBackAction("popstate"),pushBackGuardState("rearm")})),window.addEventListener("hashchange",(()=>{const t=(window.location.hash||"").replace(/^#\/?/,"").trim();(t.startsWith("klev_pack=")||t.startsWith("pack=KP1_")||t.startsWith("p=KP1_"))&&this.syncFromHash()}))}},syncFromHash(){const e=(window.location.hash||"").replace(/^#\/?/,"").trim();if(e.startsWith("klev_pack=")||e.startsWith("pack=KP1_")||e.startsWith("p=KP1_")){const e="circle";return this.applyVisibility(e),t.getState().route!==e&&t.dispatch({type:"SET_ROUTE",payload:e}),void("function"==typeof window.syncFishDockState&&window.syncFishDockState(!0,e))}const o=e.split("?")[0],a=n.includes(o)?o:i;this.applyVisibility(a),t.getState().route!==a&&t.dispatch({type:"SET_ROUTE",payload:a}),"function"==typeof window.syncFishDockState&&window.syncFishDockState(!0,a)},navigate(e,o={}){const s=n.includes(e)?e:i,c=t.getState().route||i;if(o.fromBack||c===s||(a[a.length-1]!==c&&a.push(c),a.length>12&&a.splice(0,a.length-12)),"undefined"!=typeof window&&window.history)try{window.location.hash!==`#/${s}`&&window.history.replaceState({klevGuard:!0,route:s},"",`#/${s}`),pushBackGuardState("nav")}catch(t){}if(c!==s&&"undefined"!=typeof window&&"function"==typeof window.scrollTo)try{window.scrollTo(0,0)}catch(t){}this.applyVisibility(s),t.dispatch({type:"SET_ROUTE",payload:s}),"function"==typeof window.syncFishDockState&&window.syncFishDockState(!0,s)},applyVisibility(t){document.querySelectorAll("[data-route-section]").forEach((e=>{const o=e.getAttribute("data-route-section");o===t||"fish"===o&&["forecast","calendar"].includes(t)?e.style.display="":e.style.display="none"})),document.querySelectorAll("[data-nav-tab]").forEach((e=>{e.classList.toggle("active",e.getAttribute("data-nav-tab")===t)}));const o=document.getElementById("navMoreBtn");o&&o.classList.toggle("active","calendar"===t||"log"===t||"chats"===t),"function"==typeof window.syncFishDockState&&window.syncFishDockState(!1,t),"geo"===t&&setTimeout((()=>{const t=document.getElementById("mapBox");t&&null!==t.offsetParent&&e(t)}),60)}};
+import { store } from './store.js?v=2.1.3';
+import { renderMap } from '../modules/geo/geo.module.js?v=2.1.3';
+import { closeModal } from '../ui/components.js?v=2.1.3';
+
+const VALID_ROUTES = ['geo', 'weather', 'fish', 'forecast', 'circle', 'chats', 'log', 'calendar', 'admin'];
+const DEFAULT_ROUTE = 'forecast';
+
+const routeHistoryStack = [DEFAULT_ROUTE];
+let suppressNextPopState = false;
+
+/**
+ * Ставит защитную запись в window.history, чтобы боковой свайп «Назад» (на Android / iOS / в APK / в Telegram Mini App)
+ * всегда перехватывался приложением (закрывал открытое подменю/модалку или возвращал на вкладку Прогноз),
+ * и НИКОГДА случайно не закрывал и не сворачивал приложение.
+ */
+export function pushBackGuardState(reason = 'guard') {
+  if (typeof window === 'undefined' || !window.history || typeof window.history.pushState !== 'function') return;
+  try {
+    const curState = window.history.state;
+    const curRoute = store.getState().route || DEFAULT_ROUTE;
+    if (reason === 'init' && curState && curState.klevGuard) {
+      return;
+    }
+    window.history.pushState({ klevGuard: true, reason, route: curRoute, ts: Date.now() }, '', window.location.hash || `#/${curRoute}`);
+  } catch (e) {}
+}
+
+/**
+ * Централизованный обработчик жеста «Назад» (боковой свайп экрана / системная кнопка Back в APK, браузере и TMA).
+ * Возвращает true, если действие обработано внутри приложения (закрыта модалка, лайтбокс, меню или выполнен переход на Прогноз).
+ */
+export function handleAppBackAction(source = 'popstate') {
+  if (typeof document === 'undefined') return false;
+
+  // 0a. Если открыто окно подтверждения удаления — закрываем его
+  const confirmEl = document.getElementById('klevConfirmDeleteBackdrop');
+  if (confirmEl && confirmEl.style.display === 'flex') {
+    confirmEl.style.display = 'none';
+    confirmEl.innerHTML = '';
+    return true;
+  }
+
+  // 0b. Если открыто окно Пользовательского соглашения — закрываем его
+  const uaEl = document.getElementById('klevUserAgreementBackdrop');
+  if (uaEl && uaEl.style.display === 'flex') {
+    uaEl.querySelector('#uaCancelCloseBtn')?.click();
+    return true;
+  }
+
+  // 0c. Если открыто полноэкранное окно чата — возвращаемся к списку чатов
+  if (typeof window !== 'undefined' && typeof window.__KLEV_CLOSE_FULLSCREEN_CHAT__ === 'function') {
+    if (window.__KLEV_CLOSE_FULLSCREEN_CHAT__()) return true;
+  }
+
+  // 1. Если открыт полноэкранный лайтбокс рыбы — закрываем его
+  const lb = document.getElementById('fishImageLightbox');
+  if (lb && lb.classList.contains('open')) {
+    lb.classList.remove('open');
+    return true;
+  }
+
+  // 2. Если открыто окно обновления релиза — закрываем его
+  const relModal = document.getElementById('releaseUpdateModal');
+  if (relModal && relModal.classList.contains('open')) {
+    relModal.classList.remove('open');
+    return true;
+  }
+
+  // 3. Если открыто любое модальное окно или подменю настроек:
+  //    если это дочернее подменю, открытое из хаба профиля, возвращаемся в хаб профиля; иначе закрываем модалку
+  const backdrop = document.getElementById('appModalBackdrop');
+  if (backdrop && backdrop.classList.contains('open')) {
+    if (typeof window !== 'undefined' && typeof window.__KLEV_MODAL_BACK_FN__ === 'function') {
+      const fn = window.__KLEV_MODAL_BACK_FN__;
+      window.__KLEV_MODAL_BACK_FN__ = null;
+      fn();
+      return true;
+    }
+    closeModal();
+    return true;
+  }
+
+  // 4. Если открыто всплывающее меню «⋮ Ещё» в нижней панели — закрываем его
+  const morePopup = document.getElementById('navMorePopup');
+  const moreBtn = document.getElementById('navMoreBtn');
+  if (morePopup && morePopup.classList.contains('open')) {
+    morePopup.classList.remove('open');
+    if (moreBtn) moreBtn.setAttribute('aria-expanded', 'false');
+    return true;
+  }
+
+  // 5. Если на карте открыта карточка разведки точки — закрываем её
+  const scoutCloseBtn = document.getElementById('scoutCloseBtn');
+  if (scoutCloseBtn && scoutCloseBtn.offsetParent !== null) {
+    scoutCloseBtn.click();
+    return true;
+  }
+
+  // 6. Если пользователь находится на любой вкладке кроме главной («🎣 Прогноз»), возвращаем на предыдущую вкладку или «🎣 Прогноз»
+  const curRoute = store.getState().route || DEFAULT_ROUTE;
+  if (curRoute !== DEFAULT_ROUTE) {
+    while (routeHistoryStack.length > 0 && routeHistoryStack[routeHistoryStack.length - 1] === curRoute) {
+      routeHistoryStack.pop();
+    }
+    const prevRoute = routeHistoryStack.pop() || DEFAULT_ROUTE;
+    router.navigate(prevRoute, { fromBack: true });
+    return true;
+  }
+
+  return false;
+}
+
+if (typeof window !== 'undefined') {
+  window.__KLEV_PUSH_BACK_GUARD__ = pushBackGuardState;
+  window.__KLEV_HANDLE_BACK__ = handleAppBackAction;
+}
+
+export const router = {
+  init() {
+    this.syncFromHash();
+
+    if (typeof window !== 'undefined') {
+      // Инициализируем базовую подушку истории, чтобы первый же боковой свайп не выбросил из WebView / браузера
+      try {
+        const curRoute = store.getState().route || DEFAULT_ROUTE;
+        window.history.replaceState({ klevRoot: true, route: curRoute }, '', window.location.hash || `#/${curRoute}`);
+        pushBackGuardState('init');
+      } catch (e) {}
+
+      window.addEventListener('popstate', () => {
+        if (suppressNextPopState) {
+          suppressNextPopState = false;
+          return;
+        }
+        const raw = (window.location.hash || '').replace(/^#\/?/, '').trim();
+        if (raw.startsWith('klev_pack=') || raw.startsWith('pack=KP1_') || raw.startsWith('p=KP1_')) {
+          this.syncFromHash();
+          pushBackGuardState('pack');
+          return;
+        }
+        handleAppBackAction('popstate');
+        // Всегда восстанавливаем защитную запись в истории, чтобы повторный боковой свайп не закрыл приложение
+        pushBackGuardState('rearm');
+      });
+
+      window.addEventListener('hashchange', () => {
+        const raw = (window.location.hash || '').replace(/^#\/?/, '').trim();
+        if (raw.startsWith('klev_pack=') || raw.startsWith('pack=KP1_') || raw.startsWith('p=KP1_')) {
+          this.syncFromHash();
+        }
+      });
+    }
+  },
+
+  syncFromHash() {
+    const raw = (window.location.hash || '').replace(/^#\/?/, '').trim();
+    if (raw.startsWith('klev_pack=') || raw.startsWith('pack=KP1_') || raw.startsWith('p=KP1_')) {
+      const route = 'circle';
+      this.applyVisibility(route);
+      if (store.getState().route !== route) {
+        store.dispatch({ type: 'SET_ROUTE', payload: route });
+      }
+      if (typeof window.syncFishDockState === 'function') {
+        window.syncFishDockState(true, route);
+      }
+      return;
+    }
+    const cleanRoute = raw.split('?')[0];
+    const route = VALID_ROUTES.includes(cleanRoute) ? cleanRoute : DEFAULT_ROUTE;
+    this.applyVisibility(route);
+    if (store.getState().route !== route) {
+      store.dispatch({ type: 'SET_ROUTE', payload: route });
+    }
+    if (typeof window.syncFishDockState === 'function') {
+      window.syncFishDockState(true, route);
+    }
+  },
+
+  navigate(route, opts = {}) {
+    const target = VALID_ROUTES.includes(route) ? route : DEFAULT_ROUTE;
+    const prevRoute = store.getState().route || DEFAULT_ROUTE;
+
+    if (!opts.fromBack && prevRoute !== target) {
+      if (routeHistoryStack[routeHistoryStack.length - 1] !== prevRoute) {
+        routeHistoryStack.push(prevRoute);
+      }
+      if (routeHistoryStack.length > 12) {
+        routeHistoryStack.splice(0, routeHistoryStack.length - 12);
+      }
+    }
+
+    if (typeof window !== 'undefined' && window.history) {
+      try {
+        if (window.location.hash !== `#/${target}`) {
+          window.history.replaceState({ klevGuard: true, route: target }, '', `#/${target}`);
+        }
+        pushBackGuardState('nav');
+      } catch (e) {}
+    }
+
+    if (prevRoute !== target && typeof window !== 'undefined' && typeof window.scrollTo === 'function') {
+      try { window.scrollTo(0, 0); } catch (e) {}
+    }
+    // Сначала применяем видимость секций с передачей точного target, затем обновляем store!
+    this.applyVisibility(target);
+    store.dispatch({ type: 'SET_ROUTE', payload: target });
+    if (typeof window.syncFishDockState === 'function') {
+      window.syncFishDockState(true, target);
+    }
+  },
+
+  applyVisibility(route) {
+    document.querySelectorAll('[data-route-section]').forEach(sec => {
+      const secName = sec.getAttribute('data-route-section');
+      if (secName === route) {
+        sec.style.display = '';
+      } else if (secName === 'fish' && ['forecast', 'calendar'].includes(route)) {
+        sec.style.display = '';
+      } else {
+        sec.style.display = 'none';
+      }
+    });
+    document.querySelectorAll('[data-nav-tab]').forEach(btn => {
+      btn.classList.toggle('active', btn.getAttribute('data-nav-tab') === route);
+    });
+    const moreBtn = document.getElementById('navMoreBtn');
+    if (moreBtn) {
+      moreBtn.classList.toggle('active', route === 'calendar' || route === 'log' || route === 'admin');
+    }
+    if (typeof window.syncFishDockState === 'function') {
+      window.syncFishDockState(false, route);
+    }
+    if (route === 'geo') {
+      setTimeout(() => {
+        const box = document.getElementById('mapBox');
+        if (box && box.offsetParent !== null) {
+          renderMap(box);
+        }
+      }, 60);
+    }
+  }
+};

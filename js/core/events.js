@@ -1,1 +1,18 @@
-const e=new Map;export const events={on(t,o){return e.has(t)||e.set(t,new Set),e.get(t).add(o),()=>this.off(t,o)},off(t,o){e.has(t)&&e.get(t).delete(o)},emit(t,o){if(e.has(t))for(const n of e.get(t))try{n(o)}catch(e){console.error(`[events] Error in ${t}:`,e)}}};
+const listeners = new Map();
+
+export const events = {
+  on(event, fn) {
+    if (!listeners.has(event)) listeners.set(event, new Set());
+    listeners.get(event).add(fn);
+    return () => this.off(event, fn);
+  },
+  off(event, fn) {
+    if (listeners.has(event)) listeners.get(event).delete(fn);
+  },
+  emit(event, payload) {
+    if (!listeners.has(event)) return;
+    for (const fn of listeners.get(event)) {
+      try { fn(payload); } catch (err) { console.error(`[events] Error in ${event}:`, err); }
+    }
+  }
+};
