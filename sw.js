@@ -5,9 +5,9 @@
  * - Автоматический пропуск локального контейнера Android APK (appassets.androidplatform.net), где файлы уже внутри APK
  */
 
-const CACHE_VERSION = 'klev-pro-v2.2.0-r180';
+const CACHE_VERSION = 'klev-pro-v2.1.21-r181';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
-const MAP_TILES_CACHE = 'klev-pro-map-tiles-v2.2.0';
+const MAP_TILES_CACHE = 'klev-pro-map-tiles-v2.1.21';
 const MAX_MAP_TILES = 650;
 
 const CORE_ASSETS = [
@@ -15,35 +15,35 @@ const CORE_ASSETS = [
   './index.html',
   './manifest.json',
   './version.json',
-  './css/tokens.css?v=2.2.0',
-  './css/base.css?v=2.2.0',
-  './css/components.css?v=2.2.0',
-  './css/layout.css?v=2.2.0',
-  './js/app.js?v=2.2.0',
-  './js/core/config.js?v=2.2.0',
-  './js/core/events.js?v=2.2.0',
-  './js/core/format.js?v=2.2.0',
-  './js/core/http.js?v=2.2.0',
-  './js/core/pwa.js?v=2.2.0',
-  './js/core/router.js?v=2.2.0',
-  './js/core/storage.js?v=2.2.0',
-  './js/core/store.js?v=2.2.0',
-  './js/core/telegram.js?v=2.2.0',
-  './js/core/updater.js?v=2.2.0',
-  './js/data/basins.js?v=2.2.0',
-  './js/data/russia-waters.js?v=2.2.0',
-  './js/data/species.js?v=2.2.0',
-  './js/data/waters.js?v=2.2.0',
-  './js/i18n/ru.js?v=2.2.0',
-  './js/modules/calendar/calendar.module.js?v=2.2.0',
-  './js/modules/circle/circle.module.js?v=2.2.0',
-  './js/modules/fish/fish.module.js?v=2.2.0',
-  './js/modules/forecast/forecast.module.js?v=2.2.0',
-  './js/modules/geo/geo.module.js?v=2.2.0',
-  './js/modules/log/log.module.js?v=2.2.0',
-  './js/modules/weather/weather.module.js?v=2.2.0',
-  './js/ui/components.js?v=2.2.0',
-  './js/ui/svg.js?v=2.2.0'
+  './css/tokens.css?v=2.1.21',
+  './css/base.css?v=2.1.21',
+  './css/components.css?v=2.1.21',
+  './css/layout.css?v=2.1.21',
+  './js/app.js?v=2.1.21',
+  './js/core/config.js?v=2.1.21',
+  './js/core/events.js?v=2.1.21',
+  './js/core/format.js?v=2.1.21',
+  './js/core/http.js?v=2.1.21',
+  './js/core/pwa.js?v=2.1.21',
+  './js/core/router.js?v=2.1.21',
+  './js/core/storage.js?v=2.1.21',
+  './js/core/store.js?v=2.1.21',
+  './js/core/telegram.js?v=2.1.21',
+  './js/core/updater.js?v=2.1.21',
+  './js/data/basins.js?v=2.1.21',
+  './js/data/russia-waters.js?v=2.1.21',
+  './js/data/species.js?v=2.1.21',
+  './js/data/waters.js?v=2.1.21',
+  './js/i18n/ru.js?v=2.1.21',
+  './js/modules/calendar/calendar.module.js?v=2.1.21',
+  './js/modules/circle/circle.module.js?v=2.1.21',
+  './js/modules/fish/fish.module.js?v=2.1.21',
+  './js/modules/forecast/forecast.module.js?v=2.1.21',
+  './js/modules/geo/geo.module.js?v=2.1.21',
+  './js/modules/log/log.module.js?v=2.1.21',
+  './js/modules/weather/weather.module.js?v=2.1.21',
+  './js/ui/components.js?v=2.1.21',
+  './js/ui/svg.js?v=2.1.21'
 ];
 
 function isMapTileHostname(hostname = '') {
@@ -102,6 +102,11 @@ self.addEventListener('fetch', event => {
   if (req.method !== 'GET') return;
 
   const url = new URL(req.url);
+
+  // Никогда не перехватываем запросы к серверу БД/погоды/ретранслятора (Cloudflare Worker)
+  if (url.hostname.includes('workers.dev') || url.pathname.startsWith('/api/') || url.pathname.startsWith('/auth/') || url.pathname.startsWith('/relay/') || url.pathname.startsWith('/weather')) {
+    return;
+  }
 
   if (isMapTileHostname(url.hostname)) {
     event.respondWith(

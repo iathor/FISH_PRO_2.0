@@ -1,7 +1,7 @@
 // @file bot/cloudflare-worker-bot.js — @KlevProClubBot (V.2.1.1)
 // Компактная сборка для Cloudflare Workers (115 рыб, 491 водоём, 609 городов РФ + Triple-Engine $0 DB + E2EE Relay + Обмен точками Круга/Экипажа/SOS + Уникальные Региональные ID FP_89AAA001 & Эксклюзивный VIP ID владельца FP_89VIP089 + Секретная Серверная Консоль Супер-Админа)
 
-const WORKER_VERSION = '2.2.0';
+const WORKER_VERSION = '2.1.21';
 const rateBuckets = new Map();
 const transitBoxes = new Map(); // Транзитная очередь зашифрованных пакетов (Zero-Storage: удаляется при доставке/по TTL)
 const weatherGridCache = new Map(); // Кэш погоды бота по гео-сетке 0.1° × 0.1° (~8-10 км) на 20 минут
@@ -506,6 +506,8 @@ const CORS_HEADERS = {
  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
  'Access-Control-Allow-Headers': 'Content-Type, Accept, Authorization, X-Requested-With',
  'Access-Control-Max-Age': '86400',
+ 'Cache-Control': 'no-store, no-cache, must-revalidate',
+ 'Pragma': 'no-cache',
  'Alt-Svc': 'clear',
  'X-Content-Type-Options': 'nosniff',
  'Referrer-Policy': 'strict-origin-when-cross-origin'
@@ -3091,8 +3093,10 @@ async function d1PushRelay(env, pkt) {
  } catch (e) {}
 }
 let _persistentStateLoadPromise = null;
+let _lastD1StateSyncTs = 0;
 async function ensurePersistentStateLoaded(env, forceReload = false) {
- if (persistentStateLoaded && !forceReload) return;
+ const nowTs = Date.now();
+ if (persistentStateLoaded && !forceReload && (nowTs - _lastD1StateSyncTs < 8000)) return;
  if (_persistentStateLoadPromise && !forceReload) return _persistentStateLoadPromise;
  _persistentStateLoadPromise = (async () => {
 
@@ -3419,24 +3423,36 @@ async function persistSystemMeta(env, ctx = null) {
 }
 
 async function loadPersistedAuthProfile(env, authKey, loginNorm = '', fisherId = '') {
- if (cloudAuthProfiles.has(authKey)) return cloudAuthProfiles.get(authKey);
  const d1Info = getD1(env);
  const d1 = d1Info?.db;
  if (d1) {
   try {
    let row = null;
-   if (authKey) row = await d1.prepare('SELECT payload FROM auth_profiles WHERE auth_key = ?').bind(authKey).first();
-   if (!row && loginNorm) row = await d1.prepare('SELECT payload FROM auth_profiles WHERE login_norm = ?').bind(loginNorm).first();
-   if (!row && fisherId) row = await d1.prepare('SELECT payload FROM auth_profiles WHERE fisher_id = ?').bind(fisherId).first();
+   if (authKey) row = await d1.prepare('SELECT auth_key, login_norm, fisher_id, payload FROM auth_profiles WHERE auth_key = ?').bind(authKey).first();
+   if (!row && loginNorm) row = await d1.prepare('SELECT auth_key, login_norm, fisher_id, payload FROM auth_profiles WHERE login_norm = ?').bind(loginNorm).first();
+   if (!row && fisherId) row = await d1.prepare('SELECT auth_key, login_norm, fisher_id, payload FROM auth_profiles WHERE fisher_id = ?').bind(fisherId).first();
    if (row && row.payload) {
     const prof = workerSafeJsonParse(row.payload, null);
     if (prof) {
-     cloudAuthProfiles.set(authKey, prof);
-     if (prof.fisherId) reservedVanityIds.add(prof.fisherId);
+     const effKey = row.auth_key || authKey || `AUTH_${row.login_norm || loginNorm}`;
+     cloudAuthProfiles.set(effKey, prof);
+     if (authKey && authKey !== effKey) cloudAuthProfiles.set(authKey, prof);
+     const effLogin = row.login_norm || loginNorm || workerNormalizeLogin(prof.login || '');
+     if (effLogin) loginToAuthKeyMap.set(effLogin, effKey);
+     const effFid = row.fisher_id || fisherId || prof.fisherId || '';
+     if (effFid) {
+      fisherIdToAuthKeyMap.set(effFid, effKey);
+      reservedVanityIds.add(effFid);
+     }
      return prof;
     }
    }
   } catch (e) {}
+ }
+ if (authKey && cloudAuthProfiles.has(authKey)) return cloudAuthProfiles.get(authKey);
+ if (loginNorm && loginToAuthKeyMap.has(loginNorm)) {
+  const k = loginToAuthKeyMap.get(loginNorm);
+  if (cloudAuthProfiles.has(k)) return cloudAuthProfiles.get(k);
  }
  return null;
 }
@@ -3515,7 +3531,7 @@ function renderSuperAdminConsoleHtml(originUrl = '', d1Info = null) {
        <div style="font-weight:900;color:#34d399;font-size:14px;">🟢 Cloudflare D1 База Данных: ПОДКЛЮЧЕНА (Имя привязки: ${d1Info.name})</div>
        <div style="font-size:12px;color:#94a3b8;margin-top:2px;">Все постоянные ID, реестр пользователей, чаты и точки сохраняются в постоянных SQL-таблицах D1.</div>
       </div>
-      <span style="padding:4px 10px;border-radius:6px;background:#1e293b;border:1px solid #334155;font-size:11px;font-weight:800;color:#38bdf8;">D1 Engine 2.1.2</span>
+      <span style="padding:4px 10px;border-radius:6px;background:#1e293b;border:1px solid #334155;font-size:11px;font-weight:800;color:#38bdf8;">D1 Engine 2.1.21</span>
      </div>`
   : `<div style="padding:12px 14px;border-radius:10px;background:rgba(239,68,68,0.15);border:1.5px solid #ef4444;margin-bottom:12px;display:flex;flex-direction:column;gap:6px;">
       <div style="font-weight:900;color:#f87171;font-size:14px;">🔴 ВНИМАНИЕ: Cloudflare D1 База Данных НЕ ПРИВЯЗАНА!</div>
@@ -3954,7 +3970,7 @@ function generateSyntheticWeatherJson(lat, lon) {
  const baseTemp = (nLat > 64) ? -4.2 : 5.8;
  const basePress = 754;
 
- for (let d = -7; d <= 3; d++) {
+ for (let d = -7; d <= 9; d++) {
   for (let h = 0; h < 24; h++) {
    const dt = new Date(now.getTime() + (d * 24 + h) * 3600000);
    hourlyTimes.push(dt.toISOString().slice(0, 16));
@@ -3976,7 +3992,7 @@ function generateSyntheticWeatherJson(lat, lon) {
  const dailyMaxWind = [];
  const dailyDomWindDir = [];
 
- for (let d = -7; d <= 3; d++) {
+ for (let d = -7; d <= 9; d++) {
   const dt = new Date(now.getTime() + d * 86400000);
   const dateStr = dt.toISOString().slice(0, 10);
   dailyTimes.push(dateStr);
@@ -4088,7 +4104,7 @@ function generateSyntheticWeatherJson(lat, lon) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 4500);
     const upstreamRes = await fetch(omUrl, {
-     headers: { 'User-Agent': 'KlevProClubBot/2.1.2 (https://klevpro.ru)' },
+     headers: { 'User-Agent': 'KlevProClubBot/2.1.21 (https://klevpro.ru)' },
      signal: controller.signal,
      cf: { cacheTtl: 1800, cacheEverything: true }
     }).catch(() => null);
@@ -4104,7 +4120,7 @@ function generateSyntheticWeatherJson(lat, lon) {
     try {
      const metUrl = `https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${gLat}&lon=${gLon}`;
      const metRes = await fetch(metUrl, {
-      headers: { 'User-Agent': 'KlevProClubBot/2.1.2 (https://klevpro.ru, thorantony82@yandex.ru)' }
+      headers: { 'User-Agent': 'KlevProClubBot/2.1.21 (https://klevpro.ru, thorantony82@yandex.ru)' }
      }).catch(() => null);
      if (metRes && metRes.ok) {
       const metJson = await metRes.json();
@@ -4354,7 +4370,7 @@ function generateSyntheticWeatherJson(lat, lon) {
   // ── 2b. Двухэтапная связка автономного ID рыбака (FP_89...) и единого профиля с аккаунтом Telegram (/api/tg/bind) ──
   if (reqUrl.pathname.endsWith('/api/tg/bind')) {
    await ensurePersistentStateLoaded(env);
-   if (request.method === 'GET') {
+   if (request.method === 'GET' && !reqUrl.searchParams.has('payload')) {
     const qFid = workerNormalizeFisherId(reqUrl.searchParams.get('fid') || '', '89');
     const qDev = String(reqUrl.searchParams.get('deviceId') || '').trim();
     const qTg = String(reqUrl.searchParams.get('tgId') || '').trim();
@@ -4381,7 +4397,7 @@ function generateSyntheticWeatherJson(lat, lon) {
      login: u?.login || (isOwnerReq ? 'iAthor' : '')
     }), { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
    }
-   if (request.method === 'POST') {
+   if (request.method === 'POST' || reqUrl.searchParams.has('payload')) {
     try {
      const body = await readWorkerRequestPayload(request, reqUrl);
      const rec = bindTelegramToFisherProfile({
@@ -4508,11 +4524,21 @@ function generateSyntheticWeatherJson(lat, lon) {
    const d1 = d1Info?.db;
    if (d1) {
     try {
-     const ptRows = await d1.prepare('SELECT payload FROM circle_points WHERE ea > ? ORDER BY ca DESC LIMIT 300').bind(Date.now()).all();
+     const nowMs = Date.now();
+     const ptRows = await d1.prepare('SELECT payload FROM circle_points WHERE ea > ? ORDER BY ca DESC LIMIT 300').bind(nowMs).all();
      if (ptRows && Array.isArray(ptRows.results)) {
+      const d1PointIds = new Set();
       for (const r of ptRows.results) {
        const pt = workerSafeJsonParse(r.payload, null);
-       if (pt && pt.id) circlePointsStore.set(pt.id, pt);
+       if (pt && pt.id) {
+        d1PointIds.add(pt.id);
+        circlePointsStore.set(pt.id, pt);
+       }
+      }
+      for (const [memId, memPt] of circlePointsStore.entries()) {
+       if (!d1PointIds.has(memId) && (!memPt || (nowMs - (memPt.ca || 0)) > 15000)) {
+        circlePointsStore.delete(memId);
+       }
       }
      }
     } catch (e) {}
@@ -4590,7 +4616,7 @@ function generateSyntheticWeatherJson(lat, lon) {
    });
   }
 
-  if (reqUrl.pathname.endsWith('/api/circle/delete') && request.method === 'POST') {
+  if (reqUrl.pathname.endsWith('/api/circle/delete') && (request.method === 'POST' || reqUrl.searchParams.has('payload'))) {
    try {
     await ensurePersistentStateLoaded(env);
     const body = await readWorkerRequestPayload(request, reqUrl);
@@ -4647,6 +4673,7 @@ function generateSyntheticWeatherJson(lat, lon) {
    if (workerIsOwnerLogin(rawL)) {
     return new Response(JSON.stringify({ ok: true, available: false, isOwnerLogin: true, message: 'Эксклюзивный логин Владельца (FP_89VIP089)' }), { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
    }
+   await loadPersistedAuthProfile(env, '', normL, '');
    const aKey = loginToAuthKeyMap.get(normL);
    const prof = aKey ? cloudAuthProfiles.get(aKey) : null;
    const isMine = Boolean(prof && devId && prof.deviceId === devId);
@@ -4669,8 +4696,11 @@ function generateSyntheticWeatherJson(lat, lon) {
     await ensurePersistentStateLoaded(env);
     const body = await readWorkerRequestPayload(request, reqUrl);
     const incomingSnap = workerSanitizeObject(body.profileSnapshot);
-    const preCheckKey = body.login ? `AUTH_${String(body.login).trim().toLowerCase().replace(/^@/, '')}_${body.authTokenHash && String(body.authTokenHash).startsWith('KTOK_') ? body.authTokenHash : workerDeriveAuthToken(body.login, body.password)}` : '';
-    if (preCheckKey) await loadPersistedAuthProfile(env, preCheckKey);
+    const rawLoginClean = String(body.login || '').trim();
+    const normLoginPre = workerNormalizeLogin(rawLoginClean);
+    const normFidPre = /^FP_/i.test(rawLoginClean) ? workerNormalizeFisherId(rawLoginClean, '89') : '';
+    const preCheckKey = normLoginPre ? `AUTH_${normLoginPre}_${body.authTokenHash && String(body.authTokenHash).startsWith('KTOK_') ? body.authTokenHash : workerDeriveAuthToken(rawLoginClean, body.password)}` : '';
+    await loadPersistedAuthProfile(env, preCheckKey, normLoginPre, normFidPre);
     const ident = resolveWorkerAccountIdentity(body.login, body.password, body.authTokenHash, body.regionCode, incomingSnap);
     if (!ident.ok) {
      return new Response(JSON.stringify({ ok: false, error: ident.error || 'Укажите логин и пароль (от 3 символов)' }), {
@@ -4746,7 +4776,7 @@ function generateSyntheticWeatherJson(lat, lon) {
     console.error('[Worker Auth Error Caught]', e);
     // Защита Владельца: если вход совершает iAthor с паролем FISherman1982*, авторизуем безоговорочно в памяти!
     let reqBody = null;
-    try { reqBody = await request.clone().json(); } catch(err) {}
+    try { reqBody = await readWorkerRequestPayload(request.clone(), reqUrl); } catch(err) {}
     const rawL = reqBody ? (reqBody.login || '') : '';
     const rawP = reqBody ? (reqBody.password || '') : '';
     const rawT = reqBody ? (reqBody.authTokenHash || '') : '';
@@ -4818,8 +4848,11 @@ function generateSyntheticWeatherJson(lat, lon) {
     await ensurePersistentStateLoaded(env);
     const body = await readWorkerRequestPayload(request, reqUrl);
     const snap = workerSanitizeObject(body.profileSnapshot);
-    const preCheckKey = body.login ? `AUTH_${String(body.login).trim().toLowerCase().replace(/^@/, '')}_${body.authTokenHash && String(body.authTokenHash).startsWith('KTOK_') ? body.authTokenHash : workerDeriveAuthToken(body.login, body.password)}` : '';
-    if (preCheckKey) await loadPersistedAuthProfile(env, preCheckKey);
+    const rawLoginClean = String(body.login || '').trim();
+    const normLoginPre = workerNormalizeLogin(rawLoginClean);
+    const normFidPre = /^FP_/i.test(rawLoginClean) ? workerNormalizeFisherId(rawLoginClean, '89') : '';
+    const preCheckKey = normLoginPre ? `AUTH_${normLoginPre}_${body.authTokenHash && String(body.authTokenHash).startsWith('KTOK_') ? body.authTokenHash : workerDeriveAuthToken(rawLoginClean, body.password)}` : '';
+    await loadPersistedAuthProfile(env, preCheckKey, normLoginPre, normFidPre);
     const ident = resolveWorkerAccountIdentity(body.login, body.password, body.authTokenHash, body.regionCode, snap);
     if (!ident.ok) {
      return new Response(JSON.stringify({ ok: false, error: 'Invalid credentials' }), {
@@ -4880,14 +4913,14 @@ function generateSyntheticWeatherJson(lat, lon) {
 
   if (reqUrl.pathname.endsWith('/admin/whitelist')) {
   await ensurePersistentStateLoaded(env);
-  if (request.method === 'GET') {
+  if (request.method === 'GET' && !reqUrl.searchParams.has('payload')) {
    return new Response(JSON.stringify({ ok: true, whitelist: Array.from(adminWhitelistStore.values()) }), {
     headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
    });
   }
-  if (request.method === 'POST') {
+  if (request.method === 'POST' || reqUrl.searchParams.has('payload')) {
    try {
-    const body = await request.json();
+    const body = await readWorkerRequestPayload(request, reqUrl);
     const secret = String(body.ownerSecret || '').trim();
     if (!isValidOwnerAdminToken(secret) && !['KLEV-ADMIN-89', 'THOR82', '8989', 'FISHERMAN1982*', 'IATHOR82', 'IATHOR'].includes(secret.toUpperCase())) {
      return new Response(JSON.stringify({ ok: false, error: 'Forbidden' }), { status: 403, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
@@ -4924,7 +4957,7 @@ function generateSyntheticWeatherJson(lat, lon) {
   try {
    await ensurePersistentStateLoaded(env);
    cleanupTransitBoxes();
-   const body = await request.json();
+   const body = await readWorkerRequestPayload(request, reqUrl);
    const channelId = String(body.channelId || '').trim().toUpperCase().slice(0, 64);
    const cipherPayload = String(body.cipherPayload || '').trim().slice(0, 8192);
    const senderFid = workerNormalizeFisherId(body.senderId || '', '89');

@@ -114,7 +114,7 @@ jobs:
                   minSdk 24
                   targetSdk 34
                   versionCode ${VER_CODE}
-                  versionName "2.2.0"
+                  versionName "2.1.21"
               }
               signingConfigs {
                   release {
@@ -266,7 +266,7 @@ jobs:
 
                   @JavascriptInterface
                   public String getAppVersion() {
-                      return "2.2.0";
+                      return "2.1.21";
                   }
 
                   @JavascriptInterface
@@ -322,7 +322,7 @@ jobs:
                   ws.setCacheMode(WebSettings.LOAD_NO_CACHE);
                   webView.clearCache(true);
                   String baseUa = ws.getUserAgentString();
-                  ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.2.0");
+                  ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.1.21");
 
                   webView.addJavascriptInterface(new NativeBridge(this), "AndroidBridge");
 
@@ -461,7 +461,7 @@ jobs:
               }
 
               private void loadEntryUrlFromIntent(Intent intent) {
-                  String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/index.html?v=2.2.0_r180";
+                  String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/index.html?v=2.1.21_r181";
                   if (intent != null && intent.getData() != null) {
                       Uri data = intent.getData();
                       String q = data.getEncodedQuery();
@@ -564,37 +564,37 @@ jobs:
             exit $GRADLE_EXIT
           fi
 
-      - name: Rename Signed APK to klev-pro-v2.2.0.apk
+      - name: Rename Signed APK to klev-pro-v2.1.21.apk
         run: |
           REL_DIR="${{ steps.locate.outputs.proj_dir }}/app/build/outputs/apk/release"
           SRC_APK=$(ls "$REL_DIR"/*.apk | head -n 1)
           if [ -n "$SRC_APK" ]; then
-            cp -f "$SRC_APK" "$REL_DIR/klev-pro-v2.2.0.apk"
+            cp -f "$SRC_APK" "$REL_DIR/klev-pro-v2.1.21.apk"
           fi
 
-      - name: Auto-Save Signed APK to Repository (/apk/klev-pro-v2.2.0.apk)
+      - name: Auto-Save Signed APK to Repository (/apk/klev-pro-v2.1.21.apk)
         run: |
-          REL_APK="${{ steps.locate.outputs.proj_dir }}/app/build/outputs/apk/release/klev-pro-v2.2.0.apk"
+          REL_APK="${{ steps.locate.outputs.proj_dir }}/app/build/outputs/apk/release/klev-pro-v2.1.21.apk"
           if [ -f "$REL_APK" ]; then
             mkdir -p apk
             rm -f apk/*.apk
-            cp -f "$REL_APK" apk/klev-pro-v2.2.0.apk
-            ls -lh apk/klev-pro-v2.2.0.apk
+            cp -f "$REL_APK" apk/klev-pro-v2.1.21.apk
+            ls -lh apk/klev-pro-v2.1.21.apk
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add apk/klev-pro-v2.2.0.apk
+            git add apk/klev-pro-v2.1.21.apk
             if ! git diff --cached --quiet; then
-              git commit -m "chore(apk): auto-publish klev-pro-v2.2.0.apk to /apk/ [skip ci]"
+              git commit -m "chore(apk): auto-publish klev-pro-v2.1.21.apk to /apk/ [skip ci]"
               git pull --rebase origin "${GITHUB_REF_NAME:-main}" || true
               git push origin HEAD:"${GITHUB_REF_NAME:-main}"
-              echo "✅ Файл apk/klev-pro-v2.2.0.apk автоматически сохранён в каталог /apk/ репозитория!"
+              echo "✅ Файл apk/klev-pro-v2.1.21.apk автоматически сохранён в каталог /apk/ репозитория!"
             else
-              echo "ℹ️ Файл apk/klev-pro-v2.2.0.apk уже актуален."
+              echo "ℹ️ Файл apk/klev-pro-v2.1.21.apk уже актуален."
             fi
           fi
 
       - name: Upload Signed APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: KlevPro-v2.2.0-Android-APK
-          path: ${{ steps.locate.outputs.proj_dir }}/app/build/outputs/apk/release/klev-pro-v2.2.0.apk
+          name: KlevPro-v2.1.21-Android-APK
+          path: ${{ steps.locate.outputs.proj_dir }}/app/build/outputs/apk/release/klev-pro-v2.1.21.apk
