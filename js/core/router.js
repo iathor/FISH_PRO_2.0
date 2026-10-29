@@ -1,6 +1,6 @@
-import { store } from './store.js?v=2.1.3';
-import { renderMap } from '../modules/geo/geo.module.js?v=2.1.3';
-import { closeModal } from '../ui/components.js?v=2.1.3';
+import { store } from './store.js?v=2.2.0';
+import { renderMap } from '../modules/geo/geo.module.js?v=2.2.0';
+import { closeModal } from '../ui/components.js?v=2.2.0';
 
 const VALID_ROUTES = ['geo', 'weather', 'fish', 'forecast', 'circle', 'chats', 'log', 'calendar', 'admin'];
 const DEFAULT_ROUTE = 'forecast';

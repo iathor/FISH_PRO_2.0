@@ -6,10 +6,10 @@
  * синхронизацией цветов шапки Telegram, Telegram CloudStorage, HapticFeedback и Deep-Linking (Ревизия 2.1.1).
  */
 
-import { showToast } from '../ui/components.js?v=2.1.3';
-import { syncInstallButtons } from './pwa.js?v=2.1.3';
-import { store } from './store.js?v=2.1.3';
-import { storage } from './storage.js?v=2.1.3';
+import { showToast } from '../ui/components.js?v=2.2.0';
+import { syncInstallButtons } from './pwa.js?v=2.2.0';
+import { store } from './store.js?v=2.2.0';
+import { storage } from './storage.js?v=2.2.0';
 
 export const TELEGRAM_BOT_USERNAME = 'KlevProClubBot';
 export const PUBLIC_APP_URL = 'https://klevpro.ru/';
