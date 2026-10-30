@@ -1,7 +1,7 @@
-/* Main application layout & structure */
+/* Main application layout & Unified Bento UI System (v2.4.0) */
 
 :root {
-  --header-h: 76px;
+  --header-h: 112px;
 }
 
 html {
@@ -12,7 +12,10 @@ body {
   width: 100%;
   max-width: 100vw;
   overflow-x: clip;
-  padding-top: var(--header-h, 76px);
+  padding-top: var(--header-h, 112px);
+  padding-bottom: 92px !important;
+  background: var(--bg-grad, var(--bg)) !important;
+  background-attachment: fixed !important;
 }
 
 #app, .bottom-nav {
@@ -20,7 +23,9 @@ body {
   max-width: 100vw;
 }
 
-/* Pinned Compact Header (~64px): no button clutter, status pill in top-right, full-width location */
+/* ==========================================================================
+   1. РАЗГРУЖЕННАЯ ШАПКА БЕЗ НАЗВАНИЯ И НАЛОЖЕНИЙ + СЕЗОННАЯ ПОЛОСКА ВОДЫ/ЛЬДА
+   ========================================================================== */
 .app-header {
   position: fixed;
   top: 0;
@@ -30,8 +35,10 @@ body {
   z-index: 1000;
   background: var(--panel);
   border-bottom: 1px solid var(--border);
-  padding: 5px 10px;
+  padding: 6px 10px 0 10px !important;
   box-shadow: var(--shadow-header);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   height: auto;
 }
 
@@ -39,26 +46,71 @@ body {
   max-width: 1200px;
   margin: 0 auto;
   display: flex;
-  align-items: center;
-  width: 100%;
-}
-
-.loc-summary {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-  width: 100%;
-  flex: 1;
-}
-
-.header-top-row {
-  display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 8px;
+  padding-bottom: 5px;
+  width: 100%;
+}
+
+.header-brand-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1 1 auto;
+  cursor: pointer;
+}
+
+.brand-hex-logo {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.22));
+}
+
+.brand-title-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.loc-main {
+  font-size: 14.5px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
   width: 100%;
   min-width: 0;
+  line-height: 1.2;
+  color: var(--text);
+}
+
+.loc-main-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+  max-width: 100%;
+}
+
+.loc-sub-line {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  width: 100%;
+}
+
+.header-online-dot {
+  font-size: 9px;
+  line-height: 1;
+  flex-shrink: 0;
 }
 
 .loc-sub {
@@ -73,40 +125,96 @@ body {
   line-height: 1.2;
 }
 
-.header-status-pill {
-  flex-shrink: 0;
-  font-size: 10.5px !important;
-  padding: 1px 7px !important;
-  line-height: 1.2 !important;
-}
-
-.loc-main {
-  font-size: 15px;
-  font-weight: 800;
+.header-right-actions {
   display: flex;
   align-items: center;
-  width: 100%;
-  min-width: 0;
-  line-height: 1.24;
+  gap: 5px;
+  flex-shrink: 0;
 }
 
-.loc-main-text {
+.btn-theme-chip {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: border-color 0.15s ease, transform 0.12s ease;
+}
+.btn-theme-chip:hover {
+  border-color: var(--accent);
+}
+
+.header-id-profile-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 7px 3px 9px;
+  border-radius: 999px;
+  border: 1.5px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  cursor: pointer;
+  text-align: right;
+  max-width: 168px;
+}
+
+.header-id-text-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.12;
+  min-width: 0;
+}
+
+.header-id-code {
+  font-family: monospace;
+  font-size: 11px;
+  font-weight: 900;
+  color: var(--text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  width: 100%;
-  max-width: 100%;
+  max-width: 122px;
 }
 
-/* Compact 1-line season & water temperature strip */
+.header-id-sub {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 122px;
+}
+
+.header-avatar-circle {
+  width: 25px;
+  height: 25px;
+  border-radius: 50%;
+  background: rgba(148, 163, 184, 0.18);
+  border: 1px solid var(--border);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+/* Информативная сезонная полоска открытой воды и ледовой обстановки */
 .season-strip {
   max-width: 1200px;
-  margin: 3px auto 0;
-  padding: 3px 8px;
-  min-height: auto;
-  border-radius: 5px;
+  margin: 0 auto 4px;
+  padding: 4px 10px;
+  border-radius: 8px;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 800;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -114,6 +222,11 @@ body {
   flex-wrap: nowrap;
   border: 1px solid transparent;
   line-height: 1.2;
+  cursor: pointer;
+  transition: transform 0.12s ease, opacity 0.15s ease;
+}
+.season-strip:active {
+  transform: scale(0.99);
 }
 .season-strip > span:first-child {
   white-space: nowrap;
@@ -126,22 +239,90 @@ body {
   flex-shrink: 0;
   white-space: nowrap;
 }
-.season-strip.ice-safe { background: var(--pill-ice-bg); color: var(--pill-ice-text); border-color: var(--ice); }
-.season-strip.ice-danger { background: var(--pill-bad-bg); color: var(--pill-bad-text); border-color: var(--bad); }
-.season-strip.ice-slush { background: var(--pill-warn-bg); color: var(--pill-warn-text); border-color: var(--warn); }
-.season-strip.open-water { background: var(--pill-good-bg); color: var(--pill-good-text); border-color: var(--good); }
+.season-strip.ice-safe { background: var(--pill-ice-bg); color: var(--pill-ice-text); border-color: rgba(56, 189, 248, 0.38); }
+.season-strip.ice-danger { background: var(--pill-bad-bg); color: var(--pill-bad-text); border-color: rgba(239, 68, 68, 0.42); }
+.season-strip.ice-slush { background: var(--pill-warn-bg); color: var(--pill-warn-text); border-color: rgba(245, 158, 11, 0.38); }
+.season-strip.open-water { background: var(--pill-good-bg); color: var(--pill-good-text); border-color: rgba(16, 185, 129, 0.38); }
 
+/* ==========================================================================
+   2. ВЕРХНЯЯ ПАНЕЛЬ РАЗДЕЛОВ (БЕЗ ДУБЛЕЙ С НИЖНИМ ДОКОМ И БЕЗ КНОПКИ «ЕЩЁ»)
+   ========================================================================== */
+.top-section-nav {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  padding: 3px 2px 4px;
+  border-top: 1px solid var(--border);
+}
+.top-section-nav[data-has-admin="1"] {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.top-nav-item {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 6px 4px;
+  border-radius: 9px;
+  cursor: pointer;
+  position: relative;
+  min-width: 0;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.top-nav-ico {
+  font-size: 14px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.top-nav-lbl {
+  font-size: 11.5px;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.top-nav-item:hover {
+  color: var(--text);
+  background: rgba(148, 163, 184, 0.10);
+}
+
+.top-nav-item.active {
+  color: var(--accent);
+  background: rgba(56, 189, 248, 0.14);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+[data-theme="contrast"] .top-nav-item.active {
+  background: rgba(245, 158, 11, 0.16);
+  color: var(--accent);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+/* ==========================================================================
+   3. ОСНОВНОЙ КОНТЕЙНЕР И ЕДИНАЯ BENTO-СИСТЕМА КАРТОЧЕК ДЛЯ ВСЕХ ВКЛАДОК
+   ========================================================================== */
 .app-main {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 12px;
+  padding: 10px 11px 16px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
 }
 
 .app-main > section,
 .card,
+.bento-card,
 #fcExpressBox,
 #fcWeekBox,
 #fcHourlyBox {
@@ -150,822 +331,84 @@ body {
   min-width: 0;
 }
 
-.express-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 10px;
-}
-
-.express-card {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: 8px;
-  cursor: pointer;
-  transition: border-color 0.15s ease, transform 0.15s ease;
-}
-.express-card:hover { border-color: var(--accent); transform: translateY(-2px); }
-.express-card.active { border-color: var(--accent); box-shadow: 0 0 0 1.5px var(--accent); }
-
-.express-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-}
-
-.controls-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(225px, 1fr));
-  gap: 10px;
-}
-
-/* Horizontal scroll containers: allow both horizontal swipe (pan-x) and vertical page scroll (pan-y) */
-.fish-strip,
-.week-strip,
-.bite-timeline,
-.chip-scroll-row,
-.month-grid {
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
-  overflow-x: auto;
-  overflow-y: hidden;
-  touch-action: pan-x pan-y;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: thin;
-}
-
-/* Кнопки управления рыбами в одну строку с увеличенным читаемым шрифтом */
-.fish-toolbar-onerow {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
-  width: 100%;
-  margin-bottom: 8px;
-}
-
-.fish-toolbar-onerow .btn {
-  width: 100%;
-  min-width: 0;
-  min-height: 36px;
-  padding: 5px 6px;
-  font-size: 13px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.fish-strip-placeholder {
-  width: 100%;
-  min-width: 0;
-}
-
-.fish-strip-dock-wrap {
-  width: 100%;
-  min-width: 0;
-  will-change: height, transform;
-  transition: background-color 0.2s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.2s cubic-bezier(0.22, 1, 0.36, 1), height 0.12s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.fish-strip-dock-wrap.docked-mini {
-  position: fixed;
-  top: var(--header-h, 76px);
-  left: 0;
-  right: 0;
-  width: 100%;
-  z-index: 990;
-  background: var(--panel);
-  border-bottom: 1px solid var(--border);
-  box-shadow: var(--shadow-header);
-  padding: 4px 12px;
-}
-
-.fish-strip-dock-wrap.docked-mini .fish-strip {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 2px 0;
-  gap: 6px;
-}
-
-/* Progressive shrinking driven by --shrink (0 to 1) or .docked-mini */
-.fish-strip-dock-wrap.docked-mini .fish-card {
-  flex-direction: row;
-  align-items: center;
-  justify-content: flex-start;
-  min-width: calc(168px - var(--shrink, 1) * 58px);
-  max-width: none;
-  padding: calc(10px - var(--shrink, 1) * 5px) 10px calc(10px - var(--shrink, 1) * 5px) 8px;
-  gap: 6px;
-  border-radius: var(--r-sm);
-  transform: none !important;
-}
-
-.fish-strip-dock-wrap.docked-mini .fish-img-wrap {
-  width: calc(118px - var(--shrink, 1) * 78px);
-  height: calc(52px - var(--shrink, 1) * 26px);
-  margin: 0;
-  flex-shrink: 0;
-  transition: width 0.14s ease, height 0.14s ease;
-}
-
-.fish-strip-dock-wrap.docked-mini .fish-name {
-  font-size: 13.5px;
-  font-weight: 800;
-  margin: 0;
-  white-space: nowrap;
-}
-
-.fish-strip-dock-wrap.docked-mini .fav-btn,
-.fish-strip-dock-wrap.docked-mini .fish-latin,
-.fish-strip-dock-wrap.docked-mini .fish-badge-wrap,
-.fish-strip-dock-wrap.docked-mini .fish-rating-box,
-.fish-strip-dock-wrap.docked-mini .fish-redbook-ban,
-.fish-strip-dock-wrap.docked-mini [data-info-fish] {
-  display: none !important;
-}
-
-.week-strip {
-  display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  padding-bottom: 6px;
-  align-items: stretch;
-}
-
-.day-card {
-  min-width: 148px;
-  background: var(--card);
-  border: 1.5px solid var(--border);
-  border-radius: var(--r-md);
-  padding: 9px 11px;
-  flex-shrink: 0;
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  position: relative;
-  transition: border-color 0.15s ease, transform 0.15s ease;
-}
-.day-card:hover { border-color: var(--accent); }
-.day-card.active { border-color: var(--accent); background: rgba(56, 189, 248, 0.11); box-shadow: 0 0 0 1.5px var(--accent); }
-
-/* Ревизия 2.0.13 (Пункт 4a): Компактные карточки для архива (Вчера/Позавчера) и расширенные для Сегодня и Завтра */
-.day-card.archive-day {
-  min-width: 118px;
-  max-width: 130px;
-  padding: 7px 9px;
-  gap: 3px;
-  border-style: dashed;
-  background: rgba(148, 163, 184, 0.08);
-  opacity: 0.92;
-}
-.day-card.priority-day {
-  min-width: 192px;
-  padding: 10px 12px;
-  border-width: 2px;
-  background: rgba(56, 189, 248, 0.07);
-}
-.day-card.priority-day.active {
-  background: rgba(56, 189, 248, 0.15);
-}
-
-.day-status-stripe {
-  height: 4px;
-  width: 100%;
-  border-radius: 3px;
-}
-
-.month-grid {
-  display: flex;
-  gap: 6px;
-  overflow-x: auto;
-  padding-bottom: 4px;
-}
-
-.month-cell {
-  flex: 1 0 60px;
-  min-width: 60px;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--r-sm);
-  padding: 8px 5px;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.month-cell.current { border-color: var(--accent); box-shadow: 0 0 0 1.5px var(--accent); }
-
-/* Ревизия 2.0.13 (Пункт 3a): Нижняя панель навигации: Карта / Погода / Обзор / Рыбы / Прогноз + кнопка ⋮ */
-.bottom-nav {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: var(--panel);
-  border-top: 1px solid var(--border);
-  z-index: 1000;
-  box-shadow: var(--shadow-header);
-}
-
-.bottom-nav-inner {
-  max-width: 1200px;
-  margin: 0 auto;
-  display: flex;
-  align-items: stretch;
-  gap: 2px;
-  padding: 4px 3px;
-  position: relative;
-}
-.bottom-nav-inner .nav-tab:not(.nav-more-btn) {
-  flex: 1 1 0;
-  min-width: 0;
-}
-.bottom-nav-inner .nav-more-wrap {
-  flex: 0 0 38px;
-}
-
-.nav-tab {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  min-height: 46px;
-  border: none;
-  background: transparent;
-  color: var(--muted);
-  font-size: 12.5px;
-  font-weight: 700;
-  border-radius: var(--r-sm);
-  cursor: pointer;
-  padding: 4px 2px;
-  min-width: 0;
-}
-.nav-tab.active {
-  color: var(--accent);
-  background: rgba(56, 189, 248, 0.12);
-}
-
-.nav-more-wrap {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.nav-more-btn {
-  width: 100%;
-  height: 100%;
-  font-size: 18px;
-  font-weight: 900;
-}
-
-.nav-more-popup {
-  position: absolute;
-  bottom: calc(100% + 10px);
-  right: 0;
-  min-width: 200px;
-  background: var(--panel);
-  border: 1.5px solid var(--accent);
-  border-radius: var(--r-md);
-  box-shadow: var(--shadow-header);
-  padding: 6px;
-  display: none;
-  flex-direction: column;
-  gap: 4px;
-  z-index: 1050;
-}
-.nav-more-popup.open {
-  display: flex;
-}
-
-.nav-popup-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 10px 12px;
-  border: none;
-  background: var(--card);
-  color: var(--text);
-  font-size: var(--fs-sm);
-  font-weight: 800;
-  border-radius: var(--r-sm);
-  cursor: pointer;
-  text-align: left;
-  transition: background-color 0.15s ease, color 0.15s ease;
-}
-.nav-popup-item:hover,
-.nav-popup-item.active {
-  background: rgba(56, 189, 248, 0.16);
-  color: var(--accent);
-}
-
-#mapBox {
-  width: 100%;
-  height: 330px;
-  border-radius: var(--r-md);
-  border: 1px solid var(--border);
-  background: #0f172a;
-  position: relative;
-  z-index: 1;
-  isolation: isolate;
-  overflow: hidden;
-  transition: height 0.2s ease;
-}
-
-@media (min-width: 768px) {
-  #mapBox {
-    height: 520px;
-  }
-}
-
-@media (min-width: 1024px) {
-  #mapBox {
-    height: 640px;
-  }
-}
-
-@media (min-width: 1440px) {
-  #mapBox {
-    height: 720px;
-  }
-}
-
-/* Map 4-chips row: exactly 1 line across any phone screen */
-.map-layers-row {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 5px;
-  width: 100%;
-  margin-bottom: 8px;
-}
-
-.map-layer-btn {
-  width: 100%;
-  text-align: center;
-  padding: 5px 2px;
-  font-size: 12.5px;
-  font-weight: 800;
-  min-height: 34px;
-}
-
-@media (max-width: 720px) {
-  .factor-row { grid-template-columns: 135px 1fr 50px; font-size: var(--fs-xs); }
-  .bottom-nav-inner { gap: 1px; padding: 3px 2px; } .bottom-nav-inner .nav-more-wrap { flex: 0 0 34px; }
-  .nav-tab { font-size: 10.5px; padding: 3px 1px; }
-}
-
-
-/* Startup Radar Splash Screen (v2.1.1) */
-.app-splash-screen {
-  position: fixed;
-  inset: 0;
-  z-index: 12000;
-  background: radial-gradient(circle at 50% 42%, #0d2137 0%, #07101e 75%, #040914 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-  opacity: 1;
-  transition: opacity 0.38s ease, visibility 0.38s ease;
-}
-.app-splash-screen.splash-hide {
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-}
-.app-splash-inner {
-  width: 100%;
-  max-width: 420px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 14px;
-  text-align: center;
-}
-.app-splash-art-wrap {
-  width: 100%;
-  max-width: min(92vw, 380px);
-  border-radius: 20px;
-  overflow: hidden;
-  border: 1.5px solid rgba(56, 189, 248, 0.45);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.75), 0 0 28px rgba(16, 185, 129, 0.22);
-  background: #071324;
-  margin: 0 auto;
-}
-.app-splash-img {
-  width: 100%;
-  height: auto;
-  max-height: 68vh;
-  aspect-ratio: 9 / 16;
-  object-fit: cover;
-  display: block;
-}
-.app-splash-loader {
-  width: 100%;
-  max-width: 340px;
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-}
-.app-splash-bar {
-  width: 100%;
-  height: 6px;
-  background: rgba(30, 41, 59, 0.85);
-  border-radius: 999px;
-  overflow: hidden;
-  border: 1px solid rgba(56, 189, 248, 0.3);
-}
-.app-splash-bar-fill {
-  height: 100%;
-  width: 35%;
-  background: linear-gradient(90deg, #10b981, #38bdf8);
-  border-radius: 999px;
-  animation: klevSplashProgress 1.1s ease-out forwards;
-}
-@keyframes klevSplashProgress {
-  0% { width: 15%; }
-  60% { width: 82%; }
-  100% { width: 100%; }
-}
-.app-splash-sub {
-  font-size: 12px;
-  font-weight: 700;
-  color: #94a3b8;
-  letter-spacing: 0.2px;
-}
-
-/* Автокопирование ID рыбака (FP-XXXXX) и компактная лента Круга (v2.1.1) */
-.fisher-id-copy-badge {
-  user-select: none;
-  -webkit-user-select: none;
-  transition: transform 0.14s ease, background-color 0.18s ease, border-color 0.18s ease;
-}
-.fisher-id-copy-badge:active,
-.fisher-id-copy-badge.copied-flash {
-  transform: scale(0.96);
-  background: rgba(16, 185, 129, 0.25) !important;
-  border-color: var(--good) !important;
-  color: var(--good) !important;
-}
-.circle-compact-row {
-  transition: border-color 0.15s ease, background-color 0.15s ease;
-}
-.circle-compact-row:hover {
-  border-color: var(--accent);
-}
-
-
-/* ==========================================================================
-   РЕДИЗАЙН V.2.4.0 ПО ФОТО 1 (ШАПКА, ВЕРХНЕЕ МЕНЮ, БЕНТО-ДАШБОРД И НИЖНИЙ ДОК)
-   ========================================================================== */
-body {
-  background: var(--bg-grad, var(--bg)) !important;
-  background-attachment: fixed !important;
-  padding-bottom: 92px !important;
-}
-
-.app-header {
-  padding: 6px 10px 0 10px !important;
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-}
-
-.header-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-  padding-bottom: 6px;
-}
-
-.header-brand-left {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  min-width: 0;
-  flex: 1;
-  cursor: pointer;
-}
-
-.brand-hex-logo {
-  width: 42px;
-  height: 42px;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.25));
-}
-
-.brand-title-wrap {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  flex: 1;
-}
-
-.brand-title-line {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: nowrap;
-}
-
-.brand-name-main {
-  font-size: 18px;
-  font-weight: 900;
-  letter-spacing: 0.4px;
-  color: var(--text);
-  line-height: 1.1;
-  white-space: nowrap;
-}
-
-.brand-ver-tag {
-  font-size: 11px;
-  font-weight: 800;
-  color: var(--muted);
-  white-space: nowrap;
-}
-
-.header-right-actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-}
-
-.btn-theme-chip {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  border: 1.5px solid var(--border);
-  background: var(--card);
-  color: var(--text);
-  font-size: 15px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
-.header-id-profile-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 4px 8px 4px 10px;
-  border-radius: 999px;
-  border: 1.5px solid var(--border);
-  background: var(--card);
-  color: var(--text);
-  cursor: pointer;
-  text-align: right;
-}
-
-.header-id-text-col {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  line-height: 1.15;
-}
-
-.header-id-code {
-  font-family: monospace;
-  font-size: 11.5px;
-  font-weight: 900;
-  color: var(--text);
-  white-space: nowrap;
-}
-
-.header-id-sub {
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--muted);
-  white-space: nowrap;
-}
-
-.header-avatar-circle {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: rgba(148, 163, 184, 0.22);
-  border: 1px solid var(--border);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  flex-shrink: 0;
-}
-
-/* Верхняя полоса из 7 разделов под шапкой (как на Фото 1) */
-.top-section-nav {
-  max-width: 1200px;
-  margin: 0 auto;
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 2px;
-  padding: 3px 2px 4px;
-  border-top: 1px solid var(--border);
-}
-
-.top-nav-item {
-  border: none;
-  background: transparent;
-  color: var(--muted);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  padding: 5px 2px 6px;
-  border-radius: 10px;
-  cursor: pointer;
-  position: relative;
-  min-width: 0;
-  transition: background-color 0.15s ease, color 0.15s ease;
-}
-
-.top-nav-ico {
-  font-size: 16px;
-  line-height: 1;
-}
-
-.top-nav-lbl {
-  font-size: 10.5px;
-  font-weight: 800;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
-}
-
-.top-nav-item.active {
-  color: var(--accent);
-  background: rgba(59, 130, 246, 0.14);
-  box-shadow: inset 0 -2.5px 0 var(--accent);
-}
-[data-theme="contrast"] .top-nav-item.active {
-  background: rgba(255, 107, 0, 0.18);
-  color: #ffd600;
-  box-shadow: inset 0 -2.5px 0 #ff6b00;
-}
-
-/* Нижний скруглённый док «Быстрый доступ» (Фото 1: Карта | Круг | Чаты | SOS | Журнал) */
-.bottom-nav {
-  background: transparent !important;
-  border-top: none !important;
-  box-shadow: none !important;
-  padding: 0 8px 6px 8px;
-  pointer-events: none;
-}
-
-.quick-dock-tab-label {
-  width: fit-content;
-  margin: 0 auto -1px auto;
-  padding: 2px 14px 3px;
-  font-size: 10.5px;
-  font-weight: 800;
-  color: var(--muted);
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-bottom: none;
-  border-radius: 10px 10px 0 0;
-  box-shadow: 0 -3px 10px rgba(0, 0, 0, 0.12);
-  pointer-events: auto;
-}
-
-.bottom-nav-inner {
-  pointer-events: auto;
-  max-width: 680px;
-  margin: 0 auto;
-  background: var(--panel);
-  border: 1.5px solid var(--border);
-  border-radius: 22px;
-  padding: 5px 8px !important;
-  box-shadow: var(--shadow-header);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  display: grid !important;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  align-items: center;
-  gap: 4px;
-}
-
-.bottom-nav-inner .nav-tab {
-  min-height: 50px !important;
-  font-size: 11px !important;
-  font-weight: 800 !important;
-  border-radius: 14px !important;
-}
-
-.dock-ico {
-  font-size: 18px;
-  line-height: 1.1;
-}
-
-.nav-sos-btn {
-  color: #ef4444 !important;
-}
-
-.sos-red-circle {
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #ff5252, #dc2626 75%);
-  color: #ffffff;
-  font-size: 10.5px;
-  font-weight: 900;
-  letter-spacing: 0.3px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 3px 10px rgba(220, 38, 38, 0.55);
-  border: 1.5px solid rgba(255, 255, 255, 0.65);
-}
-
-.sos-lbl-text {
-  color: #ef4444;
-  font-weight: 900;
-  font-size: 11px;
-}
-
-/* ==========================================================================
-   БЕНТО-ДАШБОРД ЭКРАНА «ПРОГНОЗ» ПО ФОТО 1 (1000130763.jpg)
-   ========================================================================== */
 .bento-dashboard-wrap {
   display: flex;
   flex-direction: column;
   gap: 11px;
-  margin-bottom: 14px;
+  width: 100%;
 }
 
-.bento-card {
+/* Все карточки (.card и .bento-card) во всех вкладках приведены к единому стилю Bento */
+.bento-card,
+.card {
   background: var(--card);
+  border: 1.5px solid var(--border);
   border-radius: 18px;
   padding: 13px 14px;
   box-shadow: var(--shadow-card);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
   position: relative;
   overflow: hidden;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
-.bento-hero-card {
-  border: 1.5px solid var(--bento-hero-border, var(--border));
+.bento-card.bento-hero-card {
+  border-color: var(--bento-hero-border, var(--border));
 }
-
-.bento-chart-card {
-  border: 1.5px solid var(--bento-chart-border, var(--border));
+.bento-card.bento-chart-card {
+  border-color: var(--bento-chart-border, var(--border));
 }
-
-.bento-radar-card {
-  border: 1.5px solid var(--bento-radar-border, var(--border));
+.bento-card.bento-radar-card {
+  border-color: var(--bento-radar-border, var(--border));
+  cursor: pointer;
+}
+.bento-card.bento-weather-card {
+  border-color: var(--bento-weather-border, var(--border));
   cursor: pointer;
 }
 
-.bento-weather-card {
-  border: 1.5px solid var(--bento-weather-border, var(--border));
-  cursor: pointer;
-}
-
-.bento-card-head {
+.bento-card-head,
+.section-head {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
   margin-bottom: 10px;
 }
 
-.bento-card-title {
-  font-size: 15.5px;
+.bento-card-title,
+.section-title {
+  font-size: 15px;
   font-weight: 900;
   color: var(--text);
   display: flex;
   align-items: center;
   gap: 6px;
-  line-height: 1.2;
+  line-height: 1.22;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
 }
 
 .bento-card-sub {
-  font-size: 12.5px;
-  font-weight: 700;
+  font-size: 11.5px;
   color: var(--muted);
+  font-weight: 700;
   margin-top: 2px;
 }
 
+/* Герой-сетка (Ихтиологический Прогноз / Режим водоёма) */
 .bento-hero-grid {
   display: grid;
-  grid-template-columns: 1.08fr 0.92fr;
+  grid-template-columns: 1.15fr 0.95fr;
   gap: 12px;
   align-items: center;
 }
 
-@media (max-width: 390px) {
+@media (max-width: 400px) {
   .bento-hero-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1.08fr 0.92fr;
+    gap: 8px;
   }
 }
 
@@ -977,31 +420,31 @@ body {
 }
 
 .bento-splash-fish-box {
-  width: 66px;
-  height: 54px;
-  border-radius: 14px;
-  background: radial-gradient(circle, rgba(56, 189, 248, 0.22) 0%, transparent 72%);
-  border: 1.5px dashed var(--accent);
+  width: 68px;
+  height: 52px;
+  border-radius: 12px;
+  background: radial-gradient(circle at 50% 50%, rgba(56, 189, 248, 0.22), transparent 72%);
+  border: 1px solid var(--border);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 3px;
   flex-shrink: 0;
+  padding: 3px;
 }
 
 .bento-splash-fish-box img {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.35));
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.28));
 }
 
 .bento-status-verdict {
-  font-size: 17px;
+  font-size: 16.5px;
   font-weight: 900;
+  letter-spacing: 0.2px;
   line-height: 1.15;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
+  color: var(--good);
 }
 
 .bento-top3-label {
@@ -1020,7 +463,7 @@ body {
 .bento-top3-item {
   border: 1px solid var(--border);
   background: var(--panel);
-  border-radius: 10px;
+  border-radius: 11px;
   padding: 5px 4px;
   display: flex;
   flex-direction: column;
@@ -1104,10 +547,10 @@ body {
 }
 [data-theme="dark"] .bento-gauge-pct {
   color: #00f5a0;
-  text-shadow: 0 0 10px rgba(0, 245, 160, 0.35);
+  text-shadow: 0 0 10px rgba(0, 245, 160, 0.30);
 }
 [data-theme="contrast"] .bento-gauge-pct {
-  color: #ff8c00;
+  color: #fbbf24;
 }
 
 .bento-tackle-summary {
@@ -1124,7 +567,7 @@ body {
   line-height: 1.28;
 }
 
-/* Двухколоночный нижний ряд: Карта & Радар + Погода & Лёд (50% / 50%) */
+/* Двухколоночный ряд Bento (50% / 50%) */
 .bento-bottom-duo {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1137,13 +580,51 @@ body {
   }
 }
 
+.bento-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
+  gap: 9px;
+}
+
+.bento-metric-tile {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.bento-metric-label {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.bento-metric-val {
+  font-size: 18px;
+  font-weight: 900;
+  color: var(--text);
+  line-height: 1.2;
+}
+
+.bento-metric-sub {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.3;
+}
+
 .bento-radar-visual {
   position: relative;
   height: 126px;
   border-radius: 12px;
   overflow: hidden;
   border: 1px solid var(--border);
-  background: radial-gradient(circle at 52% 54%, rgba(56, 189, 248, 0.28) 0%, rgba(37, 99, 235, 0.14) 55%, rgba(15, 23, 42, 0.25) 100%);
+  background: radial-gradient(circle at 52% 54%, rgba(56, 189, 248, 0.26) 0%, rgba(37, 99, 235, 0.12) 55%, rgba(15, 23, 42, 0.25) 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1152,8 +633,8 @@ body {
   background: linear-gradient(135deg, #bae6fd 0%, #dbeafe 52%, #bfdbfe 100%);
 }
 [data-theme="contrast"] .bento-radar-visual {
-  background: radial-gradient(circle at 50% 50%, rgba(255, 107, 0, 0.24) 0%, #090d14 75%);
-  border-color: #06b6d4;
+  background: radial-gradient(circle at 50% 50%, rgba(56, 189, 248, 0.18) 0%, #0f1623 78%);
+  border-color: rgba(56, 189, 248, 0.36);
 }
 
 .bento-radar-badge-zone {
@@ -1199,7 +680,7 @@ body {
 }
 
 .bento-temp-air {
-  font-size: 25px;
+  font-size: 24px;
   font-weight: 900;
   color: var(--text);
   line-height: 1.05;
@@ -1221,13 +702,476 @@ body {
 }
 
 [data-theme="contrast"] .bento-ice-hazard {
-  background: repeating-linear-gradient(-45deg, rgba(250, 204, 21, 0.15), rgba(250, 204, 21, 0.15) 8px, rgba(0, 0, 0, 0.4) 8px, rgba(0, 0, 0, 0.4) 16px);
+  background: rgba(245, 158, 11, 0.10);
   padding: 6px 8px;
-  border-radius: 8px;
-  border: 1px solid #facc15;
+  border-radius: 9px;
+  border: 1px solid rgba(245, 158, 11, 0.35);
 }
 
-/* Тематические сплеш-экраны для PWA / APK / Telegram Mini App (Фото 3, 4, 5) */
+/* ==========================================================================
+   4. ЛЕНТЫ ПРОКРУТКИ, КАРТОЧКИ ДНЕЙ, ЧАСОВ И РЫБ В BENTO-СТИЛЕ
+   ========================================================================== */
+.express-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 10px;
+}
+
+.express-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+  cursor: pointer;
+  border-radius: 16px;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+.express-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+.express-card.active { border-color: var(--accent); box-shadow: 0 0 0 1.5px var(--accent); }
+
+.express-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.controls-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(225px, 1fr));
+  gap: 10px;
+}
+
+.fish-strip,
+.week-strip,
+.bite-timeline,
+.chip-scroll-row,
+.month-grid {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  touch-action: pan-x pan-y;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.fish-toolbar-onerow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.fish-toolbar-onerow .btn {
+  width: 100%;
+  min-width: 0;
+  min-height: 36px;
+  padding: 5px 6px;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fish-strip-placeholder {
+  width: 100%;
+  min-width: 0;
+}
+
+.fish-strip-dock-wrap {
+  width: 100%;
+  min-width: 0;
+  will-change: height, transform;
+  transition: background-color 0.2s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.2s cubic-bezier(0.22, 1, 0.36, 1), height 0.12s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.fish-strip-dock-wrap.docked-mini {
+  position: fixed;
+  top: var(--header-h, 112px);
+  left: 0;
+  right: 0;
+  width: 100%;
+  z-index: 990;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow-header);
+  padding: 4px 12px;
+}
+
+.fish-strip-dock-wrap.docked-mini .fish-strip {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2px 0;
+  gap: 6px;
+}
+
+.fish-strip-dock-wrap.docked-mini .fish-card {
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  min-width: calc(168px - var(--shrink, 1) * 58px);
+  max-width: none;
+  padding: calc(10px - var(--shrink, 1) * 5px) 10px calc(10px - var(--shrink, 1) * 5px) 8px;
+  gap: 6px;
+  border-radius: var(--r-sm);
+  transform: none !important;
+}
+
+.fish-strip-dock-wrap.docked-mini .fish-img-wrap {
+  width: calc(118px - var(--shrink, 1) * 78px);
+  height: calc(52px - var(--shrink, 1) * 26px);
+  margin: 0;
+  flex-shrink: 0;
+  transition: width 0.14s ease, height 0.14s ease;
+}
+
+.fish-strip-dock-wrap.docked-mini .fish-name {
+  font-size: 13.5px;
+  font-weight: 800;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.fish-strip-dock-wrap.docked-mini .fav-btn,
+.fish-strip-dock-wrap.docked-mini .fish-latin,
+.fish-strip-dock-wrap.docked-mini .fish-badge-wrap,
+.fish-strip-dock-wrap.docked-mini .fish-rating-box,
+.fish-strip-dock-wrap.docked-mini .fish-redbook-ban,
+.fish-strip-dock-wrap.docked-mini [data-info-fish] {
+  display: none !important;
+}
+
+.week-strip {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  align-items: stretch;
+}
+
+.day-card {
+  min-width: 146px;
+  background: var(--panel);
+  border: 1.5px solid var(--border);
+  border-radius: 15px;
+  padding: 9px 11px;
+  flex-shrink: 0;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  position: relative;
+  transition: border-color 0.15s ease, transform 0.15s ease, background-color 0.15s ease;
+}
+.day-card:hover { border-color: var(--accent); }
+.day-card.active {
+  border-color: var(--accent);
+  background: rgba(56, 189, 248, 0.12);
+  box-shadow: 0 0 0 1.5px var(--accent);
+}
+[data-theme="contrast"] .day-card.active {
+  background: rgba(245, 158, 11, 0.14);
+}
+
+.day-card.archive-day {
+  min-width: 118px;
+  max-width: 132px;
+  padding: 7px 9px;
+  gap: 3px;
+  border-style: dashed;
+  background: rgba(148, 163, 184, 0.08);
+  opacity: 0.92;
+}
+.day-card.priority-day {
+  min-width: 184px;
+  padding: 10px 12px;
+  border-width: 1.5px;
+}
+
+.day-status-stripe {
+  height: 4px;
+  width: 100%;
+  border-radius: 3px;
+}
+
+.month-grid {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.month-cell {
+  flex: 1 0 62px;
+  min-width: 62px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 8px 5px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.month-cell.current { border-color: var(--accent); box-shadow: 0 0 0 1.5px var(--accent); }
+
+/* ==========================================================================
+   5. НИЖНИЙ ДОК «БЫСТРЫЙ ДОСТУП» (Карта | Чаты·Круг | Прогноз | SOS | Журнал)
+   ========================================================================== */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: transparent !important;
+  border-top: none !important;
+  box-shadow: none !important;
+  padding: 0 8px 6px 8px;
+  pointer-events: none;
+}
+
+.quick-dock-tab-label {
+  width: fit-content;
+  margin: 0 auto -1px auto;
+  padding: 2px 14px 3px;
+  border-radius: 10px 10px 0 0;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-bottom: none;
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--muted);
+  letter-spacing: 0.3px;
+  pointer-events: auto;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.bottom-nav-inner {
+  pointer-events: auto;
+  max-width: 580px;
+  margin: 0 auto;
+  background: var(--panel);
+  border: 1.5px solid var(--border);
+  border-radius: 20px;
+  padding: 4px 6px !important;
+  box-shadow: var(--shadow-header);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  display: grid !important;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-items: center;
+  gap: 4px !important;
+  position: relative;
+}
+
+.nav-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 46px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  border-radius: 13px;
+  cursor: pointer;
+  padding: 4px 2px;
+  min-width: 0;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.nav-tab.active {
+  color: var(--accent);
+  background: rgba(56, 189, 248, 0.14);
+}
+[data-theme="contrast"] .nav-tab.active {
+  color: var(--accent);
+  background: rgba(245, 158, 11, 0.16);
+}
+
+.bottom-nav-inner .nav-tab .dock-ico {
+  font-size: 18px;
+  line-height: 1.05;
+}
+
+.nav-sos-btn {
+  color: #ef4444 !important;
+}
+
+.sos-red-circle {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #ff6b6b 0%, #dc2626 65%, #991b1b 100%);
+  border: 2px solid #fca5a5;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.3px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 10px rgba(220, 38, 38, 0.50);
+}
+
+.sos-lbl-text {
+  font-size: 10.5px;
+  font-weight: 900;
+  color: #ef4444;
+}
+
+/* ==========================================================================
+   6. КАРТА И ПРОЧИЕ МОДУЛИ
+   ========================================================================== */
+#mapBox {
+  width: 100%;
+  height: 330px;
+  border-radius: 16px;
+  border: 1.5px solid var(--border);
+  background: #0f172a;
+  position: relative;
+  z-index: 1;
+  isolation: isolate;
+  overflow: hidden;
+  transition: height 0.2s ease;
+}
+
+@media (min-width: 768px) {
+  #mapBox { height: 520px; }
+}
+@media (min-width: 1024px) {
+  #mapBox { height: 640px; }
+}
+@media (min-width: 1440px) {
+  #mapBox { height: 720px; }
+}
+
+.map-layers-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 5px;
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.map-layer-btn {
+  width: 100%;
+  text-align: center;
+  padding: 5px 2px;
+  font-size: 12.5px;
+  font-weight: 800;
+  min-height: 34px;
+}
+
+@media (max-width: 720px) {
+  .factor-row { grid-template-columns: 135px 1fr 50px; font-size: var(--fs-xs); }
+  .nav-tab { font-size: 10.5px; padding: 3px 1px; }
+}
+
+/* Единый двухкнопочный переключатель «Чаты ⇄ Круг и Экипажи» */
+.circle-chats-hub-bar {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 8px !important;
+  padding: 6px !important;
+  background: var(--panel) !important;
+  border: 1.5px solid var(--border) !important;
+  border-radius: 16px !important;
+  margin-bottom: 12px !important;
+}
+
+.circle-chats-hub-btn {
+  min-height: 44px !important;
+  border-radius: 12px !important;
+  font-weight: 900 !important;
+  font-size: 13.5px !important;
+}
+
+/* Загрузочный сплеш-экран */
+.app-splash-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 12000;
+  background: radial-gradient(circle at 50% 42%, #0d2137 0%, #07101e 75%, #040914 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  opacity: 1;
+  transition: opacity 0.38s ease, visibility 0.38s ease;
+}
+.app-splash-screen.splash-hide {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+.app-splash-inner {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+}
+.app-splash-art-wrap {
+  width: 100%;
+  max-width: min(92vw, 380px);
+  border-radius: 20px;
+  overflow: hidden;
+  border: 1.5px solid rgba(56, 189, 248, 0.45);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.75), 0 0 28px rgba(16, 185, 129, 0.22);
+  background: #071324;
+  margin: 0 auto;
+}
+.app-splash-img {
+  width: 100%;
+  height: auto;
+  max-height: 68vh;
+  aspect-ratio: 9 / 16;
+  object-fit: cover;
+  display: block;
+}
+.app-splash-loader {
+  width: 100%;
+  max-width: 340px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.app-splash-bar {
+  width: 100%;
+  height: 6px;
+  background: rgba(30, 41, 59, 0.85);
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+}
+.app-splash-bar-fill {
+  height: 100%;
+  width: 35%;
+  background: linear-gradient(90deg, #10b981, #38bdf8);
+  border-radius: 999px;
+  animation: klevSplashProgress 1.1s ease-out forwards;
+}
+@keyframes klevSplashProgress {
+  0% { width: 15%; }
+  60% { width: 82%; }
+  100% { width: 100%; }
+}
+.app-splash-sub {
+  font-size: 12px;
+  font-weight: 700;
+  color: #94a3b8;
+  letter-spacing: 0.2px;
+}
+
 .app-splash-screen[data-app-splash-theme="light"] {
   background: linear-gradient(180deg, #e3f1fc 0%, #f5faff 50%, #d8ecfa 100%) !important;
 }
@@ -1241,17 +1185,36 @@ body {
 }
 
 .app-splash-screen[data-app-splash-theme="contrast"] {
-  background: #050505 !important;
+  background: #0b1018 !important;
 }
 .app-splash-screen[data-app-splash-theme="contrast"] .app-splash-art-wrap {
-  background: #0a0a0a;
-  border: 2px solid #ff6b00;
-  box-shadow: 0 0 28px rgba(255, 107, 0, 0.35);
+  background: #111827;
+  border: 1.5px solid rgba(245, 158, 11, 0.55);
+  box-shadow: 0 0 24px rgba(245, 158, 11, 0.22);
 }
 .app-splash-screen[data-app-splash-theme="contrast"] .app-splash-bar-fill {
-  background: repeating-linear-gradient(-45deg, #ff6b00, #ff6b00 10px, #111111 10px, #111111 18px);
+  background: linear-gradient(90deg, #f59e0b, #10b981);
 }
 .app-splash-screen[data-app-splash-theme="contrast"] .app-splash-sub {
-  color: #ff8c00;
+  color: #fbbf24;
   font-family: monospace;
+}
+
+.fisher-id-copy-badge {
+  user-select: none;
+  -webkit-user-select: none;
+  transition: transform 0.14s ease, background-color 0.18s ease, border-color 0.18s ease;
+}
+.fisher-id-copy-badge:active,
+.fisher-id-copy-badge.copied-flash {
+  transform: scale(0.96);
+  background: rgba(16, 185, 129, 0.25) !important;
+  border-color: var(--good) !important;
+  color: var(--good) !important;
+}
+.circle-compact-row {
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+.circle-compact-row:hover {
+  border-color: var(--accent);
 }

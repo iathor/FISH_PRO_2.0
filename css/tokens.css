@@ -14,7 +14,7 @@
   --warn: #ffb300;
   --bad: #ff5252;
   --ice: #38bdf8;
-  --border: rgba(0, 229, 255, 0.30);
+  --border: rgba(0, 229, 255, 0.28);
 
   --hex-bg: #091d34;
   --hex-fish: #00e5ff;
@@ -22,15 +22,15 @@
   --gauge-start: #00b4d8;
   --gauge-end: #00f5a0;
   --wave-stroke: #00e5ff;
-  --wave-fill-top: rgba(0, 229, 255, 0.38);
+  --wave-fill-top: rgba(0, 229, 255, 0.36);
   --wave-fill-bot: rgba(0, 229, 255, 0.02);
-  --bento-hero-border: rgba(0, 229, 255, 0.42);
-  --bento-chart-border: rgba(0, 229, 255, 0.35);
-  --bento-radar-border: rgba(0, 229, 255, 0.38);
-  --bento-weather-border: rgba(0, 230, 118, 0.35);
+  --bento-hero-border: rgba(0, 229, 255, 0.38);
+  --bento-chart-border: rgba(0, 229, 255, 0.32);
+  --bento-radar-border: rgba(0, 229, 255, 0.34);
+  --bento-weather-border: rgba(0, 230, 118, 0.32);
 
   --chip-bg: #0f2138;
-  --chip-border: rgba(0, 229, 255, 0.30);
+  --chip-border: rgba(0, 229, 255, 0.28);
   --pill-good-bg: rgba(0, 230, 118, 0.16);
   --pill-good-text: #4ade80;
   --pill-warn-bg: rgba(255, 179, 0, 0.18);
@@ -48,12 +48,12 @@
   --fs-md: 17px;
   --fs-lg: 19px;
 
-  --r-sm: 10px;
+  --r-sm: 11px;
   --r-md: 16px;
   --r-pill: 999px;
 
-  --shadow-card: 0 6px 20px 0 rgba(0, 0, 0, 0.42), 0 0 14px rgba(0, 229, 255, 0.06);
-  --shadow-header: 0 4px 18px 0 rgba(0, 0, 0, 0.50);
+  --shadow-card: 0 6px 20px 0 rgba(0, 0, 0, 0.40), 0 0 14px rgba(0, 229, 255, 0.05);
+  --shadow-header: 0 4px 18px 0 rgba(0, 0, 0, 0.48);
 }
 
 [data-theme="light"] {
@@ -61,7 +61,7 @@
   --bg: #dfeaf5;
   --bg-grad: linear-gradient(180deg, #d7e7f6 0%, #eef5fb 48%, #d9e8f5 100%);
   --panel: rgba(255, 255, 255, 0.94);
-  --card: rgba(255, 255, 255, 0.88);
+  --card: rgba(255, 255, 255, 0.89);
   --input-bg: #ffffff;
   --text: #142438;
   --muted: #4b6584;
@@ -104,48 +104,49 @@
 }
 
 [data-theme="contrast"] {
-  /* Контрастная тактическая оранжево-лаймовая схема (по Фото 6 — 1000130769.jpg и Фото 7 — 1000130770.jpg) */
-  --bg: #050608;
-  --bg-grad: linear-gradient(180deg, #07090c 0%, #040507 100%);
-  --panel: #0c0e12;
-  --card: #11141a;
-  --input-bg: #080a0d;
-  --text: #ffffff;
-  --muted: #cbd5e1;
-  --accent: #ff6b00;
-  --accent-strong: #ea580c;
-  --good: #84cc16;
-  --warn: #facc15;
+  /* Смягчённая тактическая контрастная схема (без резкого оранжевого «пчелиного жала»):
+     глубокий графитово-сланцевый фон, мягкий тёплый янтарь, спокойный изумруд и бирюза */
+  --bg: #0f1520;
+  --bg-grad: linear-gradient(180deg, #111827 0%, #0d131d 55%, #090e16 100%);
+  --panel: rgba(20, 28, 42, 0.96);
+  --card: rgba(26, 36, 54, 0.94);
+  --input-bg: #0d131f;
+  --text: #f8fafc;
+  --muted: #a3b8cc;
+  --accent: #f59e0b;
+  --accent-strong: #b45309;
+  --good: #10b981;
+  --warn: #eab308;
   --bad: #ef4444;
-  --ice: #06b6d4;
-  --border: #ff6b00;
+  --ice: #38bdf8;
+  --border: rgba(245, 158, 11, 0.26);
 
-  --hex-bg: #141414;
-  --hex-fish: #ff6b00;
-  --gauge-track: #262930;
-  --gauge-start: #ff5500;
-  --gauge-end: #ffaa00;
-  --wave-stroke: #a3e635;
-  --wave-fill-top: rgba(163, 230, 53, 0.34);
-  --wave-fill-bot: rgba(250, 204, 21, 0.04);
-  --bento-hero-border: #ff6b00;
-  --bento-chart-border: #a3e635;
-  --bento-radar-border: #06b6d4;
-  --bento-weather-border: #a3e635;
+  --hex-bg: #172030;
+  --hex-fish: #fbbf24;
+  --gauge-track: rgba(148, 163, 184, 0.22);
+  --gauge-start: #f59e0b;
+  --gauge-end: #10b981;
+  --wave-stroke: #34d399;
+  --wave-fill-top: rgba(16, 185, 129, 0.30);
+  --wave-fill-bot: rgba(245, 158, 11, 0.03);
+  --bento-hero-border: rgba(245, 158, 11, 0.36);
+  --bento-chart-border: rgba(16, 185, 129, 0.34);
+  --bento-radar-border: rgba(56, 189, 248, 0.34);
+  --bento-weather-border: rgba(16, 185, 129, 0.34);
 
-  --chip-bg: #14171f;
-  --chip-border: #ff6b00;
-  --pill-good-bg: rgba(132, 204, 22, 0.22);
-  --pill-good-text: #bef264;
-  --pill-warn-bg: rgba(250, 204, 21, 0.22);
-  --pill-warn-text: #fef08a;
-  --pill-bad-bg: rgba(239, 68, 68, 0.25);
+  --chip-bg: #172133;
+  --chip-border: rgba(245, 158, 11, 0.28);
+  --pill-good-bg: rgba(16, 185, 129, 0.18);
+  --pill-good-text: #6ee7b7;
+  --pill-warn-bg: rgba(245, 158, 11, 0.18);
+  --pill-warn-text: #fde68a;
+  --pill-bad-bg: rgba(239, 68, 68, 0.22);
   --pill-bad-text: #fca5a5;
-  --pill-purple-bg: #3b0764;
-  --pill-purple-text: #f3e8ff;
-  --pill-ice-bg: rgba(6, 182, 212, 0.22);
-  --pill-ice-text: #67e8f9;
+  --pill-purple-bg: rgba(168, 85, 247, 0.22);
+  --pill-purple-text: #e9d5ff;
+  --pill-ice-bg: rgba(56, 189, 248, 0.18);
+  --pill-ice-text: #7dd3fc;
 
-  --shadow-card: 0 4px 16px rgba(0, 0, 0, 0.75);
-  --shadow-header: 0 2px 12px rgba(0, 0, 0, 0.85);
+  --shadow-card: 0 6px 18px rgba(0, 0, 0, 0.50);
+  --shadow-header: 0 3px 14px rgba(0, 0, 0, 0.60);
 }

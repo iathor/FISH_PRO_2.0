@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-title" content="Клёв ПРО 2.0">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Клёв ПРО 2.0 • Прогноз клёва, Круг и Атлас Ихтиофауны РФ (12+)</title>
-    <script src="https://telegram.org/js/telegram-web-app.js" async onload="window.__KLEV_ON_TG_SDK_LOAD__&&window.__KLEV_ON_TG_SDK_LOAD__()"></script>
+  <script src="https://telegram.org/js/telegram-web-app.js" async onload="window.__KLEV_ON_TG_SDK_LOAD__&&window.__KLEV_ON_TG_SDK_LOAD__()"></script>
   <link rel="manifest" href="manifest.json?v=2.4.0">
   <link id="dynamicFavicon" rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=2.4.0">
   <link id="dynamicTouchIcon" rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=2.4.0">
@@ -29,7 +29,6 @@
         document.documentElement.setAttribute('data-theme-mode', saved || 'auto');
       } catch (e) {}
 
-      // Мгновенная синхронная проверка установленного ярлыка/PWA до отрисовки body (исключает секундное моргание кнопки установки)
       try {
         var host = (window.location && window.location.hostname ? window.location.hostname : '').toLowerCase();
         var ua = navigator.userAgent || '';
@@ -57,7 +56,6 @@
         }
       } catch (e) {}
 
-      // Принудительная очистка старых кэшей и Service Worker в Android APK WebView (чтобы исключить залипание старых сборок)
       try {
         var hostNow = (window.location && window.location.hostname ? window.location.hostname : '').toLowerCase();
         var uaNow = navigator.userAgent || '';
@@ -98,7 +96,6 @@
   <link rel="stylesheet" href="css/base.css?v=2.4.0">
   <link rel="stylesheet" href="css/components.css?v=2.4.0">
   <link rel="stylesheet" href="css/layout.css?v=2.4.0">
-  <!-- Неблокирующая асинхронная загрузка картографического движка Leaflet -->
   <script>
     (function() {
       var cssUrls = [
@@ -164,7 +161,6 @@
         var splashEl = document.getElementById('appSplashScreen');
         var splashImg = document.getElementById('appSplashImg');
         var splashSub = document.getElementById('appSplashSubText');
-        // Для PWA, Android APK и Telegram Mini App включаем тематические экраны загрузки (Светлый / Тёмный радар / Контрастный тактический), а обычный сайт оставляем как есть
         if (isAppEnv && splashEl && splashImg) {
           splashEl.setAttribute('data-app-splash-theme', theme);
           if (theme === 'light') {
@@ -186,12 +182,12 @@
     })();
   </script>
 
-  <!-- Шапка и верхняя панель разделов строго по Макетам (Фото 1: Лого-гексагон + КЛЁВ ПРО + ID и Профиль + 7 иконок разделов) -->
+  <!-- Разгруженная шапка (без громоздкого названия): Гексагон + Полная локация и водоём + Переключатель темы + ID/Профиль + Сезонная полоска воды/льда -->
   <header class="app-header">
     <div class="header-bar">
       <div class="header-brand-left" id="headerLocClickArea" title="Нажмите для выбора водоёма и точки на карте">
         <div class="brand-hex-logo" aria-hidden="true">
-          <svg viewBox="0 0 64 64" width="42" height="42" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <svg viewBox="0 0 64 64" width="36" height="36" fill="none" xmlns="http://www.w3.org/2000/svg">
             <polygon points="32,3 58,17.5 58,46.5 32,61 6,46.5 6,17.5" fill="var(--hex-bg, #0d2847)" stroke="var(--accent)" stroke-width="3"/>
             <polygon points="32,9 52,20.5 52,43.5 32,55 12,43.5 12,20.5" fill="none" stroke="var(--good)" stroke-width="1.2" stroke-dasharray="3 2" opacity="0.75"/>
             <circle cx="32" cy="32" r="14" stroke="var(--accent)" stroke-width="1" opacity="0.45"/>
@@ -203,14 +199,12 @@
           </svg>
         </div>
         <div class="brand-title-wrap">
-          <div class="brand-title-line">
-            <span class="brand-name-main">КЛЁВ ПРО</span>
-            <span class="brand-ver-tag">V.2.4.0</span>
-            <span class="pill pill-good header-status-pill" id="headerStatusPill" role="status">🟢 Онлайн</span>
-          </div>
           <div class="loc-main" id="headerLocMain">
             <span class="loc-main-text" id="headerLocText">📍 Новый Уренгой</span>
-            <span class="loc-sub" id="headerLocSub" style="display:none;">Обь-Тазовский бассейн</span>
+          </div>
+          <div class="loc-sub-line">
+            <span class="header-online-dot" id="headerStatusDot" title="Статус сети">🟢</span>
+            <span class="loc-sub" id="headerLocSub">Обь-Тазовский бассейн</span>
           </div>
         </div>
       </div>
@@ -227,46 +221,39 @@
       </div>
     </div>
 
-    <!-- Верхняя панель навигации по разделам (7 пунктов в ряд, как на Фото 1) -->
-    <div class="top-section-nav" role="tablist" aria-label="Разделы навигатора">
-      <button type="button" class="top-nav-item" data-nav-tab="geo" role="tab">
-        <span class="top-nav-ico">📍</span>
-        <span class="top-nav-lbl">Карта</span>
-      </button>
-      <button type="button" class="top-nav-item" data-nav-tab="weather" role="tab">
-        <span class="top-nav-ico">⛅</span>
-        <span class="top-nav-lbl">Погода</span>
+    <!-- Информативная сезонная полоска открытой воды / ледовой обстановки (всегда на виду, клик открывает вкладку Погода) -->
+    <div class="season-strip open-water" id="headerSeasonStrip" role="region" aria-label="Состояние воды и ледовая обстановка" title="Нажмите для подробного разбора погоды и состояния водоёма">
+      <span>🌊 Расчёт термического и ледового режима...</span>
+      <span>💧 Вода</span>
+    </div>
+
+    <!-- Верхняя панель аналитических разделов и настроек (БЕЗ дублирования нижнего дока и БЕЗ лишней кнопки «Ещё») -->
+    <div class="top-section-nav" id="topSectionNavBar" role="tablist" aria-label="Аналитика и настройки">
+      <button type="button" class="top-nav-item" data-nav-tab="weather" id="topNavWeatherBtn" role="tab">
+        <span class="top-nav-ico" id="topNavWeatherIco">⛅</span>
+        <span class="top-nav-lbl" id="topNavWeatherLbl">Погода·Вода</span>
       </button>
       <button type="button" class="top-nav-item" data-nav-tab="fish" role="tab">
         <span class="top-nav-ico">🐟</span>
         <span class="top-nav-lbl">Рыбы</span>
       </button>
-      <button type="button" class="top-nav-item active" data-nav-tab="forecast" role="tab">
-        <span class="top-nav-ico">🎣</span>
-        <span class="top-nav-lbl">Прогноз</span>
+      <button type="button" class="top-nav-item" data-nav-tab="calendar" role="tab">
+        <span class="top-nav-ico">📅</span>
+        <span class="top-nav-lbl">Календарь</span>
       </button>
-      <button type="button" class="top-nav-item" data-nav-tab="circle" role="tab">
-        <span class="top-nav-ico">👥</span>
-        <span class="top-nav-lbl">Круг</span>
+      <button type="button" class="top-nav-item" id="topNavSettingsBtn" data-settings-zone="app" aria-label="Настройки приложения, калибровка и APK">
+        <span class="top-nav-ico">⚙️</span>
+        <span class="top-nav-lbl">Настройки</span>
       </button>
-      <button type="button" class="top-nav-item" data-nav-tab="chats" role="tab">
-        <span class="top-nav-ico">💬</span>
-        <span class="top-nav-lbl">Чаты</span>
+      <button type="button" class="top-nav-item" data-nav-tab="admin" id="topNavAdminBtn" role="tab" style="display:none;">
+        <span class="top-nav-ico">👑</span>
+        <span class="top-nav-lbl">Админ БД</span>
       </button>
-      <button type="button" class="top-nav-item" id="topNavMoreBtn" aria-label="Ещё разделы и настройки">
-        <span class="top-nav-ico">•••</span>
-        <span class="top-nav-lbl">Ещё</span>
-      </button>
-    </div>
-
-    <div class="season-strip open-water" id="headerSeasonStrip" role="region" aria-label="Ледовая обстановка" style="display:none;">
-      <span>🌊 Расчёт термического и ледового режима...</span>
     </div>
   </header>
 
   <main id="app" class="app-main">
-    <!-- Плашка загрузки APK (отображается ТОЛЬКО на сайте и ТОЛЬКО для Android-устройств до закрытия крестиком) -->
-    <div id="androidApkSiteBanner" class="card" style="display:none;background:rgba(16,185,129,0.12);border:1.5px solid var(--good);padding:9px 12px;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:2px;">
+    <div id="androidApkSiteBanner" class="bento-card" style="display:none;background:rgba(16,185,129,0.12);border:1.5px solid var(--good);padding:9px 12px;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:2px;">
       <div style="min-width:0;flex:1;">
         <div id="androidApkBannerTitle" style="font-weight:800;font-size:var(--fs-xs);color:var(--good);">📲 Приложение «Клёв ПРО 2.0» для Android (v2.4.0)</div>
         <div style="font-size:11px;color:var(--muted);">Установите автономное приложение (.APK) на ваш смартфон</div>
@@ -277,15 +264,14 @@
       </div>
     </div>
     <section id="secGeo" data-route-section="geo" aria-label="Геолокация и выбор водоёма"></section>
-    <section id="secWeather" data-route-section="weather" aria-label="Погода и фазы Луны"></section>
+    <section id="secWeather" data-route-section="weather" aria-label="Погода, состояние воды и фазы Луны"></section>
     <section id="secFish" data-route-section="fish" aria-label="Рыбы в месте ловли"></section>
     <section id="secForecast" data-route-section="forecast" aria-label="Прогноз клёва и архив"></section>
-    <section id="secCircle" data-route-section="circle" aria-label="Круг, Экипаж 72ч и Мастерская снастей"></section>
-    <section id="secChats" data-route-section="chats" aria-label="Зашифрованные чаты рыбаков и экипажей"></section>
+    <section id="secCircle" data-route-section="circle" aria-label="Круг и Экипаж 72ч"></section>
+    <section id="secChats" data-route-section="chats" aria-label="Чаты рыбаков и экипажей"></section>
     <section id="secLog" data-route-section="log" aria-label="Журнал уловов"></section>
     <section id="secCalendar" data-route-section="calendar" aria-label="Годовой биоритм и нерест"></section>
     <section id="secAdmin" data-route-section="admin" aria-label="Панель Супер-Админа и Статистика БД"></section>
-    <!-- Скрытый мета-блок для автоматических сканеров соответствия (vlip.site и аналогов) -->
     <div id="appLegalScannerMeta" style="display:none;" aria-hidden="true">
       © 2025–2026 «Клёв ПРО 2.0: Круг» (версия 2.4.0) • Возрастная маркировка: 12+ (ст. 6 ФЗ № 436-ФЗ).
       Правообладатель программы для ЭВМ, базы данных и графических иллюстраций (ст. 1259, 1260, 1261, 1334 ГК РФ): Тхор Антон Сергеевич (Тхор А. С.) • Контакт для обращений (ст. 10 и ст. 10.2-2 ФЗ № 149-ФЗ): i@athor.ru.
@@ -295,7 +281,7 @@
     </div>
   </main>
 
-  <!-- Нижний док «Быстрый доступ» строго по Фото 1: Карта | Круг | Чаты | SOS | Журнал -->
+  <!-- Нижний док «Быстрый доступ» без дублирования с верхом: Карта | Чаты·Круг | Прогноз (основная) | SOS | Журнал -->
   <nav class="bottom-nav" aria-label="Быстрый доступ">
     <div class="quick-dock-tab-label">Быстрый доступ</div>
     <div class="bottom-nav-inner">
@@ -303,13 +289,13 @@
         <span class="dock-ico">🗺️</span>
         <span>Карта</span>
       </button>
-      <button type="button" class="nav-tab" data-nav-tab="circle" id="navCircleChatsHubBtn" aria-label="Круг и Радар">
-        <span class="dock-ico">📡</span>
-        <span>Круг</span>
+      <button type="button" class="nav-tab" data-nav-tab="chats" id="navCircleChatsHubBtn" aria-label="Чаты, Круг и Экипажи">
+        <span class="dock-ico">🛰️</span>
+        <span>Чаты·Круг</span>
       </button>
-      <button type="button" class="nav-tab" data-nav-tab="chats" id="navChatsTabBtn" aria-label="Чаты и Экипажи">
-        <span class="dock-ico">💬</span>
-        <span>Чаты</span>
+      <button type="button" class="nav-tab active" data-nav-tab="forecast" id="navForecastMainBtn" aria-label="Главный экран Прогноз клёва">
+        <span class="dock-ico">🎣</span>
+        <span>Прогноз</span>
       </button>
       <button type="button" class="nav-tab nav-sos-btn" id="bottomQuickSosBtn" aria-label="Экстренный сигнал SOS на воде">
         <span class="sos-red-circle">SOS</span>
@@ -319,36 +305,17 @@
         <span class="dock-ico">📓</span>
         <span>Журнал</span>
       </button>
-
-      <div class="nav-more-wrap" style="display:none;">
-        <button type="button" class="nav-tab nav-more-btn" id="navMoreBtn" aria-label="Дополнительные разделы" aria-expanded="false">
-          <span>⋮</span>
-          <span>Ещё</span>
-        </button>
-      </div>
-      <div class="nav-more-popup" id="navMorePopup" role="menu" aria-label="Дополнительные разделы и настройки" style="min-width:242px;">
-        <button type="button" class="nav-popup-item" data-nav-tab="forecast" role="menuitem"><span>🎯</span><span>Главный экран «Прогноз»</span></button>
-        <button type="button" class="nav-popup-item" data-nav-tab="weather" role="menuitem"><span>⛅</span><span>Погода, ветер и барограф</span></button>
-        <button type="button" class="nav-popup-item" data-nav-tab="calendar" role="menuitem"><span>📅</span><span>Календарь биоритмов</span></button>
-        <button type="button" class="nav-popup-item" data-nav-tab="admin" id="navMoreAdminItem" role="menuitem" style="display:none;color:var(--good);font-weight:800;"><span>👑</span><span>Супер-Админ и БД</span></button>
-        <div style="height:1px;background:var(--border);margin:2px 0;"></div>
-        <button type="button" class="nav-popup-item" data-settings-zone="app" role="menuitem"><span>⚙️</span><span>Настройки и Тема (Светлая/Тёмная/Контраст)</span></button>
-        <button type="button" class="nav-popup-item" id="navMoreDownloadApkItem" role="menuitem" style="display:none;color:var(--good);font-weight:800;"><span>📲</span><span id="navMoreDownloadApkText">Скачать Android APK (v2.4.0)</span></button>
-        <button type="button" class="nav-popup-item" data-nav-tab="profile" role="menuitem"><span>👤</span><span>Профиль и Постоянный ID</span></button>
-        <button type="button" class="nav-popup-item nav-popup-close-btn" id="navMoreCloseBottomBtn" role="menuitem"><span>✕</span><span>Закрыть</span></button>
-      </div>
     </div>
   </nav>
 
   <script type="module" src="js/app.js?v=2.4.0"></script>
   <script>
-    // Защитный сторожевой таймер (только на случай полного обрыва загрузки скрипта в старом Service Worker)
     setTimeout(function() {
       if (!window.__KLEV_BOOTSTRAPPED__) {
         var mainEl = document.getElementById('app');
         if (mainEl && (!mainEl.children[0] || !mainEl.children[0].innerHTML.trim())) {
           var box = document.createElement('div');
-          box.className = 'card';
+          box.className = 'bento-card';
           box.style.cssText = 'border-color:var(--accent);text-align:center;padding:18px;margin-top:24px;';
           box.innerHTML =
             '<div style="font-size:17px;font-weight:800;margin-bottom:8px;">🚀 Доступна новая сборка «Клёв ПРО 2.4.0»</div>' +

@@ -601,8 +601,8 @@ input[type="checkbox"], input[type="radio"] {
 }
 .modal-grid-3 {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
   width: 100%;
 }
 .modal-grid-3 .btn,
@@ -719,8 +719,8 @@ input[type="checkbox"], input[type="radio"] {
 }
 .circle-chats-hub-bar {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
   padding: 6px;
   background: var(--card);
   border: 1.5px solid var(--border);
@@ -774,4 +774,58 @@ details.forecast-why-spoiler > summary::-webkit-details-marker {
 details.forecast-why-spoiler[open] > summary {
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
+}
+
+
+/* Единая цветовая схема для всех кнопок, ссылок, инпутов и чипов во всех 3 темах (v2.4.0) */
+a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 700;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+.btn {
+  border-radius: 12px;
+  border: 1.5px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+}
+.btn-accent {
+  background: linear-gradient(135deg, var(--accent-strong), var(--accent));
+  border-color: var(--accent);
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+[data-theme="dark"] .btn-accent {
+  background: linear-gradient(135deg, #0284c7, #00b4d8);
+  color: #ffffff;
+}
+[data-theme="contrast"] .btn-accent {
+  background: linear-gradient(135deg, #b45309, #d97706);
+  border-color: rgba(245, 158, 11, 0.65);
+  color: #ffffff;
+}
+.btn-good {
+  background: linear-gradient(135deg, #059669, var(--good));
+  border-color: var(--good);
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.22);
+}
+.w-chip {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+.w-chip.active {
+  background: linear-gradient(135deg, var(--accent-strong), var(--accent));
+  border-color: var(--accent);
+  color: #ffffff;
+}
+[data-theme="contrast"] .w-chip.active {
+  background: linear-gradient(135deg, #b45309, #d97706);
+  border-color: rgba(245, 158, 11, 0.65);
+  color: #ffffff;
 }
