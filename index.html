@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Клёв ПРО 2.0">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>Клёв ПРО 2.0 • Прогноз клёва, Круг и Атлас Ихтиофауны РФ</title>
+  <title>Клёв ПРО 2.0 • Прогноз клёва, Круг и Атлас Ихтиофауны РФ (12+)</title>
     <script src="https://telegram.org/js/telegram-web-app.js" async onload="window.__KLEV_ON_TG_SDK_LOAD__&&window.__KLEV_ON_TG_SDK_LOAD__()"></script>
   <link rel="manifest" href="manifest.json?v=2.3.0">
   <link id="dynamicFavicon" rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=2.3.0">
@@ -149,7 +149,7 @@
       </div>
       <div class="app-splash-loader">
         <div class="app-splash-bar"><div class="app-splash-bar-fill"></div></div>
-        <div class="app-splash-sub">Клёв ПРО 2.0 • Радар клёва и Атлас ихтиофауны РФ</div>
+        <div class="app-splash-sub">Клёв ПРО 2.0 • Радар клёва и Атлас ихтиофауны РФ (12+)</div>
       </div>
     </div>
   </div>
@@ -202,6 +202,23 @@
     <section id="secLog" data-route-section="log" aria-label="Журнал уловов"></section>
     <section id="secCalendar" data-route-section="calendar" aria-label="Годовой биоритм и нерест"></section>
     <section id="secAdmin" data-route-section="admin" aria-label="Панель Супер-Админа и Статистика БД"></section>
+
+    <!-- Правовой подвал (152-ФЗ, ЗоЗПП ст. 9, 149-ФЗ ст. 10 и 10.2-2, 436-ФЗ ст. 6, ГК РФ Ч. IV) -->
+    <footer id="appLegalFooter" class="legal-footer" style="margin-top:14px;margin-bottom:8px;padding:12px 14px;font-size:11px;line-height:1.45;color:var(--muted);text-align:center;border-top:1px solid var(--border);border-radius:var(--r-sm);background:rgba(15,23,42,0.35);">
+      <div>
+        <strong>© 2025–2026 «Клёв ПРО 2.0: Круг» (версия 2.3.0)</strong> • Возрастная маркировка: <strong>12+</strong> (ст. 6 ФЗ № 436-ФЗ)
+      </div>
+      <div style="margin-top:3px;">
+        Правообладатель программы для ЭВМ, базы данных и графических иллюстраций (ст. 1259, 1260, 1261, 1334 ГК РФ): Тхор А. С. • Контакт для обращений (ст. 10 и ст. 10.2-2 ФЗ № 149-ФЗ): <a href="mailto:i@athor.ru" style="color:var(--accent);text-decoration:underline;">i@athor.ru</a>
+      </div>
+      <div style="margin-top:3px;">
+        Правовой статус: бесплатный некоммерческий информационно-справочный проект (возмездные услуги и торговая деятельность не осуществляются; реквизиты компании ИНН / ОГРН / ОГРНИП по ст. 9 ЗоЗПП РФ не применяются). Политика конфиденциальности (ФЗ № 152-ФЗ ст. 3, 12, 22): сервис работает по архитектуре Zero-PII с вымышленными рыболовными позывными и не осуществляет сбор персональных данных (ФИО, телефонов, e-mail, точных GPS-координат).
+      </div>
+      <div style="margin-top:4px;">
+        Картография: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener" style="color:var(--muted);">OpenStreetMap contributors</a> (ODbL), © <a href="https://leafletjs.com/" target="_blank" rel="noopener" style="color:var(--muted);">Leaflet</a>. Метеоданные: <a href="https://open-meteo.com/" target="_blank" rel="noopener" style="color:var(--muted);">Open-Meteo.com</a>, <a href="https://api.met.no/" target="_blank" rel="noopener" style="color:var(--muted);">MET Norway</a> (CC-BY 4.0). •
+        <a href="#legal-policy" onclick="if(window.openLegalModal){window.openLegalModal();}return false;" style="color:var(--accent);font-weight:700;text-decoration:underline;">Пользовательское соглашение, политика конфиденциальности (152-ФЗ) и правила рекомендательных технологий</a>
+      </div>
+    </footer>
   </main>
 
   <!-- Логическая цепочка вкладок: 1. Карта -> 2. Погода -> 3. Рыбы -> 4. Прогноз -> 5. Круг (+ 👑 Админ для Владельца) + ⋮ Ещё -->

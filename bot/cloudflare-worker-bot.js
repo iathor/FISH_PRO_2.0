@@ -230,31 +230,292 @@ function allocateNextReserveFisherId(regionCode = '89', seedDeviceId = '') {
  return candidate;
 }
 
-const OWNER_TOKEN_HASH_IATHOR = workerDeriveAuthToken('iathor', 'FISherman1982*');
-const OWNER_TOKEN_HASH_IATHOR82 = workerDeriveAuthToken('iathor82', 'FISherman1982*');
-const OWNER_ADMIN_CONSOLE_TOKEN = `VIP089_${workerFnv1a32('iAthor::FP_89VIP089::FISherman1982*::Console_v2.1').toString(16).toUpperCase()}_${workerFnv1a32('Salt2::89VIP089::ThorAntony').toString(16).toUpperCase()}`;
+// Предвычисленные криптографические дайджесты Владельца (без хранения открытого пароля в исходном коде)
+const OWNER_TOKEN_HASH_IATHOR = 'KTOK_6AE3BD91_21C90CF5';
+const OWNER_TOKEN_HASH_IATHOR82 = 'KTOK_52183B6B_39DEECFC';
+const OWNER_TOKEN_HASH_IATHOR_LOWER = 'KTOK_1E665A58_64E3DB80';
+const OWNER_ADMIN_CONSOLE_TOKEN = 'VIP089_D854A7F4_38D816DA';
+const OWNER_PIN_FNV_EXACT = '5c4be2a9';
+const OWNER_PIN_FNV_LOWER = '17b24989';
+const recentActionDedupMap = new Map();
 
-function isValidOwnerAdminToken(tok = '') {
+function clampLat(val, fallback = 66.0833) {
+ const n = Number(val);
+ return Number.isFinite(n) ? Math.max(-90, Math.min(90, n)) : fallback;
+}
+
+function clampLon(val, fallback = 76.6333) {
+ const n = Number(val);
+ return Number.isFinite(n) ? Math.max(-180, Math.min(180, n)) : fallback;
+}
+
+function isOwnerPasswordMatch(rawPass = '', env = null) {
+ const clean = String(rawPass || '').trim();
+ if (!clean) return false;
+ if (env && env.ADMIN_SECRET_PASSWORD && constantTimeEquals(clean, String(env.ADMIN_SECRET_PASSWORD))) {
+  return true;
+ }
+ const hExact = workerFnv1a32(`pin::${clean}`).toString(16);
+ const hLower = workerFnv1a32(`pin::${clean.toLowerCase()}`).toString(16);
+ const derived1 = workerDeriveAuthToken('iathor', clean);
+ const derived2 = workerDeriveAuthToken('iathor82', clean);
+ return (
+  constantTimeEquals(hExact, OWNER_PIN_FNV_EXACT) ||
+  constantTimeEquals(hLower, OWNER_PIN_FNV_LOWER) ||
+  constantTimeEquals(derived1, OWNER_TOKEN_HASH_IATHOR) ||
+  constantTimeEquals(derived1, OWNER_TOKEN_HASH_IATHOR_LOWER) ||
+  constantTimeEquals(derived2, OWNER_TOKEN_HASH_IATHOR82)
+ );
+}
+
+function getAdminConsoleToken(env = null) {
+ if (env && env.ADMIN_CONSOLE_TOKEN && String(env.ADMIN_CONSOLE_TOKEN).trim().length >= 12) {
+  return String(env.ADMIN_CONSOLE_TOKEN).trim();
+ }
+ return OWNER_ADMIN_CONSOLE_TOKEN;
+}
+
+function isValidOwnerAdminToken(tok = '', env = null) {
  const clean = String(tok || '').trim();
  if (!clean) return false;
+ const envConsoleTok = getAdminConsoleToken(env);
  return (
+  constantTimeEquals(clean, envConsoleTok) ||
   constantTimeEquals(clean, OWNER_ADMIN_CONSOLE_TOKEN) ||
   constantTimeEquals(clean, OWNER_TOKEN_HASH_IATHOR) ||
   constantTimeEquals(clean, OWNER_TOKEN_HASH_IATHOR82) ||
-  constantTimeEquals(clean, 'KTOK_6AE3BD91_21C90CF5') ||
-  constantTimeEquals(clean, 'KTOK_1E665A58_64E3DB80') ||
-  constantTimeEquals(clean, 'KTOK_52183B6B_39DEECFC') ||
-  constantTimeEquals(clean, 'KTOK_B12830BD_FDEBEC8C') ||
-  constantTimeEquals(clean, 'VIP089_D854A7F4_38D816DA') ||
-  constantTimeEquals(clean, 'FISherman1982*') ||
-  clean.startsWith('VIP089_') ||
-  clean.includes('VIP089') ||
-  clean.includes('89VIP089')
+  constantTimeEquals(clean, OWNER_TOKEN_HASH_IATHOR_LOWER) ||
+  isOwnerPasswordMatch(clean, env)
  );
+}
+
+function parseCookieValue(cookieHeader = '', cookieName = 'klev_admin_session') {
+ if (!cookieHeader || typeof cookieHeader !== 'string') return '';
+ const parts = cookieHeader.split(';');
+ for (const part of parts) {
+  const [k, ...rest] = part.trim().split('=');
+  if (k === cookieName) return decodeURIComponent(rest.join('=') || '').trim();
+ }
+ return '';
+}
+
+function extractAdminTokenFromRequest(request, reqUrl, body = null) {
+ if (body && typeof body === 'object') {
+  const fromBody = body.adminToken || body.token || body.ownerSecret || '';
+  if (fromBody) return String(fromBody).trim();
+ }
+ if (request && request.headers) {
+  const hdrTok = request.headers.get('X-Admin-Token') || request.headers.get('Authorization')?.replace(/^Bearer\s+/i, '') || '';
+  if (hdrTok) return String(hdrTok).trim();
+  const cookieTok = parseCookieValue(request.headers.get('Cookie') || '', 'klev_admin_session');
+  if (cookieTok) return cookieTok;
+ }
+ if (reqUrl && reqUrl.searchParams) {
+  return String(reqUrl.searchParams.get('adminToken') || reqUrl.searchParams.get('token') || '').trim();
+ }
+ return '';
+}
+
+async function workerSha256Hex(inputStr = '') {
+ const str = String(inputStr || '');
+ if (typeof crypto !== 'undefined' && crypto.subtle && typeof crypto.subtle.digest === 'function') {
+  try {
+   const data = new TextEncoder().encode(str);
+   const hashBuf = await crypto.subtle.digest('SHA-256', data);
+   return Array.from(new Uint8Array(hashBuf), b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
+  } catch (e) {}
+ }
+ let h1 = workerFnv1a32(`sha_fb1::${str}`);
+ let h2 = workerFnv1a32(`sha_fb2::${str}::${h1}`);
+ let h3 = workerFnv1a32(`sha_fb3::${h2}::${str}`);
+ let h4 = workerFnv1a32(`sha_fb4::${h3}::${h1}`);
+ return [h1, h2, h3, h4].map(n => (n >>> 0).toString(16).toUpperCase().padStart(8, '0')).join('');
+}
+
+async function workerDeriveSecureAuthToken(loginNorm = '', passClean = '', env = null) {
+ const cleanL = String(loginNorm || '').trim().toLowerCase().replace(/^@/, '');
+ const cleanP = String(passClean || '').trim();
+ const salt = (env && env.AUTH_SERVER_SALT) ? String(env.AUTH_SERVER_SALT) : 'KlevProCircle_v2.3_ServerSalt_RU';
+ const hex = await workerSha256Hex(`klev_auth_sha256::${cleanL}::${cleanP}::${salt}`);
+ return `KTOK2_${hex.slice(0, 16)}_${hex.slice(16, 32)}`;
+}
+
+async function verifyTelegramWebAppInitData(initDataRaw = '', botToken = '') {
+ if (!initDataRaw || !botToken || typeof initDataRaw !== 'string') return false;
+ try {
+  const params = new URLSearchParams(initDataRaw);
+  const hash = params.get('hash') || '';
+  if (!hash) return false;
+  params.delete('hash');
+  const sorted = Array.from(params.entries())
+   .sort(([a], [b]) => a.localeCompare(b))
+   .map(([k, v]) => `${k}=${v}`)
+   .join('\n');
+  const enc = new TextEncoder();
+  const secretKey = await crypto.subtle.importKey('raw', enc.encode('WebAppData'), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const secretBytes = await crypto.subtle.sign('HMAC', secretKey, enc.encode(botToken));
+  const dataKey = await crypto.subtle.importKey('raw', secretBytes, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const sigBytes = await crypto.subtle.sign('HMAC', dataKey, enc.encode(sorted));
+  const calcHex = Array.from(new Uint8Array(sigBytes), b => b.toString(16).padStart(2, '0')).join('');
+  return constantTimeEquals(calcHex.toLowerCase(), hash.toLowerCase());
+ } catch (e) {
+  return false;
+ }
+}
+
+function pickAllowedProfileFields(snap = null) {
+ if (!snap || typeof snap !== 'object') return {};
+ const out = {};
+ if (typeof snap.callsign === 'string') out.callsign = snap.callsign.trim().slice(0, 48);
+ if (typeof snap.deviceId === 'string') out.deviceId = snap.deviceId.trim().slice(0, 80);
+ if (typeof snap.tgLinkedId === 'string' || typeof snap.tgLinkedId === 'number') out.tgLinkedId = String(snap.tgLinkedId).trim().slice(0, 32);
+ if (typeof snap.tgUsername === 'string') out.tgUsername = snap.tgUsername.trim().replace(/^@/, '').slice(0, 48);
+ if (typeof snap.pinHash === 'string') out.pinHash = snap.pinHash.trim().slice(0, 64);
+ if (typeof snap.appMode === 'string' && ['novice', 'angler', 'pro'].includes(snap.appMode)) out.appMode = snap.appMode;
+ if (typeof snap.theme === 'string' && ['auto', 'dark', 'light'].includes(snap.theme)) out.theme = snap.theme;
+ if (snap.lat !== undefined) out.lat = clampLat(snap.lat, 66.0833);
+ if (snap.lon !== undefined) out.lon = clampLon(snap.lon, 76.6333);
+ if (typeof snap.locLabel === 'string') out.locLabel = snap.locLabel.trim().slice(0, 80);
+ if (typeof snap.locAdmin1 === 'string') out.locAdmin1 = snap.locAdmin1.trim().slice(0, 80);
+ if (typeof snap.locAdmin2 === 'string') out.locAdmin2 = snap.locAdmin2.trim().slice(0, 80);
+ if (typeof snap.water === 'string') out.water = snap.water.trim().slice(0, 32);
+ if (typeof snap.method === 'string') out.method = snap.method.trim().slice(0, 32);
+ if (Array.isArray(snap.preferredWaters)) out.preferredWaters = snap.preferredWaters.map(x => String(x || '').slice(0, 32)).slice(0, 10);
+ if (Array.isArray(snap.preferredMethods)) out.preferredMethods = snap.preferredMethods.map(x => String(x || '').slice(0, 32)).slice(0, 12);
+ if (Array.isArray(snap.favorites)) out.favorites = snap.favorites.map(x => String(x || '').slice(0, 32)).slice(0, 40);
+ if (Array.isArray(snap.unlockedCrewKeys)) out.unlockedCrewKeys = snap.unlockedCrewKeys.map(x => String(x || '').trim().toUpperCase().slice(0, 16)).slice(0, 50);
+ if (Array.isArray(snap.deletedChatChannels)) out.deletedChatChannels = snap.deletedChatChannels.map(x => String(x || '').slice(0, 64)).slice(0, 60);
+ if (Array.isArray(snap.hiddenCircleIds)) out.hiddenCircleIds = snap.hiddenCircleIds.map(x => String(x || '').slice(0, 64)).slice(0, 100);
+ if (Array.isArray(snap.savedSpots)) {
+  out.savedSpots = snap.savedSpots.slice(0, 25).map(sp => ({
+   id: String(sp?.id || '').slice(0, 48),
+   name: String(sp?.name || '').slice(0, 48),
+   lat: clampLat(sp?.lat, 66.0833),
+   lon: clampLon(sp?.lon, 76.6333),
+   water: String(sp?.water || 'small_river').slice(0, 32),
+   depth: Math.max(0.1, Math.min(200, Number(sp?.depth) || 2))
+  }));
+ }
+ if (snap.notifSettings && typeof snap.notifSettings === 'object') {
+  out.notifSettings = {
+   sos: snap.notifSettings.sos !== false,
+   crew: snap.notifSettings.crew !== false,
+   circle: snap.notifSettings.circle !== false,
+   workshop: snap.notifSettings.workshop !== false,
+   dm: snap.notifSettings.dm !== false,
+   sound: snap.notifSettings.sound !== false
+  };
+ }
+ return out;
+}
+
+function sanitizePublicUserResponse(u, isAdminView = false) {
+ if (!u || typeof u !== 'object') return null;
+ if (isAdminView) {
+  const copy = { ...u };
+  delete copy.authShadow;
+  delete copy.authTokenHash;
+  delete copy.pinHash;
+  delete copy.adminSessionToken;
+  return copy;
+ }
+ return {
+  fisherId: u.fisherId || '',
+  login: u.login || '',
+  callsign: u.callsign || 'Рыболов',
+  regionCode: u.regionCode || '89',
+  locLabel: u.locLabel || '',
+  isOwner: Boolean(u.isOwner),
+  isAdmin: Boolean(u.isAdmin),
+  isTemporaryReserve: Boolean(u.isTemporaryReserve)
+ };
+}
+
+async function verifyUserAuth(env, { fid = '', authTokenHash = '', deviceId = '', adminToken = '', request = null } = {}) {
+ const hdrAuth = request?.headers?.get('X-Auth-Token') || '';
+ const hdrAdm = request?.headers?.get('X-Admin-Token') || parseCookieValue(request?.headers?.get('Cookie') || '', 'klev_admin_session') || '';
+ const effToken = String(authTokenHash || hdrAuth || '').trim();
+ const effAdmin = String(adminToken || hdrAdm || '').trim();
+
+ if (isValidOwnerAdminToken(effAdmin, env) || isValidOwnerAdminToken(effToken, env)) {
+  return { ok: true, isAdmin: true, isOwner: true };
+ }
+ const normFid = workerNormalizeFisherId(fid || '', '89');
+ if (!normFid) return { ok: false, isAdmin: false, isOwner: false };
+ if (isOwnerFisherId(normFid)) {
+  return { ok: false, isAdmin: false, isOwner: false };
+ }
+ if (isTemporaryReserveId(normFid)) {
+  return { ok: true, isAdmin: false, isOwner: false, isReserve: true };
+ }
+
+ const aKey = fisherIdToAuthKeyMap.get(normFid) || '';
+ const prof = (aKey ? cloudAuthProfiles.get(aKey) : null) || (await loadPersistedAuthProfile(env, aKey, '', normFid));
+ const regUser = usersRegistryStore.get(normFid) || null;
+
+ if (effToken && prof) {
+  if (
+   (prof.authTokenHash && constantTimeEquals(effToken, prof.authTokenHash)) ||
+   (prof.secureTokenHash && constantTimeEquals(effToken, prof.secureTokenHash))
+  ) {
+   return { ok: true, isAdmin: adminWhitelistStore.has(normFid), isOwner: false };
+  }
+ }
+
+ const cleanDev = String(deviceId || '').trim();
+ if (cleanDev) {
+  const mappedFid = deviceToFisherIdMap.get(cleanDev) || '';
+  if (
+   (mappedFid && constantTimeEquals(mappedFid, normFid)) ||
+   (prof?.deviceId && constantTimeEquals(cleanDev, prof.deviceId)) ||
+   (regUser?.deviceId && constantTimeEquals(cleanDev, regUser.deviceId))
+  ) {
+   return { ok: true, isAdmin: adminWhitelistStore.has(normFid), isOwner: false };
+  }
+ }
+
+ // Для обратной совместимости с уже выданными сессиями v2.3.0, если профиль ещё не связан с другим устройством
+ if (!prof && !regUser) {
+  return { ok: true, isAdmin: false, isOwner: false };
+ }
+ if (prof && !prof.deviceId && (!regUser || !regUser.deviceId) && !effToken) {
+  return { ok: true, isAdmin: adminWhitelistStore.has(normFid), isOwner: false };
+ }
+ return { ok: false, isAdmin: false, isOwner: false };
+}
+
+function isDuplicateRecentAction(dedupKey = '', ttlMs = 15000) {
+ if (!dedupKey) return false;
+ const now = Date.now();
+ if (recentActionDedupMap.size > 1000) {
+  for (const [k, ts] of recentActionDedupMap.entries()) {
+   if (now - ts > ttlMs) recentActionDedupMap.delete(k);
+  }
+ }
+ const prev = recentActionDedupMap.get(dedupKey) || 0;
+ if (now - prev < ttlMs) return true;
+ recentActionDedupMap.set(dedupKey, now);
+ return false;
 }
 
 function workerNormalizeLogin(raw = '') {
  return String(raw || '').trim().toLowerCase().replace(/[@\s]/g, '');
+}
+
+function workerIsAnonymousCallsignValid(rawLogin = '') {
+ const s = String(rawLogin || '').trim();
+ if (!s || /^FP_/i.test(s) || workerIsOwnerLogin(s)) return { ok: true };
+ const withoutLeadingAt = s.replace(/^@+/, '');
+ const hasEmailPattern = withoutLeadingAt.includes('@') || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
+ const digitsOnly = s.replace(/\D/g, '');
+ const hasPhonePattern = /(?:\+7|7|8)[\s\-()]?\d{3}[\s\-()]?\d{3}[\s\-()]?\d{2}/.test(s) || digitsOnly.length >= 9;
+ if (hasEmailPattern || hasPhonePattern) {
+  return {
+   ok: false,
+   error: 'В целях конфиденциальности (152-ФЗ) запрещено указывать номер телефона или e-mail в качестве позывного. Используйте вымышленный рыболовный никнейм.'
+  };
+ }
+ return { ok: true };
 }
 
 function workerIsOwnerLogin(raw = '') {
@@ -279,17 +540,9 @@ function resolveWorkerAccountIdentity(rawLogin = '', rawPassword = '', rawTokenH
  const incomingTok = String(rawTokenHash || '').trim();
 
  const isOwnerLogin = workerIsOwnerLogin(loginClean) || workerIsOwnerLogin(snap?.login) || isOwnerFisherId(snap?.fisherId);
- const passNorm = passClean.toLowerCase();
- const passNormNoStar = passNorm.replace(/\*+$/, '');
  const isOwnerPass = (
-  passClean === 'FISherman1982*' ||
-  passNorm === 'fisherman1982*' ||
-  passNormNoStar === 'fisherman1982' ||
-  (incomingTok && (
-   constantTimeEquals(incomingTok, OWNER_TOKEN_HASH_IATHOR) ||
-   constantTimeEquals(incomingTok, OWNER_TOKEN_HASH_IATHOR82) ||
-   constantTimeEquals(incomingTok, OWNER_ADMIN_CONSOLE_TOKEN)
-  ))
+  isOwnerPasswordMatch(passClean) ||
+  (incomingTok && isValidOwnerAdminToken(incomingTok))
  );
  if (isOwnerLogin && isOwnerPass) {
   const preferredOwnerFid = (loginNorm === 'fp_fmp089' || String(snap?.fisherId || '').toUpperCase() === OWNER_SECONDARY_ID)
@@ -326,6 +579,10 @@ function resolveWorkerAccountIdentity(rawLogin = '', rawPassword = '', rawTokenH
 
  if (!loginNorm || (passClean.length < 3 && !incomingTok.startsWith('KTOK_'))) {
   return { ok: false, error: 'Укажите логин и пароль (от 3 символов) для получения постоянного ID рыбака' };
+ }
+ const anonWorkerCheck = workerIsAnonymousCallsignValid(loginClean);
+ if (!anonWorkerCheck.ok) {
+  return { ok: false, error: anonWorkerCheck.error };
  }
 
  const authTokenHash = incomingTok.startsWith('KTOK_')
@@ -459,7 +716,7 @@ function upsertUserInRegistry(params = {}, env = null) {
   callsign: params.callsign || existing.callsign || (isOwner ? 'iAthor' : (params.login || 'Рыболов')),
   tgId: params.tgId || existing.tgId || '',
   tgUsername: params.tgUsername !== undefined ? params.tgUsername : (existing.tgUsername || ''),
-  regionCode: params.regionCode || existing.regionCode || fid.slice(3, 5) || '89',
+  regionCode: workerResolveRegionCode(params.regionCode || existing.regionCode || fid.slice(3, 5) || '89'),
   locLabel: params.locLabel || existing.locLabel || 'Водоём РФ',
   platform: params.platform || existing.platform || 'WEB',
   version: params.version || existing.version || WORKER_VERSION,
@@ -482,12 +739,7 @@ function upsertUserInRegistry(params = {}, env = null) {
  if (user.tgId) {
   tgToFisherIdMap.set(String(user.tgId), fid);
  }
- if (user.login) {
-  const normL = workerNormalizeLogin(user.login);
-  if (!loginToAuthKeyMap.has(normL)) {
-   loginToAuthKeyMap.set(normL, `AUTH_${normL}`);
-  }
- }
+ // loginToAuthKeyMap обновляется только реальным authKey (AUTH_<login>_<tokenHash>) при авторизации
  if (!isTemp) {
   reservedVanityIds.add(fid);
  }
@@ -504,31 +756,70 @@ function upsertUserInRegistry(params = {}, env = null) {
 const CORS_HEADERS = {
  'Access-Control-Allow-Origin': '*',
  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
- 'Access-Control-Allow-Headers': 'Content-Type, Accept, Authorization, X-Requested-With',
+ 'Access-Control-Allow-Headers': 'Content-Type, Accept, Authorization, X-Requested-With, X-Auth-Token, X-Admin-Token',
  'Access-Control-Max-Age': '86400',
+ 'Cache-Control': 'no-store, no-cache, must-revalidate',
+ 'Pragma': 'no-cache',
  'Alt-Svc': 'clear',
  'X-Content-Type-Options': 'nosniff',
+ 'X-Frame-Options': 'SAMEORIGIN',
+ 'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+ 'X-XSS-Protection': '1; mode=block',
  'Referrer-Policy': 'strict-origin-when-cross-origin'
 };
+
+const MAX_REQUEST_BODY_BYTES = 65536;
 
 async function readWorkerRequestPayload(request, reqUrl) {
  try {
   if (reqUrl && reqUrl.searchParams && reqUrl.searchParams.has('payload')) {
-   const rawQ = reqUrl.searchParams.get('payload') || '';
-   if (rawQ) return workerSanitizeObject(JSON.parse(rawQ));
+   const rawQ = String(reqUrl.searchParams.get('payload') || '');
+   if (rawQ.length > MAX_REQUEST_BODY_BYTES) {
+    const err = new Error('Payload Too Large');
+    err.status = 413;
+    throw err;
+   }
+   if (rawQ) return workerSanitizeObject(workerSafeJsonParse(rawQ, {}));
   }
- } catch (e) {}
+ } catch (e) {
+  if (e && e.status === 413) throw e;
+ }
+ const contentLen = Number(request?.headers?.get('content-length') || 0);
+ if (contentLen > MAX_REQUEST_BODY_BYTES) {
+  const err = new Error('Payload Too Large');
+  err.status = 413;
+  throw err;
+ }
  try {
   const txt = await request.text();
   if (!txt) return {};
-  return workerSanitizeObject(JSON.parse(txt));
+  if (txt.length > MAX_REQUEST_BODY_BYTES) {
+   const err = new Error('Payload Too Large');
+   err.status = 413;
+   throw err;
+  }
+  const trimmed = txt.trim();
+  if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+   return workerSanitizeObject(workerSafeJsonParse(trimmed, {}));
+  }
+  // Поддержка form-urlencoded (например, POST-форма входа в /fp-vip089-console)
+  const params = new URLSearchParams(trimmed);
+  const formObj = {};
+  for (const [k, v] of params.entries()) {
+   if (k !== '__proto__' && k !== 'constructor' && k !== 'prototype') {
+    formObj[k] = v;
+   }
+  }
+  return formObj;
  } catch (e) {
+  if (e && e.status === 413) throw e;
   return {};
  }
 }
 
 function cleanupTransitBoxes() {
- const cutoff = Date.now() - 24 * 3600 * 1000;
+ const now = Date.now();
+ const cutoff = now - 24 * 3600 * 1000;
  for (const [boxKey, arr] of transitBoxes.entries()) {
   const fresh = arr.filter(p => p && p.ts > cutoff);
   if (fresh.length === 0) transitBoxes.delete(boxKey);
@@ -546,8 +837,19 @@ function cleanupTransitBoxes() {
    }
   }
  }
- if (rateBuckets.size > 4000) {
-  rateBuckets.clear();
+ if (rateBuckets.size > 1000) {
+  for (const [rk, b] of rateBuckets.entries()) {
+   if (!b || now - b.start >= 60000) {
+    rateBuckets.delete(rk);
+   }
+  }
+  if (rateBuckets.size > 4000) {
+   let removed = 0;
+   for (const rk of rateBuckets.keys()) {
+    rateBuckets.delete(rk);
+    if (++removed >= 500) break;
+   }
+  }
  }
 }
 
@@ -722,25 +1024,7 @@ const _RG = [
 "Чаны (Новосибирская обл.)","Уссурийск","Горки (ЯНАО)","Нижнесортымский (ХМАО)","Кострома",
 "Железногорск","Славянка","Звенигово","Пошехонье"
 ];
-const _ADM = [
-"Ямало-Ненецкий АО","Ханты-Мансийский АО","Тюменская обл.","Свердловская обл.","Челябинская обл.",
-"Курганская обл.","Омская обл.","Новосибирская обл.","Томская обл.","Кемеровская обл.",
-"Алтайский край","Республика Алтай","Москва","Московская обл.","Тверская обл.","Ярославская обл.",
-"Костромская обл.","Ивановская обл.","Владимирская обл.","Рязанская обл.","Тульская обл.",
-"Калужская обл.","Нижегородская обл.","Чувашская Республика","Республика Марий Эл",
-"Республика Татарстан","Ульяновская обл.","Самарская обл.","Пензенская обл.",
-"Республика Мордовия","Саратовская обл.","Волгоградская обл.","Астраханская обл.",
-"Республика Калмыкия","Республика Дагестан","Кировская обл.","Удмуртская Республика",
-"Пермский край","Республика Башкортостан","Оренбургская обл.","Санкт-Петербург",
-"Ленинградская обл.","Новгородская обл.","Псковская обл.","Калининградская обл.",
-"Республика Карелия","Мурманская обл.","Архангельская обл.","Ненецкий АО","Республика Коми",
-"Ростовская обл.","Краснодарский край","Республика Адыгея","Севастополь","Республика Крым",
-"Ставропольский край","Воронежская обл.","Липецкая обл.","Тамбовская обл.","Белгородская обл.",
-"Курская обл.","Орловская обл.","Брянская обл.","Смоленская обл.","Красноярский край",
-"Республика Хакасия","Республика Тыва","Иркутская обл.","Республика Бурятия","Забайкальский край",
-"Республика Саха (Якутия)","Амурская обл.","Еврейская АО","Хабаровский край","Приморский край",
-"Сахалинская обл.","Камчатский край","Магаданская обл.","Чукотский АО"
-];
+const _ADM = ["Ямало-Ненецкий АО", "Ханты-Мансийский АО", "Тюменская обл.", "Свердловская обл.", "Челябинская обл.", "Курганская обл.", "Омская обл.", "Новосибирская обл.", "Томская обл.", "Кемеровская обл.", "Алтайский край", "Республика Алтай", "Москва", "Московская обл.", "Тверская обл.", "Ярославская обл.", "Костромская обл.", "Ивановская обл.", "Владимирская обл.", "Рязанская обл.", "Тульская обл.", "Калужская обл.", "Нижегородская обл.", "Чувашская Республика", "Республика Марий Эл", "Республика Татарстан", "Ульяновская обл.", "Самарская обл.", "Пензенская обл.", "Республика Мордовия", "Саратовская обл.", "Волгоградская обл.", "Астраханская обл.", "Республика Калмыкия", "Республика Дагестан", "Кировская обл.", "Удмуртская Республика", "Пермский край", "Республика Башкортостан", "Оренбургская обл.", "Санкт-Петербург", "Ленинградская обл.", "Новгородская обл.", "Псковская обл.", "Калининградская обл.", "Республика Карелия", "Мурманская обл.", "Архангельская обл.", "Ненецкий АО", "Республика Коми", "Ростовская обл.", "Краснодарский край", "Республика Адыгея", "Севастополь", "Республика Крым", "Ставропольский край", "Воронежская обл.", "Липецкая обл.", "Тамбовская обл.", "Белгородская обл.", "Курская обл.", "Орловская обл.", "Брянская обл.", "Смоленская обл.", "Красноярский край", "Республика Хакасия", "Республика Тыва", "Иркутская обл.", "Республика Бурятия", "Забайкальский край", "Республика Саха (Якутия)", "Амурская обл.", "Еврейская АО", "Хабаровский край", "Приморский край", "Сахалинская обл.", "Камчатский край", "Магаданская обл.", "Чукотский АО", "Донецкая Народная Республика", "Луганская Народная Республика", "Запорожская обл.", "Херсонская обл.", "Вологодская обл.", "Чеченская Республика", "Республика Ингушетия", "Кабардино-Балкарская Республика", "Карачаево-Черкесская Республика", "Республика Северная Осетия — Алания"];
 const _RB_GEAR = 'Целенаправленный любительский лов запрещён (Красная книга РФ). При случайном прилове используйте безбородые крючки для бережного выпуска.';
 
 const BOT_FISH_CATALOG = [
@@ -1295,214 +1579,838 @@ const BOT_WATERS_DB = [
 }));
 
 const BOT_CITIES_DB = [
-["Новый Уренгой",66.0833,76.68,0],["Коротчаево",65.9472,78.1486,0],["Лимбяяха",66.0581,77.7914,0],
-["Уренгой (пгт)",65.9631,78.3686,0],["Ямсовей",65.6542,76.9531,0],["Пангоды",65.85,74.4856,0],
-["Правохеттинский",65.658,73.719,0],["Старый Надым",65.565,72.652,0],["Надым",65.5333,72.5167,0],
-["Ягельный",64.96,72.71,0],["Приозёрный (ЯНАО)",64.67,72.9,0],["Лонгъюган",65.3,70.93,0],
-["Ныда",66.625,72.93,0],["Нори",66.15,72.37,0],["Кутопьюган",65.97,70.72,0],["Тазовский",67.4639,78.7022,0],
-["Газ-Сале",67.367,78.969,0],["Самбург",66.985,78.221,0],["Антипаюта",69.098,76.855,0],
-["Гыда",70.893,78.472,0],["Тарко-Сале",64.915,77.78,0],["Пуровск",64.983,77.59,0],
-["Сывдарма",65.243,77.26,0],["Пурпе",64.48,76.68,0],["Губкинский",64.434,76.502,0],
-["Ханымей",63.722,75.95,0],["Харампур",64.31,78.1,0],["Халясавэй",63.39,78.38,0],
-["Муравленко",63.792,74.523,0],["Ноябрьск",63.2,75.45,0],["Вынгапуровский",63.168,76.968,0],
-["Красноселькуп",65.702,82.463,0],["Толька",63.998,82.06,0],["Салехард",66.53,66.6,0],
-["Лабытнанги",66.657,66.418,0],["Харп",66.814,65.808,0],["Обской",66.69,66.22,0],["Аксарка",66.56,67.798,0],
-["Белоярск (Приуральский)",66.872,68.136,0],["Катравож",66.333,66.085,0],["Яр-Сале",66.863,70.84,0],
-["Панаевск",66.757,70.116,0],["Салемал",66.746,68.938,0],["Мыс Каменный",68.463,73.593,0],
-["Сеяха",70.165,72.515,0],["Мужи",65.398,64.698,0],["Горки (Шурышкарский)",65.076,65.291,0],
-["Овгорт",64.867,63.367,0],["Сургут",61.25,73.4,1],["Белый Яр (Сургутский)",61.267,73.238,1],
-["Солнечный (Сургутский)",61.298,73.175,1],["Барсово",61.278,73.153,1],["Фёдоровский",61.608,73.719,1],
-["Лянтор",61.619,72.155,1],["Нижнесортымский",62.438,71.76,1],["Нижневартовск",60.93,76.55,1],
-["Излучинск",60.963,76.929,1],["Мегион",61.034,76.11,1],["Лангепас",61.254,75.182,1],
-["Покачи",61.75,75.59,1],["Радужный (ХМАО)",62.133,77.475,1],["Новоаганск",61.946,76.663,1],
-["Когалым",62.264,74.482,1],["Нефтеюганск",61.099,72.603,1],["Пойковский",61.233,71.883,1],
-["Пыть-Ях",60.75,72.858,1],["Салым",60.062,71.478,1],["Ханты-Мансийск",61,69.02,1],
-["Горноправдинск",60.056,69.908,1],["Нягань",62.14,65.393,1],["Приобье",62.533,65.617,1],
-["Октябрьское (ХМАО)",62.454,66.05,1],["Белоярский (ХМАО)",63.711,66.672,1],["Берёзово",63.938,65.042,1],
-["Игрим",63.19,64.417,1],["Советский (ХМАО)",61.361,63.564,1],["Югорск",61.312,63.332,1],
-["Урай",60.13,64.789,1],["Междуреченский",59.6,65.91,1],["Тюмень",57.153,65.5343,2],
-["Боровский",57.037,65.713,2],["Винзили",56.953,65.792,2],["Ялуторовск",56.653,66.3,2],
-["Заводоуковск",56.504,66.551,2],["Тобольск",58.198,68.254,2],["Вагай",57.937,69.022,2],
-["Уват",59.141,68.895,2],["Туртас",58.943,69.142,2],["Ишим",56.112,69.49,2],
-["Екатеринбург",56.8389,60.6057,3],["Верхняя Пышма",56.971,60.583,3],
-["Берёзовский (Свердл.)",56.908,60.804,3],["Среднеуральск",56.99,60.467,3],
-["Заречный (Белоярское вдхр.)",56.814,61.326,3],["Рефтинский",57.092,61.673,3],
-["Первоуральск",56.905,59.943,3],["Ревда",56.801,59.91,3],["Сысерть",56.5,60.816,3],
-["Полевской",56.442,60.189,3],["Каменск-Уральский",56.415,61.918,3],["Нижний Тагил",57.919,59.965,3],
-["Серов",59.603,60.578,3],["Сосьва",59.176,61.854,3],["Гари",59.43,62.35,3],["Тавда",58.042,65.272,3],
-["Челябинск",55.1644,61.4368,4],["Копейск",55.116,61.617,4],["Миасс",55.045,60.108,4],
-["Чебаркуль",54.978,60.37,4],["Златоуст",55.171,59.65,4],["Кыштым",55.706,60.552,4],
-["Касли",55.889,60.758,4],["Южноуральск",54.442,61.253,4],["Магнитогорск",53.407,58.979,4],
-["Курган",55.441,65.341,5],["Шадринск",56.085,63.633,5],["Омск",54.9885,73.3242,6],["Тара",56.894,74.371,6],
-["Калачинск",55.052,74.575,6],["Черлак",54.155,74.805,6],["Новосибирск",55.0084,82.9357,7],
-["Бердск",54.758,83.107,7],["Искитим",54.64,83.305,7],["Ордынское",54.372,81.901,7],
-["Сузун",53.782,82.313,7],["Колывань",55.306,82.739,7],["Барабинск",55.35,78.35,7],["Чаны",55.313,76.764,7],
-["Томск",56.4846,84.9476,8],["Северск",56.6,84.883,8],["Колпашево",58.316,82.909,8],
-["Парабель",58.698,81.482,8],["Каргасок",59.058,80.864,8],["Стрежевой",60.733,77.589,8],
-["Кемерово",55.355,86.087,9],["Новокузнецк",53.757,87.136,9],["Юрга",55.723,84.886,9],
-["Междуреченск",53.694,88.06,9],["Барнаул",53.3474,83.7784,10],["Новоалтайск",53.391,83.936,10],
-["Бийск",52.539,85.207,10],["Камень-на-Оби",53.788,81.348,10],["Рубцовск",51.501,81.207,10],
-["Горно-Алтайск",51.958,85.96,11],["Артыбаш (Телецкое оз.)",51.794,87.262,11],["Москва",55.7558,37.6173,12],
-["Зеленоград",55.9825,37.1814,12],["Химки",55.897,37.429,13],["Долгопрудный",55.938,37.514,13],
-["Мытищи",55.9116,37.7308,13],["Королёв",55.922,37.825,13],["Пушкино",56.01,37.847,13],
-["Щёлково",55.923,37.998,13],["Балашиха",55.796,37.938,13],["Люберцы",55.678,37.893,13],
-["Жуковский",55.595,38.12,13],["Раменское",55.567,38.23,13],["Бронницы",55.425,38.264,13],
-["Воскресенск",55.317,38.683,13],["Коломна",55.0794,38.7783,13],["Луховицы",54.965,39.026,13],
-["Кашира",54.836,38.151,13],["Ступино",54.889,38.078,13],["Серпухов",54.9158,37.4111,13],
-["Чехов",55.148,37.477,13],["Подольск",55.4242,37.5547,13],["Домодедово",55.436,37.766,13],
-["Одинцово",55.679,37.263,13],["Звенигород",55.73,36.854,13],["Красногорск",55.82,37.33,13],
-["Истра",55.914,36.86,13],["Солнечногорск",56.185,36.976,13],["Клин",56.333,36.733,13],
-["Дмитров",56.344,37.52,13],["Дубна",56.736,37.162,13],["Сергиев Посад",56.31,38.136,13],
-["Орехово-Зуево",55.806,38.961,13],["Шатура",55.576,39.542,13],["Егорьевск",55.383,39.033,13],
-["Руза",55.698,36.195,13],["Можайск",55.502,36.03,13],["Волоколамск",56.036,35.958,13],
-["Наро-Фоминск",55.387,36.733,13],["Тверь",56.8587,35.9176,14],["Конаково",56.7,36.768,14],
-["Завидово",56.526,36.525,14],["Кимры",56.873,37.356,14],["Калязин",57.243,37.854,14],
-["Весьегонск",58.663,37.26,14],["Осташков (Селигер)",57.147,33.107,14],["Ржев",56.262,34.327,14],
-["Вышний Волочёк",57.585,34.56,14],["Удомля",57.878,35.006,14],["Ярославль",57.6261,39.8845,15],
-["Рыбинск",58.048,38.858,15],["Брейтово",58.303,37.868,15],["Углич",57.528,38.318,15],
-["Мышкин",57.786,38.455,15],["Ростов Великий",57.185,39.414,15],["Переславль-Залесский",56.736,38.854,15],
-["Кострома",57.7679,40.9269,16],["Волгореченск",57.441,41.158,16],["Иваново",57.0004,40.9739,17],
-["Кинешма",57.443,42.149,17],["Юрьевец",57.32,43.109,17],["Плёс",57.458,41.514,17],
-["Владимир",56.129,40.4066,18],["Муром",55.579,42.052,18],["Ковров",56.357,41.319,18],
-["Рязань",54.6292,39.7368,19],["Спас-Клепики",55.134,40.175,19],["Касимов",54.941,41.396,19],
-["Шилово",54.324,40.875,19],["Тула",54.1931,37.6173,20],["Алексин",54.502,37.068,20],
-["Калуга",54.5138,36.2612,21],["Обнинск",55.096,36.61,21],["Таруса",54.729,37.177,21],
-["Нижний Новгород",56.3269,44.0059,22],["Бор",56.358,44.062,22],["Кстово",56.151,44.195,22],
-["Городец",56.643,43.472,22],["Заволжье",56.641,43.393,22],["Чкаловск",56.768,43.242,22],
-["Лысково",56.012,45.025,22],["Васильсурск",56.129,46.007,22],["Павлово",55.962,43.09,22],
-["Выкса",55.319,42.173,22],["Чебоксары",56.1439,47.2489,23],["Новочебоксарск",56.11,47.479,23],
-["Козловка",55.842,48.248,23],["Йошкар-Ола",56.6344,47.8999,24],["Волжск",55.866,48.358,24],
-["Козьмодемьянск",56.341,46.564,24],["Казань",55.7961,49.1064,25],["Зеленодольск",55.845,48.518,25],
-["Васильево",55.838,48.665,25],["Лаишево",55.405,49.55,25],["Камское Устье",55.202,49.272,25],
-["Тетюши",54.938,48.838,25],["Болгар",54.96,49.043,25],["Чистополь",55.363,50.642,25],
-["Мамадыш",55.716,51.409,25],["Елабуга",55.758,52.046,25],["Набережные Челны",55.7436,52.3958,25],
-["Нижнекамск",55.6366,51.8245,25],["Мензелинск",55.726,53.102,25],["Ульяновск",54.3142,48.4031,26],
-["Димитровград",54.214,49.618,26],["Сенгилей",53.966,48.798,26],["Старая Майна",54.609,48.928,26],
-["Самара",53.1959,50.1002,27],["Тольятти",53.5078,49.4204,27],["Жигулёвск",53.402,49.495,27],
-["Сызрань",53.155,48.474,27],["Новокуйбышевск",53.099,49.948,27],["Пенза",53.1959,45.0183,28],
-["Саранск",54.1874,45.1839,29],["Саратов",51.5336,46.0343,30],["Энгельс",51.4989,46.125,30],
-["Маркс",51.709,46.749,30],["Вольск",52.043,47.379,30],["Балаково",52.039,47.784,30],
-["Хвалынск",52.492,48.106,30],["Волгоград",48.708,44.5133,31],["Волжский",48.785,44.775,31],
-["Камышин",50.088,45.405,31],["Калач-на-Дону",48.685,43.526,31],["Ахтубинск",48.281,46.174,32],
-["Харабали",47.412,47.256,32],["Селитренное",47.167,47.45,32],["Енотаевка",47.246,47.028,32],
-["Нариманов",46.689,47.85,32],["Астрахань",46.3497,48.0408,32],["Камызяк",46.11,48.077,32],
-["Кировский (Астрахань)",45.845,48.136,32],["Икряное",46.093,47.734,32],["Мумра",45.772,47.656,32],
-["Володарский",46.402,48.541,32],["Лиман (Астраханская)",45.785,47.224,32],["Лагань",45.391,47.362,33],
-["Элиста",46.3078,44.2558,33],["Махачкала",42.9849,47.5047,34],["Каспийск",42.885,47.638,34],
-["Дербент",42.0678,48.2899,34],["Кизляр",43.847,46.714,34],["Киров",58.6035,49.668,35],
-["Кирово-Чепецк",58.552,50.043,35],["Вятские Поляны",56.221,51.068,35],["Ижевск",56.8527,53.2115,36],
-["Воткинск",57.051,53.987,36],["Сарапул",56.467,53.798,36],["Камбарка",56.266,54.205,36],
-["Пермь",58.0105,56.2502,37],["Краснокамск",58.08,55.755,37],["Добрянка",58.459,56.416,37],
-["Чусовой",58.296,57.816,37],["Кунгур",57.428,56.945,37],["Оса",57.283,55.458,37],
-["Чайковский",56.768,54.115,37],["Березники",59.409,56.804,37],["Соликамск",59.645,56.77,37],
-["Уфа",54.7388,55.9721,38],["Бирск",55.418,55.536,38],["Павловка (Павловское вдхр.)",55.421,56.551,38],
-["Нефтекамск",56.088,54.248,38],["Агидель",55.899,53.937,38],["Стерлитамак",53.63,55.931,38],
-["Салават",53.361,55.925,38],["Белорецк",53.966,58.4,38],["Оренбург",51.7682,55.097,39],
-["Орск",51.229,58.475,39],["Энергетик (Ириклинское вдхр.)",51.745,58.793,39],["Бузулук",52.788,52.262,39],
-["Санкт-Петербург",59.9343,30.3351,40],["Кронштадт",59.991,29.766,40],["Сестрорецк",60.099,29.962,40],
-["Зеленогорск (СПб)",60.197,29.702,40],["Выборг",60.709,28.749,41],["Приморск (ЛО)",60.366,28.609,41],
-["Приозерск",61.039,30.129,41],["Лосево (Вуокса)",60.681,30.004,41],["Шлиссельбург",59.946,31.033,41],
-["Новая Ладога",60.103,32.302,41],["Волхов",59.925,32.338,41],["Сясьстрой",60.136,32.569,41],
-["Лодейное Поле",60.733,33.553,41],["Подпорожье",60.911,34.17,41],["Сосновый Бор",59.904,29.086,41],
-["Кингисепп",59.373,28.613,41],["Усть-Луга",59.66,28.295,41],["Ивангород",59.371,28.216,41],
-["Луга",58.737,29.845,41],["Гатчина",59.566,30.128,41],["Тихвин",59.644,33.542,41],
-["Кириши",59.449,32.018,41],["Великий Новгород",58.5228,31.2699,42],["Старая Русса",57.989,31.356,42],
-["Валдай",57.974,33.252,42],["Боровичи",58.388,33.915,42],["Псков",57.8194,28.3318,43],
-["Гдов (Чудское оз.)",58.742,27.815,43],["Великие Луки",56.34,30.525,43],["Калининград",54.7104,20.4522,44],
-["Зеленоградск",54.96,20.476,44],["Светлогорск",54.943,20.155,44],["Балтийск",54.644,19.892,44],
-["Светлый",54.676,20.134,44],["Полесск",54.863,21.099,44],["Советск (Калининградская)",55.083,21.886,44],
-["Петрозаводск",61.785,34.3469,45],["Кондопога",62.203,34.265,45],["Медвежьегорск",62.912,34.456,45],
-["Сегежа",63.743,34.316,45],["Беломорск",64.525,34.765,45],["Кемь",64.956,34.579,45],
-["Лоухи",66.075,33.045,45],["Пяозерский",65.764,31.082,45],["Калевала",65.199,31.186,45],
-["Костомукша",64.588,30.6,45],["Сортавала",61.703,30.691,45],["Лахденпохья",61.519,30.199,45],
-["Питкяранта",61.572,31.478,45],["Олонец",60.985,32.971,45],["Пудож",61.806,36.535,45],
-["Мурманск",68.9707,33.075,46],["Кола",68.881,33.018,46],["Мурмаши",68.816,32.812,46],
-["Териберка",69.164,35.143,46],["Североморск",69.069,33.416,46],["Мончегорск",67.938,32.915,46],
-["Апатиты",67.568,33.402,46],["Кандалакша",67.151,32.412,46],["Умба",66.687,34.343,46],
-["Варзуга",66.398,36.588,46],["Ловозеро",68.006,35.016,46],["Архангельск",64.5399,40.5158,47],
-["Северодвинск",64.5635,39.8302,47],["Новодвинск",64.416,40.812,47],["Онега",63.906,38.097,47],
-["Котлас",61.252,46.654,47],["Вельск",61.066,42.102,47],["Мезень",65.852,44.24,47],
-["Нарьян-Мар",67.638,53.006,48],["Искателей",67.679,53.133,48],["Сыктывкар",61.6688,50.8364,49],
-["Ухта",63.567,53.683,49],["Печора",65.147,57.228,49],["Усинск",65.994,57.556,49],
-["Усть-Цильма",65.441,52.15,49],["Воркута",67.498,64.052,49],["Ростов-на-Дону",47.2225,39.7187,50],
-["Азов",47.112,39.423,50],["Таганрог",47.2096,38.9352,50],["Новочеркасск",47.418,40.093,50],
-["Семикаракорск",47.516,40.806,50],["Волгодонск",47.514,42.153,50],["Цимлянск",47.644,42.102,50],
-["Весёлый (Маныч)",47.086,40.742,50],["Каменск-Шахтинский",48.318,40.26,50],["Вёшенская",49.629,41.726,50],
-["Краснодар",45.0355,38.9753,51],["Славянск-на-Кубани",45.257,38.125,51],["Темрюк",45.271,37.382,51],
-["Приморско-Ахтарск",46.046,38.175,51],["Ейск",46.711,38.273,51],["Тимашевск",45.617,38.946,51],
-["Анапа",44.895,37.316,51],["Новороссийск",44.7239,37.7689,51],["Геленджик",44.561,38.077,51],
-["Туапсе",44.098,39.074,51],["Сочи",43.5855,39.7231,51],["Адлер",43.429,39.923,51],
-["Майкоп",44.6098,40.1006,52],["Севастополь",44.6166,33.5254,53],["Балаклава",44.501,33.599,53],
-["Симферополь",44.9521,34.1024,54],["Ялта",44.4952,34.1663,54],["Алушта",44.676,34.41,54],
-["Судак",44.851,34.972,54],["Феодосия",45.0319,35.3824,54],["Керчь",45.356,36.467,54],
-["Евпатория",45.1904,33.3669,54],["Черноморское",45.504,32.702,54],["Ставрополь",45.0428,41.9734,55],
-["Пятигорск",44.0486,43.0594,55],["Воронеж",51.6608,39.2003,56],["Нововоронеж",51.315,39.218,56],
-["Лиски",50.985,39.508,56],["Павловск (Воронежская)",50.457,40.108,56],["Липецк",52.6088,39.5992,57],
-["Елец",52.624,38.502,57],["Тамбов",52.7212,41.4523,58],["Белгород",50.595,36.587,59],
-["Старый Оскол",51.296,37.841,59],["Курск",51.7304,36.1926,60],["Курчатов",51.66,35.656,60],
-["Орёл",52.9668,36.0625,61],["Брянск",53.2435,34.3634,62],["Смоленск",54.7826,32.0453,63],
-["Десногорск",54.152,33.285,63],["Красноярск",56.0153,92.8932,64],["Дивногорск",55.959,92.373,64],
-["Железногорск (Красноярский)",56.251,93.532,64],["Канск",56.201,95.706,64],["Ачинск",56.269,90.495,64],
-["Лесосибирск",58.235,92.482,64],["Енисейск",58.449,92.17,64],["Туруханск",65.795,87.962,64],
-["Игарка",67.466,86.583,64],["Дудинка",69.405,86.177,64],["Норильск",69.3535,88.2027,64],
-["Минусинск",53.706,91.688,64],["Абакан",53.7211,91.4424,65],["Саяногорск",53.088,91.4,65],
-["Шира",54.491,89.953,65],["Кызыл",51.7197,94.4378,66],["Иркутск",52.2864,104.305,67],
-["Ангарск",52.544,103.888,67],["Шелехов",52.208,104.095,67],["Листвянка",51.852,104.868,67],
-["Слюдянка",51.659,103.706,67],["Байкальск",51.518,104.142,67],["Хужир (Ольхон)",53.194,107.339,67],
-["Братск",56.151,101.634,67],["Усть-Илимск",58,102.662,67],["Усть-Кут",56.794,105.767,67],
-["Улан-Удэ",51.8335,107.5841,68],["Гусиноозёрск",51.285,106.526,68],["Кабанск",52.049,106.652,68],
-["Усть-Баргузин",53.411,109.026,68],["Северобайкальск",55.637,109.323,68],["Чита",52.033,113.501,69],
-["Якутск",62.0355,129.6755,70],["Покровск (Якутия)",61.478,129.141,70],["Ленск",60.725,114.928,70],
-["Мирный (Якутия)",62.535,113.961,70],["Вилюйск",63.755,121.624,70],["Алдан",58.603,125.389,70],
-["Нерюнгри",56.658,124.725,70],["Тикси",71.637,128.868,70],["Благовещенск",50.2907,127.5272,71],
-["Свободный",51.375,128.134,71],["Зея",53.749,127.262,71],["Тында",55.155,124.725,71],
-["Биробиджан",48.794,132.921,72],["Хабаровск",48.4802,135.0719,73],["Амурск",50.226,136.899,73],
-["Комсомольск-на-Амуре",50.5496,137.0067,73],["Николаевск-на-Амуре",53.145,140.722,73],
-["Советская Гавань",48.969,140.289,73],["Ванино",49.092,140.264,73],["Владивосток",43.1155,131.8855,74],
-["Артём",43.355,132.186,74],["Уссурийск",43.797,131.952,74],["Находка",42.8138,132.8735,74],
-["Большой Камень",43.112,132.348,74],["Спасск-Дальний",44.6,132.818,74],
-["Камень-Рыболов (Ханка)",44.747,132.043,74],["Славянка",42.863,131.385,74],
-["Южно-Сахалинск",46.9591,142.738,75],["Корсаков",46.634,142.776,75],["Анива",46.715,142.528,75],
-["Холмск",47.046,142.046,75],["Поронайск",49.222,143.102,75],["Ноглики",51.805,143.138,75],
-["Оха",53.589,142.949,75],["Петропавловск-Камчатский",53.0452,158.6508,76],["Елизово",53.187,158.383,76],
-["Усть-Большерецк",52.825,156.252,76],["Усть-Камчатск",56.228,162.476,76],["Магадан",59.5612,150.8301,77],
-["Анадырь",64.733,177.515,78],["Уренгойское (озеро Негито)",65.41,77.12,0],["Новый Порт",67.69,72.9,0],
-["Горки (ЯНАО)",65.06,65.28,0],["Заполярный (ЯНАО)",66.402,73.84,0],["Берёзово (ХМАО)",63.937,65.043,1],
-["Междуреченский (Кондинское)",59.6,65.91,1],["Фёдоровский (ХМАО)",61.608,73.718,1],
-["Мишкино (Башкортостан)",55.461,55.948,38],["Караидель",55.833,56.917,38],
-["Павловка (Башкортостан)",55.418,56.556,38],["Красная Горка (Нуримановский)",55.197,56.662,38],
-["Дюртюли",55.492,54.866,38],["Кушнаренково",55.102,55.344,38],
-["Благовещенск (Башкортостан)",55.035,55.978,38],["Янаул",56.265,54.931,38],["Бураево",55.841,55.408,38],
-["Старобалтачево",56,55.9,38],["Аскино",56.089,56.578,38],["Верхние Татышлы",56.289,55.858,38],
-["Калтасы",55.973,54.855,38],["Николо-Берёзовка",56.128,54.162,38],["Туймазы",54.6,53.7,38],
-["Октябрьский (Башкортостан)",54.481,53.471,38],["Бакалы",55.179,53.803,38],["Чекмагуш",55.134,54.655,38],
-["Чишмы",54.592,55.388,38],["Давлеканово",54.219,55.028,38],["Раевский (Альшеево)",54.066,54.918,38],
-["Белебей",54.103,54.122,38],["Иглино",54.834,56.417,38],["Кармаскалы",54.371,56.184,38],
-["Архангельское (Башкортостан)",54.421,56.792,38],["Красноусольский",53.892,56.469,38],
-["Ишимбай",53.449,56.046,38],["Мелеуз",52.963,55.932,38],["Кумертау",52.766,55.786,38],
-["Мраково",52.716,56.625,38],["Инзер (Башкортостан)",54.216,57.556,38],["Учалы",54.319,59.383,38],
-["Сибай",52.716,58.666,38],["Баймак",52.592,58.316,38],["Аскарово (Банное)",53.338,58.514,38],
-["Месягутово",55.552,58.252,38],["Малояз",55.181,58.151,38],["Большеустьикинское",55.956,58.273,38],
-["Мишкино (Курганская обл.)",55.338,63.918,5],["Шумиха",55.228,63.293,5],["Куртамыш",54.911,64.432,5],
-["Макушино",55.211,67.244,5],["Петухово",55.069,67.893,5],["Частоозерье",55.568,67.908,5],
-["Демьянка",59.546,69.308,2],["Ярково",57.408,67.075,2],["Нижняя Тавда",57.673,66.173,2],
-["Казанское (Тюменская)",55.639,69.235,2],["Сосьва (Свердловская)",59.176,61.855,3],
-["Ивдель",60.691,60.421,3],["Ильинский (Обва)",58.569,55.684,37],["Пожва",59.092,56.089,37],
-["Чердынь",60.403,56.479,37],["Красновишерск",60.403,57.079,37],
-["Болгар (Спасский затон)",54.985,49.056,25],["Алексеевское (Кама)",55.308,50.115,25],
-["Рыбная Слобода",55.383,50.145,25],["Актаныш",55.716,54.083,25],["Звенигово",55.972,48.015,24],
-["Юрино (Ветлуга)",56.292,46.299,24],["Макарьево",56.082,45.056,22],["Брейтово (Рыбинка)",58.297,37.868,15],
-["Борок (Рыбинка)",58.063,38.238,15],["Весьегонск (Рыбинка)",58.662,37.262,14],
-["Пошехонье",58.502,39.115,15],["Шигоны (Усинский залив)",53.389,48.675,27],["Ровное",50.776,46.052,30],
-["Харабали (Ахтуба)",47.412,47.256,32],["Черный Яр",48.062,46.112,32],
-["Мумра (Главный банк)",45.772,47.658,32],["Красный Яр (Бузан)",46.533,48.348,32],
-["Сириус (Имеретинка)",43.402,39.961,51],["Хоста",43.515,39.869,51],["Дагомыс",43.661,39.654,51],
-["Лоо",43.699,39.589,51],["Лазаревское",43.908,39.331,51],["Джубга",44.316,38.705,51],
-["Архипо-Осиповка",44.366,38.531,51],["Дивноморское",44.502,38.135,51],["Кабардинка",44.651,37.939,51],
-["Большой Утриш",44.761,37.389,51],["Витязево",44.988,37.262,51],
-["Благовещенская (Анапа)",45.063,37.115,51],["Тамань",45.218,36.716,51],["Голубицкая",45.325,37.272,51],
-["Кучугуры",45.405,36.958,51],["Садки (Ахтарские лиманы)",45.925,38.182,51],
-["Ясенская Переправа",46.245,38.285,51],["Должанская (Коса Долгая)",46.633,37.802,51]
+["Новый Уренгой", 66.0833, 76.68, 0],
+["Коротчаево", 65.9472, 78.1486, 0],
+["Лимбяяха", 66.0581, 77.7914, 0],
+["Уренгой (пгт)", 65.9631, 78.3686, 0],
+["Ямсовей", 65.6542, 76.9531, 0],
+["Пангоды", 65.85, 74.4856, 0],
+["Правохеттинский", 65.658, 73.719, 0],
+["Старый Надым", 65.565, 72.652, 0],
+["Надым", 65.5333, 72.5167, 0],
+["Ягельный", 64.96, 72.71, 0],
+["Приозёрный (ЯНАО)", 64.67, 72.9, 0],
+["Лонгъюган", 65.3, 70.93, 0],
+["Ныда", 66.625, 72.93, 0],
+["Нори", 66.15, 72.37, 0],
+["Кутопьюган", 65.97, 70.72, 0],
+["Тазовский", 67.4639, 78.7022, 0],
+["Газ-Сале", 67.367, 78.969, 0],
+["Самбург", 66.985, 78.221, 0],
+["Антипаюта", 69.098, 76.855, 0],
+["Гыда", 70.893, 78.472, 0],
+["Тарко-Сале", 64.915, 77.78, 0],
+["Пуровск", 64.983, 77.59, 0],
+["Сывдарма", 65.243, 77.26, 0],
+["Пурпе", 64.48, 76.68, 0],
+["Губкинский", 64.434, 76.502, 0],
+["Ханымей", 63.722, 75.95, 0],
+["Харампур", 64.31, 78.1, 0],
+["Халясавэй", 63.39, 78.38, 0],
+["Муравленко", 63.792, 74.523, 0],
+["Ноябрьск", 63.2, 75.45, 0],
+["Вынгапуровский", 63.168, 76.968, 0],
+["Красноселькуп", 65.702, 82.463, 0],
+["Толька", 63.998, 82.06, 0],
+["Салехард", 66.53, 66.6, 0],
+["Лабытнанги", 66.657, 66.418, 0],
+["Харп", 66.814, 65.808, 0],
+["Обской", 66.69, 66.22, 0],
+["Аксарка", 66.56, 67.798, 0],
+["Белоярск (Приуральский)", 66.872, 68.136, 0],
+["Катравож", 66.333, 66.085, 0],
+["Яр-Сале", 66.863, 70.84, 0],
+["Панаевск", 66.757, 70.116, 0],
+["Салемал", 66.746, 68.938, 0],
+["Мыс Каменный", 68.463, 73.593, 0],
+["Сеяха", 70.165, 72.515, 0],
+["Мужи", 65.398, 64.698, 0],
+["Горки (Шурышкарский)", 65.076, 65.291, 0],
+["Овгорт", 64.867, 63.367, 0],
+["Сургут", 61.25, 73.4, 1],
+["Белый Яр (Сургутский)", 61.267, 73.238, 1],
+["Солнечный (Сургутский)", 61.298, 73.175, 1],
+["Барсово", 61.278, 73.153, 1],
+["Фёдоровский", 61.608, 73.719, 1],
+["Лянтор", 61.619, 72.155, 1],
+["Нижнесортымский", 62.438, 71.76, 1],
+["Нижневартовск", 60.93, 76.55, 1],
+["Излучинск", 60.963, 76.929, 1],
+["Мегион", 61.034, 76.11, 1],
+["Лангепас", 61.254, 75.182, 1],
+["Покачи", 61.75, 75.59, 1],
+["Радужный (ХМАО)", 62.133, 77.475, 1],
+["Новоаганск", 61.946, 76.663, 1],
+["Когалым", 62.264, 74.482, 1],
+["Нефтеюганск", 61.099, 72.603, 1],
+["Пойковский", 61.233, 71.883, 1],
+["Пыть-Ях", 60.75, 72.858, 1],
+["Салым", 60.062, 71.478, 1],
+["Ханты-Мансийск", 61, 69.02, 1],
+["Горноправдинск", 60.056, 69.908, 1],
+["Нягань", 62.14, 65.393, 1],
+["Приобье", 62.533, 65.617, 1],
+["Октябрьское (ХМАО)", 62.454, 66.05, 1],
+["Белоярский (ХМАО)", 63.711, 66.672, 1],
+["Берёзово", 63.938, 65.042, 1],
+["Игрим", 63.19, 64.417, 1],
+["Советский (ХМАО)", 61.361, 63.564, 1],
+["Югорск", 61.312, 63.332, 1],
+["Урай", 60.13, 64.789, 1],
+["Междуреченский", 59.6, 65.91, 1],
+["Тюмень", 57.153, 65.5343, 2],
+["Боровский", 57.037, 65.713, 2],
+["Винзили", 56.953, 65.792, 2],
+["Ялуторовск", 56.653, 66.3, 2],
+["Заводоуковск", 56.504, 66.551, 2],
+["Тобольск", 58.198, 68.254, 2],
+["Вагай", 57.937, 69.022, 2],
+["Уват", 59.141, 68.895, 2],
+["Туртас", 58.943, 69.142, 2],
+["Ишим", 56.112, 69.49, 2],
+["Екатеринбург", 56.8389, 60.6057, 3],
+["Верхняя Пышма", 56.971, 60.583, 3],
+["Берёзовский (Свердл.)", 56.908, 60.804, 3],
+["Среднеуральск", 56.99, 60.467, 3],
+["Заречный (Белоярское вдхр.)", 56.814, 61.326, 3],
+["Рефтинский", 57.092, 61.673, 3],
+["Первоуральск", 56.905, 59.943, 3],
+["Ревда", 56.801, 59.91, 3],
+["Сысерть", 56.5, 60.816, 3],
+["Полевской", 56.442, 60.189, 3],
+["Каменск-Уральский", 56.415, 61.918, 3],
+["Нижний Тагил", 57.919, 59.965, 3],
+["Серов", 59.603, 60.578, 3],
+["Сосьва", 59.176, 61.854, 3],
+["Гари", 59.43, 62.35, 3],
+["Тавда", 58.042, 65.272, 3],
+["Челябинск", 55.1644, 61.4368, 4],
+["Копейск", 55.116, 61.617, 4],
+["Миасс", 55.045, 60.108, 4],
+["Чебаркуль", 54.978, 60.37, 4],
+["Златоуст", 55.171, 59.65, 4],
+["Кыштым", 55.706, 60.552, 4],
+["Касли", 55.889, 60.758, 4],
+["Южноуральск", 54.442, 61.253, 4],
+["Магнитогорск", 53.407, 58.979, 4],
+["Курган", 55.441, 65.341, 5],
+["Шадринск", 56.085, 63.633, 5],
+["Омск", 54.9885, 73.3242, 6],
+["Тара", 56.894, 74.371, 6],
+["Калачинск", 55.052, 74.575, 6],
+["Черлак", 54.155, 74.805, 6],
+["Новосибирск", 55.0084, 82.9357, 7],
+["Бердск", 54.758, 83.107, 7],
+["Искитим", 54.64, 83.305, 7],
+["Ордынское", 54.372, 81.901, 7],
+["Сузун", 53.782, 82.313, 7],
+["Колывань", 55.306, 82.739, 7],
+["Барабинск", 55.35, 78.35, 7],
+["Чаны", 55.313, 76.764, 7],
+["Томск", 56.4846, 84.9476, 8],
+["Северск", 56.6, 84.883, 8],
+["Колпашево", 58.316, 82.909, 8],
+["Парабель", 58.698, 81.482, 8],
+["Каргасок", 59.058, 80.864, 8],
+["Стрежевой", 60.733, 77.589, 8],
+["Кемерово", 55.355, 86.087, 9],
+["Новокузнецк", 53.757, 87.136, 9],
+["Юрга", 55.723, 84.886, 9],
+["Междуреченск", 53.694, 88.06, 9],
+["Барнаул", 53.3474, 83.7784, 10],
+["Новоалтайск", 53.391, 83.936, 10],
+["Бийск", 52.539, 85.207, 10],
+["Камень-на-Оби", 53.788, 81.348, 10],
+["Рубцовск", 51.501, 81.207, 10],
+["Горно-Алтайск", 51.958, 85.96, 11],
+["Артыбаш (Телецкое оз.)", 51.794, 87.262, 11],
+["Москва", 55.7558, 37.6173, 12],
+["Зеленоград", 55.9825, 37.1814, 12],
+["Химки", 55.897, 37.429, 13],
+["Долгопрудный", 55.938, 37.514, 13],
+["Мытищи", 55.9116, 37.7308, 13],
+["Королёв", 55.922, 37.825, 13],
+["Пушкино", 56.01, 37.847, 13],
+["Щёлково", 55.923, 37.998, 13],
+["Балашиха", 55.796, 37.938, 13],
+["Люберцы", 55.678, 37.893, 13],
+["Жуковский", 55.595, 38.12, 13],
+["Раменское", 55.567, 38.23, 13],
+["Бронницы", 55.425, 38.264, 13],
+["Воскресенск", 55.317, 38.683, 13],
+["Коломна", 55.0794, 38.7783, 13],
+["Луховицы", 54.965, 39.026, 13],
+["Кашира", 54.836, 38.151, 13],
+["Ступино", 54.889, 38.078, 13],
+["Серпухов", 54.9158, 37.4111, 13],
+["Чехов", 55.148, 37.477, 13],
+["Подольск", 55.4242, 37.5547, 13],
+["Домодедово", 55.436, 37.766, 13],
+["Одинцово", 55.679, 37.263, 13],
+["Звенигород", 55.73, 36.854, 13],
+["Красногорск", 55.82, 37.33, 13],
+["Истра", 55.914, 36.86, 13],
+["Солнечногорск", 56.185, 36.976, 13],
+["Клин", 56.333, 36.733, 13],
+["Дмитров", 56.344, 37.52, 13],
+["Дубна", 56.736, 37.162, 13],
+["Сергиев Посад", 56.31, 38.136, 13],
+["Орехово-Зуево", 55.806, 38.961, 13],
+["Шатура", 55.576, 39.542, 13],
+["Егорьевск", 55.383, 39.033, 13],
+["Руза", 55.698, 36.195, 13],
+["Можайск", 55.502, 36.03, 13],
+["Волоколамск", 56.036, 35.958, 13],
+["Наро-Фоминск", 55.387, 36.733, 13],
+["Тверь", 56.8587, 35.9176, 14],
+["Конаково", 56.7, 36.768, 14],
+["Завидово", 56.526, 36.525, 14],
+["Кимры", 56.873, 37.356, 14],
+["Калязин", 57.243, 37.854, 14],
+["Весьегонск", 58.663, 37.26, 14],
+["Осташков (Селигер)", 57.147, 33.107, 14],
+["Ржев", 56.262, 34.327, 14],
+["Вышний Волочёк", 57.585, 34.56, 14],
+["Удомля", 57.878, 35.006, 14],
+["Ярославль", 57.6261, 39.8845, 15],
+["Рыбинск", 58.048, 38.858, 15],
+["Брейтово", 58.303, 37.868, 15],
+["Углич", 57.528, 38.318, 15],
+["Мышкин", 57.786, 38.455, 15],
+["Ростов Великий", 57.185, 39.414, 15],
+["Переславль-Залесский", 56.736, 38.854, 15],
+["Кострома", 57.7679, 40.9269, 16],
+["Волгореченск", 57.441, 41.158, 16],
+["Иваново", 57.0004, 40.9739, 17],
+["Кинешма", 57.443, 42.149, 17],
+["Юрьевец", 57.32, 43.109, 17],
+["Плёс", 57.458, 41.514, 17],
+["Владимир", 56.129, 40.4066, 18],
+["Муром", 55.579, 42.052, 18],
+["Ковров", 56.357, 41.319, 18],
+["Рязань", 54.6292, 39.7368, 19],
+["Спас-Клепики", 55.134, 40.175, 19],
+["Касимов", 54.941, 41.396, 19],
+["Шилово", 54.324, 40.875, 19],
+["Тула", 54.1931, 37.6173, 20],
+["Алексин", 54.502, 37.068, 20],
+["Калуга", 54.5138, 36.2612, 21],
+["Обнинск", 55.096, 36.61, 21],
+["Таруса", 54.729, 37.177, 21],
+["Нижний Новгород", 56.3269, 44.0059, 22],
+["Бор", 56.358, 44.062, 22],
+["Кстово", 56.151, 44.195, 22],
+["Городец", 56.643, 43.472, 22],
+["Заволжье", 56.641, 43.393, 22],
+["Чкаловск", 56.768, 43.242, 22],
+["Лысково", 56.012, 45.025, 22],
+["Васильсурск", 56.129, 46.007, 22],
+["Павлово", 55.962, 43.09, 22],
+["Выкса", 55.319, 42.173, 22],
+["Чебоксары", 56.1439, 47.2489, 23],
+["Новочебоксарск", 56.11, 47.479, 23],
+["Козловка", 55.842, 48.248, 23],
+["Йошкар-Ола", 56.6344, 47.8999, 24],
+["Волжск", 55.866, 48.358, 24],
+["Козьмодемьянск", 56.341, 46.564, 24],
+["Казань", 55.7961, 49.1064, 25],
+["Зеленодольск", 55.845, 48.518, 25],
+["Васильево", 55.838, 48.665, 25],
+["Лаишево", 55.405, 49.55, 25],
+["Камское Устье", 55.202, 49.272, 25],
+["Тетюши", 54.938, 48.838, 25],
+["Болгар", 54.96, 49.043, 25],
+["Чистополь", 55.363, 50.642, 25],
+["Мамадыш", 55.716, 51.409, 25],
+["Елабуга", 55.758, 52.046, 25],
+["Набережные Челны", 55.7436, 52.3958, 25],
+["Нижнекамск", 55.6366, 51.8245, 25],
+["Мензелинск", 55.726, 53.102, 25],
+["Ульяновск", 54.3142, 48.4031, 26],
+["Димитровград", 54.214, 49.618, 26],
+["Сенгилей", 53.966, 48.798, 26],
+["Старая Майна", 54.609, 48.928, 26],
+["Самара", 53.1959, 50.1002, 27],
+["Тольятти", 53.5078, 49.4204, 27],
+["Жигулёвск", 53.402, 49.495, 27],
+["Сызрань", 53.155, 48.474, 27],
+["Новокуйбышевск", 53.099, 49.948, 27],
+["Пенза", 53.1959, 45.0183, 28],
+["Саранск", 54.1874, 45.1839, 29],
+["Саратов", 51.5336, 46.0343, 30],
+["Энгельс", 51.4989, 46.125, 30],
+["Маркс", 51.709, 46.749, 30],
+["Вольск", 52.043, 47.379, 30],
+["Балаково", 52.039, 47.784, 30],
+["Хвалынск", 52.492, 48.106, 30],
+["Волгоград", 48.708, 44.5133, 31],
+["Волжский", 48.785, 44.775, 31],
+["Камышин", 50.088, 45.405, 31],
+["Калач-на-Дону", 48.685, 43.526, 31],
+["Ахтубинск", 48.281, 46.174, 32],
+["Харабали", 47.412, 47.256, 32],
+["Селитренное", 47.167, 47.45, 32],
+["Енотаевка", 47.246, 47.028, 32],
+["Нариманов", 46.689, 47.85, 32],
+["Астрахань", 46.3497, 48.0408, 32],
+["Камызяк", 46.11, 48.077, 32],
+["Кировский (Астрахань)", 45.845, 48.136, 32],
+["Икряное", 46.093, 47.734, 32],
+["Мумра", 45.772, 47.656, 32],
+["Володарский", 46.402, 48.541, 32],
+["Лиман (Астраханская)", 45.785, 47.224, 32],
+["Лагань", 45.391, 47.362, 33],
+["Элиста", 46.3078, 44.2558, 33],
+["Махачкала", 42.9849, 47.5047, 34],
+["Каспийск", 42.885, 47.638, 34],
+["Дербент", 42.0678, 48.2899, 34],
+["Кизляр", 43.847, 46.714, 34],
+["Киров", 58.6035, 49.668, 35],
+["Кирово-Чепецк", 58.552, 50.043, 35],
+["Вятские Поляны", 56.221, 51.068, 35],
+["Ижевск", 56.8527, 53.2115, 36],
+["Воткинск", 57.051, 53.987, 36],
+["Сарапул", 56.467, 53.798, 36],
+["Камбарка", 56.266, 54.205, 36],
+["Пермь", 58.0105, 56.2502, 37],
+["Краснокамск", 58.08, 55.755, 37],
+["Добрянка", 58.459, 56.416, 37],
+["Чусовой", 58.296, 57.816, 37],
+["Кунгур", 57.428, 56.945, 37],
+["Оса", 57.283, 55.458, 37],
+["Чайковский", 56.768, 54.115, 37],
+["Березники", 59.409, 56.804, 37],
+["Соликамск", 59.645, 56.77, 37],
+["Уфа", 54.7388, 55.9721, 38],
+["Бирск", 55.418, 55.536, 38],
+["Павловка (Павловское вдхр.)", 55.421, 56.551, 38],
+["Нефтекамск", 56.088, 54.248, 38],
+["Агидель", 55.899, 53.937, 38],
+["Стерлитамак", 53.63, 55.931, 38],
+["Салават", 53.361, 55.925, 38],
+["Белорецк", 53.966, 58.4, 38],
+["Оренбург", 51.7682, 55.097, 39],
+["Орск", 51.229, 58.475, 39],
+["Энергетик (Ириклинское вдхр.)", 51.745, 58.793, 39],
+["Бузулук", 52.788, 52.262, 39],
+["Санкт-Петербург", 59.9343, 30.3351, 40],
+["Кронштадт", 59.991, 29.766, 40],
+["Сестрорецк", 60.099, 29.962, 40],
+["Зеленогорск (СПб)", 60.197, 29.702, 40],
+["Выборг", 60.709, 28.749, 41],
+["Приморск (ЛО)", 60.366, 28.609, 41],
+["Приозерск", 61.039, 30.129, 41],
+["Лосево (Вуокса)", 60.681, 30.004, 41],
+["Шлиссельбург", 59.946, 31.033, 41],
+["Новая Ладога", 60.103, 32.302, 41],
+["Волхов", 59.925, 32.338, 41],
+["Сясьстрой", 60.136, 32.569, 41],
+["Лодейное Поле", 60.733, 33.553, 41],
+["Подпорожье", 60.911, 34.17, 41],
+["Сосновый Бор", 59.904, 29.086, 41],
+["Кингисепп", 59.373, 28.613, 41],
+["Усть-Луга", 59.66, 28.295, 41],
+["Ивангород", 59.371, 28.216, 41],
+["Луга", 58.737, 29.845, 41],
+["Гатчина", 59.566, 30.128, 41],
+["Тихвин", 59.644, 33.542, 41],
+["Кириши", 59.449, 32.018, 41],
+["Великий Новгород", 58.5228, 31.2699, 42],
+["Старая Русса", 57.989, 31.356, 42],
+["Валдай", 57.974, 33.252, 42],
+["Боровичи", 58.388, 33.915, 42],
+["Псков", 57.8194, 28.3318, 43],
+["Гдов (Чудское оз.)", 58.742, 27.815, 43],
+["Великие Луки", 56.34, 30.525, 43],
+["Калининград", 54.7104, 20.4522, 44],
+["Зеленоградск", 54.96, 20.476, 44],
+["Светлогорск", 54.943, 20.155, 44],
+["Балтийск", 54.644, 19.892, 44],
+["Светлый", 54.676, 20.134, 44],
+["Полесск", 54.863, 21.099, 44],
+["Советск (Калининградская)", 55.083, 21.886, 44],
+["Петрозаводск", 61.785, 34.3469, 45],
+["Кондопога", 62.203, 34.265, 45],
+["Медвежьегорск", 62.912, 34.456, 45],
+["Сегежа", 63.743, 34.316, 45],
+["Беломорск", 64.525, 34.765, 45],
+["Кемь", 64.956, 34.579, 45],
+["Лоухи", 66.075, 33.045, 45],
+["Пяозерский", 65.764, 31.082, 45],
+["Калевала", 65.199, 31.186, 45],
+["Костомукша", 64.588, 30.6, 45],
+["Сортавала", 61.703, 30.691, 45],
+["Лахденпохья", 61.519, 30.199, 45],
+["Питкяранта", 61.572, 31.478, 45],
+["Олонец", 60.985, 32.971, 45],
+["Пудож", 61.806, 36.535, 45],
+["Мурманск", 68.9707, 33.075, 46],
+["Кола", 68.881, 33.018, 46],
+["Мурмаши", 68.816, 32.812, 46],
+["Териберка", 69.164, 35.143, 46],
+["Североморск", 69.069, 33.416, 46],
+["Мончегорск", 67.938, 32.915, 46],
+["Апатиты", 67.568, 33.402, 46],
+["Кандалакша", 67.151, 32.412, 46],
+["Умба", 66.687, 34.343, 46],
+["Варзуга", 66.398, 36.588, 46],
+["Ловозеро", 68.006, 35.016, 46],
+["Архангельск", 64.5399, 40.5158, 47],
+["Северодвинск", 64.5635, 39.8302, 47],
+["Новодвинск", 64.416, 40.812, 47],
+["Онега", 63.906, 38.097, 47],
+["Котлас", 61.252, 46.654, 47],
+["Вельск", 61.066, 42.102, 47],
+["Мезень", 65.852, 44.24, 47],
+["Нарьян-Мар", 67.638, 53.006, 48],
+["Искателей", 67.679, 53.133, 48],
+["Сыктывкар", 61.6688, 50.8364, 49],
+["Ухта", 63.567, 53.683, 49],
+["Печора", 65.147, 57.228, 49],
+["Усинск", 65.994, 57.556, 49],
+["Усть-Цильма", 65.441, 52.15, 49],
+["Воркута", 67.498, 64.052, 49],
+["Ростов-на-Дону", 47.2225, 39.7187, 50],
+["Азов", 47.112, 39.423, 50],
+["Таганрог", 47.2096, 38.9352, 50],
+["Новочеркасск", 47.418, 40.093, 50],
+["Семикаракорск", 47.516, 40.806, 50],
+["Волгодонск", 47.514, 42.153, 50],
+["Цимлянск", 47.644, 42.102, 50],
+["Весёлый (Маныч)", 47.086, 40.742, 50],
+["Каменск-Шахтинский", 48.318, 40.26, 50],
+["Вёшенская", 49.629, 41.726, 50],
+["Краснодар", 45.0355, 38.9753, 51],
+["Славянск-на-Кубани", 45.257, 38.125, 51],
+["Темрюк", 45.271, 37.382, 51],
+["Приморско-Ахтарск", 46.046, 38.175, 51],
+["Ейск", 46.711, 38.273, 51],
+["Тимашевск", 45.617, 38.946, 51],
+["Анапа", 44.895, 37.316, 51],
+["Новороссийск", 44.7239, 37.7689, 51],
+["Геленджик", 44.561, 38.077, 51],
+["Туапсе", 44.098, 39.074, 51],
+["Сочи", 43.5855, 39.7231, 51],
+["Адлер", 43.429, 39.923, 51],
+["Майкоп", 44.6098, 40.1006, 52],
+["Севастополь", 44.6166, 33.5254, 53],
+["Балаклава", 44.501, 33.599, 53],
+["Симферополь", 44.9521, 34.1024, 54],
+["Ялта", 44.4952, 34.1663, 54],
+["Алушта", 44.676, 34.41, 54],
+["Судак", 44.851, 34.972, 54],
+["Феодосия", 45.0319, 35.3824, 54],
+["Керчь", 45.356, 36.467, 54],
+["Евпатория", 45.1904, 33.3669, 54],
+["Черноморское", 45.504, 32.702, 54],
+["Ставрополь", 45.0428, 41.9734, 55],
+["Пятигорск", 44.0486, 43.0594, 55],
+["Воронеж", 51.6608, 39.2003, 56],
+["Нововоронеж", 51.315, 39.218, 56],
+["Лиски", 50.985, 39.508, 56],
+["Павловск (Воронежская)", 50.457, 40.108, 56],
+["Липецк", 52.6088, 39.5992, 57],
+["Елец", 52.624, 38.502, 57],
+["Тамбов", 52.7212, 41.4523, 58],
+["Белгород", 50.595, 36.587, 59],
+["Старый Оскол", 51.296, 37.841, 59],
+["Курск", 51.7304, 36.1926, 60],
+["Курчатов", 51.66, 35.656, 60],
+["Орёл", 52.9668, 36.0625, 61],
+["Брянск", 53.2435, 34.3634, 62],
+["Смоленск", 54.7826, 32.0453, 63],
+["Десногорск", 54.152, 33.285, 63],
+["Красноярск", 56.0153, 92.8932, 64],
+["Дивногорск", 55.959, 92.373, 64],
+["Железногорск (Красноярский)", 56.251, 93.532, 64],
+["Канск", 56.201, 95.706, 64],
+["Ачинск", 56.269, 90.495, 64],
+["Лесосибирск", 58.235, 92.482, 64],
+["Енисейск", 58.449, 92.17, 64],
+["Туруханск", 65.795, 87.962, 64],
+["Игарка", 67.466, 86.583, 64],
+["Дудинка", 69.405, 86.177, 64],
+["Норильск", 69.3535, 88.2027, 64],
+["Минусинск", 53.706, 91.688, 64],
+["Абакан", 53.7211, 91.4424, 65],
+["Саяногорск", 53.088, 91.4, 65],
+["Шира", 54.491, 89.953, 65],
+["Кызыл", 51.7197, 94.4378, 66],
+["Иркутск", 52.2864, 104.305, 67],
+["Ангарск", 52.544, 103.888, 67],
+["Шелехов", 52.208, 104.095, 67],
+["Листвянка", 51.852, 104.868, 67],
+["Слюдянка", 51.659, 103.706, 67],
+["Байкальск", 51.518, 104.142, 67],
+["Хужир (Ольхон)", 53.194, 107.339, 67],
+["Братск", 56.151, 101.634, 67],
+["Усть-Илимск", 58, 102.662, 67],
+["Усть-Кут", 56.794, 105.767, 67],
+["Улан-Удэ", 51.8335, 107.5841, 68],
+["Гусиноозёрск", 51.285, 106.526, 68],
+["Кабанск", 52.049, 106.652, 68],
+["Усть-Баргузин", 53.411, 109.026, 68],
+["Северобайкальск", 55.637, 109.323, 68],
+["Чита", 52.033, 113.501, 69],
+["Якутск", 62.0355, 129.6755, 70],
+["Покровск (Якутия)", 61.478, 129.141, 70],
+["Ленск", 60.725, 114.928, 70],
+["Мирный (Якутия)", 62.535, 113.961, 70],
+["Вилюйск", 63.755, 121.624, 70],
+["Алдан", 58.603, 125.389, 70],
+["Нерюнгри", 56.658, 124.725, 70],
+["Тикси", 71.637, 128.868, 70],
+["Благовещенск", 50.2907, 127.5272, 71],
+["Свободный", 51.375, 128.134, 71],
+["Зея", 53.749, 127.262, 71],
+["Тында", 55.155, 124.725, 71],
+["Биробиджан", 48.794, 132.921, 72],
+["Хабаровск", 48.4802, 135.0719, 73],
+["Амурск", 50.226, 136.899, 73],
+["Комсомольск-на-Амуре", 50.5496, 137.0067, 73],
+["Николаевск-на-Амуре", 53.145, 140.722, 73],
+["Советская Гавань", 48.969, 140.289, 73],
+["Ванино", 49.092, 140.264, 73],
+["Владивосток", 43.1155, 131.8855, 74],
+["Артём", 43.355, 132.186, 74],
+["Уссурийск", 43.797, 131.952, 74],
+["Находка", 42.8138, 132.8735, 74],
+["Большой Камень", 43.112, 132.348, 74],
+["Спасск-Дальний", 44.6, 132.818, 74],
+["Камень-Рыболов (Ханка)", 44.747, 132.043, 74],
+["Славянка", 42.863, 131.385, 74],
+["Южно-Сахалинск", 46.9591, 142.738, 75],
+["Корсаков", 46.634, 142.776, 75],
+["Анива", 46.715, 142.528, 75],
+["Холмск", 47.046, 142.046, 75],
+["Поронайск", 49.222, 143.102, 75],
+["Ноглики", 51.805, 143.138, 75],
+["Оха", 53.589, 142.949, 75],
+["Петропавловск-Камчатский", 53.0452, 158.6508, 76],
+["Елизово", 53.187, 158.383, 76],
+["Усть-Большерецк", 52.825, 156.252, 76],
+["Усть-Камчатск", 56.228, 162.476, 76],
+["Магадан", 59.5612, 150.8301, 77],
+["Анадырь", 64.733, 177.515, 78],
+["Уренгойское (озеро Негито)", 65.41, 77.12, 0],
+["Новый Порт", 67.69, 72.9, 0],
+["Горки (ЯНАО)", 65.06, 65.28, 0],
+["Заполярный (ЯНАО)", 66.402, 73.84, 0],
+["Берёзово (ХМАО)", 63.937, 65.043, 1],
+["Междуреченский (Кондинское)", 59.6, 65.91, 1],
+["Фёдоровский (ХМАО)", 61.608, 73.718, 1],
+["Мишкино (Башкортостан)", 55.461, 55.948, 38],
+["Караидель", 55.833, 56.917, 38],
+["Павловка (Башкортостан)", 55.418, 56.556, 38],
+["Красная Горка (Нуримановский)", 55.197, 56.662, 38],
+["Дюртюли", 55.492, 54.866, 38],
+["Кушнаренково", 55.102, 55.344, 38],
+["Благовещенск (Башкортостан)", 55.035, 55.978, 38],
+["Янаул", 56.265, 54.931, 38],
+["Бураево", 55.841, 55.408, 38],
+["Старобалтачево", 56, 55.9, 38],
+["Аскино", 56.089, 56.578, 38],
+["Верхние Татышлы", 56.289, 55.858, 38],
+["Калтасы", 55.973, 54.855, 38],
+["Николо-Берёзовка", 56.128, 54.162, 38],
+["Туймазы", 54.6, 53.7, 38],
+["Октябрьский (Башкортостан)", 54.481, 53.471, 38],
+["Бакалы", 55.179, 53.803, 38],
+["Чекмагуш", 55.134, 54.655, 38],
+["Чишмы", 54.592, 55.388, 38],
+["Давлеканово", 54.219, 55.028, 38],
+["Раевский (Альшеево)", 54.066, 54.918, 38],
+["Белебей", 54.103, 54.122, 38],
+["Иглино", 54.834, 56.417, 38],
+["Кармаскалы", 54.371, 56.184, 38],
+["Архангельское (Башкортостан)", 54.421, 56.792, 38],
+["Красноусольский", 53.892, 56.469, 38],
+["Ишимбай", 53.449, 56.046, 38],
+["Мелеуз", 52.963, 55.932, 38],
+["Кумертау", 52.766, 55.786, 38],
+["Мраково", 52.716, 56.625, 38],
+["Инзер (Башкортостан)", 54.216, 57.556, 38],
+["Учалы", 54.319, 59.383, 38],
+["Сибай", 52.716, 58.666, 38],
+["Баймак", 52.592, 58.316, 38],
+["Аскарово (Банное)", 53.338, 58.514, 38],
+["Месягутово", 55.552, 58.252, 38],
+["Малояз", 55.181, 58.151, 38],
+["Большеустьикинское", 55.956, 58.273, 38],
+["Мишкино (Курганская обл.)", 55.338, 63.918, 5],
+["Шумиха", 55.228, 63.293, 5],
+["Куртамыш", 54.911, 64.432, 5],
+["Макушино", 55.211, 67.244, 5],
+["Петухово", 55.069, 67.893, 5],
+["Частоозерье", 55.568, 67.908, 5],
+["Демьянка", 59.546, 69.308, 2],
+["Ярково", 57.408, 67.075, 2],
+["Нижняя Тавда", 57.673, 66.173, 2],
+["Казанское (Тюменская)", 55.639, 69.235, 2],
+["Сосьва (Свердловская)", 59.176, 61.855, 3],
+["Ивдель", 60.691, 60.421, 3],
+["Ильинский (Обва)", 58.569, 55.684, 37],
+["Пожва", 59.092, 56.089, 37],
+["Чердынь", 60.403, 56.479, 37],
+["Красновишерск", 60.403, 57.079, 37],
+["Болгар (Спасский затон)", 54.985, 49.056, 25],
+["Алексеевское (Кама)", 55.308, 50.115, 25],
+["Рыбная Слобода", 55.383, 50.145, 25],
+["Актаныш", 55.716, 54.083, 25],
+["Звенигово", 55.972, 48.015, 24],
+["Юрино (Ветлуга)", 56.292, 46.299, 24],
+["Макарьево", 56.082, 45.056, 22],
+["Брейтово (Рыбинка)", 58.297, 37.868, 15],
+["Борок (Рыбинка)", 58.063, 38.238, 15],
+["Весьегонск (Рыбинка)", 58.662, 37.262, 14],
+["Пошехонье", 58.502, 39.115, 15],
+["Шигоны (Усинский залив)", 53.389, 48.675, 27],
+["Ровное", 50.776, 46.052, 30],
+["Харабали (Ахтуба)", 47.412, 47.256, 32],
+["Черный Яр", 48.062, 46.112, 32],
+["Мумра (Главный банк)", 45.772, 47.658, 32],
+["Красный Яр (Бузан)", 46.533, 48.348, 32],
+["Сириус (Имеретинка)", 43.402, 39.961, 51],
+["Хоста", 43.515, 39.869, 51],
+["Дагомыс", 43.661, 39.654, 51],
+["Лоо", 43.699, 39.589, 51],
+["Лазаревское", 43.908, 39.331, 51],
+["Джубга", 44.316, 38.705, 51],
+["Архипо-Осиповка", 44.366, 38.531, 51],
+["Дивноморское", 44.502, 38.135, 51],
+["Кабардинка", 44.651, 37.939, 51],
+["Большой Утриш", 44.761, 37.389, 51],
+["Витязево", 44.988, 37.262, 51],
+["Благовещенская (Анапа)", 45.063, 37.115, 51],
+["Тамань", 45.218, 36.716, 51],
+["Голубицкая", 45.325, 37.272, 51],
+["Кучугуры", 45.405, 36.958, 51],
+["Садки (Ахтарские лиманы)", 45.925, 38.182, 51],
+["Ясенская Переправа", 46.245, 38.285, 51],
+["Должанская (Коса Долгая)", 46.633, 37.802, 51],
+["Донецк", 48.0159, 37.8028, 79],
+["Мариуполь", 47.0971, 37.5434, 79],
+["Макеевка", 48.0478, 37.9258, 79],
+["Горловка", 48.307, 38.0297, 79],
+["Енакиево", 48.2311, 38.2053, 79],
+["Старобешево (Старобешевское вдхр.)", 47.7531, 38.0319, 79],
+["Зугрэс (Зуевское вдхр.)", 48.0175, 38.2619, 79],
+["Седово (Кривая коса, Азовское море)", 47.0769, 38.1561, 79],
+["Новоазовск", 47.1147, 38.0825, 79],
+["Харцызск", 48.0428, 38.1425, 79],
+["Волноваха", 47.5975, 37.4833, 79],
+["Дебальцево", 48.3411, 38.4069, 79],
+["Луганск", 48.574, 39.3078, 80],
+["Алчевск (Исаковское вдхр.)", 48.4689, 38.7978, 80],
+["Северодонецк (р. Северский Донец)", 48.9483, 38.4933, 80],
+["Лисичанск (р. Северский Донец)", 48.9042, 38.4319, 80],
+["Красный Луч", 48.1372, 38.9192, 80],
+["Стаханов", 48.5681, 38.6436, 80],
+["Краснодон", 48.2992, 39.7397, 80],
+["Счастье (Луганская ТЭС / Северский Донец)", 48.7386, 39.2314, 80],
+["Станица Луганская", 48.6706, 39.4689, 80],
+["Старобельск (р. Айдар)", 49.2769, 38.9242, 80],
+["Сватово (р. Красная)", 49.4092, 38.1619, 80],
+["Мелитополь", 46.8489, 35.3653, 81],
+["Бердянск (Бердянский залив)", 46.7597, 36.7989, 81],
+["Энергодар (Днепровский плёс)", 47.4989, 34.6558, 81],
+["Приморск (Азовское море)", 46.7347, 36.3442, 81],
+["Кирилловка (Молочный и Утлюкский лиманы)", 46.3736, 35.3675, 81],
+["Васильевка", 47.4419, 35.2764, 81],
+["Днепрорудное", 47.3819, 34.9869, 81],
+["Каменка-Днепровская", 47.4872, 34.4058, 81],
+["Токмак", 47.2514, 35.7058, 81],
+["Пологи", 47.4844, 36.2536, 81],
+["Геническ (Арабатская стрелка / Сиваш)", 46.1769, 34.8058, 82],
+["Скадовск (Джарылгачский залив)", 46.1189, 32.9106, 82],
+["Новая Каховка (низовья Днепра)", 46.7511, 33.3606, 82],
+["Каховка", 46.8136, 33.4869, 82],
+["Голая Пристань (дельта Днепра)", 46.5242, 32.5203, 82],
+["Алёшки (р. Конка / Днепр)", 46.6203, 32.7186, 82],
+["Железный Порт (Чёрное море)", 46.1233, 32.2914, 82],
+["Лазурное (Устричное оз. / Чёрное море)", 46.0842, 32.5294, 82],
+["Чаплынка", 46.3639, 33.5403, 82],
+["Вологда", 59.2205, 39.8915, 83],
+["Череповец (Рыбинское вдхр.)", 59.1323, 37.9092, 83],
+["Белозерск (Белое озеро)", 60.0325, 37.7872, 83],
+["Липин Бор (Белое озеро)", 60.2608, 37.9772, 83],
+["Кириллов (Сиверское оз. / Шексна)", 59.8606, 38.3792, 83],
+["Вытегра (Онежское озеро)", 61.0064, 36.4481, 83],
+["Шексна (Шекснинское вдхр.)", 59.2106, 38.5081, 83],
+["Великий Устюг (р. Сухона / Юг)", 60.7619, 46.3039, 83],
+["Тотьма (р. Сухона)", 59.9756, 42.7589, 83],
+["Сокол (р. Сухона)", 59.4622, 40.1189, 83],
+["Вожега (оз. Воже)", 60.4728, 40.2189, 83],
+["Устюжна (р. Молога)", 58.8422, 36.4289, 83],
+["Кубенское (оз. Кубенское)", 59.4425, 39.6789, 83],
+["Грозный (Грозненское море / р. Сунжа)", 43.3184, 45.6986, 84],
+["Гудермес (р. Сунжа / Белка)", 43.3508, 46.1036, 84],
+["Шелковская (р. Терек / оз. Каргалинское)", 43.5089, 46.3389, 84],
+["Наурская (р. Терек)", 43.6522, 45.3117, 84],
+["Кезеной-Ам (высокогорное форелевое озеро)", 42.7758, 46.1519, 84],
+["Шали", 43.1481, 45.9019, 84],
+["Аргун", 43.2922, 45.8722, 84],
+["Магас", 43.1686, 44.8131, 85],
+["Назрань (р. Сунжа)", 43.2256, 44.7628, 85],
+["Сунжа (р. Сунжа / Асса)", 43.3156, 45.0472, 85],
+["Карабулак", 43.3053, 44.9094, 85],
+["Малгобек", 43.5094, 44.5881, 85],
+["Нальчик (р. Нальчик / Черек)", 43.4853, 43.6071, 86],
+["Прохладный (р. Малка / Терек)", 43.7575, 44.0297, 86],
+["Майский (р. Терек / Черек)", 43.6317, 44.0589, 86],
+["Баксан (р. Баксан)", 43.6819, 43.5358, 86],
+["Голубые озёра (Аушигер / Черек)", 43.2319, 43.6214, 86],
+["Черкесск (Кубанское вдхр. / р. Кубань)", 44.2269, 42.0467, 87],
+["Усть-Джегута (Усть-Джегутинское вдхр.)", 44.0858, 41.9733, 87],
+["Карачаевск (р. Кубань / Теберда)", 43.7731, 41.9142, 87],
+["Зеленчукская (р. Большой Зеленчук)", 43.8586, 41.5906, 87],
+["Теберда (форелевые реки)", 43.4472, 41.7433, 87],
+["Владикавказ (р. Терек)", 43.0246, 44.6818, 88],
+["Моздок (р. Терек)", 43.7481, 44.6561, 88],
+["Алагир (р. Ардон)", 43.0417, 44.2197, 88],
+["Ардон (р. Ардон / Терек)", 43.1753, 44.2969, 88],
+["Беслан", 43.1889, 44.5369, 88],
+["Адыгейск (Краснодарское вдхр.)", 44.8825, 39.1906, 52],
+["Яблоновский (р. Кубань)", 44.9897, 38.9433, 52],
+["Каменномостский / Хаджох (р. Белая)", 44.2989, 40.1844, 52],
+["Красногвардейское (Тщикское вдхр.)", 45.1278, 39.5719, 52],
+["Невинномысск (р. Кубань)", 44.6339, 41.9428, 55],
+["Солнечнодольск (Новотроицкое вдхр.)", 45.3136, 41.5036, 55],
+["Будённовск (оз. Буйвола / р. Кума)", 44.7847, 44.1658, 55],
+["Дивное (оз. Маныч-Гудило)", 45.9089, 43.3569, 55],
+["Ессентуки", 44.0444, 42.8606, 55],
+["Кисловодск", 43.9056, 42.7169, 55],
+["Минеральные Воды", 44.2103, 43.1353, 55],
+["Георгиевск", 44.1497, 43.4706, 55],
+["Изобильный", 45.3694, 41.7119, 55],
+["Сулак (устье р. Сулак / Каспий)", 43.2689, 47.5419, 34],
+["Дубки (Чиркейское вдхр.)", 43.0211, 46.8358, 34],
+["Избербаш (Каспийское море)", 42.5694, 47.8644, 34],
+["Крайновка (Терек / Аграханский залив)", 43.7889, 47.4106, 34],
+["Цаган Аман (р. Волга)", 47.5639, 46.7219, 33],
+["Городовиковск", 46.0878, 41.9336, 33],
+["Заречный (Пензенская)", 53.2028, 45.1669, 28],
+["Кузнецк (р. Сура / Труёв)", 53.1169, 46.6006, 28],
+["Сердобск (р. Сердоба)", 52.4581, 44.2169, 28],
+["Никольск (Пензенская)", 53.7189, 46.0719, 28],
+["Сурское (Сурское вдхр.)", 53.0819, 45.2219, 28],
+["Нижний Ломов (р. Ломовка / Мокша)", 53.5306, 43.6769, 28],
+["Рузаевка", 54.0628, 44.9506, 29],
+["Краснослободск (р. Мокша)", 54.4289, 43.7758, 29],
+["Темников (р. Мокша)", 54.6319, 43.2089, 29],
+["Ковылкино (р. Мокша)", 54.0389, 43.9189, 29],
+["Ардатов (р. Алатырь)", 54.8489, 46.2358, 29],
+["Мичуринск (р. Лесной Воронеж)", 52.8978, 40.4908, 58],
+["Моршанск (р. Цна)", 53.4442, 41.8106, 58],
+["Котовск (Котовское вдхр. / р. Цна)", 52.5878, 41.5036, 58],
+["Рассказово", 52.6719, 41.8869, 58],
+["Уварово (р. Ворона)", 51.9839, 42.2639, 58],
+["Ливны (р. Сосна)", 52.4256, 37.6069, 61],
+["Мценск (р. Зуша)", 53.2789, 36.5728, 61],
+["Болхов (р. Нугрь / Ока)", 53.4439, 36.0044, 61],
+["Клинцы (р. Туросна)", 52.7528, 32.2369, 62],
+["Новозыбков", 52.5369, 31.9339, 62],
+["Трубчевск (р. Десна)", 52.5839, 33.7689, 62],
+["Дятьково", 53.6028, 34.3339, 62],
+["Жуковка (р. Десна)", 53.5339, 33.7306, 62],
+["Железногорск (Курская / Копенское вдхр.)", 52.3392, 35.3569, 60],
+["Рыльск (р. Сейм)", 51.5689, 34.6819, 60],
+["Льгов (р. Сейм)", 51.6719, 35.2639, 60],
+["Губкин", 51.2858, 37.5358, 59],
+["Шебекино (р. Северский Донец)", 50.4078, 36.8858, 59],
+["Валуйки (р. Оскол)", 50.2119, 38.1069, 59],
+["Новый Оскол (р. Оскол)", 50.7619, 37.8689, 59],
+["Грязи (Матырское вдхр. / р. Матыра)", 52.4958, 39.9419, 57],
+["Задонск (р. Дон)", 52.3919, 38.9219, 57],
+["Данков (р. Дон)", 53.2539, 39.1558, 57],
+["Лебедянь (р. Дон)", 53.0189, 39.1339, 57],
+["Новомосковск (Шатское и Пронское вдхр.)", 54.0119, 38.2906, 20],
+["Суворов (Черепетское вдхр.)", 54.1228, 36.4958, 20],
+["Ефремов (р. Красивая Меча)", 53.1469, 38.1169, 20],
+["Белёв (р. Ока)", 53.8089, 36.1358, 20],
+["Людиново (оз. Ломпадь)", 53.8644, 34.4478, 21],
+["Козельск (р. Жиздра)", 54.0369, 35.7819, 21],
+["Вязьма (р. Вязьма)", 55.2106, 34.2858, 63],
+["Гагарин (Яузское и Вазузское вдхр.)", 55.5528, 35.0089, 63],
+["Рославль (р. Остёр)", 53.9528, 32.8639, 63],
+["Сычёвка (Вазузское вдхр.)", 55.8269, 34.2758, 63],
+["Гороховец (р. Клязьма)", 56.2019, 42.6919, 18],
+["Вязники (р. Клязьма)", 56.2428, 42.1558, 18],
+["Гусь-Хрустальный (оз. Гусевское)", 55.6194, 40.6558, 18],
+["Суздаль (р. Каменка / Нерль)", 56.4194, 40.4489, 18],
+["Галич (Галичское озеро)", 58.3819, 42.3489, 16],
+["Чухлома (Чухломское озеро)", 58.7539, 42.6858, 16],
+["Шарья (р. Ветлуга)", 58.3719, 45.5139, 16],
+["Макарьев (р. Унжа / Горьковское вдхр.)", 57.8819, 43.8069, 16],
+["Кадый (Нёмда / Горьковское вдхр.)", 57.7819, 43.1889, 16],
+["Котельнич (р. Вятка)", 58.3089, 48.3489, 35],
+["Советск (Кировская, р. Вятка / Пижма)", 57.5889, 48.9589, 35],
+["Уржум (р. Уржумка / Вятка)", 57.1139, 50.0019, 35],
+["Белая Холуница (Белохолуницкий пруд)", 58.8419, 50.8519, 35],
+["Алатырь (р. Сура / Алатырь)", 54.8419, 46.5789, 23],
+["Мариинский Посад (р. Волга)", 56.1158, 47.7169, 23],
+["Ядрин (р. Сура)", 55.9419, 46.2058, 23],
+["Глазов (р. Чепца)", 58.1389, 52.6589, 36],
+["Каракулино (р. Кама)", 56.0119, 53.7089, 36],
+["Невель (оз. Невельское / Езерище)", 56.0189, 29.9319, 43],
+["Себеж (оз. Себежское / Ороно)", 56.2839, 28.4819, 43],
+["Печоры (Псковское озеро)", 57.8139, 27.6119, 43],
+["Демянск (оз. Селигер — Полновский плёс)", 57.6439, 32.4658, 42],
+["Чудово (р. Волхов)", 59.1244, 31.6719, 42],
+["Пестово (р. Молога)", 58.5969, 35.8169, 42],
+["Амдерма (Карское море)", 69.7594, 61.6636, 48],
+["Индига (Баренцево море)", 67.6889, 48.7789, 48],
+["Нижний Одес", 63.6439, 54.8569, 49],
+["Инта (р. Большая Инта / Косью)", 66.0319, 60.1658, 49],
+["Вуктыл (р. Печора / Щугор)", 63.8569, 57.3089, 49],
+["Сосногорск (р. Ижма)", 63.5889, 53.8819, 49],
+["Далматово (р. Исеть)", 56.2606, 62.9369, 5],
+["Катайск (р. Исеть)", 56.2889, 62.5819, 5],
+["Макушино (оз. Башкирское)", 55.2119, 67.2439, 5],
+["Петухово (оз. Медвежье / Песчаное)", 55.0689, 67.8939, 5],
+["Частоозерье (оз. Мартыново)", 55.5719, 67.9119, 5],
+["Тевриз (р. Иртыш)", 57.5119, 72.3989, 6],
+["Знаменское (р. Иртыш / Шиш)", 57.1258, 73.8169, 6],
+["Большеречье (р. Иртыш)", 56.0919, 74.6269, 6],
+["Крутинка (оз. Ик / Салтаим / Тенис)", 56.0058, 71.5089, 6],
+["Белово (Беловское вдхр. / Инской)", 54.4169, 86.2989, 9],
+["Крапивинский (р. Томь / Тайдон)", 54.9919, 86.8119, 9],
+["Мариинск (р. Кия)", 56.2119, 87.7489, 9],
+["Таштагол (р. Кондома / Мрассу)", 52.7658, 87.8719, 9],
+["Яровое / Славгород (оз. Большое Яровое / Кулундинское)", 52.9319, 78.5839, 10],
+["Завьялово (Завьяловские озёра)", 52.8389, 80.5789, 10],
+["Змеиногорск (оз. Колыванское)", 51.1589, 82.1958, 10],
+["Черногорск", 53.8244, 91.2842, 65],
+["Абаза (р. Абакан)", 52.6519, 90.0919, 65],
+["Копьёво (оз. Белё / Иткуль)", 54.9858, 89.8058, 65],
+["Шагонар (Саяно-Шушенское вдхр. / р. Енисей)", 51.5319, 92.8119, 66],
+["Тоора-Хем (р. Большой Енисей / оз. Азас)", 52.4689, 96.1139, 66],
+["Чадан (р. Чадан / Хемчик)", 51.2858, 91.5789, 66],
+["Туран", 52.1439, 93.9189, 66],
+["Арахлей (Ивано-Арахлейские озёра)", 52.2119, 112.9119, 69],
+["Краснокаменск", 50.0989, 118.0369, 69],
+["Борзя (Торейские озёра / р. Онон)", 50.3889, 116.5289, 69],
+["Шيلка / Нерчинск (р. Шилка / Ингода)", 51.8519, 116.0389, 69],
+["Хилок (р. Хилок)", 51.3639, 110.4619, 69],
+["Петровск-Забайкальский", 51.2758, 108.8419, 69],
+["Талакан (Бурейское вдхр.)", 50.2819, 130.2689, 71],
+["Белогорск (р. Томь)", 50.9189, 128.4758, 71],
+["Шимановск", 52.0019, 127.6689, 71],
+["Ленинское (р. Амур)", 47.9369, 132.6189, 72],
+["Амурзет (р. Амур)", 47.6969, 131.0958, 72],
+["Николаевка (р. Тунгуска / Амур)", 48.5569, 134.7858, 72],
+["Ола (Ольский лиман / Охотское море)", 59.5789, 151.2989, 77],
+["Палатка (р. Хасын)", 60.1019, 150.9358, 77],
+["Синегорье (Колымское вдхр. / р. Колыма)", 62.0889, 150.5319, 77],
+["Сусуман (р. Берелёх)", 62.7819, 148.1558, 77],
+["Певек (Чаунская губа)", 69.7019, 170.3119, 78],
+["Билибино (р. Малый Анюй)", 68.0558, 166.4419, 78],
+["Эгвекинот (Залив Креста)", 66.3189, 179.1189, 78],
+["Лаврентия", 65.5839, -171.0019, 78],
+["Мильково (р. Камчатка)", 54.6969, 158.6219, 76],
+["Вилючинск (Авачинская губа)", 52.9319, 158.4058, 76],
+["Ключи (р. Камчатка)", 56.3219, 160.8489, 76],
+["Оссора / Палана", 59.0919, 159.9519, 76]
 ].map(r => ({
  name: r[0], lat: r[1], lon: r[2], admin1: _ADM[r[3]]
 }));
@@ -2924,7 +3832,7 @@ function buildHelpAndGroupsCard(webappUrl, isPrivateChat = true) {
 
 
 
-// ── Cloudflare D1 SQL Database & Storage Engine (V.2.3.0) ──
+// ── Cloudflare D1 SQL Database & Storage Engine (V.2.1.2) ──
 function getD1(env) {
  if (!env) return null;
  const candidateNames = ['DB', 'd1', 'D1', 'DATABASE', 'database', 'klev_db', 'KLEV_DB', 'DB_TG', 'tg_db', 'klevpro_db', 'PROD_DB'];
@@ -3037,7 +3945,7 @@ async function d1SaveAuthProfile(env, authKey, loginNorm, fisherId, profileObj) 
   await d1.prepare(`
    INSERT INTO auth_profiles (auth_key, login_norm, fisher_id, payload, updated_at)
    VALUES (?, ?, ?, ?, ?)
-   ON CONFLICT(auth_key) DO UPDATE SET payload = excluded.payload, updated_at = excluded.updated_at
+   ON CONFLICT(auth_key) DO UPDATE SET login_norm = excluded.login_norm, fisher_id = excluded.fisher_id, payload = excluded.payload, updated_at = excluded.updated_at
   `).bind(
    authKey, loginNorm || '', fisherId || '', JSON.stringify(profileObj), Date.now()
   ).run();
@@ -3091,8 +3999,10 @@ async function d1PushRelay(env, pkt) {
  } catch (e) {}
 }
 let _persistentStateLoadPromise = null;
+let _lastD1StateSyncTs = 0;
 async function ensurePersistentStateLoaded(env, forceReload = false) {
- if (persistentStateLoaded && !forceReload) return;
+ const nowTs = Date.now();
+ if (persistentStateLoaded && !forceReload && (nowTs - _lastD1StateSyncTs < 8000)) return;
  if (_persistentStateLoadPromise && !forceReload) return _persistentStateLoadPromise;
  _persistentStateLoadPromise = (async () => {
 
@@ -3104,6 +4014,9 @@ async function ensurePersistentStateLoaded(env, forceReload = false) {
   try {
    const userRows = await d1.prepare('SELECT payload FROM users_registry ORDER BY last_seen DESC LIMIT 5000').all();
    if (userRows && Array.isArray(userRows.results)) {
+    const ownerBackup = usersRegistryStore.get(OWNER_FISHER_ID);
+    usersRegistryStore.clear();
+    if (ownerBackup) usersRegistryStore.set(OWNER_FISHER_ID, ownerBackup);
     for (const r of userRows.results) {
      const u = workerSafeJsonParse(r.payload, null);
      if (u && u.fisherId) {
@@ -3111,7 +4024,6 @@ async function ensurePersistentStateLoaded(env, forceReload = false) {
       if (!isTemporaryReserveId(u.fisherId)) reservedVanityIds.add(u.fisherId);
       if (u.deviceId && !isTemporaryReserveId(u.fisherId)) deviceToFisherIdMap.set(u.deviceId, u.fisherId);
       if (u.tgId) tgToFisherIdMap.set(String(u.tgId), u.fisherId);
-      if (u.login && !loginToAuthKeyMap.has(workerNormalizeLogin(u.login))) loginToAuthKeyMap.set(workerNormalizeLogin(u.login), `AUTH_${workerNormalizeLogin(u.login)}`);
      }
     }
    }
@@ -3121,11 +4033,31 @@ async function ensurePersistentStateLoaded(env, forceReload = false) {
     for (const r of profRows.results) {
      const p = workerSafeJsonParse(r.payload, null);
      if (p && r.auth_key) {
+      const effFid = r.fisher_id || p.fisherId || '';
+      if (effFid) p.fisherId = effFid;
       cloudAuthProfiles.set(r.auth_key, p);
-      if (r.login_norm) loginToAuthKeyMap.set(r.login_norm, r.auth_key);
-      if (r.fisher_id) {
-       fisherIdToAuthKeyMap.set(r.fisher_id, r.auth_key);
-       reservedVanityIds.add(r.fisher_id);
+      const effLoginNorm = r.login_norm || workerNormalizeLogin(p.login || '');
+      if (effLoginNorm) loginToAuthKeyMap.set(effLoginNorm, r.auth_key);
+      if (effFid) {
+       fisherIdToAuthKeyMap.set(effFid, r.auth_key);
+       reservedVanityIds.add(effFid);
+       if (!isTemporaryReserveId(effFid) && !usersRegistryStore.has(effFid)) {
+        const restoredRec = upsertUserInRegistry({
+         fisherId: effFid,
+         deviceId: p.deviceId || '',
+         login: p.login || effLoginNorm || '',
+         callsign: p.callsign || p.login || 'Рыболов',
+         tgId: p.tgLinkedId || '',
+         tgUsername: p.tgUsername || '',
+         regionCode: effFid.slice(3, 5) || workerResolveRegionCode(p.locAdmin1 || p.locLabel || '89'),
+         locLabel: p.locLabel || 'Новый Уренгой',
+         platform: 'WEB',
+         version: WORKER_VERSION,
+         lat: p.lat,
+         lon: p.lon
+        });
+        if (restoredRec) d1SaveUser(env, restoredRec).catch(() => {});
+       }
       }
      }
     }
@@ -3184,10 +4116,12 @@ function bindTelegramToFisherProfile(params = {}) {
  const loginClean = String(params.login || '').trim();
  const loginNorm = workerNormalizeLogin(loginClean);
  const unameNorm = workerNormalizeLogin(tgUsernameClean);
- const isOwner = (
+ const hasNonOwnerExplicitFid = Boolean(params.fisherId && !isOwnerFisherId(params.fisherId));
+ const hasNonOwnerExplicitLogin = Boolean(loginClean && !workerIsOwnerLogin(loginClean));
+ const isOwner = !hasNonOwnerExplicitFid && !hasNonOwnerExplicitLogin && (
   workerIsOwnerLogin(loginClean) ||
-  workerIsOwnerLogin(tgUsernameClean) ||
-  isOwnerFisherId(params.fisherId)
+  isOwnerFisherId(params.fisherId) ||
+  (!loginClean && !params.fisherId && workerIsOwnerLogin(tgUsernameClean))
  );
  const regCode = workerResolveRegionCode(params.regionCode || params.locLabel || '89');
  let fid = isOwner ? OWNER_FISHER_ID : workerNormalizeFisherId(params.fisherId || '', regCode);
@@ -3419,24 +4353,36 @@ async function persistSystemMeta(env, ctx = null) {
 }
 
 async function loadPersistedAuthProfile(env, authKey, loginNorm = '', fisherId = '') {
- if (cloudAuthProfiles.has(authKey)) return cloudAuthProfiles.get(authKey);
  const d1Info = getD1(env);
  const d1 = d1Info?.db;
  if (d1) {
   try {
    let row = null;
-   if (authKey) row = await d1.prepare('SELECT payload FROM auth_profiles WHERE auth_key = ?').bind(authKey).first();
-   if (!row && loginNorm) row = await d1.prepare('SELECT payload FROM auth_profiles WHERE login_norm = ?').bind(loginNorm).first();
-   if (!row && fisherId) row = await d1.prepare('SELECT payload FROM auth_profiles WHERE fisher_id = ?').bind(fisherId).first();
+   if (authKey) row = await d1.prepare('SELECT auth_key, login_norm, fisher_id, payload FROM auth_profiles WHERE auth_key = ?').bind(authKey).first();
+   if (!row && loginNorm) row = await d1.prepare('SELECT auth_key, login_norm, fisher_id, payload FROM auth_profiles WHERE login_norm = ?').bind(loginNorm).first();
+   if (!row && fisherId) row = await d1.prepare('SELECT auth_key, login_norm, fisher_id, payload FROM auth_profiles WHERE fisher_id = ?').bind(fisherId).first();
    if (row && row.payload) {
     const prof = workerSafeJsonParse(row.payload, null);
     if (prof) {
-     cloudAuthProfiles.set(authKey, prof);
-     if (prof.fisherId) reservedVanityIds.add(prof.fisherId);
+     const effKey = row.auth_key || authKey || `AUTH_${row.login_norm || loginNorm}`;
+     cloudAuthProfiles.set(effKey, prof);
+     if (authKey && authKey !== effKey) cloudAuthProfiles.set(authKey, prof);
+     const effLogin = row.login_norm || loginNorm || workerNormalizeLogin(prof.login || '');
+     if (effLogin) loginToAuthKeyMap.set(effLogin, effKey);
+     const effFid = row.fisher_id || fisherId || prof.fisherId || '';
+     if (effFid) {
+      fisherIdToAuthKeyMap.set(effFid, effKey);
+      reservedVanityIds.add(effFid);
+     }
      return prof;
     }
    }
   } catch (e) {}
+ }
+ if (authKey && cloudAuthProfiles.has(authKey)) return cloudAuthProfiles.get(authKey);
+ if (loginNorm && loginToAuthKeyMap.has(loginNorm)) {
+  const k = loginToAuthKeyMap.get(loginNorm);
+  if (cloudAuthProfiles.has(k)) return cloudAuthProfiles.get(k);
  }
  return null;
 }
@@ -3451,12 +4397,13 @@ async function persistAuthProfile(env, authKey, profileObj, ctx = null) {
 }
 
 function buildOwnerServerPortalSlotHtml(originUrl = 'https://klevprohbot.thorantony82.workers.dev', d1Info = null) {
- const consoleUrl = `${originUrl.replace(/\/?$/, '')}/fp-vip089-console?token=${encodeURIComponent(OWNER_ADMIN_CONSOLE_TOKEN)}`;
+ const consoleUrl = `${originUrl.replace(/\/?$/, '')}/fp-vip089-console`;
  const totalUsers = usersRegistryStore.size;
  const activePoints = circlePointsStore.size;
  const now = Date.now();
  const active24h = Array.from(usersRegistryStore.values()).filter(u => u && (now - (u.lastSeen || 0)) < 86400000).length;
- const d1Badge = d1Info ? `<span class="pill pill-good" style="font-size:10px;">🟢 D1 (${d1Info.name})</span>` : `<span class="pill pill-bad" style="font-size:10px;">🔴 D1 не привязана</span>`;
+ const safeD1Name = d1Info && d1Info.name ? String(d1Info.name).replace(/[&<>"']/g, '') : 'DB';
+ const d1Badge = d1Info ? `<span class="pill pill-good" style="font-size:10px;">🟢 D1 (${safeD1Name})</span>` : `<span class="pill pill-bad" style="font-size:10px;">🔴 D1 не привязана</span>`;
  return `
   <div style="margin-top:8px;padding:10px 12px;background:rgba(56,189,248,0.12);border:1.5px solid var(--accent);border-radius:8px;display:flex;flex-direction:column;gap:8px;">
    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
@@ -3512,7 +4459,7 @@ function renderSuperAdminConsoleHtml(originUrl = '', d1Info = null) {
  const d1BannerHtml = d1Info
   ? `<div style="padding:10px 14px;border-radius:10px;background:rgba(16,185,129,0.15);border:1.5px solid #10b981;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
       <div>
-       <div style="font-weight:900;color:#34d399;font-size:14px;">🟢 Cloudflare D1 База Данных: ПОДКЛЮЧЕНА (Имя привязки: ${d1Info.name})</div>
+       <div style="font-weight:900;color:#34d399;font-size:14px;">🟢 Cloudflare D1 База Данных: ПОДКЛЮЧЕНА (Имя привязки: ${esc(d1Info.name)})</div>
        <div style="font-size:12px;color:#94a3b8;margin-top:2px;">Все постоянные ID, реестр пользователей, чаты и точки сохраняются в постоянных SQL-таблицах D1.</div>
       </div>
       <span style="padding:4px 10px;border-radius:6px;background:#1e293b;border:1px solid #334155;font-size:11px;font-weight:800;color:#38bdf8;">D1 Engine 2.3.0</span>
@@ -3660,7 +4607,7 @@ function renderSuperAdminConsoleHtml(originUrl = '', d1Info = null) {
  </div>
 </div>
 <script>
- const RAW_USERS = ${JSON.stringify(users)};
+ const RAW_USERS = ${JSON.stringify(users.map(u => sanitizePublicUserResponse(u, true))).replace(/</g, '\\u003c').replace(/>/g, '\\u003e').replace(/&/g, '\\u0026')};
  const ADMIN_TOKEN = ${JSON.stringify(OWNER_ADMIN_CONSOLE_TOKEN)};
  function filterUsers(q) {
   const norm = (q || '').trim().toLowerCase();
@@ -3743,43 +4690,65 @@ export default {
   const WEBAPP_URL = ((env && env.WEBAPP_URL) || 'https://klevpro.ru/').replace(/\/?$/, '/');
   const reqUrl = new URL(request.url);
 
+  // Пункт 19: Принудительный HTTPS (кроме локальной отладки)
+  if (reqUrl.protocol === 'http:' && reqUrl.hostname !== 'localhost' && reqUrl.hostname !== '127.0.0.1') {
+   return Response.redirect(reqUrl.toString().replace(/^http:/, 'https:'), 301);
+  }
+
   if (request.method === 'OPTIONS') {
-  return new Response(null, { status: 204, headers: CORS_HEADERS });
+   return new Response(null, { status: 204, headers: CORS_HEADERS });
   }
 
   const clientIp = request.headers.get('CF-Connecting-IP') || 'anon_ip';
 
-  // ── 0. Секретная серверная страница Базы Пользователей и Статистики (ТОЛЬКО для iAthor / FP_89VIP089, не отслеживается в клиенте) ──
+  // ── 0. Секретная серверная страница Базы Пользователей и Статистики (ТОЛЬКО для iAthor / FP_89VIP089) ──
   if (reqUrl.pathname.endsWith('/fp-vip089-console') && (request.method === 'GET' || request.method === 'POST')) {
+   if (!checkWorkerRateLimit(`console_${clientIp}`, false, 10)) {
+    return new Response('Too many requests', { status: 429, headers: CORS_HEADERS });
+   }
    await ensurePersistentStateLoaded(env);
-   let tok = reqUrl.searchParams.get('token') || '';
+   let body = {};
    if (request.method === 'POST') {
     try {
-     const b = await request.json();
-     tok = b.token || b.adminToken || tok;
+     body = await readWorkerRequestPayload(request, reqUrl);
     } catch (e) {}
    }
-   if (!isValidOwnerAdminToken(tok)) {
-    const loginHtml = '<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8"><title>👑 Вход в Веб-Консоль Владельца</title><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{background:#090d16;color:#e2e8f0;font-family:system-ui,-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:16px;} .box{background:#0f172a;border:1px solid #334155;border-radius:12px;padding:24px;max-width:380px;width:100%;text-align:center;box-shadow:0 10px 25px rgba(0,0,0,0.5);} input{width:100%;box-sizing:border-box;padding:11px 14px;background:#1e293b;border:1px solid #475569;border-radius:8px;color:#fff;font-size:14px;margin-bottom:12px;outline:none;} button{width:100%;padding:11px;background:#0284c7;color:#fff;font-weight:700;border:none;border-radius:8px;cursor:pointer;font-size:15px;}</style></head><body><div class="box"><div style="font-size:36px;margin-bottom:6px;">👑</div><h2 style="margin:0 0 6px;color:#38bdf8;">Веб-Консоль Супер-Админа</h2><p style="font-size:12px;color:#94a3b8;margin-bottom:18px;">Клёв ПРО 2.0 • Введите пароль Владельца или токен доступа</p><form method="GET" action="' + reqUrl.pathname + '"><input type="password" name="token" placeholder="Пароль или токен доступа" autofocus required><button type="submit">Войти в консоль</button></form></div></body></html>';
-    return new Response(loginHtml, { status: 200, headers: { ...CORS_HEADERS, 'Content-Type': 'text/html;charset=utf-8' } });
+   const tok = extractAdminTokenFromRequest(request, reqUrl, body);
+   const consoleCsp = "default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; frame-ancestors 'self' https://klevpro.ru;";
+   if (!isValidOwnerAdminToken(tok, env)) {
+    const loginHtml = '<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8"><title>👑 Вход в Веб-Консоль Владельца</title><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{background:#090d16;color:#e2e8f0;font-family:system-ui,-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:16px;} .box{background:#0f172a;border:1px solid #334155;border-radius:12px;padding:24px;max-width:380px;width:100%;text-align:center;box-shadow:0 10px 25px rgba(0,0,0,0.5);} input{width:100%;box-sizing:border-box;padding:11px 14px;background:#1e293b;border:1px solid #475569;border-radius:8px;color:#fff;font-size:14px;margin-bottom:12px;outline:none;} button{width:100%;padding:11px;background:#0284c7;color:#fff;font-weight:700;border:none;border-radius:8px;cursor:pointer;font-size:15px;}</style></head><body><div class="box"><div style="font-size:36px;margin-bottom:6px;">👑</div><h2 style="margin:0 0 6px;color:#38bdf8;">Веб-Консоль Супер-Админа</h2><p style="font-size:12px;color:#94a3b8;margin-bottom:18px;">Клёв ПРО 2.0 • Введите пароль Владельца или токен доступа</p><form method="POST" action="' + reqUrl.pathname + '"><input type="password" name="token" placeholder="Пароль или токен доступа" autofocus required><button type="submit">Войти в консоль</button></form></div></body></html>';
+    return new Response(loginHtml, {
+     status: 200,
+     headers: {
+      ...CORS_HEADERS,
+      'Content-Type': 'text/html;charset=utf-8',
+      'Content-Security-Policy': consoleCsp
+     }
+    });
    }
    const d1Info = getD1(env);
+   const sessionCookie = `klev_admin_session=${encodeURIComponent(getAdminConsoleToken(env))}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=86400`;
    return new Response(renderSuperAdminConsoleHtml(reqUrl.origin, d1Info), {
     headers: {
      ...CORS_HEADERS,
      'Content-Type': 'text/html;charset=utf-8',
-     'Cache-Control': 'no-store, no-cache, must-revalidate'
+     'Cache-Control': 'no-store, no-cache, must-revalidate',
+     'Content-Security-Policy': consoleCsp,
+     'Set-Cookie': sessionCookie
     }
    });
   }
 
   // ── Удаление пользователя из базы данных сервера Супер-Админом (/api/admin/user/delete) ──
   if (reqUrl.pathname.endsWith('/api/admin/user/delete') && (request.method === 'POST' || reqUrl.searchParams.has('payload'))) {
+   if (!checkWorkerRateLimit(`admdel_${clientIp}`, false, 20)) {
+    return new Response(JSON.stringify({ ok: false, error: 'Rate limit' }), { status: 429, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
+   }
    await ensurePersistentStateLoaded(env);
    try {
     const body = await readWorkerRequestPayload(request, reqUrl);
-    const tok = body.adminToken || body.token || '';
-    if (!isValidOwnerAdminToken(tok)) {
+    const tok = extractAdminTokenFromRequest(request, reqUrl, body);
+    if (!isValidOwnerAdminToken(tok, env)) {
      return new Response(JSON.stringify({ ok: false, error: 'Forbidden: invalid admin token' }), { status: 403, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
     }
     const targetFid = workerNormalizeFisherId(body.fisherId || '', '89');
@@ -3787,26 +4756,54 @@ export default {
      return new Response(JSON.stringify({ ok: false, error: 'Нельзя удалить Владельца (FP_89VIP089)' }), { status: 400, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
     }
     const exUser = usersRegistryStore.get(targetFid);
+    const exLoginNorm = exUser?.login ? workerNormalizeLogin(exUser.login) : '';
     usersRegistryStore.delete(targetFid);
     reservedVanityIds.delete(targetFid);
     if (exUser) {
      if (exUser.deviceId) deviceToFisherIdMap.delete(exUser.deviceId);
      if (exUser.tgId) tgToFisherIdMap.delete(String(exUser.tgId));
-     if (exUser.login) {
-      const normL = workerNormalizeLogin(exUser.login);
-      const aKey = loginToAuthKeyMap.get(normL);
-      if (aKey) {
-       loginToAuthKeyMap.delete(normL);
-       cloudAuthProfiles.delete(aKey);
-      }
+    }
+    for (const [devK, devFid] of deviceToFisherIdMap.entries()) {
+     if (devFid === targetFid) deviceToFisherIdMap.delete(devK);
+    }
+    for (const [tgK, tgFid] of tgToFisherIdMap.entries()) {
+     if (tgFid === targetFid) tgToFisherIdMap.delete(tgK);
+    }
+    const mappedAuthKey = fisherIdToAuthKeyMap.get(targetFid);
+    if (mappedAuthKey) cloudAuthProfiles.delete(mappedAuthKey);
+    fisherIdToAuthKeyMap.delete(targetFid);
+
+    const loginsToDelete = new Set();
+    if (exLoginNorm) loginsToDelete.add(exLoginNorm);
+    for (const [aKey, prof] of cloudAuthProfiles.entries()) {
+     if (!prof) continue;
+     const pFid = workerNormalizeFisherId(prof.fisherId || '', '89');
+     const pLogin = workerNormalizeLogin(prof.login || '');
+     if (pFid === targetFid || (exLoginNorm && pLogin === exLoginNorm)) {
+      cloudAuthProfiles.delete(aKey);
+      if (pLogin) loginsToDelete.add(pLogin);
      }
     }
-    fisherIdToAuthKeyMap.delete(targetFid);
+    for (const ln of loginsToDelete) {
+     const ak = loginToAuthKeyMap.get(ln);
+     if (ak) cloudAuthProfiles.delete(ak);
+     loginToAuthKeyMap.delete(ln);
+    }
+    for (const [ln, ak] of loginToAuthKeyMap.entries()) {
+     if (ak === mappedAuthKey || (exLoginNorm && ak.startsWith(`AUTH_${exLoginNorm}_`))) {
+      cloudAuthProfiles.delete(ak);
+      loginToAuthKeyMap.delete(ln);
+     }
+    }
+
     const d1Info = getD1(env);
     const d1 = d1Info?.db;
     if (d1) {
      await d1.prepare('DELETE FROM users_registry WHERE fisher_id = ?').bind(targetFid).run().catch(() => {});
      await d1.prepare('DELETE FROM auth_profiles WHERE fisher_id = ?').bind(targetFid).run().catch(() => {});
+     for (const ln of loginsToDelete) {
+      await d1.prepare('DELETE FROM auth_profiles WHERE login_norm = ?').bind(ln).run().catch(() => {});
+     }
      await d1.prepare('DELETE FROM circle_points WHERE fid = ?').bind(targetFid).run().catch(() => {});
     }
     await persistSystemMeta(env, ctx);
@@ -3884,15 +4881,18 @@ export default {
   }
 
   if (reqUrl.pathname.endsWith('/api/admin/users') && (request.method === 'GET' || request.method === 'POST')) {
+   if (!checkWorkerRateLimit(`admusers_${clientIp}`, false, 30)) {
+    return new Response(JSON.stringify({ ok: false, error: 'Rate limit' }), { status: 429, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
+   }
    await ensurePersistentStateLoaded(env, true);
-   let tok = reqUrl.searchParams.get('token') || '';
+   let b = {};
    if (request.method === 'POST') {
     try {
-     const b = await request.json();
-     tok = b.adminToken || b.token || tok;
+     b = await readWorkerRequestPayload(request, reqUrl);
     } catch (e) {}
    }
-   if (!isValidOwnerAdminToken(tok)) {
+   const tok = extractAdminTokenFromRequest(request, reqUrl, b);
+   if (!isValidOwnerAdminToken(tok, env)) {
     return new Response(JSON.stringify({ ok: false, error: 'Not found' }), { status: 404, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
    }
    purgeExpiredServerCirclePoints();
@@ -3910,7 +4910,7 @@ export default {
         if (!isTemporaryReserveId(u.fisherId)) reservedVanityIds.add(u.fisherId);
         if (u.deviceId && !isTemporaryReserveId(u.fisherId)) deviceToFisherIdMap.set(u.deviceId, u.fisherId);
         if (u.tgId) tgToFisherIdMap.set(String(u.tgId), u.fisherId);
-        if (u.login && !loginToAuthKeyMap.has(workerNormalizeLogin(u.login))) loginToAuthKeyMap.set(workerNormalizeLogin(u.login), `AUTH_${workerNormalizeLogin(u.login)}`);
+        
        }
       }
      }
@@ -3954,7 +4954,7 @@ function generateSyntheticWeatherJson(lat, lon) {
  const baseTemp = (nLat > 64) ? -4.2 : 5.8;
  const basePress = 754;
 
- for (let d = -7; d <= 3; d++) {
+ for (let d = -7; d <= 9; d++) {
   for (let h = 0; h < 24; h++) {
    const dt = new Date(now.getTime() + (d * 24 + h) * 3600000);
    hourlyTimes.push(dt.toISOString().slice(0, 16));
@@ -3976,7 +4976,7 @@ function generateSyntheticWeatherJson(lat, lon) {
  const dailyMaxWind = [];
  const dailyDomWindDir = [];
 
- for (let d = -7; d <= 3; d++) {
+ for (let d = -7; d <= 9; d++) {
   const dt = new Date(now.getTime() + d * 86400000);
   const dateStr = dt.toISOString().slice(0, 10);
   dailyTimes.push(dateStr);
@@ -4104,7 +5104,7 @@ function generateSyntheticWeatherJson(lat, lon) {
     try {
      const metUrl = `https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${gLat}&lon=${gLon}`;
      const metRes = await fetch(metUrl, {
-      headers: { 'User-Agent': 'KlevProClubBot/2.3.0 (https://klevpro.ru, thorantony82@yandex.ru)' }
+      headers: { 'User-Agent': 'KlevProClubBot/2.3.0 (https://klevpro.ru, i@athor.ru)' }
      }).catch(() => null);
      if (metRes && metRes.ok) {
       const metJson = await metRes.json();
@@ -4202,7 +5202,7 @@ function generateSyntheticWeatherJson(lat, lon) {
     const reqLoginNorm = String(body.login || '').trim().toLowerCase().replace(/^@/, '');
     const reqAuthToken = String(body.authTokenHash || '').trim();
 
-    // 1. Проверяем, авторизован ли Владелец (iAthor / iAthor82 + токен пароля FISherman1982*)
+    // 1. Проверяем, авторизован ли Владелец (iAthor / iAthor82 + токен пароля [REDACTED_OWNER_SECRET])
     const isVerifiedOwner = (
      (reqLoginNorm === 'iathor' || reqLoginNorm === 'iathor82' || reqLoginNorm === 'thorantony82' || isOwnerFisherId(reqCurId)) &&
      isValidOwnerAdminToken(reqAuthToken)
@@ -4237,7 +5237,7 @@ function generateSyntheticWeatherJson(lat, lon) {
       tgId: ownerRecord?.tgId || '',
       tgUsername: ownerRecord?.tgUsername || '',
       login: 'iAthor',
-      user: ownerRecord
+      user: sanitizePublicUserResponse(ownerRecord, false)
      }), { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
     }
 
@@ -4246,7 +5246,7 @@ function generateSyntheticWeatherJson(lat, lon) {
     let verifiedProf = null;
     if (reqLoginNorm && reqAuthToken.startsWith('KTOK_')) {
      const aKey = loginToAuthKeyMap.get(reqLoginNorm) || `AUTH_${reqLoginNorm}_${reqAuthToken}`;
-     const prof = await loadPersistedAuthProfile(env, aKey);
+     const prof = await loadPersistedAuthProfile(env, aKey, reqLoginNorm, reqCurId);
      if (prof && prof.authTokenHash && constantTimeEquals(reqAuthToken, prof.authTokenHash) && prof.fisherId && !isTemporaryReserveId(prof.fisherId)) {
       verifiedPermanentId = workerNormalizeFisherId(prof.fisherId, regCode);
       verifiedProf = prof;
@@ -4282,7 +5282,7 @@ function generateSyntheticWeatherJson(lat, lon) {
       tgId: userRecord?.tgId || '',
       tgUsername: userRecord?.tgUsername || '',
       login: userRecord?.login || '',
-      user: userRecord
+      user: sanitizePublicUserResponse(userRecord, false)
      }), { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
     }
 
@@ -4342,7 +5342,7 @@ function generateSyntheticWeatherJson(lat, lon) {
      tgId: '',
      tgUsername: '',
      login: '',
-     user: tempRecord
+     user: sanitizePublicUserResponse(tempRecord, false)
     }), {
      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
     });
@@ -4354,7 +5354,7 @@ function generateSyntheticWeatherJson(lat, lon) {
   // ── 2b. Двухэтапная связка автономного ID рыбака (FP_89...) и единого профиля с аккаунтом Telegram (/api/tg/bind) ──
   if (reqUrl.pathname.endsWith('/api/tg/bind')) {
    await ensurePersistentStateLoaded(env);
-   if (request.method === 'GET') {
+   if (request.method === 'GET' && !reqUrl.searchParams.has('payload')) {
     const qFid = workerNormalizeFisherId(reqUrl.searchParams.get('fid') || '', '89');
     const qDev = String(reqUrl.searchParams.get('deviceId') || '').trim();
     const qTg = String(reqUrl.searchParams.get('tgId') || '').trim();
@@ -4381,9 +5381,18 @@ function generateSyntheticWeatherJson(lat, lon) {
      login: u?.login || (isOwnerReq ? 'iAthor' : '')
     }), { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
    }
-   if (request.method === 'POST') {
+   if (request.method === 'POST' || reqUrl.searchParams.has('payload')) {
+    if (!checkWorkerRateLimit(`tgbind_${clientIp}`, false, 20)) {
+     return new Response(JSON.stringify({ ok: false, error: 'Rate limit' }), { status: 429, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
+    }
     try {
      const body = await readWorkerRequestPayload(request, reqUrl);
+     if (body.initData && BOT_TOKEN) {
+      const validInit = await verifyTelegramWebAppInitData(body.initData, BOT_TOKEN);
+      if (!validInit) {
+       return new Response(JSON.stringify({ ok: false, error: 'Invalid Telegram initData signature' }), { status: 403, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
+      }
+     }
      const rec = bindTelegramToFisherProfile({
       fisherId: body.fisherId || '',
       deviceId: body.deviceId || '',
@@ -4401,7 +5410,7 @@ function generateSyntheticWeatherJson(lat, lon) {
       tgId: rec?.tgId || '',
       tgUsername: rec?.tgUsername || '',
       login: rec?.login || '',
-      user: rec
+      user: sanitizePublicUserResponse(rec, false)
      }), { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
     } catch (e) {
      return new Response(JSON.stringify({ ok: false, error: 'Bind error' }), { status: 400, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
@@ -4431,6 +5440,21 @@ function generateSyntheticWeatherJson(lat, lon) {
       error: 'Сначала зарегистрируйте логин и пароль, чтобы получить постоянный ID рыбака и отправлять точки!'
      }), { status: 403, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
     }
+    const pubAuth = await verifyUserAuth(env, {
+     fid,
+     authTokenHash: body.authTokenHash || '',
+     deviceId: rawItem.did || body.deviceId || '',
+     adminToken: body.adminToken || '',
+     request
+    });
+    if (!pubAuth.ok) {
+     return new Response(JSON.stringify({ ok: false, error: 'Forbidden: unverified fisher identity' }), { status: 403, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
+    }
+    const dedupKey = `pub_${fid}_${rawItem.t}_${rawItem.fi || ''}_${Math.round(clampLat(rawItem.lat) * 100)}_${Math.round(clampLon(rawItem.lon) * 100)}`;
+    if (isDuplicateRecentAction(dedupKey, 5000) && circlePointsStore.has(String(rawItem.id || ''))) {
+     const exPt = circlePointsStore.get(String(rawItem.id || ''));
+     return new Response(JSON.stringify({ ok: true, id: exPt.id, item: exPt, deduplicated: true, totalActivePoints: circlePointsStore.size }), { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
+    }
     const cleanItem = {
      id: String(rawItem.id || `cir_${now.toString(36)}_${Math.random().toString(36).slice(2, 6)}`).slice(0, 64),
      t: ['circle', 'crew', 'workshop'].includes(rawItem.t) ? rawItem.t : 'circle',
@@ -4448,8 +5472,8 @@ function generateSyntheticWeatherJson(lat, lon) {
      mt: String(rawItem.mt || 'spin_light').slice(0, 32),
      bt: String(rawItem.bt || '').slice(0, 80),
      nt: String(rawItem.nt || '').slice(0, 240),
-     lat: Number.isFinite(Number(rawItem.lat)) ? Number(rawItem.lat) : 66.0833,
-     lon: Number.isFinite(Number(rawItem.lon)) ? Number(rawItem.lon) : 76.6333,
+     lat: clampLat(rawItem.lat, 66.0833),
+     lon: clampLon(rawItem.lon, 76.6333),
      dp: Number.isFinite(Number(rawItem.dp)) ? Number(rawItem.dp) : 2.5,
      tw: Number.isFinite(Number(rawItem.tw)) ? Number(rawItem.tw) : 8,
      ta: Number.isFinite(Number(rawItem.ta)) ? Number(rawItem.ta) : 10,
@@ -4508,34 +5532,52 @@ function generateSyntheticWeatherJson(lat, lon) {
    const d1 = d1Info?.db;
    if (d1) {
     try {
-     const ptRows = await d1.prepare('SELECT payload FROM circle_points WHERE ea > ? ORDER BY ca DESC LIMIT 300').bind(Date.now()).all();
+     const nowMs = Date.now();
+     const ptRows = await d1.prepare('SELECT payload FROM circle_points WHERE ea > ? ORDER BY ca DESC LIMIT 300').bind(nowMs).all();
      if (ptRows && Array.isArray(ptRows.results)) {
+      const d1PointIds = new Set();
       for (const r of ptRows.results) {
        const pt = workerSafeJsonParse(r.payload, null);
-       if (pt && pt.id) circlePointsStore.set(pt.id, pt);
+       if (pt && pt.id) {
+        d1PointIds.add(pt.id);
+        circlePointsStore.set(pt.id, pt);
+       }
+      }
+      for (const [memId, memPt] of circlePointsStore.entries()) {
+       if (!d1PointIds.has(memId) && (!memPt || (nowMs - (memPt.ca || 0)) > 15000)) {
+        circlePointsStore.delete(memId);
+       }
       }
      }
     } catch (e) {}
    }
-   const lat = parseFloat(reqUrl.searchParams.get('lat') || '66.0833');
-   const lon = parseFloat(reqUrl.searchParams.get('lon') || '76.6333');
+   const lat = clampLat(reqUrl.searchParams.get('lat'), 66.0833);
+   const lon = clampLon(reqUrl.searchParams.get('lon'), 76.6333);
    const radiusKm = Math.max(10, Math.min(500, parseFloat(reqUrl.searchParams.get('radius') || '120') || 120));
    const viewerFid = workerNormalizeFisherId(reqUrl.searchParams.get('fid') || '', '89');
    const viewerDevId = String(reqUrl.searchParams.get('deviceId') || '').trim();
+   const viewerAuthTok = String(reqUrl.searchParams.get('authTokenHash') || '').trim();
    const crewKeysSet = new Set(
     String(reqUrl.searchParams.get('crewKeys') || '')
      .split(',')
      .map(k => k.trim().toUpperCase())
      .filter(Boolean)
    );
-   const adminTok = reqUrl.searchParams.get('adminToken') || '';
-   const isViewerAdmin = (
-    viewerFid === OWNER_FISHER_ID ||
-    adminWhitelistStore.has(viewerFid) ||
-    isValidOwnerAdminToken(adminTok)
+   const adminTok = extractAdminTokenFromRequest(request, reqUrl, null);
+   const nearbyAuth = await verifyUserAuth(env, {
+    fid: viewerFid,
+    authTokenHash: viewerAuthTok,
+    deviceId: viewerDevId,
+    adminToken: adminTok,
+    request
+   });
+   const isViewerAdmin = Boolean(
+    nearbyAuth.isAdmin ||
+    isValidOwnerAdminToken(adminTok, env) ||
+    (nearbyAuth.ok && viewerFid && adminWhitelistStore.has(viewerFid))
    );
 
-   if (viewerFid) {
+   if (viewerFid && (nearbyAuth.ok || isTemporaryReserveId(viewerFid))) {
     upsertUserInRegistry({
      fisherId: viewerFid,
      deviceId: viewerDevId,
@@ -4553,7 +5595,7 @@ function generateSyntheticWeatherJson(lat, lon) {
    const results = [];
    for (const pt of circlePointsStore.values()) {
     if (!pt) continue;
-    const isMine = (viewerFid && pt.fid === viewerFid) || (viewerDevId && pt.did === viewerDevId);
+    const isMine = (viewerFid && pt.fid === viewerFid && nearbyAuth.ok) || (viewerDevId && pt.did && pt.did === viewerDevId);
     if (pt.t === 'workshop') {
      results.push(pt);
      continue;
@@ -4590,19 +5632,28 @@ function generateSyntheticWeatherJson(lat, lon) {
    });
   }
 
-  if (reqUrl.pathname.endsWith('/api/circle/delete') && request.method === 'POST') {
+  if (reqUrl.pathname.endsWith('/api/circle/delete') && (request.method === 'POST' || reqUrl.searchParams.has('payload'))) {
    try {
     await ensurePersistentStateLoaded(env);
     const body = await readWorkerRequestPayload(request, reqUrl);
     const id = String(body.id || '').trim();
     const fid = workerNormalizeFisherId(body.fid || '', '89');
     const devId = String(body.deviceId || '').trim();
-    const isAdm = fid === OWNER_FISHER_ID || isValidOwnerAdminToken(body.adminToken || '');
+    const admTok = extractAdminTokenFromRequest(request, reqUrl, body);
+    const isAdm = isValidOwnerAdminToken(admTok, env);
     const target = circlePointsStore.get(id);
     if (!target) {
      return new Response(JSON.stringify({ ok: true, deleted: false }), { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
     }
-    if (!isAdm && target.fid !== fid && (!devId || target.did !== devId)) {
+    const delAuth = await verifyUserAuth(env, {
+     fid: target.fid,
+     authTokenHash: body.authTokenHash || '',
+     deviceId: devId,
+     adminToken: admTok,
+     request
+    });
+    const isVerifiedAuthor = (target.fid === fid && delAuth.ok) || Boolean(devId && target.did && target.did === devId);
+    if (!isAdm && !isVerifiedAuthor) {
      return new Response(JSON.stringify({ ok: false, error: 'Forbidden' }), { status: 403, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
     }
     circlePointsStore.delete(id);
@@ -4637,6 +5688,9 @@ function generateSyntheticWeatherJson(lat, lon) {
   }
 
   if (reqUrl.pathname.endsWith('/auth/check-login') && request.method === 'GET') {
+   if (!checkWorkerRateLimit(`chklogin_${clientIp}`, false, 30)) {
+    return new Response(JSON.stringify({ ok: false, available: false, error: 'Rate limit' }), { status: 429, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
+   }
    await ensurePersistentStateLoaded(env);
    const rawL = String(reqUrl.searchParams.get('login') || '').trim();
    const normL = workerNormalizeLogin(rawL);
@@ -4647,6 +5701,11 @@ function generateSyntheticWeatherJson(lat, lon) {
    if (workerIsOwnerLogin(rawL)) {
     return new Response(JSON.stringify({ ok: true, available: false, isOwnerLogin: true, message: 'Эксклюзивный логин Владельца (FP_89VIP089)' }), { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
    }
+   const anonLoginChk = workerIsAnonymousCallsignValid(rawL);
+   if (!anonLoginChk.ok) {
+    return new Response(JSON.stringify({ ok: false, available: false, reason: 'pii_forbidden', error: anonLoginChk.error }), { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
+   }
+   await loadPersistedAuthProfile(env, '', normL, '');
    const aKey = loginToAuthKeyMap.get(normL);
    const prof = aKey ? cloudAuthProfiles.get(aKey) : null;
    const isMine = Boolean(prof && devId && prof.deviceId === devId);
@@ -4668,9 +5727,12 @@ function generateSyntheticWeatherJson(lat, lon) {
    try {
     await ensurePersistentStateLoaded(env);
     const body = await readWorkerRequestPayload(request, reqUrl);
-    const incomingSnap = workerSanitizeObject(body.profileSnapshot);
-    const preCheckKey = body.login ? `AUTH_${String(body.login).trim().toLowerCase().replace(/^@/, '')}_${body.authTokenHash && String(body.authTokenHash).startsWith('KTOK_') ? body.authTokenHash : workerDeriveAuthToken(body.login, body.password)}` : '';
-    if (preCheckKey) await loadPersistedAuthProfile(env, preCheckKey);
+    const incomingSnap = pickAllowedProfileFields(workerSanitizeObject(body.profileSnapshot));
+    const rawLoginClean = String(body.login || '').trim();
+    const normLoginPre = workerNormalizeLogin(rawLoginClean);
+    const normFidPre = /^FP_/i.test(rawLoginClean) ? workerNormalizeFisherId(rawLoginClean, '89') : '';
+    const preCheckKey = normLoginPre ? `AUTH_${normLoginPre}_${body.authTokenHash && String(body.authTokenHash).startsWith('KTOK_') ? body.authTokenHash : workerDeriveAuthToken(rawLoginClean, body.password)}` : '';
+    await loadPersistedAuthProfile(env, preCheckKey, normLoginPre, normFidPre);
     const ident = resolveWorkerAccountIdentity(body.login, body.password, body.authTokenHash, body.regionCode, incomingSnap);
     if (!ident.ok) {
      return new Response(JSON.stringify({ ok: false, error: ident.error || 'Укажите логин и пароль (от 3 символов)' }), {
@@ -4682,8 +5744,9 @@ function generateSyntheticWeatherJson(lat, lon) {
     const regUser = usersRegistryStore.get(ident.fisherId) || null;
     const mergedTgId = String(incomingSnap.tgLinkedId || existing?.tgLinkedId || regUser?.tgId || '').trim();
     const mergedTgUser = String(incomingSnap.tgUsername || existing?.tgUsername || regUser?.tgUsername || '').trim().replace(/^@/, '');
+    const secureTok = body.password ? await workerDeriveSecureAuthToken(ident.login, body.password, env) : (existing?.secureTokenHash || '');
     const merged = {
-     ...(existing || {}),
+     ...pickAllowedProfileFields(existing || {}),
      ...incomingSnap,
      fisherId: ident.fisherId,
      login: ident.login,
@@ -4692,7 +5755,8 @@ function generateSyntheticWeatherJson(lat, lon) {
      tgUsername: mergedTgUser,
      pinHash: ident.pinHash,
      authTokenHash: ident.authTokenHash,
-     adminSessionToken: ident.isOwner ? OWNER_ADMIN_CONSOLE_TOKEN : '',
+     secureTokenHash: secureTok,
+     adminSessionToken: ident.isOwner ? getAdminConsoleToken(env) : '',
      ownerUnlocked: ident.isOwner ? true : Boolean(existing?.ownerUnlocked),
      isAdmin: ident.isOwner ? true : adminWhitelistStore.has(ident.fisherId),
      adminShowAllCrews: ident.isOwner ? (existing?.adminShowAllCrews ?? true) : Boolean(existing?.adminShowAllCrews),
@@ -4703,12 +5767,16 @@ function generateSyntheticWeatherJson(lat, lon) {
     if (ident.isOwner) {
      adminWhitelistStore.set(OWNER_FISHER_ID, { id: OWNER_FISHER_ID, label: 'iAthor • Антон (Владелец / Супер-Админ)', addedAt: '2026-10-27' });
     }
+    const resolvedRegCode = ident.isOwner
+     ? '89'
+     : (ident.fisherId.slice(3, 5) || workerResolveRegionCode(body.regionCode || incomingSnap.locAdmin1 || incomingSnap.locLabel || '89'));
     bindTelegramToFisherProfile({
      fisherId: ident.fisherId,
      deviceId: incomingSnap.deviceId || body.deviceId || '',
      login: ident.login,
-     tgId: mergedTgId,
-     tgUsername: mergedTgUser,
+     tgId: ident.isOwner ? mergedTgId : (workerIsOwnerLogin(mergedTgUser) ? '' : mergedTgId),
+     tgUsername: ident.isOwner ? mergedTgUser : (workerIsOwnerLogin(mergedTgUser) ? '' : mergedTgUser),
+     regionCode: resolvedRegCode,
      locLabel: incomingSnap.locLabel || 'Новый Уренгой'
     });
     const regRec = upsertUserInRegistry({
@@ -4716,9 +5784,9 @@ function generateSyntheticWeatherJson(lat, lon) {
      deviceId: incomingSnap.deviceId || body.deviceId || '',
      login: ident.login,
      callsign: merged.callsign,
-     tgId: mergedTgId,
-     tgUsername: mergedTgUser,
-     regionCode: body.regionCode || incomingSnap.locAdmin1 || '89',
+     tgId: ident.isOwner ? mergedTgId : (workerIsOwnerLogin(mergedTgUser) ? '' : mergedTgId),
+     tgUsername: ident.isOwner ? mergedTgUser : (workerIsOwnerLogin(mergedTgUser) ? '' : mergedTgUser),
+     regionCode: resolvedRegCode,
      locLabel: incomingSnap.locLabel || 'Новый Уренгой',
      platform: body.platform || 'WEB',
      version: body.version || WORKER_VERSION,
@@ -4744,13 +5812,13 @@ function generateSyntheticWeatherJson(lat, lon) {
     });
    } catch (e) {
     console.error('[Worker Auth Error Caught]', e);
-    // Защита Владельца: если вход совершает iAthor с паролем FISherman1982*, авторизуем безоговорочно в памяти!
+    // Защита Владельца: если вход совершает iAthor с паролем [REDACTED_OWNER_SECRET], авторизуем безоговорочно в памяти!
     let reqBody = null;
-    try { reqBody = await request.clone().json(); } catch(err) {}
+    try { reqBody = await readWorkerRequestPayload(request.clone(), reqUrl); } catch(err) {}
     const rawL = reqBody ? (reqBody.login || '') : '';
     const rawP = reqBody ? (reqBody.password || '') : '';
     const rawT = reqBody ? (reqBody.authTokenHash || '') : '';
-    if (workerIsOwnerLogin(rawL) && (rawP === 'FISherman1982*' || isValidOwnerAdminToken(rawT))) {
+    if (workerIsOwnerLogin(rawL) && (isOwnerPasswordMatch(rawP, env) || isValidOwnerAdminToken(rawT, env))) {
      const ownerFid = OWNER_FISHER_ID;
      adminWhitelistStore.set(ownerFid, { id: ownerFid, label: 'iAthor • Антон (Владелец / Супер-Админ)', addedAt: '2026-10-27' });
      adminWhitelistStore.set(OWNER_SECONDARY_ID, { id: OWNER_SECONDARY_ID, label: 'iAthor82 • Антон (Владелец / Спец-ID FP_FMP089)', addedAt: '2026-10-27' });
@@ -4798,8 +5866,7 @@ function generateSyntheticWeatherJson(lat, lon) {
 
     return new Response(JSON.stringify({
      ok: false,
-     error: 'Ошибка авторизации: ' + (e?.message || 'проверьте правильность логина и пароля'),
-     details: String(e?.stack || e)
+     error: 'Ошибка авторизации: проверьте правильность логина и пароля'
     }), {
      status: 200,
      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
@@ -4817,9 +5884,12 @@ function generateSyntheticWeatherJson(lat, lon) {
    try {
     await ensurePersistentStateLoaded(env);
     const body = await readWorkerRequestPayload(request, reqUrl);
-    const snap = workerSanitizeObject(body.profileSnapshot);
-    const preCheckKey = body.login ? `AUTH_${String(body.login).trim().toLowerCase().replace(/^@/, '')}_${body.authTokenHash && String(body.authTokenHash).startsWith('KTOK_') ? body.authTokenHash : workerDeriveAuthToken(body.login, body.password)}` : '';
-    if (preCheckKey) await loadPersistedAuthProfile(env, preCheckKey);
+    const snap = pickAllowedProfileFields(workerSanitizeObject(body.profileSnapshot));
+    const rawLoginClean = String(body.login || '').trim();
+    const normLoginPre = workerNormalizeLogin(rawLoginClean);
+    const normFidPre = /^FP_/i.test(rawLoginClean) ? workerNormalizeFisherId(rawLoginClean, '89') : '';
+    const preCheckKey = normLoginPre ? `AUTH_${normLoginPre}_${body.authTokenHash && String(body.authTokenHash).startsWith('KTOK_') ? body.authTokenHash : workerDeriveAuthToken(rawLoginClean, body.password)}` : '';
+    await loadPersistedAuthProfile(env, preCheckKey, normLoginPre, normFidPre);
     const ident = resolveWorkerAccountIdentity(body.login, body.password, body.authTokenHash, body.regionCode, snap);
     if (!ident.ok) {
      return new Response(JSON.stringify({ ok: false, error: 'Invalid credentials' }), {
@@ -4843,14 +5913,17 @@ function generateSyntheticWeatherJson(lat, lon) {
     };
     delete merged.authShadow;
     await persistAuthProfile(env, ident.authKey, merged, ctx);
+    const resolvedSyncRegCode = ident.isOwner
+     ? '89'
+     : (ident.fisherId.slice(3, 5) || workerResolveRegionCode(body.regionCode || snap.locAdmin1 || snap.locLabel || '89'));
     const syncRec = upsertUserInRegistry({
      fisherId: ident.fisherId,
      deviceId: snap.deviceId || body.deviceId || '',
      login: ident.login,
      callsign: merged.callsign,
-     tgId: snap.tgLinkedId || '',
-     tgUsername: snap.tgUsername || '',
-     regionCode: body.regionCode || snap.locAdmin1 || '89',
+     tgId: ident.isOwner ? (snap.tgLinkedId || '') : (workerIsOwnerLogin(snap.tgUsername) ? '' : (snap.tgLinkedId || '')),
+     tgUsername: ident.isOwner ? (snap.tgUsername || '') : (workerIsOwnerLogin(snap.tgUsername) ? '' : (snap.tgUsername || '')),
+     regionCode: resolvedSyncRegCode,
      locLabel: snap.locLabel || 'Новый Уренгой',
      platform: body.platform || 'WEB',
      version: body.version || WORKER_VERSION,
@@ -4879,17 +5952,23 @@ function generateSyntheticWeatherJson(lat, lon) {
   }
 
   if (reqUrl.pathname.endsWith('/admin/whitelist')) {
+  if (!checkWorkerRateLimit(`wl_${clientIp}`, false, 15)) {
+   return new Response(JSON.stringify({ ok: false, error: 'Rate limit' }), { status: 429, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
+  }
   await ensurePersistentStateLoaded(env);
-  if (request.method === 'GET') {
-   return new Response(JSON.stringify({ ok: true, whitelist: Array.from(adminWhitelistStore.values()) }), {
+  if (request.method === 'GET' && !reqUrl.searchParams.has('payload')) {
+   const admTok = extractAdminTokenFromRequest(request, reqUrl, null);
+   const isFullAdm = isValidOwnerAdminToken(admTok, env);
+   const listOut = Array.from(adminWhitelistStore.values()).map(item => isFullAdm ? item : { id: item.id });
+   return new Response(JSON.stringify({ ok: true, whitelist: listOut }), {
     headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
    });
   }
-  if (request.method === 'POST') {
+  if (request.method === 'POST' || reqUrl.searchParams.has('payload')) {
    try {
-    const body = await request.json();
-    const secret = String(body.ownerSecret || '').trim();
-    if (!isValidOwnerAdminToken(secret) && !['KLEV-ADMIN-89', 'THOR82', '8989', 'FISHERMAN1982*', 'IATHOR82', 'IATHOR'].includes(secret.toUpperCase())) {
+    const body = await readWorkerRequestPayload(request, reqUrl);
+    const secret = extractAdminTokenFromRequest(request, reqUrl, body);
+    if (!isValidOwnerAdminToken(secret, env)) {
      return new Response(JSON.stringify({ ok: false, error: 'Forbidden' }), { status: 403, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
     }
     if (body.action === 'add' && body.entry && body.entry.id) {
@@ -4921,25 +6000,42 @@ function generateSyntheticWeatherJson(lat, lon) {
   }
 
   if (reqUrl.pathname.endsWith('/relay/push') && (request.method === 'POST' || reqUrl.searchParams.has('payload'))) {
+  if (!checkWorkerRateLimit(`rpush_${clientIp}`, false, 45)) {
+   return new Response(JSON.stringify({ ok: false, error: 'Rate limit' }), { status: 429, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
+  }
   try {
    await ensurePersistentStateLoaded(env);
    cleanupTransitBoxes();
-   const body = await request.json();
-   const channelId = String(body.channelId || '').trim().toUpperCase().slice(0, 64);
+   const body = await readWorkerRequestPayload(request, reqUrl);
+   const channelId = String(body.channelId || '').trim().toUpperCase().replace(/[^A-Z0-9_:-]/g, '').slice(0, 64);
    const cipherPayload = String(body.cipherPayload || '').trim().slice(0, 8192);
    const senderFid = workerNormalizeFisherId(body.senderId || '', '89');
    if (!channelId || !cipherPayload || !senderFid || isTemporaryReserveId(senderFid)) {
-   return new Response(JSON.stringify({ ok: false, code: 'REGISTRATION_REQUIRED', error: 'Сначала зарегистрируйтесь для отправки сообщений' }), { status: 403, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
+    return new Response(JSON.stringify({ ok: false, code: 'REGISTRATION_REQUIRED', error: 'Сначала зарегистрируйтесь для отправки сообщений' }), { status: 403, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
+   }
+   const pushAuth = await verifyUserAuth(env, {
+    fid: senderFid,
+    authTokenHash: body.authTokenHash || '',
+    deviceId: body.deviceId || '',
+    adminToken: body.adminToken || '',
+    request
+   });
+   if (!pushAuth.ok) {
+    return new Response(JSON.stringify({ ok: false, error: 'Forbidden: sender auth failed' }), { status: 403, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
+   }
+   const dedupRelayKey = `rel_${senderFid}_${channelId}_${cipherPayload.slice(-32)}`;
+   if (isDuplicateRecentAction(dedupRelayKey, 4000)) {
+    return new Response(JSON.stringify({ ok: true, relayed: true, deduplicated: true }), { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
    }
    const pkt = {
-   id: `rel_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-   channelId,
-   senderId: senderFid,
-   cipherPayload,
-   kind: String(body.kind || 'chat').slice(0, 20),
-   crewKey: body.crewKey ? String(body.crewKey).trim().toUpperCase() : '',
-   peerId: body.peerId ? String(body.peerId).trim().toUpperCase() : '',
-   ts: Date.now()
+    id: `rel_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    channelId,
+    senderId: senderFid,
+    cipherPayload,
+    kind: String(body.kind || 'chat').slice(0, 20),
+    crewKey: body.crewKey ? String(body.crewKey).trim().toUpperCase().slice(0, 16) : '',
+    peerId: body.peerId ? String(body.peerId).trim().toUpperCase().slice(0, 24) : '',
+    ts: Date.now()
    };
    const list = transitBoxes.get(channelId) || [];
    list.push(pkt);
@@ -4947,19 +6043,46 @@ function generateSyntheticWeatherJson(lat, lon) {
    await d1PushRelay(env, pkt);
    await persistSystemMeta(env, ctx);
    return new Response(JSON.stringify({ ok: true, relayed: true, packetId: pkt.id }), {
-   headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
+    headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
    });
   } catch (e) {
-   return new Response(JSON.stringify({ ok: false, error: 'Push failed' }), { status: 400, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
+   const status = e && e.status === 413 ? 413 : 400;
+   return new Response(JSON.stringify({ ok: false, error: status === 413 ? 'Payload Too Large' : 'Push failed' }), { status, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
   }
   }
 
   if (reqUrl.pathname.endsWith('/relay/pull') && request.method === 'GET') {
+  if (!checkWorkerRateLimit(`rpull_${clientIp}`, false, 60)) {
+   return new Response(JSON.stringify({ ok: false, packets: [] }), { status: 429, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
+  }
   await ensurePersistentStateLoaded(env);
   cleanupTransitBoxes();
-  const rawBoxes = (reqUrl.searchParams.get('boxes') || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean).slice(0, 30);
-  const since = Number(reqUrl.searchParams.get('since') || 0);
-  const viewer = String(reqUrl.searchParams.get('viewer') || '').trim().toUpperCase();
+  const viewer = workerNormalizeFisherId(reqUrl.searchParams.get('viewer') || '', '89') || String(reqUrl.searchParams.get('viewer') || '').trim().toUpperCase();
+  const viewerDevId = String(reqUrl.searchParams.get('deviceId') || '').trim();
+  const viewerAuthTok = String(reqUrl.searchParams.get('authTokenHash') || '').trim();
+  const viewerAdmTok = extractAdminTokenFromRequest(request, reqUrl, null);
+  const pullAuth = await verifyUserAuth(env, {
+   fid: viewer,
+   authTokenHash: viewerAuthTok,
+   deviceId: viewerDevId,
+   adminToken: viewerAdmTok,
+   request
+  });
+  // Защита от IDOR (Пункт 7): доступ к личным боксам DM_<FID> разрешён только самому подтверждённому получателю или Супер-Админу
+  const rawBoxes = (reqUrl.searchParams.get('boxes') || '')
+   .split(',')
+   .map(s => s.trim().toUpperCase().replace(/[^A-Z0-9_:-]/g, ''))
+   .filter(bKey => {
+    if (!bKey) return false;
+    if (bKey.startsWith('DM_')) {
+     const dmTarget = bKey.slice(3);
+     if (pullAuth.isAdmin) return true;
+     return Boolean(pullAuth.ok && viewer && dmTarget === viewer);
+    }
+    return true;
+   })
+   .slice(0, 30);
+  const since = Math.max(0, Number(reqUrl.searchParams.get('since') || 0));
   const packets = [];
   const seenPktIds = new Set();
 
