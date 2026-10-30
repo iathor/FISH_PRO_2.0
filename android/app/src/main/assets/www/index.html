@@ -13,9 +13,9 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Клёв ПРО 2.0 • Прогноз клёва, Круг и Атлас Ихтиофауны РФ (12+)</title>
   <script src="https://telegram.org/js/telegram-web-app.js" async onload="window.__KLEV_ON_TG_SDK_LOAD__&&window.__KLEV_ON_TG_SDK_LOAD__()"></script>
-  <link rel="manifest" href="manifest.json?v=2.4.0">
-  <link id="dynamicFavicon" rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=2.4.0">
-  <link id="dynamicTouchIcon" rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=2.4.0">
+  <link rel="manifest" href="manifest.json?v=2.5.0">
+  <link id="dynamicFavicon" rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=2.5.0">
+  <link id="dynamicTouchIcon" rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=2.5.0">
   <script>
     (function() {
       try {
@@ -82,7 +82,7 @@
           caches.keys().then(function(keys) {
             return Promise.all(
               keys
-                .filter(function(k) { return k !== 'klev-pro-map-tiles-v2.4.0' && (inApkNow || k !== 'klev-pro-v2.4.0-r183-static'); })
+                .filter(function(k) { return k !== 'klev-pro-map-tiles-v2.5.0 r186' && (inApkNow || k !== 'klev-pro-v2.5.0 r186-r183-static'); })
                 .map(function(k) { return caches.delete(k); })
             );
           }).then(function() {
@@ -92,10 +92,10 @@
       } catch (e) {}
     })();
   </script>
-  <link rel="stylesheet" href="css/tokens.css?v=2.4.0">
-  <link rel="stylesheet" href="css/base.css?v=2.4.0">
-  <link rel="stylesheet" href="css/components.css?v=2.4.0">
-  <link rel="stylesheet" href="css/layout.css?v=2.4.0">
+  <link rel="stylesheet" href="css/tokens.css?v=2.5.0">
+  <link rel="stylesheet" href="css/base.css?v=2.5.0">
+  <link rel="stylesheet" href="css/components.css?v=2.5.0">
+  <link rel="stylesheet" href="css/layout.css?v=2.5.0">
   <script>
     (function() {
       var cssUrls = [
@@ -165,7 +165,7 @@
           splashEl.setAttribute('data-app-splash-theme', theme);
           if (theme === 'light') {
             splashImg.src = 'assets/splash-light.jpg';
-            if (splashSub) splashSub.textContent = 'КЛЁВ ПРО 2.0 • КРУГ — Единая рыболовная экосистема (V.2.4.0)';
+            if (splashSub) splashSub.textContent = 'КЛЁВ ПРО 2.0 • КРУГ — Единая рыболовная экосистема (V.2.5.0 r186)';
           } else if (theme === 'contrast') {
             splashImg.src = 'assets/splash-contrast.jpg';
             if (splashSub) splashSub.textContent = 'FISH PRO 2.0 • OFFLINE NAVIGATION READY // СЕТЬ ОФЛАЙН ГОТОВА';
@@ -235,11 +235,11 @@
   <main id="app" class="app-main">
     <div id="androidApkSiteBanner" class="bento-card" style="display:none;background:rgba(16,185,129,0.12);border:1.5px solid var(--good);padding:9px 12px;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:2px;">
       <div style="min-width:0;flex:1;">
-        <div id="androidApkBannerTitle" style="font-weight:800;font-size:var(--fs-xs);color:var(--good);">📲 Приложение «Клёв ПРО 2.0» для Android (v2.4.0)</div>
+        <div id="androidApkBannerTitle" style="font-weight:800;font-size:var(--fs-xs);color:var(--good);">📲 Приложение «Клёв ПРО 2.0» для Android (v2.5.0 r186)</div>
         <div style="font-size:11px;color:var(--muted);">Установите автономное приложение (.APK) на ваш смартфон</div>
       </div>
       <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
-        <button type="button" class="btn btn-sm btn-good" id="androidApkBannerDownloadBtn" style="min-height:32px;padding:4px 10px;font-size:11.5px;font-weight:800;">📥 Скачать APK (v2.4.0)</button>
+        <button type="button" class="btn btn-sm btn-good" id="androidApkBannerDownloadBtn" style="min-height:32px;padding:4px 10px;font-size:11.5px;font-weight:800;">📥 Скачать APK (v2.5.0 r186)</button>
         <button type="button" class="btn btn-sm" id="androidApkBannerCloseBtn" title="Скрыть плашку" aria-label="Закрыть плашку загрузки APK" style="min-height:32px;padding:4px 8px;font-size:12px;">✕</button>
       </div>
     </div>
@@ -288,7 +288,7 @@
     </div>
   </nav>
 
-  <script type="module" src="js/app.js?v=2.4.0"></script>
+  <script type="module" src="js/app.js?v=2.5.0"></script>
   <script>
     setTimeout(function() {
       if (!window.__KLEV_BOOTSTRAPPED__) {
@@ -322,7 +322,7 @@
                   }
                 })
                 .finally(function() {
-                  window.location.replace(window.location.pathname + '?v=2.4.0&reset=' + Date.now());
+                  window.location.replace(window.location.pathname + '?v=2.5.0&reset=' + Date.now());
                 });
             };
           }

@@ -712,7 +712,7 @@ input[type="checkbox"], input[type="radio"] {
 }
 
 
-/* Зимний стандарт под перчатки (48x48px) и 5-кнопочная нижняя панель (v2.4.0) */
+/* Зимний стандарт под перчатки (48x48px) и 5-кнопочная нижняя панель (v2.5.0 r186) */
 .bottom-nav .nav-tab {
   min-height: 48px !important;
   padding: 5px 4px !important;
@@ -777,7 +777,7 @@ details.forecast-why-spoiler[open] > summary {
 }
 
 
-/* Единая цветовая схема для всех кнопок, ссылок, инпутов и чипов во всех 3 темах (v2.4.0) */
+/* Единая цветовая схема для всех кнопок, ссылок, инпутов и чипов во всех 3 темах (v2.5.0 r186) */
 a {
   color: var(--accent);
   text-decoration: none;

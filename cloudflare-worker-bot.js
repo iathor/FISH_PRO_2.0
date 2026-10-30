@@ -1,7 +1,7 @@
 // @file bot/cloudflare-worker-bot.js — @KlevProClubBot (V.2.1.1)
 // Компактная сборка для Cloudflare Workers (115 рыб, 491 водоём, 609 городов РФ + Triple-Engine $0 DB + E2EE Relay + Обмен точками Круга/Экипажа/SOS + Уникальные Региональные ID FP_89AAA001 & Эксклюзивный VIP ID владельца FP_89VIP089 + Секретная Серверная Консоль Супер-Админа)
 
-const WORKER_VERSION = '2.4.0';
+const WORKER_VERSION = '2.5.0';
 const RESERVE_ID_TTL_MS = 24 * 60 * 60 * 1000; // Временный резервный ID живёт строго не более 24 часов (суток)
 const deletedFisherIdsSet = new Set(); // Удалённые вручную через Админ-панель ID (защита от повторной фоновой вставки)
 const rateBuckets = new Map();
@@ -476,7 +476,7 @@ async function verifyUserAuth(env, { fid = '', authTokenHash = '', deviceId = ''
   }
  }
 
- // Для обратной совместимости с уже выданными сессиями v2.4.0, если профиль ещё не связан с другим устройством
+ // Для обратной совместимости с уже выданными сессиями v2.5.0 r186, если профиль ещё не связан с другим устройством
  if (!prof && !regUser) {
   return { ok: true, isAdmin: false, isOwner: false };
  }
@@ -855,7 +855,7 @@ function cleanupTransitBoxes() {
  }
 }
 
-function checkWorkerRateLimit(userId, isGeo = false, maxPerMin = 28) {
+function checkWorkerRateLimit(userId, isGeo = false, maxPerMin = 140) {
  const now = Date.now();
  const key = String(userId || 'anon').slice(0, 64);
  let b = rateBuckets.get(key);
