@@ -144,39 +144,122 @@
 <body>
   <div id="appSplashScreen" class="app-splash-screen" role="status" aria-label="Загрузка Клёв ПРО 2.0" onclick="this.classList.add('splash-hide')">
     <div class="app-splash-inner">
-      <div class="app-splash-art-wrap">
-        <img src="assets/splash.jpg" alt="Клёв ПРО 2.0 • FISH PRO 2.0" class="app-splash-img">
+      <div class="app-splash-art-wrap" id="appSplashArtWrap">
+        <img id="appSplashImg" src="assets/splash.jpg" alt="Клёв ПРО 2.0 • FISH PRO 2.0" class="app-splash-img">
       </div>
-      <div class="app-splash-loader">
+      <div class="app-splash-loader" id="appSplashLoader">
         <div class="app-splash-bar"><div class="app-splash-bar-fill"></div></div>
-        <div class="app-splash-sub">Клёв ПРО 2.0 • Радар клёва и Атлас ихтиофауны РФ (12+)</div>
+        <div class="app-splash-sub" id="appSplashSubText">Клёв ПРО 2.0 • Радар клёва и Атлас ихтиофауны РФ (12+)</div>
       </div>
     </div>
   </div>
   <script>
-    setTimeout(function() {
-      var sp = document.getElementById('appSplashScreen');
-      if (sp) sp.classList.add('splash-hide');
-    }, 1350);
+    (function() {
+      try {
+        var root = document.documentElement;
+        var isAppEnv = root.getAttribute('data-pwa-installed') === '1' ||
+                       root.getAttribute('data-apk-webview') === '1' ||
+                       root.getAttribute('data-tg-webapp') === '1';
+        var theme = root.getAttribute('data-theme') || 'dark';
+        var splashEl = document.getElementById('appSplashScreen');
+        var splashImg = document.getElementById('appSplashImg');
+        var splashSub = document.getElementById('appSplashSubText');
+        // Для PWA, Android APK и Telegram Mini App включаем тематические экраны загрузки (Светлый / Тёмный радар / Контрастный тактический), а обычный сайт оставляем как есть
+        if (isAppEnv && splashEl && splashImg) {
+          splashEl.setAttribute('data-app-splash-theme', theme);
+          if (theme === 'light') {
+            splashImg.src = 'assets/splash-light.jpg';
+            if (splashSub) splashSub.textContent = 'КЛЁВ ПРО 2.0 • КРУГ — Единая рыболовная экосистема (V.2.4.0)';
+          } else if (theme === 'contrast') {
+            splashImg.src = 'assets/splash-contrast.jpg';
+            if (splashSub) splashSub.textContent = 'FISH PRO 2.0 • OFFLINE NAVIGATION READY // СЕТЬ ОФЛАЙН ГОТОВА';
+          } else {
+            splashImg.src = 'assets/splash-dark.jpg';
+            if (splashSub) splashSub.textContent = 'FISH PRO 2.0 • INIT: 115 SPECIES OFFLINE CACHE • RF 01-92';
+          }
+        }
+      } catch (e) {}
+      setTimeout(function() {
+        var sp = document.getElementById('appSplashScreen');
+        if (sp) sp.classList.add('splash-hide');
+      }, 1350);
+    })();
   </script>
+
+  <!-- Шапка и верхняя панель разделов строго по Макетам (Фото 1: Лого-гексагон + КЛЁВ ПРО + ID и Профиль + 7 иконок разделов) -->
   <header class="app-header">
-    <div class="header-bar" style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
-      <div class="loc-summary" id="headerLocClickArea" title="Нажмите для выбора точки и водоёма на карте" style="cursor:pointer;flex:1;min-width:0;">
-        <div class="header-top-row">
-          <div class="loc-sub" id="headerLocSub">Волжско-Каспийский бассейн</div>
-          <span class="pill pill-good header-status-pill" id="headerStatusPill" role="status">🟢 Онлайн</span>
+    <div class="header-bar">
+      <div class="header-brand-left" id="headerLocClickArea" title="Нажмите для выбора водоёма и точки на карте">
+        <div class="brand-hex-logo" aria-hidden="true">
+          <svg viewBox="0 0 64 64" width="42" height="42" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <polygon points="32,3 58,17.5 58,46.5 32,61 6,46.5 6,17.5" fill="var(--hex-bg, #0d2847)" stroke="var(--accent)" stroke-width="3"/>
+            <polygon points="32,9 52,20.5 52,43.5 32,55 12,43.5 12,20.5" fill="none" stroke="var(--good)" stroke-width="1.2" stroke-dasharray="3 2" opacity="0.75"/>
+            <circle cx="32" cy="32" r="14" stroke="var(--accent)" stroke-width="1" opacity="0.45"/>
+            <line x1="32" y1="10" x2="32" y2="54" stroke="var(--accent)" stroke-width="1" opacity="0.35"/>
+            <line x1="12" y1="32" x2="52" y2="32" stroke="var(--accent)" stroke-width="1" opacity="0.35"/>
+            <path d="M32 32 L48 20 A20 20 0 0 1 52 32 Z" fill="var(--good)" opacity="0.32"/>
+            <path d="M21 36 C24 27, 34 23, 43 26 C40 30, 39 33, 44 36 C36 37, 29 39, 24 43 L20 45 L22 39 Z" fill="var(--hex-fish, #38bdf8)" stroke="#ffffff" stroke-width="1"/>
+            <circle cx="45" cy="24" r="2.2" fill="var(--warn)"/>
+          </svg>
         </div>
-        <div class="loc-main" id="headerLocMain">
-          <span class="loc-main-text" id="headerLocText">📍 Москва</span>
+        <div class="brand-title-wrap">
+          <div class="brand-title-line">
+            <span class="brand-name-main">КЛЁВ ПРО</span>
+            <span class="brand-ver-tag">V.2.4.0</span>
+            <span class="pill pill-good header-status-pill" id="headerStatusPill" role="status">🟢 Онлайн</span>
+          </div>
+          <div class="loc-main" id="headerLocMain">
+            <span class="loc-main-text" id="headerLocText">📍 Новый Уренгой</span>
+            <span class="loc-sub" id="headerLocSub" style="display:none;">Обь-Тазовский бассейн</span>
+          </div>
         </div>
       </div>
-      <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
-        <button type="button" class="btn btn-sm" id="headerProfileBtn" title="Ваш рыболовный ID, вход по логину и настройки профиля" style="min-height:32px;padding:3px 9px;font-size:11.5px;font-family:monospace;font-weight:900;">
-          🆔 Профиль
+
+      <div class="header-right-actions">
+        <button type="button" class="btn-theme-chip" id="headerThemeBtn" title="Переключить тему: Светлая / Тёмная / Контраст / Авто" aria-label="Тема оформления">🌓</button>
+        <button type="button" class="header-id-profile-btn" id="headerProfileBtn" title="Ваш рыболовный ID, вход по логину и настройки профиля">
+          <div class="header-id-text-col">
+            <span class="header-id-code" id="headerProfileIdCode">ID: FP_89RZ0001</span>
+            <span class="header-id-sub" id="headerProfileIdSub">(Резерв)</span>
+          </div>
+          <span class="header-avatar-circle" id="headerProfileAvatar">👤</span>
         </button>
       </div>
     </div>
-    <div class="season-strip open-water" id="headerSeasonStrip" role="region" aria-label="Ледовая обстановка">
+
+    <!-- Верхняя панель навигации по разделам (7 пунктов в ряд, как на Фото 1) -->
+    <div class="top-section-nav" role="tablist" aria-label="Разделы навигатора">
+      <button type="button" class="top-nav-item" data-nav-tab="geo" role="tab">
+        <span class="top-nav-ico">📍</span>
+        <span class="top-nav-lbl">Карта</span>
+      </button>
+      <button type="button" class="top-nav-item" data-nav-tab="weather" role="tab">
+        <span class="top-nav-ico">⛅</span>
+        <span class="top-nav-lbl">Погода</span>
+      </button>
+      <button type="button" class="top-nav-item" data-nav-tab="fish" role="tab">
+        <span class="top-nav-ico">🐟</span>
+        <span class="top-nav-lbl">Рыбы</span>
+      </button>
+      <button type="button" class="top-nav-item active" data-nav-tab="forecast" role="tab">
+        <span class="top-nav-ico">🎣</span>
+        <span class="top-nav-lbl">Прогноз</span>
+      </button>
+      <button type="button" class="top-nav-item" data-nav-tab="circle" role="tab">
+        <span class="top-nav-ico">👥</span>
+        <span class="top-nav-lbl">Круг</span>
+      </button>
+      <button type="button" class="top-nav-item" data-nav-tab="chats" role="tab">
+        <span class="top-nav-ico">💬</span>
+        <span class="top-nav-lbl">Чаты</span>
+      </button>
+      <button type="button" class="top-nav-item" id="topNavMoreBtn" aria-label="Ещё разделы и настройки">
+        <span class="top-nav-ico">•••</span>
+        <span class="top-nav-lbl">Ещё</span>
+      </button>
+    </div>
+
+    <div class="season-strip open-water" id="headerSeasonStrip" role="region" aria-label="Ледовая обстановка" style="display:none;">
       <span>🌊 Расчёт термического и ледового режима...</span>
     </div>
   </header>
@@ -202,7 +285,7 @@
     <section id="secLog" data-route-section="log" aria-label="Журнал уловов"></section>
     <section id="secCalendar" data-route-section="calendar" aria-label="Годовой биоритм и нерест"></section>
     <section id="secAdmin" data-route-section="admin" aria-label="Панель Супер-Админа и Статистика БД"></section>
-    <!-- Скрытый мета-блок для автоматических сканеров соответствия (vlip.site и аналогов): не занимает место в интерфейсе, вся правовая информация доступна в меню «Настройки -> Правовая информация и Соглашение (12+)» -->
+    <!-- Скрытый мета-блок для автоматических сканеров соответствия (vlip.site и аналогов) -->
     <div id="appLegalScannerMeta" style="display:none;" aria-hidden="true">
       © 2025–2026 «Клёв ПРО 2.0: Круг» (версия 2.4.0) • Возрастная маркировка: 12+ (ст. 6 ФЗ № 436-ФЗ).
       Правообладатель программы для ЭВМ, базы данных и графических иллюстраций (ст. 1259, 1260, 1261, 1334 ГК РФ): Тхор Антон Сергеевич (Тхор А. С.) • Контакт для обращений (ст. 10 и ст. 10.2-2 ФЗ № 149-ФЗ): i@athor.ru.
@@ -212,29 +295,47 @@
     </div>
   </main>
 
-  <!-- Тактическая панель из 5 главных крупных кнопок (min-height: 48px под перчатки): 1. Прогноз -> 2. Карта -> 3. Рыбы -> 4. Журнал -> 5. Круг и Чаты (+ ⋮ Ещё) -->
-  <nav class="bottom-nav" aria-label="Навигация по разделам">
+  <!-- Нижний док «Быстрый доступ» строго по Фото 1: Карта | Круг | Чаты | SOS | Журнал -->
+  <nav class="bottom-nav" aria-label="Быстрый доступ">
+    <div class="quick-dock-tab-label">Быстрый доступ</div>
     <div class="bottom-nav-inner">
-      <button type="button" class="nav-tab active" data-nav-tab="forecast" aria-label="Прогноз клёва"><span>🎯</span><span>Прогноз</span></button>
-      <button type="button" class="nav-tab" data-nav-tab="geo" aria-label="Карта и водоём"><span>🗺️</span><span>Карта</span></button>
-      <button type="button" class="nav-tab" data-nav-tab="fish" aria-label="Рыбы водоёма"><span>🐟</span><span>Рыбы</span></button>
-      <button type="button" class="nav-tab" data-nav-tab="log" aria-label="Журнал уловов"><span>📓</span><span>Журнал</span></button>
-      <button type="button" class="nav-tab" data-nav-tab="circle" id="navCircleChatsHubBtn" aria-label="Круг, Экипажи и Чаты"><span>💬</span><span>Круг·Чаты</span></button>
-      <div class="nav-more-wrap">
-        <button type="button" class="nav-tab nav-more-btn" id="navMoreBtn" aria-label="Дополнительные разделы" aria-expanded="false" title="Погода, Календарь, Настройки и Профиль">
+      <button type="button" class="nav-tab" data-nav-tab="geo" aria-label="Карта водоёмов">
+        <span class="dock-ico">🗺️</span>
+        <span>Карта</span>
+      </button>
+      <button type="button" class="nav-tab" data-nav-tab="circle" id="navCircleChatsHubBtn" aria-label="Круг и Радар">
+        <span class="dock-ico">📡</span>
+        <span>Круг</span>
+      </button>
+      <button type="button" class="nav-tab" data-nav-tab="chats" id="navChatsTabBtn" aria-label="Чаты и Экипажи">
+        <span class="dock-ico">💬</span>
+        <span>Чаты</span>
+      </button>
+      <button type="button" class="nav-tab nav-sos-btn" id="bottomQuickSosBtn" aria-label="Экстренный сигнал SOS на воде">
+        <span class="sos-red-circle">SOS</span>
+        <span class="sos-lbl-text">SOS</span>
+      </button>
+      <button type="button" class="nav-tab" data-nav-tab="log" aria-label="Журнал уловов">
+        <span class="dock-ico">📓</span>
+        <span>Журнал</span>
+      </button>
+
+      <div class="nav-more-wrap" style="display:none;">
+        <button type="button" class="nav-tab nav-more-btn" id="navMoreBtn" aria-label="Дополнительные разделы" aria-expanded="false">
           <span>⋮</span>
-          <span style="font-size:10px;">Ещё</span>
+          <span>Ещё</span>
         </button>
-        <div class="nav-more-popup" id="navMorePopup" role="menu" aria-label="Дополнительные разделы и настройки" style="min-width:238px;">
-          <button type="button" class="nav-popup-item" data-nav-tab="weather" role="menuitem"><span>🌦️</span><span>Погода, ветер и барограф</span></button>
-          <button type="button" class="nav-popup-item" data-nav-tab="calendar" role="menuitem"><span>📅</span><span>Календарь биоритмов</span></button>
-          <button type="button" class="nav-popup-item" data-nav-tab="admin" id="navMoreAdminItem" role="menuitem" style="display:none;color:var(--good);font-weight:800;"><span>👑</span><span>Супер-Админ и БД</span></button>
-          <div style="height:1px;background:var(--border);margin:2px 0;"></div>
-          <button type="button" class="nav-popup-item" data-settings-zone="app" role="menuitem"><span>⚙️</span><span>Настройки и Тема экрана</span></button>
-          <button type="button" class="nav-popup-item" id="navMoreDownloadApkItem" role="menuitem" style="display:none;color:var(--good);font-weight:800;"><span>📲</span><span id="navMoreDownloadApkText">Скачать Android APK (v2.4.0)</span></button>
-          <button type="button" class="nav-popup-item" data-nav-tab="profile" role="menuitem"><span>👤</span><span>Профиль и Постоянный ID</span></button>
-          <button type="button" class="nav-popup-item nav-popup-close-btn" id="navMoreCloseBottomBtn" role="menuitem"><span>✕</span><span>Закрыть</span></button>
-        </div>
+      </div>
+      <div class="nav-more-popup" id="navMorePopup" role="menu" aria-label="Дополнительные разделы и настройки" style="min-width:242px;">
+        <button type="button" class="nav-popup-item" data-nav-tab="forecast" role="menuitem"><span>🎯</span><span>Главный экран «Прогноз»</span></button>
+        <button type="button" class="nav-popup-item" data-nav-tab="weather" role="menuitem"><span>⛅</span><span>Погода, ветер и барограф</span></button>
+        <button type="button" class="nav-popup-item" data-nav-tab="calendar" role="menuitem"><span>📅</span><span>Календарь биоритмов</span></button>
+        <button type="button" class="nav-popup-item" data-nav-tab="admin" id="navMoreAdminItem" role="menuitem" style="display:none;color:var(--good);font-weight:800;"><span>👑</span><span>Супер-Админ и БД</span></button>
+        <div style="height:1px;background:var(--border);margin:2px 0;"></div>
+        <button type="button" class="nav-popup-item" data-settings-zone="app" role="menuitem"><span>⚙️</span><span>Настройки и Тема (Светлая/Тёмная/Контраст)</span></button>
+        <button type="button" class="nav-popup-item" id="navMoreDownloadApkItem" role="menuitem" style="display:none;color:var(--good);font-weight:800;"><span>📲</span><span id="navMoreDownloadApkText">Скачать Android APK (v2.4.0)</span></button>
+        <button type="button" class="nav-popup-item" data-nav-tab="profile" role="menuitem"><span>👤</span><span>Профиль и Постоянный ID</span></button>
+        <button type="button" class="nav-popup-item nav-popup-close-btn" id="navMoreCloseBottomBtn" role="menuitem"><span>✕</span><span>Закрыть</span></button>
       </div>
     </div>
   </nav>

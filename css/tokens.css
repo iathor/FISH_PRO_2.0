@@ -1,65 +1,93 @@
-:root {
-  /* Ночной и зимний режим: глубокий графитовый фон без засветки сетчатки и спокойный изумрудно-янтарный светофор */
-  --bg: #121418;
-  --panel: #181b22;
-  --card: #1c1f26;
-  --input-bg: #101216;
-  --text: #f8fafc;
-  --muted: #cbd5e1;
-  --accent: #38bdf8;
+:root,
+[data-theme="dark"] {
+  /* Тёмная радарная схема (по Фото 2 — 1000130765.jpg): глубокий сонарный фон, циановые контуры и неоново-изумрудный индекс */
+  --bg: #07111f;
+  --bg-grad: radial-gradient(circle at 50% 18%, rgba(0, 229, 255, 0.14) 0%, #07111f 58%, #040912 100%);
+  --panel: rgba(11, 24, 42, 0.94);
+  --card: rgba(15, 31, 53, 0.92);
+  --input-bg: #081322;
+  --text: #f0f9ff;
+  --muted: #94b8d7;
+  --accent: #00e5ff;
   --accent-strong: #0284c7;
-  --good: #2ecc71;
-  --warn: #f39c12;
-  --bad: #ef4444;
-  --ice: #67e8f9;
-  --border: #2d3340;
+  --good: #00e676;
+  --warn: #ffb300;
+  --bad: #ff5252;
+  --ice: #38bdf8;
+  --border: rgba(0, 229, 255, 0.30);
 
-  --chip-bg: #1c1f26;
-  --chip-border: #2d3340;
-  --pill-good-bg: rgba(46, 204, 113, 0.18);
+  --hex-bg: #091d34;
+  --hex-fish: #00e5ff;
+  --gauge-track: rgba(148, 184, 215, 0.20);
+  --gauge-start: #00b4d8;
+  --gauge-end: #00f5a0;
+  --wave-stroke: #00e5ff;
+  --wave-fill-top: rgba(0, 229, 255, 0.38);
+  --wave-fill-bot: rgba(0, 229, 255, 0.02);
+  --bento-hero-border: rgba(0, 229, 255, 0.42);
+  --bento-chart-border: rgba(0, 229, 255, 0.35);
+  --bento-radar-border: rgba(0, 229, 255, 0.38);
+  --bento-weather-border: rgba(0, 230, 118, 0.35);
+
+  --chip-bg: #0f2138;
+  --chip-border: rgba(0, 229, 255, 0.30);
+  --pill-good-bg: rgba(0, 230, 118, 0.16);
   --pill-good-text: #4ade80;
-  --pill-warn-bg: rgba(243, 156, 18, 0.18);
-  --pill-warn-text: #fbbf24;
-  --pill-bad-bg: rgba(239, 68, 68, 0.20);
-  --pill-bad-text: #f87171;
+  --pill-warn-bg: rgba(255, 179, 0, 0.18);
+  --pill-warn-text: #fcd34d;
+  --pill-bad-bg: rgba(255, 82, 82, 0.20);
+  --pill-bad-text: #fca5a5;
   --pill-purple-bg: rgba(168, 85, 247, 0.20);
   --pill-purple-text: #d8b4fe;
-  --pill-ice-bg: rgba(103, 232, 249, 0.16);
-  --pill-ice-text: #67e8f9;
+  --pill-ice-bg: rgba(56, 189, 248, 0.18);
+  --pill-ice-text: #7dd3fc;
 
   --font-ui: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  /* Увеличенная типографика (+2..2.5px) для комфортного чтения при дальнозоркости (+6 диоптрий) */
   --fs-xs: 13px;
   --fs-sm: 15px;
   --fs-md: 17px;
   --fs-lg: 19px;
 
-  --r-sm: 8px;
-  --r-md: 12px;
+  --r-sm: 10px;
+  --r-md: 16px;
   --r-pill: 999px;
 
-  --shadow-card: 0 4px 14px 0 rgba(0, 0, 0, 0.34);
-  --shadow-header: 0 3px 14px 0 rgba(0, 0, 0, 0.45);
+  --shadow-card: 0 6px 20px 0 rgba(0, 0, 0, 0.42), 0 0 14px rgba(0, 229, 255, 0.06);
+  --shadow-header: 0 4px 18px 0 rgba(0, 0, 0, 0.50);
 }
 
 [data-theme="light"] {
-  /* Дневная ловля: высокий контраст текста без выцветающих пастельных тонов */
-  --bg: #f5f7fa;
-  --panel: #ffffff;
-  --card: #edf2f7;
+  /* Светлая небесно-акварельная схема (по Фото 1 — 1000130763.jpg и Фото 8 — 1000130764.jpg) */
+  --bg: #dfeaf5;
+  --bg-grad: linear-gradient(180deg, #d7e7f6 0%, #eef5fb 48%, #d9e8f5 100%);
+  --panel: rgba(255, 255, 255, 0.94);
+  --card: rgba(255, 255, 255, 0.88);
   --input-bg: #ffffff;
-  --text: #1a1a1a;
-  --muted: #334155;
-  --accent: #1e3a8a;
+  --text: #142438;
+  --muted: #4b6584;
+  --accent: #2563eb;
   --accent-strong: #1d4ed8;
-  --good: #059669;
+  --good: #10b981;
   --warn: #d97706;
   --bad: #dc2626;
-  --ice: #0e7490;
-  --border: #cbd5e1;
+  --ice: #0284c7;
+  --border: #c5d9ed;
+
+  --hex-bg: #1e4e79;
+  --hex-fish: #67e8f9;
+  --gauge-track: #dbe7f3;
+  --gauge-start: #3b82f6;
+  --gauge-end: #10b981;
+  --wave-stroke: #2e75b6;
+  --wave-fill-top: rgba(59, 130, 246, 0.34);
+  --wave-fill-bot: rgba(59, 130, 246, 0.03);
+  --bento-hero-border: #c2daf0;
+  --bento-chart-border: #c2daf0;
+  --bento-radar-border: #b8d4ee;
+  --bento-weather-border: #c2daf0;
 
   --chip-bg: #ffffff;
-  --chip-border: #94a3b8;
+  --chip-border: #bdd4ea;
   --pill-good-bg: #d1fae5;
   --pill-good-text: #065f46;
   --pill-warn-bg: #fef3c7;
@@ -68,42 +96,56 @@
   --pill-bad-text: #991b1b;
   --pill-purple-bg: #f3e8ff;
   --pill-purple-text: #6b21a8;
-  --pill-ice-bg: #cffafe;
-  --pill-ice-text: #155e75;
+  --pill-ice-bg: #e0f2fe;
+  --pill-ice-text: #0369a1;
 
-  --shadow-card: 0 4px 12px 0 rgba(15, 23, 42, 0.08);
-  --shadow-header: 0 3px 12px 0 rgba(15, 23, 42, 0.12);
+  --shadow-card: 0 6px 18px 0 rgba(20, 45, 76, 0.08);
+  --shadow-header: 0 3px 14px 0 rgba(20, 45, 76, 0.10);
 }
 
 [data-theme="contrast"] {
-  /* Полевой / Береговой максимальный контраст: для чтения на ярком солнце и весеннем снегу */
-  --bg: #000000;
-  --panel: #080808;
-  --card: #121212;
-  --input-bg: #000000;
+  /* Контрастная тактическая оранжево-лаймовая схема (по Фото 6 — 1000130769.jpg и Фото 7 — 1000130770.jpg) */
+  --bg: #050608;
+  --bg-grad: linear-gradient(180deg, #07090c 0%, #040507 100%);
+  --panel: #0c0e12;
+  --card: #11141a;
+  --input-bg: #080a0d;
   --text: #ffffff;
-  --muted: #fde047;
-  --accent: #ffd600;
-  --accent-strong: #ca8a04;
-  --good: #4ade80;
+  --muted: #cbd5e1;
+  --accent: #ff6b00;
+  --accent-strong: #ea580c;
+  --good: #84cc16;
   --warn: #facc15;
-  --bad: #ff4d4d;
-  --ice: #38bdf8;
-  --border: #ffd600;
+  --bad: #ef4444;
+  --ice: #06b6d4;
+  --border: #ff6b00;
 
-  --chip-bg: #0a0a0a;
-  --chip-border: #ffd600;
-  --pill-good-bg: #052e16;
-  --pill-good-text: #86efac;
-  --pill-warn-bg: #422006;
+  --hex-bg: #141414;
+  --hex-fish: #ff6b00;
+  --gauge-track: #262930;
+  --gauge-start: #ff5500;
+  --gauge-end: #ffaa00;
+  --wave-stroke: #a3e635;
+  --wave-fill-top: rgba(163, 230, 53, 0.34);
+  --wave-fill-bot: rgba(250, 204, 21, 0.04);
+  --bento-hero-border: #ff6b00;
+  --bento-chart-border: #a3e635;
+  --bento-radar-border: #06b6d4;
+  --bento-weather-border: #a3e635;
+
+  --chip-bg: #14171f;
+  --chip-border: #ff6b00;
+  --pill-good-bg: rgba(132, 204, 22, 0.22);
+  --pill-good-text: #bef264;
+  --pill-warn-bg: rgba(250, 204, 21, 0.22);
   --pill-warn-text: #fef08a;
-  --pill-bad-bg: #450a0a;
+  --pill-bad-bg: rgba(239, 68, 68, 0.25);
   --pill-bad-text: #fca5a5;
   --pill-purple-bg: #3b0764;
   --pill-purple-text: #f3e8ff;
-  --pill-ice-bg: #083344;
-  --pill-ice-text: #a5f3fc;
+  --pill-ice-bg: rgba(6, 182, 212, 0.22);
+  --pill-ice-text: #67e8f9;
 
-  --shadow-card: 0 0 0 1px #ffd600;
-  --shadow-header: 0 2px 0 0 #ffd600;
+  --shadow-card: 0 4px 16px rgba(0, 0, 0, 0.75);
+  --shadow-header: 0 2px 12px rgba(0, 0, 0, 0.85);
 }
