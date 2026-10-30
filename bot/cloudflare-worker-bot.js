@@ -1,7 +1,9 @@
 // @file bot/cloudflare-worker-bot.js — @KlevProClubBot (V.2.1.1)
 // Компактная сборка для Cloudflare Workers (115 рыб, 491 водоём, 609 городов РФ + Triple-Engine $0 DB + E2EE Relay + Обмен точками Круга/Экипажа/SOS + Уникальные Региональные ID FP_89AAA001 & Эксклюзивный VIP ID владельца FP_89VIP089 + Секретная Серверная Консоль Супер-Админа)
 
-const WORKER_VERSION = '2.3.1';
+const WORKER_VERSION = '2.3.2';
+const RESERVE_ID_TTL_MS = 24 * 60 * 60 * 1000; // Временный резервный ID живёт строго не более 24 часов (суток)
+const deletedFisherIdsSet = new Set(); // Удалённые вручную через Админ-панель ID (защита от повторной фоновой вставки)
 const rateBuckets = new Map();
 const transitBoxes = new Map(); // Транзитная очередь зашифрованных пакетов (Zero-Storage: удаляется при доставке/по TTL)
 const weatherGridCache = new Map(); // Кэш погоды бота по гео-сетке 0.1° × 0.1° (~8-10 км) на 20 минут
@@ -474,7 +476,7 @@ async function verifyUserAuth(env, { fid = '', authTokenHash = '', deviceId = ''
   }
  }
 
- // Для обратной совместимости с уже выданными сессиями v2.3.1, если профиль ещё не связан с другим устройством
+ // Для обратной совместимости с уже выданными сессиями v2.3.2, если профиль ещё не связан с другим устройством
  if (!prof && !regUser) {
   return { ok: true, isAdmin: false, isOwner: false };
  }
@@ -4000,17 +4002,81 @@ async function d1PushRelay(env, pkt) {
 }
 let _persistentStateLoadPromise = null;
 let _lastD1StateSyncTs = 0;
+async function pruneExpiredTemporaryUsers(env) {
+ const now = Date.now();
+ const cutoffTs = now - RESERVE_ID_TTL_MS;
+ const expiredOrDupFids = [];
+ const seenTempDeviceMap = new Map(); // deviceId -> newest temporary reserve user
+
+ // Сортируем временные резервные ID по убыванию lastSeen/firstSeen, чтобы на 1 устройство оставался строго 1 актуальный резервный ID
+ const allUsers = Array.from(usersRegistryStore.values()).sort((a, b) => (b.lastSeen || b.firstSeen || 0) - (a.lastSeen || a.firstSeen || 0));
+ for (const u of allUsers) {
+  if (!u || !u.fisherId) continue;
+  if (deletedFisherIdsSet.has(u.fisherId) && !isOwnerFisherId(u.fisherId)) {
+   usersRegistryStore.delete(u.fisherId);
+   expiredOrDupFids.push(u.fisherId);
+   continue;
+  }
+  if (isTemporaryReserveId(u.fisherId)) {
+   const createdTs = Number(u.firstSeen || u.lastSeen || 0);
+   if (!createdTs || (now - createdTs) > RESERVE_ID_TTL_MS) {
+    usersRegistryStore.delete(u.fisherId);
+    if (u.deviceId && deviceToFisherIdMap.get(u.deviceId) === u.fisherId) {
+     deviceToFisherIdMap.delete(u.deviceId);
+    }
+    expiredOrDupFids.push(u.fisherId);
+    continue;
+   }
+   if (u.deviceId) {
+    if (seenTempDeviceMap.has(u.deviceId)) {
+     // Дублирующий резервный ID от того же устройства (созданный в старых версиях при переключении точек на карте) — удаляем!
+     usersRegistryStore.delete(u.fisherId);
+     expiredOrDupFids.push(u.fisherId);
+     continue;
+    }
+    seenTempDeviceMap.set(u.deviceId, u.fisherId);
+    if (!deviceToFisherIdMap.has(u.deviceId)) {
+     deviceToFisherIdMap.set(u.deviceId, u.fisherId);
+    }
+   }
+  }
+ }
+
+ const d1Info = getD1(env);
+ const d1 = d1Info?.db;
+ if (d1) {
+  try {
+   await d1.prepare('DELETE FROM users_registry WHERE is_temporary = 1 AND first_seen < ?').bind(cutoffTs).run().catch(() => {});
+   for (const fid of expiredOrDupFids.slice(0, 60)) {
+    await d1.prepare('DELETE FROM users_registry WHERE fisher_id = ?').bind(fid).run().catch(() => {});
+   }
+  } catch (e) {}
+ }
+}
+
 async function ensurePersistentStateLoaded(env, forceReload = false) {
  const nowTs = Date.now();
  if (persistentStateLoaded && !forceReload && (nowTs - _lastD1StateSyncTs < 8000)) return;
  if (_persistentStateLoadPromise && !forceReload) return _persistentStateLoadPromise;
  _persistentStateLoadPromise = (async () => {
+ _lastD1StateSyncTs = nowTs;
 
  const d1Info = getD1(env);
  const d1 = d1Info?.db;
 
  if (d1) {
   await ensureD1Tables(d1);
+  try {
+   const kvRow = await d1.prepare('SELECT v FROM klev_kv WHERE k = ?').bind('SYS_STATE_V2_1_1').first().catch(() => null);
+   if (kvRow && kvRow.v) {
+    const parsedKv = workerSafeJsonParse(kvRow.v, null);
+    if (parsedKv && Array.isArray(parsedKv.deletedIds)) {
+     for (const df of parsedKv.deletedIds) {
+      if (df) deletedFisherIdsSet.add(String(df).toUpperCase());
+     }
+    }
+   }
+  } catch (e) {}
   try {
    const userRows = await d1.prepare('SELECT payload FROM users_registry ORDER BY last_seen DESC LIMIT 5000').all();
    if (userRows && Array.isArray(userRows.results)) {
@@ -4020,12 +4086,17 @@ async function ensurePersistentStateLoaded(env, forceReload = false) {
     for (const r of userRows.results) {
      const u = workerSafeJsonParse(r.payload, null);
      if (u && u.fisherId) {
+      if (deletedFisherIdsSet.has(u.fisherId) && !isOwnerFisherId(u.fisherId)) continue;
+      if (isTemporaryReserveId(u.fisherId) && (nowTs - Number(u.firstSeen || u.lastSeen || 0)) > RESERVE_ID_TTL_MS) continue;
       usersRegistryStore.set(u.fisherId, u);
       if (!isTemporaryReserveId(u.fisherId)) reservedVanityIds.add(u.fisherId);
-      if (u.deviceId && !isTemporaryReserveId(u.fisherId)) deviceToFisherIdMap.set(u.deviceId, u.fisherId);
+      if (u.deviceId && (!deviceToFisherIdMap.has(u.deviceId) || !isTemporaryReserveId(u.fisherId))) {
+       deviceToFisherIdMap.set(u.deviceId, u.fisherId);
+      }
       if (u.tgId) tgToFisherIdMap.set(String(u.tgId), u.fisherId);
      }
     }
+    await pruneExpiredTemporaryUsers(env);
    }
 
    const profRows = await d1.prepare('SELECT auth_key, login_norm, fisher_id, payload FROM auth_profiles LIMIT 5000').all();
@@ -4205,6 +4276,7 @@ function serializeFullServerState() {
   counters: Object.fromEntries(regionSequenceCounters.entries()),
   reserveCounters: Object.fromEntries(regionReserveCounters.entries()),
   fidAuthMap: Object.fromEntries(Array.from(fisherIdToAuthKeyMap.entries()).slice(-5000)),
+  deletedIds: Array.from(deletedFisherIdsSet).slice(-2000),
   vanity: Array.from(reservedVanityIds).slice(-5000),
   whitelist: Array.from(adminWhitelistStore.values()),
   deviceMap: Object.fromEntries(Array.from(deviceToFisherIdMap.entries()).slice(-5000)),
@@ -4234,6 +4306,11 @@ function applyLoadedSysMeta(parsed) {
  if (parsed.fidAuthMap && typeof parsed.fidAuthMap === 'object') {
   for (const [fid, aKey] of Object.entries(parsed.fidAuthMap)) {
    if (fid && aKey) fisherIdToAuthKeyMap.set(String(fid).toUpperCase(), String(aKey));
+  }
+ }
+ if (Array.isArray(parsed.deletedIds)) {
+  for (const df of parsed.deletedIds) {
+   if (typeof df === 'string' && df) deletedFisherIdsSet.add(df.toUpperCase());
   }
  }
  if (Array.isArray(parsed.vanity)) {
@@ -4462,7 +4539,7 @@ function renderSuperAdminConsoleHtml(originUrl = '', d1Info = null) {
        <div style="font-weight:900;color:#34d399;font-size:14px;">🟢 Cloudflare D1 База Данных: ПОДКЛЮЧЕНА (Имя привязки: ${esc(d1Info.name)})</div>
        <div style="font-size:12px;color:#94a3b8;margin-top:2px;">Все постоянные ID, реестр пользователей, чаты и точки сохраняются в постоянных SQL-таблицах D1.</div>
       </div>
-      <span style="padding:4px 10px;border-radius:6px;background:#1e293b;border:1px solid #334155;font-size:11px;font-weight:800;color:#38bdf8;">D1 Engine 2.3.1</span>
+      <span style="padding:4px 10px;border-radius:6px;background:#1e293b;border:1px solid #334155;font-size:11px;font-weight:800;color:#38bdf8;">D1 Engine 2.3.2</span>
      </div>`
   : `<div style="padding:12px 14px;border-radius:10px;background:rgba(239,68,68,0.15);border:1.5px solid #ef4444;margin-bottom:12px;display:flex;flex-direction:column;gap:6px;">
       <div style="font-weight:900;color:#f87171;font-size:14px;">🔴 ВНИМАНИЕ: Cloudflare D1 База Данных НЕ ПРИВЯЗАНА!</div>
@@ -4751,10 +4828,11 @@ export default {
     if (!isValidOwnerAdminToken(tok, env)) {
      return new Response(JSON.stringify({ ok: false, error: 'Forbidden: invalid admin token' }), { status: 403, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
     }
-    const targetFid = workerNormalizeFisherId(body.fisherId || '', '89');
+    const targetFid = workerNormalizeFisherId(body.fisherId || '', '89') || String(body.fisherId || '').trim().toUpperCase();
     if (!targetFid || isOwnerFisherId(targetFid)) {
      return new Response(JSON.stringify({ ok: false, error: 'Нельзя удалить Владельца (FP_89VIP089)' }), { status: 400, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
     }
+    deletedFisherIdsSet.add(targetFid);
     const exUser = usersRegistryStore.get(targetFid);
     const exLoginNorm = exUser?.login ? workerNormalizeLogin(exUser.login) : '';
     usersRegistryStore.delete(targetFid);
@@ -4796,15 +4874,35 @@ export default {
      }
     }
 
+    // Очищаем транзитные боксы чатов и точек удалённого пользователя в памяти
+    for (const [bKey, bArr] of transitBoxes.entries()) {
+     if (bKey === `DM_${targetFid}`) {
+      transitBoxes.delete(bKey);
+      continue;
+     }
+     if (Array.isArray(bArr)) {
+      const filtered = bArr.filter(p => p && p.senderId !== targetFid && p.peerId !== targetFid);
+      if (filtered.length === 0) transitBoxes.delete(bKey);
+      else transitBoxes.set(bKey, filtered);
+     }
+    }
+    for (const [ptId, ptObj] of circlePointsStore.entries()) {
+     if (ptObj && ptObj.fid === targetFid) circlePointsStore.delete(ptId);
+    }
+
     const d1Info = getD1(env);
     const d1 = d1Info?.db;
     if (d1) {
      await d1.prepare('DELETE FROM users_registry WHERE fisher_id = ?').bind(targetFid).run().catch(() => {});
+     if (exUser && exUser.deviceId && isTemporaryReserveId(targetFid)) {
+      await d1.prepare('DELETE FROM users_registry WHERE device_id = ? AND is_temporary = 1').bind(exUser.deviceId).run().catch(() => {});
+     }
      await d1.prepare('DELETE FROM auth_profiles WHERE fisher_id = ?').bind(targetFid).run().catch(() => {});
      for (const ln of loginsToDelete) {
       await d1.prepare('DELETE FROM auth_profiles WHERE login_norm = ?').bind(ln).run().catch(() => {});
      }
      await d1.prepare('DELETE FROM circle_points WHERE fid = ?').bind(targetFid).run().catch(() => {});
+     await d1.prepare('DELETE FROM transit_relay WHERE sender_id = ? OR peer_id = ? OR channel_id = ?').bind(targetFid, targetFid, `DM_${targetFid}`).run().catch(() => {});
     }
     await persistSystemMeta(env, ctx);
     return new Response(JSON.stringify({
@@ -4897,6 +4995,7 @@ export default {
    }
    purgeExpiredServerCirclePoints();
 
+   await pruneExpiredTemporaryUsers(env);
    const d1Info = getD1(env);
    const d1 = d1Info?.db;
    if (d1) {
@@ -4906,14 +5005,18 @@ export default {
       for (const r of rows.results) {
        const u = workerSafeJsonParse(r.payload, null);
        if (u && u.fisherId) {
+        if (deletedFisherIdsSet.has(u.fisherId) && !isOwnerFisherId(u.fisherId)) continue;
+        if (isTemporaryReserveId(u.fisherId) && (Date.now() - Number(u.firstSeen || u.lastSeen || 0)) > RESERVE_ID_TTL_MS) continue;
         usersRegistryStore.set(u.fisherId, u);
         if (!isTemporaryReserveId(u.fisherId)) reservedVanityIds.add(u.fisherId);
-        if (u.deviceId && !isTemporaryReserveId(u.fisherId)) deviceToFisherIdMap.set(u.deviceId, u.fisherId);
+        if (u.deviceId && (!deviceToFisherIdMap.has(u.deviceId) || !isTemporaryReserveId(u.fisherId))) {
+         deviceToFisherIdMap.set(u.deviceId, u.fisherId);
+        }
         if (u.tgId) tgToFisherIdMap.set(String(u.tgId), u.fisherId);
-        
        }
       }
      }
+     await pruneExpiredTemporaryUsers(env);
     } catch (e) {
      console.error('[Admin users D1 query error]', e);
     }
@@ -5088,7 +5191,7 @@ function generateSyntheticWeatherJson(lat, lon) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 4500);
     const upstreamRes = await fetch(omUrl, {
-     headers: { 'User-Agent': 'KlevProClubBot/2.3.1 (https://klevpro.ru)' },
+     headers: { 'User-Agent': 'KlevProClubBot/2.3.2 (https://klevpro.ru)' },
      signal: controller.signal,
      cf: { cacheTtl: 1800, cacheEverything: true }
     }).catch(() => null);
@@ -5104,7 +5207,7 @@ function generateSyntheticWeatherJson(lat, lon) {
     try {
      const metUrl = `https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${gLat}&lon=${gLon}`;
      const metRes = await fetch(metUrl, {
-      headers: { 'User-Agent': 'KlevProClubBot/2.3.1 (https://klevpro.ru, i@athor.ru)' }
+      headers: { 'User-Agent': 'KlevProClubBot/2.3.2 (https://klevpro.ru, i@athor.ru)' }
      }).catch(() => null);
      if (metRes && metRes.ok) {
       const metJson = await metRes.json();
@@ -5286,30 +5389,42 @@ function generateSyntheticWeatherJson(lat, lon) {
      }), { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
     }
 
-    // 3. Пользователь НЕ зарегистрировал логин и пароль -> выдаём/обновляем ВРЕМЕННЫЙ РЕЗЕРВНЫЙ ID формата FP_XXRZYYYY (0001..9999) по устройству и региону!
+    // 3. Пользователь НЕ зарегистрировал логин и пароль -> выдаём строго 1 ВРЕМЕННЫЙ РЕЗЕРВНЫЙ ID (FP_XXRZYYYY) на 24 часа для этого устройства (независимо от переключения точек на карте!)
+    await pruneExpiredTemporaryUsers(env);
     let tempReserveId = '';
     if (deviceId && deviceToFisherIdMap.has(deviceId)) {
      const bound = deviceToFisherIdMap.get(deviceId);
-     if (bound && isTemporaryReserveId(bound)) {
-      const boundReg = bound.slice(3, 5);
-      if (boundReg !== regCode) {
+     if (bound && isTemporaryReserveId(bound) && !deletedFisherIdsSet.has(bound)) {
+      const exBound = usersRegistryStore.get(bound);
+      const ageMs = exBound ? (Date.now() - Number(exBound.firstSeen || exBound.lastSeen || Date.now())) : 0;
+      if (ageMs <= RESERVE_ID_TTL_MS) {
+       tempReserveId = bound;
+      } else {
        usersRegistryStore.delete(bound);
        deviceToFisherIdMap.delete(deviceId);
-      } else {
-       tempReserveId = bound;
       }
      }
     }
-    if (!tempReserveId && reqCurId && isTemporaryReserveId(reqCurId) && reqCurId.slice(3, 5) === regCode) {
+    if (!tempReserveId && reqCurId && isTemporaryReserveId(reqCurId) && !deletedFisherIdsSet.has(reqCurId)) {
      const exRec = usersRegistryStore.get(reqCurId);
-     if (!exRec || !exRec.deviceId || exRec.deviceId === deviceId) {
+     const ageMs = exRec ? (Date.now() - Number(exRec.firstSeen || exRec.lastSeen || Date.now())) : 0;
+     if ((!exRec || !exRec.deviceId || exRec.deviceId === deviceId) && ageMs <= RESERVE_ID_TTL_MS) {
       tempReserveId = reqCurId;
      }
     }
     if (!tempReserveId) {
      tempReserveId = allocateNextReserveFisherId(regCode, deviceId);
+     deletedFisherIdsSet.delete(tempReserveId);
     }
     if (deviceId) {
+     // Удаляем любые старые дубли резервных ID этого же устройства из RAM и D1
+     for (const [uid, uObj] of usersRegistryStore.entries()) {
+      if (uid !== tempReserveId && uObj && uObj.deviceId === deviceId && isTemporaryReserveId(uid)) {
+       usersRegistryStore.delete(uid);
+       const d1Clean = getD1(env)?.db;
+       if (d1Clean) d1Clean.prepare('DELETE FROM users_registry WHERE fisher_id = ?').bind(uid).run().catch(() => {});
+      }
+     }
      deviceToFisherIdMap.set(deviceId, tempReserveId);
     }
 
@@ -5577,7 +5692,7 @@ function generateSyntheticWeatherJson(lat, lon) {
     (nearbyAuth.ok && viewerFid && adminWhitelistStore.has(viewerFid))
    );
 
-   if (viewerFid && (nearbyAuth.ok || isTemporaryReserveId(viewerFid))) {
+   if (viewerFid && !deletedFisherIdsSet.has(viewerFid) && (nearbyAuth.ok || (isTemporaryReserveId(viewerFid) && usersRegistryStore.has(viewerFid)))) {
     upsertUserInRegistry({
      fisherId: viewerFid,
      deviceId: viewerDevId,
@@ -5658,6 +5773,15 @@ function generateSyntheticWeatherJson(lat, lon) {
     }
     circlePointsStore.delete(id);
     await d1DeletePoint(env, id);
+    const d1ForDel = getD1(env)?.db;
+    if (d1ForDel) {
+     await d1ForDel.prepare('DELETE FROM transit_relay WHERE kind = ? AND sender_id = ?').bind('pack', target.fid || fid).run().catch(() => {});
+    }
+    for (const [bKey, bList] of transitBoxes.entries()) {
+     if (Array.isArray(bList)) {
+      transitBoxes.set(bKey, bList.filter(p => p && !(p.kind === 'pack' && p.senderId === (target.fid || fid))));
+     }
+    }
     await persistSystemMeta(env, ctx);
 
     // Мгновенная трансляция удаления через транзитные боксы ретранслятора
@@ -5794,6 +5918,11 @@ function generateSyntheticWeatherJson(lat, lon) {
      lon: incomingSnap.lon,
      incrementSession: true
     });
+    deletedFisherIdsSet.delete(ident.fisherId);
+    const d1Login = getD1(env)?.db;
+    if (d1Login && (incomingSnap.deviceId || body.deviceId)) {
+     await d1Login.prepare('DELETE FROM users_registry WHERE device_id = ? AND is_temporary = 1').bind(incomingSnap.deviceId || body.deviceId).run().catch(() => {});
+    }
     await d1SaveUser(env, regRec);
     await persistSystemMeta(env, ctx);
     return new Response(JSON.stringify({
@@ -5997,6 +6126,97 @@ function generateSyntheticWeatherJson(lat, lon) {
     return new Response(JSON.stringify({ ok: false }), { status: 400, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
    }
   }
+  }
+
+  if (reqUrl.pathname.endsWith('/api/version') && request.method === 'GET') {
+   return new Response(JSON.stringify({
+    appName: 'Клёв ПРО 2.0',
+    packageName: 'ru.klevpro.app',
+    version: WORKER_VERSION,
+    versionCode: 23020,
+    buildRevision: '2026.10.30-r184',
+    releaseDate: '2026-10-30',
+    apkFileName: `klev-pro-v${WORKER_VERSION}.apk`,
+    apkUrl: `https://klevpro.ru/apk/klev-pro-v${WORKER_VERSION}.apk`,
+    apkDownloadUrl: `https://klevpro.ru/apk/klev-pro-v${WORKER_VERSION}.apk`,
+    apkSizeMb: '37.9 МБ',
+    fileSize: '37.9 МБ',
+    title: `Выпущена новая версия приложения Клёв ПРО 2.0 (v${WORKER_VERSION})`,
+    subtitle: 'Точная многоканальная проверка обновлений APK, защита от фантомных точек Круга и удалённых чатов, 1 резервный ID на 24 часа и выбор региона при регистрации.',
+    changelog: [
+     'Исправлена проверка обновлений внутри Android APK: приложение мгновенно видит выход новой версии на сервере и в репозитории',
+     'Устранено фантомное появление давно удалённых точек Круга и повторное «оживление» удалённых чатов',
+     'Исправлена выдача временных резервных ID (FP_XXRZYYYY): строго 1 резервный ID на сессию/сутки без дублей при переключении точек на карте и автоочистка из БД через 24 часа',
+     'В окне регистрации добавлен выбор региональной группы РФ или точки на карте с запросом подтверждения региона перед сохранением нового рыбака в БД',
+     'Журнал уловов на устройстве полностью независим от смены резервного или постоянного ID рыбака'
+    ]
+   }), {
+    headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
+   });
+  }
+
+  if (reqUrl.pathname.endsWith('/api/relay/delete-channel') && (request.method === 'POST' || reqUrl.searchParams.has('payload'))) {
+   try {
+    await ensurePersistentStateLoaded(env);
+    const body = await readWorkerRequestPayload(request, reqUrl);
+    const viewerFid = workerNormalizeFisherId(body.viewerFid || '', '89');
+    const devId = String(body.deviceId || '').trim();
+    const authTok = String(body.authTokenHash || '').trim();
+    const admTok = extractAdminTokenFromRequest(request, reqUrl, body);
+    const authRes = await verifyUserAuth(env, {
+     fid: viewerFid,
+     authTokenHash: authTok,
+     deviceId: devId,
+     adminToken: admTok,
+     request
+    });
+    if (!authRes.ok && !authRes.isAdmin) {
+     return new Response(JSON.stringify({ ok: false, error: 'Forbidden' }), { status: 403, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
+    }
+    const chanId = String(body.channelId || '').trim();
+    const peerIds = Array.isArray(body.peerIds) ? body.peerIds.map(p => String(p || '').trim().toUpperCase()).filter(Boolean) : [];
+    const d1 = getD1(env)?.db;
+
+    if (chanId.startsWith('crew:')) {
+     const cKey = chanId.replace(/^crew:/i, '').toUpperCase();
+     const boxKey = `CREW_${cKey}`;
+     transitBoxes.delete(boxKey);
+     if (d1) {
+      await d1.prepare('DELETE FROM transit_relay WHERE channel_id = ? OR crew_key = ?').bind(boxKey, cKey).run().catch(() => {});
+     }
+    } else if (viewerFid) {
+     const dmBoxesToClean = [`DM_${viewerFid}`];
+     if (authRes.isOwner || isOwnerFisherId(viewerFid)) {
+      dmBoxesToClean.push(`DM_${OWNER_FISHER_ID}`, `DM_${OWNER_SECONDARY_ID}`);
+     }
+     for (const bKey of dmBoxesToClean) {
+      const arr = transitBoxes.get(bKey) || [];
+      if (peerIds.length > 0) {
+       const rem = arr.filter(p => p && !peerIds.includes(String(p.senderId || '').toUpperCase()) && !peerIds.includes(String(p.peerId || '').toUpperCase()));
+       if (rem.length === 0) transitBoxes.delete(bKey);
+       else transitBoxes.set(bKey, rem);
+      } else {
+       transitBoxes.delete(bKey);
+      }
+      if (d1) {
+       if (peerIds.length > 0) {
+        for (const pid of peerIds) {
+         await d1.prepare('DELETE FROM transit_relay WHERE (channel_id = ? AND (sender_id = ? OR peer_id = ?)) OR (channel_id = ? AND sender_id = ?)')
+          .bind(bKey, pid, pid, `DM_${pid}`, viewerFid).run().catch(() => {});
+        }
+       } else {
+        await d1.prepare('DELETE FROM transit_relay WHERE channel_id = ?').bind(bKey).run().catch(() => {});
+       }
+      }
+     }
+    }
+    await persistSystemMeta(env, ctx);
+    return new Response(JSON.stringify({ ok: true, deletedChannel: chanId }), {
+     headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
+    });
+   } catch (e) {
+    return new Response(JSON.stringify({ ok: false }), { status: 400, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
+   }
   }
 
   if (reqUrl.pathname.endsWith('/relay/push') && (request.method === 'POST' || reqUrl.searchParams.has('payload'))) {

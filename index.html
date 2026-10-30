@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta http-equiv="X-Content-Type-Options" content="nosniff">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: blob:; script-src 'self' 'unsafe-inline' https://telegram.org https://yastatic.net https://cdn.jsdelivr.net https://appassets.androidplatform.net; style-src 'self' 'unsafe-inline' https://yastatic.net https://cdn.jsdelivr.net https://appassets.androidplatform.net; img-src 'self' data: blob: https:; connect-src 'self' https://klevprohbot.thorantony82.workers.dev https://*.workers.dev https://api.open-meteo.com https://archive-api.open-meteo.com https://api.met.no https://api.codetabs.com https://api.allorigins.win https://maps.mail.ru https://overpass.kumi.systems https://overpass.private.coffee https://overpass-api.de https://nominatim.openstreetmap.org https://api.bigdatacloud.net https://ipwho.is https://ipapi.co https://raw.githubusercontent.com https://github.com https://*.githubusercontent.com https://appassets.androidplatform.net;">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: blob:; script-src 'self' 'unsafe-inline' https://telegram.org https://yastatic.net https://cdn.jsdelivr.net https://appassets.androidplatform.net; style-src 'self' 'unsafe-inline' https://yastatic.net https://cdn.jsdelivr.net https://appassets.androidplatform.net; img-src 'self' data: blob: https:; connect-src 'self' https://klevpro.ru https://www.klevpro.ru https://xn--b1apdneg0j.xn--p1ai https://api.github.com https://klevprohbot.thorantony82.workers.dev https://*.workers.dev https://api.open-meteo.com https://archive-api.open-meteo.com https://api.met.no https://api.codetabs.com https://api.allorigins.win https://maps.mail.ru https://overpass.kumi.systems https://overpass.private.coffee https://overpass-api.de https://nominatim.openstreetmap.org https://api.bigdatacloud.net https://ipwho.is https://ipapi.co https://raw.githubusercontent.com https://github.com https://*.githubusercontent.com https://appassets.androidplatform.net;">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="theme-color" content="#0b1120">
   <meta name="mobile-web-app-capable" content="yes">
@@ -13,9 +13,9 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Клёв ПРО 2.0 • Прогноз клёва, Круг и Атлас Ихтиофауны РФ (12+)</title>
     <script src="https://telegram.org/js/telegram-web-app.js" async onload="window.__KLEV_ON_TG_SDK_LOAD__&&window.__KLEV_ON_TG_SDK_LOAD__()"></script>
-  <link rel="manifest" href="manifest.json?v=2.3.1">
-  <link id="dynamicFavicon" rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=2.3.1">
-  <link id="dynamicTouchIcon" rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=2.3.1">
+  <link rel="manifest" href="manifest.json?v=2.3.2">
+  <link id="dynamicFavicon" rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=2.3.2">
+  <link id="dynamicTouchIcon" rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=2.3.2">
   <script>
     (function() {
       try {
@@ -84,7 +84,7 @@
           caches.keys().then(function(keys) {
             return Promise.all(
               keys
-                .filter(function(k) { return k !== 'klev-pro-map-tiles-v2.3.1' && (inApkNow || k !== 'klev-pro-v2.3.1-r183-static'); })
+                .filter(function(k) { return k !== 'klev-pro-map-tiles-v2.3.2' && (inApkNow || k !== 'klev-pro-v2.3.2-r183-static'); })
                 .map(function(k) { return caches.delete(k); })
             );
           }).then(function() {
@@ -94,10 +94,10 @@
       } catch (e) {}
     })();
   </script>
-  <link rel="stylesheet" href="css/tokens.css?v=2.3.1">
-  <link rel="stylesheet" href="css/base.css?v=2.3.1">
-  <link rel="stylesheet" href="css/components.css?v=2.3.1">
-  <link rel="stylesheet" href="css/layout.css?v=2.3.1">
+  <link rel="stylesheet" href="css/tokens.css?v=2.3.2">
+  <link rel="stylesheet" href="css/base.css?v=2.3.2">
+  <link rel="stylesheet" href="css/components.css?v=2.3.2">
+  <link rel="stylesheet" href="css/layout.css?v=2.3.2">
   <!-- Неблокирующая асинхронная загрузка картографического движка Leaflet -->
   <script>
     (function() {
@@ -185,11 +185,11 @@
     <!-- Плашка загрузки APK (отображается ТОЛЬКО на сайте и ТОЛЬКО для Android-устройств до закрытия крестиком) -->
     <div id="androidApkSiteBanner" class="card" style="display:none;background:rgba(16,185,129,0.12);border:1.5px solid var(--good);padding:9px 12px;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:2px;">
       <div style="min-width:0;flex:1;">
-        <div id="androidApkBannerTitle" style="font-weight:800;font-size:var(--fs-xs);color:var(--good);">📲 Приложение «Клёв ПРО 2.0» для Android (v2.3.1)</div>
+        <div id="androidApkBannerTitle" style="font-weight:800;font-size:var(--fs-xs);color:var(--good);">📲 Приложение «Клёв ПРО 2.0» для Android (v2.3.2)</div>
         <div style="font-size:11px;color:var(--muted);">Установите автономное приложение (.APK) на ваш смартфон</div>
       </div>
       <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
-        <button type="button" class="btn btn-sm btn-good" id="androidApkBannerDownloadBtn" style="min-height:32px;padding:4px 10px;font-size:11.5px;font-weight:800;">📥 Скачать APK (v2.3.1)</button>
+        <button type="button" class="btn btn-sm btn-good" id="androidApkBannerDownloadBtn" style="min-height:32px;padding:4px 10px;font-size:11.5px;font-weight:800;">📥 Скачать APK (v2.3.2)</button>
         <button type="button" class="btn btn-sm" id="androidApkBannerCloseBtn" title="Скрыть плашку" aria-label="Закрыть плашку загрузки APK" style="min-height:32px;padding:4px 8px;font-size:12px;">✕</button>
       </div>
     </div>
@@ -204,7 +204,7 @@
     <section id="secAdmin" data-route-section="admin" aria-label="Панель Супер-Админа и Статистика БД"></section>
     <!-- Скрытый мета-блок для автоматических сканеров соответствия (vlip.site и аналогов): не занимает место в интерфейсе, вся правовая информация доступна в меню «Настройки -> Правовая информация и Соглашение (12+)» -->
     <div id="appLegalScannerMeta" style="display:none;" aria-hidden="true">
-      © 2025–2026 «Клёв ПРО 2.0: Круг» (версия 2.3.1) • Возрастная маркировка: 12+ (ст. 6 ФЗ № 436-ФЗ).
+      © 2025–2026 «Клёв ПРО 2.0: Круг» (версия 2.3.2) • Возрастная маркировка: 12+ (ст. 6 ФЗ № 436-ФЗ).
       Правообладатель программы для ЭВМ, базы данных и графических иллюстраций (ст. 1259, 1260, 1261, 1334 ГК РФ): Тхор Антон Сергеевич (Тхор А. С.) • Контакт для обращений (ст. 10 и ст. 10.2-2 ФЗ № 149-ФЗ): i@athor.ru.
       Правовой статус: бесплатный некоммерческий информационно-справочный проект (возмездные услуги и торговая деятельность не осуществляются; реквизиты компании ИНН / ОГРН / ОГРНИП по ст. 9 ЗоЗПП РФ не применяются).
       Политика конфиденциальности (ФЗ № 152-ФЗ ст. 3, 12, 18.1, 22): сервис работает по архитектуре Zero-PII с вымышленными рыболовными позывными и не осуществляет сбор персональных данных (ФИО, телефонов, e-mail, точных GPS-координат).
@@ -233,7 +233,7 @@
           <button type="button" class="nav-popup-item" data-nav-tab="admin" id="navMoreAdminItem" role="menuitem" style="display:none;color:var(--good);font-weight:800;"><span>👑</span><span>Супер-Админ и БД</span></button>
           <div style="height:1px;background:var(--border);margin:2px 0;"></div>
           <button type="button" class="nav-popup-item" data-settings-zone="app" role="menuitem"><span>⚙️</span><span>Настройки приложения</span></button>
-          <button type="button" class="nav-popup-item" id="navMoreDownloadApkItem" role="menuitem" style="display:none;color:var(--good);font-weight:800;"><span>📲</span><span id="navMoreDownloadApkText">Скачать Android APK (v2.3.1)</span></button>
+          <button type="button" class="nav-popup-item" id="navMoreDownloadApkItem" role="menuitem" style="display:none;color:var(--good);font-weight:800;"><span>📲</span><span id="navMoreDownloadApkText">Скачать Android APK (v2.3.2)</span></button>
           <button type="button" class="nav-popup-item" data-nav-tab="profile" role="menuitem"><span>👤</span><span>Настройки профиля</span></button>
           <button type="button" class="nav-popup-item nav-popup-close-btn" id="navMoreCloseBottomBtn" role="menuitem"><span>✕</span><span>Закрыть</span></button>
         </div>
@@ -241,7 +241,7 @@
     </div>
   </nav>
 
-  <script type="module" src="js/app.js?v=2.3.1"></script>
+  <script type="module" src="js/app.js?v=2.3.2"></script>
   <script>
     // Защитный сторожевой таймер (только на случай полного обрыва загрузки скрипта в старом Service Worker)
     setTimeout(function() {
@@ -252,7 +252,7 @@
           box.className = 'card';
           box.style.cssText = 'border-color:var(--accent);text-align:center;padding:18px;margin-top:24px;';
           box.innerHTML =
-            '<div style="font-size:17px;font-weight:800;margin-bottom:8px;">🚀 Доступна новая сборка «Клёв ПРО 2.3.1»</div>' +
+            '<div style="font-size:17px;font-weight:800;margin-bottom:8px;">🚀 Доступна новая сборка «Клёв ПРО 2.3.2»</div>' +
             '<p style="font-size:14px;color:var(--muted);margin-bottom:14px;line-height:1.45;">Обнаружены устаревшие файлы в кэше телефона. Нажмите кнопку ниже, чтобы обновить модули приложения (ваши точки и уловы сохранятся).</p>' +
             '<button type="button" class="btn btn-good" id="emergencyResetCacheBtn" style="width:100%;">✅ Обновить кэш и запустить новую версию</button>';
           mainEl.prepend(box);
@@ -276,7 +276,7 @@
                   }
                 })
                 .finally(function() {
-                  window.location.replace(window.location.pathname + '?v=2.3.1&reset=' + Date.now());
+                  window.location.replace(window.location.pathname + '?v=2.3.2&reset=' + Date.now());
                 });
             };
           }
