@@ -182,56 +182,36 @@
     })();
   </script>
 
-  <!-- Разгруженная шапка (без громоздкого названия): Гексагон + Полная локация и водоём + Переключатель темы + ID/Профиль + Сезонная полоска воды/льда -->
+  <!-- Шапка: слева крупный информативный блок статуса (сеть + режим воды/льда + температура воды), справа тема и ID + Округ -->
   <header class="app-header">
     <div class="header-bar">
-      <div class="header-brand-left" id="headerLocClickArea" title="Нажмите для выбора водоёма и точки на карте">
-        <div class="brand-hex-logo" aria-hidden="true">
-          <svg viewBox="0 0 64 64" width="36" height="36" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <polygon points="32,3 58,17.5 58,46.5 32,61 6,46.5 6,17.5" fill="var(--hex-bg, #0d2847)" stroke="var(--accent)" stroke-width="3"/>
-            <polygon points="32,9 52,20.5 52,43.5 32,55 12,43.5 12,20.5" fill="none" stroke="var(--good)" stroke-width="1.2" stroke-dasharray="3 2" opacity="0.75"/>
-            <circle cx="32" cy="32" r="14" stroke="var(--accent)" stroke-width="1" opacity="0.45"/>
-            <line x1="32" y1="10" x2="32" y2="54" stroke="var(--accent)" stroke-width="1" opacity="0.35"/>
-            <line x1="12" y1="32" x2="52" y2="32" stroke="var(--accent)" stroke-width="1" opacity="0.35"/>
-            <path d="M32 32 L48 20 A20 20 0 0 1 52 32 Z" fill="var(--good)" opacity="0.32"/>
-            <path d="M21 36 C24 27, 34 23, 43 26 C40 30, 39 33, 44 36 C36 37, 29 39, 24 43 L20 45 L22 39 Z" fill="var(--hex-fish, #38bdf8)" stroke="#ffffff" stroke-width="1"/>
-            <circle cx="45" cy="24" r="2.2" fill="var(--warn)"/>
-          </svg>
+      <div class="header-status-block open-water" id="headerStatusBlock" role="button" tabindex="0" title="Нажмите для перехода в подробный раздел Погода и состояние водоёма">
+        <div class="header-status-main" id="headerStatusMainLine">
+          <span class="header-online-badge" id="headerStatusDot">🟢 ОНЛАЙН</span>
+          <span class="header-season-verdict" id="headerSeasonMainText">🌊 Открытая вода</span>
         </div>
-        <div class="brand-title-wrap">
-          <div class="loc-main" id="headerLocMain">
-            <span class="loc-main-text" id="headerLocText">📍 Новый Уренгой</span>
-          </div>
-          <div class="loc-sub-line">
-            <span class="header-online-dot" id="headerStatusDot" title="Статус сети">🟢</span>
-            <span class="loc-sub" id="headerLocSub">Обь-Тазовский бассейн</span>
-          </div>
+        <div class="header-status-sub" id="headerSeasonSubText">
+          💧 Вода ~8.0°C • Льда нет (лодка и берег)
         </div>
       </div>
 
       <div class="header-right-actions">
         <button type="button" class="btn-theme-chip" id="headerThemeBtn" title="Переключить тему: Светлая / Тёмная / Контраст / Авто" aria-label="Тема оформления">🌓</button>
-        <button type="button" class="header-id-profile-btn" id="headerProfileBtn" title="Ваш рыболовный ID, вход по логину и настройки профиля">
+        <button type="button" class="header-id-profile-btn" id="headerProfileBtn" title="Ваш рыболовный ID, регион и настройки профиля">
           <div class="header-id-text-col">
             <span class="header-id-code" id="headerProfileIdCode">ID: FP_89RZ0001</span>
-            <span class="header-id-sub" id="headerProfileIdSub">(Резерв)</span>
+            <span class="header-id-sub" id="headerProfileIdSub">Ямало-Ненецкий АО</span>
           </div>
           <span class="header-avatar-circle" id="headerProfileAvatar">👤</span>
         </button>
       </div>
     </div>
 
-    <!-- Информативная сезонная полоска открытой воды / ледовой обстановки (всегда на виду, клик открывает вкладку Погода) -->
-    <div class="season-strip open-water" id="headerSeasonStrip" role="region" aria-label="Состояние воды и ледовая обстановка" title="Нажмите для подробного разбора погоды и состояния водоёма">
-      <span>🌊 Расчёт термического и ледового режима...</span>
-      <span>💧 Вода</span>
-    </div>
-
-    <!-- Верхняя панель аналитических разделов и настроек (БЕЗ дублирования нижнего дока и БЕЗ лишней кнопки «Ещё») -->
-    <div class="top-section-nav" id="topSectionNavBar" role="tablist" aria-label="Аналитика и настройки">
+    <!-- Полноценные кнопки верхней панели (с чёткими рамками, крупными значками сверху и полными подписями) -->
+    <div class="top-section-nav" id="topSectionNavBar" role="tablist" aria-label="Разделы аналитики и настроек">
       <button type="button" class="top-nav-item" data-nav-tab="weather" id="topNavWeatherBtn" role="tab">
         <span class="top-nav-ico" id="topNavWeatherIco">⛅</span>
-        <span class="top-nav-lbl" id="topNavWeatherLbl">Погода·Вода</span>
+        <span class="top-nav-lbl" id="topNavWeatherLbl">Погода</span>
       </button>
       <button type="button" class="top-nav-item" data-nav-tab="fish" role="tab">
         <span class="top-nav-ico">🐟</span>
@@ -247,7 +227,7 @@
       </button>
       <button type="button" class="top-nav-item" data-nav-tab="admin" id="topNavAdminBtn" role="tab" style="display:none;">
         <span class="top-nav-ico">👑</span>
-        <span class="top-nav-lbl">Админ БД</span>
+        <span class="top-nav-lbl">Админ</span>
       </button>
     </div>
   </header>
@@ -281,7 +261,7 @@
     </div>
   </main>
 
-  <!-- Нижний док «Быстрый доступ» без дублирования с верхом: Карта | Чаты·Круг | Прогноз (основная) | SOS | Журнал -->
+  <!-- Нижний док «Быстрый доступ»: Карта | Чаты·Круг | Прогноз (основная) | SOS | Журнал -->
   <nav class="bottom-nav" aria-label="Быстрый доступ">
     <div class="quick-dock-tab-label">Быстрый доступ</div>
     <div class="bottom-nav-inner">
