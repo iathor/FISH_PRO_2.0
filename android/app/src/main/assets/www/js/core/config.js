@@ -1,24 +1,24 @@
 /**
  * @file config.js
- * @description Конфигурация приложения (Релиз 2.3.0), слои карт и адаптивные справочники снастей и сезонных наживок
+ * @description Конфигурация приложения (Релиз 2.3.1), слои карт и адаптивные справочники снастей и сезонных наживок
  */
 
-export const APP_VERSION = '2.3.0';
-export const APP_REVISION = '2026.10.29-r182';
+export const APP_VERSION = '2.3.1';
+export const APP_REVISION = '2026.10.30-r183';
 export const STATE_CACHE_KEY = 'klev_pro_state_v2.0';
 export const WEATHER_CACHE_KEY = 'klev_pro_weather_v2.0';
 export const RELEASE_CACHE_KEY = 'klev_pro_release_v2.0';
 export const WEATHER_TTL_MS = 2 * 60 * 60 * 1000;
 
 export const CURRENT_RELEASE_INFO = {
-  "version": "2.3.0",
-  "versionCode": 230000,
-  "revision": "2026.10.29-r182",
+  "version": "2.3.1",
+  "versionCode": 230100,
+  "revision": "2026.10.30-r183",
   "date": "29 октября 2026",
   "releasedAt": "2026-10-29T10:00:00Z",
-  "apkUrl": "https://klevpro.ru/apk/klev-pro-v2.3.0.apk",
+  "apkUrl": "https://klevpro.ru/apk/klev-pro-v2.3.1.apk",
   "fileSize": "7.9 МБ",
-  "title": "Выпущена новая версия приложения «Клёв ПРО 2.0» (V.2.3.0)",
+  "title": "Выпущена новая версия приложения «Клёв ПРО 2.0» (V.2.3.1)",
   "subtitle": "Удобные полноэкранные чаты с отправкой геопозиции, защита журнала уловов от случайного удаления, единое окно настроек и ускоренная работа всех сервисов.",
   "summary": "Исправлены ошибки отображения на карте и в шапке экрана, устранены баги при удалении чатов, ускорена авторизация и синхронизация данных между устройствами, а также добавлена проверка обновлений и прямая загрузка приложения для Android.",
   "changes": [

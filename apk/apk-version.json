@@ -1,21 +1,22 @@
 {
   "appName": "Клёв ПРО 2.0",
   "packageName": "ru.klevpro.app",
-  "version": "2.3.0",
-  "versionCode": 23000,
-  "buildRevision": "2026.10.29-r182",
-  "releaseDate": "2026-10-29",
+  "version": "2.3.1",
+  "versionCode": 23010,
+  "buildRevision": "2026.10.30-r183",
+  "releaseDate": "2026-10-30",
   "minAndroidVersion": "7.0",
   "minAndroidSdk": 24,
-  "apkFileName": "klev-pro-v2.3.0.apk",
-  "apkDownloadUrl": "https://klevpro.ru/apk/klev-pro-v2.3.0.apk",
-  "apkFallbackReleaseUrl": "https://github.com/thorantony82-create/klev-pro/releases/latest/download/klev-pro-v2.3.0.apk",
-  "apkSizeMb": "37.8 МБ",
-  "title": "Выпущена новая версия приложения Клёв ПРО 2.0.",
-  "whatsNewTitle": "Что изменилось в версии 2.3.0:",
+  "apkFileName": "klev-pro-v2.3.1.apk",
+  "apkDownloadUrl": "https://klevpro.ru/apk/klev-pro-v2.3.1.apk",
+  "apkFallbackReleaseUrl": "https://github.com/thorantony82-create/klev-pro/releases/latest/download/klev-pro-v2.3.1.apk",
+  "apkSizeMb": "37.9 МБ",
+  "title": "Выпущена новая версия приложения Клёв ПРО 2.0 (v2.3.1).",
+  "whatsNewTitle": "Что изменилось в версии 2.3.1:",
   "changelog": [
-    "Усилена защита профиля, чатов и точек Экипажа",
-    "Ускорена работа сервисов синхронизации и загрузки метеоданных",
-    "Исправлены ошибки, устранены баги и повышена плавность интерфейса"
+    "Расширена база городов и рыболовных населённых пунктов по всем 89 регионам РФ (832 города и 521 водоём)",
+    "Улучшена калибровка весов в режиме Профи и переключение дней и часов в прогнозе клёва",
+    "Включены системные уведомления смартфона для чатов, Круга, Экипажа и SOS",
+    "Добавлены прямая выгрузка файлов (.GPX, .KML, .JSON, .CSV) в папку Загрузки и импорт данных в карту и журнал уловов"
   ]
 }

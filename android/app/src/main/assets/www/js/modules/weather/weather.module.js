@@ -1,11 +1,11 @@
-import { RU } from '../../i18n/ru.js?v=2.3.0';
-import { events } from '../../core/events.js?v=2.3.0';
-import { storage } from '../../core/storage.js?v=2.3.0';
-import { store } from '../../core/store.js?v=2.3.0';
-import { fetchWithTimeout, fallbackChain } from '../../core/http.js?v=2.3.0';
-import { formatLocalYYYYMMDD, fmtHM, fmtDeltaPress } from '../../core/format.js?v=2.3.0';
-import { WATER_PROFILES } from '../../data/waters.js?v=2.3.0';
-import { createPill, showToast } from '../../ui/components.js?v=2.3.0';
+import { RU } from '../../i18n/ru.js?v=2.3.1';
+import { events } from '../../core/events.js?v=2.3.1';
+import { storage } from '../../core/storage.js?v=2.3.1';
+import { store } from '../../core/store.js?v=2.3.1';
+import { fetchWithTimeout, fallbackChain } from '../../core/http.js?v=2.3.1';
+import { formatLocalYYYYMMDD, fmtHM, fmtDeltaPress } from '../../core/format.js?v=2.3.1';
+import { WATER_PROFILES } from '../../data/waters.js?v=2.3.1';
+import { createPill, showToast } from '../../ui/components.js?v=2.3.1';
 
 const DIRS = ['С', 'СВ', 'В', 'ЮВ', 'Ю', 'ЮЗ', 'З', 'СЗ'];
 

@@ -1,9 +1,9 @@
-import { initReleaseUpdater, checkForReleaseUpdate } from './core/updater.js?v=2.3.0';
-import { RU } from './i18n/ru.js?v=2.3.0';
-import { events } from './core/events.js?v=2.3.0';
-import { store } from './core/store.js?v=2.3.0';
-import { router } from './core/router.js?v=2.3.0';
-import { installShortcut, initPwa } from './core/pwa.js?v=2.3.0';
+import { initReleaseUpdater, checkForReleaseUpdate } from './core/updater.js?v=2.3.1';
+import { RU } from './i18n/ru.js?v=2.3.1';
+import { events } from './core/events.js?v=2.3.1';
+import { store } from './core/store.js?v=2.3.1';
+import { router } from './core/router.js?v=2.3.1';
+import { installShortcut, initPwa } from './core/pwa.js?v=2.3.1';
 import {
   initTelegramMiniApp,
   extractIncomingDeepLinkParams,
@@ -13,17 +13,17 @@ import {
   syncTelegramTheme,
   syncTelegramBackButton,
   getTelegramUser
-} from './core/telegram.js?v=2.3.0';
-import { FISH_DB } from './data/species.js?v=2.3.0';
-import { WATER_PROFILES } from './data/waters.js?v=2.3.0';
-import { showToast, openModal, closeModal } from './ui/components.js?v=2.3.0';
-import { weatherModule } from './modules/weather/weather.module.js?v=2.3.0';
-import { geoModule } from './modules/geo/geo.module.js?v=2.3.0';
-import { fishModule } from './modules/fish/fish.module.js?v=2.3.0';
-import { forecastModule } from './modules/forecast/forecast.module.js?v=2.3.0';
-import { calendarModule } from './modules/calendar/calendar.module.js?v=2.3.0';
-import { logModule } from './modules/log/log.module.js?v=2.3.0';
-import { circleModule } from './modules/circle/circle.module.js?v=2.3.0';
+} from './core/telegram.js?v=2.3.1';
+import { FISH_DB } from './data/species.js?v=2.3.1';
+import { WATER_PROFILES } from './data/waters.js?v=2.3.1';
+import { showToast, openModal, closeModal } from './ui/components.js?v=2.3.1';
+import { weatherModule } from './modules/weather/weather.module.js?v=2.3.1';
+import { geoModule } from './modules/geo/geo.module.js?v=2.3.1';
+import { fishModule } from './modules/fish/fish.module.js?v=2.3.1';
+import { forecastModule } from './modules/forecast/forecast.module.js?v=2.3.1';
+import { calendarModule } from './modules/calendar/calendar.module.js?v=2.3.1';
+import { logModule } from './modules/log/log.module.js?v=2.3.1';
+import { circleModule } from './modules/circle/circle.module.js?v=2.3.1';
 
 if (typeof window !== 'undefined') {
   window.__KLEV_BOOTSTRAPPED__ = true;
@@ -642,7 +642,7 @@ function bootstrapApp() {
     if (typeof caches !== 'undefined' && typeof caches.keys === 'function') {
       caches.keys().then(keys => {
         keys.forEach(k => {
-          if (!k.includes('2.3.0')) caches.delete(k).catch(() => {});
+          if (!k.includes('2.3.1')) caches.delete(k).catch(() => {});
         });
       }).catch(() => {});
     }
@@ -652,7 +652,7 @@ function bootstrapApp() {
         <div style="display:flex;flex-direction:column;gap:12px;font-size:var(--fs-sm);line-height:1.48;">
           <div style="padding:12px;background:rgba(16,185,129,0.10);border:1.5px solid var(--good);border-radius:var(--r-sm);">
             <div style="font-weight:900;font-size:var(--fs-md);color:var(--good);margin-bottom:4px;">
-              🚀 Экосистема «Клёв ПРО» обновлена до версии V.2.3.0!
+              🚀 Экосистема «Клёв ПРО» обновлена до версии V.2.3.1!
             </div>
             <div style="font-size:var(--fs-xs);color:var(--text);">
               Для перехода на новую серверную архитектуру и устранения конфликтов старых сборок выполнен автоматический <b>сброс устаревшего кэша и настроек («С чистого листа»)</b>.
@@ -675,7 +675,7 @@ function bootstrapApp() {
           </div>
         </div>
       `;
-      openModal('🚀 Обновление V.2.3.0 («С чистого листа»)', cleanSlateHtml, (bodyEl) => {
+      openModal('🚀 Обновление V.2.3.1 («С чистого листа»)', cleanSlateHtml, (bodyEl) => {
         bodyEl.querySelector('#cleanSlateSignInBtn')?.addEventListener('click', () => {
           closeModal();
           circleModule.openAuthAndBackupModal();

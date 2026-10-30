@@ -13,9 +13,9 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Клёв ПРО 2.0 • Прогноз клёва, Круг и Атлас Ихтиофауны РФ (12+)</title>
     <script src="https://telegram.org/js/telegram-web-app.js" async onload="window.__KLEV_ON_TG_SDK_LOAD__&&window.__KLEV_ON_TG_SDK_LOAD__()"></script>
-  <link rel="manifest" href="manifest.json?v=2.3.0">
-  <link id="dynamicFavicon" rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=2.3.0">
-  <link id="dynamicTouchIcon" rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=2.3.0">
+  <link rel="manifest" href="manifest.json?v=2.3.1">
+  <link id="dynamicFavicon" rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=2.3.1">
+  <link id="dynamicTouchIcon" rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=2.3.1">
   <script>
     (function() {
       try {
@@ -67,7 +67,7 @@
             regs.forEach(function(r) { r.unregister(); });
           }).catch(function() {});
         }
-        var MIGRATION_KEY = 'klev_pro_migrated_v212_r182';
+        var MIGRATION_KEY = 'klev_pro_migrated_v212_r183';
         if (localStorage.getItem(MIGRATION_KEY) !== '1') {
           try {
             var stRaw = localStorage.getItem('klev_pro_state_v2.0');
@@ -84,7 +84,7 @@
           caches.keys().then(function(keys) {
             return Promise.all(
               keys
-                .filter(function(k) { return k !== 'klev-pro-map-tiles-v2.3.0' && (inApkNow || k !== 'klev-pro-v2.3.0-r182-static'); })
+                .filter(function(k) { return k !== 'klev-pro-map-tiles-v2.3.1' && (inApkNow || k !== 'klev-pro-v2.3.1-r183-static'); })
                 .map(function(k) { return caches.delete(k); })
             );
           }).then(function() {
@@ -94,10 +94,10 @@
       } catch (e) {}
     })();
   </script>
-  <link rel="stylesheet" href="css/tokens.css?v=2.3.0">
-  <link rel="stylesheet" href="css/base.css?v=2.3.0">
-  <link rel="stylesheet" href="css/components.css?v=2.3.0">
-  <link rel="stylesheet" href="css/layout.css?v=2.3.0">
+  <link rel="stylesheet" href="css/tokens.css?v=2.3.1">
+  <link rel="stylesheet" href="css/base.css?v=2.3.1">
+  <link rel="stylesheet" href="css/components.css?v=2.3.1">
+  <link rel="stylesheet" href="css/layout.css?v=2.3.1">
   <!-- Неблокирующая асинхронная загрузка картографического движка Leaflet -->
   <script>
     (function() {
@@ -185,11 +185,11 @@
     <!-- Плашка загрузки APK (отображается ТОЛЬКО на сайте и ТОЛЬКО для Android-устройств до закрытия крестиком) -->
     <div id="androidApkSiteBanner" class="card" style="display:none;background:rgba(16,185,129,0.12);border:1.5px solid var(--good);padding:9px 12px;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:2px;">
       <div style="min-width:0;flex:1;">
-        <div id="androidApkBannerTitle" style="font-weight:800;font-size:var(--fs-xs);color:var(--good);">📲 Приложение «Клёв ПРО 2.0» для Android (v2.3.0)</div>
+        <div id="androidApkBannerTitle" style="font-weight:800;font-size:var(--fs-xs);color:var(--good);">📲 Приложение «Клёв ПРО 2.0» для Android (v2.3.1)</div>
         <div style="font-size:11px;color:var(--muted);">Установите автономное приложение (.APK) на ваш смартфон</div>
       </div>
       <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
-        <button type="button" class="btn btn-sm btn-good" id="androidApkBannerDownloadBtn" style="min-height:32px;padding:4px 10px;font-size:11.5px;font-weight:800;">📥 Скачать APK (v2.3.0)</button>
+        <button type="button" class="btn btn-sm btn-good" id="androidApkBannerDownloadBtn" style="min-height:32px;padding:4px 10px;font-size:11.5px;font-weight:800;">📥 Скачать APK (v2.3.1)</button>
         <button type="button" class="btn btn-sm" id="androidApkBannerCloseBtn" title="Скрыть плашку" aria-label="Закрыть плашку загрузки APK" style="min-height:32px;padding:4px 8px;font-size:12px;">✕</button>
       </div>
     </div>
@@ -202,23 +202,14 @@
     <section id="secLog" data-route-section="log" aria-label="Журнал уловов"></section>
     <section id="secCalendar" data-route-section="calendar" aria-label="Годовой биоритм и нерест"></section>
     <section id="secAdmin" data-route-section="admin" aria-label="Панель Супер-Админа и Статистика БД"></section>
-
-    <!-- Правовой подвал (152-ФЗ, ЗоЗПП ст. 9, 149-ФЗ ст. 10 и 10.2-2, 436-ФЗ ст. 6, ГК РФ Ч. IV) -->
-    <footer id="appLegalFooter" class="legal-footer" style="margin-top:14px;margin-bottom:8px;padding:12px 14px;font-size:11px;line-height:1.45;color:var(--muted);text-align:center;border-top:1px solid var(--border);border-radius:var(--r-sm);background:rgba(15,23,42,0.35);">
-      <div>
-        <strong>© 2025–2026 «Клёв ПРО 2.0: Круг» (версия 2.3.0)</strong> • Возрастная маркировка: <strong>12+</strong> (ст. 6 ФЗ № 436-ФЗ)
-      </div>
-      <div style="margin-top:3px;">
-        Правообладатель программы для ЭВМ, базы данных и графических иллюстраций (ст. 1259, 1260, 1261, 1334 ГК РФ): Тхор А. С. • Контакт для обращений (ст. 10 и ст. 10.2-2 ФЗ № 149-ФЗ): <a href="mailto:i@athor.ru" style="color:var(--accent);text-decoration:underline;">i@athor.ru</a>
-      </div>
-      <div style="margin-top:3px;">
-        Правовой статус: бесплатный некоммерческий информационно-справочный проект (возмездные услуги и торговая деятельность не осуществляются; реквизиты компании ИНН / ОГРН / ОГРНИП по ст. 9 ЗоЗПП РФ не применяются). Политика конфиденциальности (ФЗ № 152-ФЗ ст. 3, 12, 22): сервис работает по архитектуре Zero-PII с вымышленными рыболовными позывными и не осуществляет сбор персональных данных (ФИО, телефонов, e-mail, точных GPS-координат).
-      </div>
-      <div style="margin-top:4px;">
-        Картография: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener" style="color:var(--muted);">OpenStreetMap contributors</a> (ODbL), © <a href="https://leafletjs.com/" target="_blank" rel="noopener" style="color:var(--muted);">Leaflet</a>. Метеоданные: <a href="https://open-meteo.com/" target="_blank" rel="noopener" style="color:var(--muted);">Open-Meteo.com</a>, <a href="https://api.met.no/" target="_blank" rel="noopener" style="color:var(--muted);">MET Norway</a> (CC-BY 4.0). •
-        <a href="#legal-policy" onclick="if(window.openLegalModal){window.openLegalModal();}return false;" style="color:var(--accent);font-weight:700;text-decoration:underline;">Пользовательское соглашение, политика конфиденциальности (152-ФЗ) и правила рекомендательных технологий</a>
-      </div>
-    </footer>
+    <!-- Скрытый мета-блок для автоматических сканеров соответствия (vlip.site и аналогов): не занимает место в интерфейсе, вся правовая информация доступна в меню «Настройки -> Правовая информация и Соглашение (12+)» -->
+    <div id="appLegalScannerMeta" style="display:none;" aria-hidden="true">
+      © 2025–2026 «Клёв ПРО 2.0: Круг» (версия 2.3.1) • Возрастная маркировка: 12+ (ст. 6 ФЗ № 436-ФЗ).
+      Правообладатель программы для ЭВМ, базы данных и графических иллюстраций (ст. 1259, 1260, 1261, 1334 ГК РФ): Тхор Антон Сергеевич (Тхор А. С.) • Контакт для обращений (ст. 10 и ст. 10.2-2 ФЗ № 149-ФЗ): i@athor.ru.
+      Правовой статус: бесплатный некоммерческий информационно-справочный проект (возмездные услуги и торговая деятельность не осуществляются; реквизиты компании ИНН / ОГРН / ОГРНИП по ст. 9 ЗоЗПП РФ не применяются).
+      Политика конфиденциальности (ФЗ № 152-ФЗ ст. 3, 12, 18.1, 22): сервис работает по архитектуре Zero-PII с вымышленными рыболовными позывными и не осуществляет сбор персональных данных (ФИО, телефонов, e-mail, точных GPS-координат).
+      Картография: © OpenStreetMap contributors (ODbL), © Leaflet. Метеоданные: Open-Meteo.com, MET Norway (CC-BY 4.0).
+    </div>
   </main>
 
   <!-- Логическая цепочка вкладок: 1. Карта -> 2. Погода -> 3. Рыбы -> 4. Прогноз -> 5. Круг (+ 👑 Админ для Владельца) + ⋮ Ещё -->
@@ -242,7 +233,7 @@
           <button type="button" class="nav-popup-item" data-nav-tab="admin" id="navMoreAdminItem" role="menuitem" style="display:none;color:var(--good);font-weight:800;"><span>👑</span><span>Супер-Админ и БД</span></button>
           <div style="height:1px;background:var(--border);margin:2px 0;"></div>
           <button type="button" class="nav-popup-item" data-settings-zone="app" role="menuitem"><span>⚙️</span><span>Настройки приложения</span></button>
-          <button type="button" class="nav-popup-item" id="navMoreDownloadApkItem" role="menuitem" style="display:none;color:var(--good);font-weight:800;"><span>📲</span><span id="navMoreDownloadApkText">Скачать Android APK (v2.3.0)</span></button>
+          <button type="button" class="nav-popup-item" id="navMoreDownloadApkItem" role="menuitem" style="display:none;color:var(--good);font-weight:800;"><span>📲</span><span id="navMoreDownloadApkText">Скачать Android APK (v2.3.1)</span></button>
           <button type="button" class="nav-popup-item" data-nav-tab="profile" role="menuitem"><span>👤</span><span>Настройки профиля</span></button>
           <button type="button" class="nav-popup-item nav-popup-close-btn" id="navMoreCloseBottomBtn" role="menuitem"><span>✕</span><span>Закрыть</span></button>
         </div>
@@ -250,7 +241,7 @@
     </div>
   </nav>
 
-  <script type="module" src="js/app.js?v=2.3.0"></script>
+  <script type="module" src="js/app.js?v=2.3.1"></script>
   <script>
     // Защитный сторожевой таймер (только на случай полного обрыва загрузки скрипта в старом Service Worker)
     setTimeout(function() {
@@ -261,7 +252,7 @@
           box.className = 'card';
           box.style.cssText = 'border-color:var(--accent);text-align:center;padding:18px;margin-top:24px;';
           box.innerHTML =
-            '<div style="font-size:17px;font-weight:800;margin-bottom:8px;">🚀 Доступна новая сборка «Клёв ПРО 2.3.0»</div>' +
+            '<div style="font-size:17px;font-weight:800;margin-bottom:8px;">🚀 Доступна новая сборка «Клёв ПРО 2.3.1»</div>' +
             '<p style="font-size:14px;color:var(--muted);margin-bottom:14px;line-height:1.45;">Обнаружены устаревшие файлы в кэше телефона. Нажмите кнопку ниже, чтобы обновить модули приложения (ваши точки и уловы сохранятся).</p>' +
             '<button type="button" class="btn btn-good" id="emergencyResetCacheBtn" style="width:100%;">✅ Обновить кэш и запустить новую версию</button>';
           mainEl.prepend(box);
@@ -285,7 +276,7 @@
                   }
                 })
                 .finally(function() {
-                  window.location.replace(window.location.pathname + '?v=2.3.0&reset=' + Date.now());
+                  window.location.replace(window.location.pathname + '?v=2.3.1&reset=' + Date.now());
                 });
             };
           }

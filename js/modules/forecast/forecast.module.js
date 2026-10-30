@@ -1,17 +1,17 @@
-import { getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.3.0';
-import { RU } from '../../i18n/ru.js?v=2.3.0';
-import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.3.0';
-import { events } from '../../core/events.js?v=2.3.0';
-import { storage } from '../../core/storage.js?v=2.3.0';
-import { store } from '../../core/store.js?v=2.3.0';
-import { formatLocalYYYYMMDD, fmtDeltaPress, fmtHM } from '../../core/format.js?v=2.3.0';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.3.0';
-import { FISH_DB } from '../../data/species.js?v=2.3.0';
-import { renderFiveFish } from '../../ui/svg.js?v=2.3.0';
-import { createPill, showToast, openModal } from '../../ui/components.js?v=2.3.0';
-import { computeIceSafetyIndex } from '../weather/weather.module.js?v=2.3.0';
-import { evaluateCircleFieldConfirmation, requireRegisteredFisherId } from '../circle/circle.module.js?v=2.3.0';
-import { isTelegramWebApp, getTelegramUser, shareToTelegramChat, openBotChatInTelegram, buildForecastShareUrls, TELEGRAM_BOT_USERNAME } from '../../core/telegram.js?v=2.3.0';
+import { getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.3.1';
+import { RU } from '../../i18n/ru.js?v=2.3.1';
+import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.3.1';
+import { events } from '../../core/events.js?v=2.3.1';
+import { storage } from '../../core/storage.js?v=2.3.1';
+import { store } from '../../core/store.js?v=2.3.1';
+import { formatLocalYYYYMMDD, fmtDeltaPress, fmtHM } from '../../core/format.js?v=2.3.1';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.3.1';
+import { FISH_DB } from '../../data/species.js?v=2.3.1';
+import { renderFiveFish } from '../../ui/svg.js?v=2.3.1';
+import { createPill, showToast, openModal } from '../../ui/components.js?v=2.3.1';
+import { computeIceSafetyIndex } from '../weather/weather.module.js?v=2.3.1';
+import { evaluateCircleFieldConfirmation, requireRegisteredFisherId } from '../circle/circle.module.js?v=2.3.1';
+import { isTelegramWebApp, getTelegramUser, shareToTelegramChat, openBotChatInTelegram, buildForecastShareUrls, TELEGRAM_BOT_USERNAME } from '../../core/telegram.js?v=2.3.1';
 
 /**
  * Список морских, проходных и полупроходных видов, которые заходят в пресные реки

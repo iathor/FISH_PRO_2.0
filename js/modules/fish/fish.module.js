@@ -1,14 +1,14 @@
-import { RU } from '../../i18n/ru.js?v=2.3.0';
-import { events } from '../../core/events.js?v=2.3.0';
-import { store } from '../../core/store.js?v=2.3.0';
-import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.3.0';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.3.0';
-import { RUSSIA_CITIES, findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.3.0';
-import { FISH_DB } from '../../data/species.js?v=2.3.0';
-import { renderFishVisual, renderFiveFish } from '../../ui/svg.js?v=2.3.0';
-import { createPill, showToast, openModal, closeModal, openFishLightbox, openUserAgreementModal, isUserAgreementAccepted, requestSystemNotificationsAccess } from '../../ui/components.js?v=2.3.0';
-import { setLocation, detectUserPosition } from '../geo/geo.module.js?v=2.3.0';
-import { installShortcut, isApkOrTmaContainer, isAppInstalledOrShortcutPresent } from '../../core/pwa.js?v=2.3.0';
+import { RU } from '../../i18n/ru.js?v=2.3.1';
+import { events } from '../../core/events.js?v=2.3.1';
+import { store } from '../../core/store.js?v=2.3.1';
+import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.3.1';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.3.1';
+import { RUSSIA_CITIES, findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.3.1';
+import { FISH_DB } from '../../data/species.js?v=2.3.1';
+import { renderFishVisual, renderFiveFish } from '../../ui/svg.js?v=2.3.1';
+import { createPill, showToast, openModal, closeModal, openFishLightbox, openUserAgreementModal, isUserAgreementAccepted, requestSystemNotificationsAccess } from '../../ui/components.js?v=2.3.1';
+import { setLocation, detectUserPosition } from '../geo/geo.module.js?v=2.3.1';
+import { installShortcut, isApkOrTmaContainer, isAppInstalledOrShortcutPresent } from '../../core/pwa.js?v=2.3.1';
 import {
   openAuthAndBackupModal,
   openNotificationsModal,
@@ -18,10 +18,10 @@ import {
   syncCurrentProfileToCloudIfLoggedIn,
   renderSettingsZoneTabsHtml,
   bindSettingsZoneTabs
-} from '../circle/circle.module.js?v=2.3.0';
-import { fetchWeather } from '../weather/weather.module.js?v=2.3.0';
-import { checkForReleaseUpdate, isAndroidWebsiteVisitor, getCachedApkManifest, triggerApkFileDownload } from '../../core/updater.js?v=2.3.0';
-import { calcDayBest } from '../forecast/forecast.module.js?v=2.3.0';
+} from '../circle/circle.module.js?v=2.3.1';
+import { fetchWeather } from '../weather/weather.module.js?v=2.3.1';
+import { checkForReleaseUpdate, isAndroidWebsiteVisitor, getCachedApkManifest, triggerApkFileDownload } from '../../core/updater.js?v=2.3.1';
+import { calcDayBest } from '../forecast/forecast.module.js?v=2.3.1';
 
 /**
  * Региональные приоритетные виды для каждого бассейна РФ,
@@ -597,13 +597,17 @@ export function openAppParamsModal(onBackToHub = null) {
             <button type="button" class="btn btn-sm" id="onbVersionCheckBtn">📦 Проверить версию</button>
             ${(isApkOrTmaContainer() || isAppInstalledOrShortcutPresent()) ? '' : '<button type="button" class="btn btn-sm" id="onbInstallAppBtn" data-install-app>📲 На экран</button>'}
           </div>
+          <div style="padding-top:6px;border-top:1px dashed var(--border);display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+            <span style="font-size:11px;color:var(--muted);">📜 Правовая информация, авторские права и Политика (152-ФЗ • 12+)</span>
+            <button type="button" class="btn btn-sm" id="onbOpenLegalAgreementBtn" style="min-height:28px;padding:3px 10px;font-size:11px;">📜 Прочитать</button>
+          </div>
           ${isAndroidWebsiteVisitor() ? `
             <div style="padding:8px 10px;background:rgba(16,185,129,0.10);border:1px solid var(--good);border-radius:var(--r-sm);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-top:2px;">
               <div style="min-width:0;flex:1;">
                 <div style="font-weight:800;font-size:11.5px;color:var(--good);">📲 Приложение для Android (.APK)</div>
-                <div style="font-size:11px;color:var(--muted);">Доступна версия: <b>v${getCachedApkManifest().version || '2.3.0'}</b> (${getCachedApkManifest().fileSize || '7.9 МБ'})</div>
+                <div style="font-size:11px;color:var(--muted);">Доступна версия: <b>v${getCachedApkManifest().version || '2.3.1'}</b> (${getCachedApkManifest().fileSize || '7.9 МБ'})</div>
               </div>
-              <button type="button" class="btn btn-sm btn-good" id="onbDownloadAndroidApkBtn" style="font-weight:800;">📥 Скачать APK (v${getCachedApkManifest().version || '2.3.0'})</button>
+              <button type="button" class="btn btn-sm btn-good" id="onbDownloadAndroidApkBtn" style="font-weight:800;">📥 Скачать APK (v${getCachedApkManifest().version || '2.3.1'})</button>
             </div>
           ` : ''}
         </div>
@@ -685,6 +689,10 @@ export function openAppParamsModal(onBackToHub = null) {
     bodyEl.querySelector('#onbVersionCheckBtn')?.addEventListener('click', () => {
       closeModal();
       checkForReleaseUpdate({ manual: true });
+    });
+
+    bodyEl.querySelector('#onbOpenLegalAgreementBtn')?.addEventListener('click', () => {
+      openUserAgreementModal({ requireVerification: false });
     });
 
     bodyEl.querySelector('#onbDownloadAndroidApkBtn')?.addEventListener('click', () => {

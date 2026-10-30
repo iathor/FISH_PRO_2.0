@@ -1,16 +1,16 @@
 /**
  * @file updater.js
  * @description Модуль контроля версий, загрузки Android APK с сайта (строго только на сайте и только для Android)
- * и внутреннего протокола проверки обновлений внутри Android APK через каталог /apk/apk-version.json (Релиз 2.3.0).
+ * и внутреннего протокола проверки обновлений внутри Android APK через каталог /apk/apk-version.json (Релиз 2.3.1).
  */
 
-import { APP_VERSION, APP_REVISION, RELEASE_CACHE_KEY, CURRENT_RELEASE_INFO } from './config.js?v=2.3.0';
-import { showToast } from '../ui/components.js?v=2.3.0';
+import { APP_VERSION, APP_REVISION, RELEASE_CACHE_KEY, CURRENT_RELEASE_INFO } from './config.js?v=2.3.1';
+import { showToast } from '../ui/components.js?v=2.3.1';
 
 export const PUBLIC_SITE_ORIGIN = 'https://klevpro.ru';
 export const APK_MANIFEST_PATH = '/apk/apk-version.json';
-export const DEFAULT_APK_DOWNLOAD_URL = 'https://klevpro.ru/apk/klev-pro-v2.3.0.apk';
-export const APK_BANNER_DISMISSED_KEY = 'klev_pro_hide_apk_banner_v2.3.0';
+export const DEFAULT_APK_DOWNLOAD_URL = 'https://klevpro.ru/apk/klev-pro-v2.3.1.apk';
+export const APK_BANNER_DISMISSED_KEY = 'klev_pro_hide_apk_banner_v2.3.1';
 
 let pendingSwRegistration = null;
 let pendingReleaseInfo = null;
