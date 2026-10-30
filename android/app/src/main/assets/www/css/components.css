@@ -710,3 +710,68 @@ input[type="checkbox"], input[type="radio"] {
   color: var(--muted) !important;
   justify-content: center !important;
 }
+
+
+/* Зимний стандарт под перчатки (48x48px) и 5-кнопочная нижняя панель (v2.4.0) */
+.bottom-nav .nav-tab {
+  min-height: 48px !important;
+  padding: 5px 4px !important;
+}
+.circle-chats-hub-bar {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  padding: 6px;
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-md);
+  margin-bottom: 12px;
+}
+.circle-chats-hub-btn {
+  min-height: 46px !important;
+  font-weight: 800 !important;
+  font-size: 13px !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border-radius: var(--r-sm);
+  position: relative;
+}
+/* Цветовые кружки-маркеры расцветок приманок (Билайн, Триколор, Кислотник, Машинное масло и др.) */
+.bait-color-dot {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  vertical-align: -2px;
+  margin-right: 4px;
+  border: 1.5px solid rgba(255,255,255,0.65);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.45);
+  flex-shrink: 0;
+}
+/* Спойлер «Почему такой прогноз?» в виде крупной тактической кнопки */
+details.forecast-why-spoiler > summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 48px;
+  padding: 10px 14px;
+  background: var(--card);
+  border: 1.5px solid var(--accent);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  font-weight: 800;
+  font-size: var(--fs-sm);
+  color: var(--accent);
+  user-select: none;
+}
+details.forecast-why-spoiler > summary::-webkit-details-marker {
+  display: none;
+}
+details.forecast-why-spoiler[open] > summary {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}

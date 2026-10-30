@@ -1,7 +1,7 @@
 // @file bot/cloudflare-worker-bot.js — @KlevProClubBot (V.2.1.1)
 // Компактная сборка для Cloudflare Workers (115 рыб, 491 водоём, 609 городов РФ + Triple-Engine $0 DB + E2EE Relay + Обмен точками Круга/Экипажа/SOS + Уникальные Региональные ID FP_89AAA001 & Эксклюзивный VIP ID владельца FP_89VIP089 + Секретная Серверная Консоль Супер-Админа)
 
-const WORKER_VERSION = '2.3.2';
+const WORKER_VERSION = '2.4.0';
 const RESERVE_ID_TTL_MS = 24 * 60 * 60 * 1000; // Временный резервный ID живёт строго не более 24 часов (суток)
 const deletedFisherIdsSet = new Set(); // Удалённые вручную через Админ-панель ID (защита от повторной фоновой вставки)
 const rateBuckets = new Map();
@@ -476,7 +476,7 @@ async function verifyUserAuth(env, { fid = '', authTokenHash = '', deviceId = ''
   }
  }
 
- // Для обратной совместимости с уже выданными сессиями v2.3.2, если профиль ещё не связан с другим устройством
+ // Для обратной совместимости с уже выданными сессиями v2.4.0, если профиль ещё не связан с другим устройством
  if (!prof && !regUser) {
   return { ok: true, isAdmin: false, isOwner: false };
  }
@@ -4539,7 +4539,7 @@ function renderSuperAdminConsoleHtml(originUrl = '', d1Info = null) {
        <div style="font-weight:900;color:#34d399;font-size:14px;">🟢 Cloudflare D1 База Данных: ПОДКЛЮЧЕНА (Имя привязки: ${esc(d1Info.name)})</div>
        <div style="font-size:12px;color:#94a3b8;margin-top:2px;">Все постоянные ID, реестр пользователей, чаты и точки сохраняются в постоянных SQL-таблицах D1.</div>
       </div>
-      <span style="padding:4px 10px;border-radius:6px;background:#1e293b;border:1px solid #334155;font-size:11px;font-weight:800;color:#38bdf8;">D1 Engine 2.3.2</span>
+      <span style="padding:4px 10px;border-radius:6px;background:#1e293b;border:1px solid #334155;font-size:11px;font-weight:800;color:#38bdf8;">D1 Engine 2.4.0</span>
      </div>`
   : `<div style="padding:12px 14px;border-radius:10px;background:rgba(239,68,68,0.15);border:1.5px solid #ef4444;margin-bottom:12px;display:flex;flex-direction:column;gap:6px;">
       <div style="font-weight:900;color:#f87171;font-size:14px;">🔴 ВНИМАНИЕ: Cloudflare D1 База Данных НЕ ПРИВЯЗАНА!</div>
@@ -5191,7 +5191,7 @@ function generateSyntheticWeatherJson(lat, lon) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 4500);
     const upstreamRes = await fetch(omUrl, {
-     headers: { 'User-Agent': 'KlevProClubBot/2.3.2 (https://klevpro.ru)' },
+     headers: { 'User-Agent': 'KlevProClubBot/2.4.0 (https://klevpro.ru)' },
      signal: controller.signal,
      cf: { cacheTtl: 1800, cacheEverything: true }
     }).catch(() => null);
@@ -5207,7 +5207,7 @@ function generateSyntheticWeatherJson(lat, lon) {
     try {
      const metUrl = `https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${gLat}&lon=${gLon}`;
      const metRes = await fetch(metUrl, {
-      headers: { 'User-Agent': 'KlevProClubBot/2.3.2 (https://klevpro.ru, i@athor.ru)' }
+      headers: { 'User-Agent': 'KlevProClubBot/2.4.0 (https://klevpro.ru, i@athor.ru)' }
      }).catch(() => null);
      if (metRes && metRes.ok) {
       const metJson = await metRes.json();
@@ -6133,8 +6133,8 @@ function generateSyntheticWeatherJson(lat, lon) {
     appName: 'Клёв ПРО 2.0',
     packageName: 'ru.klevpro.app',
     version: WORKER_VERSION,
-    versionCode: 23020,
-    buildRevision: '2026.10.30-r184',
+    versionCode: 24000,
+    buildRevision: '2026.10.30-r185',
     releaseDate: '2026-10-30',
     apkFileName: `klev-pro-v${WORKER_VERSION}.apk`,
     apkUrl: `https://klevpro.ru/apk/klev-pro-v${WORKER_VERSION}.apk`,
