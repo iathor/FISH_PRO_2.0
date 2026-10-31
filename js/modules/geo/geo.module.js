@@ -1,12 +1,12 @@
-import { MAP_LAYERS, SPOT_CATEGORIES, getCompatibleMethods } from '../../core/config.js?v=2.5.0';
-import { events } from '../../core/events.js?v=2.5.0';
-import { storage, safeJsonParse } from '../../core/storage.js?v=2.5.0';
-import { store } from '../../core/store.js?v=2.5.0';
-import { fetchWithTimeout } from '../../core/http.js?v=2.5.0';
-import { installShortcut, syncInstallButtons } from '../../core/pwa.js?v=2.5.0';
-import { triggerHaptic } from '../../core/telegram.js?v=2.5.0';
-import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.5.0';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.5.0';
+import { MAP_LAYERS, SPOT_CATEGORIES, getCompatibleMethods } from '../../core/config.js?v=2.5.1';
+import { events } from '../../core/events.js?v=2.5.1';
+import { storage, safeJsonParse } from '../../core/storage.js?v=2.5.1';
+import { store } from '../../core/store.js?v=2.5.1';
+import { fetchWithTimeout } from '../../core/http.js?v=2.5.1';
+import { installShortcut, syncInstallButtons } from '../../core/pwa.js?v=2.5.1';
+import { triggerHaptic } from '../../core/telegram.js?v=2.5.1';
+import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.5.1';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.5.1';
 import {
   RUSSIA_CITIES,
   RUSSIA_WATERS,
@@ -14,12 +14,12 @@ import {
   getNearestRussianSettlements,
   getNearestRussianWaters,
   getWaterTypeShortTag
-} from '../../data/russia-waters.js?v=2.5.0';
-import { FISH_DB } from '../../data/species.js?v=2.5.0';
-import { createPill, showToast } from '../../ui/components.js?v=2.5.0';
-import { fetchWeather } from '../weather/weather.module.js?v=2.5.0';
-import { calcDayBest } from '../forecast/forecast.module.js?v=2.5.0';
-import { computeHexPolygonForCircle, getEffectiveCircleRadiusKm, canUserAccessCrewItem, getCurrentFisherIdentity, isCircleItemMine, isCircleItemHidden } from '../circle/circle.module.js?v=2.5.0';
+} from '../../data/russia-waters.js?v=2.5.1';
+import { FISH_DB } from '../../data/species.js?v=2.5.1';
+import { escapeHtml, createPill, showToast, openModal, closeModal, openConfirmDeleteModal, downloadFileCrossPlatform } from '../../ui/components.js?v=2.5.1';
+import { fetchWeather } from '../weather/weather.module.js?v=2.5.1';
+import { calcDayBest } from '../forecast/forecast.module.js?v=2.5.1';
+import { computeHexPolygonForCircle, getEffectiveCircleRadiusKm, getCircleHexDecayState, canUserAccessCrewItem, getCurrentFisherIdentity, isCircleItemMine, isCircleItemHidden } from '../circle/circle.module.js?v=2.5.1';
 
 let mapInstance = null;
 let mapMarker = null;
@@ -48,13 +48,20 @@ if (typeof window !== 'undefined') {
   window.__KLEV_FOCUS_MAP_CIRCLE__ = focusCircleOnMap;
 }
 let currentTileLayer = null;
-let currentLayerKey = 'topo';
+let currentLayerKey = 'yandex_map';
 let mapOpen = false;
 let inlineGpsHint = '';
 let overpassLoading = false;
 let activeOverpassReqId = 0;
 
-// Режим разведки « Что здесь клюёт?» (без перезаписи домашней точки)
+// Фильтры Яндекс Карт (акцент русел/мелководий, слой подписей рек l=skl, вечерний антиблик)
+let yandexMapFilters = {
+  hydro: false,
+  labels: false,
+  dim: false
+};
+
+// Режим разведки «Что здесь клюёт?» (без перезаписи домашней точки)
 let inspectMode = false;
 let inspectedPoint = null; // { lat, lon, basinCode, basinName, settlement, waters, topSpecies, waterType }
 
@@ -67,19 +74,47 @@ let visibleMapLayers = {
   spotCategory: "all" // "all" | "bite" | "slip" | "camp" | "hazard" | "shop"
 };
 
-function createResilientTileLayer(layerKey = 'topo') {
-  const cfg = MAP_LAYERS[layerKey] || MAP_LAYERS.topo;
-  const fallbacks = Array.isArray(cfg.fallbacks) ? cfg.fallbacks : [
-    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
-    'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
-  ];
-  const tl = L.tileLayer(cfg.url, {
+/**
+ * Возвращает точную эллиптическую проекцию Меркатора EPSG:3395 (WGS-84) для Яндекс Карт,
+ * чтобы берега рек, острова и рыболовные точки совпадали с точностью до метра без вертикального сдвига.
+ */
+function getYandexEPSG3395CRS() {
+  if (typeof L === 'undefined') return null;
+  if (L.CRS && L.CRS.EPSG3395) return L.CRS.EPSG3395;
+  if (L.Projection && L.Projection.Mercator && L.CRS && L.CRS.Earth && L.Transformation) {
+    const R = 6378137;
+    const scale = 0.5 / (Math.PI * R);
+    return L.extend({}, L.CRS.Earth, {
+      code: 'EPSG:3395',
+      projection: L.Projection.Mercator,
+      transformation: new L.Transformation(scale, 0.5, -scale, 0.5)
+    });
+  }
+  return L.CRS.EPSG3857;
+}
+
+function applyYandexTileFiltersToMap() {
+  if (!mapInstance || typeof mapInstance.getPane !== 'function') return;
+  const tilePane = mapInstance.getPane('tilePane');
+  if (!tilePane) return;
+  const filters = [];
+  if (yandexMapFilters.hydro) {
+    filters.push('contrast(1.22) saturate(1.42)');
+  }
+  if (yandexMapFilters.dim) {
+    filters.push('brightness(0.82) contrast(1.08)');
+  }
+  tilePane.style.filter = filters.length > 0 ? filters.join(' ') : '';
+}
+
+function createSingleResilientTileLayer(url, fallbacks = [], subdomains = ['1', '2', '3', '4'], attr = '') {
+  const tl = L.tileLayer(url, {
     maxZoom: 18,
-    attribution: cfg.attr,
+    subdomains,
+    attribution: attr,
     updateWhenIdle: true,
     updateWhenZooming: false,
-    keepBuffer: 2,
-    crossOrigin: true
+    keepBuffer: 2
   });
   tl.on('tileerror', (errEvt) => {
     const tile = errEvt?.tile;
@@ -88,7 +123,7 @@ function createResilientTileLayer(layerKey = 'topo') {
     const fbIdx = Number(tile.getAttribute('data-fb-idx') || '0');
     if (fbIdx >= fallbacks.length) return;
     tile.setAttribute('data-fb-idx', String(fbIdx + 1));
-    const sub = ['a', 'b', 'c'][(coords.x + coords.y) % 3];
+    const sub = ['1', '2', '3', '4'][(coords.x + coords.y) % 4];
     const nextUrl = fallbacks[fbIdx]
       .replace('{s}', sub)
       .replace('{z}', String(coords.z))
@@ -97,6 +132,21 @@ function createResilientTileLayer(layerKey = 'topo') {
     tile.src = nextUrl;
   });
   return tl;
+}
+
+function createResilientTileLayer(layerKey = 'yandex_map') {
+  const cfg = MAP_LAYERS[layerKey] || MAP_LAYERS.yandex_map || Object.values(MAP_LAYERS)[0];
+  const subs = Array.isArray(cfg.subdomains) ? cfg.subdomains : ['1', '2', '3', '4'];
+  const fallbacks = Array.isArray(cfg.fallbacks) ? cfg.fallbacks : [];
+  const baseTl = createSingleResilientTileLayer(cfg.url, fallbacks, subs, cfg.attr);
+
+  const needLabelsOverlay = Boolean(cfg.hasLabelsOverlay || (yandexMapFilters.labels && layerKey === 'yandex_sat'));
+  if (needLabelsOverlay) {
+    const sklUrl = cfg.overlayUrl || 'https://core-renderer-tiles.maps.yandex.net/tiles?l=skl&v=24.10.30-0&x={x}&y={y}&z={z}&scale=2&lang=ru_RU';
+    const sklTl = createSingleResilientTileLayer(sklUrl, [], subs, '');
+    return L.layerGroup([baseTl, sklTl]);
+  }
+  return baseTl;
 }
 
 function clamp(val, min, max) {
@@ -1127,12 +1177,12 @@ function renderMapOverlays() {
         if (isFocused) crewZone.openPopup();
       } else {
         // Закрытый чужой экипаж (информативный размытый круг ±3.5 км, без раскрытия секретной стоянки)
-        const lockedZone = L.circle([item.lat, item.lon], {
-          radius: 3500,
+        const lockedHex = computeHexPolygonForCircle(item.lat, item.lon, 3.5, item.id);
+        const lockedZone = L.polygon(lockedHex.vertices, {
           color: isFocused ? '#38bdf8' : '#64748b',
           fillColor: '#0284c7',
-          fillOpacity: isFocused ? 0.22 : 0.12,
-          weight: isFocused ? 2.5 : 1.5,
+          fillOpacity: isFocused ? 0.24 : 0.13,
+          weight: isFocused ? 2.6 : 1.7,
           dashArray: '6, 6'
         });
         const lockMarker = L.marker([item.lat, item.lon], {
@@ -1157,33 +1207,45 @@ function renderMapOverlays() {
         if (isFocused) lockedZone.openPopup();
       }
     } else if (item.t === 'circle' && visibleMapLayers.circleBlur) {
-      // <svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"9\" cy=\"8\" r=\"3.5\" fill=\"rgba(56,189,248,0.25)\" stroke=\"currentColor\" stroke-width=\"1.8\"/><path d=\"M3 19c0-3.2 2.7-5.5 6-5.5s6 2.3 6 5.5\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\"/><circle cx=\"17\" cy=\"9\" r=\"2.8\" stroke=\"currentColor\" stroke-width=\"1.6\"/><path d=\"M16 14c2.6.3 4.8 2 5 4.8\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\"/></svg> Размытый информативный круг Круга ±5 км
-      const effRadiusKm = getEffectiveCircleRadiusKm(item, now);
+      // Гексагон (6-угольная сота) «Круга» с плавным угасанием в течение 72 часов (0..72 ч)
+      const decay = getCircleHexDecayState(item, now);
+      if (decay.expired) return;
+
       const polyColor = mine ? '#10b981' : '#38bdf8';
-      const circleRadiusM = effRadiusKm * 1000;
-      const blurZone = L.circle([item.lat, item.lon], {
-        radius: circleRadiusM,
+      const hexObj = computeHexPolygonForCircle(item.lat, item.lon, decay.radiusKm, item.id);
+      const hexVertices = (Array.isArray(item.poly) && item.poly.length === 6 && decay.radiusKm === 5.0)
+        ? item.poly
+        : hexObj.vertices;
+
+      const blurZone = L.polygon(hexVertices, {
         color: isFocused ? '#fbbf24' : polyColor,
+        opacity: isFocused ? 1.0 : decay.strokeOpacity,
         fillColor: polyColor,
-        fillOpacity: isFocused ? 0.28 : 0.16,
-        weight: isFocused ? 2.8 : 1.8,
-        dashArray: '5, 5'
+        fillOpacity: isFocused ? 0.34 : decay.fillOpacity,
+        weight: isFocused ? 3.2 : decay.weight,
+        dashArray: isFocused ? null : decay.dashArray
       });
-      const fishIconMarker = L.marker([item.lat, item.lon], {
+
+      const centerLat = Number.isFinite(hexObj.cellLat) ? hexObj.cellLat : item.lat;
+      const centerLon = Number.isFinite(hexObj.cellLon) ? hexObj.cellLon : item.lon;
+      const fishIconMarker = L.marker([centerLat, centerLon], {
+        opacity: decay.markerOpacity,
         icon: L.divIcon({
           className: 'klev-circle-icon',
-          html: `<div style="font-size:15px;line-height:1;text-shadow:0 1px 3px rgba(0,0,0,0.8);">${item.kg ? '<svg class=\"k-ico\" style=\"color:#fbbf24;\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M7 4h10v5a5 5 0 0 1-10 0V4z\" fill=\"rgba(251,191,36,0.28)\" stroke=\"#fbbf24\" stroke-width=\"1.8\"/><path d=\"M7 6H4v2a3 3 0 0 0 3 3M17 6h3v2a3 3 0 0 1-3 3M12 14v4M8 20h8\" stroke=\"#fbbf24\" stroke-width=\"1.8\" stroke-linecap=\"round\"/></svg>' : '<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M2 12s4-6 11-6c4.2 0 7 2.5 9 6-2 3.5-4.8 6-9 6-7 0-11-6-11-6z\" fill=\"rgba(56,189,248,0.28)\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/><path d=\"M2 12l-1.5-3.5L5 10.5M2 12l-1.5 3.5L5 13.5\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\"/><circle cx=\"16.5\" cy=\"10.8\" r=\"1.3\" fill=\"currentColor\"/></svg>'}</div>`,
+          html: `<div style="font-size:15px;line-height:1;opacity:${decay.markerOpacity};text-shadow:0 1px 3px rgba(0,0,0,0.8);">${item.kg ? '<svg class="k-ico" style="color:#fbbf24;" viewBox="0 0 24 24" fill="none"><path d="M7 4h10v5a5 5 0 0 1-10 0V4z" fill="rgba(251,191,36,0.28)" stroke="#fbbf24" stroke-width="1.8"/><path d="M7 6H4v2a3 3 0 0 0 3 3M17 6h3v2a3 3 0 0 1-3 3M12 14v4M8 20h8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg>' : '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 12s4-6 11-6c4.2 0 7 2.5 9 6-2 3.5-4.8 6-9 6-7 0-11-6-11-6z" fill="rgba(56,189,248,0.28)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M2 12l-1.5-3.5L5 10.5M2 12l-1.5 3.5L5 13.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="16.5" cy="10.8" r="1.3" fill="currentColor"/></svg>'}</div>`,
           iconSize: [18, 18],
           iconAnchor: [9, 9]
         })
       });
-      const circlePopupHtml = `<div style="font-size:12px;line-height:1.4;">` +
-        `<b style="color:${polyColor};font-size:13px;">⬡ Сектор Круга ±${effRadiusKm} км (${ownerBadgeHtml}):</b><br>` +
-        `<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z\" fill=\"rgba(239,68,68,0.22)\" stroke=\"#ef4444\" stroke-width=\"1.9\"/><circle cx=\"12\" cy=\"11\" r=\"2.3\" fill=\"#ef4444\"/></svg> <b>${item.wn || item.lb || 'Водоём'}</b> (глубина ~${item.dp || 1.5} м)<br>` +
-        `<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M2 12s4-6 11-6c4.2 0 7 2.5 9 6-2 3.5-4.8 6-9 6-7 0-11-6-11-6z\" fill=\"rgba(56,189,248,0.28)\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/><path d=\"M2 12l-1.5-3.5L5 10.5M2 12l-1.5 3.5L5 13.5\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\"/><circle cx=\"16.5\" cy=\"10.8\" r=\"1.3\" fill=\"currentColor\"/></svg> <b>${escapeHtml(item.fn || 'Рыба')}${item.kg ? ` (${item.kg} кг)` : ''}</b> • <svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z\" fill=\"rgba(56,189,248,0.32)\" stroke=\"#38bdf8\" stroke-width=\"1.8\"/><path d=\"M9.5 15.5c.5 1.2 1.7 2 3 2\" stroke=\"#fff\" stroke-width=\"1.4\" stroke-linecap=\"round\"/></svg> Вода ~${item.tw ?? 8}°C<br>` +
-        `<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M4 18c0-4 4-4 4-8s4-4 4-6 5-1 5 3-3 5-3 8 4 4 6 2\" stroke=\"#f43f5e\" stroke-width=\"2.2\" stroke-linecap=\"round\"/></svg> Приманка: <b>${escapeHtml(item.bt || 'по сезону')}</b><br>` +
-        `<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"12\" cy=\"8\" r=\"4\" fill=\"rgba(56,189,248,0.22)\" stroke=\"currentColor\" stroke-width=\"1.8\"/><path d=\"M4 20c0-3.8 3.6-6.5 8-6.5s8 2.7 8 6.5\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\"/></svg> От: <b>${escapeHtml(item.au || 'Рыболов')}</b><br>` +
-        (item.nt ? `<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z\" fill=\"rgba(56,189,248,0.18)\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/></svg> «${escapeHtml(item.nt)}»<br>` : '') +
+      const freshnessPct = Math.round(decay.freshness * 100);
+      const circlePopupHtml = `<div style="font-size:12px;line-height:1.42;">` +
+        `<b style="color:${polyColor};font-size:13px;">⬡ Гексагон Круга ±${decay.radiusKm} км (${ownerBadgeHtml}):</b><br>` +
+        `<span style="display:inline-block;margin:2px 0 4px;padding:1px 7px;border-radius:999px;background:rgba(56,189,248,0.16);border:1px solid ${polyColor};font-size:10.5px;font-weight:800;color:${polyColor};">${decay.stageLabel} • Свежесть ${freshnessPct}% (осталось ~${decay.hoursLeft} ч из 72 ч)</span><br>` +
+        `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#ef4444"/></svg> <b>${escapeHtml(item.wn || item.lb || 'Водоём')}</b> (глубина ~${item.dp || 1.5} м)<br>` +
+        `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 12s4-6 11-6c4.2 0 7 2.5 9 6-2 3.5-4.8 6-9 6-7 0-11-6-11-6z" fill="rgba(56,189,248,0.28)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M2 12l-1.5-3.5L5 10.5M2 12l-1.5 3.5L5 13.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="16.5" cy="10.8" r="1.3" fill="currentColor"/></svg> <b>${escapeHtml(item.fn || 'Рыба')}${item.kg ? ` (${item.kg} кг)` : ''}</b> • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> Вода ~${item.tw ?? 8}°C<br>` +
+        `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 18c0-4 4-4 4-8s4-4 4-6 5-1 5 3-3 5-3 8 4 4 6 2" stroke="#f43f5e" stroke-width="2.2" stroke-linecap="round"/></svg> Приманка: <b>${escapeHtml(item.bt || 'по сезону')}</b><br>` +
+        `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" fill="rgba(56,189,248,0.22)" stroke="currentColor" stroke-width="1.8"/><path d="M4 20c0-3.8 3.6-6.5 8-6.5s8 2.7 8 6.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> От: <b>${escapeHtml(item.au || 'Рыболов')}</b><br>` +
+        (item.nt ? `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> «${escapeHtml(item.nt)}»<br>` : '') +
         `${actionBtnHtml}</div>`;
       blurZone.bindPopup(circlePopupHtml);
       fishIconMarker.bindPopup(circlePopupHtml);
@@ -1224,9 +1286,11 @@ export function renderMap(mapBoxEl) {
       try { mapInstance.remove(); } catch (e) {}
     }
     overlayLayerGroup = null;
-    mapInstance = L.map(mapBoxEl).setView([s.lat, s.lon], targetZoom);
+    const yandexCrs = getYandexEPSG3395CRS();
+    mapInstance = L.map(mapBoxEl, yandexCrs ? { crs: yandexCrs } : {}).setView([s.lat, s.lon], targetZoom);
     mapInstance.attributionControl.setPrefix(false);
     currentTileLayer = createResilientTileLayer(currentLayerKey).addTo(mapInstance);
+    applyYandexTileFiltersToMap();
     mapMarker = L.marker([s.lat, s.lon]).addTo(mapInstance);
     mapInstance.on('click', (e) => {
       if (inspectMode) {
@@ -1297,10 +1361,25 @@ export function render(container) {
           <button type="button" class="btn btn-sm btn-accent" id="geoSearchBtn" style="min-height:38px;padding:0 14px;">Найти</button>
         </div>
 
-        <div class="map-layers-row">
+        <div style="font-size:10.5px;color:var(--muted);font-weight:800;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.3px;">
+          Режим Яндекс Карты (точная проекция EPSG:3395 • работает без VPN):
+        </div>
+        <div class="map-layers-row" style="margin-bottom:6px;">
           ${Object.entries(MAP_LAYERS).map(([k, v]) => `
             <button type="button" class="btn btn-sm map-layer-btn ${currentLayerKey === k ? 'btn-accent' : ''}" data-map-layer="${k}">${v.name}</button>
           `).join('')}
+        </div>
+        <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:8px;">
+          <span style="font-size:10.5px;color:var(--muted);font-weight:800;">Фильтры Яндекс Карты:</span>
+          <button type="button" class="w-chip ${yandexMapFilters.hydro ? 'active' : ''}" data-ymap-filter="hydro" style="min-height:26px;padding:2px 9px;font-size:11px;" title="Усилить контраст проток, стариц, песчаных кос и береговой линии">
+            Контраст русел и проток
+          </button>
+          <button type="button" class="w-chip ${(yandexMapFilters.labels || currentLayerKey === 'yandex_hybrid') ? 'active' : ''}" data-ymap-filter="labels" style="min-height:26px;padding:2px 9px;font-size:11px;" title="Наложить векторные названия рек, озёр и ориентиров Яндекса поверх спутника">
+            Названия рек и дорог
+          </button>
+          <button type="button" class="w-chip ${yandexMapFilters.dim ? 'active' : ''}" data-ymap-filter="dim" style="min-height:26px;padding:2px 9px;font-size:11px;" title="Приглушить яркость карты для комфортного просмотра в сумерках и ночью">
+            Антиблик (вечерний)
+          </button>
         </div>
 
         <!-- Слои приватности и навигации «Клёв ПРО: Круг» (с понятной подписью без лишних кнопок) -->
@@ -1331,7 +1410,7 @@ export function render(container) {
             </button>
           </div>
           <div style="font-size:11px;color:${inspectMode ? 'var(--good)' : 'var(--muted)'};font-weight:700;margin-top:5px;">
-            ${inspectMode ? '<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"11\" cy=\"11\" r=\"6.5\" stroke=\"currentColor\" stroke-width=\"2\"/><path d=\"M16 16l4.5 4.5\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg> Режим разведки активен: нажмите в любое место карты, чтобы узнать клёв без смены вашей локации' : '<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z\" fill=\"rgba(239,68,68,0.22)\" stroke=\"#ef4444\" stroke-width=\"1.9\"/><circle cx=\"12\" cy=\"11\" r=\"2.3\" fill=\"#ef4444\"/></svg> Нажмите на карту для выбора точки лова • Топо-карта глубин работает без VPN'}
+            ${inspectMode ? '<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"11\" cy=\"11\" r=\"6.5\" stroke=\"currentColor\" stroke-width=\"2\"/><path d=\"M16 16l4.5 4.5\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg> Режим разведки активен: нажмите в любое место карты, чтобы узнать клёв без смены вашей локации' : '<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z\" fill=\"rgba(239,68,68,0.22)\" stroke=\"#ef4444\" stroke-width=\"1.9\"/><circle cx=\"12\" cy=\"11\" r=\"2.3\" fill=\"#ef4444\"/></svg> Нажмите на карту для выбора точки лова • Яндекс Карты (EPSG:3395) и 72ч гексагоны работают без VPN'}
           </div>
         </div>
 
@@ -1653,16 +1732,34 @@ function bindGeoEvents(container, showDrawer) {
  searchInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') searchPlaceByQuery(searchInput.value); });
  }
 
- container.querySelectorAll('[data-map-layer]').forEach(btn => {
- btn.addEventListener('click', () => {
- currentLayerKey = btn.getAttribute('data-map-layer');
- if (mapInstance) {
- if (currentTileLayer) mapInstance.removeLayer(currentTileLayer);
- currentTileLayer = createResilientTileLayer(currentLayerKey).addTo(mapInstance);
- }
- render(container);
- });
- });
+  container.querySelectorAll('[data-map-layer]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      currentLayerKey = btn.getAttribute('data-map-layer') || 'yandex_map';
+      if (mapInstance) {
+        if (currentTileLayer) mapInstance.removeLayer(currentTileLayer);
+        currentTileLayer = createResilientTileLayer(currentLayerKey).addTo(mapInstance);
+        applyYandexTileFiltersToMap();
+      }
+      render(container);
+    });
+  });
+
+  container.querySelectorAll('[data-ymap-filter]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const fKey = btn.getAttribute('data-ymap-filter');
+      if (fKey && fKey in yandexMapFilters) {
+        yandexMapFilters[fKey] = !yandexMapFilters[fKey];
+        if (mapInstance) {
+          if (fKey === 'labels') {
+            if (currentTileLayer) mapInstance.removeLayer(currentTileLayer);
+            currentTileLayer = createResilientTileLayer(currentLayerKey).addTo(mapInstance);
+          }
+          applyYandexTileFiltersToMap();
+        }
+        render(container);
+      }
+    });
+  });
 
  container.querySelectorAll('[data-water-radius]').forEach(btn => {
  btn.addEventListener('click', () => {

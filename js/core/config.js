@@ -3,38 +3,38 @@
  * @description Конфигурация приложения (Релиз 2.5.0 r187), слои карт без VPN и адаптивные справочники снастей и сезонных наживок
  */
 
-export const APP_VERSION = '2.5.0';
-export const APP_BUILD_NUMBER = 187;
-export const APP_REVISION = 'r187';
-export const APP_DISPLAY_VERSION = 'v2.5.0 r187';
+export const APP_VERSION = '2.5.1';
+export const APP_BUILD_NUMBER = 188;
+export const APP_REVISION = 'r188';
+export const APP_DISPLAY_VERSION = 'v2.5.1 r188';
 export const STATE_CACHE_KEY = 'klev_pro_state_v2.0';
 export const WEATHER_CACHE_KEY = 'klev_pro_weather_v2.0';
 export const RELEASE_CACHE_KEY = 'klev_pro_release_v2.0';
 export const WEATHER_TTL_MS = 2 * 60 * 60 * 1000;
 
 export const CURRENT_RELEASE_INFO = {
-  "version": "2.5.0",
-  "versionCode": 250187,
-  "buildNumber": 187,
-  "revision": "r187",
-  "displayVersion": "v2.5.0 r187",
-  "date": "30 октября 2026",
-  "releasedAt": "2026-10-30T18:00:00Z",
-  "apkUrl": "https://klevpro.ru/apk/klev-pro-v2.5.0.apk",
+  "version": "2.5.1",
+  "versionCode": 251188,
+  "buildNumber": 188,
+  "revision": "r188",
+  "displayVersion": "v2.5.1 r188",
+  "date": "31 октября 2026",
+  "releasedAt": "2026-10-31T12:30:00Z",
+  "apkUrl": "https://klevpro.ru/apk/klev-pro-v2.5.1.apk",
   "fileSize": "38.2 МБ",
-  "title": "Выпущена новая версия «Клёв ПРО 2.0» (v2.5.0 r187)",
+  "title": "Выпущена новая версия «Клёв ПРО 2.0» (v2.5.1 r188)",
   "subtitle": "Стабильная работа БД и Топо-карт без VPN, свайп рыбы на главном экране, запись холостых выездов, личная аналитика уловов, 5 типов точек на карте и региональные чаты РФ.",
-  "summary": "Реализован Второй этап Дорожной карты (v2.5.0 r187): бесперебойная синхронизация БД без VPN и с бесплатными VPN, топографические карты РФ без VPN, контроль обновлений APK по ревизиям (r187), свайп рыбы на главном блоке прогноза, кнопка «Холостой выезд (0 поклёвок)» и личная аналитика в Журнале, тактические блоки Фидер/Спиннинг/Лёд, 5 цветовых типов точек на карте, общие региональные чаты РФ и справочник оснасток.",
+  "summary": "Реализован Второй этап Дорожной карты (v2.5.1 r188): бесперебойная синхронизация БД без VPN и с бесплатными VPN, топографические карты РФ без VPN, контроль обновлений APK по ревизиям (r188), свайп рыбы на главном блоке прогноза, кнопка «Холостой выезд (0 поклёвок)» и личная аналитика в Журнале, тактические блоки Фидер/Спиннинг/Лёд, 5 цветовых типов точек на карте, общие региональные чаты РФ и справочник оснасток.",
   "changes": [
     {
       "icon": "<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M12 2.5l7 3.2v5.8c0 5-3 9.3-7 10.8-4-1.5-7-5.8-7-10.8V5.7l7-3.2z\" fill=\"rgba(56,189,248,0.22)\" stroke=\"#38bdf8\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/></svg>",
-      "title": "Работа БД и Топо-карт без VPN и с любыми бесплатными VPN (r187)",
+      "title": "Работа БД и Топо-карт без VPN и с любыми бесплатными VPN (r188)",
       "text": "Внедрён многоканальный сетевой транспорт с автообходом блокировок ТСПУ и кривых прокси для 100% сохранения данных в БД, а топо-карта переведена на быстрый сервер рельефа, работающий без VPN по всей России."
     },
     {
       "icon": "<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M20 11a8 8 0 0 0-14.5-4.5L4 8m0-5v5h5M4 13a8 8 0 0 0 14.5 4.5L20 16m0 5v-5h-5\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>",
-      "title": "Точное автообновление APK по номеру ревизии (v2.5.0 r187)",
-      "text": "Теперь приложение проверяет не только основной номер версии (2.5.0), но и внутренний счётчик сборки (r187), мгновенно оповещая о выходе любых исправлений."
+      "title": "Точное автообновление APK по номеру ревизии (v2.5.1 r188)",
+      "text": "Теперь приложение проверяет не только основной номер версии (2.5.0), но и внутренний счётчик сборки (r188), мгновенно оповещая о выходе любых исправлений."
     },
     {
       "icon": "<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"12\" cy=\"12\" r=\"8.5\" stroke=\"currentColor\" stroke-width=\"1.8\"/><circle cx=\"12\" cy=\"12\" r=\"4.5\" stroke=\"#38bdf8\" stroke-width=\"1.6\"/><circle cx=\"12\" cy=\"12\" r=\"1.8\" fill=\"#10b981\"/></svg>",
@@ -50,13 +50,13 @@ export const CURRENT_RELEASE_INFO = {
   "items": [
     {
       "icon": "<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M12 2.5l7 3.2v5.8c0 5-3 9.3-7 10.8-4-1.5-7-5.8-7-10.8V5.7l7-3.2z\" fill=\"rgba(56,189,248,0.22)\" stroke=\"#38bdf8\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/></svg>",
-      "title": "Работа БД и Топо-карт без VPN и с любыми бесплатными VPN (r187)",
+      "title": "Работа БД и Топо-карт без VPN и с любыми бесплатными VPN (r188)",
       "text": "Внедрён многоканальный сетевой транспорт с автообходом блокировок ТСПУ и кривых прокси для 100% сохранения данных в БД, а топо-карта переведена на быстрый сервер рельефа, работающий без VPN по всей России."
     },
     {
       "icon": "<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M20 11a8 8 0 0 0-14.5-4.5L4 8m0-5v5h5M4 13a8 8 0 0 0 14.5 4.5L20 16m0 5v-5h-5\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>",
-      "title": "Точное автообновление APK по номеру ревизии (v2.5.0 r187)",
-      "text": "Теперь приложение проверяет не только основной номер версии (2.5.0), но и внутренний счётчик сборки (r187), мгновенно оповещая о выходе любых исправлений."
+      "title": "Точное автообновление APK по номеру ревизии (v2.5.1 r188)",
+      "text": "Теперь приложение проверяет не только основной номер версии (2.5.0), но и внутренний счётчик сборки (r188), мгновенно оповещая о выходе любых исправлений."
     },
     {
       "icon": "<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"12\" cy=\"12\" r=\"8.5\" stroke=\"currentColor\" stroke-width=\"1.8\"/><circle cx=\"12\" cy=\"12\" r=\"4.5\" stroke=\"#38bdf8\" stroke-width=\"1.6\"/><circle cx=\"12\" cy=\"12\" r=\"1.8\" fill=\"#10b981\"/></svg>",
@@ -75,39 +75,51 @@ export const IMG_SEARCH_DIRS = ['assets/fish/', 'fish/', 'https://klevpro.ru/ass
 
 // Слои карт, работающие в РФ без VPN (основной Топо — Esri World Topographic Map с рельефом, глубинами/реками и русскими подписями + резервные зеркала)
 export const MAP_LAYERS = {
-  topo: {
-    name: 'Топо',
-    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
+  yandex_map: {
+    name: 'Яндекс Схема',
+    isYandex: true,
+    url: 'https://core-renderer-tiles.maps.yandex.net/tiles?l=map&v=24.10.30-0&x={x}&y={y}&z={z}&scale=2&lang=ru_RU',
     fallbacks: [
-      'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-      'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png'
+      'https://vec01.maps.yandex.net/tiles?l=map&x={x}&y={y}&z={z}&scale=2&lang=ru_RU',
+      'https://vec02.maps.yandex.net/tiles?l=map&x={x}&y={y}&z={z}&scale=2&lang=ru_RU',
+      'https://vec03.maps.yandex.net/tiles?l=map&x={x}&y={y}&z={z}&scale=2&lang=ru_RU'
     ],
-    attr: '© Esri, OpenStreetMap (Топо без VPN)'
+    attr: '© Яндекс Карты'
   },
-  sat: {
-    name: 'Спутник',
-    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  yandex_sat: {
+    name: 'Яндекс Спутник',
+    isYandex: true,
+    subdomains: ['1', '2', '3', '4'],
+    url: 'https://sat0{s}.maps.yandex.net/tiles?l=sat&x={x}&y={y}&z={z}&lang=ru_RU',
     fallbacks: [
-      'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}'
+      'https://core-sat.maps.yandex.net/tiles?l=sat&x={x}&y={y}&z={z}&lang=ru_RU',
+      'https://sat01.maps.yandex.net/tiles?l=sat&x={x}&y={y}&z={z}&lang=ru_RU',
+      'https://sat02.maps.yandex.net/tiles?l=sat&x={x}&y={y}&z={z}&lang=ru_RU'
     ],
-    attr: '© Esri (Спутник)'
+    attr: '© Яндекс Спутник'
   },
-  carto: {
-    name: 'Схема',
-    url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+  yandex_hybrid: {
+    name: 'Яндекс Гибрид',
+    isYandex: true,
+    hasLabelsOverlay: true,
+    subdomains: ['1', '2', '3', '4'],
+    url: 'https://sat0{s}.maps.yandex.net/tiles?l=sat&x={x}&y={y}&z={z}&lang=ru_RU',
+    overlayUrl: 'https://core-renderer-tiles.maps.yandex.net/tiles?l=skl&v=24.10.30-0&x={x}&y={y}&z={z}&scale=2&lang=ru_RU',
     fallbacks: [
-      'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}'
+      'https://core-sat.maps.yandex.net/tiles?l=sat&x={x}&y={y}&z={z}&lang=ru_RU',
+      'https://sat01.maps.yandex.net/tiles?l=sat&x={x}&y={y}&z={z}&lang=ru_RU'
     ],
-    attr: '© OpenStreetMap'
+    attr: '© Яндекс Гибрид'
   },
-  osm: {
-    name: 'Рельеф',
-    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}',
+  yandex_dark: {
+    name: 'Яндекс Ночь',
+    isYandex: true,
+    url: 'https://core-renderer-tiles.maps.yandex.net/tiles?l=map&v=24.10.30-0&x={x}&y={y}&z={z}&scale=2&lang=ru_RU&theme=dark',
     fallbacks: [
-      'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-      'https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png'
+      'https://core-renderer-tiles.maps.yandex.net/tiles?l=map&x={x}&y={y}&z={z}&scale=2&lang=ru_RU&theme=dark',
+      'https://vec01.maps.yandex.net/tiles?l=map&x={x}&y={y}&z={z}&scale=2&lang=ru_RU'
     ],
-    attr: '© Esri / NatGeo'
+    attr: '© Яндекс Карты (Ночной радар)'
   }
 };
 

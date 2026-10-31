@@ -1,14 +1,14 @@
-import { RU } from '../../i18n/ru.js?v=2.5.0';
-import { events } from '../../core/events.js?v=2.5.0';
-import { store } from '../../core/store.js?v=2.5.0';
-import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.5.0';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.5.0';
-import { RUSSIA_CITIES, findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.5.0';
-import { FISH_DB } from '../../data/species.js?v=2.5.0';
-import { renderFishVisual, renderFiveFish } from '../../ui/svg.js?v=2.5.0';
-import { createPill, showToast, openModal, closeModal, openFishLightbox, openUserAgreementModal, isUserAgreementAccepted, requestSystemNotificationsAccess } from '../../ui/components.js?v=2.5.0';
-import { setLocation, detectUserPosition } from '../geo/geo.module.js?v=2.5.0';
-import { installShortcut, isApkOrTmaContainer, isAppInstalledOrShortcutPresent } from '../../core/pwa.js?v=2.5.0';
+import { RU } from '../../i18n/ru.js?v=2.5.1';
+import { events } from '../../core/events.js?v=2.5.1';
+import { store } from '../../core/store.js?v=2.5.1';
+import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.5.1';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.5.1';
+import { RUSSIA_CITIES, findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.5.1';
+import { FISH_DB } from '../../data/species.js?v=2.5.1';
+import { renderFishVisual, renderFiveFish } from '../../ui/svg.js?v=2.5.1';
+import { createPill, showToast, openModal, closeModal, openFishLightbox, openUserAgreementModal, isUserAgreementAccepted, requestSystemNotificationsAccess } from '../../ui/components.js?v=2.5.1';
+import { setLocation, detectUserPosition } from '../geo/geo.module.js?v=2.5.1';
+import { installShortcut, isApkOrTmaContainer, isAppInstalledOrShortcutPresent } from '../../core/pwa.js?v=2.5.1';
 import {
   openAuthAndBackupModal,
   openNotificationsModal,
@@ -18,10 +18,10 @@ import {
   syncCurrentProfileToCloudIfLoggedIn,
   renderSettingsZoneTabsHtml,
   bindSettingsZoneTabs
-} from '../circle/circle.module.js?v=2.5.0';
-import { fetchWeather } from '../weather/weather.module.js?v=2.5.0';
-import { checkForReleaseUpdate, isAndroidWebsiteVisitor, getCachedApkManifest, triggerApkFileDownload } from '../../core/updater.js?v=2.5.0';
-import { calcDayBest } from '../forecast/forecast.module.js?v=2.5.0';
+} from '../circle/circle.module.js?v=2.5.1';
+import { fetchWeather } from '../weather/weather.module.js?v=2.5.1';
+import { checkForReleaseUpdate, isAndroidWebsiteVisitor, getCachedApkManifest, triggerApkFileDownload } from '../../core/updater.js?v=2.5.1';
+import { calcDayBest } from '../forecast/forecast.module.js?v=2.5.1';
 
 /**
  * Региональные приоритетные виды для каждого бассейна РФ,
@@ -606,9 +606,9 @@ export function openAppParamsModal(onBackToHub = null) {
             <div style="padding:8px 10px;background:rgba(16,185,129,0.10);border:1px solid var(--good);border-radius:var(--r-sm);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-top:2px;">
               <div style="min-width:0;flex:1;">
                 <div style="font-weight:800;font-size:11.5px;color:var(--good);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="6" y="2" width="12" height="20" rx="2.5" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="18" r="1.2" fill="#38bdf8"/></svg> Приложение для Android (.APK)</div>
-                <div style="font-size:11px;color:var(--muted);">Доступна версия: <b>v${getCachedApkManifest().version || '2.4.0'}</b> (${getCachedApkManifest().fileSize || '7.9 МБ'})</div>
+                <div style="font-size:11px;color:var(--muted);">Доступна версия: <b>v${getCachedApkManifest().version || '2.5.1'}</b> (${getCachedApkManifest().fileSize || '7.9 МБ'})</div>
               </div>
-              <button type="button" class="btn btn-sm btn-good" id="onbDownloadAndroidApkBtn" style="font-weight:800;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg> Скачать APK (v${getCachedApkManifest().version || '2.4.0'})</button>
+              <button type="button" class="btn btn-sm btn-good" id="onbDownloadAndroidApkBtn" style="font-weight:800;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg> Скачать APK (v${getCachedApkManifest().version || '2.5.1'})</button>
             </div>
           ` : ''}
         </div>

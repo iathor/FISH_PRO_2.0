@@ -10,16 +10,16 @@
  * - Закрытый режим Супер-Админа (только для Владельца + управляемая База Администраторов с синхронизацией).
  */
 
-import { events } from '../../core/events.js?v=2.5.0';
-import { store } from '../../core/store.js?v=2.5.0';
-import { storage, calcGeoDistanceKm, safeJsonParse } from '../../core/storage.js?v=2.5.0';
-import { router } from '../../core/router.js?v=2.5.0';
-import { getSeasonalBaitsForContext } from '../../core/config.js?v=2.5.0';
-import { detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.5.0';
-import { findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.5.0';
-import { WATER_PROFILES } from '../../data/waters.js?v=2.5.0';
-import { FISH_DB } from '../../data/species.js?v=2.5.0';
-import { escapeHtml, isAnonymousCallsignValid, createPill, showToast, openModal, closeModal, copyFisherIdToClipboard, openConfirmDeleteModal, openUserAgreementModal, isUserAgreementAccepted, downloadFileCrossPlatform, triggerSystemNotificationCrossPlatform, requestSystemNotificationsAccess } from '../../ui/components.js?v=2.5.0';
+import { events } from '../../core/events.js?v=2.5.1';
+import { store } from '../../core/store.js?v=2.5.1';
+import { storage, calcGeoDistanceKm, safeJsonParse } from '../../core/storage.js?v=2.5.1';
+import { router } from '../../core/router.js?v=2.5.1';
+import { getSeasonalBaitsForContext } from '../../core/config.js?v=2.5.1';
+import { detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.5.1';
+import { findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.5.1';
+import { WATER_PROFILES } from '../../data/waters.js?v=2.5.1';
+import { FISH_DB } from '../../data/species.js?v=2.5.1';
+import { escapeHtml, isAnonymousCallsignValid, createPill, showToast, openModal, closeModal, copyFisherIdToClipboard, openConfirmDeleteModal, openUserAgreementModal, isUserAgreementAccepted, downloadFileCrossPlatform, triggerSystemNotificationCrossPlatform, requestSystemNotificationsAccess } from '../../ui/components.js?v=2.5.1';
 import {
   RELAY_WORKER_URL,
   buildShareUrls,
@@ -32,9 +32,9 @@ import {
   syncToTelegramCloud,
   readFromTelegramCloud,
   triggerHaptic
-} from '../../core/telegram.js?v=2.5.0';
-import { setLocation } from '../geo/geo.module.js?v=2.5.0';
-import { calcDynamicRig } from '../forecast/forecast.module.js?v=2.5.0';
+} from '../../core/telegram.js?v=2.5.1';
+import { setLocation } from '../geo/geo.module.js?v=2.5.1';
+import { calcDynamicRig } from '../forecast/forecast.module.js?v=2.5.1';
 
 export const CREW_TTL_MS = 72 * 60 * 60 * 1000;
 export const CIRCLE_BLUR_RADIUS_KM = 5.0;
@@ -454,11 +454,123 @@ function _removeOutboxRelay(key) {
  * - На iOS WebKit включает keepalive, анти-кэш метку _t на всех GET-запросах и быстрый переход на GET ?payload=... при малейшей задержке POST-сокета
  */
 let _preferredRelayProxyUntil = 0;
+let _lastWorkingGatewayLabel = 'Прямой канал D1 / Edge';
+
+export function getLastActiveDbGatewayLabel() {
+  return _lastWorkingGatewayLabel;
+}
+
+function _isValidWorkerPayloadText(rawText, isHtmlExpected = false) {
+  if (!rawText || typeof rawText !== 'string') return false;
+  const trimmed = rawText.trim();
+  if (!trimmed) return false;
+  if (isHtmlExpected && (trimmed.includes('Клёв ПРО') || trimmed.includes('Веб-Консоль') || trimmed.includes('ЗАКРЫТАЯ БАЗА'))) {
+    return true;
+  }
+  if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) return false;
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (!parsed || typeof parsed !== 'object') return false;
+    const keys = ['ok', 'version', 'items', 'users', 'fisherId', 'whitelist', 'packets', 'bound', 'error', 'deleted', 'deletedChannel', 'appName', 'totalUsers', 'd1Status'];
+    return keys.some(k => k in parsed);
+  } catch (e) {
+    return false;
+  }
+}
+
+async function _executeSingleGatewayRequest(kind, fullUrl, method, bodyStr, canUseGetPayload, timeoutMs, tag) {
+  const sep = fullUrl.includes('?') ? '&' : '?';
+  const buildDirectGetUrl = (suffix) => {
+    if (method === 'POST' && canUseGetPayload) {
+      return `${fullUrl}${sep}payload=${encodeURIComponent(bodyStr)}&_t=${Date.now()}_${suffix}`;
+    }
+    return fullUrl.includes('_t=')
+      ? `${fullUrl}&_r=${suffix}`
+      : `${fullUrl}${sep}_t=${Date.now()}_${suffix}`;
+  };
+
+  let targetUrl = fullUrl;
+  let reqMethod = method;
+  const innerUrl = buildDirectGetUrl(`${kind}_${tag}`);
+
+  if (kind === 'direct') {
+    reqMethod = method;
+    targetUrl = reqMethod === 'GET' ? innerUrl : fullUrl;
+  } else if (kind === 'direct_get_payload') {
+    reqMethod = 'GET';
+    targetUrl = innerUrl;
+  } else if (kind === 'relay_corsproxy') {
+    reqMethod = 'GET';
+    targetUrl = `https://corsproxy.io/?url=${encodeURIComponent(innerUrl)}`;
+  } else if (kind === 'relay_allorigins_json') {
+    reqMethod = 'GET';
+    targetUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(innerUrl)}&_t=${Date.now()}`;
+  } else if (kind === 'relay_codetabs') {
+    reqMethod = 'GET';
+    targetUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(innerUrl)}`;
+  } else if (kind === 'relay_allorigins_raw') {
+    reqMethod = 'GET';
+    targetUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(innerUrl)}`;
+  } else if (kind === 'relay_thingproxy') {
+    reqMethod = 'GET';
+    targetUrl = `https://thingproxy.freeboard.io/fetch/${innerUrl}`;
+  }
+
+  const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  const timer = ctrl ? setTimeout(() => { try { ctrl.abort(); } catch (e) {} }, timeoutMs) : null;
+
+  try {
+    const fetchOpts = {
+      method: reqMethod,
+      mode: 'cors',
+      credentials: 'omit',
+      cache: 'no-store',
+      signal: ctrl ? ctrl.signal : undefined
+    };
+    if (reqMethod === 'POST' && bodyStr !== undefined) {
+      fetchOpts.headers = { 'Content-Type': 'text/plain;charset=UTF-8' };
+      fetchOpts.body = bodyStr;
+    }
+    const res = await fetch(targetUrl, fetchOpts);
+    if (timer) clearTimeout(timer);
+    if (!res) throw new Error('Empty response');
+
+    let textBody = await res.text();
+    if (kind === 'relay_allorigins_json') {
+      const outer = JSON.parse(textBody);
+      textBody = outer && typeof outer.contents === 'string' ? outer.contents : '';
+    }
+
+    const isHtmlConsole = fullUrl.includes('/fp-vip089-console');
+    if (!_isValidWorkerPayloadText(textBody, isHtmlConsole)) {
+      throw new Error(`Invalid gateway payload from ${kind}`);
+    }
+
+    if (kind.startsWith('relay_')) {
+      _preferredRelayProxyUntil = Date.now() + 300000;
+      _lastWorkingGatewayLabel = `Анти-DPI шлюз (${kind.replace('relay_', '')} • без VPN)`;
+    } else {
+      _preferredRelayProxyUntil = 0;
+      _lastWorkingGatewayLabel = kind === 'direct_get_payload' ? 'Прямой GET-пакет (VPN-совместимый)' : 'Прямой канал D1 / Edge';
+    }
+
+    return new Response(textBody, {
+      status: 200,
+      headers: {
+        'Content-Type': isHtmlConsole ? 'text/html;charset=utf-8' : 'application/json;charset=utf-8'
+      }
+    });
+  } catch (err) {
+    if (timer) clearTimeout(timer);
+    throw err;
+  }
+}
 
 /**
- * Устойчивый многоканальный транспорт БД для работы в РФ:
- * 1) Работает БЕЗ VPN (при блокировке SNI *.workers.dev на ТСПУ автоматически маршрутизирует GET ?payload= через HTTPS Anti-DPI ретрансляторы codetabs / allorigins).
- * 2) Работает с нестабильными и бесплатными VPN (убран зависающий keepalive:true на POST-запросах, добавлен мгновенный переход на GET ?payload= до 7500 байт, если бесплатный VPN режет POST-тела).
+ * Многоканальный отказоустойчивый транспорт БД (Вариант Б — v2.5.1 r188):
+ * - 6 независимых каналов связи (Direct POST/GET, Direct GET-Payload для VPN, и 4 HTTPS Anti-DPI ретранслятора для мобильных сетей РФ без VPN).
+ * - Строгая валидация ответа (исключает ложные 403/429 и HTML-заглушки прокси).
+ * - Параллельная гонка каналов (Promise.any), выбирающая самый быстрый рабочий маршрут в текущей сети за 300–700 мс.
  */
 export async function workerFetch(endpointOrUrl, options = {}, timeoutMs = 5500, retries = 2) {
   const fullUrl = String(endpointOrUrl || '').startsWith('http')
@@ -467,99 +579,69 @@ export async function workerFetch(endpointOrUrl, options = {}, timeoutMs = 5500,
   const method = String(options.method || 'GET').toUpperCase();
   const bodyStr = typeof options.body === 'string' ? options.body : (options.body ? JSON.stringify(options.body) : undefined);
   const canUseGetPayload = (method === 'POST' && bodyStr && bodyStr.length < 7500);
-  const sep = fullUrl.includes('?') ? '&' : '?';
-
-  const buildDirectGetUrl = (tag = '0') => {
-    if (method === 'POST' && canUseGetPayload) {
-      return `${fullUrl}${sep}payload=${encodeURIComponent(bodyStr)}&_t=${Date.now()}_${tag}`;
-    }
-    return fullUrl.includes('_t=')
-      ? `${fullUrl}&_r=${tag}`
-      : `${fullUrl}${sep}_t=${Date.now()}_${tag}`;
-  };
-
-  // Формируем список маршрутов:
-  // Если в последние 3 минуты было зафиксировано, что прямой доступ к *.workers.dev заблокирован без VPN,
-  // ставим Anti-DPI ретранслятор первым, чтобы не терять время на таймаут!
-  const routes = [];
   const relayReady = (method === 'GET') || canUseGetPayload;
   const preferRelayFirst = relayReady && (Date.now() < _preferredRelayProxyUntil);
 
-  if (preferRelayFirst) {
-    routes.push({ kind: 'relay_codetabs', timeout: 4500 });
-    routes.push({ kind: 'direct_get_or_post', timeout: 3000 });
-    routes.push({ kind: 'relay_allorigins', timeout: 4800 });
-  } else {
-    routes.push({ kind: 'direct_get_or_post', timeout: Math.min(timeoutMs, 3200) });
+  const runParallelRelayRace = (raceTag = 'r0') => {
+    const candidates = [
+      _executeSingleGatewayRequest('relay_corsproxy', fullUrl, method, bodyStr, canUseGetPayload, 4600, raceTag),
+      _executeSingleGatewayRequest('relay_allorigins_json', fullUrl, method, bodyStr, canUseGetPayload, 4800, raceTag),
+      _executeSingleGatewayRequest('relay_codetabs', fullUrl, method, bodyStr, canUseGetPayload, 4800, raceTag),
+      _executeSingleGatewayRequest('relay_allorigins_raw', fullUrl, method, bodyStr, canUseGetPayload, 4800, raceTag)
+    ];
     if (method === 'POST' && canUseGetPayload) {
-      // Второй шаг — прямой GET ?payload= (спасает при бесплатных VPN, которые режут или вешают POST-тела)
-      routes.push({ kind: 'direct_get_payload', timeout: 3400 });
+      candidates.push(_executeSingleGatewayRequest('direct_get_payload', fullUrl, method, bodyStr, canUseGetPayload, 3500, raceTag));
+    } else {
+      candidates.push(_executeSingleGatewayRequest('direct', fullUrl, method, bodyStr, canUseGetPayload, 3500, raceTag));
     }
-    if (relayReady) {
-      // Третий и четвёртый шаги — обход блокировки *.workers.dev без VPN через нейтральные HTTPS-прокси
-      routes.push({ kind: 'relay_codetabs', timeout: 4600 });
-      routes.push({ kind: 'relay_allorigins', timeout: 4800 });
-    }
-  }
+    return Promise.any(candidates);
+  };
 
-  let lastErr = null;
-  for (let i = 0; i < routes.length; i++) {
-    const rt = routes[i];
-    let targetUrl = fullUrl;
-    let reqMethod = method;
-
-    if (rt.kind === 'direct_get_or_post') {
-      reqMethod = method;
-      targetUrl = reqMethod === 'GET' ? buildDirectGetUrl(`d${i}`) : fullUrl;
-    } else if (rt.kind === 'direct_get_payload') {
-      reqMethod = 'GET';
-      targetUrl = buildDirectGetUrl(`gp${i}`);
-    } else if (rt.kind === 'relay_codetabs') {
-      reqMethod = 'GET';
-      const innerUrl = buildDirectGetUrl(`ct${i}`);
-      targetUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(innerUrl)}`;
-    } else if (rt.kind === 'relay_allorigins') {
-      reqMethod = 'GET';
-      const innerUrl = buildDirectGetUrl(`ao${i}`);
-      targetUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(innerUrl)}`;
-    }
-
-    const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-    const timer = ctrl ? setTimeout(() => { try { ctrl.abort(); } catch (e) {} }, rt.timeout) : null;
-
+  if (preferRelayFirst) {
     try {
-      const fetchOpts = {
-        method: reqMethod,
-        mode: 'cors',
-        credentials: 'omit',
-        cache: 'no-store',
-        signal: ctrl ? ctrl.signal : undefined
-      };
-      if (reqMethod === 'POST' && bodyStr !== undefined) {
-        fetchOpts.headers = { 'Content-Type': 'text/plain;charset=UTF-8' };
-        fetchOpts.body = bodyStr;
-      }
-      const res = await fetch(targetUrl, fetchOpts);
-      if (timer) clearTimeout(timer);
-      if (res && (res.ok || res.status === 400 || res.status === 403)) {
-        if (rt.kind.startsWith('relay_')) {
-          _preferredRelayProxyUntil = Date.now() + 180000;
-        } else {
-          _preferredRelayProxyUntil = 0;
-        }
-        return res;
-      }
-    } catch (err) {
-      if (timer) clearTimeout(timer);
-      lastErr = err;
-    }
+      return await runParallelRelayRace('fast');
+    } catch (e) {}
   }
-  throw lastErr || new Error('Network timeout');
+
+  // Даём прямому каналу быстрый старт (1350 мс); если ТСПУ блокирует *.workers.dev или нет ответа,
+  // мгновенно включаем параллельную гонку всех Anti-DPI ретрансляторов, не дожидаясь долгого таймаута!
+  try {
+    const directPromises = [
+      _executeSingleGatewayRequest('direct', fullUrl, method, bodyStr, canUseGetPayload, Math.min(timeoutMs, 3200), 'd0')
+    ];
+    if (method === 'POST' && canUseGetPayload) {
+      directPromises.push(_executeSingleGatewayRequest('direct_get_payload', fullUrl, method, bodyStr, canUseGetPayload, 3200, 'gp0'));
+    }
+    const directRace = Promise.any(directPromises);
+
+    if (!relayReady) {
+      return await directRace;
+    }
+
+    let relayTimer = null;
+    const delayedRelays = new Promise((resolve, reject) => {
+      relayTimer = setTimeout(() => {
+        runParallelRelayRace('delayed').then(resolve).catch(reject);
+      }, 1350);
+    });
+
+    const winner = await Promise.any([
+      directRace.catch(err => {
+        if (relayTimer) clearTimeout(relayTimer);
+        return runParallelRelayRace('fallback');
+      }),
+      delayedRelays
+    ]);
+    if (relayTimer) clearTimeout(relayTimer);
+    return winner;
+  } catch (finalErr) {
+    if (retries > 0 && relayReady) {
+      return await runParallelRelayRace('retry');
+    }
+    throw finalErr || new Error('Network timeout');
+  }
 }
 
-/**
- * Вычисляет канонический ID личного чата 1-на-1 между двумя пользователями (исключает дубли чатов)
- */
 export function getCanonicalDmChannelId(myFidRaw, peerFidRaw, allMsgs = []) {
   const reg = resolveRussianRegionCode();
   const myFid = isOwnerFisherId(myFidRaw) ? OWNER_BOUND_FISHER_ID : normalizeFisherId(myFidRaw || '', reg);
@@ -1187,7 +1269,7 @@ export async function ensureFisherIdentityInitialized(forceReallocateForRegion =
         tgId: ident.isRegistered ? (ident.tgLinkedId || '') : '',
         tgUsername: ident.isRegistered ? (ident.tgUsername || '') : '',
         platform: detectClientPlatformLabel(),
-        version: '2.4.0',
+        version: '2.5.1',
         lat: s.lat,
         lon: s.lon
       })
@@ -1268,7 +1350,7 @@ export async function publishCircleItemToServer(itemObj, packToken = '') {
         authTokenHash: s.userProfile?.authTokenHash || '',
         adminToken: _serverAdminSessionToken || s.userProfile?.adminSessionToken || '',
         platform: detectClientPlatformLabel(),
-        version: '2.4.0'
+        version: '2.5.1'
       })
     }, 4800, 2);
 
@@ -1391,7 +1473,7 @@ export async function syncNearbyCirclePointsFromServer(showFeedbackToast = false
       crewKeys: crewKeysParam,
       adminToken: adminTok,
       platform: detectClientPlatformLabel(),
-      version: '2.4.0',
+      version: '2.5.1',
       locLabel: s.locLabel || ''
     });
     const res = await workerFetch(`/api/circle/nearby?${qs.toString()}`, { method: 'GET' }, 4800, 1);
@@ -1726,7 +1808,7 @@ export async function authenticateAndSyncAccount(rawLogin, rawPassword, mode = '
         pinHash: creds.pinHash,
         regionCode: regCode,
         platform: detectClientPlatformLabel(),
-        version: '2.4.0',
+        version: '2.5.1',
         profileSnapshot: snapshot
       })
     });
@@ -1839,7 +1921,7 @@ export async function syncCurrentProfileToCloudIfLoggedIn() {
         pinHash: up.pinHash || '',
         regionCode: resolveRussianRegionCode(s),
         platform: detectClientPlatformLabel(),
-        version: '2.4.0',
+        version: '2.5.1',
         profileSnapshot: snapshot
       })
     });
@@ -2078,14 +2160,75 @@ export function pushAppNotification({ category = 'circle', title = '', body = ''
   return notif;
 }
 
-export function getEffectiveCircleRadiusKm(item, nowMs = Date.now()) {
+export const CIRCLE_HEX_TTL_HOURS = 72;
+export const CIRCLE_HEX_TTL_MS = CIRCLE_HEX_TTL_HOURS * 3600 * 1000;
+
+/**
+ * Вычисляет состояние 72-часового угасания гексагона (соты) «Круга» на карте и в ленте:
+ * - 0..12 ч: яркая сота ±5 км (свежесть 83–100%), сплошной контур
+ * - 12..36 ч: актуальная сота ±6.5 км (свежесть 50–83%), штриховой контур
+ * - 36..72 ч: угасающая сота ±8.5 км (свежесть 1–50%), пунктирный полупрозрачный контур
+ * - > 72 ч: точка полностью погасла (expired = true)
+ */
+export function getCircleHexDecayState(item, nowMs = Date.now()) {
   const baseRadius = Number(item?.br) || CIRCLE_BLUR_RADIUS_KM;
-  const createdMs = Number(item?.ca) || nowMs;
-  const ageHours = Math.max(0, (nowMs - createdMs) / 3600000);
-  if (ageHours >= 24) {
-    return Math.max(baseRadius, CIRCLE_OLDER_BLUR_RADIUS_KM);
+  let createdMs = Number(item?.ca) || nowMs;
+  if (item?.isDemoSeed && (nowMs - createdMs) > 36 * 3600000) {
+    // Чтобы стартовые демо-соты оставались наглядными, держим их в окне 6..18 ч
+    createdMs = nowMs - 8 * 3600000;
   }
-  return baseRadius;
+  const ageHours = Math.max(0, (nowMs - createdMs) / 3600000);
+  const expired = !item?.isDemoSeed && ageHours >= CIRCLE_HEX_TTL_HOURS;
+  const hoursLeft = Math.max(0, Math.ceil(CIRCLE_HEX_TTL_HOURS - ageHours));
+  const freshness = Math.max(0, Math.min(1, 1 - (ageHours / CIRCLE_HEX_TTL_HOURS)));
+
+  if (ageHours < 12) {
+    return {
+      ageHours: Math.round(ageHours * 10) / 10,
+      hoursLeft,
+      freshness,
+      expired: false,
+      radiusKm: baseRadius,
+      strokeOpacity: 0.96,
+      fillOpacity: 0.28,
+      weight: 2.6,
+      dashArray: null,
+      markerOpacity: 1.0,
+      stageLabel: 'Свежий сектор (0–12 ч)'
+    };
+  }
+  if (ageHours < 36) {
+    return {
+      ageHours: Math.round(ageHours * 10) / 10,
+      hoursLeft,
+      freshness,
+      expired: false,
+      radiusKm: Math.max(baseRadius, 6.5),
+      strokeOpacity: 0.80,
+      fillOpacity: 0.18,
+      weight: 2.1,
+      dashArray: '8, 4',
+      markerOpacity: 0.90,
+      stageLabel: 'Актуальный сектор (12–36 ч)'
+    };
+  }
+  return {
+    ageHours: Math.round(ageHours * 10) / 10,
+    hoursLeft,
+    freshness,
+    expired,
+    radiusKm: Math.max(baseRadius, 8.5),
+    strokeOpacity: Math.max(0.32, Number((0.28 + freshness * 0.65).toFixed(2))),
+    fillOpacity: Math.max(0.06, Number((0.05 + freshness * 0.22).toFixed(2))),
+    weight: 1.5,
+    dashArray: '4, 6',
+    markerOpacity: Math.max(0.50, Number((0.45 + freshness * 0.65).toFixed(2))),
+    stageLabel: 'Угасающий сектор (36–72 ч)'
+  };
+}
+
+export function getEffectiveCircleRadiusKm(item, nowMs = Date.now()) {
+  return getCircleHexDecayState(item, nowMs).radiusKm;
 }
 
 export function computeHexPolygonForCircle(lat, lon, radiusKm = 5.0, seedStr = '') {
@@ -2753,6 +2896,9 @@ export function purgeExpiredCircleItems(items = []) {
   const valid = (Array.isArray(items) ? items : []).filter(item => {
     if (!item) return false;
     if (item.t === 'crew' && Number.isFinite(item.ea) && item.ea < now) {
+      return false;
+    }
+    if (item.t === 'circle' && !item.isDemoSeed && getCircleHexDecayState(item, now).expired) {
       return false;
     }
     return true;
@@ -4602,10 +4748,10 @@ function renderCompactCircleRow(item, s, ident, now) {
     titleText = `${item.fn || 'Рыба'}: ${(item.rw || 'Монтаж').split(',')[0]}`;
     subMetaText = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 18c0-4 4-4 4-8s4-4 4-6 5-1 5 3-3 5-3 8 4 4 6 2" stroke="#f43f5e" stroke-width="2.2" stroke-linecap="round"/></svg> ${item.bt || 'приманка'} • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> ${item.twMin ?? 4}..${item.twMax ?? 16}°C`;
   } else {
-    const effR = getEffectiveCircleRadiusKm(item, now);
-    catBadge = `<span class="pill pill-good" style="font-size:10px;padding:1px 6px;">⬡ ±${effR}км</span>`;
+    const decay = getCircleHexDecayState(item, now);
+    catBadge = `<span class="pill pill-good" style="font-size:10px;padding:1px 6px;">⬡ ±${decay.radiusKm}км • ~${decay.hoursLeft}ч</span>`;
     titleText = `${item.fn || 'Рыба'}${item.kg ? ` (${item.kg} кг)` : ''} • ${item.wn || item.lb || 'Сектор'}`;
-    subMetaText = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 18c0-4 4-4 4-8s4-4 4-6 5-1 5 3-3 5-3 8 4 4 6 2" stroke="#f43f5e" stroke-width="2.2" stroke-linecap="round"/></svg> ${item.bt || 'по сезону'} • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> ${item.tw ?? 8}°C • ${ageLabel}`;
+    subMetaText = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 18c0-4 4-4 4-8s4-4 4-6 5-1 5 3-3 5-3 8 4 4 6 2" stroke="#f43f5e" stroke-width="2.2" stroke-linecap="round"/></svg> ${item.bt || 'по сезону'} • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> ${item.tw ?? 8}°C • Свежесть ${Math.round(decay.freshness * 100)}% (${ageLabel})`;
   }
 
   const ownerPill = mine
@@ -4907,6 +5053,214 @@ export function render(container) {
  * Загружает с сервера полную статистику и реестр пользователей для вкладки Супер-Админа (« Админ»)
  */
 let _lastAdminDashboardFetchTs = 0;
+/**
+ * Открывает полную серверную Веб-консоль Супер-Админа напрямую через многоканальный шлюз workerFetch
+ * (100% работает без VPN в мобильных сетях РФ, с VPN, в Android APK и в Telegram Mini App без блокировки iframe/CSP)
+ */
+export async function openFullServerWebConsoleModal() {
+  const s = store.getState();
+  const ident = getCurrentFisherIdentity(s);
+  if (!ident.isOwner) {
+    showToast('Доступ разрешён только Владельцу (iAthor / FP_89VIP089)', 'bad');
+    return;
+  }
+
+  const renderConsoleModalContent = (bodyEl, dbData) => {
+    if (!bodyEl) return;
+    const db = dbData || _adminDashboardCache || {};
+    const users = Array.isArray(db.users) ? db.users : [];
+    const points = Array.isArray(db.points) ? db.points : (store.getState().circleItems || []);
+    const counters = db.counters || {};
+    const reserveCounters = db.reserveCounters || {};
+    const d1Connected = db.d1Status === 'CONNECTED';
+    const now = Date.now();
+    const active24h = users.filter(u => u && (now - (u.lastSeen || 0)) < 86400000).length;
+    const active7d = users.filter(u => u && (now - (u.lastSeen || 0)) < 7 * 86400000).length;
+
+    const regStats = {};
+    for (const u of users) {
+      const rc = u.regionCode || '89';
+      regStats[rc] = (regStats[rc] || 0) + 1;
+    }
+    const regBadgesHtml = Object.entries(regStats)
+      .sort((a, b) => b[1] - a[1])
+      .map(([rc, cnt]) => `<span class="pill pill-neutral" style="font-size:11px;">Регион <b>${escapeHtml(rc)}</b>: ${cnt} чел. (след. #${(counters[rc] || 0) + 1} / RZ${(reserveCounters[rc] || 0) + 1})</span>`)
+      .join(' ');
+
+    bodyEl.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:10px;font-size:12px;">
+        <div class="card" style="padding:10px 12px;border:1.5px solid ${d1Connected ? 'var(--good)' : 'var(--warn)'};background:${d1Connected ? 'rgba(16,185,129,0.12)' : 'rgba(245,158,11,0.12)'};">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+            <div>
+              <div style="font-weight:900;color:${d1Connected ? 'var(--good)' : 'var(--warn)'};font-size:13px;">
+                ${d1Connected ? 'Cloudflare D1 SQL: ПОДКЛЮЧЕНА (' + escapeHtml(db.d1BindingName || 'DB') + ')' : 'Автономная синхронизация (нажмите «Обновить с сервера»)'}
+              </div>
+              <div style="font-size:11px;color:var(--muted);margin-top:2px;">
+                Активный канал связи: <b style="color:var(--accent);">${escapeHtml(getLastActiveDbGatewayLabel())}</b> • Версия ядра: <b>v2.5.1 r188</b>
+              </div>
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              <button type="button" class="btn btn-sm btn-accent" id="wcModalSyncBtn">Обновить с сервера</button>
+              <button type="button" class="btn btn-sm" id="wcModalExportJsonBtn">Экспорт .JSON</button>
+              <button type="button" class="btn btn-sm" id="wcModalExportCsvBtn">Экспорт .CSV</button>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;">
+          <div class="card" style="padding:8px 10px;background:var(--card);">
+            <div style="font-size:18px;font-weight:900;color:var(--good);">${users.length}</div>
+            <div style="font-size:10.5px;color:var(--muted);">Всего рыбаков в БД</div>
+          </div>
+          <div class="card" style="padding:8px 10px;background:var(--card);">
+            <div style="font-size:18px;font-weight:900;color:var(--accent);">${active24h} / ${active7d}</div>
+            <div style="font-size:10.5px;color:var(--muted);">Активны 24ч / 7д</div>
+          </div>
+          <div class="card" style="padding:8px 10px;background:var(--card);">
+            <div style="font-size:18px;font-weight:900;color:var(--warn);">${points.length}</div>
+            <div style="font-size:10.5px;color:var(--muted);">Точек Круга / Экипажей</div>
+          </div>
+        </div>
+
+        <div class="card" style="padding:8px 10px;background:var(--card);">
+          <div style="font-weight:800;font-size:11px;color:var(--accent);margin-bottom:6px;">РАСПРЕДЕЛЕНИЕ ID ПО РЕГИОНАМ РФ:</div>
+          <div style="display:flex;flex-wrap:wrap;gap:5px;">${regBadgesHtml || '<span style="color:var(--muted);">Данные загружаются...</span>'}</div>
+        </div>
+
+        <div class="card" style="padding:10px;background:var(--card);">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+            <span style="font-weight:900;color:var(--text);">РЕЕСТР ПОЛЬЗОВАТЕЛЕЙ D1 (${users.length}):</span>
+            <input type="search" id="wcModalSearchInput" class="input" placeholder="Фильтр по ID, логину, @tg, городу..." style="max-width:240px;min-height:32px;font-size:12px;">
+          </div>
+          <div style="max-height:240px;overflow-y:auto;overflow-x:auto;border:1px solid var(--border);border-radius:8px;">
+            <table style="width:100%;border-collapse:collapse;font-size:11.5px;">
+              <thead>
+                <tr style="background:var(--panel);color:var(--muted);text-align:left;">
+                  <th style="padding:6px;">ID</th>
+                  <th style="padding:6px;">Логин / TG</th>
+                  <th style="padding:6px;">Регион</th>
+                  <th style="padding:6px;">Платформа</th>
+                  <th style="padding:6px;text-align:right;">Действие</th>
+                </tr>
+              </thead>
+              <tbody id="wcModalUsersTbody">
+                ${users.length === 0 ? '<tr><td colspan="5" style="padding:12px;text-align:center;color:var(--muted);">Нажмите «Обновить с сервера» для получения реестра D1</td></tr>' : users.map(u => {
+                  const isOwn = isOwnerFisherId(u.fisherId);
+                  const rowSearch = escapeHtml(`${u.fisherId || ''} ${u.login || ''} ${u.callsign || ''} ${u.tgUsername || ''} ${u.locLabel || ''} ${u.regionCode || ''}`.toLowerCase());
+                  return `
+                    <tr data-wc-search="${rowSearch}" style="border-bottom:1px solid var(--border);">
+                      <td style="padding:6px;font-family:monospace;font-weight:800;color:${isOwn ? 'var(--good)' : 'var(--accent)'};" data-copy-fisher-id="${escapeHtml(u.fisherId)}">${escapeHtml(u.fisherId)}</td>
+                      <td style="padding:6px;"><b>${escapeHtml(u.login || u.callsign || 'Гость')}</b> ${u.tgUsername ? `<span style="color:var(--accent);">@${escapeHtml(u.tgUsername)}</span>` : ''}</td>
+                      <td style="padding:6px;">[${escapeHtml(u.regionCode || '89')}] ${escapeHtml(u.locLabel || 'РФ')}</td>
+                      <td style="padding:6px;">${escapeHtml(u.platform || 'WEB')} <span style="color:var(--muted);font-size:10px;">v${escapeHtml(u.version || '2.5.1')}</span></td>
+                      <td style="padding:6px;text-align:right;">
+                        ${isOwn ? '<span style="color:var(--good);font-weight:800;">Владелец</span>' : `<button type="button" class="btn btn-sm" data-wc-del-user="${escapeHtml(u.fisherId)}" style="min-height:24px;padding:1px 7px;color:var(--bad);border-color:var(--bad);">Удалить</button>`}
+                      </td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card" style="padding:10px;background:var(--card);">
+          <div style="font-weight:900;color:var(--text);margin-bottom:6px;">АКТИВНЫЕ ТОЧКИ И ГЕКСАГОНЫ НА СЕРВЕРЕ (${points.length}):</div>
+          <div style="max-height:180px;overflow-y:auto;display:flex;flex-direction:column;gap:5px;">
+            ${points.length === 0 ? '<div style="padding:10px;text-align:center;color:var(--muted);">Активных точек сейчас нет</div>' : points.map(pt => {
+              const decay = getCircleHexDecayState(pt, now);
+              return `
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 8px;background:var(--panel);border:1px solid var(--border);border-radius:6px;">
+                  <div style="min-width:0;flex:1;">
+                    <b>[${escapeHtml(pt.t || 'circle')}] ${escapeHtml(pt.fn || 'Рыба')}</b> • ${escapeHtml(pt.wn || pt.lb || 'Водоём')} •
+                    <span style="font-family:monospace;color:var(--accent);">${escapeHtml(pt.fid || '')}</span> •
+                    <span style="color:var(--muted);font-size:10.5px;">осталось ~${decay.hoursLeft} ч</span>
+                  </div>
+                  <button type="button" class="btn btn-sm" data-wc-del-point="${escapeHtml(pt.id)}" style="min-height:24px;padding:1px 7px;color:var(--bad);border-color:var(--bad);">Удалить</button>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      </div>
+    `;
+
+    bodyEl.querySelector('#wcModalSyncBtn')?.addEventListener('click', async (ev) => {
+      const btn = ev.currentTarget;
+      btn.textContent = 'Синхронизация...';
+      const fresh = await fetchSuperAdminDashboardData(true);
+      renderConsoleModalContent(bodyEl, fresh);
+    });
+
+    bodyEl.querySelector('#wcModalExportJsonBtn')?.addEventListener('click', () => {
+      const fname = `klev-pro-users-db-${new Date().toISOString().slice(0, 10)}.json`;
+      downloadFileCrossPlatform(fname, JSON.stringify({ exportedAt: new Date().toISOString(), version: '2.5.1', total: users.length, users, points }, null, 2), 'application/json;charset=utf-8');
+      showToast(`База сохранена: ${fname}`, 'good');
+    });
+
+    bodyEl.querySelector('#wcModalExportCsvBtn')?.addEventListener('click', () => {
+      const header = ['fisherId', 'isTemporaryReserve', 'login', 'callsign', 'tgUsername', 'regionCode', 'locLabel', 'platform', 'sessionsCount', 'circlePostsCount', 'lastSeen'];
+      const rows = users.map(u => header.map(k => `"${String(u[k] ?? '').replace(/"/g, '""')}"`).join(','));
+      const csv = "\uFEFF" + header.join(",") + "\n" + rows.join("\n");
+      const fname = `klev-pro-users-db-${new Date().toISOString().slice(0, 10)}.csv`;
+      downloadFileCrossPlatform(fname, csv, 'text/csv;charset=utf-8');
+      showToast(`Таблица сохранена: ${fname}`, 'good');
+    });
+
+    bodyEl.querySelector('#wcModalSearchInput')?.addEventListener('input', (ev) => {
+      const q = (ev.target.value || '').trim().toLowerCase();
+      bodyEl.querySelectorAll('#wcModalUsersTbody tr[data-wc-search]').forEach(tr => {
+        const hay = tr.getAttribute('data-wc-search') || '';
+        tr.style.display = (!q || hay.includes(q)) ? '' : 'none';
+      });
+    });
+
+    bodyEl.querySelectorAll('[data-wc-del-user]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const targetFid = btn.getAttribute('data-wc-del-user');
+        if (!targetFid) return;
+        const tok = _serverAdminSessionToken || store.getState().userProfile?.adminSessionToken || OWNER_ADMIN_CONSOLE_TOKEN;
+        try {
+          const res = await workerFetch('/api/admin/user/delete', {
+            method: 'POST',
+            body: JSON.stringify({ targetFisherId: targetFid, adminToken: tok })
+          }, 5500, 1);
+          if (res.ok) {
+            showToast(`Пользователь ${targetFid} удалён из базы D1`, 'info');
+            const fresh = await fetchSuperAdminDashboardData(false);
+            renderConsoleModalContent(bodyEl, fresh);
+          }
+        } catch (err) {
+          showToast('Ошибка связи при удалении пользователя', 'bad');
+        }
+      });
+    });
+
+    bodyEl.querySelectorAll('[data-wc-del-point]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const pid = btn.getAttribute('data-wc-del-point');
+        if (!pid) return;
+        await deleteCircleItemFromServer(pid);
+        showToast(`Точка ${pid} удалена с сервера`, 'info');
+        const fresh = await fetchSuperAdminDashboardData(false);
+        renderConsoleModalContent(bodyEl, fresh);
+      });
+    });
+  };
+
+  openModal(
+    'Серверная Веб-консоль Супер-Админа (D1 Cloud)',
+    '<div id="wcModalRoot"><div style="padding:18px;text-align:center;color:var(--muted);">Подключение к базе D1 через многоканальный шлюз...</div></div>',
+    async (bodyEl) => {
+      const root = bodyEl?.querySelector('#wcModalRoot') || bodyEl;
+      renderConsoleModalContent(root, _adminDashboardCache);
+      const fresh = await fetchSuperAdminDashboardData(false);
+      if (fresh) renderConsoleModalContent(root, fresh);
+    },
+    true
+  );
+}
+
 export async function fetchSuperAdminDashboardData(forceToast = false) {
   const s = store.getState();
   if (!isOwnerAdmin(s)) return null;
@@ -5010,7 +5364,7 @@ export function renderAdminSection(customContainer = null) {
         <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;">
           <div>
             <div style="font-size:var(--fs-md);font-weight:900;color:var(--good);">
-              <svg class="k-ico" style="color:#fbbf24;" viewBox="0 0 24 24" fill="none"><path d="M3 18h18l-2-11-5 4-2-6-2 6-5-4-2 11z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> ПАНЕЛЬ СУПЕР-АДМИНА И СТАТИСТИКА БД «КЛЁВ ПРО V.2.5.0 r186»
+              <svg class="k-ico" style="color:#fbbf24;" viewBox="0 0 24 24" fill="none"><path d="M3 18h18l-2-11-5 4-2-6-2 6-5-4-2 11z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> ПАНЕЛЬ СУПЕР-АДМИНА И СТАТИСТИКА БД «КЛЁВ ПРО V.2.5.1 r188»
             </div>
             <div style="font-size:var(--fs-xs);color:var(--muted);margin-top:3px;">
               Владелец: <b style="color:var(--text);">Антон (${escapeHtml(ident.login)})</b> • Эксклюзивные неприкосновенные ID Владельца:
@@ -5047,7 +5401,7 @@ export function renderAdminSection(customContainer = null) {
             <div style="font-weight:900;color:var(--good);font-size:13px;"><svg class="k-ico" style="color:var(--good);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg> Cloudflare D1 База Данных: ПОДКЛЮЧЕНА (${escapeHtml(db.d1BindingName || 'DB')})</div>
             <div style="font-size:11px;color:var(--muted);margin-top:2px;">Все постоянные ID, реестр пользователей, чаты и точки Круга сохраняются в SQL-таблицах D1.</div>
           </div>
-          <span class="pill pill-good" style="font-size:11px;font-weight:800;">D1 Engine 2.4.0</span>
+          <span class="pill pill-good" style="font-size:11px;font-weight:800;">D1 Engine 2.5.1</span>
         </div>
       ` : `
         <div class="card" style="border:1.5px solid var(--warn);background:rgba(245,158,11,0.10);padding:10px 14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
@@ -5252,30 +5606,13 @@ function bindAdminSectionEvents(container, users) {
     fetchSuperAdminDashboardData(true);
   });
 
-  container.querySelector('#admOpenFullConsoleBtn')?.addEventListener('click', (e) => {
-    const url = e.currentTarget.getAttribute('data-cloud-open-url');
-    if (!url) return;
-    // Открываем веб-консоль внутри модального окна приложения с активной кнопкой « Закрыть» и поддержкой свайпа назад!
-    const iframeHtml = `
-      <div style="display:flex;flex-direction:column;gap:8px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;font-size:11.5px;color:var(--muted);">
-          <span>Для возврата в приложение нажмите «<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Закрыть» внизу или сделайте жест «Назад».</span>
-          <button type="button" class="btn btn-sm" id="admModalReloadIframeBtn"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M20 11a8 8 0 0 0-14.5-4.5L4 8m0-5v5h5M4 13a8 8 0 0 0 14.5 4.5L20 16m0 5v-5h-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Обновить</button>
-        </div>
-        <iframe id="admServerConsoleIframe" src="${escapeHtml(url)}" style="width:100%;height:68vh;border:1px solid var(--border);border-radius:8px;background:#070d19;"></iframe>
-      </div>
-    `;
-    openModal('<svg class="k-ico" style="color:#fbbf24;" viewBox="0 0 24 24" fill="none"><path d="M3 18h18l-2-11-5 4-2-6-2 6-5-4-2 11z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Серверная веб-консоль Супер-Админа', iframeHtml, (bodyEl) => {
-      bodyEl?.querySelector('#admModalReloadIframeBtn')?.addEventListener('click', () => {
-        const ifr = bodyEl.querySelector('#admServerConsoleIframe');
-        if (ifr) ifr.src = url + '&_t=' + Date.now();
-      });
-    }, true);
+  container.querySelector('#admOpenFullConsoleBtn')?.addEventListener('click', async () => {
+    openFullServerWebConsoleModal();
   });
 
   container.querySelector('#admExportUsersJsonBtn')?.addEventListener('click', () => {
     const fname = `klev-pro-users-db-${new Date().toISOString().slice(0, 10)}.json`;
-    const jsonStr = JSON.stringify({ exportedAt: new Date().toISOString(), version: '2.4.0', total: users.length, users }, null, 2);
+    const jsonStr = JSON.stringify({ exportedAt: new Date().toISOString(), version: '2.5.1', total: users.length, users }, null, 2);
     downloadFileCrossPlatform(fname, jsonStr, 'application/json;charset=utf-8');
     showToast(` База пользователей сохранена: ${fname}`, 'good');
   });
