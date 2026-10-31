@@ -1,1 +1,712 @@
-import{showToast as e}from"../ui/components.js?v=2.5.0";import{syncInstallButtons as t}from"./pwa.js?v=2.5.0";import{store as n}from"./store.js?v=2.5.0";import{storage as r}from"./storage.js?v=2.5.0";export const TELEGRAM_BOT_USERNAME="KlevProClubBot";export const PUBLIC_APP_URL="https://klevpro.ru/";export const RELAY_WORKER_URL="https://klevprohbot.thorantony82.workers.dev";let o=null,i=!1,a=null,c=null,l=!1;export function encodeKplocToken(e,t,n="pike",r=""){const o=Math.round(1e4*(Number(e)||66.0833)),i=Math.round(1e4*(Number(t)||76.68)),a=o<0?`M${Math.abs(o)}`:String(o),c=i<0?`M${Math.abs(i)}`:String(i),l=String(n||"pike").replace(/[^A-Za-z0-9_-]/g,""),s=String(r||"").trim().toUpperCase().replace(/[^A-Z0-9_]/g,"");if(s&&/^FP_[A-Z0-9]{6,8}$/.test(s)){const e=`KPLOC_${a}_${c}_${l}_${s}`;if(e.length<=64)return e}return`KPLOC_${a}_${c}_${l}`}export function decodeKplocToken(e=""){const t=String(e||"").trim();if(!t.startsWith("KPLOC_"))return null;const n=t.split("_");if(n.length<3)return null;const r=e=>{if(!e)return NaN;const t=e.startsWith("M")||e.startsWith("-"),n=e.replace(/^[M-]/,""),r=parseFloat(n);if(!Number.isFinite(r))return NaN;const o=!n.includes(".")&&r>180?r/1e4:r;return t?-o:o},o=r(n[1]),i=r(n[2]);let a=n.slice(3).join("_")||"",c="";const l=a.match(/(?:^|_)(FP_[A-Z0-9]{6,8})$/i);l&&(c=l[1].toUpperCase(),a=a.slice(0,a.length-l[0].length));const s=a||"pike";return Number.isFinite(o)&&Number.isFinite(i)?{lat:o,lon:i,fish:s,fisherId:c}:null}export function isTelegramWebApp(){if("undefined"==typeof window)return!1;const e=window.Telegram&&window.Telegram.WebApp;if(e&&("string"==typeof e.initData&&e.initData.length>0||e.initDataUnsafe&&e.initDataUnsafe.user||e.platform&&"unknown"!==e.platform))return!0;const t=window.location.hash||"",n=window.location.search||"";return t.includes("tgWebAppData")||n.includes("tgWebAppStartParam")||n.includes("tg_city=")||n.includes("tg_fish=")}export function getTelegramUser(){try{const e=window.Telegram?.WebApp?.initDataUnsafe?.user;if(e&&e.id)return{id:e.id,firstName:e.first_name||"Рыболов",lastName:e.last_name||"",username:e.username||"",displayName:[e.first_name,e.last_name].filter(Boolean).join(" ")||e.username||`Рыбак #${e.id}`}}catch(e){}return null}export async function checkServerTelegramBindStatus(t=!1){try{const o=n.getState(),i=o?.userProfile||{},a=i.fisherId||"",c=i.deviceId||"";if(!a)return null;const l=`${RELAY_WORKER_URL}/api/tg/bind?fid=${encodeURIComponent(a)}&deviceId=${encodeURIComponent(c)}&_t=${Date.now()}`;let s=null;try{s=await fetch(l,{method:"GET",cache:"no-store"})}catch(e){s=await fetch(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(l)}`,{method:"GET",cache:"no-store"})}if(!s.ok)return null;const d=await s.json();if(d&&d.ok&&d.bound&&d.tgId){const o=Boolean(i.tgLinkedId&&String(i.tgLinkedId)===String(d.tgId)),c=d.fisherId||a;if(n.dispatch({type:"UPDATE_USER_PROFILE",payload:{fisherId:c,tgLinkedId:String(d.tgId),tgUsername:d.tgUsername||i.tgUsername||"",tgLinkedAt:Date.now(),tgBindNotified:!0}}),r.saveSettings(n.getState()),!o&&!t){const t=d.tgUsername?`@${d.tgUsername}`:`ID ${d.tgId}`;e(`🔗 Ваш рыболовный ID (${c}) и профиль успешно связаны с Telegram (${t})!`,"good")}return"undefined"!=typeof window&&window.dispatchEvent(new CustomEvent("klev:tg-bound",{detail:d})),d}}catch(e){}return null}export function setupTelegramBindReturnPoller(){if("undefined"==typeof window)return;if(!l){l=!0;const e=()=>{"visible"===document.visibilityState&&checkServerTelegramBindStatus(!1)};window.addEventListener("focus",e),document.addEventListener("visibilitychange",e)}c&&clearInterval(c);let e=0;c=setInterval((async()=>{e+=1;(await checkServerTelegramBindStatus(!1)||e>=10)&&(clearInterval(c),c=null)}),3500)}export async function bindFisherIdWithTelegram(t={}){const o=n.getState(),i=o?.userProfile||{},a=i.fisherId||"FP_89AAA001",c=i.deviceId||"",l=i.login||"",s=i.authTokenHash||"",d=getTelegramUser();if(d&&d.id){const p=Boolean(i.tgLinkedId&&String(i.tgLinkedId)===String(d.id)&&i.tgBindNotified);n.dispatch({type:"UPDATE_USER_PROFILE",payload:{tgLinkedId:String(d.id),tgUsername:d.username||i.tgUsername||"",tgLinkedAt:i.tgLinkedAt||Date.now(),tgBindNotified:!0}}),r.saveSettings(n.getState());try{await fetch(`${RELAY_WORKER_URL}/api/tg/bind`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({fisherId:a,deviceId:c,login:l,authTokenHash:s,tgId:String(d.id),tgUsername:d.username||"",tgFirstName:d.firstName||"",locLabel:o?.locLabel||"Новый Уренгой"})})}catch(e){}if(!p||t.explicit){const t=d.username?`@${d.username}`:`ID ${d.id}`;e(`🔗 Ваш рыболовный ID (${a}) и Telegram (${t}) связаны воедино!`,"good")}return"undefined"!=typeof window&&window.dispatchEvent(new CustomEvent("klev:tg-bound",{detail:{fisherId:a,tgId:d.id,tgUsername:d.username}})),{ok:!0,bound:!0,fisherId:a,tgId:d.id,tgUsername:d.username}}try{fetch(`${RELAY_WORKER_URL}/api/tg/bind`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({fisherId:a,deviceId:c,login:l,authTokenHash:s,tgId:i.tgLinkedId||"",tgUsername:i.tgUsername||"",locLabel:o?.locLabel||"Новый Уренгой"})}).catch((()=>{}))}catch(e){}if(setupTelegramBindReturnPoller(),t.openBindBot){const t=`https://t.me/${TELEGRAM_BOT_USERNAME}?start=BIND_${encodeURIComponent(a)}`;e(`✈️ Связываем ваш ID (${a}) с Telegram! Нажмите «Запустить / Start» в открывшемся боте @${TELEGRAM_BOT_USERNAME}.`,"info");try{"undefined"!=typeof window&&"function"==typeof window.open&&window.open(t,"_blank","noopener,noreferrer")}catch(e){}return{ok:!0,bound:!1,pendingBotStart:!0,bindBotUrl:t,fisherId:a}}return{ok:!0,bound:Boolean(i.tgLinkedId),fisherId:a}}export function syncTelegramTheme(e="dark"){try{const t=window.Telegram?.WebApp;if(!t)return;const n="light"===e,r=n?"#ffffff":"#151f32",o=n?"#f1f5f9":"#0b1120";"function"==typeof t.setHeaderColor&&t.setHeaderColor(r),"function"==typeof t.setBackgroundColor&&t.setBackgroundColor(o)}catch(e){}}export function syncTelegramBackButton(e,t){try{const n=window.Telegram?.WebApp?.BackButton;if(!n||!isTelegramWebApp())return;a&&"function"==typeof n.offClick&&n.offClick(a),e&&"forecast"!==e?(a=()=>{triggerHaptic("selection"),"function"==typeof t&&t()},"function"==typeof n.onClick&&n.onClick(a),"function"==typeof n.show&&n.show()):"function"==typeof n.hide&&n.hide()}catch(e){}}export function triggerHaptic(e="light"){try{const t=window.Telegram?.WebApp?.HapticFeedback;if(t)return void("success"===e||"warning"===e||"error"===e?t.notificationOccurred(e):"selection"===e?t.selectionChanged():t.impactOccurred(e));"undefined"!=typeof navigator&&"function"==typeof navigator.vibrate&&navigator.vibrate("heavy"===e?25:10)}catch(e){}}export function extractIncomingDeepLinkParams(){if("undefined"==typeof window)return null;try{const e=new URLSearchParams(window.location.search||""),t=window.location.hash||"",n=t.indexOf("?"),r=n>=0?new URLSearchParams(t.slice(n+1)):null,o=t=>e.get(t)||(r?r.get(t):null),i=parseFloat(o("tg_lat")||""),a=parseFloat(o("tg_lon")||""),c=o("tg_city")||"",l=o("tg_water")||"",s=o("tg_fish")||"",d=decodeKplocToken(window.Telegram?.WebApp?.initDataUnsafe?.start_param||o("startapp")||o("tgWebAppStartParam")||o("start")||"");if(d)return{lat:d.lat,lon:d.lon,city:c||"",water:l||"",fish:d.fish||s};if(Number.isFinite(i)&&Number.isFinite(a)||s)return{lat:Number.isFinite(i)?i:null,lon:Number.isFinite(a)?a:null,city:c,water:l,fish:s}}catch(e){}return null}export function extractIncomingShareToken(){if("undefined"==typeof window)return null;try{const e=window.Telegram?.WebApp?.initDataUnsafe?.start_param;if(e&&e.startsWith("KP1_"))return e;const t=new URLSearchParams(window.location.search||""),n=t.get("p")||t.get("startapp")||t.get("tgWebAppStartParam")||t.get("klev_pack")||t.get("start");if(n&&n.startsWith("KP1_"))return n;const r=(window.location.hash||"").match(/(?:klev_pack|pack|p)=(KP1_[A-Za-z0-9_-]+)/);if(r&&r[1])return r[1]}catch(e){}return null}export function clearIncomingShareTokenFromUrl(){if("undefined"!=typeof window&&window.history?.replaceState)try{const e=window.location.hash||"";(e.includes("klev_pack=")||e.includes("pack=KP1_")||e.includes("p=KP1_"))&&window.history.replaceState(null,"",window.location.pathname+"#/circle")}catch(e){}}export async function syncToTelegramCloud(e,t){try{const n=window.Telegram?.WebApp?.CloudStorage;if(!n||"function"!=typeof n.setItem)return!1;const r=JSON.stringify(t);return!(r.length>4e3)&&await new Promise((t=>{n.setItem(e,r,((e,n)=>{t(!e&&Boolean(n))}))}))}catch(e){return!1}}export async function readFromTelegramCloud(e){try{const t=window.Telegram?.WebApp?.CloudStorage;return t&&"function"==typeof t.getItem?await new Promise((n=>{t.getItem(e,((e,t)=>{if(!e&&t)try{n(JSON.parse(t))}catch(e){n(null)}else n(null)}))})):null}catch(e){return null}}export function getPublicShareBaseUrl(){try{if("undefined"!=typeof window&&window.location?.origin){const e=(window.location.hostname||"").toLowerCase();if(window.location.origin.startsWith("http")&&e&&"localhost"!==e&&"127.0.0.1"!==e&&!e.endsWith(".androidplatform.net")&&!e.startsWith("192.168.")&&!e.startsWith("10."))return window.location.origin+"/"}}catch(e){}return PUBLIC_APP_URL}export function buildShareUrls(e){const t=`${getPublicShareBaseUrl()}#p=${encodeURIComponent(e)}`;return{webUrl:t,tgMiniAppUrl:e.length<=64?`https://t.me/${TELEGRAM_BOT_USERNAME}?start=${encodeURIComponent(e)}`:t}}export function buildForecastShareUrls(e,t,n,r){const o=`${getPublicShareBaseUrl()}?tg_lat=${(Number(e)||66.0833).toFixed(4)}&tg_lon=${(Number(t)||76.68).toFixed(4)}&tg_city=${encodeURIComponent(n||"")}&tg_fish=${encodeURIComponent(r||"pike")}#/forecast`,i=encodeKplocToken(e,t,r);return{webUrl:o,botStartUrl:`https://t.me/${TELEGRAM_BOT_USERNAME}?start=${i}`,kplocToken:i}}export function shareToTelegramChat(t,r){triggerHaptic("light");const o=n.getState(),i=o?.userProfile||{},a=i.fisherId||"FP_89AAA001",c=getTelegramUser();if(bindFisherIdWithTelegram({onShare:!0}),c&&c.id){const t=c.username?`@${c.username}`:`ID ${c.id}`;e(`🔗 Ваш ID (${a}) связан с Telegram (${t}). Открываем отправку в чат/группу...`,"good")}else if(i.tgLinkedId){const t=i.tgUsername?`@${i.tgUsername}`:`ID ${i.tgLinkedId}`;e(`✈️ Отправка в Telegram от вашего связанного профиля (${a} • ${t})`,"info")}else e(`✈️ Отправка в Telegram: ваш ID (${a}) прикреплён к карточке! Для полной синхронизации с ботом нажмите «Связать ID с ТГ» в Профиле.`,"info");const l=`https://t.me/share/url?url=${encodeURIComponent(t)}&text=${encodeURIComponent(r)}`;try{if(window.Telegram?.WebApp&&"function"==typeof window.Telegram.WebApp.openTelegramLink&&isTelegramWebApp())return window.Telegram.WebApp.openTelegramLink(l),!0;if("undefined"!=typeof window&&"function"==typeof window.open)return window.open(l,"_blank","noopener,noreferrer"),!0}catch(e){}return!1}export function openBotChatInTelegram(t=""){triggerHaptic("light");const r=n.getState(),o=r?.userProfile||{},i=t||o.fisherId||"FP_89AAA001",a=getTelegramUser();bindFisherIdWithTelegram({explicit:!0}),a||o.tgLinkedId?e(`🤖 Открываем @${TELEGRAM_BOT_USERNAME} (ваш единый ID: ${i})`,"good"):e(`🔗 Связываем ваш ID (${i}) с Telegram-ботом @${TELEGRAM_BOT_USERNAME}! Нажмите «Запустить / Start» в боте.`,"info");const c=`https://t.me/${TELEGRAM_BOT_USERNAME}?start=BIND_${encodeURIComponent(i)}`;try{if(window.Telegram?.WebApp&&"function"==typeof window.Telegram.WebApp.openTelegramLink&&isTelegramWebApp())return window.Telegram.WebApp.openTelegramLink(c),!0;if("undefined"!=typeof window&&"function"==typeof window.open)return window.open(c,"_blank","noopener,noreferrer"),!0}catch(e){}return!1}export async function shareOrCopyPack({title:t,text:n,url:r}){triggerHaptic("light");const o=`${n}\n🔗 ${r}`;if("undefined"!=typeof navigator&&"function"==typeof navigator.share)try{return await navigator.share({title:t,text:n,url:r}),e("✅ Пакет успешно отправлен!","good"),{method:"web_share",ok:!0}}catch(e){if(e&&"AbortError"===e.name)return{method:"aborted",ok:!1}}try{if("undefined"!=typeof navigator&&navigator.clipboard&&"function"==typeof navigator.clipboard.writeText)return await navigator.clipboard.writeText(o),e("📋 Короткая ссылка и карточка скопированы в буфер обмена!","good"),{method:"clipboard",ok:!0}}catch(e){}return{method:"manual",ok:!1,fullText:o}}export function validateTelegramInitDataStructure(e=""){const t=String(e||window.Telegram?.WebApp?.initData||"").trim();if(!t)return{present:!1,validStructure:!1,reason:"empty"};try{const e=new URLSearchParams(t),n=e.get("hash")||"",r=parseInt(e.get("auth_date")||"0",10),o=/^[a-f0-9]{64}$/i.test(n),i=r>0?Math.floor(Date.now()/1e3)-r:0;return{present:!0,validStructure:o&&(r>0&&i<604800),hash:n,authDate:r,ageSec:i}}catch(e){return{present:!0,validStructure:!1,reason:"parse_error"}}}export function initTelegramMiniApp(e=null,n=null){if("undefined"==typeof window)return;const r=()=>{try{const e=window.Telegram?.WebApp;if(e){o=e,"function"==typeof e.ready&&e.ready(),"function"==typeof e.expand&&e.expand(),"function"==typeof e.enableClosingConfirmation&&isTelegramWebApp()&&e.enableClosingConfirmation(),i=Boolean(e.CloudStorage);syncTelegramTheme(document.documentElement.getAttribute("data-theme")||"dark"),isTelegramWebApp()&&(document.documentElement.setAttribute("data-tg-webapp","1"),document.documentElement.setAttribute("data-pwa-installed","1"),t(),setTimeout((()=>{bindFisherIdWithTelegram({explicit:!1})}),600))}}catch(e){}const r=extractIncomingShareToken();r&&"function"==typeof e&&e(r);const a=extractIncomingDeepLinkParams();a&&"function"==typeof n&&n(a)};window.__KLEV_ON_TG_SDK_LOAD__=r,r()}export const telegramModule={TELEGRAM_BOT_USERNAME:TELEGRAM_BOT_USERNAME,PUBLIC_APP_URL:PUBLIC_APP_URL,RELAY_WORKER_URL:RELAY_WORKER_URL,encodeKplocToken:encodeKplocToken,decodeKplocToken:decodeKplocToken,isTelegramWebApp:isTelegramWebApp,getTelegramUser:getTelegramUser,checkServerTelegramBindStatus:checkServerTelegramBindStatus,setupTelegramBindReturnPoller:setupTelegramBindReturnPoller,bindFisherIdWithTelegram:bindFisherIdWithTelegram,syncTelegramTheme:syncTelegramTheme,syncTelegramBackButton:syncTelegramBackButton,triggerHaptic:triggerHaptic,extractIncomingDeepLinkParams:extractIncomingDeepLinkParams,extractIncomingShareToken:extractIncomingShareToken,clearIncomingShareTokenFromUrl:clearIncomingShareTokenFromUrl,syncToTelegramCloud:syncToTelegramCloud,readFromTelegramCloud:readFromTelegramCloud,buildShareUrls:buildShareUrls,buildForecastShareUrls:buildForecastShareUrls,shareToTelegramChat:shareToTelegramChat,openBotChatInTelegram:openBotChatInTelegram,shareOrCopyPack:shareOrCopyPack,validateTelegramInitDataStructure:validateTelegramInitDataStructure,initTelegramMiniApp:initTelegramMiniApp};
+/**
+ * @file telegram.js
+ * @description Модуль глубокой интеграции с Telegram Mini Apps (TMA / Telegram WebApp API),
+ * двухэтапной связки автономного Рыболовного ID (FP_89AAA001 / FP_89VIP089) и единого профиля
+ * с аккаунтом Telegram (@KlevProClubBot) по запросу пользователя, нативными кнопками BackButton / MainButton,
+ * синхронизацией цветов шапки Telegram, Telegram CloudStorage, HapticFeedback и Deep-Linking (Ревизия 2.1.1).
+ */
+
+import { showToast } from '../ui/components.js?v=2.5.0';
+import { syncInstallButtons } from './pwa.js?v=2.5.0';
+import { store } from './store.js?v=2.5.0';
+import { storage } from './storage.js?v=2.5.0';
+
+export const TELEGRAM_BOT_USERNAME = 'KlevProClubBot';
+export const PUBLIC_APP_URL = 'https://klevpro.ru/';
+export const RELAY_WORKER_URL = 'https://klevprohbot.thorantony82.workers.dev';
+
+let tgWebApp = null;
+let cloudSyncEnabled = false;
+let backBtnHandler = null;
+let _bindPollerTimer = null;
+let _bindFocusListenerAttached = false;
+
+/**
+ * Кодирует координаты, ID рыбы и (опционально) Рыболовный ID в безопасный токен Telegram без точек (только [A-Za-z0-9_-])
+ * Пример: (57.6261, 39.8845, 'zander') -> 'KPLOC_576261_398845_zander'
+ */
+export function encodeKplocToken(lat, lon, fishId = 'pike', fisherId = '') {
+  const latInt = Math.round((Number(lat) || 66.0833) * 10000);
+  const lonInt = Math.round((Number(lon) || 76.6800) * 10000);
+  const latStr = latInt < 0 ? `M${Math.abs(latInt)}` : String(latInt);
+  const lonStr = lonInt < 0 ? `M${Math.abs(lonInt)}` : String(lonInt);
+  const cleanFish = String(fishId || 'pike').replace(/[^A-Za-z0-9_-]/g, '');
+  const cleanFid = String(fisherId || '').trim().toUpperCase().replace(/[^A-Z0-9_]/g, '');
+  if (cleanFid && /^FP_[A-Z0-9]{6,8}$/.test(cleanFid)) {
+    const tokenWithFid = `KPLOC_${latStr}_${lonStr}_${cleanFish}_${cleanFid}`;
+    if (tokenWithFid.length <= 64) return tokenWithFid;
+  }
+  return `KPLOC_${latStr}_${lonStr}_${cleanFish}`;
+}
+
+/**
+ * Декодирует токен KPLOC_... (поддерживает и новый целочисленный формат KPLOC_576261_398845_zander,
+ * и суффикс _FP_89AAA001, и старый дробный формат KPLOC_66.0847_76.6700_smelt)
+ */
+export function decodeKplocToken(rawParam = '') {
+  const str = String(rawParam || '').trim();
+  if (!str.startsWith('KPLOC_')) return null;
+  const parts = str.split('_');
+  if (parts.length < 3) return null;
+  const parseCoord = (p) => {
+    if (!p) return NaN;
+    const neg = p.startsWith('M') || p.startsWith('-');
+    const clean = p.replace(/^[M-]/, '');
+    const num = parseFloat(clean);
+    if (!Number.isFinite(num)) return NaN;
+    const val = (!clean.includes('.') && num > 180) ? (num / 10000) : num;
+    return neg ? -val : val;
+  };
+  const lat = parseCoord(parts[1]);
+  const lon = parseCoord(parts[2]);
+  let tail = parts.slice(3).join('_') || '';
+  let fisherId = '';
+  const fidMatch = tail.match(/(?:^|_)(FP_[A-Z0-9]{6,8})$/i);
+  if (fidMatch) {
+    fisherId = fidMatch[1].toUpperCase();
+    tail = tail.slice(0, tail.length - fidMatch[0].length);
+  }
+  const fish = tail || 'pike';
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  return { lat, lon, fish, fisherId };
+}
+
+/**
+ * Проверяет, запущено ли приложение внутри контейнера Telegram Mini App
+ */
+export function isTelegramWebApp() {
+  if (typeof window === 'undefined') return false;
+  const twa = window.Telegram && window.Telegram.WebApp;
+  if (twa && (
+    (typeof twa.initData === 'string' && twa.initData.length > 0) ||
+    (twa.initDataUnsafe && twa.initDataUnsafe.user) ||
+    (twa.platform && twa.platform !== 'unknown')
+  )) {
+    return true;
+  }
+  const hash = window.location.hash || '';
+  const search = window.location.search || '';
+  return hash.includes('tgWebAppData') || search.includes('tgWebAppStartParam') || search.includes('tg_city=') || search.includes('tg_fish=');
+}
+
+/**
+ * Возвращает объект пользователя Telegram (если приложение открыто внутри Telegram)
+ */
+export function getTelegramUser() {
+  try {
+    const u = window.Telegram?.WebApp?.initDataUnsafe?.user;
+    if (u && u.id) {
+      return {
+        id: u.id,
+        firstName: u.first_name || 'Рыболов',
+        lastName: u.last_name || '',
+        username: u.username || '',
+        displayName: [u.first_name, u.last_name].filter(Boolean).join(' ') || u.username || `Рыбак #${u.id}`
+      };
+    }
+  } catch (e) {}
+  return null;
+}
+
+/**
+ * Проверяет на сервере, была ли завершена связка текущего Рыболовного ID с аккаунтом Telegram (@KlevProClubBot)
+ */
+export async function checkServerTelegramBindStatus(silent = false) {
+  try {
+    const s = store.getState();
+    const up = s?.userProfile || {};
+    const fisherId = up.fisherId || '';
+    const deviceId = up.deviceId || '';
+    if (!fisherId) return null;
+
+    const url = `${RELAY_WORKER_URL}/api/tg/bind?fid=${encodeURIComponent(fisherId)}&deviceId=${encodeURIComponent(deviceId)}&_t=${Date.now()}`;
+    let res = null;
+    try {
+      res = await fetch(url, { method: 'GET', cache: 'no-store' });
+    } catch (e) {
+      res = await fetch(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`, { method: 'GET', cache: 'no-store' });
+    }
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data && data.ok && data.bound && data.tgId) {
+      const wasLinked = Boolean(up.tgLinkedId && String(up.tgLinkedId) === String(data.tgId));
+      const nextFid = data.fisherId || fisherId;
+      store.dispatch({
+        type: 'UPDATE_USER_PROFILE',
+        payload: {
+          fisherId: nextFid,
+          tgLinkedId: String(data.tgId),
+          tgUsername: data.tgUsername || up.tgUsername || '',
+          tgLinkedAt: Date.now(),
+          tgBindNotified: true
+        }
+      });
+      storage.saveSettings(store.getState());
+      if (!wasLinked && !silent) {
+        const tgLabel = data.tgUsername ? `@${data.tgUsername}` : `ID ${data.tgId}`;
+        showToast(` Ваш рыболовный ID (${nextFid}) и профиль успешно связаны с Telegram (${tgLabel})!`, 'good');
+      }
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('klev:tg-bound', { detail: data }));
+      }
+      return data;
+    }
+  } catch (e) {}
+  return null;
+}
+
+/**
+ * Запускает отслеживание возврата пользователя из Telegram в приложение (APK / Браузер)
+ * для мгновенного подтверждения связки ID + Telegram
+ */
+export function setupTelegramBindReturnPoller() {
+  if (typeof window === 'undefined') return;
+
+  if (!_bindFocusListenerAttached) {
+    _bindFocusListenerAttached = true;
+    const onFocusOrVis = () => {
+      if (document.visibilityState === 'visible') {
+        checkServerTelegramBindStatus(false);
+      }
+    };
+    window.addEventListener('focus', onFocusOrVis);
+    document.addEventListener('visibilitychange', onFocusOrVis);
+  }
+
+  if (_bindPollerTimer) clearInterval(_bindPollerTimer);
+  let attempts = 0;
+  _bindPollerTimer = setInterval(async () => {
+    attempts += 1;
+    const bound = await checkServerTelegramBindStatus(false);
+    if (bound || attempts >= 10) {
+      clearInterval(_bindPollerTimer);
+      _bindPollerTimer = null;
+    }
+  }, 3500);
+}
+
+/**
+ * Двухэтапная связка автономного Рыболовного ID (FP_89...) и единого профиля (Логин + Пароль) с Telegram:
+ * Вызывается только тогда, когда пользователь сам взаимодействует с Telegram (отправка карточки,
+ * открытие бота @KlevProClubBot или нажатие кнопки «Связать ID с Telegram»).
+ */
+export async function bindFisherIdWithTelegram(options = {}) {
+  const s = store.getState();
+  const up = s?.userProfile || {};
+  const fisherId = up.fisherId || 'FP_89AAA001';
+  const deviceId = up.deviceId || '';
+  const login = up.login || '';
+  const authTokenHash = up.authTokenHash || '';
+  const tgUser = getTelegramUser();
+
+  // 1. Если мы внутри Telegram Mini App — данные Telegram уже доступны, связываем мгновенно
+  if (tgUser && tgUser.id) {
+    const alreadyLinked = Boolean(up.tgLinkedId && String(up.tgLinkedId) === String(tgUser.id) && up.tgBindNotified);
+    store.dispatch({
+      type: 'UPDATE_USER_PROFILE',
+      payload: {
+        tgLinkedId: String(tgUser.id),
+        tgUsername: tgUser.username || up.tgUsername || '',
+        tgLinkedAt: up.tgLinkedAt || Date.now(),
+        tgBindNotified: true
+      }
+    });
+    storage.saveSettings(store.getState());
+
+    try {
+      await fetch(`${RELAY_WORKER_URL}/api/tg/bind`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fisherId,
+          deviceId,
+          login,
+          authTokenHash,
+          tgId: String(tgUser.id),
+          tgUsername: tgUser.username || '',
+          tgFirstName: tgUser.firstName || '',
+          locLabel: s?.locLabel || 'Новый Уренгой'
+        })
+      });
+    } catch (e) {}
+
+    if (!alreadyLinked || options.explicit) {
+      const tgLabel = tgUser.username ? `@${tgUser.username}` : `ID ${tgUser.id}`;
+      showToast(` Ваш рыболовный ID (${fisherId}) и Telegram (${tgLabel}) связаны воедино!`, 'good');
+    }
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('klev:tg-bound', { detail: { fisherId, tgId: tgUser.id, tgUsername: tgUser.username } }));
+    }
+    return { ok: true, bound: true, fisherId, tgId: tgUser.id, tgUsername: tgUser.username };
+  }
+
+  // 2. Если пользователь в Android APK или браузере (вне Telegram) — регистрируем заявку на связку на сервере
+  try {
+    fetch(`${RELAY_WORKER_URL}/api/tg/bind`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fisherId,
+        deviceId,
+        login,
+        authTokenHash,
+        tgId: up.tgLinkedId || '',
+        tgUsername: up.tgUsername || '',
+        locLabel: s?.locLabel || 'Новый Уренгой'
+      })
+    }).catch(() => {});
+  } catch (e) {}
+
+  setupTelegramBindReturnPoller();
+
+  if (options.openBindBot) {
+    const bindBotUrl = `https://t.me/${TELEGRAM_BOT_USERNAME}?start=BIND_${encodeURIComponent(fisherId)}`;
+    showToast(` Связываем ваш ID (${fisherId}) с Telegram! Нажмите «Запустить / Start» в открывшемся боте @${TELEGRAM_BOT_USERNAME}.`, 'info');
+    try {
+      if (typeof window !== 'undefined' && typeof window.open === 'function') {
+        window.open(bindBotUrl, '_blank', 'noopener,noreferrer');
+      }
+    } catch (e) {}
+    return { ok: true, bound: false, pendingBotStart: true, bindBotUrl, fisherId };
+  }
+
+  return { ok: true, bound: Boolean(up.tgLinkedId), fisherId };
+}
+
+/**
+ * Синхронизирует цвет верхней системной панели и фона Telegram Mini App с темой приложения
+ */
+export function syncTelegramTheme(effectiveTheme = 'dark') {
+  try {
+    const twa = window.Telegram?.WebApp;
+    if (!twa) return;
+    const isLight = effectiveTheme === 'light';
+    const headerHex = isLight ? '#ffffff' : '#151f32';
+    const bgHex = isLight ? '#f1f5f9' : '#0b1120';
+    if (typeof twa.setHeaderColor === 'function') twa.setHeaderColor(headerHex);
+    if (typeof twa.setBackgroundColor === 'function') twa.setBackgroundColor(bgHex);
+  } catch (e) {}
+}
+
+/**
+ * Управляет системной кнопкой «Назад» (←) в шапке Telegram Mini App:
+ * на внутренних вкладках возвращает в «Прогноз» вместо случайного закрытия всего приложения
+ */
+export function syncTelegramBackButton(currentRoute, onBack) {
+  try {
+    const bb = window.Telegram?.WebApp?.BackButton;
+    if (!bb || !isTelegramWebApp()) return;
+    if (backBtnHandler && typeof bb.offClick === 'function') {
+      bb.offClick(backBtnHandler);
+    }
+    if (currentRoute && currentRoute !== 'forecast') {
+      backBtnHandler = () => {
+        triggerHaptic('selection');
+        if (typeof onBack === 'function') onBack();
+      };
+      if (typeof bb.onClick === 'function') bb.onClick(backBtnHandler);
+      if (typeof bb.show === 'function') bb.show();
+    } else {
+      if (typeof bb.hide === 'function') bb.hide();
+    }
+  } catch (e) {}
+}
+
+/**
+ * Вызывает тактильный отклик (вибрацию) в Telegram Mini App или стандартный navigator.vibrate
+ */
+export function triggerHaptic(type = 'light') {
+  try {
+    const hf = window.Telegram?.WebApp?.HapticFeedback;
+    if (hf) {
+      if (type === 'success' || type === 'warning' || type === 'error') {
+        hf.notificationOccurred(type);
+      } else if (type === 'selection') {
+        hf.selectionChanged();
+      } else {
+        hf.impactOccurred(type);
+      }
+      return;
+    }
+    if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+      navigator.vibrate(type === 'heavy' ? 25 : 10);
+    }
+  } catch (e) {}
+}
+
+/**
+ * Извлекает параметры быстрого перехода из ответа бота (?tg_lat=...&tg_lon=...&tg_city=...&tg_fish=... или KPLOC_...)
+ */
+export function extractIncomingDeepLinkParams() {
+  if (typeof window === 'undefined') return null;
+  try {
+    const searchParams = new URLSearchParams(window.location.search || '');
+    const hashStr = window.location.hash || '';
+    const hashQueryIdx = hashStr.indexOf('?');
+    const hashParams = hashQueryIdx >= 0 ? new URLSearchParams(hashStr.slice(hashQueryIdx + 1)) : null;
+
+    const getP = (k) => searchParams.get(k) || (hashParams ? hashParams.get(k) : null);
+    const lat = parseFloat(getP('tg_lat') || '');
+    const lon = parseFloat(getP('tg_lon') || '');
+    const city = getP('tg_city') || '';
+    const water = getP('tg_water') || '';
+    const fish = getP('tg_fish') || '';
+
+    const startParam = window.Telegram?.WebApp?.initDataUnsafe?.start_param ||
+      getP('startapp') ||
+      getP('tgWebAppStartParam') ||
+      getP('start') || '';
+
+    const decodedKploc = decodeKplocToken(startParam);
+    if (decodedKploc) {
+      return {
+        lat: decodedKploc.lat,
+        lon: decodedKploc.lon,
+        city: city || '',
+        water: water || '',
+        fish: decodedKploc.fish || fish
+      };
+    }
+
+    if ((Number.isFinite(lat) && Number.isFinite(lon)) || fish) {
+      return {
+        lat: Number.isFinite(lat) ? lat : null,
+        lon: Number.isFinite(lon) ? lon : null,
+        city,
+        water,
+        fish
+      };
+    }
+  } catch (e) {}
+  return null;
+}
+
+/**
+ * Извлекает стартовый параметр пакета (#p=KP1_... или #klev_pack=KP1_... или ?startapp=KP1_...)
+ */
+export function extractIncomingShareToken() {
+  if (typeof window === 'undefined') return null;
+  try {
+    const tgStart = window.Telegram?.WebApp?.initDataUnsafe?.start_param;
+    if (tgStart && tgStart.startsWith('KP1_')) {
+      return tgStart;
+    }
+
+    const params = new URLSearchParams(window.location.search || '');
+    const qParam = params.get('p') || params.get('startapp') || params.get('tgWebAppStartParam') || params.get('klev_pack') || params.get('start');
+    if (qParam && qParam.startsWith('KP1_')) {
+      return qParam;
+    }
+
+    const hash = window.location.hash || '';
+    const match = hash.match(/(?:klev_pack|pack|p)=(KP1_[A-Za-z0-9_-]+)/);
+    if (match && match[1]) {
+      return match[1];
+    }
+  } catch (e) {}
+  return null;
+}
+
+/**
+ * Очищает одноразовый токен пакета из адресной строки после успешного импорта
+ */
+export function clearIncomingShareTokenFromUrl() {
+  if (typeof window === 'undefined' || !window.history?.replaceState) return;
+  try {
+    const hash = window.location.hash || '';
+    if (hash.includes('klev_pack=') || hash.includes('pack=KP1_') || hash.includes('p=KP1_')) {
+      window.history.replaceState(null, '', window.location.pathname + '#/circle');
+    }
+  } catch (e) {}
+}
+
+/**
+ * Сохраняет компактный слепок точек и пакетов «Круга» в Telegram CloudStorage (если доступно)
+ */
+export async function syncToTelegramCloud(key, dataObj) {
+  try {
+    const cs = window.Telegram?.WebApp?.CloudStorage;
+    if (!cs || typeof cs.setItem !== 'function') return false;
+    const raw = JSON.stringify(dataObj);
+    if (raw.length > 4000) return false;
+    return await new Promise((resolve) => {
+      cs.setItem(key, raw, (err, ok) => {
+        resolve(!err && Boolean(ok));
+      });
+    });
+  } catch (e) {
+    return false;
+  }
+}
+
+/**
+ * Читает сохранённые данные из Telegram CloudStorage
+ */
+export async function readFromTelegramCloud(key) {
+  try {
+    const cs = window.Telegram?.WebApp?.CloudStorage;
+    if (!cs || typeof cs.getItem !== 'function') return null;
+    return await new Promise((resolve) => {
+      cs.getItem(key, (err, val) => {
+        if (err || !val) {
+          resolve(null);
+          return;
+        }
+        try {
+          resolve(JSON.parse(val));
+        } catch (e) {
+          resolve(null);
+        }
+      });
+    });
+  } catch (e) {
+    return null;
+  }
+}
+
+/**
+ * Формирует универсальные рабочие ссылки для открытия пакета и прогноза (всегда публичный домен, никогда не androidplatform.net)
+ */
+export function getPublicShareBaseUrl() {
+  try {
+    if (typeof window !== 'undefined' && window.location?.origin) {
+      const host = (window.location.hostname || '').toLowerCase();
+      if (
+        window.location.origin.startsWith('http') &&
+        host &&
+        host !== 'localhost' &&
+        host !== '127.0.0.1' &&
+        !host.endsWith('.androidplatform.net') &&
+        !host.startsWith('192.168.') &&
+        !host.startsWith('10.')
+      ) {
+        return window.location.origin + '/';
+      }
+    }
+  } catch (e) {}
+  return PUBLIC_APP_URL;
+}
+
+/**
+ * Формирует ультракороткую ссылку #p=KP1_... (~50 символов целиком!)
+ */
+export function buildShareUrls(token) {
+  const baseOrigin = getPublicShareBaseUrl();
+  const webUrl = `${baseOrigin}#p=${encodeURIComponent(token)}`;
+  const tgMiniAppUrl = token.length <= 64
+    ? `https://t.me/${TELEGRAM_BOT_USERNAME}?start=${encodeURIComponent(token)}`
+    : webUrl;
+  return { webUrl, tgMiniAppUrl };
+}
+
+/**
+ * Формирует пару ссылок для шаринга конкретного прогноза по координатам и рыбе
+ */
+export function buildForecastShareUrls(lat, lon, cityLabel, fishId) {
+  const baseOrigin = getPublicShareBaseUrl();
+  const cleanLat = (Number(lat) || 66.0833).toFixed(4);
+  const cleanLon = (Number(lon) || 76.6800).toFixed(4);
+  const webUrl = `${baseOrigin}?tg_lat=${cleanLat}&tg_lon=${cleanLon}&tg_city=${encodeURIComponent(cityLabel || '')}&tg_fish=${encodeURIComponent(fishId || 'pike')}#/forecast`;
+  const kplocToken = encodeKplocToken(lat, lon, fishId);
+  const botStartUrl = `https://t.me/${TELEGRAM_BOT_USERNAME}?start=${kplocToken}`;
+  return { webUrl, botStartUrl, kplocToken };
+}
+
+/**
+ * Открывает диалог отправки сообщения/карточки (Прогноз / Экипаж / Круг / SOS) в Telegram
+ * (в группу, канал или другу) и автоматически запускает двухэтапную связку ID с Telegram с уведомлением пользователя
+ */
+export function shareToTelegramChat(shareUrl, textSummary) {
+  triggerHaptic('light');
+  const s = store.getState();
+  const up = s?.userProfile || {};
+  const fisherId = up.fisherId || 'FP_89AAA001';
+  const tgUser = getTelegramUser();
+
+  // Связываем ID и Telegram при отправке в ТГ
+  bindFisherIdWithTelegram({ onShare: true });
+
+  if (tgUser && tgUser.id) {
+    const tgLabel = tgUser.username ? `@${tgUser.username}` : `ID ${tgUser.id}`;
+    showToast(` Ваш ID (${fisherId}) связан с Telegram (${tgLabel}). Открываем отправку в чат/группу...`, 'good');
+  } else if (up.tgLinkedId) {
+    const tgLabel = up.tgUsername ? `@${up.tgUsername}` : `ID ${up.tgLinkedId}`;
+    showToast(` Отправка в Telegram от вашего связанного профиля (${fisherId} • ${tgLabel})`, 'info');
+  } else {
+    showToast(` Отправка в Telegram: ваш ID (${fisherId}) прикреплён к карточке! Для полной синхронизации с ботом нажмите «Связать ID с ТГ» в Профиле.`, 'info');
+  }
+
+  const fullTgShare = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(textSummary)}`;
+  try {
+    if (window.Telegram?.WebApp && typeof window.Telegram.WebApp.openTelegramLink === 'function' && isTelegramWebApp()) {
+      window.Telegram.WebApp.openTelegramLink(fullTgShare);
+      return true;
+    }
+    if (typeof window !== 'undefined' && typeof window.open === 'function') {
+      window.open(fullTgShare, '_blank', 'noopener,noreferrer');
+      return true;
+    }
+  } catch (e) {}
+  return false;
+}
+
+/**
+ * Открывает чат с ботом @KlevProClubBot и автоматически передаёт токен связки BIND_<fisherId>,
+ * чтобы объединить выданный автономно ID рыбака и единый профиль с Telegram пользователя
+ */
+export function openBotChatInTelegram(explicitFisherId = '') {
+  triggerHaptic('light');
+  const s = store.getState();
+  const up = s?.userProfile || {};
+  const fisherId = explicitFisherId || up.fisherId || 'FP_89AAA001';
+  const tgUser = getTelegramUser();
+
+  bindFisherIdWithTelegram({ explicit: true });
+
+  if (!tgUser && !up.tgLinkedId) {
+    showToast(` Связываем ваш ID (${fisherId}) с Telegram-ботом @${TELEGRAM_BOT_USERNAME}! Нажмите «Запустить / Start» в боте.`, 'info');
+  } else {
+    showToast(` Открываем @${TELEGRAM_BOT_USERNAME} (ваш единый ID: ${fisherId})`, 'good');
+  }
+
+  const botUrl = `https://t.me/${TELEGRAM_BOT_USERNAME}?start=BIND_${encodeURIComponent(fisherId)}`;
+  try {
+    if (window.Telegram?.WebApp && typeof window.Telegram.WebApp.openTelegramLink === 'function' && isTelegramWebApp()) {
+      window.Telegram.WebApp.openTelegramLink(botUrl);
+      return true;
+    }
+    if (typeof window !== 'undefined' && typeof window.open === 'function') {
+      window.open(botUrl, '_blank', 'noopener,noreferrer');
+      return true;
+    }
+  } catch (e) {}
+  return false;
+}
+
+/**
+ * Универсальная функция «Поделиться» (Web Share API -> Копирование в буфер обмена)
+ */
+export async function shareOrCopyPack({ title, text, url }) {
+  triggerHaptic('light');
+  const fullText = `${text}\n${url}`;
+
+  if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+    try {
+      await navigator.share({ title, text, url });
+      showToast(' Пакет успешно отправлен!', 'good');
+      return { method: 'web_share', ok: true };
+    } catch (err) {
+      if (err && err.name === 'AbortError') {
+        return { method: 'aborted', ok: false };
+      }
+    }
+  }
+
+  try {
+    if (typeof navigator !== 'undefined' && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+      await navigator.clipboard.writeText(fullText);
+      showToast(' Короткая ссылка и карточка скопированы в буфер обмена!', 'good');
+      return { method: 'clipboard', ok: true };
+    }
+  } catch (e) {}
+
+  return { method: 'manual', ok: false, fullText };
+}
+
+/**
+ * Базовая проверка целостности строки initData на клиенте (наличие 64-символьного hex-хэша HMAC-SHA256 и свежести auth_date)
+ */
+export function validateTelegramInitDataStructure(rawInitData = "") {
+  const str = String(rawInitData || window.Telegram?.WebApp?.initData || "").trim();
+  if (!str) return { present: false, validStructure: false, reason: "empty" };
+  try {
+    const params = new URLSearchParams(str);
+    const hash = params.get("hash") || "";
+    const authDate = parseInt(params.get("auth_date") || "0", 10);
+    const isHex64 = /^[a-f0-9]{64}$/i.test(hash);
+    const ageSec = authDate > 0 ? Math.floor(Date.now() / 1000) - authDate : 0;
+    const isFresh = authDate > 0 && ageSec < 86400 * 7;
+    return {
+      present: true,
+      validStructure: isHex64 && isFresh,
+      hash,
+      authDate,
+      ageSec
+    };
+  } catch (e) {
+    return { present: true, validStructure: false, reason: "parse_error" };
+  }
+}
+
+export function initTelegramMiniApp(onTokenReceived = null, onDeepLinkReceived = null) {
+  if (typeof window === 'undefined') return;
+
+  const setupTwa = () => {
+    try {
+      const twa = window.Telegram?.WebApp;
+      if (twa) {
+        tgWebApp = twa;
+        if (typeof twa.ready === 'function') twa.ready();
+        if (typeof twa.expand === 'function') twa.expand();
+        if (typeof twa.enableClosingConfirmation === 'function' && isTelegramWebApp()) {
+          twa.enableClosingConfirmation();
+        }
+        cloudSyncEnabled = Boolean(twa.CloudStorage);
+
+        const curTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+        syncTelegramTheme(curTheme);
+
+        if (isTelegramWebApp()) {
+          document.documentElement.setAttribute('data-tg-webapp', '1');
+          document.documentElement.setAttribute('data-pwa-installed', '1');
+          syncInstallButtons();
+          // Если открыто внутри Telegram — автоматически связываем выданный ID рыбака с аккаунтом Telegram
+          setTimeout(() => {
+            bindFisherIdWithTelegram({ explicit: false });
+          }, 600);
+        }
+      }
+    } catch (e) {}
+
+    const incomingToken = extractIncomingShareToken();
+    if (incomingToken && typeof onTokenReceived === 'function') {
+      onTokenReceived(incomingToken);
+    }
+
+    const deepLink = extractIncomingDeepLinkParams();
+    if (deepLink && typeof onDeepLinkReceived === 'function') {
+      onDeepLinkReceived(deepLink);
+    }
+  };
+
+  window.__KLEV_ON_TG_SDK_LOAD__ = setupTwa;
+  setupTwa();
+}
+
+export const telegramModule = {
+  TELEGRAM_BOT_USERNAME,
+  PUBLIC_APP_URL,
+  RELAY_WORKER_URL,
+  encodeKplocToken,
+  decodeKplocToken,
+  isTelegramWebApp,
+  getTelegramUser,
+  checkServerTelegramBindStatus,
+  setupTelegramBindReturnPoller,
+  bindFisherIdWithTelegram,
+  syncTelegramTheme,
+  syncTelegramBackButton,
+  triggerHaptic,
+  extractIncomingDeepLinkParams,
+  extractIncomingShareToken,
+  clearIncomingShareTokenFromUrl,
+  syncToTelegramCloud,
+  readFromTelegramCloud,
+  buildShareUrls,
+  buildForecastShareUrls,
+  shareToTelegramChat,
+  openBotChatInTelegram,
+  shareOrCopyPack,
+  validateTelegramInitDataStructure,
+  initTelegramMiniApp
+};

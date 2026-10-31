@@ -39,7 +39,6 @@ html[data-pwa-installed="1"] .btn-install,
 html[data-pwa-installed="1"] .btn-install-header {
   display: none !important;
 }
-
 .guide-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(265px, 1fr));
@@ -62,7 +61,6 @@ html[data-pwa-installed="1"] .btn-install-header {
   text-transform: uppercase;
   letter-spacing: 0.4px;
 }
-
 .btn-sm {
   min-height: 36px;
   padding: 5px 11px;
@@ -81,7 +79,6 @@ html[data-pwa-installed="1"] .btn-install-header {
   font-size: 17px;
   border-radius: var(--r-sm);
 }
-
 .w-chip {
   display: inline-flex;
   align-items: center;
@@ -100,7 +97,6 @@ html[data-pwa-installed="1"] .btn-install-header {
 }
 .w-chip:hover { border-color: var(--accent); }
 .w-chip.active { background: var(--accent-strong); border-color: var(--accent); color: #ffffff; }
-
 .chip-scroll-row {
   display: flex;
   align-items: center;
@@ -109,14 +105,12 @@ html[data-pwa-installed="1"] .btn-install-header {
   padding-bottom: 4px;
   scrollbar-width: thin;
 }
-
 .toolbar-row {
   display: flex;
   align-items: center;
   gap: 6px;
   flex-wrap: wrap;
 }
-
 .pill {
   display: inline-flex;
   align-items: center;
@@ -137,7 +131,6 @@ html[data-pwa-installed="1"] .btn-install-header {
 .pill-purple { background: var(--pill-purple-bg); color: var(--pill-purple-text); border-color: rgba(168,85,247,0.35); }
 .pill-ice { background: var(--pill-ice-bg); color: var(--pill-ice-text); border-color: rgba(103,232,249,0.40); }
 .pill-neutral { background: var(--card); color: var(--muted); border-color: var(--border); }
-
 .card {
   background: var(--panel);
   border: 1px solid var(--border);
@@ -145,7 +138,6 @@ html[data-pwa-installed="1"] .btn-install-header {
   padding: 12px 14px;
   box-shadow: var(--shadow-card);
 }
-
 .section-head {
   display: flex;
   justify-content: space-between;
@@ -161,7 +153,6 @@ html[data-pwa-installed="1"] .btn-install-header {
   text-transform: uppercase;
   letter-spacing: 0.4px;
 }
-
 .input, select {
   width: 100%;
   min-height: 40px;
@@ -183,7 +174,6 @@ input[type="checkbox"], input[type="radio"] {
   accent-color: var(--accent);
   cursor: pointer;
 }
-
 .fish-strip {
   display: flex;
   gap: 10px;
@@ -264,8 +254,6 @@ input[type="checkbox"], input[type="radio"] {
     filter: drop-shadow(0 2px 4px rgba(0,0,0,0.35));
   }
 }
-
-/* Ревизия 2.0.13 (Пункт 1a, 1b): Крупная витрина рыбы в модальном окне «Подробнее» и смещённые вниз названия */
 .fish-detail-header {
   display: flex;
   flex-direction: column;
@@ -341,8 +329,6 @@ input[type="checkbox"], input[type="radio"] {
     grid-template-columns: 1fr;
   }
 }
-
-/* Ревизия 2.0.13 (Пункт 1d): Полноразмерный лайтбокс рыбы (50vw на ПК, по экрану на смартфоне) */
 .fish-lightbox-backdrop {
   position: fixed;
   inset: 0;
@@ -404,7 +390,6 @@ input[type="checkbox"], input[type="radio"] {
   display: block !important;
   filter: drop-shadow(0 6px 16px rgba(0,0,0,0.55));
 }
-
 .fish-name {
   font-size: var(--fs-sm);
   font-weight: 800;
@@ -430,7 +415,6 @@ input[type="checkbox"], input[type="radio"] {
   font-weight: 700;
   color: var(--muted);
 }
-
 .factor-row {
   display: grid;
   grid-template-columns: 175px 1fr 56px;
@@ -450,7 +434,6 @@ input[type="checkbox"], input[type="radio"] {
   height: 100%;
   border-radius: var(--r-pill);
 }
-
 .bite-timeline {
   display: flex;
   gap: 5px;
@@ -484,7 +467,6 @@ input[type="checkbox"], input[type="radio"] {
   overflow: hidden;
 }
 .hour-bar { width: 100%; border-radius: 6px; }
-
 .toast-container {
   position: fixed;
   bottom: 82px;
@@ -531,7 +513,6 @@ input[type="checkbox"], input[type="radio"] {
 .modal-box.modal-has-sticky-footer {
   padding-bottom: 0;
 }
-/* Ревизия 2.0.13 (Пункт 1c): Закреплённая нижняя полоса кнопок «Я поймал» и «Закрыть» */
 .modal-sticky-footer {
   position: sticky;
   bottom: 0;
@@ -547,14 +528,10 @@ input[type="checkbox"], input[type="radio"] {
   z-index: 20;
   box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.28);
 }
-
-
 .fish-visual-hybrid.has-png .fish-visual-svg-layer,
 .fish-visual-svg-layer[data-hidden="1"] {
   display: none !important;
 }
-
-/* Ревизия 2.1.1: Полное скрытие кнопок установки в APK, Telegram Mini App и установленном PWA */
 [data-pwa-installed="1"] [data-install-app],
 [data-pwa-installed="1"] #installAppBtn,
 [data-pwa-installed="1"] #onbInstallAppBtn,
@@ -566,9 +543,6 @@ input[type="checkbox"], input[type="radio"] {
 [data-apk-webview="1"] #onbInstallAppBtn {
   display: none !important;
 }
-
-
-/* Ревизия 2.1.1: Полная защита модальных окон и подменю от горизонтального переполнения на смартфонах */
 .modal-box {
   overflow-x: hidden !important;
   box-sizing: border-box !important;
@@ -618,8 +592,6 @@ input[type="checkbox"], input[type="radio"] {
   line-height: 1.2;
   word-break: break-word;
 }
-
-/* Шапка переключения 4 раздельных зон настроек (Вход и ID | Рыбалка | Параметры | Уведомления) */
 .settings-zone-bar {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -646,8 +618,6 @@ input[type="checkbox"], input[type="radio"] {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-
-/* Карточки хаба 4 разделов профиля и настроек */
 .settings-hub-card {
   display: flex;
   align-items: center;
@@ -710,9 +680,6 @@ input[type="checkbox"], input[type="radio"] {
   color: var(--muted) !important;
   justify-content: center !important;
 }
-
-
-/* Зимний стандарт под перчатки (48x48px) и 5-кнопочная нижняя панель (v2.5.0 r186) */
 .bottom-nav .nav-tab {
   min-height: 48px !important;
   padding: 5px 4px !important;
@@ -738,7 +705,6 @@ input[type="checkbox"], input[type="radio"] {
   border-radius: var(--r-sm);
   position: relative;
 }
-/* Цветовые кружки-маркеры расцветок приманок (Билайн, Триколор, Кислотник, Машинное масло и др.) */
 .bait-color-dot {
   display: inline-block;
   width: 13px;
@@ -750,7 +716,6 @@ input[type="checkbox"], input[type="radio"] {
   box-shadow: 0 1px 3px rgba(0,0,0,0.45);
   flex-shrink: 0;
 }
-/* Спойлер «Почему такой прогноз?» в виде крупной тактической кнопки */
 details.forecast-why-spoiler > summary {
   list-style: none;
   display: flex;
@@ -775,9 +740,6 @@ details.forecast-why-spoiler[open] > summary {
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
 }
-
-
-/* Единая цветовая схема для всех кнопок, ссылок, инпутов и чипов во всех 3 темах (v2.5.0 r186) */
 a {
   color: var(--accent);
   text-decoration: none;
@@ -786,46 +748,225 @@ a {
 a:hover {
   text-decoration: underline;
 }
-
+.card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 18px;
+  border: 1.5px solid rgba(56, 189, 248, 0.26);
+  background: linear-gradient(155deg, rgba(22, 41, 68, 0.88) 0%, rgba(10, 22, 40, 0.94) 55%, rgba(6, 14, 27, 0.97) 100%);
+  box-shadow:
+    0 14px 32px rgba(2, 6, 18, 0.62),
+    inset 0 1.5px 1px rgba(255, 255, 255, 0.22),
+    inset 0 -1.5px 2px rgba(0, 0, 0, 0.48);
+  backdrop-filter: blur(18px) saturate(155%);
+  -webkit-backdrop-filter: blur(18px) saturate(155%);
+}
+.card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -18%;
+  width: 65%;
+  height: 100%;
+  background: linear-gradient(115deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.02) 42%, transparent 65%);
+  pointer-events: none;
+  z-index: 0;
+}
+.card > * {
+  position: relative;
+  z-index: 1;
+}
+[data-theme="light"] .card {
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.94) 0%, rgba(240, 247, 255, 0.90) 60%, rgba(228, 240, 252, 0.94) 100%);
+  border-color: rgba(2, 132, 199, 0.25);
+  box-shadow:
+    0 10px 26px rgba(15, 23, 42, 0.10),
+    inset 0 2px 2px rgba(255, 255, 255, 0.95),
+    inset 0 -1px 2px rgba(14, 116, 144, 0.10);
+}
+[data-theme="contrast"] .card {
+  background: linear-gradient(155deg, rgba(30, 41, 59, 0.94) 0%, rgba(15, 23, 36, 0.97) 100%);
+  border-color: rgba(245, 158, 11, 0.36);
+  box-shadow:
+    0 12px 28px rgba(0, 0, 0, 0.68),
+    inset 0 1.5px 1px rgba(255, 255, 255, 0.18),
+    inset 0 -1.5px 2px rgba(0, 0, 0, 0.55);
+}
 .btn {
-  border-radius: 12px;
-  border: 1.5px solid var(--border);
-  background: var(--panel);
+  position: relative;
+  border-radius: 13px;
+  border: 1.5px solid rgba(56, 189, 248, 0.30);
+  background: linear-gradient(180deg, rgba(30, 56, 90, 0.88) 0%, rgba(13, 27, 48, 0.95) 100%);
+  color: var(--text);
+  box-shadow:
+    0 5px 14px rgba(0, 0, 0, 0.42),
+    inset 0 1.5px 1.5px rgba(255, 255, 255, 0.28),
+    inset 0 -2px 3px rgba(0, 0, 0, 0.48);
+  transition: transform 0.12s ease, border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+.btn:hover {
+  border-color: var(--accent);
+  box-shadow:
+    0 6px 16px rgba(0, 180, 216, 0.24),
+    inset 0 1.5px 2px rgba(255, 255, 255, 0.38),
+    inset 0 -2px 3px rgba(0, 0, 0, 0.45);
+}
+.btn:active {
+  transform: translateY(1px) scale(0.985);
+}
+[data-theme="light"] .btn {
+  background: linear-gradient(180deg, #ffffff 0%, #e4f0fb 100%);
+  border-color: rgba(2, 132, 199, 0.28);
+  color: var(--text);
+  box-shadow:
+    0 4px 10px rgba(15, 23, 42, 0.08),
+    inset 0 1.5px 1px #ffffff,
+    inset 0 -1.5px 2px rgba(2, 132, 199, 0.10);
+}
+[data-theme="contrast"] .btn {
+  background: linear-gradient(180deg, #273549 0%, #162030 100%);
+  border-color: rgba(245, 158, 11, 0.38);
   color: var(--text);
 }
 .btn-accent {
-  background: linear-gradient(135deg, var(--accent-strong), var(--accent));
-  border-color: var(--accent);
-  color: #ffffff;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
-}
-[data-theme="dark"] .btn-accent {
-  background: linear-gradient(135deg, #0284c7, #00b4d8);
-  color: #ffffff;
+  background: linear-gradient(180deg, #22d3ee 0%, #0284c7 52%, #0369a1 100%) !important;
+  border-color: #7dd3fc !important;
+  color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.38);
+  box-shadow:
+    0 6px 18px rgba(2, 132, 199, 0.45),
+    inset 0 1.5px 2px rgba(255, 255, 255, 0.58),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.42) !important;
 }
 [data-theme="contrast"] .btn-accent {
-  background: linear-gradient(135deg, #b45309, #d97706);
-  border-color: rgba(245, 158, 11, 0.65);
-  color: #ffffff;
+  background: linear-gradient(180deg, #fbbf24 0%, #d97706 55%, #b45309 100%) !important;
+  border-color: #fde68a !important;
+  color: #ffffff !important;
+  box-shadow:
+    0 6px 16px rgba(217, 119, 6, 0.40),
+    inset 0 1.5px 2px rgba(255, 255, 255, 0.50),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.45) !important;
 }
 .btn-good {
-  background: linear-gradient(135deg, #059669, var(--good));
-  border-color: var(--good);
-  color: #ffffff;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.22);
+  background: linear-gradient(180deg, #34d399 0%, #059669 52%, #047857 100%) !important;
+  border-color: #6ee7b7 !important;
+  color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  box-shadow:
+    0 6px 18px rgba(5, 150, 105, 0.42),
+    inset 0 1.5px 2px rgba(255, 255, 255, 0.55),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.40) !important;
 }
 .w-chip {
-  background: var(--panel);
-  border: 1px solid var(--border);
+  background: linear-gradient(180deg, rgba(28, 52, 84, 0.85) 0%, rgba(12, 25, 45, 0.94) 100%);
+  border: 1.5px solid rgba(56, 189, 248, 0.25);
   color: var(--text);
+  box-shadow:
+    0 4px 10px rgba(0, 0, 0, 0.35),
+    inset 0 1px 1px rgba(255, 255, 255, 0.22),
+    inset 0 -1.5px 2px rgba(0, 0, 0, 0.42);
+}
+[data-theme="light"] .w-chip {
+  background: linear-gradient(180deg, #ffffff 0%, #e6f1fc 100%);
+  border-color: rgba(2, 132, 199, 0.25);
+  box-shadow:
+    0 3px 8px rgba(15, 23, 42, 0.06),
+    inset 0 1px 1px #ffffff;
+}
+[data-theme="contrast"] .w-chip {
+  background: linear-gradient(180deg, #263449 0%, #151f2e 100%);
+  border-color: rgba(245, 158, 11, 0.32);
 }
 .w-chip.active {
-  background: linear-gradient(135deg, var(--accent-strong), var(--accent));
-  border-color: var(--accent);
-  color: #ffffff;
+  background: linear-gradient(180deg, #22d3ee 0%, #0284c7 55%, #0369a1 100%) !important;
+  border-color: #7dd3fc !important;
+  color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.32);
+  box-shadow:
+    0 5px 14px rgba(2, 132, 199, 0.42),
+    inset 0 1.5px 1.5px rgba(255, 255, 255, 0.52),
+    inset 0 -1.5px 3px rgba(0, 0, 0, 0.38) !important;
 }
 [data-theme="contrast"] .w-chip.active {
-  background: linear-gradient(135deg, #b45309, #d97706);
-  border-color: rgba(245, 158, 11, 0.65);
-  color: #ffffff;
+  background: linear-gradient(180deg, #fbbf24 0%, #d97706 55%, #b45309 100%) !important;
+  border-color: #fde68a !important;
+  color: #ffffff !important;
+}
+.input, select {
+  border-radius: 12px;
+  border: 1.5px solid rgba(56, 189, 248, 0.28);
+  background: linear-gradient(180deg, rgba(6, 13, 25, 0.92) 0%, rgba(12, 25, 44, 0.88) 100%);
+  box-shadow:
+    inset 0 2px 5px rgba(0, 0, 0, 0.55),
+    0 1px 1px rgba(255, 255, 255, 0.12);
+}
+.input:focus, select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow:
+    inset 0 2px 5px rgba(0, 0, 0, 0.55),
+    0 0 0 2px rgba(56, 189, 248, 0.25);
+}
+[data-theme="light"] .input, [data-theme="light"] select {
+  background: linear-gradient(180deg, #eef5fc 0%, #ffffff 100%);
+  border-color: rgba(2, 132, 199, 0.28);
+  box-shadow:
+    inset 0 2px 4px rgba(15, 23, 42, 0.06),
+    0 1px 1px #ffffff;
+}
+[data-theme="contrast"] .input, [data-theme="contrast"] select {
+  background: linear-gradient(180deg, #0d1420 0%, #172234 100%);
+  border-color: rgba(245, 158, 11, 0.38);
+}
+.fish-card {
+  border-radius: 16px;
+  background: linear-gradient(160deg, rgba(24, 45, 74, 0.88) 0%, rgba(10, 21, 38, 0.95) 100%);
+  border: 1.5px solid rgba(56, 189, 248, 0.24);
+  box-shadow:
+    0 8px 18px rgba(0, 0, 0, 0.42),
+    inset 0 1.5px 1px rgba(255, 255, 255, 0.20),
+    inset 0 -1.5px 2px rgba(0, 0, 0, 0.45);
+}
+[data-theme="light"] .fish-card {
+  background: linear-gradient(160deg, #ffffff 0%, #e6f1fc 100%);
+  border-color: rgba(2, 132, 199, 0.24);
+  box-shadow:
+    0 6px 14px rgba(15, 23, 42, 0.08),
+    inset 0 1.5px 1px #ffffff;
+}
+[data-theme="contrast"] .fish-card {
+  background: linear-gradient(160deg, #243246 0%, #131c2b 100%);
+  border-color: rgba(245, 158, 11, 0.32);
+}
+.fish-card.active {
+  border-color: #7dd3fc;
+  background: linear-gradient(160deg, rgba(2, 132, 199, 0.38) 0%, rgba(12, 28, 52, 0.95) 100%);
+  box-shadow:
+    0 8px 22px rgba(2, 132, 199, 0.38),
+    0 0 0 2px var(--accent),
+    inset 0 1.5px 2px rgba(255, 255, 255, 0.42);
+}
+[data-theme="light"] .fish-card.active {
+  background: linear-gradient(160deg, #e0f2fe 0%, #bae6fd 100%);
+  border-color: #0284c7;
+}
+[data-theme="contrast"] .fish-card.active {
+  background: linear-gradient(160deg, rgba(217, 119, 6, 0.32) 0%, #172234 100%);
+  border-color: #fbbf24;
+  box-shadow: 0 0 0 2px var(--accent);
+}
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 14px;
+  background: linear-gradient(160deg, rgba(20, 38, 64, 0.96) 0%, rgba(9, 19, 35, 0.98) 100%);
+  box-shadow:
+    0 12px 28px rgba(0, 0, 0, 0.65),
+    inset 0 1.5px 1px rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(14px);
+}
+[data-theme="light"] .toast {
+  background: linear-gradient(160deg, #ffffff 0%, #e8f3fd 100%);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.16), inset 0 1px 1px #ffffff;
 }

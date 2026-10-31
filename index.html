@@ -13,9 +13,9 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Клёв ПРО 2.0 • Прогноз клёва, Круг и Атлас Ихтиофауны РФ (12+)</title>
   <script src="https://telegram.org/js/telegram-web-app.js" async onload="window.__KLEV_ON_TG_SDK_LOAD__&&window.__KLEV_ON_TG_SDK_LOAD__()"></script>
-  <link rel="manifest" href="manifest.json?v=2.5.0">
-  <link id="dynamicFavicon" rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=2.5.0">
-  <link id="dynamicTouchIcon" rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=2.5.0">
+  <link rel="manifest" href="manifest.json?v=2.5.0-r187">
+  <link id="dynamicFavicon" rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=2.5.0-r187">
+  <link id="dynamicTouchIcon" rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=2.5.0-r187">
   <script>
     (function() {
       try {
@@ -65,7 +65,7 @@
             regs.forEach(function(r) { r.unregister(); });
           }).catch(function() {});
         }
-        var MIGRATION_KEY = 'klev_pro_migrated_v212_r183';
+        var MIGRATION_KEY = 'klev_pro_migrated_v250_r187';
         if (localStorage.getItem(MIGRATION_KEY) !== '1') {
           try {
             var stRaw = localStorage.getItem('klev_pro_state_v2.0');
@@ -82,7 +82,7 @@
           caches.keys().then(function(keys) {
             return Promise.all(
               keys
-                .filter(function(k) { return k !== 'klev-pro-map-tiles-v2.5.0 r186' && (inApkNow || k !== 'klev-pro-v2.5.0 r186-r183-static'); })
+                .filter(function(k) { return k !== 'klev-pro-map-tiles-v2.5.0' && (inApkNow || k !== 'klev-pro-v2.5.0-r187-static'); })
                 .map(function(k) { return caches.delete(k); })
             );
           }).then(function() {
@@ -92,10 +92,10 @@
       } catch (e) {}
     })();
   </script>
-  <link rel="stylesheet" href="css/tokens.css?v=2.5.0">
-  <link rel="stylesheet" href="css/base.css?v=2.5.0">
-  <link rel="stylesheet" href="css/components.css?v=2.5.0">
-  <link rel="stylesheet" href="css/layout.css?v=2.5.0">
+  <link rel="stylesheet" href="css/tokens.css?v=2.5.0-r187">
+  <link rel="stylesheet" href="css/base.css?v=2.5.0-r187">
+  <link rel="stylesheet" href="css/components.css?v=2.5.0-r187">
+  <link rel="stylesheet" href="css/layout.css?v=2.5.0-r187">
   <script>
     (function() {
       var cssUrls = [
@@ -165,7 +165,7 @@
           splashEl.setAttribute('data-app-splash-theme', theme);
           if (theme === 'light') {
             splashImg.src = 'assets/splash-light.jpg';
-            if (splashSub) splashSub.textContent = 'КЛЁВ ПРО 2.0 • КРУГ — Единая рыболовная экосистема (V.2.5.0 r186)';
+            if (splashSub) splashSub.textContent = 'КЛЁВ ПРО 2.0 • КРУГ — Единая рыболовная экосистема (V.2.5.0 r187)';
           } else if (theme === 'contrast') {
             splashImg.src = 'assets/splash-contrast.jpg';
             if (splashSub) splashSub.textContent = 'FISH PRO 2.0 • OFFLINE NAVIGATION READY // СЕТЬ ОФЛАЙН ГОТОВА';
@@ -182,51 +182,69 @@
     })();
   </script>
 
-  <!-- Шапка: слева крупный информативный блок статуса (сеть + режим воды/льда + температура воды), справа тема и ID + Округ -->
+  <!-- Шапка 3D Glass (по Фото 2): слева статус сети и воды/льда с векторными SVG-значками, справа тема и ID + Округ -->
   <header class="app-header">
     <div class="header-bar">
       <div class="header-status-block open-water" id="headerStatusBlock" role="button" tabindex="0" title="Нажмите для перехода в подробный раздел Погода и состояние водоёма">
         <div class="header-status-main" id="headerStatusMainLine">
-          <span class="header-online-badge" id="headerStatusDot">🟢 ОНЛАЙН</span>
-          <span class="header-season-verdict" id="headerSeasonMainText">🌊 Открытая вода</span>
+          <span class="header-online-badge" id="headerStatusDot">
+            <svg class="k-ico" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="#10b981" stroke="rgba(255,255,255,0.65)" stroke-width="1.5"/></svg>
+            <span>ОНЛАЙН</span>
+          </span>
+          <span class="header-season-verdict" id="headerSeasonMainText">Открытая вода</span>
         </div>
         <div class="header-status-sub" id="headerSeasonSubText">
-          💧 Вода ~8.0°C • Льда нет (лодка и берег)
+          <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/></svg>
+          <span>Вода ~8.0°C • Льда нет</span>
         </div>
       </div>
 
       <div class="header-right-actions">
-        <button type="button" class="btn-theme-chip" id="headerThemeBtn" title="Переключить тему: Светлая / Тёмная / Контраст / Авто" aria-label="Тема оформления">🌓</button>
+        <button type="button" class="btn-theme-chip" id="headerThemeBtn" title="Переключить тему: Светлая / Тёмная / Контраст / Авто" aria-label="Тема оформления">
+          <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6" stroke-linejoin="round"/></svg>
+        </button>
         <button type="button" class="header-id-profile-btn" id="headerProfileBtn" title="Ваш рыболовный ID, регион и настройки профиля">
           <div class="header-id-text-col">
             <span class="header-id-code" id="headerProfileIdCode">ID: FP_89RZ0001</span>
             <span class="header-id-sub" id="headerProfileIdSub">Ямало-Ненецкий АО</span>
           </div>
-          <span class="header-avatar-circle" id="headerProfileAvatar">👤</span>
+          <span class="header-avatar-circle" id="headerProfileAvatar">
+            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" fill="rgba(56,189,248,0.25)" stroke="currentColor" stroke-width="1.8"/><path d="M4 20c0-3.8 3.6-6.5 8-6.5s8 2.7 8 6.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          </span>
         </button>
       </div>
     </div>
 
-    <!-- Полноценные кнопки верхней панели (с чёткими рамками, крупными значками сверху и полными подписями) -->
+    <!-- Полноценные 3D-кнопки верхней панели с векторными SVG-значками и необрезаемыми подписями -->
     <div class="top-section-nav" id="topSectionNavBar" role="tablist" aria-label="Разделы аналитики и настроек">
       <button type="button" class="top-nav-item" data-nav-tab="weather" id="topNavWeatherBtn" role="tab">
-        <span class="top-nav-ico" id="topNavWeatherIco">⛅</span>
+        <span class="top-nav-ico" id="topNavWeatherIco">
+          <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 16c2-1.8 4-1.8 6 0s4 1.8 6 0 4-1.8 6 0M2 20c2-1.8 4-1.8 6 0s4 1.8 6 0 4-1.8 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/><path d="M12 3v9M8 7h8M9.2 4.5l5.6 5M14.8 4.5l-5.6 5" stroke="#7dd3fc" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </span>
         <span class="top-nav-lbl" id="topNavWeatherLbl">Погода</span>
       </button>
       <button type="button" class="top-nav-item" data-nav-tab="fish" role="tab">
-        <span class="top-nav-ico">🐟</span>
+        <span class="top-nav-ico">
+          <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 12s4-6 11-6c4.2 0 7 2.5 9 6-2 3.5-4.8 6-9 6-7 0-11-6-11-6z" fill="rgba(56,189,248,0.35)" stroke="#38bdf8" stroke-width="1.8" stroke-linejoin="round"/><path d="M2 12l-1.5-3.5L5 10.5M2 12l-1.5 3.5L5 13.5" stroke="#38bdf8" stroke-width="1.6" stroke-linecap="round"/><circle cx="16.5" cy="10.8" r="1.3" fill="#fff"/></svg>
+        </span>
         <span class="top-nav-lbl">Рыбы</span>
       </button>
       <button type="button" class="top-nav-item" data-nav-tab="calendar" role="tab">
-        <span class="top-nav-ico">📅</span>
+        <span class="top-nav-ico">
+          <svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="3" fill="rgba(239,68,68,0.22)" stroke="#f87171" stroke-width="1.8"/><path d="M3 10h18M8 3v4M16 3v4" stroke="#f87171" stroke-width="1.8" stroke-linecap="round"/><text x="12" y="18" text-anchor="middle" fill="currentColor" font-size="8.5" font-weight="900">17</text></svg>
+        </span>
         <span class="top-nav-lbl">Календарь</span>
       </button>
       <button type="button" class="top-nav-item" id="topNavSettingsBtn" data-settings-zone="app" aria-label="Настройки приложения, калибровка и APK">
-        <span class="top-nav-ico">⚙️</span>
+        <span class="top-nav-ico">
+          <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3.2" stroke="#94a3b8" stroke-width="2"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.6.77 1.05 1.41 1.19H21a2 2 0 1 1 0 4h-.09c-.64.14-1.15.59-1.51 1.21z" fill="rgba(148,163,184,0.22)" stroke="#cbd5e1" stroke-width="1.6"/></svg>
+        </span>
         <span class="top-nav-lbl">Настройки</span>
       </button>
       <button type="button" class="top-nav-item" data-nav-tab="admin" id="topNavAdminBtn" role="tab" style="display:none;">
-        <span class="top-nav-ico">👑</span>
+        <span class="top-nav-ico">
+          <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M3 18h18l-2-11-5 4-2-6-2 6-5-4-2 11z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.7" stroke-linejoin="round"/></svg>
+        </span>
         <span class="top-nav-lbl">Админ</span>
       </button>
     </div>
@@ -235,12 +253,12 @@
   <main id="app" class="app-main">
     <div id="androidApkSiteBanner" class="bento-card" style="display:none;background:rgba(16,185,129,0.12);border:1.5px solid var(--good);padding:9px 12px;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:2px;">
       <div style="min-width:0;flex:1;">
-        <div id="androidApkBannerTitle" style="font-weight:800;font-size:var(--fs-xs);color:var(--good);">📲 Приложение «Клёв ПРО 2.0» для Android (v2.5.0 r186)</div>
+        <div id="androidApkBannerTitle" style="font-weight:800;font-size:var(--fs-xs);color:var(--good);">Приложение «Клёв ПРО 2.0» для Android (v2.5.0 r187)</div>
         <div style="font-size:11px;color:var(--muted);">Установите автономное приложение (.APK) на ваш смартфон</div>
       </div>
       <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
-        <button type="button" class="btn btn-sm btn-good" id="androidApkBannerDownloadBtn" style="min-height:32px;padding:4px 10px;font-size:11.5px;font-weight:800;">📥 Скачать APK (v2.5.0 r186)</button>
-        <button type="button" class="btn btn-sm" id="androidApkBannerCloseBtn" title="Скрыть плашку" aria-label="Закрыть плашку загрузки APK" style="min-height:32px;padding:4px 8px;font-size:12px;">✕</button>
+        <button type="button" class="btn btn-sm btn-good" id="androidApkBannerDownloadBtn" style="min-height:32px;padding:4px 10px;font-size:11.5px;font-weight:800;">Скачать APK (v2.5.0 r187)</button>
+        <button type="button" class="btn btn-sm" id="androidApkBannerCloseBtn" title="Скрыть плашку" aria-label="Закрыть плашку загрузки APK" style="min-height:32px;padding:4px 8px;font-size:12px;">Закрыть</button>
       </div>
     </div>
     <section id="secGeo" data-route-section="geo" aria-label="Геолокация и выбор водоёма"></section>
@@ -253,7 +271,7 @@
     <section id="secCalendar" data-route-section="calendar" aria-label="Годовой биоритм и нерест"></section>
     <section id="secAdmin" data-route-section="admin" aria-label="Панель Супер-Админа и Статистика БД"></section>
     <div id="appLegalScannerMeta" style="display:none;" aria-hidden="true">
-      © 2025–2026 «Клёв ПРО 2.0: Круг» (версия 2.4.0) • Возрастная маркировка: 12+ (ст. 6 ФЗ № 436-ФЗ).
+      © 2025–2026 «Клёв ПРО 2.0: Круг» (версия 2.5.0 r187) • Возрастная маркировка: 12+ (ст. 6 ФЗ № 436-ФЗ).
       Правообладатель программы для ЭВМ, базы данных и графических иллюстраций (ст. 1259, 1260, 1261, 1334 ГК РФ): Тхор Антон Сергеевич (Тхор А. С.) • Контакт для обращений (ст. 10 и ст. 10.2-2 ФЗ № 149-ФЗ): i@athor.ru.
       Правовой статус: бесплатный некоммерческий информационно-справочный проект (возмездные услуги и торговая деятельность не осуществляются; реквизиты компании ИНН / ОГРН / ОГРНИП по ст. 9 ЗоЗПП РФ не применяются).
       Политика конфиденциальности (ФЗ № 152-ФЗ ст. 3, 12, 18.1, 22): сервис работает по архитектуре Zero-PII с вымышленными рыболовными позывными и не осуществляет сбор персональных данных (ФИО, телефонов, e-mail, точных GPS-координат).
@@ -261,20 +279,26 @@
     </div>
   </main>
 
-  <!-- Нижний док «Быстрый доступ»: Карта | Чаты·Круг | Прогноз (основная) | SOS | Журнал -->
+  <!-- Нижний стеклянный 3D-док «Быстрый доступ» (по Фото 2, с векторными SVG-значками без эмодзи) -->
   <nav class="bottom-nav" aria-label="Быстрый доступ">
     <div class="quick-dock-tab-label">Быстрый доступ</div>
     <div class="bottom-nav-inner">
       <button type="button" class="nav-tab" data-nav-tab="geo" aria-label="Карта водоёмов">
-        <span class="dock-ico">🗺️</span>
+        <span class="dock-ico">
+          <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3V6z" fill="rgba(56,189,248,0.28)" stroke="#38bdf8" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 3v15M15 6v15" stroke="#38bdf8" stroke-width="1.5"/></svg>
+        </span>
         <span>Карта</span>
       </button>
       <button type="button" class="nav-tab" data-nav-tab="chats" id="navCircleChatsHubBtn" aria-label="Чаты, Круг и Экипажи">
-        <span class="dock-ico">🛰️</span>
+        <span class="dock-ico">
+          <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M13 7L9 3 5 7l4 4M17 11l4 4-4 4-4-4" fill="rgba(56,189,248,0.25)" stroke="#94a3b8" stroke-width="1.8" stroke-linejoin="round"/><rect x="8.5" y="8.5" width="7" height="7" rx="1.5" transform="rotate(-45 12 12)" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.5"/><path d="M4 20a6 6 0 0 1 6-6" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </span>
         <span>Чаты·Круг</span>
       </button>
       <button type="button" class="nav-tab active" data-nav-tab="forecast" id="navForecastMainBtn" aria-label="Главный экран Прогноз клёва">
-        <span class="dock-ico">🎣</span>
+        <span class="dock-ico">
+          <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="#38bdf8" stroke-width="2.1" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#94a3b8" stroke-width="1.7" stroke-linecap="round"/><circle cx="14" cy="16" r="2.4" fill="#10b981"/></svg>
+        </span>
         <span>Прогноз</span>
       </button>
       <button type="button" class="nav-tab nav-sos-btn" id="bottomQuickSosBtn" aria-label="Экстренный сигнал SOS на воде">
@@ -282,53 +306,14 @@
         <span class="sos-lbl-text">SOS</span>
       </button>
       <button type="button" class="nav-tab" data-nav-tab="log" aria-label="Журнал уловов">
-        <span class="dock-ico">📓</span>
+        <span class="dock-ico">
+          <svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="5" y="3" width="14" height="18" rx="2.5" fill="rgba(148,163,184,0.24)" stroke="#cbd5e1" stroke-width="1.8"/><path d="M9 7h6M9 11h6M9 15h4M3 7h2M3 12h2M3 17h2" stroke="#cbd5e1" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </span>
         <span>Журнал</span>
       </button>
     </div>
   </nav>
 
-  <script type="module" src="js/app.js?v=2.5.0"></script>
-  <script>
-    setTimeout(function() {
-      if (!window.__KLEV_BOOTSTRAPPED__) {
-        var mainEl = document.getElementById('app');
-        if (mainEl && (!mainEl.children[0] || !mainEl.children[0].innerHTML.trim())) {
-          var box = document.createElement('div');
-          box.className = 'bento-card';
-          box.style.cssText = 'border-color:var(--accent);text-align:center;padding:18px;margin-top:24px;';
-          box.innerHTML =
-            '<div style="font-size:17px;font-weight:800;margin-bottom:8px;">🚀 Доступна новая сборка «Клёв ПРО 2.4.0»</div>' +
-            '<p style="font-size:14px;color:var(--muted);margin-bottom:14px;line-height:1.45;">Обнаружены устаревшие файлы в кэше телефона. Нажмите кнопку ниже, чтобы обновить модули приложения (ваши точки и уловы сохранятся).</p>' +
-            '<button type="button" class="btn btn-good" id="emergencyResetCacheBtn" style="width:100%;">✅ Обновить кэш и запустить новую версию</button>';
-          mainEl.prepend(box);
-          var btn = document.getElementById('emergencyResetCacheBtn');
-          if (btn) {
-            btn.onclick = function() {
-              btn.textContent = '⏳ Очистка старого кэша...';
-              Promise.resolve()
-                .then(function() {
-                  if ('serviceWorker' in navigator) {
-                    return navigator.serviceWorker.getRegistrations().then(function(regs) {
-                      return Promise.all(regs.map(function(r) { return r.unregister(); }));
-                    });
-                  }
-                })
-                .then(function() {
-                  if ('caches' in window) {
-                    return caches.keys().then(function(keys) {
-                      return Promise.all(keys.map(function(k) { return caches.delete(k); }));
-                    });
-                  }
-                })
-                .finally(function() {
-                  window.location.replace(window.location.pathname + '?v=2.5.0&reset=' + Date.now());
-                });
-            };
-          }
-        }
-      }
-    }, 6500);
-  </script>
+  <script type="module" src="js/app.js?v=2.5.0-r187"></script>
 </body>
 </html>

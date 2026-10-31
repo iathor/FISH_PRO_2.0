@@ -1,6 +1,5 @@
 :root,
 [data-theme="dark"] {
-  /* Тёмная радарная схема (по Фото 2 — 1000130765.jpg): глубокий сонарный фон, циановые контуры и неоново-изумрудный индекс */
   --bg: #07111f;
   --bg-grad: radial-gradient(circle at 50% 18%, rgba(0, 229, 255, 0.14) 0%, #07111f 58%, #040912 100%);
   --panel: rgba(11, 24, 42, 0.94);
@@ -15,7 +14,6 @@
   --bad: #ff5252;
   --ice: #38bdf8;
   --border: rgba(0, 229, 255, 0.28);
-
   --hex-bg: #091d34;
   --hex-fish: #00e5ff;
   --gauge-track: rgba(148, 184, 215, 0.20);
@@ -28,7 +26,6 @@
   --bento-chart-border: rgba(0, 229, 255, 0.32);
   --bento-radar-border: rgba(0, 229, 255, 0.34);
   --bento-weather-border: rgba(0, 230, 118, 0.32);
-
   --chip-bg: #0f2138;
   --chip-border: rgba(0, 229, 255, 0.28);
   --pill-good-bg: rgba(0, 230, 118, 0.16);
@@ -41,23 +38,18 @@
   --pill-purple-text: #d8b4fe;
   --pill-ice-bg: rgba(56, 189, 248, 0.18);
   --pill-ice-text: #7dd3fc;
-
   --font-ui: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --fs-xs: 13px;
   --fs-sm: 15px;
   --fs-md: 17px;
   --fs-lg: 19px;
-
   --r-sm: 11px;
   --r-md: 16px;
   --r-pill: 999px;
-
   --shadow-card: 0 6px 20px 0 rgba(0, 0, 0, 0.40), 0 0 14px rgba(0, 229, 255, 0.05);
   --shadow-header: 0 4px 18px 0 rgba(0, 0, 0, 0.48);
 }
-
 [data-theme="light"] {
-  /* Светлая небесно-акварельная схема (по Фото 1 — 1000130763.jpg и Фото 8 — 1000130764.jpg) */
   --bg: #dfeaf5;
   --bg-grad: linear-gradient(180deg, #d7e7f6 0%, #eef5fb 48%, #d9e8f5 100%);
   --panel: rgba(255, 255, 255, 0.94);
@@ -72,7 +64,6 @@
   --bad: #dc2626;
   --ice: #0284c7;
   --border: #c5d9ed;
-
   --hex-bg: #1e4e79;
   --hex-fish: #67e8f9;
   --gauge-track: #dbe7f3;
@@ -85,7 +76,6 @@
   --bento-chart-border: #c2daf0;
   --bento-radar-border: #b8d4ee;
   --bento-weather-border: #c2daf0;
-
   --chip-bg: #ffffff;
   --chip-border: #bdd4ea;
   --pill-good-bg: #d1fae5;
@@ -98,14 +88,10 @@
   --pill-purple-text: #6b21a8;
   --pill-ice-bg: #e0f2fe;
   --pill-ice-text: #0369a1;
-
   --shadow-card: 0 6px 18px 0 rgba(20, 45, 76, 0.08);
   --shadow-header: 0 3px 14px 0 rgba(20, 45, 76, 0.10);
 }
-
 [data-theme="contrast"] {
-  /* Смягчённая тактическая контрастная схема (без резкого оранжевого «пчелиного жала»):
-     глубокий графитово-сланцевый фон, мягкий тёплый янтарь, спокойный изумруд и бирюза */
   --bg: #0f1520;
   --bg-grad: linear-gradient(180deg, #111827 0%, #0d131d 55%, #090e16 100%);
   --panel: rgba(20, 28, 42, 0.96);
@@ -120,7 +106,6 @@
   --bad: #ef4444;
   --ice: #38bdf8;
   --border: rgba(245, 158, 11, 0.26);
-
   --hex-bg: #172030;
   --hex-fish: #fbbf24;
   --gauge-track: rgba(148, 163, 184, 0.22);
@@ -133,7 +118,6 @@
   --bento-chart-border: rgba(16, 185, 129, 0.34);
   --bento-radar-border: rgba(56, 189, 248, 0.34);
   --bento-weather-border: rgba(16, 185, 129, 0.34);
-
   --chip-bg: #172133;
   --chip-border: rgba(245, 158, 11, 0.28);
   --pill-good-bg: rgba(16, 185, 129, 0.18);
@@ -146,7 +130,6 @@
   --pill-purple-text: #e9d5ff;
   --pill-ice-bg: rgba(56, 189, 248, 0.18);
   --pill-ice-text: #7dd3fc;
-
   --shadow-card: 0 6px 18px rgba(0, 0, 0, 0.50);
   --shadow-header: 0 3px 14px rgba(0, 0, 0, 0.60);
 }

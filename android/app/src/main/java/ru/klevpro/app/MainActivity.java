@@ -82,7 +82,7 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String getAppVersion() {
-            return "2.5.0-r186";
+            return "2.5.0-r187";
         }
 
         @JavascriptInterface
@@ -356,7 +356,7 @@ public class MainActivity extends Activity {
         ws.setCacheMode(WebSettings.LOAD_NO_CACHE);
         webView.clearCache(true);
         String baseUa = ws.getUserAgentString();
-        ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.5.0-r186");
+        ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.5.0-r187");
 
         webView.addJavascriptInterface(new NativeBridge(this), "AndroidBridge");
 

@@ -1,31 +1,33 @@
-/* Main application layout & Unified Bento UI System (v2.5.0 r186) */
-
 :root {
   --header-h: 112px;
 }
-
 html {
   width: 100%;
 }
-
 body {
   width: 100%;
   max-width: 100vw;
   overflow-x: clip;
   padding-top: var(--header-h, 112px);
-  padding-bottom: 92px !important;
+  padding-bottom: 94px !important;
   background: var(--bg-grad, var(--bg)) !important;
   background-attachment: fixed !important;
 }
-
 #app, .bottom-nav {
   width: 100%;
   max-width: 100vw;
 }
-
-/* ==========================================================================
-   1. ШАПКА: СЛЕВА КРУПНЫЙ БЛОК СТАТУСА (БЕЗ ЛОКАЦИИ И УГЛОВОГО ЗНАЧКА), СПРАВА ТЕМА И ID + ОКРУГ
-   ========================================================================== */
+.k-ico {
+  width: 1.15em;
+  height: 1.15em;
+  min-width: 14px;
+  min-height: 14px;
+  display: inline-block;
+  vertical-align: -0.18em;
+  flex-shrink: 0;
+  overflow: visible;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35));
+}
 .app-header {
   position: fixed;
   top: 0;
@@ -33,85 +35,94 @@ body {
   right: 0;
   width: 100%;
   z-index: 1000;
-  background: var(--panel);
-  border-bottom: 1px solid var(--border);
-  padding: 6px 10px 6px 10px !important;
-  box-shadow: var(--shadow-header);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  background: linear-gradient(180deg, rgba(16, 32, 54, 0.95) 0%, rgba(9, 19, 34, 0.96) 100%);
+  border-bottom: 1.5px solid rgba(103, 210, 255, 0.28);
+  padding: 6px 8px 6px 8px !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   height: auto;
 }
-
+[data-theme="light"] .app-header {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(232, 242, 252, 0.95) 100%);
+  border-bottom-color: #b8d4ee;
+  box-shadow: 0 4px 16px rgba(20, 45, 76, 0.12), inset 0 1px 0 #ffffff;
+}
 .header-bar {
   max-width: 1200px;
   margin: 0 auto;
   display: flex;
   justify-content: space-between;
   align-items: stretch;
-  gap: 8px;
+  gap: 6px;
   padding-bottom: 6px;
   width: 100%;
 }
-
-/* Увеличенный информативный блок статуса слева в шапке */
 .header-status-block {
   flex: 1 1 auto;
   min-width: 0;
-  padding: 6px 10px;
-  border-radius: 13px;
-  border: 1.5px solid var(--border);
-  background: var(--card);
+  padding: 5px 9px;
+  border-radius: 14px;
+  border: 1.5px solid rgba(148, 210, 255, 0.35);
+  background: linear-gradient(180deg, rgba(38, 60, 88, 0.92) 0%, rgba(18, 32, 52, 0.96) 100%);
+  box-shadow: inset 0 1.5px 1px rgba(255, 255, 255, 0.32), inset 0 -2px 4px rgba(0, 0, 0, 0.48), 0 4px 10px rgba(0, 0, 0, 0.35);
   display: flex;
   flex-direction: column;
   justify-content: center;
   gap: 2px;
   cursor: pointer;
-  transition: border-color 0.15s ease, transform 0.12s ease;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.12s ease, border-color 0.15s ease;
 }
 .header-status-block:active {
-  transform: scale(0.99);
+  transform: scale(0.98);
 }
 .header-status-block.open-water {
-  background: var(--pill-good-bg);
-  border-color: rgba(16, 185, 129, 0.42);
+  background: linear-gradient(180deg, rgba(16, 185, 129, 0.26) 0%, rgba(12, 42, 56, 0.94) 100%);
+  border-color: rgba(52, 211, 153, 0.50);
 }
 .header-status-block.ice-slush {
-  background: var(--pill-warn-bg);
-  border-color: rgba(245, 158, 11, 0.45);
+  background: linear-gradient(180deg, rgba(217, 119, 6, 0.28) 0%, rgba(45, 36, 24, 0.94) 100%);
+  border-color: rgba(251, 191, 36, 0.52);
 }
 .header-status-block.ice-safe {
-  background: var(--pill-ice-bg);
-  border-color: rgba(56, 189, 248, 0.45);
+  background: linear-gradient(180deg, rgba(56, 189, 248, 0.28) 0%, rgba(15, 38, 62, 0.94) 100%);
+  border-color: rgba(125, 211, 252, 0.55);
 }
 .header-status-block.ice-danger {
-  background: var(--pill-bad-bg);
-  border-color: rgba(239, 68, 68, 0.48);
+  background: linear-gradient(180deg, rgba(239, 68, 68, 0.30) 0%, rgba(52, 18, 26, 0.94) 100%);
+  border-color: rgba(248, 113, 113, 0.58);
 }
-
+[data-theme="light"] .header-status-block {
+  background: linear-gradient(180deg, #ffffff 0%, #e6f2fc 100%);
+  box-shadow: inset 0 1.5px 1px #ffffff, 0 3px 8px rgba(20, 45, 76, 0.10);
+}
 .header-status-main {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   min-width: 0;
   width: 100%;
 }
-
 .header-online-badge {
-  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10.5px;
   font-weight: 900;
   padding: 1px 6px;
   border-radius: 999px;
-  background: rgba(0, 0, 0, 0.18);
+  background: rgba(0, 0, 0, 0.24);
   color: var(--text);
   white-space: nowrap;
   flex-shrink: 0;
 }
 [data-theme="light"] .header-online-badge {
-  background: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.85);
 }
-
 .header-season-verdict {
-  font-size: 13.5px;
+  font-size: 12px;
   font-weight: 900;
   color: var(--text);
   white-space: nowrap;
@@ -121,34 +132,40 @@ body {
   min-width: 0;
   line-height: 1.2;
 }
-
 .header-status-sub {
-  font-size: 11.5px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
   font-weight: 800;
   color: var(--text);
-  opacity: 0.92;
+  opacity: 0.94;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   width: 100%;
-  line-height: 1.22;
+  line-height: 1.2;
 }
-
+.header-status-sub > span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .header-right-actions {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   flex-shrink: 0;
 }
-
 .btn-theme-chip {
   width: 36px;
   height: 36px;
   border-radius: 12px;
-  border: 1.5px solid var(--border);
-  background: var(--card);
+  border: 1.5px solid rgba(148, 210, 255, 0.35);
+  background: linear-gradient(180deg, rgba(38, 62, 92, 0.95) 0%, rgba(16, 30, 50, 0.98) 100%);
+  box-shadow: inset 0 1.5px 1px rgba(255, 255, 255, 0.35), inset 0 -2px 3px rgba(0, 0, 0, 0.5), 0 4px 10px rgba(0, 0, 0, 0.38);
   color: var(--text);
-  font-size: 15px;
+  font-size: 16px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -156,24 +173,29 @@ body {
   flex-shrink: 0;
   transition: border-color 0.15s ease, transform 0.12s ease;
 }
-.btn-theme-chip:hover {
-  border-color: var(--accent);
+[data-theme="light"] .btn-theme-chip {
+  background: linear-gradient(180deg, #ffffff 0%, #e2eef9 100%);
+  border-color: #b5d0ea;
+  box-shadow: inset 0 1.5px 1px #ffffff, 0 3px 8px rgba(20, 45, 76, 0.10);
 }
-
 .header-id-profile-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 8px 4px 10px;
-  border-radius: 13px;
-  border: 1.5px solid var(--border);
-  background: var(--card);
+  padding: 4px 7px 4px 9px;
+  border-radius: 14px;
+  border: 1.5px solid rgba(16, 185, 129, 0.55);
+  background: linear-gradient(180deg, rgba(22, 54, 68, 0.95) 0%, rgba(11, 28, 42, 0.98) 100%);
+  box-shadow: inset 0 1.5px 1px rgba(255, 255, 255, 0.32), inset 0 -2px 4px rgba(0, 0, 0, 0.5), 0 4px 10px rgba(0, 0, 0, 0.38);
   color: var(--text);
   cursor: pointer;
   text-align: right;
-  max-width: 174px;
+  max-width: 176px;
 }
-
+[data-theme="light"] .header-id-profile-btn {
+  background: linear-gradient(180deg, #ffffff 0%, #e6f4f1 100%);
+  box-shadow: inset 0 1.5px 1px #ffffff, 0 3px 8px rgba(20, 45, 76, 0.10);
+}
 .header-id-text-col {
   display: flex;
   flex-direction: column;
@@ -181,127 +203,121 @@ body {
   line-height: 1.15;
   min-width: 0;
 }
-
 .header-id-code {
   font-family: monospace;
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 900;
   color: var(--text);
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 128px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
 }
-
 .header-id-sub {
-  font-size: 10px;
+  font-size: 9.5px;
   font-weight: 800;
   color: var(--muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 128px;
+  max-width: 132px;
 }
-
 .header-avatar-circle {
   width: 26px;
   height: 26px;
   border-radius: 50%;
-  background: rgba(148, 163, 184, 0.18);
-  border: 1px solid var(--border);
+  background: linear-gradient(180deg, rgba(56, 189, 248, 0.28) 0%, rgba(15, 23, 42, 0.6) 100%);
+  border: 1px solid rgba(148, 210, 255, 0.4);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.35);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 13.5px;
+  font-size: 13px;
   flex-shrink: 0;
 }
-
-/* ==========================================================================
-   2. ВЕРХНЯЯ ПАНЕЛЬ НАВИГАЦИИ: НАСТОЯЩИЕ КНОПКИ С ИКОНКОЙ СВЕРХУ И ПОЛНОЙ ПОДПИСЬЮ
-   ========================================================================== */
 .top-section-nav {
   max-width: 1200px;
   margin: 0 auto;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 6px;
+  gap: 5px;
   padding: 5px 0 2px;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid rgba(148, 210, 255, 0.18);
 }
 .top-section-nav[data-has-admin="1"] {
   grid-template-columns: repeat(5, minmax(0, 1fr));
 }
-
 .top-nav-item {
-  border: 1.5px solid var(--border);
-  background: var(--card);
+  border: 1.5px solid rgba(148, 210, 255, 0.32);
+  background: linear-gradient(180deg, rgba(38, 62, 92, 0.92) 0%, rgba(17, 31, 52, 0.96) 55%, rgba(11, 21, 38, 0.98) 100%);
+  box-shadow: inset 0 1.5px 1.5px rgba(255, 255, 255, 0.35), inset 0 -2px 4px rgba(0, 0, 0, 0.55), 0 4px 10px rgba(0, 0, 0, 0.38);
   color: var(--text);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  padding: 5px 4px 6px;
-  border-radius: 12px;
+  gap: 3px;
+  padding: 6px 2px 6px;
+  border-radius: 13px;
   cursor: pointer;
   position: relative;
   min-width: 0;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.14);
-  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.12s ease;
+  overflow: hidden;
+  transition: transform 0.12s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+[data-theme="light"] .top-nav-item {
+  background: linear-gradient(180deg, #ffffff 0%, #e4f0fb 100%);
+  border-color: #b4d0eb;
+  box-shadow: inset 0 1.5px 1px #ffffff, inset 0 -1.5px 3px rgba(20, 45, 76, 0.08), 0 3px 8px rgba(20, 45, 76, 0.10);
+}
+.top-nav-item::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 46%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.02) 100%);
+  pointer-events: none;
 }
 .top-nav-item:active {
-  transform: scale(0.97);
+  transform: scale(0.96);
 }
-
 .top-nav-ico {
-  font-size: 17px;
-  line-height: 1.05;
+  font-size: 18px;
+  line-height: 1;
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
-
 .top-nav-lbl {
-  font-size: 11.5px;
+  font-size: 10.5px;
   font-weight: 800;
+  letter-spacing: -0.15px;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   max-width: 100%;
   line-height: 1.15;
 }
-
-.top-nav-item:hover {
-  border-color: var(--accent);
-}
-
 .top-nav-item.active {
   color: #ffffff;
-  background: linear-gradient(135deg, var(--accent-strong), var(--accent));
-  border-color: var(--accent);
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25);
-}
-[data-theme="dark"] .top-nav-item.active {
-  background: linear-gradient(135deg, #0284c7, #00b4d8);
-  border-color: #00e5ff;
-  color: #ffffff;
+  background: linear-gradient(180deg, #38bdf8 0%, #0284c7 52%, #0369a1 100%);
+  border-color: #7dd3fc;
+  box-shadow: inset 0 2px 2px rgba(255, 255, 255, 0.60), inset 0 -2px 4px rgba(0, 0, 0, 0.40), 0 4px 14px rgba(2, 132, 199, 0.55);
 }
 [data-theme="contrast"] .top-nav-item.active {
-  background: linear-gradient(135deg, #b45309, #d97706);
-  border-color: #f59e0b;
+  background: linear-gradient(180deg, #f59e0b 0%, #d97706 55%, #b45309 100%);
+  border-color: #fde68a;
   color: #ffffff;
 }
-
-/* ==========================================================================
-   3. ОСНОВНОЙ КОНТЕЙНЕР И ЕДИНАЯ BENTO-СИСТЕМА КАРТОЧЕК ДЛЯ ВСЕХ ВКЛАДОК
-   ========================================================================== */
 .app-main {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 10px 11px 16px;
+  padding: 10px 10px 18px;
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
-
 .app-main > section,
 .card,
 .bento-card,
@@ -312,43 +328,66 @@ body {
   max-width: 100%;
   min-width: 0;
 }
-
 .bento-dashboard-wrap {
   display: flex;
   flex-direction: column;
-  gap: 11px;
+  gap: 12px;
   width: 100%;
 }
-
-/* Все карточки (.card и .bento-card) во всех вкладках приведены к единому стилю Bento */
 .bento-card,
 .card {
-  background: var(--card);
-  border: 1.5px solid var(--border);
-  border-radius: 18px;
+  background: linear-gradient(155deg, rgba(24, 45, 72, 0.92) 0%, rgba(12, 25, 44, 0.96) 55%, rgba(8, 17, 31, 0.98) 100%);
+  border: 1.5px solid rgba(110, 205, 255, 0.32);
+  border-radius: 20px;
   padding: 13px 14px;
-  box-shadow: var(--shadow-card);
+  box-shadow: inset 0 1.5px 1.5px rgba(255, 255, 255, 0.25), inset 0 -2px 6px rgba(0, 0, 0, 0.55), 0 10px 26px rgba(0, 0, 0, 0.52), 0 0 16px rgba(0, 229, 255, 0.06);
   position: relative;
   overflow: hidden;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
 }
-
+[data-theme="light"] .bento-card,
+[data-theme="light"] .card {
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.96) 0%, rgba(236, 245, 253, 0.94) 100%);
+  border-color: #b4d0eb;
+  box-shadow: inset 0 1.5px 1px #ffffff, 0 8px 22px rgba(20, 45, 76, 0.10);
+}
+[data-theme="contrast"] .bento-card,
+[data-theme="contrast"] .card {
+  background: linear-gradient(155deg, rgba(28, 39, 58, 0.96) 0%, rgba(16, 23, 36, 0.98) 100%);
+  border-color: rgba(245, 158, 11, 0.34);
+}
+.bento-card::before,
+.card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -15%;
+  width: 68%;
+  height: 100%;
+  background: linear-gradient(115deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.03) 48%, transparent 50%);
+  pointer-events: none;
+  z-index: 0;
+}
+.bento-card > *,
+.card > * {
+  position: relative;
+  z-index: 1;
+}
 .bento-card.bento-hero-card {
-  border-color: var(--bento-hero-border, var(--border));
+  border-color: var(--bento-hero-border, rgba(56, 189, 248, 0.42));
 }
 .bento-card.bento-chart-card {
-  border-color: var(--bento-chart-border, var(--border));
+  border-color: var(--bento-chart-border, rgba(56, 189, 248, 0.36));
 }
 .bento-card.bento-radar-card {
-  border-color: var(--bento-radar-border, var(--border));
+  border-color: var(--bento-radar-border, rgba(56, 189, 248, 0.38));
   cursor: pointer;
 }
 .bento-card.bento-weather-card {
-  border-color: var(--bento-weather-border, var(--border));
+  border-color: var(--bento-weather-border, rgba(16, 185, 129, 0.38));
   cursor: pointer;
 }
-
 .bento-card-head,
 .section-head {
   display: flex;
@@ -358,69 +397,61 @@ body {
   flex-wrap: wrap;
   margin-bottom: 10px;
 }
-
 .bento-card-title,
 .section-title {
-  font-size: 15px;
+  font-size: 15.5px;
   font-weight: 900;
   color: var(--text);
   display: flex;
   align-items: center;
-  gap: 6px;
-  line-height: 1.22;
+  gap: 7px;
+  line-height: 1.24;
   text-transform: none !important;
   letter-spacing: 0 !important;
 }
-
 .bento-card-sub {
   font-size: 11.5px;
   color: var(--muted);
   font-weight: 700;
   margin-top: 2px;
 }
-
-/* Герой-сетка (Ихтиологический Прогноз / Режим водоёма) */
 .bento-hero-grid {
   display: grid;
   grid-template-columns: 1.15fr 0.95fr;
   gap: 12px;
   align-items: center;
 }
-
 @media (max-width: 400px) {
   .bento-hero-grid {
     grid-template-columns: 1.08fr 0.92fr;
     gap: 8px;
   }
 }
-
 .bento-active-status-row {
   display: flex;
   align-items: center;
   gap: 10px;
   margin-bottom: 10px;
 }
-
 .bento-splash-fish-box {
   width: 68px;
   height: 52px;
-  border-radius: 12px;
-  background: radial-gradient(circle at 50% 50%, rgba(56, 189, 248, 0.22), transparent 72%);
-  border: 1px solid var(--border);
+  border-radius: 13px;
+  background: radial-gradient(circle at 50% 50%, rgba(56, 189, 248, 0.25), rgba(15, 23, 42, 0.5) 78%);
+  border: 1.5px solid rgba(125, 211, 252, 0.35);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.28), 0 3px 8px rgba(0, 0, 0, 0.35);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
   padding: 3px;
 }
-
 .bento-splash-fish-box img {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.28));
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.35));
 }
-
 .bento-status-verdict {
   font-size: 16.5px;
   font-weight: 900;
@@ -428,24 +459,22 @@ body {
   line-height: 1.15;
   color: var(--good);
 }
-
 .bento-top3-label {
   font-size: 11.5px;
   font-weight: 800;
   color: var(--muted);
   margin-bottom: 6px;
 }
-
 .bento-top3-row {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
 }
-
 .bento-top3-item {
-  border: 1px solid var(--border);
-  background: var(--panel);
-  border-radius: 11px;
+  border: 1.5px solid rgba(148, 210, 255, 0.28);
+  background: linear-gradient(180deg, rgba(34, 56, 84, 0.90) 0%, rgba(15, 28, 48, 0.95) 100%);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.25), 0 3px 8px rgba(0, 0, 0, 0.3);
+  border-radius: 12px;
   padding: 5px 4px;
   display: flex;
   flex-direction: column;
@@ -454,18 +483,19 @@ body {
   cursor: pointer;
   transition: transform 0.12s ease, border-color 0.15s ease;
 }
-
+[data-theme="light"] .bento-top3-item {
+  background: linear-gradient(180deg, #ffffff 0%, #eaf3fc 100%);
+  border-color: #bdd4ea;
+}
 .bento-top3-item.active {
   border: 1.5px solid var(--accent);
-  box-shadow: 0 0 0 1px var(--accent);
+  box-shadow: inset 0 1.5px 1px rgba(255, 255, 255, 0.4), 0 0 0 1.5px var(--accent);
 }
-
 .bento-top3-item img {
   width: 54px;
   height: 26px;
   object-fit: contain;
 }
-
 .bento-top3-name {
   font-size: 11px;
   font-weight: 800;
@@ -475,20 +505,17 @@ body {
   text-overflow: ellipsis;
   max-width: 100%;
 }
-
 .bento-top3-pct {
   font-size: 10px;
   font-weight: 900;
   color: var(--good);
 }
-
 .bento-gauge-col {
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
 }
-
 .bento-gauge-svg-box {
   position: relative;
   width: 156px;
@@ -497,7 +524,6 @@ body {
   align-items: flex-end;
   justify-content: center;
 }
-
 .bento-gauge-center-text {
   position: absolute;
   bottom: 2px;
@@ -508,19 +534,16 @@ body {
   align-items: center;
   line-height: 1.12;
 }
-
 .bento-gauge-sub {
   font-size: 11px;
   font-weight: 700;
   color: var(--muted);
 }
-
 .bento-gauge-lvl {
   font-size: 13px;
   font-weight: 900;
   color: var(--text);
 }
-
 .bento-gauge-pct {
   font-size: 27px;
   font-weight: 900;
@@ -534,50 +557,48 @@ body {
 [data-theme="contrast"] .bento-gauge-pct {
   color: #fbbf24;
 }
-
 .bento-tackle-summary {
   margin-top: 6px;
   font-size: 12px;
   line-height: 1.3;
   color: var(--text);
 }
-
 .bento-tackle-rec {
   font-size: 11px;
   color: var(--muted);
   margin-top: 2px;
   line-height: 1.28;
 }
-
-/* Двухколоночный ряд Bento (50% / 50%) */
 .bento-bottom-duo {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
-
 @media (max-width: 360px) {
   .bento-bottom-duo {
     grid-template-columns: 1fr;
   }
 }
-
 .bento-metrics-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
   gap: 9px;
 }
-
 .bento-metric-tile {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(30, 52, 80, 0.88) 0%, rgba(14, 27, 46, 0.94) 100%);
+  border: 1.5px solid rgba(125, 195, 245, 0.28);
+  box-shadow: inset 0 1.5px 1px rgba(255, 255, 255, 0.22), 0 4px 10px rgba(0, 0, 0, 0.32);
+  border-radius: 15px;
   padding: 10px 12px;
   display: flex;
   flex-direction: column;
   gap: 3px;
 }
-
+[data-theme="light"] .bento-metric-tile {
+  background: linear-gradient(180deg, #ffffff 0%, #ebf4fc 100%);
+  border-color: #bdd4ea;
+  box-shadow: inset 0 1px 0 #ffffff, 0 3px 8px rgba(20, 45, 76, 0.08);
+}
 .bento-metric-label {
   font-size: 11px;
   font-weight: 800;
@@ -586,26 +607,23 @@ body {
   align-items: center;
   gap: 5px;
 }
-
 .bento-metric-val {
   font-size: 18px;
   font-weight: 900;
   color: var(--text);
   line-height: 1.2;
 }
-
 .bento-metric-sub {
   font-size: 11px;
   color: var(--muted);
   line-height: 1.3;
 }
-
 .bento-radar-visual {
   position: relative;
   height: 126px;
-  border-radius: 12px;
+  border-radius: 14px;
   overflow: hidden;
-  border: 1px solid var(--border);
+  border: 1.5px solid rgba(125, 195, 245, 0.32);
   background: radial-gradient(circle at 52% 54%, rgba(56, 189, 248, 0.26) 0%, rgba(37, 99, 235, 0.12) 55%, rgba(15, 23, 42, 0.25) 100%);
   display: flex;
   align-items: center;
@@ -618,7 +636,6 @@ body {
   background: radial-gradient(circle at 50% 50%, rgba(56, 189, 248, 0.18) 0%, #0f1623 78%);
   border-color: rgba(56, 189, 248, 0.36);
 }
-
 .bento-radar-badge-zone {
   position: absolute;
   top: 7px;
@@ -633,7 +650,6 @@ body {
   color: var(--text);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
 }
-
 .bento-radar-badge-crew {
   position: absolute;
   bottom: 7px;
@@ -647,32 +663,27 @@ body {
   color: var(--good);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
 }
-
 .bento-weather-rows {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
-
 .bento-temp-split {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 6px;
 }
-
 .bento-temp-air {
   font-size: 24px;
   font-weight: 900;
   color: var(--text);
   line-height: 1.05;
 }
-
 .bento-temp-water-box {
   text-align: right;
   line-height: 1.15;
 }
-
 .bento-weather-item-row {
   display: flex;
   align-items: center;
@@ -682,47 +693,16 @@ body {
   font-size: 12px;
   line-height: 1.22;
 }
-
-[data-theme="contrast"] .bento-ice-hazard {
-  background: rgba(245, 158, 11, 0.10);
-  padding: 6px 8px;
-  border-radius: 9px;
-  border: 1px solid rgba(245, 158, 11, 0.35);
-}
-
-/* ==========================================================================
-   4. ЛЕНТЫ ПРОКРУТКИ, КАРТОЧКИ ДНЕЙ, ЧАСОВ И РЫБ В BENTO-СТИЛЕ
-   ========================================================================== */
 .express-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 10px;
 }
-
-.express-card {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: 8px;
-  cursor: pointer;
-  border-radius: 16px;
-  transition: border-color 0.15s ease, transform 0.15s ease;
-}
-.express-card:hover { border-color: var(--accent); transform: translateY(-2px); }
-.express-card.active { border-color: var(--accent); box-shadow: 0 0 0 1.5px var(--accent); }
-
-.express-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-}
-
 .controls-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(225px, 1fr));
   gap: 10px;
 }
-
 .fish-strip,
 .week-strip,
 .bite-timeline,
@@ -737,7 +717,6 @@ body {
   -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
 }
-
 .fish-toolbar-onerow {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -745,30 +724,26 @@ body {
   width: 100%;
   margin-bottom: 8px;
 }
-
 .fish-toolbar-onerow .btn {
   width: 100%;
   min-width: 0;
-  min-height: 36px;
+  min-height: 38px;
   padding: 5px 6px;
-  font-size: 13px;
+  font-size: 12.5px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-
 .fish-strip-placeholder {
   width: 100%;
   min-width: 0;
 }
-
 .fish-strip-dock-wrap {
   width: 100%;
   min-width: 0;
   will-change: height, transform;
   transition: background-color 0.2s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.2s cubic-bezier(0.22, 1, 0.36, 1), height 0.12s cubic-bezier(0.22, 1, 0.36, 1);
 }
-
 .fish-strip-dock-wrap.docked-mini {
   position: fixed;
   top: var(--header-h, 112px);
@@ -781,14 +756,12 @@ body {
   box-shadow: var(--shadow-header);
   padding: 4px 12px;
 }
-
 .fish-strip-dock-wrap.docked-mini .fish-strip {
   max-width: 1200px;
   margin: 0 auto;
   padding: 2px 0;
   gap: 6px;
 }
-
 .fish-strip-dock-wrap.docked-mini .fish-card {
   flex-direction: row;
   align-items: center;
@@ -800,7 +773,6 @@ body {
   border-radius: var(--r-sm);
   transform: none !important;
 }
-
 .fish-strip-dock-wrap.docked-mini .fish-img-wrap {
   width: calc(118px - var(--shrink, 1) * 78px);
   height: calc(52px - var(--shrink, 1) * 26px);
@@ -808,14 +780,12 @@ body {
   flex-shrink: 0;
   transition: width 0.14s ease, height 0.14s ease;
 }
-
 .fish-strip-dock-wrap.docked-mini .fish-name {
   font-size: 13.5px;
   font-weight: 800;
   margin: 0;
   white-space: nowrap;
 }
-
 .fish-strip-dock-wrap.docked-mini .fav-btn,
 .fish-strip-dock-wrap.docked-mini .fish-latin,
 .fish-strip-dock-wrap.docked-mini .fish-badge-wrap,
@@ -824,7 +794,6 @@ body {
 .fish-strip-dock-wrap.docked-mini [data-info-fish] {
   display: none !important;
 }
-
 .week-strip {
   display: flex;
   gap: 8px;
@@ -832,11 +801,11 @@ body {
   padding-bottom: 6px;
   align-items: stretch;
 }
-
 .day-card {
   min-width: 146px;
-  background: var(--panel);
-  border: 1.5px solid var(--border);
+  background: linear-gradient(180deg, rgba(32, 54, 82, 0.90) 0%, rgba(14, 27, 46, 0.95) 100%);
+  border: 1.5px solid rgba(125, 195, 245, 0.28);
+  box-shadow: inset 0 1.5px 1px rgba(255, 255, 255, 0.25), 0 4px 10px rgba(0, 0, 0, 0.35);
   border-radius: 15px;
   padding: 9px 11px;
   flex-shrink: 0;
@@ -847,23 +816,26 @@ body {
   position: relative;
   transition: border-color 0.15s ease, transform 0.15s ease, background-color 0.15s ease;
 }
+[data-theme="light"] .day-card {
+  background: linear-gradient(180deg, #ffffff 0%, #ebf4fc 100%);
+  border-color: #bdd4ea;
+  box-shadow: inset 0 1px 0 #ffffff, 0 3px 8px rgba(20, 45, 76, 0.08);
+}
 .day-card:hover { border-color: var(--accent); }
 .day-card.active {
   border-color: var(--accent);
-  background: rgba(56, 189, 248, 0.12);
-  box-shadow: 0 0 0 1.5px var(--accent);
+  background: linear-gradient(180deg, rgba(56, 189, 248, 0.24) 0%, rgba(14, 42, 68, 0.95) 100%);
+  box-shadow: inset 0 1.5px 1px rgba(255, 255, 255, 0.4), 0 0 0 1.5px var(--accent);
 }
-[data-theme="contrast"] .day-card.active {
-  background: rgba(245, 158, 11, 0.14);
+[data-theme="light"] .day-card.active {
+  background: linear-gradient(180deg, #dbeafe 0%, #eff6ff 100%);
 }
-
 .day-card.archive-day {
   min-width: 118px;
   max-width: 132px;
   padding: 7px 9px;
   gap: 3px;
   border-style: dashed;
-  background: rgba(148, 163, 184, 0.08);
   opacity: 0.92;
 }
 .day-card.priority-day {
@@ -871,20 +843,17 @@ body {
   padding: 10px 12px;
   border-width: 1.5px;
 }
-
 .day-status-stripe {
   height: 4px;
   width: 100%;
   border-radius: 3px;
 }
-
 .month-grid {
   display: flex;
   gap: 6px;
   overflow-x: auto;
   padding-bottom: 4px;
 }
-
 .month-cell {
   flex: 1 0 62px;
   min-width: 62px;
@@ -898,10 +867,6 @@ body {
   gap: 4px;
 }
 .month-cell.current { border-color: var(--accent); box-shadow: 0 0 0 1.5px var(--accent); }
-
-/* ==========================================================================
-   5. НИЖНИЙ ДОК «БЫСТРЫЙ ДОСТУП» (Карта | Чаты·Круг | Прогноз | SOS | Журнал)
-   ========================================================================== */
 .bottom-nav {
   position: fixed;
   bottom: 0;
@@ -914,84 +879,101 @@ body {
   padding: 0 8px 6px 8px;
   pointer-events: none;
 }
-
 .quick-dock-tab-label {
   width: fit-content;
   margin: 0 auto -1px auto;
-  padding: 2px 14px 3px;
-  border-radius: 10px 10px 0 0;
-  background: var(--panel);
-  border: 1px solid var(--border);
+  padding: 3px 16px 3px;
+  border-radius: 11px 11px 0 0;
+  background: linear-gradient(180deg, rgba(46, 70, 98, 0.95) 0%, rgba(24, 40, 62, 0.96) 100%);
+  border: 1.5px solid rgba(148, 210, 255, 0.35);
   border-bottom: none;
-  font-size: 10px;
+  font-size: 10.5px;
   font-weight: 800;
-  color: var(--muted);
+  color: #e2e8f0;
   letter-spacing: 0.3px;
   pointer-events: auto;
-  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.12);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.35), 0 -3px 10px rgba(0, 0, 0, 0.35);
 }
-
+[data-theme="light"] .quick-dock-tab-label {
+  background: linear-gradient(180deg, #ffffff 0%, #dceaf7 100%);
+  border-color: #b4d0eb;
+  color: #1e3a8a;
+}
 .bottom-nav-inner {
   pointer-events: auto;
   max-width: 580px;
   margin: 0 auto;
-  background: var(--panel);
-  border: 1.5px solid var(--border);
-  border-radius: 20px;
-  padding: 4px 6px !important;
-  box-shadow: var(--shadow-header);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: linear-gradient(180deg, rgba(72, 100, 132, 0.52) 0%, rgba(28, 46, 70, 0.92) 42%, rgba(14, 25, 42, 0.98) 100%);
+  border: 1.5px solid rgba(165, 220, 255, 0.42);
+  border-radius: 22px;
+  padding: 5px 6px !important;
+  box-shadow: inset 0 2px 2px rgba(255, 255, 255, 0.42), inset 0 -2px 5px rgba(0, 0, 0, 0.55), 0 8px 26px rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
   display: grid !important;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   align-items: center;
-  gap: 4px !important;
+  gap: 5px !important;
   position: relative;
 }
-
+[data-theme="light"] .bottom-nav-inner {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(220, 236, 250, 0.94) 100%);
+  border-color: #a8c8e8;
+  box-shadow: inset 0 2px 1px #ffffff, 0 6px 20px rgba(20, 45, 76, 0.16);
+}
 .nav-tab {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 2px;
-  min-height: 46px;
-  border: none;
+  min-height: 48px;
+  border: 1.5px solid transparent;
   background: transparent;
-  color: var(--muted);
+  color: var(--text);
+  opacity: 0.86;
   font-size: 11px;
   font-weight: 800;
-  border-radius: 13px;
+  border-radius: 15px;
   cursor: pointer;
   padding: 4px 2px;
   min-width: 0;
-  transition: background-color 0.15s ease, color 0.15s ease;
+  transition: all 0.15s ease;
 }
-
 .nav-tab.active {
-  color: var(--accent);
-  background: rgba(56, 189, 248, 0.14);
+  opacity: 1;
+  color: #38bdf8;
+  background: linear-gradient(180deg, rgba(22, 44, 70, 0.95) 0%, rgba(10, 22, 38, 0.98) 100%);
+  border-color: rgba(56, 189, 248, 0.55);
+  box-shadow: inset 0 1.5px 1px rgba(255, 255, 255, 0.28), 0 3px 10px rgba(0, 0, 0, 0.45);
+}
+[data-theme="light"] .nav-tab.active {
+  color: #1d4ed8;
+  background: linear-gradient(180deg, #dbeafe 0%, #bfdbfe 100%);
+  border-color: #60a5fa;
+  box-shadow: inset 0 1.5px 1px #ffffff, 0 2px 6px rgba(37, 99, 235, 0.18);
 }
 [data-theme="contrast"] .nav-tab.active {
   color: var(--accent);
-  background: rgba(245, 158, 11, 0.16);
+  border-color: rgba(245, 158, 11, 0.6);
 }
-
 .bottom-nav-inner .nav-tab .dock-ico {
-  font-size: 18px;
-  line-height: 1.05;
+  font-size: 20px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
-
 .nav-sos-btn {
+  opacity: 1 !important;
   color: #ef4444 !important;
 }
-
 .sos-red-circle {
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #ff6b6b 0%, #dc2626 65%, #991b1b 100%);
-  border: 2px solid #fca5a5;
+  background: radial-gradient(circle at 35% 28%, #ff8787 0%, #ef4444 52%, #991b1b 100%);
+  border: 2px solid #fecaca;
   color: #ffffff;
   font-size: 10px;
   font-weight: 900;
@@ -999,23 +981,19 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 10px rgba(220, 38, 38, 0.50);
+  box-shadow: inset 0 2px 2px rgba(255, 255, 255, 0.55), 0 3px 12px rgba(220, 38, 38, 0.65);
 }
-
 .sos-lbl-text {
   font-size: 10.5px;
   font-weight: 900;
   color: #ef4444;
 }
-
-/* ==========================================================================
-   6. КАРТА И ПРОЧИЕ МОДУЛИ
-   ========================================================================== */
 #mapBox {
   width: 100%;
   height: 330px;
   border-radius: 16px;
-  border: 1.5px solid var(--border);
+  border: 1.5px solid rgba(125, 195, 245, 0.38);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
   background: #0f172a;
   position: relative;
   z-index: 1;
@@ -1023,7 +1001,6 @@ body {
   overflow: hidden;
   transition: height 0.2s ease;
 }
-
 @media (min-width: 768px) {
   #mapBox { height: 520px; }
 }
@@ -1033,30 +1010,26 @@ body {
 @media (min-width: 1440px) {
   #mapBox { height: 720px; }
 }
-
 .map-layers-row {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 5px;
+  gap: 6px;
   width: 100%;
   margin-bottom: 8px;
 }
-
 .map-layer-btn {
   width: 100%;
   text-align: center;
   padding: 5px 2px;
   font-size: 12.5px;
   font-weight: 800;
-  min-height: 34px;
+  min-height: 36px;
+  border-radius: 999px !important;
 }
-
 @media (max-width: 720px) {
   .factor-row { grid-template-columns: 135px 1fr 50px; font-size: var(--fs-xs); }
   .nav-tab { font-size: 10.5px; padding: 3px 1px; }
 }
-
-/* Единый двухкнопочный переключатель «Чаты ⇄ Круг и Экипажи» */
 .circle-chats-hub-bar {
   display: grid !important;
   grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
@@ -1067,15 +1040,12 @@ body {
   border-radius: 16px !important;
   margin-bottom: 12px !important;
 }
-
 .circle-chats-hub-btn {
   min-height: 44px !important;
   border-radius: 12px !important;
   font-weight: 900 !important;
   font-size: 13.5px !important;
 }
-
-/* Загрузочный сплеш-экран */
 .app-splash-screen {
   position: fixed;
   inset: 0;
@@ -1153,7 +1123,6 @@ body {
   color: #94a3b8;
   letter-spacing: 0.2px;
 }
-
 .app-splash-screen[data-app-splash-theme="light"] {
   background: linear-gradient(180deg, #e3f1fc 0%, #f5faff 50%, #d8ecfa 100%) !important;
 }
@@ -1165,7 +1134,6 @@ body {
 .app-splash-screen[data-app-splash-theme="light"] .app-splash-sub {
   color: #1e3a8a;
 }
-
 .app-splash-screen[data-app-splash-theme="contrast"] {
   background: #0b1018 !important;
 }
@@ -1181,7 +1149,6 @@ body {
   color: #fbbf24;
   font-family: monospace;
 }
-
 .fisher-id-copy-badge {
   user-select: none;
   -webkit-user-select: none;

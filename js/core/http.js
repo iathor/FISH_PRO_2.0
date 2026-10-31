@@ -1,1 +1,47 @@
-export async function fetchWithTimeout(t,r=6800,o={}){const n=new AbortController,a=setTimeout((()=>n.abort()),r);try{const r=await fetch(t,{...o,signal:n.signal});if(clearTimeout(a),!r.ok)throw new Error(`HTTP ${r.status}`);return await r.json()}catch(t){throw clearTimeout(a),t}}export async function retry(t,r=2,o=350){let n;for(let a=0;a<r;a++)try{return await t(a)}catch(t){n=t,a<r-1&&await new Promise((t=>setTimeout(t,o)))}throw n}export async function fallbackChain(t){let r=null;for(const o of t)try{o.onStart&&o.onStart();const t=await o.run();if(null!=t)return{data:t,source:o.name||"online"}}catch(t){r=t}throw r||new Error("All fallback endpoints failed")}
+export async function fetchWithTimeout(url, ms = 6800, options = {}) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  try {
+    const res = await fetch(url, {
+      ...options,
+      signal: ctrl.signal
+    });
+    clearTimeout(timer);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    clearTimeout(timer);
+    throw err;
+  }
+}
+
+export async function retry(fn, attempts = 2, delayMs = 350) {
+  let lastErr;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fn(i);
+    } catch (err) {
+      lastErr = err;
+      if (i < attempts - 1) {
+        await new Promise(r => setTimeout(r, delayMs));
+      }
+    }
+  }
+  throw lastErr;
+}
+
+export async function fallbackChain(steps) {
+  let lastErr = null;
+  for (const step of steps) {
+    try {
+      if (step.onStart) step.onStart();
+      const result = await step.run();
+      if (result !== null && result !== undefined) {
+        return { data: result, source: step.name || 'online' };
+      }
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  throw lastErr || new Error('All fallback endpoints failed');
+}

@@ -1,1 +1,669 @@
-import{initReleaseUpdater as e,checkForReleaseUpdate as t}from"./core/updater.js?v=2.5.0";import{RU as o}from"./i18n/ru.js?v=2.5.0";import{events as n}from"./core/events.js?v=2.5.0";import{store as a}from"./core/store.js?v=2.5.0";import{router as r}from"./core/router.js?v=2.5.0";import{installShortcut as i,initPwa as s}from"./core/pwa.js?v=2.5.0";import{initTelegramMiniApp as d,extractIncomingDeepLinkParams as c,extractIncomingShareToken as l,clearIncomingShareTokenFromUrl as m,triggerHaptic as u,syncTelegramTheme as h,syncTelegramBackButton as p,getTelegramUser as f}from"./core/telegram.js?v=2.5.0";import{FISH_DB as y}from"./data/species.js?v=2.5.0";import{WATER_PROFILES as g}from"./data/waters.js?v=2.5.0";import{showToast as w,openModal as v,closeModal as E}from"./ui/components.js?v=2.5.0";import{weatherModule as _}from"./modules/weather/weather.module.js?v=2.5.0";import{geoModule as S}from"./modules/geo/geo.module.js?v=2.5.0";import{fishModule as b}from"./modules/fish/fish.module.js?v=2.5.0";import{forecastModule as L}from"./modules/forecast/forecast.module.js?v=2.5.0";import{calendarModule as I}from"./modules/calendar/calendar.module.js?v=2.5.0";import{logModule as C}from"./modules/log/log.module.js?v=2.5.0";import{circleModule as A}from"./modules/circle/circle.module.js?v=2.5.0";"undefined"!=typeof window&&(window.__KLEV_BOOTSTRAPPED__=!0,window.__KLEV_STORE__=a),window.addEventListener("message",(e=>{e&&"klev_close_admin_console"===e.data&&E()})),window.addEventListener("error",(e=>{console.error("[Global Error]:",e.error||e.message)})),window.addEventListener("unhandledrejection",(e=>{console.error("[Unhandled Rejection]:",e.reason)}));let B=null;export function resolveEffectiveTheme(e){if("dark"===e)return{effective:"dark",sunriseHr:7,sunsetHr:20};if("light"===e)return{effective:"light",sunriseHr:7,sunsetHr:20};if("contrast"===e)return{effective:"contrast",sunriseHr:7,sunsetHr:20};const t=a.getState(),o=t?.weatherDays?.[2]||t?.weatherDays?.[t?.dayIdx]||t?.weatherDays?.[0]||null,n=Number.isFinite(o?.sunriseHr)?o.sunriseHr:7,r=Number.isFinite(o?.sunsetHr)?o.sunsetHr:20;if("light"===B||"dark"===B)return{effective:B,sunriseHr:n,sunsetHr:r};const i=(new Date).getHours();return{effective:i>=n&&i<r?"light":"dark",sunriseHr:n,sunsetHr:r}}function T(e,t=!1){const o=["auto","dark","light","contrast"].includes(e)?e:"auto";"auto"!==o&&(B=null);const{effective:n,sunriseHr:a,sunsetHr:r}=resolveEffectiveTheme(o),i=document.documentElement;i.setAttribute("data-theme",n),i.setAttribute("data-theme-mode",o),h("contrast"===n?"dark":n);const s=document.querySelector('meta[name="theme-color"]');s&&s.setAttribute("content","contrast"===n?"#0f1520":"dark"===n?"#07111f":"#dfeaf5");const d=document.getElementById("headerThemeBtn");d&&(d.textContent="auto"===o?"🌓":"dark"===o?"🌙":"contrast"===o?"🕶️":"☀️"),t&&("auto"===o?w(`🌓 Тема «Авто»: сейчас ${"light"===n?"☀️ День (Светлая)":"🌙 Ночь (Тёмная)"} • автосмена по восходу (${String(a).padStart(2,"0")}:00) и закату (${String(r).padStart(2,"0")}:00)`,"good"):"dark"===o?w("🌙 Включена Тёмная радарная тема","info"):"contrast"===o?w("🕶️ Включена мягкая Контрастная тактическая тема","good"):w("☀️ Включена Светлая дневная тема","info"))}export function applyAppTheme(e,t=!1){T(e,t)}function k(){const e=a.getState(),t=document.getElementById("headerStatusBlock"),o=document.getElementById("headerStatusDot"),n=document.getElementById("headerSeasonMainText"),r=document.getElementById("headerSeasonSubText"),i=document.getElementById("topNavWeatherIco"),s=document.getElementById("topNavWeatherLbl"),d=!navigator.onLine||(e.weatherSource||"").includes("Автономный");o&&(o.textContent=d?"📡 ОФЛАЙН":"🟢 ОНЛАЙН");const c=e.weatherDays?.[e.dayIdx]||e.weatherDays?.[2]||e.weatherDays?.[0],l=c?.iceState||e.iceState||"open_water",m=c?.iceThickness??e.iceThickness??0,u=c?.iceSubState||"",h=c?.waterTemp??8,p=g[e.water]||g.small_river,f=p.flow>=1.8?"быстрое теч.":p.flow>=1.1?"умеренное теч.":"стоячая вода";if(i&&s&&("ice_safe"===l||"ice_danger"===l?(i.textContent="❄️",s.textContent="Погода·Лёд"):"ice_slush"===l?(i.textContent="🌊❄️",s.textContent="Погода·Вода"):(i.textContent="⛅",s.textContent="Погода·Вода")),t){const e="ice_safe"===l?"ice-safe":"ice_danger"===l?"ice-danger":"ice_slush"===l?"ice-slush":"open-water";t.className="header-status-block "+e}n&&r&&("ice_safe"===l?(n.textContent=`❄️ Безопасный лёд ~${m||12} см`,r.textContent=`💧 Вода ~${h}°C (${f}) • Пешком разрешено`):"ice_danger"===l?(n.textContent="spring_rotten_ice"===u?`⚠️ Рыхлый лёд (~${m} см)`:`⚠️ Опасный лёд (~${m} см)`,r.textContent=`💧 Вода ~${h}°C • ⛔ Выход на лёд запрещён!`):"ice_slush"===l?(n.textContent="🌊❄️ Забереги и редкая шуга",r.textContent=`💧 Вода ~${h}°C (${f}) • Только с берега`):(n.textContent="🌊 Открытая вода (льда нет)",r.textContent=`💧 Вода ~${h}°C (${f}) • Лодка и берег`));const y=document.getElementById("headerProfileBtn"),w=document.getElementById("headerProfileIdCode"),v=document.getElementById("headerProfileIdSub"),E=document.getElementById("headerProfileAvatar"),_=document.getElementById("topNavAdminBtn"),S=document.getElementById("topSectionNavBar"),b=e.locAdmin1||"Регион РФ";if(A&&"function"==typeof A.getCurrentFisherIdentity){const t=A.getCurrentFisherIdentity(e);w&&v&&(t.isOwner?(w.textContent=`👑 ID: ${t.fisherId}`,w.style.color="var(--good)",v.textContent=b,E&&(E.textContent="👑"),y&&(y.style.borderColor="var(--good)")):t.isRegistered?(w.textContent=`ID: ${t.fisherId}`,w.style.color="var(--accent)",v.textContent=b,E&&(E.textContent="🟢"),y&&(y.style.borderColor="var(--accent)")):(w.textContent=`ID: ${t.fisherId}`,w.style.color="var(--text)",v.textContent=`${b} (Резерв)`,E&&(E.textContent="👤"),y&&(y.style.borderColor="var(--border)"))),_&&(_.style.display=t.isOwner?"":"none"),S&&S.setAttribute("data-has-admin",t.isOwner?"1":"0")}}"undefined"!=typeof window&&(window.__KLEV_APPLY_THEME__=T);let x="circle";let N=0,O=!1;function H(e=!1,t=null){const o=function(e=!1){const t=document.querySelector(".app-header");if(!t)return N||108;const o=Math.ceil(t.getBoundingClientRect().height);return o>30&&(N=o+6,document.documentElement.style.setProperty("--header-h",`${N}px`)),N||108}(e),n="undefined"!=typeof window&&window.location.hash?window.location.hash.replace(/^#\/?/,"").split("?")[0].trim():"",r="undefined"!=typeof document?document.querySelector(".bottom-nav .nav-tab.active")?.getAttribute("data-nav-tab"):"",i=t||a.getState().route||r||n||"forecast",s=document.getElementById("secFish");if(!s)return void(document.body.style.paddingTop=`${o}px`);const d=s.querySelector(".card, .bento-card"),c=document.getElementById("fishResultsArea"),l=document.getElementById("fishDockSentinel"),m=document.getElementById("fishStripPlaceholder"),u=document.getElementById("fishStripDockWrap");if(["calendar"].includes(i))return d&&(d.setAttribute("data-dock-mode","mini"),Array.from(d.children).forEach((e=>{e!==m&&e!==l&&e!==c&&"fishResultsArea"!==e.id?e.style.display="none":e.style.display=""})),d.style.padding="0",d.style.border="none",d.style.background="transparent",d.style.boxShadow="none"),m&&(m.style.height="0px",m.style.minHeight="0px"),u&&!u.classList.contains("docked-mini")&&u.classList.add("docked-mini"),void(document.body.style.paddingTop=`${o+46}px`);d&&(d.setAttribute("data-dock-mode","full"),Array.from(d.children).forEach((e=>{e!==m&&e!==l&&("fishSearchWrap"===e.id?e.style.display="flex":e.classList.contains("fish-toolbar-onerow")?e.style.display="grid":e.classList.contains("chip-scroll-row")||e.classList.contains("section-head")||e.classList.contains("bento-card-head")?e.style.display="flex":e.style.display="")})),d.style.padding="",d.style.border="",d.style.background="",d.style.boxShadow=""),u&&u.classList.contains("docked-mini")&&u.classList.remove("docked-mini"),m&&(m.style.height="",m.style.minHeight=""),document.body.style.paddingTop=`${o}px`}function D(e,t){try{t()}catch(t){console.error(`[Bootstrap] Module ${e} init error:`,t)}}function F(e,t=!1){if(!e)return;if(Number.isFinite(e.lat)&&Number.isFinite(e.lon)){const o=Math.round(1e4*e.lat)/1e4,n=Math.round(1e4*e.lon)/1e4;a.dispatch({type:"SET_LOCATION",payload:{lat:o,lon:n,locLabel:e.city||void 0,locAdmin2:e.city||void 0,hasUserLocation:!0}}),t&&S.setLocation(o,n,Boolean(e.city))}else e.city&&a.dispatch({type:"SET_LOCATION_LABELS",payload:{locLabel:e.city,locAdmin2:e.city}});if(e.fish){const t=y.find((t=>t.id===e.fish));if(t){const o=a.getState();if(o.onlyFavoritesFilter&&!(o.favorites||[]).includes(t.id)&&a.dispatch({type:"TOGGLE_ONLY_FAVORITES"}),Array.isArray(t.waters)&&t.waters.length>0&&!t.waters.includes(o.water)){const o=t.waters.includes("big_river")?"big_river":t.waters[0];a.dispatch({type:"SET_WATER",payload:{water:o,depth:g[o]?.defD||2.5,selectedWaterName:e.water||""}})}else e.water&&a.dispatch({type:"SET_WATER",payload:{water:o.water,depth:o.depth,selectedWaterName:e.water}});a.dispatch({type:"SET_FISH",payload:t.id});b.getFilteredFishList(a.getState()).some((e=>e.id===t.id))||a.getState().showAllSpecies||a.dispatch({type:"TOGGLE_SHOW_ALL"})}}}function P(){window.__KLEV_BOOTSTRAPPED__=!0,window.__KLEV_STORE__=a,T(a.getState().theme||"auto",!1),function(){if("undefined"!=typeof window){try{if(window.matchMedia){const e=window.matchMedia("(prefers-color-scheme: dark)"),t=e=>{"auto"===(a.getState().theme||"auto")&&(B=e.matches?"dark":"light",T("auto",!1))};"function"==typeof e.addEventListener?e.addEventListener("change",t):"function"==typeof e.addListener&&e.addListener(t)}}catch(e){}try{window.Telegram&&window.Telegram.WebApp&&"function"==typeof window.Telegram.WebApp.onEvent&&window.Telegram.WebApp.onEvent("themeChanged",(()=>{if("auto"===(a.getState().theme||"auto")){const e=window.Telegram.WebApp.colorScheme;"dark"!==e&&"light"!==e||(B=e,T("auto",!1))}}))}catch(e){}setInterval((()=>{"auto"===(a.getState().theme||"auto")&&T("auto",!1)}),6e4)}}();const t=c(),o=l();t&&F(t,!1),D("pwa",(()=>s())),D("shellEvents",(()=>function(){const e=document.getElementById("headerLocClickArea");e&&e.addEventListener("click",(()=>{"geo"!==a.getState().route&&(u("selection"),r.navigate("geo"))}));const t=document.getElementById("headerStatusBlock");t&&t.addEventListener("click",(()=>{u("selection"),r.navigate("weather")}));const o=document.getElementById("installAppBtn");o&&o.addEventListener("click",(()=>i()));const s=document.getElementById("headerProfileBtn");s&&s.addEventListener("click",(()=>{b.openOnboardingModal(!0)}));const d=document.getElementById("headerThemeBtn");d&&d.addEventListener("click",(()=>{const e=["auto","dark","light","contrast"],t=a.getState().theme||"auto",o=e[(e.indexOf(t)+1)%e.length];a.dispatch({type:"SET_THEME",payload:o}),T(o,!0)})),document.querySelectorAll("[data-settings-zone]").forEach((e=>{e.addEventListener("click",(t=>{t.stopPropagation();const o=e.getAttribute("data-settings-zone")||"app";u("selection"),b.openOnboardingModal(!0,o)}))}));const c=document.getElementById("bottomQuickSosBtn");c&&c.addEventListener("click",(()=>{u("warning"),n.emit("circle:openShareModal",{mode:"sos"})})),document.querySelectorAll("[data-nav-tab]").forEach((e=>{e.addEventListener("click",(()=>{const t=e.getAttribute("data-nav-tab");if(u("selection"),"profile"===t)b.openOnboardingModal(!0,"");else if("navCircleChatsHubBtn"===e.id){const e=a.getState().route;"circle"===e?(x="chats",r.navigate("chats")):"chats"===e?(x="circle",r.navigate("circle")):r.navigate(x||"circle")}else"circle"!==t&&"chats"!==t||(x=t),r.navigate(t)}))})),document.addEventListener("click",(e=>{e.target&&e.target.closest&&e.target.closest("#fishFavEditBtn")&&(e.preventDefault(),e.stopPropagation(),b.openFavoritesEditorModal())})),n.on("circle:openShareModal",((e={})=>{A.openShareModalForCurrentContext(e.mode||"circle",e.catchObj||null)})),n.on("circle:shareCatchToChat",((e={})=>{A.openShareCatchToChatModal(e.catchObj||null)}))}())),D("weather",(()=>_.init(document.getElementById("secWeather")))),D("geo",(()=>S.init(document.getElementById("secGeo")))),D("fish",(()=>b.init(document.getElementById("secFish")))),D("forecast",(()=>L.init(document.getElementById("secForecast")))),D("circle",(()=>A.init(document.getElementById("secCircle"),document.getElementById("secChats"),document.getElementById("secAdmin")))),D("calendar",(()=>I.init(document.getElementById("secCalendar")))),D("log",(()=>C.init(document.getElementById("secLog")))),D("router",(()=>{r.init(),window.__KLEV_NAVIGATE_SECTION__=e=>r.navigate(e)})),D("telegram",(()=>{d((async e=>{const t=await A.importSharePackToken(e,!1);m(),t&&r.navigate("circle")}),(e=>{F(e,!1),Number.isFinite(e.lat)&&Number.isFinite(e.lon)&&!e.city&&S.resolveReverseGeocode(e.lat,e.lon),r.navigate("forecast")}));const e=f();if(e&&e.displayName){const t=a.getState().userProfile?.callsign;t&&"Рыболов"!==t||a.dispatch({type:"SET_USER_CALLSIGN",payload:e.displayName})}p(a.getState().route||"forecast",(()=>{"function"==typeof window.__KLEV_HANDLE_BACK__&&window.__KLEV_HANDLE_BACK__("telegram")||r.navigate("forecast")}))})),k(),H(),window.addEventListener("scroll",(()=>{O||(O=!0,requestAnimationFrame((()=>{O=!1,H()})))}),{passive:!0}),window.addEventListener("resize",(()=>{H(!0)}),{passive:!0});const h=document.querySelector(".app-header");if(h&&"undefined"!=typeof ResizeObserver){new ResizeObserver((()=>{H(!0)})).observe(h)}const y=a.getState().userProfile;y&&y.onboarded||t||o||setTimeout((()=>{b.openOnboardingModal(!1)}),450),a.subscribe((e=>({theme:e.theme,appMode:e.appMode,locLabel:e.locLabel,locAdmin1:e.locAdmin1,selectedWaterName:e.selectedWaterName,basinName:e.basinName,weatherSource:e.weatherSource,iceState:e.iceState,iceThickness:e.iceThickness,dayIdx:e.dayIdx,weatherDays:e.weatherDays,fishId:e.fishId,showAllSpecies:e.showAllSpecies,onlyFavoritesFilter:e.onlyFavoritesFilter,water:e.water,waterRadiusKm:e.waterRadiusKm,userProfile:e.userProfile,route:e.route})),((e,t)=>{(!t||e.theme!==t.theme||"auto"===e.theme&&e.weatherDays!==t.weatherDays)&&T(e.theme||"auto",!1);const o=a.getState().route||"forecast";k(),t&&e.route===t.route||(r.applyVisibility(o),p(o,(()=>{"function"==typeof window.__KLEV_HANDLE_BACK__&&window.__KLEV_HANDLE_BACK__("telegram")||r.navigate("forecast")}))),H()})),window.addEventListener("hashchange",(async()=>{const e=l();if(e){const t=await A.importSharePackToken(e,!1);m(),t&&r.navigate("circle")}})),setTimeout((()=>{const e=document.getElementById("appSplashScreen");e&&e.classList.add("splash-hide")}),950),D("updater",(()=>e())),setTimeout((()=>{A&&"function"==typeof A.syncCurrentProfileToCloudIfLoggedIn&&A.syncCurrentProfileToCloudIfLoggedIn().catch((()=>{}))}),1800)}window.syncFishDockState=H,"loading"===document.readyState?document.addEventListener("DOMContentLoaded",P):P();
+import { svgIcon } from './ui/icons.js';
+import { initReleaseUpdater, checkForReleaseUpdate } from './core/updater.js?v=2.5.0';
+import { RU } from './i18n/ru.js?v=2.5.0';
+import { events } from './core/events.js?v=2.5.0';
+import { store } from './core/store.js?v=2.5.0';
+import { router } from './core/router.js?v=2.5.0';
+import { installShortcut, initPwa } from './core/pwa.js?v=2.5.0';
+import {
+  initTelegramMiniApp,
+  extractIncomingDeepLinkParams,
+  extractIncomingShareToken,
+  clearIncomingShareTokenFromUrl,
+  triggerHaptic,
+  syncTelegramTheme,
+  syncTelegramBackButton,
+  getTelegramUser
+} from './core/telegram.js?v=2.5.0';
+import { FISH_DB } from './data/species.js?v=2.5.0';
+import { WATER_PROFILES } from './data/waters.js?v=2.5.0';
+import { showToast, openModal, closeModal } from './ui/components.js?v=2.5.0';
+import { weatherModule } from './modules/weather/weather.module.js?v=2.5.0';
+import { geoModule } from './modules/geo/geo.module.js?v=2.5.0';
+import { fishModule } from './modules/fish/fish.module.js?v=2.5.0';
+import { forecastModule } from './modules/forecast/forecast.module.js?v=2.5.0';
+import { calendarModule } from './modules/calendar/calendar.module.js?v=2.5.0';
+import { logModule } from './modules/log/log.module.js?v=2.5.0';
+import { circleModule } from './modules/circle/circle.module.js?v=2.5.0';
+
+if (typeof window !== 'undefined') {
+  window.__KLEV_BOOTSTRAPPED__ = true;
+  window.__KLEV_STORE__ = store;
+}
+
+window.addEventListener('message', (e) => { if (e && e.data === 'klev_close_admin_console') closeModal(); });
+window.addEventListener('error', (e) => {
+  console.error('[Global Error]:', e.error || e.message);
+});
+
+window.addEventListener('unhandledrejection', (e) => {
+  console.error('[Unhandled Rejection]:', e.reason);
+});
+
+let _liveSystemSchemeOverride = null;
+
+export function resolveEffectiveTheme(themeMode) {
+  if (themeMode === 'dark') return { effective: 'dark', sunriseHr: 7, sunsetHr: 20 };
+  if (themeMode === 'light') return { effective: 'light', sunriseHr: 7, sunsetHr: 20 };
+  if (themeMode === 'contrast') return { effective: 'contrast', sunriseHr: 7, sunsetHr: 20 };
+
+  const s = store.getState();
+  const todayObj = s?.weatherDays?.[2] || s?.weatherDays?.[s?.dayIdx] || s?.weatherDays?.[0] || null;
+  const sunriseHr = Number.isFinite(todayObj?.sunriseHr) ? todayObj.sunriseHr : 7;
+  const sunsetHr = Number.isFinite(todayObj?.sunsetHr) ? todayObj.sunsetHr : 20;
+
+  if (_liveSystemSchemeOverride === 'light' || _liveSystemSchemeOverride === 'dark') {
+    return { effective: _liveSystemSchemeOverride, sunriseHr, sunsetHr };
+  }
+
+  const nowHr = new Date().getHours();
+  const isDaylight = nowHr >= sunriseHr && nowHr < sunsetHr;
+  return {
+    effective: isDaylight ? 'light' : 'dark',
+    sunriseHr,
+    sunsetHr
+  };
+}
+
+function applyTheme(themeMode, showNotificationToast = false) {
+  const mode = ['auto', 'dark', 'light', 'contrast'].includes(themeMode) ? themeMode : 'auto';
+  if (mode !== 'auto') {
+    _liveSystemSchemeOverride = null;
+  }
+  const { effective, sunriseHr, sunsetHr } = resolveEffectiveTheme(mode);
+  const root = document.documentElement;
+  root.setAttribute('data-theme', effective);
+  root.setAttribute('data-theme-mode', mode);
+  syncTelegramTheme(effective === 'contrast' ? 'dark' : effective);
+
+  const metaTheme = document.querySelector('meta[name="theme-color"]');
+  if (metaTheme) metaTheme.setAttribute('content', effective === 'contrast' ? '#0f1520' : (effective === 'dark' ? '#07111f' : '#dfeaf5'));
+
+  const btn = document.getElementById('headerThemeBtn');
+  if (btn) {
+    btn.innerHTML = mode === 'auto' ? svgIcon('moon') : (mode === 'dark' ? svgIcon('moon') : (mode === 'contrast' ? svgIcon('glasses') : svgIcon('sun')));
+  }
+
+  if (showNotificationToast) {
+    if (mode === 'auto') {
+      showToast(
+ ` Тема «Авто»: сейчас ${effective === 'light' ? ' День (Светлая)' : '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6" stroke-linejoin="round"/></svg> Ночь (Тёмная)'} • автосмена по восходу (${String(sunriseHr).padStart(2, '0')}:00) и закату (${String(sunsetHr).padStart(2, '0')}:00)`,
+        'good'
+      );
+    } else if (mode === 'dark') {
+      showToast(' Включена Тёмная радарная тема', 'info');
+    } else if (mode === 'contrast') {
+      showToast(' Включена мягкая Контрастная тактическая тема', 'good');
+    } else {
+      showToast(' Включена Светлая дневная тема', 'info');
+    }
+  }
+}
+
+function initAutoThemeListeners() {
+  if (typeof window === 'undefined') return;
+  try {
+    if (window.matchMedia) {
+      const mq = window.matchMedia('(prefers-color-scheme: dark)');
+      const onMqChange = (e) => {
+        if ((store.getState().theme || 'auto') === 'auto') {
+          _liveSystemSchemeOverride = e.matches ? 'dark' : 'light';
+          applyTheme('auto', false);
+        }
+      };
+      if (typeof mq.addEventListener === 'function') {
+        mq.addEventListener('change', onMqChange);
+      } else if (typeof mq.addListener === 'function') {
+        mq.addListener(onMqChange);
+      }
+    }
+  } catch (e) {}
+
+  try {
+    if (window.Telegram && window.Telegram.WebApp && typeof window.Telegram.WebApp.onEvent === 'function') {
+      window.Telegram.WebApp.onEvent('themeChanged', () => {
+        if ((store.getState().theme || 'auto') === 'auto') {
+          const tgScheme = window.Telegram.WebApp.colorScheme;
+          if (tgScheme === 'dark' || tgScheme === 'light') {
+            _liveSystemSchemeOverride = tgScheme;
+            applyTheme('auto', false);
+          }
+        }
+      });
+    }
+  } catch (e) {}
+
+  setInterval(() => {
+    if ((store.getState().theme || 'auto') === 'auto') {
+      applyTheme('auto', false);
+    }
+  }, 60000);
+}
+
+export function applyAppTheme(themeMode, showNotificationToast = false) {
+  applyTheme(themeMode, showNotificationToast);
+}
+if (typeof window !== 'undefined') {
+  window.__KLEV_APPLY_THEME__ = applyTheme;
+}
+
+function updateHeaderUI() {
+  const s = store.getState();
+  const statusBlock = document.getElementById('headerStatusBlock');
+  const statusDot = document.getElementById('headerStatusDot');
+  const seasonMain = document.getElementById('headerSeasonMainText');
+  const seasonSub = document.getElementById('headerSeasonSubText');
+  const topWeatherIco = document.getElementById('topNavWeatherIco');
+  const topWeatherLbl = document.getElementById('topNavWeatherLbl');
+
+  const isOff = !navigator.onLine || (s.weatherSource || '').includes('Автономный');
+  if (statusDot) {
+    statusDot.innerHTML = isOff ? `${svgIcon('radar', 'var(--warn)')} ОФЛАЙН` : `${svgIcon('dot', 'var(--good)')} ОНЛАЙН`;
+  }
+
+  const day = s.weatherDays?.[s.dayIdx] || s.weatherDays?.[2] || s.weatherDays?.[0];
+  const ice = day?.iceState || s.iceState || 'open_water';
+  const thick = day?.iceThickness ?? s.iceThickness ?? 0;
+  const subState = day?.iceSubState || '';
+  const wTemp = day?.waterTemp ?? 8;
+  const prof = WATER_PROFILES[s.water] || WATER_PROFILES.small_river;
+  const flowShort = prof.flow >= 1.8 ? 'быстрое теч.' : (prof.flow >= 1.1 ? 'умеренное теч.' : 'стоячая вода');
+
+  // Автоматическая сезонная адаптация кнопки Погоды сверху
+  if (topWeatherIco && topWeatherLbl) {
+    if (ice === 'ice_safe' || ice === 'ice_danger') {
+      topWeatherIco.innerHTML = svgIcon('snow');
+      topWeatherLbl.textContent = 'Погода·Лёд';
+    } else if (ice === 'ice_slush') {
+      topWeatherIco.innerHTML = svgIcon('wave');
+      topWeatherLbl.textContent = 'Погода·Вода';
+    } else {
+      topWeatherIco.innerHTML = svgIcon('weather');
+      topWeatherLbl.textContent = 'Погода·Вода';
+    }
+  }
+
+  // Увеличенный информативный блок статуса в левой части шапки (без дублирования города/реки)
+  if (statusBlock) {
+    const stripCls = ice === 'ice_safe'
+      ? 'ice-safe'
+      : (ice === 'ice_danger' ? 'ice-danger' : (ice === 'ice_slush' ? 'ice-slush' : 'open-water'));
+    statusBlock.className = 'header-status-block ' + stripCls;
+  }
+
+  if (seasonMain && seasonSub) {
+    if (ice === 'ice_safe') {
+      seasonMain.innerHTML = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1" stroke="#7dd3fc" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="#38bdf8"/></svg> Безопасный лёд ~${thick || 12} см`;
+      seasonSub.innerHTML = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> Вода ~${wTemp}°C (${flowShort}) • Пешком разрешено`;
+    } else if (ice === 'ice_danger') {
+      seasonMain.innerHTML = subState === 'spring_rotten_ice'
+        ? `<svg class="k-ico" style="color:var(--warn);" viewBox="0 0 24 24" fill="none"><path d="M12 3L2.5 19.5h19L12 3z" fill="rgba(245,158,11,0.24)" stroke="#f59e0b" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9v5M12 17h.01" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/></svg> Рыхлый лёд (~${thick} см)`
+        : `<svg class="k-ico" style="color:var(--warn);" viewBox="0 0 24 24" fill="none"><path d="M12 3L2.5 19.5h19L12 3z" fill="rgba(245,158,11,0.24)" stroke="#f59e0b" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9v5M12 17h.01" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/></svg> Опасный лёд (~${thick} см)`;
+      seasonSub.innerHTML = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> Вода ~${wTemp}°C • <svg class="k-ico" style="color:var(--bad);" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><path d="M6 6l12 12" stroke="#ef4444" stroke-width="2.1" stroke-linecap="round"/></svg> Выход на лёд запрещён!`;
+    } else if (ice === 'ice_slush') {
+      seasonMain.innerHTML = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1" stroke="#7dd3fc" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="#38bdf8"/></svg> Забереги и редкая шуга`;
+      seasonSub.innerHTML = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> Вода ~${wTemp}°C (${flowShort}) • Только с берега`;
+    } else {
+      seasonMain.innerHTML = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> Открытая вода (льда нет)`;
+      seasonSub.innerHTML = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> Вода ~${wTemp}°C (${flowShort}) • Лодка и берег`;
+    }
+  }
+
+  const profBtn = document.getElementById('headerProfileBtn');
+  const idCodeEl = document.getElementById('headerProfileIdCode');
+  const idSubEl = document.getElementById('headerProfileIdSub');
+  const idAvatarEl = document.getElementById('headerProfileAvatar');
+  const topAdminBtn = document.getElementById('topNavAdminBtn');
+  const topNavBar = document.getElementById('topSectionNavBar');
+  const okrugLabel = s.locAdmin1 || 'Регион РФ';
+
+  if (circleModule && typeof circleModule.getCurrentFisherIdentity === 'function') {
+    const ident = circleModule.getCurrentFisherIdentity(s);
+    if (idCodeEl && idSubEl) {
+      if (ident.isOwner) {
+        idCodeEl.innerHTML = `${svgIcon('crown', '#fbbf24')} ID: ${ident.fisherId}`;
+        idCodeEl.style.color = 'var(--good)';
+        idSubEl.textContent = okrugLabel;
+        if (idAvatarEl) idAvatarEl.innerHTML = svgIcon('crown', '#fbbf24');
+        if (profBtn) profBtn.style.borderColor = 'var(--good)';
+      } else if (ident.isRegistered) {
+        idCodeEl.textContent = `ID: ${ident.fisherId}`;
+        idCodeEl.style.color = 'var(--accent)';
+        idSubEl.textContent = okrugLabel;
+        if (idAvatarEl) idAvatarEl.innerHTML = svgIcon('shield', 'var(--good)');
+        if (profBtn) profBtn.style.borderColor = 'var(--accent)';
+      } else {
+        idCodeEl.textContent = `ID: ${ident.fisherId}`;
+        idCodeEl.style.color = 'var(--text)';
+        idSubEl.textContent = `${okrugLabel} (Резерв)`;
+        if (idAvatarEl) idAvatarEl.innerHTML = svgIcon('user');
+        if (profBtn) profBtn.style.borderColor = 'var(--border)';
+      }
+    }
+    if (topAdminBtn) {
+      topAdminBtn.style.display = ident.isOwner ? '' : 'none';
+    }
+    if (topNavBar) {
+      topNavBar.setAttribute('data-has-admin', ident.isOwner ? '1' : '0');
+    }
+  }
+}
+
+let _lastCommSubRoute = 'circle';
+
+function bindGlobalShellEvents() {
+  const locClickArea = document.getElementById('headerLocClickArea');
+  if (locClickArea) {
+    locClickArea.addEventListener('click', () => {
+      if (store.getState().route !== 'geo') {
+        triggerHaptic('selection');
+        router.navigate('geo');
+      }
+    });
+  }
+
+  const statusBlock = document.getElementById('headerStatusBlock');
+  if (statusBlock) {
+    statusBlock.addEventListener('click', () => {
+      triggerHaptic('selection');
+      router.navigate('weather');
+    });
+  }
+
+  const installBtn = document.getElementById('installAppBtn');
+  if (installBtn) {
+    installBtn.addEventListener('click', () => installShortcut());
+  }
+
+  const profileBtn = document.getElementById('headerProfileBtn');
+  if (profileBtn) {
+    profileBtn.addEventListener('click', () => {
+      fishModule.openOnboardingModal(true);
+    });
+  }
+
+  const themeBtn = document.getElementById('headerThemeBtn');
+  if (themeBtn) {
+    themeBtn.addEventListener('click', () => {
+      const modes = ['auto', 'dark', 'light', 'contrast'];
+      const cur = store.getState().theme || 'auto';
+      const next = modes[(modes.indexOf(cur) + 1) % modes.length];
+      store.dispatch({ type: 'SET_THEME', payload: next });
+      applyTheme(next, true);
+    });
+  }
+
+  document.querySelectorAll('[data-settings-zone]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const zone = btn.getAttribute('data-settings-zone') || 'app';
+      triggerHaptic('selection');
+      fishModule.openOnboardingModal(true, zone);
+    });
+  });
+
+  const sosQuickBtn = document.getElementById('bottomQuickSosBtn');
+  if (sosQuickBtn) {
+    sosQuickBtn.addEventListener('click', () => {
+      triggerHaptic('warning');
+      events.emit('circle:openShareModal', { mode: 'sos' });
+    });
+  }
+
+  document.querySelectorAll('[data-nav-tab]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tab = btn.getAttribute('data-nav-tab');
+      triggerHaptic('selection');
+      if (tab === 'profile') {
+        fishModule.openOnboardingModal(true, '');
+      } else if (btn.id === 'navCircleChatsHubBtn') {
+        const cur = store.getState().route;
+        if (cur === 'circle') {
+          _lastCommSubRoute = 'chats';
+          router.navigate('chats');
+        } else if (cur === 'chats') {
+          _lastCommSubRoute = 'circle';
+          router.navigate('circle');
+        } else {
+          router.navigate(_lastCommSubRoute || 'circle');
+        }
+      } else {
+        if (tab === 'circle' || tab === 'chats') _lastCommSubRoute = tab;
+        router.navigate(tab);
+      }
+    });
+  });
+
+  document.addEventListener('click', (e) => {
+    const favEdit = e.target && e.target.closest ? e.target.closest('#fishFavEditBtn') : null;
+    if (favEdit) {
+      e.preventDefault();
+      e.stopPropagation();
+      fishModule.openFavoritesEditorModal();
+    }
+  });
+
+  events.on('circle:openShareModal', (payload = {}) => {
+    circleModule.openShareModalForCurrentContext(payload.mode || 'circle', payload.catchObj || null);
+  });
+
+  events.on('circle:shareCatchToChat', (payload = {}) => {
+    circleModule.openShareCatchToChatModal(payload.catchObj || null);
+  });
+}
+
+let cachedHeaderH = 0;
+let scrollRafPending = false;
+
+function syncHeaderLayout(forceMeasure = false) {
+  const header = document.querySelector('.app-header');
+  if (!header) return cachedHeaderH || 108;
+  const rectH = Math.ceil(header.getBoundingClientRect().height);
+  if (rectH > 30) {
+    cachedHeaderH = rectH + 6;
+    document.documentElement.style.setProperty('--header-h', `${cachedHeaderH}px`);
+  }
+  return cachedHeaderH || 108;
+}
+
+function syncFishDockState(forceMeasure = false, explicitRoute = null) {
+  const headerH = syncHeaderLayout(forceMeasure);
+  const hashClean = (typeof window !== 'undefined' && window.location.hash)
+    ? window.location.hash.replace(/^#\/?/, '').split('?')[0].trim()
+    : '';
+  const activeTabRoute = (typeof document !== 'undefined')
+    ? document.querySelector('.bottom-nav .nav-tab.active')?.getAttribute('data-nav-tab')
+    : '';
+  const route = explicitRoute || store.getState().route || activeTabRoute || hashClean || 'forecast';
+
+  const secFish = document.getElementById('secFish');
+  if (!secFish) {
+    document.body.style.paddingTop = `${headerH}px`;
+    return;
+  }
+
+  const cardEl = secFish.querySelector('.card, .bento-card');
+  const resultsArea = document.getElementById('fishResultsArea');
+  const sentinel = document.getElementById('fishDockSentinel');
+  const placeholder = document.getElementById('fishStripPlaceholder');
+  const dockWrap = document.getElementById('fishStripDockWrap');
+
+  const isMiniBarRoute = ['calendar'].includes(route);
+
+  if (isMiniBarRoute) {
+    if (cardEl) {
+      cardEl.setAttribute('data-dock-mode', 'mini');
+      Array.from(cardEl.children).forEach(ch => {
+        if (ch !== placeholder && ch !== sentinel && ch !== resultsArea && ch.id !== 'fishResultsArea') {
+          ch.style.display = 'none';
+        } else {
+          ch.style.display = '';
+        }
+      });
+      cardEl.style.padding = '0';
+      cardEl.style.border = 'none';
+      cardEl.style.background = 'transparent';
+      cardEl.style.boxShadow = 'none';
+    }
+    if (placeholder) {
+      placeholder.style.height = '0px';
+      placeholder.style.minHeight = '0px';
+    }
+    if (dockWrap && !dockWrap.classList.contains('docked-mini')) {
+      dockWrap.classList.add('docked-mini');
+    }
+    document.body.style.paddingTop = `${headerH + 46}px`;
+    return;
+  }
+
+  if (cardEl) {
+    cardEl.setAttribute('data-dock-mode', 'full');
+    Array.from(cardEl.children).forEach(ch => {
+      if (ch === placeholder || ch === sentinel) return;
+      if (ch.id === 'fishSearchWrap') {
+        ch.style.display = 'flex';
+      } else if (ch.classList.contains('fish-toolbar-onerow')) {
+        ch.style.display = 'grid';
+      } else if (ch.classList.contains('chip-scroll-row') || ch.classList.contains('section-head') || ch.classList.contains('bento-card-head')) {
+        ch.style.display = 'flex';
+      } else {
+        ch.style.display = '';
+      }
+    });
+    cardEl.style.padding = '';
+    cardEl.style.border = '';
+    cardEl.style.background = '';
+    cardEl.style.boxShadow = '';
+  }
+
+  if (dockWrap && dockWrap.classList.contains('docked-mini')) {
+    dockWrap.classList.remove('docked-mini');
+  }
+  if (placeholder) {
+    placeholder.style.height = '';
+    placeholder.style.minHeight = '';
+  }
+  document.body.style.paddingTop = `${headerH}px`;
+}
+
+window.syncFishDockState = syncFishDockState;
+
+function safeInit(name, fn) {
+  try {
+    fn();
+  } catch (err) {
+    console.error(`[Bootstrap] Module ${name} init error:`, err);
+  }
+}
+
+function applyIncomingDeepLinkToStore(deepLink, triggerNetworkFetch = false) {
+  if (!deepLink) return;
+  const hasCoords = Number.isFinite(deepLink.lat) && Number.isFinite(deepLink.lon);
+  if (hasCoords) {
+    const rLat = Math.round(deepLink.lat * 10000) / 10000;
+    const rLon = Math.round(deepLink.lon * 10000) / 10000;
+    store.dispatch({
+      type: 'SET_LOCATION',
+      payload: {
+        lat: rLat,
+        lon: rLon,
+        locLabel: deepLink.city || undefined,
+        locAdmin2: deepLink.city || undefined,
+        hasUserLocation: true
+      }
+    });
+    if (triggerNetworkFetch) {
+      geoModule.setLocation(rLat, rLon, Boolean(deepLink.city));
+    }
+  } else if (deepLink.city) {
+    store.dispatch({
+      type: 'SET_LOCATION_LABELS',
+      payload: { locLabel: deepLink.city, locAdmin2: deepLink.city }
+    });
+  }
+
+  if (deepLink.fish) {
+    const targetFishObj = FISH_DB.find(f => f.id === deepLink.fish);
+    if (targetFishObj) {
+      const st = store.getState();
+      if (st.onlyFavoritesFilter && !(st.favorites || []).includes(targetFishObj.id)) {
+        store.dispatch({ type: 'TOGGLE_ONLY_FAVORITES' });
+      }
+      if (Array.isArray(targetFishObj.waters) && targetFishObj.waters.length > 0 && !targetFishObj.waters.includes(st.water)) {
+        const compatWater = targetFishObj.waters.includes('big_river') ? 'big_river' : targetFishObj.waters[0];
+        store.dispatch({
+          type: 'SET_WATER',
+          payload: {
+            water: compatWater,
+            depth: WATER_PROFILES[compatWater]?.defD || 2.5,
+            selectedWaterName: deepLink.water || ''
+          }
+        });
+      } else if (deepLink.water) {
+        store.dispatch({
+          type: 'SET_WATER',
+          payload: {
+            water: st.water,
+            depth: st.depth,
+            selectedWaterName: deepLink.water
+          }
+        });
+      }
+      store.dispatch({ type: 'SET_FISH', payload: targetFishObj.id });
+      const checkList = fishModule.getFilteredFishList(store.getState());
+      if (!checkList.some(f => f.id === targetFishObj.id) && !store.getState().showAllSpecies) {
+        store.dispatch({ type: 'TOGGLE_SHOW_ALL' });
+      }
+    }
+  }
+}
+
+function bootstrapApp() {
+  window.__KLEV_BOOTSTRAPPED__ = true;
+  window.__KLEV_STORE__ = store;
+  applyTheme(store.getState().theme || 'auto', false);
+  initAutoThemeListeners();
+
+  const earlyDeepLink = extractIncomingDeepLinkParams();
+  const earlyShareToken = extractIncomingShareToken();
+  if (earlyDeepLink) {
+    applyIncomingDeepLinkToStore(earlyDeepLink, false);
+  }
+
+  safeInit('pwa', () => initPwa());
+  safeInit('shellEvents', () => bindGlobalShellEvents());
+
+  safeInit('weather', () => weatherModule.init(document.getElementById('secWeather')));
+  safeInit('geo', () => geoModule.init(document.getElementById('secGeo')));
+  safeInit('fish', () => fishModule.init(document.getElementById('secFish')));
+  safeInit('forecast', () => forecastModule.init(document.getElementById('secForecast')));
+  safeInit('circle', () => circleModule.init(document.getElementById('secCircle'), document.getElementById('secChats'), document.getElementById('secAdmin')));
+  safeInit('calendar', () => calendarModule.init(document.getElementById('secCalendar')));
+  safeInit('log', () => logModule.init(document.getElementById('secLog')));
+
+  safeInit('router', () => { router.init(); window.__KLEV_NAVIGATE_SECTION__ = (r) => router.navigate(r); });
+  safeInit('telegram', () => {
+    initTelegramMiniApp(
+      async (incomingToken) => {
+        const imported = await circleModule.importSharePackToken(incomingToken, false);
+        clearIncomingShareTokenFromUrl();
+        if (imported) {
+          router.navigate('circle');
+        }
+      },
+      (deepLink) => {
+        applyIncomingDeepLinkToStore(deepLink, false);
+        if (Number.isFinite(deepLink.lat) && Number.isFinite(deepLink.lon) && !deepLink.city) {
+          geoModule.resolveReverseGeocode(deepLink.lat, deepLink.lon);
+        }
+        router.navigate('forecast');
+      }
+    );
+    const tgUser = getTelegramUser();
+    if (tgUser && tgUser.displayName) {
+      const curCallsign = store.getState().userProfile?.callsign;
+      if (!curCallsign || curCallsign === 'Рыболов') {
+        store.dispatch({ type: 'SET_USER_CALLSIGN', payload: tgUser.displayName });
+      }
+    }
+    syncTelegramBackButton(store.getState().route || 'forecast', () => {
+      if (typeof window.__KLEV_HANDLE_BACK__ === 'function' && window.__KLEV_HANDLE_BACK__('telegram')) return;
+      router.navigate('forecast');
+    });
+  });
+
+  updateHeaderUI();
+  syncFishDockState();
+
+  window.addEventListener('scroll', () => {
+    if (!scrollRafPending) {
+      scrollRafPending = true;
+      requestAnimationFrame(() => {
+        scrollRafPending = false;
+        syncFishDockState();
+      });
+    }
+  }, { passive: true });
+
+  window.addEventListener('resize', () => {
+    syncFishDockState(true);
+  }, { passive: true });
+
+  const headerEl = document.querySelector('.app-header');
+  if (headerEl && typeof ResizeObserver !== 'undefined') {
+    const ro = new ResizeObserver(() => {
+      syncFishDockState(true);
+    });
+    ro.observe(headerEl);
+  }
+
+  const curProfile = store.getState().userProfile;
+  if ((!curProfile || !curProfile.onboarded) && !earlyDeepLink && !earlyShareToken) {
+    setTimeout(() => {
+      fishModule.openOnboardingModal(false);
+    }, 450);
+  }
+
+  store.subscribe(
+    s => ({
+      theme: s.theme,
+      appMode: s.appMode,
+      locLabel: s.locLabel,
+      locAdmin1: s.locAdmin1,
+      selectedWaterName: s.selectedWaterName,
+      basinName: s.basinName,
+      weatherSource: s.weatherSource,
+      iceState: s.iceState,
+      iceThickness: s.iceThickness,
+      dayIdx: s.dayIdx,
+      weatherDays: s.weatherDays,
+      fishId: s.fishId,
+      showAllSpecies: s.showAllSpecies,
+      onlyFavoritesFilter: s.onlyFavoritesFilter,
+      water: s.water,
+      waterRadiusKm: s.waterRadiusKm,
+      userProfile: s.userProfile,
+      route: s.route
+    }),
+    (next, prev) => {
+      if (!prev || next.theme !== prev.theme || (next.theme === 'auto' && next.weatherDays !== prev.weatherDays)) {
+        applyTheme(next.theme || 'auto', false);
+      }
+      const curRoute = store.getState().route || 'forecast';
+      updateHeaderUI();
+      if (!prev || next.route !== prev.route) {
+        router.applyVisibility(curRoute);
+        syncTelegramBackButton(curRoute, () => {
+          if (typeof window.__KLEV_HANDLE_BACK__ === 'function' && window.__KLEV_HANDLE_BACK__('telegram')) return;
+          router.navigate('forecast');
+        });
+      }
+      syncFishDockState();
+    }
+  );
+
+  window.addEventListener('hashchange', async () => {
+    const tok = extractIncomingShareToken();
+    if (tok) {
+      const imported = await circleModule.importSharePackToken(tok, false);
+      clearIncomingShareTokenFromUrl();
+      if (imported) router.navigate('circle');
+    }
+  });
+  setTimeout(() => {
+    const sp = document.getElementById('appSplashScreen');
+    if (sp) sp.classList.add('splash-hide');
+  }, 950);
+  safeInit('updater', () => initReleaseUpdater());
+  setTimeout(() => {
+    if (circleModule && typeof circleModule.syncCurrentProfileToCloudIfLoggedIn === 'function') {
+      circleModule.syncCurrentProfileToCloudIfLoggedIn().catch(() => {});
+    }
+  }, 1800);
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', bootstrapApp);
+} else {
+  bootstrapApp();
+}

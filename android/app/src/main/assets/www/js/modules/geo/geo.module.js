@@ -1,1 +1,1881 @@
-import{MAP_LAYERS as e,SPOT_CATEGORIES as t,getCompatibleMethods as a}from"../../core/config.js?v=2.5.0";import{events as n}from"../../core/events.js?v=2.5.0";import{storage as o,safeJsonParse as i}from"../../core/storage.js?v=2.5.0";import{store as r}from"../../core/store.js?v=2.5.0";import{fetchWithTimeout as s}from"../../core/http.js?v=2.5.0";import{installShortcut as l,syncInstallButtons as c}from"../../core/pwa.js?v=2.5.0";import{triggerHaptic as d}from"../../core/telegram.js?v=2.5.0";import{BASIN_CONFIGS as p,detectBasinByCoords as u,isCoastalInBasin as m,getSpotEcoregion as y,isSpeciesInGeoRange as g}from"../../data/basins.js?v=2.5.0";import{WATER_PROFILES as b,getAvailableWaterTypes as f}from"../../data/waters.js?v=2.5.0";import{RUSSIA_CITIES as h,RUSSIA_WATERS as v,findNearestRussianSettlement as x,getNearestRussianSettlements as w,getNearestRussianWaters as S,getWaterTypeShortTag as $}from"../../data/russia-waters.js?v=2.5.0";import{FISH_DB as A}from"../../data/species.js?v=2.5.0";import{createPill as E,showToast as _}from"../../ui/components.js?v=2.5.0";import{fetchWeather as T}from"../weather/weather.module.js?v=2.5.0";import{calcDayBest as N}from"../forecast/forecast.module.js?v=2.5.0";import{computeHexPolygonForCircle as C,getEffectiveCircleRadiusKm as k,canUserAccessCrewItem as P,getCurrentFisherIdentity as I,isCircleItemMine as M,isCircleItemHidden as F}from"../circle/circle.module.js?v=2.5.0";let D=null,B=null,O=null,W=new Map,z=null;export function focusCircleOnMap(e,t,a){z=e,"undefined"!=typeof window&&"function"==typeof window.__KLEV_NAVIGATE_SECTION__&&window.__KLEV_NAVIGATE_SECTION__("geo"),setTimeout((()=>{if(D&&Number.isFinite(t)&&Number.isFinite(a)&&(D.flyTo([t,a],12),J(),W.has(e))){const t=W.get(e);"function"==typeof t.openPopup&&t.openPopup()}}),120)}"undefined"!=typeof window&&(window.__KLEV_FOCUS_MAP_CIRCLE__=focusCircleOnMap);let q=null,R="topo",j=!1,G="",K=!1,H=0,V=!1,U=null,Q={mySpots:!0,circleBlur:!0,crewExact:!0,ownership:"all",spotCategory:"all"};function X(t="topo"){const a=e[t]||e.topo,n=Array.isArray(a.fallbacks)?a.fallbacks:["https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}","https://tile.openstreetmap.org/{z}/{x}/{y}.png"],o=L.tileLayer(a.url,{maxZoom:18,attribution:a.attr,updateWhenIdle:!0,updateWhenZooming:!1,keepBuffer:2,crossOrigin:!0});return o.on("tileerror",(e=>{const t=e?.tile,a=e?.coords;if(!t||!a)return;const o=Number(t.getAttribute("data-fb-idx")||"0");if(o>=n.length)return;t.setAttribute("data-fb-idx",String(o+1));const i=["a","b","c"][(a.x+a.y)%3],r=n[o].replace("{s}",i).replace("{z}",String(a.z)).replace("{x}",String(a.x)).replace("{y}",String(a.y));t.src=r})),o}function Y(e,t,a){return Math.max(t,Math.min(a,e))}function Z(e,t,a,n){const o=(a-e)*Math.PI/180,i=(n-t)*Math.PI/180,r=Math.sin(o/2)**2+Math.cos(e*Math.PI/180)*Math.cos(a*Math.PI/180)*Math.sin(i/2)**2;return Math.round(12742*Math.atan2(Math.sqrt(r),Math.sqrt(1-r))*10)/10}export function inspectWhatBitesHere(e,t){const n=Math.round(1e4*e)/1e4,o=Math.round(1e4*t)/1e4,i=r.getState(),s=u(n,o),l=m(s,n,o),c=x(n,o),f=S(n,o,s,l,6,60),h=f[0]?.wType||(l?"sea_gulf":"small_river"),v=f[0]?.name||b[h]?.shortName||"Водоём",w=f[0]?.defDepth||b[h]?.defD||2,$=y(n,o,s,h,v),L=$.displayBasinName||p[s]?.name||"Водный бассейн РФ",E=i.weatherDays?.[i.dayIdx]||i.weatherDays?.[2]||i.weatherDays?.[0]||null,_=new Set(f.map((e=>e.wType)).concat([h])),T="cooling_reservoir"===h||_.has("cooling_reservoir"),C=Boolean(l||h.startsWith("sea")||_.has("sea_gulf")||_.has("open_sea")),k=A.filter((e=>"redbook"!==e.legal&&g(e,n,o,s,h,60,_,C,T,v))),P=$.signatureSpecies||[],I=new Map(P.map(((e,t)=>[e,t]))),M=k.map((e=>{const t=a(e,E?.iceState||i.iceState,h,E?.waterTemp??10),n=t[0]?.val||i.method,o=E?N(e,E,n,h,w,i.normPress,E.iceState||i.iceState):65,r=I.has(e.id)?I.get(e.id):-1,s=r>=0?Math.max(8,30-2*r):-8,l="sea_gulf"===h||"open_sea"===h,c=Array.isArray(e.waters)&&(e.waters.includes(h)||l&&("sea"===e.habitat||e.waters.includes("sea_gulf")||e.waters.includes("open_sea")));return{fish:e,score:o,rankScore:o+s+(c?10:-6)+("license"===e.legal&&(r<0||r>4)?-6:0),methodText:t[0]?.text||"Спиннинг / Поплавок"}})).sort(((e,t)=>t.rankScore-e.rankScore));return U={lat:n,lon:o,basinCode:s,basinName:L,isCoastal:l,settlementLabel:c?`${c.name} (${c.distKm} км)`:`${n.toFixed(2)}°N, ${o.toFixed(2)}°E`,waters:f,primaryWater:h,primaryWaterName:v,defDepth:w,topSpecies:M.slice(0,6)},d("selection"),U}export function classifyOsmWaterElement(e,t,a){const n=e?.tags||{},o=String(t||"").toLowerCase(),i=String(n.water||"").toLowerCase(),r=String(n.waterway||"").toLowerCase(),s=String(n.landuse||"").toLowerCase();if(/грэс|тэц|аэс|охладител|тёплый канал|теплый канал/i.test(o))return{wType:"cooling_reservoir",typeTag:"ГРЭС / Тёплый сброс"};if(/губа|залив|лиман|бухта|пролив|море/i.test(o)||"bay"===n.natural||"strait"===n.natural)return a?{wType:"sea_gulf",typeTag:"Морской залив / Губа"}:{wType:"quarry",typeTag:"Крупный залив / Вдхр"};if(r||/^р\.|^река\s|^ручей\s|^протока\s/i.test(o)){return/обь|иртыш|енисей|волга|кама|дон|днепр|пур|таз|надым|амур|зея|уссури|лена|вилюй|алдан|ангара|печора|уса|ока|урал|вятка|белая|кубань|нева|свирь|волхов|северная двина|вычегда|онега|луга|нарва|преголя|селенга|камчатка|колыма|индигирка|хатанга|пясина|тулома|томь|чулым|кет|вах|конда|туртас|тавда|тура|тобол|исеть|чусовая|сура|ветлуга|мокша|хопёр|медведица|северский донец|маныч|ахтуба|бузан|бахтемир/i.test(o)||n.width&&parseFloat(n.width)>=60||"yes"===n.boat||n.CEMT?{wType:"big_river",typeTag:"Река большая"}:"stream"===r||/ручей|ключ|речка/i.test(o)?{wType:"small_river",typeTag:"Река малая / Ручей"}:{wType:"small_river",typeTag:"Река малая"}}return/карьер|разрез|котлован/i.test(o)||"quarry"===i||"quarry"===s?{wType:"quarry",typeTag:"Карьер"}:/вдхр|водохранилище/i.test(o)||"reservoir"===i||"reservoir"===s?{wType:"quarry",typeTag:"Водохранилище"}:/старица|затон|сор|пойма|пруд|болото|ильмень|озерцо/i.test(o)||"oxbow"===i||"pond"===i?{wType:"tundra_lake",typeTag:/старица|затон/i.test(o)?"Старица / Затон":"Пруд / Озеро малое"}:"relation"===e?.type||/большое|глубокое|святое|белое|светлое|круглое|долгое|селигер|ладож|онеж|байкал|имандра|сямозеро|сегозеро|выгозеро|пяозеро|чудск|телецк|увильды|тургояк|ханто|янтарное/i.test(o)?{wType:"quarry",typeTag:"Озеро крупное"}:{wType:"tundra_lake",typeTag:"Озеро"}}export async function setLocation(e,t,a=!1){const o=Math.round(1e4*e)/1e4,i=Math.round(1e4*t)/1e4;if(r.dispatch({type:"SET_LOCATION",payload:{lat:o,lon:i,hasUserLocation:!0}}),D&&B){B.setLatLng([o,i]);const e=Y(D.getZoom()||10,8,13);D.setView([o,i],e)}const s=r.getState(),l=b[s.water]||b.small_river;(s.depth<l.minD||s.depth>l.maxD)&&r.dispatch({type:"SET_DEPTH",payload:l.defD}),n.emit("location:changed",{lat:o,lon:i,basinCode:s.basinCode,isCoastal:s.isCoastal}),a||resolveReverseGeocode(o,i),getNearbyWatersAndPlaces(o,i,s.waterRadiusKm||50),await T(o,i,!0)}export async function autoDetectStartupLocation(){if(!r.getState().hasUserLocation&&"undefined"!=typeof navigator&&navigator.permissions&&"function"==typeof navigator.permissions.query)try{const e=await navigator.permissions.query({name:"geolocation"});e&&"granted"===e.state&&navigator.geolocation&&navigator.geolocation.getCurrentPosition((e=>{r.getState().hasUserLocation||setLocation(e.coords.latitude,e.coords.longitude)}),(()=>{}),{enableHighAccuracy:!1,timeout:6e3,maximumAge:6e5})}catch(e){}}export async function locateByIpFallback(){const e=[{url:"https://api.bigdatacloud.net/data/reverse-geocode-client?localityLanguage=ru",parse:e=>e&&Number.isFinite(e.latitude)&&Number.isFinite(e.longitude)?{lat:e.latitude,lon:e.longitude,city:e.city||e.locality||e.principalSubdivision,region:e.principalSubdivision}:null},{url:"https://ipwho.is/?lang=ru",parse:e=>e&&!1!==e.success&&Number.isFinite(e.latitude)&&Number.isFinite(e.longitude)?{lat:e.latitude,lon:e.longitude,city:e.city,region:e.region}:null},{url:"https://freeipapi.com/api/json",parse:e=>e&&Number.isFinite(e.latitude)&&Number.isFinite(e.longitude)?{lat:e.latitude,lon:e.longitude,city:e.cityName,region:e.regionName}:null},{url:"https://get.geojs.io/v1/ip/geo.json",parse:e=>e&&e.latitude&&e.longitude?{lat:parseFloat(e.latitude),lon:parseFloat(e.longitude),city:e.city,region:e.region}:null}];for(const t of e)try{const e=await s(t.url,4200),a=t.parse(e);if(a&&Number.isFinite(a.lat)&&Number.isFinite(a.lon))return a}catch(e){}return null}export async function detectUserPosition(){if("undefined"!=typeof navigator&&navigator.geolocation)try{const e=await new Promise(((e,t)=>{navigator.geolocation.getCurrentPosition(e,t,{enableHighAccuracy:!0,timeout:5500,maximumAge:18e4})}));if(e&&e.coords&&Number.isFinite(e.coords.latitude))return{lat:e.coords.latitude,lon:e.coords.longitude,source:"gps",permissionDenied:!1}}catch(e){const t=Boolean(e&&1===e.code);if(!t)try{const e=await new Promise(((e,t)=>{navigator.geolocation.getCurrentPosition(e,t,{enableHighAccuracy:!1,timeout:6e3,maximumAge:6e5})}));if(e&&e.coords&&Number.isFinite(e.coords.latitude))return{lat:e.coords.latitude,lon:e.coords.longitude,source:"network",permissionDenied:!1}}catch(e){}const a=await locateByIpFallback();return a?{lat:a.lat,lon:a.lon,city:a.city,region:a.region,source:"ip",permissionDenied:t}:{lat:null,lon:null,source:"failed",permissionDenied:t}}const e=await locateByIpFallback();return e?{lat:e.lat,lon:e.lon,city:e.city,region:e.region,source:"ip",permissionDenied:!1}:{lat:null,lon:null,source:"failed",permissionDenied:!1}}export async function resolveReverseGeocode(e,t){const a=x(e,t);if(!(a&&a.distKm<=65&&(r.dispatch({type:"SET_LOCATION_LABELS",payload:{locCountry:"Россия",locAdmin1:a.admin1,locAdmin2:a.name,locLabel:a.label}}),a.distKm<=16))){try{const n=`https://nominatim.openstreetmap.org/reverse?lat=${e}&lon=${t}&format=json&addressdetails=1&zoom=12&accept-language=ru`,o=await s(n,4800,{headers:{"Accept-Language":"ru"}});if(o&&o.address){const e=o.address,t=e.city||e.town||e.village||e.hamlet||e.municipality||e.county||o.name||"",n=e.state||e.region||a?.admin1||"";if(t||n)return void r.dispatch({type:"SET_LOCATION_LABELS",payload:{locCountry:e.country||"Россия",locAdmin1:n,locAdmin2:t,locLabel:t||n}})}}catch(e){}try{const n=`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${e}&longitude=${t}&localityLanguage=ru`,o=await s(n,4500);if(o&&(o.city||o.locality||o.principalSubdivision)){const e=o.city||o.locality||o.principalSubdivision;return void r.dispatch({type:"SET_LOCATION_LABELS",payload:{locCountry:o.countryName||"Россия",locAdmin1:o.principalSubdivision||a?.admin1||"",locAdmin2:e,locLabel:e}})}}catch(e){}a||r.dispatch({type:"SET_LOCATION_LABELS",payload:{locCountry:"Россия",locAdmin1:`${e.toFixed(2)}°N`,locAdmin2:`${t.toFixed(2)}°E`,locLabel:`${e.toFixed(2)}°N, ${t.toFixed(2)}°E`}})}}export async function searchPlaceByQuery(e){const t=(e||"").trim();if(!t)return;const a=t.toLowerCase().replace(/ё/g,"е"),n=a.replace(/^(река|р\.|озеро|оз\.|водохранилище|вдхр\.|поселок|пгт|село|с\.|город|г\.)\s+/i,"").trim(),o=/(?:^|\s)(озеро|оз|река|р|вдхр|водохранилище|карьер|губа|залив|лиман|сор|протока|старица)(?=\s|$)/i.test(a),i=n.length>=2?v.find((e=>{const t=e.name.toLowerCase().replace(/ё/g,"е"),o=e.cleanName.toLowerCase().replace(/ё/g,"е");return t.includes(n)||o.includes(n)||a.includes(o)})):null;if(o&&i)return await setLocation(i.lat,i.lon,!0),r.dispatch({type:"SET_LOCATION_LABELS",payload:{locCountry:"Россия",locAdmin1:i.region,locAdmin2:i.cleanName,locLabel:i.region}}),r.dispatch({type:"SET_WATER",payload:{water:i.wType,depth:i.defDepth,selectedWaterName:i.cleanName}}),void _(`Выбран водоём: ${i.name}`,"good");const l=h.find((e=>{const t=e.name.toLowerCase().replace(/ё/g,"е"),o=`${t} ${(e.admin1||"").toLowerCase().replace(/ё/g,"е")}`;if(t===a||t===n)return!0;const i=n.split(/\s+/).filter((e=>e.length>=2));return i.length>0&&i.every((e=>o.includes(e)))}))||h.find((e=>{const t=e.name.toLowerCase().replace(/ё/g,"е");return t.includes(n)||n.includes(t.split("(")[0].trim())}));if(l)return await setLocation(l.lat,l.lon,!0),r.dispatch({type:"SET_LOCATION_LABELS",payload:{locCountry:"Россия",locAdmin1:l.admin1,locAdmin2:l.name,locLabel:l.name}}),void _(`Переход к населённому пункту: ${l.name}`,"good");if(i)return await setLocation(i.lat,i.lon,!0),r.dispatch({type:"SET_LOCATION_LABELS",payload:{locCountry:"Россия",locAdmin1:i.region,locAdmin2:i.cleanName,locLabel:i.region}}),r.dispatch({type:"SET_WATER",payload:{water:i.wType,depth:i.defDepth,selectedWaterName:i.cleanName}}),void _(`Выбран водоём: ${i.name}`,"good");try{const e=`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(t)}&format=json&addressdetails=1&limit=1&accept-language=ru`,a=await s(e,5500,{headers:{"Accept-Language":"ru"}});if(Array.isArray(a)&&a.length>0){const e=a[0],n=e.address||{},o=n.city||n.town||n.village||n.county||e.name||t;return r.dispatch({type:"SET_LOCATION_LABELS",payload:{locCountry:n.country||"Россия",locAdmin1:n.state||n.region||"",locAdmin2:o,locLabel:e.name||o}}),void await setLocation(parseFloat(e.lat),parseFloat(e.lon),!0)}}catch(e){}try{const e=`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(t)}&count=1&language=ru&format=json`,a=await s(e,5500);if(a&&a.results&&a.results.length>0){const e=a.results[0];return r.dispatch({type:"SET_LOCATION_LABELS",payload:{locCountry:e.country||"Россия",locAdmin1:e.admin1||"",locAdmin2:e.admin2||e.name,locLabel:e.name}}),void await setLocation(e.latitude,e.longitude,!0)}_("Водоём или населённый пункт не найден","bad")}catch(e){_("Слабый сигнал сети при поиске. Укажите точку на карте.","bad")}}export function requestGPS(e){if(!navigator.geolocation)return G="Геолокация не поддерживается браузером. Определяем регион по сети...","geo"!==r.getState().route&&(j=!0),render(e),void locateByIpFallback().then((t=>{t&&(G=`📍 Координаты определены по сети (${t.city||"ваш регион"}). Для точного выбора укажите водоём на карте.`,setLocation(t.lat,t.lon)),render(e)}));G="Опрос спутников GPS и датчиков геолокации...",render(e);const t=async t=>{const a=await locateByIpFallback();if(a){const e=x(a.lat,a.lon),n=e&&e.distKm<=35?e.name:a.city||"ваш регион";G=t?`📍 В браузере запрещён доступ к GPS (определён город по сети: ${n}). Чтобы включить точный GPS, нажмите на значок 🔒/⚙️ слева от адреса klevpro.ru в строке браузера и разрешите «Геоданные», либо выберите водоём на карте.`:`📍 Спутники GPS недоступны в помещении — точка установлена по сети (${n}). Вы можете уточнить водоём кликом на карте.`,await setLocation(a.lat,a.lon)}else G=t?"Доступ к GPS отклонён в настройках браузера. Нажмите на значок 🔒/⚙️ слева от адреса сайта и разрешите «Геоданные», либо выберите город в поиске / точку на карте.":"Слабый сигнал GPS. Выберите населённый пункт в поиске или укажите точку на карте.";"geo"!==r.getState().route&&(j=!0),render(e)};navigator.geolocation.getCurrentPosition((e=>{G="",setLocation(e.coords.latitude,e.coords.longitude)}),(a=>{1!==a.code?(G="Поиск координат по сотовой сети и Wi-Fi...",render(e),navigator.geolocation.getCurrentPosition((e=>{G="",setLocation(e.coords.latitude,e.coords.longitude)}),(e=>{t(1===e.code)}),{enableHighAccuracy:!1,timeout:8e3,maximumAge:6e5})):t(!0)}),{enableHighAccuracy:!0,timeout:7500,maximumAge:18e4})}export async function getNearbyWatersAndPlaces(e,t,a=null,n=!1){const i=r.getState(),l=Number.isFinite(a)?a:i.waterRadiusKm||50,c=Math.min(12e4,Math.max(2e4,Math.round(1e3*l))),d=++H,p=S(e,t,i.basinCode,i.isCoastal,18,l),u=w(e,t,12,Math.max(80,l));r.dispatch({type:"SET_NEARBY_WATERS",payload:p}),r.dispatch({type:"SET_NEARBY_PLACES",payload:u}),!r.getState().selectedWaterName&&p.length>0&&r.dispatch({type:"SET_WATER",payload:{water:p[0].wType,depth:p[0].defDepth,selectedWaterName:p[0].name}});const m=o.loadNearbyWatersCache(e,t,l);if(m&&Array.isArray(m.waters)&&m.waters.length>0)return r.dispatch({type:"SET_NEARBY_WATERS",payload:m.waters}),Array.isArray(m.places)&&m.places.length>0&&r.dispatch({type:"SET_NEARBY_PLACES",payload:m.places}),m.waters;if(n)return p;K=!0;const y=`[out:json][timeout:8];(way["waterway"~"river|canal"]["name"](around:${c},${e},${t});way["natural"="water"]["name"](around:${c},${e},${t});relation["natural"="water"]["name"](around:${c},${e},${t});node["place"~"city|town|village|hamlet"]["name"](around:${Math.min(5e4,c)},${e},${t}););out center tags 75;`,g=[{name:"VK/Mail.ru Overpass РФ",url:"https://maps.mail.ru/osm/tools/overpass/api/interpreter?data="+encodeURIComponent(y),timeoutMs:4500},{name:"Kumi Systems Overpass",url:"https://overpass.kumi.systems/api/interpreter?data="+encodeURIComponent(y),timeoutMs:4500}];for(const a of g)try{const n=await s(a.url,a.timeoutMs);if(d!==H)return p;if(!n||!Array.isArray(n.elements))continue;const c=new Set(p.map((e=>e.name.toLowerCase()))),m=new Set(u.map((e=>e.name.toLowerCase()))),y=[...p],g=[...u];for(const a of n.elements){const n=a.tags&&(a.tags["name:ru"]||a.tags.name);if(!n)continue;const o=a.lat??a.center?.lat,r=a.lon??a.center?.lon,s=o&&r?Z(e,t,o,r):9.9;if(s>l+5)continue;if(a.tags.place){const e=n.toLowerCase();if(m.has(e))continue;m.add(e),o&&r&&g.push({name:n,lat:o,lon:r,distKm:s});continue}const d=n.replace(/^(река|озеро|пруд|ручей|карьер|водохранилище|вдхр\.?)\s+/i,"").trim(),p=d.toLowerCase();if(!d||c.has(p))continue;c.add(p);const{wType:u,typeTag:f}=classifyOsmWaterElement(a,n,i.isCoastal),h=b[u]?.defD||1.5,v="big_river"===u||"small_river"===u?"🌊 р. ":u.startsWith("sea")?"⚓ ":"cooling_reservoir"===u?"♨️ ":"💧 ",x=s<1?`${Math.round(1e3*s)} м`:`${s} км`;y.push({name:d,label:`${v}${d} [${f}] • ${x}`,wType:u,typeTag:f,defDepth:h,distKm:s,lat:o||e,lon:r||t})}y.sort(((e,t)=>e.distKm-t.distKm)),g.sort(((e,t)=>e.distKm-t.distKm)),K=!1;const f=g.slice(0,14),h=y.slice(0,20);return o.saveNearbyWatersCache(e,t,l,h,f),r.dispatch({type:"SET_NEARBY_PLACES",payload:f}),r.dispatch({type:"SET_NEARBY_WATERS",payload:h}),h}catch(e){}return K=!1,p}export async function saveSpot(e="",a="bite"){const n=r.getState(),i=I(n),s=n.selectedWaterName||b[n.water]?.shortName||n.water,l=t[a]||t.bite,c={id:`spot_${Date.now()}`,name:(e||"").trim()||`${n.locLabel} (${s})`,category:l.id,lat:n.lat,lon:n.lon,basinCode:n.basinCode,water:n.water,selectedWaterName:n.selectedWaterName,depth:n.depth,fid:i.fisherId,au:i.callsign,did:o.getDeviceId?o.getDeviceId():"dev_local",visibility:"private",createdAt:(new Date).toISOString()};await o.putToStore("spots",c);const d=await o.getAllFromStore("spots");return r.dispatch({type:"SET_SAVED_SPOTS",payload:d}),_(`${l.icon} Точка «${c.name}» (${l.short}) сохранена на вашем устройстве!`,"good"),c}export function openSaveSpotModal(){const e=r.getState(),a=e.selectedWaterName||b[e.water]?.shortName||e.water,n=`${e.locLabel} (${a})`;let o="bite";const i=`\n    <div style="display:flex;flex-direction:column;gap:12px;font-size:var(--fs-sm);">\n      <div style="font-size:var(--fs-xs);color:var(--muted);">\n        📍 Координаты: <b>${e.lat.toFixed(4)}°N, ${e.lon.toFixed(4)}°E</b> • Глубина: <b>~${e.depth.toFixed(1)} м</b>\n      </div>\n      <div>\n        <label style="display:block;font-size:11.5px;font-weight:800;color:var(--muted);margin-bottom:5px;">1. ВЫБЕРИТЕ ТИП ТОЧКИ НА КАРТЕ:</label>\n        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:6px;" id="spotCatPickerGrid">\n          ${Object.values(t).map((e=>`\n            <button type="button" class="btn btn-sm ${"bite"===e.id?"btn-accent":""}" data-pick-spot-cat="${e.id}" style="justify-content:flex-start;min-height:40px;font-size:12px;">\n              <span>${e.label}</span>\n            </button>\n          `)).join("")}\n        </div>\n      </div>\n      <div>\n        <label for="saveSpotCustomNameInp" style="display:block;font-size:11.5px;font-weight:800;color:var(--muted);margin-bottom:4px;">2. НАЗВАНИЕ ТОЧКИ / ОРИЕНТИР:</label>\n        <input type="text" id="saveSpotCustomNameInp" class="input" value="${escapeHtml(n)}" maxlength="64" placeholder="Например: Бровка у коряги, Слип у моста...">\n      </div>\n      <button type="button" class="btn btn-good" id="saveSpotConfirmModalBtn" style="width:100%;min-height:44px;font-weight:900;">\n        ⭐ Сохранить точку на карте\n      </button>\n    </div>\n  `;openModal("⭐ Сохранить точку в закладки",i,(e=>{e.querySelectorAll("[data-pick-spot-cat]").forEach((t=>{t.addEventListener("click",(()=>{o=t.getAttribute("data-pick-spot-cat")||"bite",e.querySelectorAll("[data-pick-spot-cat]").forEach((e=>{e.classList.toggle("btn-accent",e.getAttribute("data-pick-spot-cat")===o)}))}))})),e.querySelector("#saveSpotConfirmModalBtn")?.addEventListener("click",(async()=>{const t=e.querySelector("#saveSpotCustomNameInp")?.value||n;await saveSpot(t,o),closeModal()}))}))}export async function deleteSpot(e){await o.deleteFromStore("spots",e);const t=await o.getAllFromStore("spots");r.dispatch({type:"SET_SAVED_SPOTS",payload:t})}export function exportSpotsToGpx(){const e=r.getState().savedSpots||[];if(0===e.length)return void _("Нет сохранённых точек для выгрузки в .GPX. Сначала добавьте точку кнопкой «⭐ В закладки».","warn");const t=`<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="KlevPRO 2.0" xmlns="http://www.topografix.com/GPX/1/1">\n${e.map((e=>{const t=String(e.name||"Точка").replace(/[<>&"']/g,"");return`  <wpt lat="${e.lat}" lon="${e.lon}">\n    <ele>-${e.depth||2}</ele>\n    <name>${t}</name>\n    <desc>Глубина: ${e.depth||2} м, тип: ${e.water||"small_river"}</desc>\n  </wpt>`})).join("\n")}\n</gpx>`,a=`klev-pro-spots-${(new Date).toISOString().slice(0,10)}.gpx`;downloadFileCrossPlatform(a,t,"application/gpx+xml;charset=utf-8"),_(`📥 Выгружено ${e.length} точек в файл ${a} (Garmin / Lowrance / Практик / Сусанин)`,"good")}export function exportSpotsToKml(){const e=r.getState().savedSpots||[];if(0===e.length)return void _("Нет сохранённых точек для выгрузки в .KML. Сначала добавьте точку кнопкой «⭐ В закладки».","warn");const t=`<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2">\n  <Document>\n    <name>Клёв ПРО 2.0 — Рыболовные точки</name>\n${e.map((e=>`    <Placemark>\n      <name>${String(e.name||"Точка").replace(/[<>&"']/g,"")}</name>\n      <description>Глубина: ${e.depth||2} м, тип: ${e.water||"small_river"}</description>\n      <Point><coordinates>${e.lon},${e.lat},-${e.depth||2}</coordinates></Point>\n    </Placemark>`)).join("\n")}\n  </Document>\n</kml>`,a=`klev-pro-spots-${(new Date).toISOString().slice(0,10)}.kml`;downloadFileCrossPlatform(a,t,"application/vnd.google-earth.kml+xml;charset=utf-8"),_(`📥 Выгружено ${e.length} точек в файл ${a} (Google Earth / Яндекс / Locus Map)`,"good")}export async function importSpotsFromFileText(e){if(!e)return 0;let t=0;try{const a=e.trim();if(a.startsWith("<")){const e=/<(?:wpt|rtept|trkpt)[^>]*lat=["']([0-9.-]+)["'][^>]*lon=["']([0-9.-]+)["'][^>]*>([\s\S]*?)<\/(?:wpt|rtept|trkpt)>/gi;let n;for(;null!==(n=e.exec(a));){const e=parseFloat(n[1]),a=parseFloat(n[2]),i=n[3]||"",r=i.match(/<name>([\s\S]*?)<\/name>/i),s=i.match(/<(?:ele|depth|gpxtpx:depth|waterdepth)>([\s\S]*?)<\/(?:ele|depth|gpxtpx:depth|waterdepth)>/i);if(Number.isFinite(e)&&Number.isFinite(a)){const n=s&&Math.abs(parseFloat(s[1]))||2.5,i={id:`spot_gpx_${Date.now()}_${t}`,name:r?r[1].replace(/<!\[CDATA\[|\]\]>/g,"").trim():`GPX Точка #${t+1}`,lat:Math.round(1e4*e)/1e4,lon:Math.round(1e4*a)/1e4,basinCode:u(e,a),water:"small_river",selectedWaterName:"",depth:Math.min(25,Math.max(.5,n)),createdAt:(new Date).toISOString()};await o.putToStore("spots",i),t++}}if(0===t&&/<Placemark/i.test(a)){const e=/<Placemark[^>]*>([\s\S]*?)<\/Placemark>/gi;let n;for(;null!==(n=e.exec(a));){const e=n[1]||"",a=e.match(/<coordinates>\s*([0-9.-]+)\s*,\s*([0-9.-]+)(?:\s*,\s*([0-9.-]+))?/i);if(a){const n=parseFloat(a[1]),i=parseFloat(a[2]),r=a[3]?Math.abs(parseFloat(a[3])):2.5,s=e.match(/<name>([\s\S]*?)<\/name>/i);if(Number.isFinite(i)&&Number.isFinite(n)){const e={id:`spot_kml_${Date.now()}_${t}`,name:s?s[1].replace(/<!\[CDATA\[|\]\]>/g,"").trim():`KML Точка #${t+1}`,lat:Math.round(1e4*i)/1e4,lon:Math.round(1e4*n)/1e4,basinCode:u(i,n),water:"small_river",selectedWaterName:"",depth:Math.min(25,Math.max(.5,r||2.5)),createdAt:(new Date).toISOString()};await o.putToStore("spots",e),t++}}}}}else{const e=i(a),n=Array.isArray(e)?e:Array.isArray(e?.spots)?e.spots:Array.isArray(e?.data?.spots)?e.data.spots:Array.isArray(e?.savedSpots)?e.savedSpots:[];for(const e of n)if(e&&Number.isFinite(Number(e.lat))&&Number.isFinite(Number(e.lon))){const a=Number(e.lat),n=Number(e.lon);await o.putToStore("spots",{id:e.id||`spot_json_${Date.now()}_${t}`,name:e.name||`Точка #${t+1}`,lat:Math.round(1e4*a)/1e4,lon:Math.round(1e4*n)/1e4,basinCode:e.basinCode||u(a,n),water:e.water||"small_river",selectedWaterName:e.selectedWaterName||"",depth:Number(e.depth)||2,createdAt:e.createdAt||(new Date).toISOString()}),t++}}}catch(e){}if(t>0){const e=await o.getAllFromStore("spots");r.dispatch({type:"SET_SAVED_SPOTS",payload:e}),_(`✅ Импортировано рыболовных точек: ${t} шт.`,"good")}else _("Не удалось найти путевые точки (<wpt>) в выбранном файле.","bad");return t}function J(){if(!D||"undefined"==typeof L)return;const e=r.getState();O?O.clearLayers():O=L.layerGroup().addTo(D),W.clear();const a=I(e);Q.mySpots&&"foreign"!==Q.ownership&&Array.isArray(e.savedSpots)&&e.savedSpots.forEach((e=>{if(!Number.isFinite(e.lat)||!Number.isFinite(e.lon))return;const a=e.category&&t[e.category]?e.category:"bite";if("all"!==Q.spotCategory&&Q.spotCategory!==a)return;const n=t[a]||t.bite,o=L.circleMarker([e.lat,e.lon],{radius:7,color:"#ffffff",fillColor:n.color,fillOpacity:.92,weight:2});o.bindPopup(`<div style="font-size:12px;line-height:1.45;"><b>${n.icon} ${escapeHtml(n.short)}:</b> ${escapeHtml(e.name)}<br>Глубина: <b>${e.depth||1.5} м</b></div>`),O.addLayer(o)}));const n=Date.now();if((Array.isArray(e.circleItems)?e.circleItems:[]).forEach((t=>{if(!t||!Number.isFinite(t.lat)||!Number.isFinite(t.lon))return;if(F(t,e))return;const o=M(t,e);if("mine"===Q.ownership&&!o)return;if("foreign"===Q.ownership&&o)return;const i=o?'<span style="color:#10b981;font-weight:800;">👤 Моя</span>':'<span style="color:#38bdf8;font-weight:800;">🌐 Чужая</span>',r=o||a.isOwner?`<button type="button" data-popup-del-circle="${t.id}" style="margin-top:5px;padding:3px 8px;border-radius:5px;border:1px solid #ef4444;background:#ef4444;color:#fff;font-size:11px;font-weight:800;cursor:pointer;">🗑️ Удалить точку</button>`:`<button type="button" data-popup-hide-circle="${t.id}" style="margin-top:5px;padding:3px 8px;border-radius:5px;border:1px solid #64748b;background:#334155;color:#fff;font-size:11px;font-weight:800;cursor:pointer;">🙈 Скрыть чужую точку</button>`,s=z&&String(z)===String(t.id);if(t.sos){const e=L.circle([t.lat,t.lon],{radius:8e3,color:"#ef4444",fillColor:"#ef4444",fillOpacity:s?.35:.22,weight:s?3.5:2.5,dashArray:"4, 4"}),a=L.marker([t.lat,t.lon],{icon:L.divIcon({className:"klev-sos-icon",html:'<div style="font-size:18px;line-height:1;filter:drop-shadow(0 0 6px #ef4444);animation:pulse 1.5s infinite;">🆘</div>',iconSize:[22,22],iconAnchor:[11,11]})}),n=`<div style="font-size:12px;line-height:1.4;"><b style="color:#ef4444;font-size:13px;">🆘 СИГНАЛ SOS (${i}):</b><br>📍 ${t.wn||t.lb||"Водоём"} (<b>${Number(t.lat).toFixed(4)}°N, ${Number(t.lon).toFixed(4)}°E</b>)<br>👤 От: <b>${escapeHtml(t.au||"Рыболов")}</b><br>💬 «${escapeHtml(t.nt||"Требуется срочная помощь!")}»<br>${r}</div>`;e.bindPopup(n),a.bindPopup(n),O.addLayer(e),O.addLayer(a),W.set(t.id,e),s&&e.openPopup()}else if("crew"===t.t&&Q.crewExact){if(Number.isFinite(t.ea)&&t.ea<n)return;const l=Math.max(1,Math.round(((t.ea||n)-n)/36e5));if(P(t,e)||o||a.isOwner){const e=L.circle([t.lat,t.lon],{radius:1500,color:s?"#34d399":"#10b981",fillColor:"#10b981",fillOpacity:s?.32:.2,weight:s?3:2}),a=L.marker([t.lat,t.lon],{icon:L.divIcon({className:"klev-crew-icon",html:'<div style="font-size:16px;line-height:1;text-shadow:0 1px 3px rgba(0,0,0,0.8);">🚤</div>',iconSize:[20,20],iconAnchor:[10,10]})}),n=t.crewKey||"",o=`<div style="font-size:12px;line-height:1.4;"><b style="color:#10b981;font-size:13px;">🌊 Экипаж ${n?`(${n})`:""} (${i}):</b><br>📍 <b>${t.wn||t.lb||"Стоянка"}</b> (глубина ${t.dp||2} м)<br>🐟 Рыба: <b>${escapeHtml(t.fn||"—")}</b> • 🪱 ${escapeHtml(t.bt||"по сезону")}<br>👤 Напарник: <b>${escapeHtml(t.au||"Экипаж")}</b><br>⏳ Осталось: <b>~${l} ч</b><br>`+(t.nt?`💬 «${escapeHtml(t.nt)}»<br>`:"")+(n?`<button type="button" data-popup-crew-chat="${n}" style="margin-top:6px;padding:3px 9px;border-radius:5px;border:1px solid #10b981;background:#10b981;color:#fff;font-size:11px;font-weight:800;cursor:pointer;">💬 Чат экипажа (${n})</button><br>`:"")+`${r}</div>`;e.bindPopup(o),a.bindPopup(o),O.addLayer(e),O.addLayer(a),W.set(t.id,e),s&&e.openPopup()}else{const e=L.circle([t.lat,t.lon],{radius:3500,color:s?"#38bdf8":"#64748b",fillColor:"#0284c7",fillOpacity:s?.22:.12,weight:s?2.5:1.5,dashArray:"6, 6"}),a=L.marker([t.lat,t.lon],{icon:L.divIcon({className:"klev-lock-icon",html:'<div style="font-size:14px;line-height:1;opacity:0.85;">🔒</div>',iconSize:[18,18],iconAnchor:[9,9]})}),n=`<div style="font-size:12px;line-height:1.4;"><b>🔒 Закрытый Экипаж (72 ч, ${i}):</b><br>Район: <b>${t.wn||t.lb||"Новый Уренгой"}</b> • ~${l} ч<br>👤 Создатель: <b>${escapeHtml(t.au||"Рыболов")}</b><br><div style="font-size:11px;color:var(--muted);margin-top:4px;">Точные координаты и радиочат скрыты создателем. Чтобы вступить, введите 4-значный ключ экипажа во вкладке «👥 Круг».</div>${r}</div>`;e.bindPopup(n),a.bindPopup(n),O.addLayer(e),O.addLayer(a),W.set(t.id,e),s&&e.openPopup()}}else if("circle"===t.t&&Q.circleBlur){const e=k(t,n),a=o?"#10b981":"#38bdf8",l=1e3*e,c=L.circle([t.lat,t.lon],{radius:l,color:s?"#fbbf24":a,fillColor:a,fillOpacity:s?.28:.16,weight:s?2.8:1.8,dashArray:"5, 5"}),d=L.marker([t.lat,t.lon],{icon:L.divIcon({className:"klev-circle-icon",html:`<div style="font-size:15px;line-height:1;text-shadow:0 1px 3px rgba(0,0,0,0.8);">${t.kg?"🏆":"🐟"}</div>`,iconSize:[18,18],iconAnchor:[9,9]})}),p=`<div style="font-size:12px;line-height:1.4;"><b style="color:${a};font-size:13px;">⬡ Сектор Круга ±${e} км (${i}):</b><br>📍 <b>${t.wn||t.lb||"Водоём"}</b> (глубина ~${t.dp||1.5} м)<br>🐟 <b>${escapeHtml(t.fn||"Рыба")}${t.kg?` (${t.kg} кг)`:""}</b> • 💧 Вода ~${t.tw??8}°C<br>🪱 Приманка: <b>${escapeHtml(t.bt||"по сезону")}</b><br>👤 От: <b>${escapeHtml(t.au||"Рыболов")}</b><br>`+(t.nt?`💬 «${escapeHtml(t.nt)}»<br>`:"")+`${r}</div>`;c.bindPopup(p),d.bindPopup(p),O.addLayer(c),O.addLayer(d),W.set(t.id,c),s&&c.openPopup()}})),V&&U&&Number.isFinite(U.lat)){const e=L.circleMarker([U.lat,U.lon],{radius:9,color:"#f59e0b",fillColor:"#fbbf24",fillOpacity:.9,weight:2.5});e.bindPopup(`<b>🔍 Разведка точки:</b> ${U.settlementLabel}<br>Топ: ${U.topSpecies[0]?.fish?.name||"Щука"} (${U.topSpecies[0]?.score||70}%)`),O.addLayer(e)}}"undefined"!=typeof window&&window.addEventListener("resize",(()=>{D&&D.invalidateSize()}),{passive:!0});export function renderMap(e){if("undefined"!=typeof window&&(window.__KLEV_RENDER_MAP__=renderMap),!e||"undefined"==typeof L)return;const t=r.getState(),a=D?Y(D.getZoom(),7,14):10;if(D&&D._container===e)D.invalidateSize(),B.setLatLng([t.lat,t.lon]);else{if(D)try{D.remove()}catch(e){}O=null,D=L.map(e).setView([t.lat,t.lon],a),D.attributionControl.setPrefix(!1),q=X(R).addTo(D),B=L.marker([t.lat,t.lon]).addTo(D),D.on("click",(e=>{if(V){inspectWhatBitesHere(e.latlng.lat,e.latlng.lng);const t=document.getElementById("secGeo");t&&render(t)}else setLocation(e.latlng.lat,e.latlng.lng)}))}J()}export function getMethodOptions(e,t){const n=r.getState(),o=A.find((e=>e.id===n.fishId))||A[0],i=n.weatherDays[n.dayIdx]||n.weatherDays[2]||n.weatherDays[0],s=i?.iceState||e||n.iceState||"open_water";return a(o,s,t,i?.waterTemp??12)}export function render(a){if(!a)return;const i=Array.from(a.querySelectorAll(".chip-scroll-row")).map((e=>e.scrollLeft)),s=r.getState(),d=f(s.basinCode,s.lat,s.lon),p=b[s.water]||b.small_river,u=(getMethodOptions(s.iceState,s.water),120===s.waterRadiusKm?120:50),m=(s.appMode,(Array.isArray(s.circleItems)?s.circleItems:[]).filter((e=>!F(e,s)))),y=m.filter((e=>"circle"===e.t)).length,g=m.filter((e=>"crew"===e.t&&(!e.ea||e.ea>Date.now())&&P(e,s))).length,h=m.filter((e=>M(e,s))).length+(s.savedSpots||[]).length,v=m.filter((e=>!M(e,s))).length;a.innerHTML=`\n    <div class="card">\n      <div style="margin-bottom:8px;">\n        <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px;">\n          <span class="section-title">📍 Водоём, карта глубин и точки</span>\n          <span style="font-size:var(--fs-xs);color:var(--accent);font-weight:700;">\n            ${s.lat.toFixed(2)}°N, ${s.lon.toFixed(2)}°E\n          </span>\n        </div>\n        <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:8px;">\n          <button type="button" class="btn btn-sm" id="geoGpsBtn" style="flex:1 1 85px;padding:5px 6px;font-size:11.5px;">🎯 Мой GPS</button>\n          <button type="button" class="btn btn-sm ${V?"btn-good":""}" id="geoInspectModeBtn" style="flex:1.3 1 125px;padding:5px 6px;font-size:11.5px;" title="Тап по любой точке карты покажет, какая рыба там клюёт, без смены вашей основной локации">\n            ${V?"🔍 Разведка ВКЛ":"🔍 Что здесь клюёт?"}\n          </button>\n          <button type="button" class="btn btn-sm" id="geoSaveSpotBtn" style="flex:1 1 90px;padding:5px 6px;font-size:11.5px;">⭐ В закладки</button>\n          <button type="button" class="btn btn-sm btn-good" id="geoQuickLogCatchBtn" style="flex:1 1 110px;padding:5px 6px;font-size:11.5px;font-weight:800;">🎣 + В журнал</button>\n        </div>\n      </div>\n\n      ${G?`<div style="margin-bottom:8px;padding:7px 11px;border-radius:var(--r-sm);background:var(--pill-warn-bg);color:var(--pill-warn-text);font-size:var(--fs-xs);font-weight:700;line-height:1.4;">ℹ️ ${G}</div>`:""}\n\n      <div id="geoMapSection" style="display:block;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--border);">\n        <div style="display:flex;gap:6px;margin-bottom:8px;">\n          <input type="search" id="geoSearchInput" class="input" style="flex:1;" placeholder="Поиск реки, озера, города или посёлка РФ...">\n          <button type="button" class="btn btn-sm btn-accent" id="geoSearchBtn" style="min-height:38px;padding:0 14px;">Найти</button>\n        </div>\n\n        <div class="map-layers-row">\n          ${Object.entries(e).map((([e,t])=>`\n            <button type="button" class="btn btn-sm map-layer-btn ${R===e?"btn-accent":""}" data-map-layer="${e}">${t.name}</button>\n          `)).join("")}\n        </div>\n\n        \x3c!-- Слои приватности и навигации «Клёв ПРО: Круг» (адаптивная сетка minmax(0,1fr) без выхода за границы экрана) --\x3e\n        <div style="margin-bottom:8px;width:100%;max-width:100%;overflow:hidden;">\n          <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;width:100%;">\n            <button type="button" class="btn btn-sm ${Q.mySpots?"btn-accent":""}" data-toggle-overlay="mySpots" style="width:100%;min-width:0;padding:4px 4px;font-size:11px;min-height:32px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">\n              🔒 Закладки (${s.savedSpots.length})\n            </button>\n            <button type="button" class="btn btn-sm ${Q.circleBlur?"btn-accent":""}" data-toggle-overlay="circleBlur" style="width:100%;min-width:0;padding:4px 4px;font-size:11px;min-height:32px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">\n              👥 Круг (${y})\n            </button>\n            <button type="button" class="btn btn-sm ${Q.crewExact?"btn-accent":""}" data-toggle-overlay="crewExact" style="width:100%;min-width:0;padding:4px 4px;font-size:11px;min-height:32px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">\n              🌊 Экипаж (${g})\n            </button>\n          </div>\n          <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;margin-top:4px;width:100%;">\n            <button type="button" class="btn btn-sm ${"all"===Q.ownership?"btn-accent":""}" data-map-owner="all" style="width:100%;min-width:0;padding:3px 4px;font-size:11px;min-height:28px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">\n              🗺️ Все (${h+v})\n            </button>\n            <button type="button" class="btn btn-sm ${"mine"===Q.ownership?"btn-good":""}" data-map-owner="mine" style="width:100%;min-width:0;padding:3px 4px;font-size:11px;min-height:28px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">\n              👤 Мои (${h})\n            </button>\n            <button type="button" class="btn btn-sm ${"foreign"===Q.ownership?"btn-accent":""}" data-map-owner="foreign" style="width:100%;min-width:0;padding:3px 4px;font-size:11px;min-height:28px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">\n              🌐 Чужие (${v})\n            </button>\n          </div>\n          \x3c!-- Пункты 18 и 19 (v2.5.0): Фильтр 5 цветовых типов точек на карте --\x3e\n          <div class="chip-scroll-row" style="margin-top:6px;padding-bottom:2px;">\n            <button type="button" class="w-chip ${"all"===Q.spotCategory?"active":""}" data-spot-cat-filter="all" style="min-height:28px;padding:3px 9px;font-size:11px;">🗺️ Все типы</button>\n            ${Object.values(t).map((e=>`\n              <button type="button" class="w-chip ${Q.spotCategory===e.id?"active":""}" data-spot-cat-filter="${e.id}" style="min-height:28px;padding:3px 9px;font-size:11px;">\n                ${e.icon} ${e.short}\n              </button>\n            `)).join("")}\n          </div>\n          <div style="font-size:11px;color:${V?"var(--good)":"var(--muted)"};font-weight:700;margin-top:4px;">\n            ${V?"🔍 Тапните на карту для мгновенной разведки видов без смены дома":"📍 Тап по карте переносит основную точку • Топо-слой работает без VPN"}\n          </div>\n        </div>\n\n        <div id="mapBox" role="application" aria-label="Карта выбора водоёма"></div>\n\n        \x3c!-- Карточка мгновенной разведки «🔍 Что здесь клюёт?» (Шаг 1) --\x3e\n        ${U?`\n          <div class="card" id="geoScoutResultCard" style="margin-top:10px;background:var(--card);border:1.5px solid var(--good);padding:10px 12px;">\n            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap;">\n              <div>\n                <span class="pill pill-good" style="font-size:10px;">🔍 Разведка точки (без перезаписи вашей локации)</span>\n                <div style="font-weight:800;font-size:var(--fs-md);margin-top:4px;">\n                  📍 ${U.settlementLabel} • ${U.primaryWaterName}\n                </div>\n                <div style="font-size:var(--fs-xs);color:var(--muted);">\n                  ${U.basinName} (${U.lat.toFixed(3)}°N, ${U.lon.toFixed(3)}°E)\n                </div>\n              </div>\n            </div>\n            <div style="margin-top:8px;font-size:var(--fs-xs);color:var(--accent);font-weight:800;">\n              🐟 ТОП-6 АКТИВНЫХ ВИДОВ РЫБ ЗДЕСЬ СЕГОДНЯ:\n            </div>\n            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:6px;margin-top:6px;">\n              ${U.topSpecies.map((e=>{const t=e.score>=60?"var(--good)":e.score>=38?"var(--warn)":"var(--bad)";return`\n                  <div style="padding:6px 8px;background:var(--panel);border:1px solid var(--border);border-radius:6px;font-size:var(--fs-xs);">\n                    <div style="display:flex;justify-content:space-between;align-items:center;">\n                      <b>${e.fish.name}</b>\n                      <span style="font-weight:800;color:${t};">${e.score}%</span>\n                    </div>\n                    <div style="font-size:10px;color:var(--muted);margin-top:2px;">${e.methodText}</div>\n                  </div>\n                `})).join("")}\n            </div>\n            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;padding-top:8px;border-top:1px solid var(--border);">\n              <button type="button" class="btn btn-sm btn-accent" id="scoutApplyLocationBtn" style="flex:2;min-width:170px;">📍 Сделать основной точкой</button>\n              <button type="button" class="btn btn-sm" id="scoutCloseBtn" style="flex:1;min-width:110px;">✕ Закрыть</button>\n            </div>\n          </div>\n        `:""}\n\n        ${s.nearbyPlaces&&s.nearbyPlaces.length?`\n          <div style="margin-top:8px;">\n            <div style="font-size:var(--fs-xs);color:var(--muted);font-weight:700;margin-bottom:4px;">🏘 БЛИЖАЙШИЕ ГОРОДА И НАСЕЛЁННЫЕ ПУНКТЫ (единая база РФ • кликните для ${V?"разведки":"перехода"}):</div>\n            <div class="chip-scroll-row">\n              ${s.nearbyPlaces.map((e=>`\n                <button type="button" class="w-chip" data-nearby-place="${e.lat},${e.lon},${e.name}">🏘 ${e.name} • ${e.distKm} км</button>\n              `)).join("")}\n            </div>\n          </div>\n        `:""}\n\n        ${s.savedSpots.length?`\n          <div style="margin-top:8px;">\n            <div style="font-size:var(--fs-xs);color:var(--muted);font-weight:700;margin-bottom:4px;">📌 СОХРАНЁННЫЕ РЫБОЛОВНЫЕ ТОЧКИ (🔒 100% ПРИВАТНО):</div>\n            <div class="chip-scroll-row">\n              ${s.savedSpots.map((e=>`\n                <span class="w-chip" style="gap:6px;">\n                  <button type="button" style="background:none;border:none;cursor:pointer;font-weight:700;color:var(--text);" data-load-spot="${e.id}">${(t[e.category]||t.bite).icon} ${escapeHtml(e.name)}</button>\n                  <button type="button" style="background:none;border:none;cursor:pointer;color:var(--bad);" data-del-spot="${e.id}" aria-label="Удалить точку">✕</button>\n                </span>\n              `)).join("")}\n            </div>\n          </div>\n        `:""}\n\n        <div style="margin-top:10px;padding:8px 10px;background:var(--card);border:1px dashed var(--accent);border-radius:var(--r-sm);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">\n          <span style="font-size:var(--fs-xs);font-weight:800;color:var(--accent);">📡 Обмен путевыми точками и глубинами эхолота (.GPX / .KML / .JSON)</span>\n          <div style="display:flex;gap:6px;flex-wrap:wrap;">\n            <button type="button" class="btn btn-sm" id="geoExportGpxBtn">📤 Экспорт .GPX</button>\n            <button type="button" class="btn btn-sm" id="geoExportKmlBtn">📤 Экспорт .KML</button>\n            <label class="btn btn-sm btn-accent" style="cursor:pointer;margin:0;">\n              📥 Импорт .GPX / .KML / .JSON\n              <input type="file" id="geoImportGpxInput" accept=".gpx,.kml,.xml,.json,application/gpx+xml,application/vnd.google-earth.kml+xml,application/json,text/xml,*/*" style="display:none;">\n            </label>\n          </div>\n        </div>\n      </div>\n\n      <div style="margin-bottom:10px;">\n        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:6px;">\n          <div style="font-size:var(--fs-xs);color:var(--muted);font-weight:700;">\n            🌊 ВОДОЁМЫ В РАДИУСЕ <b>ДО ${u} КМ</b> (${(s.nearbyWaters||[]).length} шт.)\n            ${s.selectedWaterName?`• выбран: <b style="color:var(--accent);">${s.selectedWaterName}</b> [${$(s.water)}]`:"(кликните для выбора)"}:\n          </div>\n          <div style="display:inline-flex;gap:5px;align-items:center;">\n            <button type="button" class="btn btn-sm ${50===u?"btn-accent":""}" data-water-radius="50" style="min-height:30px;padding:3px 10px;">📡 До 50 км</button>\n            <button type="button" class="btn btn-sm ${120===u?"btn-accent":""}" data-water-radius="120" style="min-height:30px;padding:3px 10px;">📡 До 120 км</button>\n          </div>\n        </div>\n        <div class="chip-scroll-row">\n          ${(s.nearbyWaters||[]).map((e=>`<button type="button" class="w-chip ${(s.selectedWaterName?s.selectedWaterName===e.name:s.water===e.wType)?"active":""}" data-nearby-water="${e.wType}" data-nearby-name="${e.name||e.label}" data-nearby-depth="${e.defDepth||""}">${e.label}</button>`)).join("")}\n        </div>\n      </div>\n\n      <div class="card" style="background:var(--card);margin-bottom:12px;padding:10px 12px;border:1px solid var(--border);">\n        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:6px;">\n          <span style="font-size:var(--fs-xs);font-weight:800;color:var(--accent);">🗺️ КАРТА ГЛУБИН И РЕЛЬЕФ ДНА: ${s.selectedWaterName||p.name} (${$(s.water)})</span>\n          <span class="pill pill-neutral" style="font-size:var(--fs-xs);">Эхолокационный диапазон: ${p.minD}–${p.maxD} м</span>\n        </div>\n        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;font-size:var(--fs-xs);">\n          <div style="background:var(--panel);padding:6px 8px;border-radius:6px;">\n            <div style="color:var(--muted);font-size:var(--fs-xs);">ТЕКУЩИЙ ГОРИЗОНТ ЛОВЛИ</div>\n            <div id="geoCurrentHorizonVal" style="font-weight:800;font-size:var(--fs-sm);color:var(--accent);">${s.depth.toFixed(1)} м (свал / русло)</div>\n          </div>\n          <div style="background:var(--panel);padding:6px 8px;border-radius:6px;">\n            <div style="color:var(--muted);font-size:var(--fs-xs);">ХАРАКТЕР РЕЛЬЕФА</div>\n            <div style="font-weight:700;">${p.flow>1.5?"Русловая бровка, песчано-галечный свал":"Илистое дно, перепады глубин, старичные ямы"}</div>\n          </div>\n          <div style="background:var(--panel);padding:6px 8px;border-radius:6px;">\n            <div style="color:var(--muted);font-size:var(--fs-xs);">СКОРОСТЬ ТЕЧЕНИЯ (ВЛИЯЕТ НА ВОДУ И ЛЁД)</div>\n            <div style="font-weight:700;">${p.flow>=2?"Быстрое (до "+p.flow+" м/с)":p.flow>=1?"Умеренное (~"+p.flow+" м/с)":"Слабое / стоячая вода"}</div>\n          </div>\n        </div>\n      </div>\n\n      <div class="controls-grid" style="grid-template-columns:repeat(auto-fit,minmax(230px,1fr));">\n        <div>\n          <label for="geoWaterSelect" style="display:block;font-size:var(--fs-xs);color:var(--muted);font-weight:700;margin-bottom:3px;">ТИП ВОДНОГО ОБЪЕКТА (БИОТОП)</label>\n          <select id="geoWaterSelect">\n            ${d.map((e=>`<option value="${e.id}" ${e.id===s.water?"selected":""}>${e.name}</option>`)).join("")}\n          </select>\n        </div>\n\n        <div>\n          <label for="geoDepthRange" style="display:block;font-size:var(--fs-xs);color:var(--muted);font-weight:700;margin-bottom:3px;">\n            РАБОЧАЯ ГЛУБИНА В ТОЧКЕ: <span id="geoDepthVal" style="color:var(--accent);font-weight:800;">${s.depth.toFixed(1)}</span> м (${p.minD}–${p.maxD} м)\n          </label>\n          <input type="range" id="geoDepthRange" min="${p.minD}" max="${p.maxD}" step="0.1" value="${s.depth}" style="width:100%;margin-top:8px;">\n        </div>\n      </div>\n    </div>\n  `,function(e,t){const a=e.querySelector("#geoToggleMapBtn");a&&a.addEventListener("click",(()=>{j=!j,render(e)}));const i=e.querySelector("#geoInspectModeBtn");i&&i.addEventListener("click",(()=>{if(V=!V,V){j=!0;const e=r.getState();U||inspectWhatBitesHere(e.lat,e.lon),_("🔍 Включён режим разведки «Что здесь клюёт?»: тапните в любую точку карты или выберите посёлок ниже!","good")}else U=null;render(e)}));const s=e.querySelector("#scoutApplyLocationBtn");s&&U&&s.addEventListener("click",(()=>{const e=U;V=!1,U=null,setLocation(e.lat,e.lon),_(`📍 Основная точка перенесена: ${e.settlementLabel}`,"good")}));const d=e.querySelector("#scoutCloseBtn");d&&d.addEventListener("click",(()=>{V=!1,U=null,render(e)}));const p=e.querySelector("#geoGpsBtn");p&&p.addEventListener("click",(()=>requestGPS(e)));const u=e.querySelector("#geoSaveSpotBtn");u&&u.addEventListener("click",(()=>openSaveSpotModal()));const m=e.querySelector("#geoQuickLogCatchBtn");m&&m.addEventListener("click",(()=>{const e=r.getState();n.emit("forecast:hourSelected",{dayIdx:e.dayIdx??2,hour:e.selectedHour??(new Date).getHours()})}));const y=e.querySelector("#geoShareCrewBtn");y&&y.addEventListener("click",(()=>{n.emit("circle:openShareModal",{mode:"crew"})}));e.querySelectorAll("[data-toggle-overlay]").forEach((t=>{t.addEventListener("click",(()=>{const a=t.getAttribute("data-toggle-overlay");a&&a in Q&&(Q[a]=!Q[a],J(),render(e))}))})),e.querySelectorAll("[data-map-owner]").forEach((t=>{t.addEventListener("click",(()=>{Q.ownership=t.getAttribute("data-map-owner")||"all",J(),render(e)}))})),e.querySelectorAll("[data-spot-cat-filter]").forEach((t=>{t.addEventListener("click",(()=>{Q.spotCategory=t.getAttribute("data-spot-cat-filter")||"all",J(),render(e)}))})),"undefined"==typeof document||window.__KLEV_MAP_POPUP_ACTIONS_BOUND__||(window.__KLEV_MAP_POPUP_ACTIONS_BOUND__=!0,document.addEventListener("click",(e=>{const t=e.target.closest?.("[data-popup-del-circle]");if(t){const e=t.getAttribute("data-popup-del-circle"),a=(r.getState().circleItems||[]).find((t=>t&&t.id===e));return void openConfirmDeleteModal({title:"🗑️ Удалить точку с карты и из Круга?",message:`Точка «${escapeHtml(a?.fn||a?.wn||a?.lb||"Сводка")}» будет удалена с карты и из ленты Круга.`,confirmLabel:"🗑️ Да, удалить",onConfirm:()=>{n.emit("circle:deleteSharedCatchItem",{circleItemId:e});const t=(r.getState().circleItems||[]).filter((t=>t.id!==e));o.saveCircleItems(t),r.dispatch({type:"SET_CIRCLE_ITEMS",payload:t}),J(),_("🗑️ Точка удалена с карты и из Круга","info")}})}const a=e.target.closest?.("[data-popup-hide-circle]");if(a){const e=a.getAttribute("data-popup-hide-circle");r.dispatch({type:"HIDE_CIRCLE_ITEM",payload:e}),J(),_("🙈 Чужая точка скрыта с вашей карты (можно вернуть во вкладке «Круг -> Скрытые»)","info")}})));const g=e.querySelector("#geoExportGpxBtn");g&&g.addEventListener("click",(()=>exportSpotsToGpx()));const f=e.querySelector("#geoExportKmlBtn");f&&f.addEventListener("click",(()=>exportSpotsToKml()));const h=e.querySelector("#geoImportGpxInput");h&&h.addEventListener("change",(e=>{const t=e.target.files?.[0];if(!t)return;const a=new FileReader;a.onload=()=>{importSpotsFromFileText(String(a.result||"")),h.value=""},a.readAsText(t)}));e.querySelectorAll("[data-install-app]").forEach((e=>{e.addEventListener("click",(()=>l()))})),c();const v=e.querySelector("#geoSearchBtn"),x=e.querySelector("#geoSearchInput");v&&x&&(v.addEventListener("click",(()=>searchPlaceByQuery(x.value))),x.addEventListener("keydown",(e=>{"Enter"===e.key&&searchPlaceByQuery(x.value)})));e.querySelectorAll("[data-map-layer]").forEach((t=>{t.addEventListener("click",(()=>{R=t.getAttribute("data-map-layer"),D&&(q&&D.removeLayer(q),q=X(R).addTo(D)),render(e)}))})),e.querySelectorAll("[data-water-radius]").forEach((e=>{e.addEventListener("click",(()=>{const t=120===parseInt(e.getAttribute("data-water-radius"),10)?120:50;r.dispatch({type:"SET_WATER_RADIUS",payload:t});const a=r.getState();getNearbyWatersAndPlaces(a.lat,a.lon,t),_(`Радиус поиска водоёмов и видового состава рыб: до ${t} км`,"info")}))})),e.querySelectorAll("[data-nearby-place]").forEach((t=>{t.addEventListener("click",(()=>{const[a,n,o]=t.getAttribute("data-nearby-place").split(","),i=parseFloat(a),s=parseFloat(n);V?(inspectWhatBitesHere(i,s),render(e)):(r.dispatch({type:"SET_LOCATION_LABELS",payload:{locLabel:o,locAdmin2:o}}),setLocation(i,s,!0))}))})),e.querySelectorAll("[data-nearby-water]").forEach((e=>{e.addEventListener("click",(()=>{const t=e.getAttribute("data-nearby-water"),a=e.getAttribute("data-nearby-name")||"",n=parseFloat(e.getAttribute("data-nearby-depth"))||b[t]?.defD||1.5;r.dispatch({type:"SET_WATER",payload:{water:t,depth:n,selectedWaterName:a}}),_(`Выбран водоём: ${a} (${$(t)})`,"info")}))})),e.querySelectorAll("[data-load-spot]").forEach((e=>{e.addEventListener("click",(()=>{const t=e.getAttribute("data-load-spot"),a=r.getState().savedSpots.find((e=>e.id===t));a&&(r.dispatch({type:"SET_LOCATION_LABELS",payload:{locLabel:a.name}}),r.dispatch({type:"SET_WATER",payload:{water:a.water,depth:a.depth,selectedWaterName:a.selectedWaterName||""}}),setLocation(a.lat,a.lon,!0))}))})),e.querySelectorAll("[data-del-spot]").forEach((e=>{e.addEventListener("click",(()=>{const t=e.getAttribute("data-del-spot"),a=(r.getState().savedSpots||[]).find((e=>e&&e.id===t));openConfirmDeleteModal({title:"🗑️ Удалить сохранённую закладку?",message:`Точка «${escapeHtml(a?.name||"Закладка")}» будет удалена из ваших закладок на карте.`,confirmLabel:"🗑️ Удалить",onConfirm:()=>deleteSpot(t)})}))}));const w=e.querySelector("#geoWaterSelect");w&&w.addEventListener("change",(e=>{const t=e.target.value,a=b[t]||b.small_river,n=Y(r.getState().depth,a.minD,a.maxD);r.dispatch({type:"SET_WATER",payload:{water:t,depth:n,selectedWaterName:""}})}));const S=e.querySelector("#geoMethodSelect");S&&S.addEventListener("change",(e=>{r.dispatch({type:"SET_METHOD",payload:e.target.value})}));const L=e.querySelector("#geoDepthRange"),A=e.querySelector("#geoDepthVal"),E=e.querySelector("#geoCurrentHorizonVal");L&&(L.addEventListener("input",(e=>{const t=parseFloat(e.target.value).toFixed(1);A&&(A.textContent=t),E&&(E.textContent=`${t} м (свал / русло)`)})),L.addEventListener("change",(e=>{r.dispatch({type:"SET_DEPTH",payload:parseFloat(e.target.value)})})));t&&setTimeout((()=>{const t=e.querySelector("#mapBox");t&&null!==t.offsetParent&&renderMap(t)}),60)}(a,true);a.querySelectorAll(".chip-scroll-row").forEach(((e,t)=>{Array.isArray(i)&&i[t]>0&&(e.scrollLeft=i[t])}))}let ee=null;export async function init(e){const t=o.getLocalBackup?o.getLocalBackup("spots"):[];Array.isArray(t)&&t.length>0&&r.dispatch({type:"SET_SAVED_SPOTS",payload:t});const a=r.getState();a.locLabel&&!a.locLabel.includes("Определение")&&"Автоопределение"!==a.locAdmin1||resolveReverseGeocode(a.lat,a.lon),getNearbyWatersAndPlaces(a.lat,a.lon,a.waterRadiusKm||50,!0),render(e),setTimeout((()=>{const e=r.getState();getNearbyWatersAndPlaces(e.lat,e.lon,e.waterRadiusKm||50,!1).catch((()=>{}))}),1500),ee&&ee(),ee=r.subscribe((e=>{const t=e.weatherDays?.[e.dayIdx]||e.weatherDays?.[2]||e.weatherDays?.[0];return{appMode:e.appMode,lat:e.lat,lon:e.lon,basinCode:e.basinCode,isCoastal:e.isCoastal,water:e.water,waterRadiusKm:e.waterRadiusKm,selectedWaterName:e.selectedWaterName,method:e.method,selectedBait:e.selectedBait,depth:e.depth,iceState:e.iceState,dayIdx:e.dayIdx,dayIceState:t?.iceState||e.iceState,dayWaterTemp:t?.waterTemp??12,nearbyWaters:e.nearbyWaters,nearbyPlaces:e.nearbyPlaces,savedSpots:e.savedSpots,circleItems:e.circleItems,hiddenCircleIds:e.userProfile?.hiddenCircleIds,route:e.route,fishId:e.fishId}}),((t,a)=>{t.route&&"geo"!==t.route?e._geoNeedsRender=!0:(e._geoNeedsRender=!1,"undefined"==typeof document||!e.contains(document.activeElement)||"INPUT"!==document.activeElement.tagName&&"TEXTAREA"!==document.activeElement.tagName?a&&t.lat===a.lat&&t.lon===a.lon&&t.water===a.water&&t.waterRadiusKm===a.waterRadiusKm&&t.selectedWaterName===a.selectedWaterName&&t.method===a.method&&t.depth===a.depth&&t.appMode===a.appMode&&t.dayIdx===a.dayIdx?J():render(e):J())})),autoDetectStartupLocation();try{const e=await o.getAllFromStore("spots");Array.isArray(e)&&r.dispatch({type:"SET_SAVED_SPOTS",payload:e})}catch(e){}}export function destroy(){ee&&ee()}export const geoModule={setLocation:setLocation,inspectWhatBitesHere:inspectWhatBitesHere,exportSpotsToGpx:exportSpotsToGpx,importSpotsFromFileText:importSpotsFromFileText,autoDetectStartupLocation:autoDetectStartupLocation,locateByIpFallback:locateByIpFallback,detectUserPosition:detectUserPosition,resolveReverseGeocode:resolveReverseGeocode,searchPlaceByQuery:searchPlaceByQuery,requestGPS:requestGPS,getNearbyWatersAndPlaces:getNearbyWatersAndPlaces,classifyOsmWaterElement:classifyOsmWaterElement,saveSpot:saveSpot,deleteSpot:deleteSpot,renderMap:renderMap,getMethodOptions:getMethodOptions,init:init,render:render,destroy:destroy};
+import { MAP_LAYERS, SPOT_CATEGORIES, getCompatibleMethods } from '../../core/config.js?v=2.5.0';
+import { events } from '../../core/events.js?v=2.5.0';
+import { storage, safeJsonParse } from '../../core/storage.js?v=2.5.0';
+import { store } from '../../core/store.js?v=2.5.0';
+import { fetchWithTimeout } from '../../core/http.js?v=2.5.0';
+import { installShortcut, syncInstallButtons } from '../../core/pwa.js?v=2.5.0';
+import { triggerHaptic } from '../../core/telegram.js?v=2.5.0';
+import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.5.0';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.5.0';
+import {
+  RUSSIA_CITIES,
+  RUSSIA_WATERS,
+  findNearestRussianSettlement,
+  getNearestRussianSettlements,
+  getNearestRussianWaters,
+  getWaterTypeShortTag
+} from '../../data/russia-waters.js?v=2.5.0';
+import { FISH_DB } from '../../data/species.js?v=2.5.0';
+import { createPill, showToast } from '../../ui/components.js?v=2.5.0';
+import { fetchWeather } from '../weather/weather.module.js?v=2.5.0';
+import { calcDayBest } from '../forecast/forecast.module.js?v=2.5.0';
+import { computeHexPolygonForCircle, getEffectiveCircleRadiusKm, canUserAccessCrewItem, getCurrentFisherIdentity, isCircleItemMine, isCircleItemHidden } from '../circle/circle.module.js?v=2.5.0';
+
+let mapInstance = null;
+let mapMarker = null;
+let scoutMarker = null;
+let overlayLayerGroup = null;
+let _circleLayersMap = new Map();
+let _focusedCircleId = null;
+
+export function focusCircleOnMap(circleId, lat, lon) {
+  _focusedCircleId = circleId;
+  if (typeof window !== 'undefined' && typeof window.__KLEV_NAVIGATE_SECTION__ === 'function') {
+    window.__KLEV_NAVIGATE_SECTION__('geo');
+  }
+  setTimeout(() => {
+    if (mapInstance && Number.isFinite(lat) && Number.isFinite(lon)) {
+      mapInstance.flyTo([lat, lon], 12);
+      renderMapOverlays();
+      if (_circleLayersMap.has(circleId)) {
+        const lyr = _circleLayersMap.get(circleId);
+        if (typeof lyr.openPopup === 'function') lyr.openPopup();
+      }
+    }
+  }, 120);
+}
+if (typeof window !== 'undefined') {
+  window.__KLEV_FOCUS_MAP_CIRCLE__ = focusCircleOnMap;
+}
+let currentTileLayer = null;
+let currentLayerKey = 'topo';
+let mapOpen = false;
+let inlineGpsHint = '';
+let overpassLoading = false;
+let activeOverpassReqId = 0;
+
+// Режим разведки « Что здесь клюёт?» (без перезаписи домашней точки)
+let inspectMode = false;
+let inspectedPoint = null; // { lat, lon, basinCode, basinName, settlement, waters, topSpecies, waterType }
+
+// Слои видимости на карте («Мои точки», «Круг ±5 км», «Экипаж 72ч»)
+let visibleMapLayers = {
+  mySpots: true,
+  circleBlur: true,
+  crewExact: true,
+  ownership: "all", // "all" | "mine" | "foreign"
+  spotCategory: "all" // "all" | "bite" | "slip" | "camp" | "hazard" | "shop"
+};
+
+function createResilientTileLayer(layerKey = 'topo') {
+  const cfg = MAP_LAYERS[layerKey] || MAP_LAYERS.topo;
+  const fallbacks = Array.isArray(cfg.fallbacks) ? cfg.fallbacks : [
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
+    'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
+  ];
+  const tl = L.tileLayer(cfg.url, {
+    maxZoom: 18,
+    attribution: cfg.attr,
+    updateWhenIdle: true,
+    updateWhenZooming: false,
+    keepBuffer: 2,
+    crossOrigin: true
+  });
+  tl.on('tileerror', (errEvt) => {
+    const tile = errEvt?.tile;
+    const coords = errEvt?.coords;
+    if (!tile || !coords) return;
+    const fbIdx = Number(tile.getAttribute('data-fb-idx') || '0');
+    if (fbIdx >= fallbacks.length) return;
+    tile.setAttribute('data-fb-idx', String(fbIdx + 1));
+    const sub = ['a', 'b', 'c'][(coords.x + coords.y) % 3];
+    const nextUrl = fallbacks[fbIdx]
+      .replace('{s}', sub)
+      .replace('{z}', String(coords.z))
+      .replace('{x}', String(coords.x))
+      .replace('{y}', String(coords.y));
+    tile.src = nextUrl;
+  });
+  return tl;
+}
+
+function clamp(val, min, max) {
+  return Math.max(min, Math.min(max, val));
+}
+
+function calcHaversineKm(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
+  return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 10) / 10;
+}
+
+/**
+ * Вычисляет мгновенную разведку для любой точки карты (« Что здесь клюёт?»)
+ * без изменения домашней локации пользователя в store!
+ */
+export function inspectWhatBitesHere(lat, lon) {
+  const rLat = Math.round(lat * 10000) / 10000;
+  const rLon = Math.round(lon * 10000) / 10000;
+  const s = store.getState();
+  const basinCode = detectBasinByCoords(rLat, rLon);
+  const isCoastal = isCoastalInBasin(basinCode, rLat, rLon);
+  const settlement = findNearestRussianSettlement(rLat, rLon);
+  const waters = getNearestRussianWaters(rLat, rLon, basinCode, isCoastal, 6, 60);
+  const primaryWater = waters[0]?.wType || (isCoastal ? 'sea_gulf' : 'small_river');
+  const primaryWaterName = waters[0]?.name || WATER_PROFILES[primaryWater]?.shortName || 'Водоём';
+  const defDepth = waters[0]?.defDepth || WATER_PROFILES[primaryWater]?.defD || 2.0;
+  const ecoregion = getSpotEcoregion(rLat, rLon, basinCode, primaryWater, primaryWaterName);
+  const basinName = ecoregion.displayBasinName || BASIN_CONFIGS[basinCode]?.name || 'Водный бассейн РФ';
+
+  const day = s.weatherDays?.[s.dayIdx] || s.weatherDays?.[2] || s.weatherDays?.[0] || null;
+  const radiusTypes = new Set(waters.map(w => w.wType).concat([primaryWater]));
+  const hasCooling = primaryWater === 'cooling_reservoir' || radiusTypes.has('cooling_reservoir');
+  const isLocalCoastal = Boolean(isCoastal || primaryWater.startsWith('sea') || radiusTypes.has('sea_gulf') || radiusTypes.has('open_sea'));
+
+  const candidateSpecies = FISH_DB.filter(f => {
+    if (f.legal === 'redbook') return false;
+    return isSpeciesInGeoRange(f, rLat, rLon, basinCode, primaryWater, 60, radiusTypes, isLocalCoastal, hasCooling, primaryWaterName);
+  });
+
+  const sigOrder = ecoregion.signatureSpecies || [];
+  const sigMap = new Map(sigOrder.map((id, idx) => [id, idx]));
+
+  const scored = candidateSpecies.map(f => {
+    const compat = getCompatibleMethods(f, day?.iceState || s.iceState, primaryWater, day?.waterTemp ?? 10);
+    const bestMethod = compat[0]?.val || s.method;
+    const score = day ? calcDayBest(f, day, bestMethod, primaryWater, defDepth, s.normPress, day.iceState || s.iceState) : 65;
+    const sigIdx = sigMap.has(f.id) ? sigMap.get(f.id) : -1;
+    const abundanceBonus = sigIdx >= 0 ? Math.max(8, 30 - sigIdx * 2) : -8;
+    const isSeaBiotope = primaryWater === 'sea_gulf' || primaryWater === 'open_sea';
+    const matchesBiotope = Array.isArray(f.waters) && (
+      f.waters.includes(primaryWater) ||
+      (isSeaBiotope && (f.habitat === 'sea' || f.waters.includes('sea_gulf') || f.waters.includes('open_sea')))
+    );
+    const directWaterBonus = matchesBiotope ? 10 : -6;
+    const legalAdjust = (f.legal === 'license' && (sigIdx < 0 || sigIdx > 4)) ? -6 : 0;
+    return {
+      fish: f,
+      score,
+      rankScore: score + abundanceBonus + directWaterBonus + legalAdjust,
+      methodText: compat[0]?.text || 'Спиннинг / Поплавок'
+    };
+  }).sort((a, b) => b.rankScore - a.rankScore);
+
+  inspectedPoint = {
+    lat: rLat,
+    lon: rLon,
+    basinCode,
+    basinName,
+    isCoastal,
+    settlementLabel: settlement ? `${settlement.name} (${settlement.distKm} км)` : `${rLat.toFixed(2)}°N, ${rLon.toFixed(2)}°E`,
+    waters,
+    primaryWater,
+    primaryWaterName,
+    defDepth,
+    topSpecies: scored.slice(0, 6)
+  };
+
+  triggerHaptic('selection');
+  return inspectedPoint;
+}
+
+export function classifyOsmWaterElement(el, name, isCoastal) {
+  const tags = el?.tags || {};
+  const nLower = String(name || '').toLowerCase();
+  const waterTag = String(tags.water || '').toLowerCase();
+  const waterwayTag = String(tags.waterway || '').toLowerCase();
+  const landuseTag = String(tags.landuse || '').toLowerCase();
+
+  if (/грэс|тэц|аэс|охладител|тёплый канал|теплый канал/i.test(nLower)) {
+    return { wType: 'cooling_reservoir', typeTag: 'ГРЭС / Тёплый сброс' };
+  }
+
+  if (/губа|залив|лиман|бухта|пролив|море/i.test(nLower) || tags.natural === 'bay' || tags.natural === 'strait') {
+    if (isCoastal) {
+      return { wType: 'sea_gulf', typeTag: 'Морской залив / Губа' };
+    }
+    return { wType: 'quarry', typeTag: 'Крупный залив / Вдхр' };
+  }
+
+  if (waterwayTag || /^р\.|^река\s|^ручей\s|^протока\s/i.test(nLower)) {
+    const isMajorRiver =
+      /обь|иртыш|енисей|волга|кама|дон|днепр|пур|таз|надым|амур|зея|уссури|лена|вилюй|алдан|ангара|печора|уса|ока|урал|вятка|белая|кубань|нева|свирь|волхов|северная двина|вычегда|онега|луга|нарва|преголя|селенга|камчатка|колыма|индигирка|хатанга|пясина|тулома|томь|чулым|кет|вах|конда|туртас|тавда|тура|тобол|исеть|чусовая|сура|ветлуга|мокша|хопёр|медведица|северский донец|маныч|ахтуба|бузан|бахтемир/i.test(nLower) ||
+      (tags.width && parseFloat(tags.width) >= 60) ||
+      tags.boat === 'yes' ||
+      tags.CEMT;
+
+    if (isMajorRiver) {
+      return { wType: 'big_river', typeTag: 'Река большая' };
+    }
+    if (waterwayTag === 'stream' || /ручей|ключ|речка/i.test(nLower)) {
+      return { wType: 'small_river', typeTag: 'Река малая / Ручей' };
+    }
+    return { wType: 'small_river', typeTag: 'Река малая' };
+  }
+
+  if (/карьер|разрез|котлован/i.test(nLower) || waterTag === 'quarry' || landuseTag === 'quarry') {
+    return { wType: 'quarry', typeTag: 'Карьер' };
+  }
+
+  if (/вдхр|водохранилище/i.test(nLower) || waterTag === 'reservoir' || landuseTag === 'reservoir') {
+    return { wType: 'quarry', typeTag: 'Водохранилище' };
+  }
+
+  if (/старица|затон|сор|пойма|пруд|болото|ильмень|озерцо/i.test(nLower) || waterTag === 'oxbow' || waterTag === 'pond') {
+    return { wType: 'tundra_lake', typeTag: /старица|затон/i.test(nLower) ? 'Старица / Затон' : 'Пруд / Озеро малое' };
+  }
+
+  if (el?.type === 'relation' || /большое|глубокое|святое|белое|светлое|круглое|долгое|селигер|ладож|онеж|байкал|имандра|сямозеро|сегозеро|выгозеро|пяозеро|чудск|телецк|увильды|тургояк|ханто|янтарное/i.test(nLower)) {
+    return { wType: 'quarry', typeTag: 'Озеро крупное' };
+  }
+
+  return { wType: 'tundra_lake', typeTag: 'Озеро' };
+}
+
+export async function setLocation(lat, lon, skipReverseGeo = false) {
+  const rLat = Math.round(lat * 10000) / 10000;
+  const rLon = Math.round(lon * 10000) / 10000;
+  store.dispatch({
+    type: 'SET_LOCATION',
+    payload: { lat: rLat, lon: rLon, hasUserLocation: true }
+  });
+  if (mapInstance && mapMarker) {
+    mapMarker.setLatLng([rLat, rLon]);
+    const z = clamp(mapInstance.getZoom() || 10, 8, 13);
+    mapInstance.setView([rLat, rLon], z);
+  }
+  const st = store.getState();
+  const prof = WATER_PROFILES[st.water] || WATER_PROFILES.small_river;
+  if (st.depth < prof.minD || st.depth > prof.maxD) {
+    store.dispatch({ type: 'SET_DEPTH', payload: prof.defD });
+  }
+  events.emit('location:changed', { lat: rLat, lon: rLon, basinCode: st.basinCode, isCoastal: st.isCoastal });
+  if (!skipReverseGeo) {
+    resolveReverseGeocode(rLat, rLon);
+  }
+  getNearbyWatersAndPlaces(rLat, rLon, st.waterRadiusKm || 50);
+  await fetchWeather(rLat, rLon, true);
+}
+
+export async function autoDetectStartupLocation() {
+  const s = store.getState();
+  if (s.hasUserLocation) return;
+
+  if (typeof navigator !== 'undefined' && navigator.permissions && typeof navigator.permissions.query === 'function') {
+    try {
+      const perm = await navigator.permissions.query({ name: 'geolocation' });
+      if (perm && perm.state === 'granted' && navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          pos => {
+            if (!store.getState().hasUserLocation) {
+              setLocation(pos.coords.latitude, pos.coords.longitude);
+            }
+          },
+          () => {},
+          { enableHighAccuracy: false, timeout: 6000, maximumAge: 600000 }
+        );
+      }
+    } catch (e) {}
+  }
+}
+
+export async function locateByIpFallback() {
+  const providers = [
+    {
+      url: 'https://api.bigdatacloud.net/data/reverse-geocode-client?localityLanguage=ru',
+      parse: d => (d && Number.isFinite(d.latitude) && Number.isFinite(d.longitude))
+        ? { lat: d.latitude, lon: d.longitude, city: d.city || d.locality || d.principalSubdivision, region: d.principalSubdivision }
+        : null
+    },
+    {
+      url: 'https://ipwho.is/?lang=ru',
+      parse: d => (d && d.success !== false && Number.isFinite(d.latitude) && Number.isFinite(d.longitude))
+        ? { lat: d.latitude, lon: d.longitude, city: d.city, region: d.region }
+        : null
+    },
+    {
+      url: 'https://freeipapi.com/api/json',
+      parse: d => (d && Number.isFinite(d.latitude) && Number.isFinite(d.longitude))
+        ? { lat: d.latitude, lon: d.longitude, city: d.cityName, region: d.regionName }
+        : null
+    },
+    {
+      url: 'https://get.geojs.io/v1/ip/geo.json',
+      parse: d => (d && d.latitude && d.longitude)
+        ? { lat: parseFloat(d.latitude), lon: parseFloat(d.longitude), city: d.city, region: d.region }
+        : null
+    }
+  ];
+
+  for (const p of providers) {
+    try {
+      const raw = await fetchWithTimeout(p.url, 4200);
+      const res = p.parse(raw);
+      if (res && Number.isFinite(res.lat) && Number.isFinite(res.lon)) {
+        return res;
+      }
+    } catch (e) {}
+  }
+  return null;
+}
+
+export async function detectUserPosition() {
+  if (typeof navigator !== 'undefined' && navigator.geolocation) {
+    try {
+      const pos1 = await new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 5500,
+          maximumAge: 180000
+        });
+      });
+      if (pos1 && pos1.coords && Number.isFinite(pos1.coords.latitude)) {
+        return {
+          lat: pos1.coords.latitude,
+          lon: pos1.coords.longitude,
+          source: 'gps',
+          permissionDenied: false
+        };
+      }
+    } catch (err1) {
+      const denied1 = Boolean(err1 && err1.code === 1);
+      if (!denied1) {
+        try {
+          const pos2 = await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+              enableHighAccuracy: false,
+              timeout: 6000,
+              maximumAge: 600000
+            });
+          });
+          if (pos2 && pos2.coords && Number.isFinite(pos2.coords.latitude)) {
+            return {
+              lat: pos2.coords.latitude,
+              lon: pos2.coords.longitude,
+              source: 'network',
+              permissionDenied: false
+            };
+          }
+        } catch (err2) {}
+      }
+      const ipGeo = await locateByIpFallback();
+      if (ipGeo) {
+        return {
+          lat: ipGeo.lat,
+          lon: ipGeo.lon,
+          city: ipGeo.city,
+          region: ipGeo.region,
+          source: 'ip',
+          permissionDenied: denied1
+        };
+      }
+      return { lat: null, lon: null, source: 'failed', permissionDenied: denied1 };
+    }
+  }
+
+  const ipGeo = await locateByIpFallback();
+  if (ipGeo) {
+    return {
+      lat: ipGeo.lat,
+      lon: ipGeo.lon,
+      city: ipGeo.city,
+      region: ipGeo.region,
+      source: 'ip',
+      permissionDenied: false
+    };
+  }
+  return { lat: null, lon: null, source: 'failed', permissionDenied: false };
+}
+
+export async function resolveReverseGeocode(lat, lon) {
+  const nearest = findNearestRussianSettlement(lat, lon);
+  if (nearest && nearest.distKm <= 65) {
+    store.dispatch({
+      type: 'SET_LOCATION_LABELS',
+      payload: {
+        locCountry: 'Россия',
+        locAdmin1: nearest.admin1,
+        locAdmin2: nearest.name,
+        locLabel: nearest.label
+      }
+    });
+    if (nearest.distKm <= 16) {
+      return;
+    }
+  }
+
+  try {
+    const nomUrl = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&addressdetails=1&zoom=12&accept-language=ru`;
+    const nom = await fetchWithTimeout(nomUrl, 4800, { headers: { 'Accept-Language': 'ru' } });
+    if (nom && nom.address) {
+      const a = nom.address;
+      const city = a.city || a.town || a.village || a.hamlet || a.municipality || a.county || nom.name || '';
+      const reg = a.state || a.region || nearest?.admin1 || '';
+      if (city || reg) {
+        store.dispatch({
+          type: 'SET_LOCATION_LABELS',
+          payload: {
+            locCountry: a.country || 'Россия',
+            locAdmin1: reg,
+            locAdmin2: city,
+            locLabel: city || reg
+          }
+        });
+        return;
+      }
+    }
+  } catch (e) {}
+
+  try {
+    const bdcUrl = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=ru`;
+    const data = await fetchWithTimeout(bdcUrl, 4500);
+    if (data && (data.city || data.locality || data.principalSubdivision)) {
+      const city = data.city || data.locality || data.principalSubdivision;
+      store.dispatch({
+        type: 'SET_LOCATION_LABELS',
+        payload: {
+          locCountry: data.countryName || 'Россия',
+          locAdmin1: data.principalSubdivision || nearest?.admin1 || '',
+          locAdmin2: city,
+          locLabel: city
+        }
+      });
+      return;
+    }
+  } catch (e) {}
+
+  if (!nearest) {
+    store.dispatch({
+      type: 'SET_LOCATION_LABELS',
+      payload: {
+        locCountry: 'Россия',
+        locAdmin1: `${lat.toFixed(2)}°N`,
+        locAdmin2: `${lon.toFixed(2)}°E`,
+        locLabel: `${lat.toFixed(2)}°N, ${lon.toFixed(2)}°E`
+      }
+    });
+  }
+}
+
+export async function searchPlaceByQuery(query) {
+  const q = (query || '').trim();
+  if (!q) return;
+
+  const qLower = q.toLowerCase().replace(/ё/g, 'е');
+  const qClean = qLower.replace(/^(река|р\.|озеро|оз\.|водохранилище|вдхр\.|поселок|пгт|село|с\.|город|г\.)\s+/i, '').trim();
+
+  // Если в запросе явно указан тип водоёма (озеро, река, вдхр, карьер, губа, лиман), сначала ищем водоём
+  const isExplicitWaterQuery = /(?:^|\s)(озеро|оз|река|р|вдхр|водохранилище|карьер|губа|залив|лиман|сор|протока|старица)(?=\s|$)/i.test(qLower);
+
+  const matchedWater = (qClean.length >= 2) ? RUSSIA_WATERS.find(w => {
+    const wn = w.name.toLowerCase().replace(/ё/g, 'е');
+    const wc = w.cleanName.toLowerCase().replace(/ё/g, 'е');
+    return wn.includes(qClean) || wc.includes(qClean) || qLower.includes(wc);
+  }) : null;
+
+  if (isExplicitWaterQuery && matchedWater) {
+    await setLocation(matchedWater.lat, matchedWater.lon, true);
+    store.dispatch({
+      type: 'SET_LOCATION_LABELS',
+      payload: {
+        locCountry: 'Россия',
+        locAdmin1: matchedWater.region,
+        locAdmin2: matchedWater.cleanName,
+        locLabel: matchedWater.region
+      }
+    });
+    store.dispatch({
+      type: 'SET_WATER',
+      payload: {
+        water: matchedWater.wType,
+        depth: matchedWater.defDepth,
+        selectedWaterName: matchedWater.cleanName
+      }
+    });
+    showToast(`Выбран водоём: ${matchedWater.name}`, 'good');
+    return;
+  }
+
+  const matchedCity = RUSSIA_CITIES.find(c => {
+    const cn = c.name.toLowerCase().replace(/ё/g, 'е');
+    const ca = (c.admin1 || '').toLowerCase().replace(/ё/g, 'е');
+    const full = `${cn} ${ca}`;
+    if (cn === qLower || cn === qClean) return true;
+    const words = qClean.split(/\s+/).filter(w => w.length >= 2);
+    return words.length > 0 && words.every(w => full.includes(w));
+  }) || RUSSIA_CITIES.find(c => {
+    const cn = c.name.toLowerCase().replace(/ё/g, 'е');
+    return cn.includes(qClean) || qClean.includes(cn.split('(')[0].trim());
+  });
+  if (matchedCity) {
+    await setLocation(matchedCity.lat, matchedCity.lon, true);
+    store.dispatch({
+      type: 'SET_LOCATION_LABELS',
+      payload: {
+        locCountry: 'Россия',
+        locAdmin1: matchedCity.admin1,
+        locAdmin2: matchedCity.name,
+        locLabel: matchedCity.name
+      }
+    });
+    showToast(`Переход к населённому пункту: ${matchedCity.name}`, 'good');
+    return;
+  }
+
+
+  if (matchedWater) {
+    await setLocation(matchedWater.lat, matchedWater.lon, true);
+    store.dispatch({
+      type: 'SET_LOCATION_LABELS',
+      payload: {
+        locCountry: 'Россия',
+        locAdmin1: matchedWater.region,
+        locAdmin2: matchedWater.cleanName,
+        locLabel: matchedWater.region
+      }
+    });
+    store.dispatch({
+      type: 'SET_WATER',
+      payload: {
+        water: matchedWater.wType,
+        depth: matchedWater.defDepth,
+        selectedWaterName: matchedWater.cleanName
+      }
+    });
+    showToast(`Выбран водоём: ${matchedWater.name}`, 'good');
+    return;
+  }
+
+  try {
+    const nomUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&addressdetails=1&limit=1&accept-language=ru`;
+    const nomData = await fetchWithTimeout(nomUrl, 5500, { headers: { 'Accept-Language': 'ru' } });
+    if (Array.isArray(nomData) && nomData.length > 0) {
+      const p = nomData[0];
+      const addr = p.address || {};
+      const city = addr.city || addr.town || addr.village || addr.county || p.name || q;
+      store.dispatch({
+        type: 'SET_LOCATION_LABELS',
+        payload: {
+          locCountry: addr.country || 'Россия',
+          locAdmin1: addr.state || addr.region || '',
+          locAdmin2: city,
+          locLabel: p.name || city
+        }
+      });
+      await setLocation(parseFloat(p.lat), parseFloat(p.lon), true);
+      return;
+    }
+  } catch (e) {}
+
+  try {
+    const omUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=1&language=ru&format=json`;
+    const omData = await fetchWithTimeout(omUrl, 5500);
+    if (omData && omData.results && omData.results.length > 0) {
+      const p = omData.results[0];
+      store.dispatch({
+        type: 'SET_LOCATION_LABELS',
+        payload: {
+          locCountry: p.country || 'Россия',
+          locAdmin1: p.admin1 || '',
+          locAdmin2: p.admin2 || p.name,
+          locLabel: p.name
+        }
+      });
+      await setLocation(p.latitude, p.longitude, true);
+      return;
+    }
+    showToast('Водоём или населённый пункт не найден', 'bad');
+  } catch (e) {
+    showToast('Слабый сигнал сети при поиске. Укажите точку на карте.', 'bad');
+  }
+}
+
+export function requestGPS(container) {
+  if (!navigator.geolocation) {
+    inlineGpsHint = 'Геолокация не поддерживается браузером. Определяем регион по сети...';
+    if (store.getState().route !== 'geo') mapOpen = true;
+    render(container);
+    locateByIpFallback().then(ipGeo => {
+      if (ipGeo) {
+        inlineGpsHint = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#ef4444"/></svg> Координаты определены по сети (${ipGeo.city || 'ваш регион'}). Для точного выбора укажите водоём на карте.`;
+        setLocation(ipGeo.lat, ipGeo.lon);
+      }
+      render(container);
+    });
+    return;
+  }
+
+  inlineGpsHint = 'Опрос спутников GPS и датчиков геолокации...';
+  render(container);
+
+  const handleDeniedOrFailed = async (isPermissionDenied) => {
+    const ipGeo = await locateByIpFallback();
+    if (ipGeo) {
+      const near = findNearestRussianSettlement(ipGeo.lat, ipGeo.lon);
+      const cityTitle = near && near.distKm <= 35 ? near.name : (ipGeo.city || 'ваш регион');
+      inlineGpsHint = isPermissionDenied
+        ? `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#ef4444"/></svg> В браузере запрещён доступ к GPS (определён город по сети: ${cityTitle}). Чтобы включить точный GPS, нажмите на значок <svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="5" y="11" width="14" height="10" rx="2.5" fill="rgba(251,191,36,0.22)" stroke="#fbbf24" stroke-width="1.8"/><path d="M8 11V7a4 4 0 0 1 8 0v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>/<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3.2" stroke="currentColor" stroke-width="1.9"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.6.77 1.05 1.41 1.19H21a2 2 0 1 1 0 4h-.09c-.64.14-1.15.59-1.51 1.21z" stroke="currentColor" stroke-width="1.6"/></svg> слева от адреса klevpro.ru в строке браузера и разрешите «Геоданные», либо выберите водоём на карте.`
+        : `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#ef4444"/></svg> Спутники GPS недоступны в помещении — точка установлена по сети (${cityTitle}). Вы можете уточнить водоём кликом на карте.`;
+      await setLocation(ipGeo.lat, ipGeo.lon);
+    } else {
+      inlineGpsHint = isPermissionDenied
+        ? 'Доступ к GPS отклонён в настройках браузера. Нажмите на значок <svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="5" y="11" width="14" height="10" rx="2.5" fill="rgba(251,191,36,0.22)" stroke="#fbbf24" stroke-width="1.8"/><path d="M8 11V7a4 4 0 0 1 8 0v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>/<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3.2" stroke="currentColor" stroke-width="1.9"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.6.77 1.05 1.41 1.19H21a2 2 0 1 1 0 4h-.09c-.64.14-1.15.59-1.51 1.21z" stroke="currentColor" stroke-width="1.6"/></svg> слева от адреса сайта и разрешите «Геоданные», либо выберите город в поиске / точку на карте.'
+        : 'Слабый сигнал GPS. Выберите населённый пункт в поиске или укажите точку на карте.';
+    }
+    if (store.getState().route !== 'geo') mapOpen = true;
+    render(container);
+  };
+
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      inlineGpsHint = '';
+      setLocation(pos.coords.latitude, pos.coords.longitude);
+    },
+    err => {
+      if (err.code !== 1) {
+        inlineGpsHint = 'Поиск координат по сотовой сети и Wi-Fi...';
+        render(container);
+        navigator.geolocation.getCurrentPosition(
+          pos2 => {
+            inlineGpsHint = '';
+            setLocation(pos2.coords.latitude, pos2.coords.longitude);
+          },
+          err2 => {
+            handleDeniedOrFailed(err2.code === 1);
+          },
+          { enableHighAccuracy: false, timeout: 8000, maximumAge: 600000 }
+        );
+      } else {
+        handleDeniedOrFailed(true);
+      }
+    },
+    { enableHighAccuracy: true, timeout: 7500, maximumAge: 180000 }
+  );
+}
+
+export async function getNearbyWatersAndPlaces(lat, lon, customRadiusKm = null, offlineOnly = false) {
+  const s = store.getState();
+  const radiusKm = Number.isFinite(customRadiusKm) ? customRadiusKm : (s.waterRadiusKm || 50);
+  const radiusMeters = Math.min(120000, Math.max(20000, Math.round(radiusKm * 1000)));
+  const reqId = ++activeOverpassReqId;
+
+  const offlineWaters = getNearestRussianWaters(lat, lon, s.basinCode, s.isCoastal, 18, radiusKm);
+  const offlinePlaces = getNearestRussianSettlements(lat, lon, 12, Math.max(80, radiusKm));
+
+  store.dispatch({ type: 'SET_NEARBY_WATERS', payload: offlineWaters });
+  store.dispatch({ type: 'SET_NEARBY_PLACES', payload: offlinePlaces });
+
+  if (!store.getState().selectedWaterName && offlineWaters.length > 0) {
+    store.dispatch({
+      type: 'SET_WATER',
+      payload: {
+        water: offlineWaters[0].wType,
+        depth: offlineWaters[0].defDepth,
+        selectedWaterName: offlineWaters[0].name
+      }
+    });
+  }
+
+  const cachedWatersObj = storage.loadNearbyWatersCache(lat, lon, radiusKm);
+  if (cachedWatersObj && Array.isArray(cachedWatersObj.waters) && cachedWatersObj.waters.length > 0) {
+    store.dispatch({ type: 'SET_NEARBY_WATERS', payload: cachedWatersObj.waters });
+    if (Array.isArray(cachedWatersObj.places) && cachedWatersObj.places.length > 0) {
+      store.dispatch({ type: 'SET_NEARBY_PLACES', payload: cachedWatersObj.places });
+    }
+    return cachedWatersObj.waters;
+  }
+
+  if (offlineOnly) {
+    return offlineWaters;
+  }
+
+  overpassLoading = true;
+  const placeRadiusMeters = Math.min(50000, radiusMeters);
+  const query = `[out:json][timeout:8];(way["waterway"~"river|canal"]["name"](around:${radiusMeters},${lat},${lon});way["natural"="water"]["name"](around:${radiusMeters},${lat},${lon});relation["natural"="water"]["name"](around:${radiusMeters},${lat},${lon});node["place"~"city|town|village|hamlet"]["name"](around:${placeRadiusMeters},${lat},${lon}););out center tags 75;`;
+
+  const endpoints = [
+    { name: 'VK/Mail.ru Overpass РФ', url: 'https://maps.mail.ru/osm/tools/overpass/api/interpreter?data=' + encodeURIComponent(query), timeoutMs: 4500 },
+    { name: 'Kumi Systems Overpass', url: 'https://overpass.kumi.systems/api/interpreter?data=' + encodeURIComponent(query), timeoutMs: 4500 }
+  ];
+
+  for (const ep of endpoints) {
+    try {
+      const data = await fetchWithTimeout(ep.url, ep.timeoutMs);
+      if (reqId !== activeOverpassReqId) return offlineWaters;
+      if (!data || !Array.isArray(data.elements)) continue;
+
+      const seenWater = new Set(offlineWaters.map(w => w.name.toLowerCase()));
+      const seenPlace = new Set(offlinePlaces.map(p => p.name.toLowerCase()));
+      const waters = [...offlineWaters];
+      const places = [...offlinePlaces];
+
+      for (const el of data.elements) {
+        const name = el.tags && (el.tags['name:ru'] || el.tags.name);
+        if (!name) continue;
+        const elLat = el.lat ?? el.center?.lat;
+        const elLon = el.lon ?? el.center?.lon;
+        const distKm = (elLat && elLon) ? calcHaversineKm(lat, lon, elLat, elLon) : 9.9;
+        if (distKm > radiusKm + 5) continue;
+
+        if (el.tags.place) {
+          const key = name.toLowerCase();
+          if (seenPlace.has(key)) continue;
+          seenPlace.add(key);
+          if (elLat && elLon) {
+            places.push({ name, lat: elLat, lon: elLon, distKm });
+          }
+          continue;
+        }
+
+        const cleanName = name.replace(/^(река|озеро|пруд|ручей|карьер|водохранилище|вдхр\.?)\s+/i, '').trim();
+        const wKey = cleanName.toLowerCase();
+        if (!cleanName || seenWater.has(wKey)) continue;
+        seenWater.add(wKey);
+
+        const { wType, typeTag } = classifyOsmWaterElement(el, name, s.isCoastal);
+        const defDepth = WATER_PROFILES[wType]?.defD || 1.5;
+        const isRiver = wType === 'big_river' || wType === 'small_river';
+        const prefix = isRiver ? '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> р. ' : (wType.startsWith('sea') ? '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="5" r="2.5" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5V21M5 13c0 4.5 3.1 8 7 8s7-3.5 7-8M8 10h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> ' : (wType === 'cooling_reservoir' ? '<svg class="k-ico" style="color:var(--warn);" viewBox="0 0 24 24" fill="none"><path d="M12 2c1.5 3.5 4.5 5.5 4.5 10a5.5 5.5 0 1 1-11 0c0-3 2-5.5 3.5-7 0 2 1.5 3 1.5 3S12 5.5 12 2z" fill="#f97316" stroke="#fbbf24" stroke-width="1.5" stroke-linejoin="round"/></svg> ' : '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> '));
+        const distStr = distKm < 1 ? `${Math.round(distKm * 1000)} м` : `${distKm} км`;
+
+        waters.push({
+          name: cleanName,
+          label: `${prefix}${cleanName} [${typeTag}] • ${distStr}`,
+          wType,
+          typeTag,
+          defDepth,
+          distKm,
+          lat: elLat || lat,
+          lon: elLon || lon
+        });
+      }
+
+      waters.sort((a, b) => a.distKm - b.distKm);
+      places.sort((a, b) => a.distKm - b.distKm);
+
+      overpassLoading = false;
+      const topPlaces = places.slice(0, 14);
+      const topWaters = waters.slice(0, 20);
+
+      storage.saveNearbyWatersCache(lat, lon, radiusKm, topWaters, topPlaces);
+      store.dispatch({ type: 'SET_NEARBY_PLACES', payload: topPlaces });
+      store.dispatch({ type: 'SET_NEARBY_WATERS', payload: topWaters });
+      return topWaters;
+    } catch (e) {}
+  }
+
+  overpassLoading = false;
+  return offlineWaters;
+}
+
+export async function saveSpot(customName = '', category = 'bite') {
+  const s = store.getState();
+  const ident = getCurrentFisherIdentity(s);
+  const wTitle = s.selectedWaterName || WATER_PROFILES[s.water]?.shortName || s.water;
+  const catObj = SPOT_CATEGORIES[category] || SPOT_CATEGORIES.bite;
+  const spot = {
+    id: `spot_${Date.now()}`,
+    name: (customName || '').trim() || `${s.locLabel} (${wTitle})`,
+    category: catObj.id,
+    lat: s.lat,
+    lon: s.lon,
+    basinCode: s.basinCode,
+    water: s.water,
+    selectedWaterName: s.selectedWaterName,
+    depth: s.depth,
+    fid: ident.fisherId,
+    au: ident.callsign,
+    did: storage.getDeviceId ? storage.getDeviceId() : "dev_local",
+    visibility: 'private',
+    createdAt: new Date().toISOString()
+  };
+  await storage.putToStore('spots', spot);
+  const all = await storage.getAllFromStore('spots');
+  store.dispatch({ type: 'SET_SAVED_SPOTS', payload: all });
+  showToast(`${catObj.icon} Точка «${spot.name}» (${catObj.short}) сохранена на вашем устройстве!`, 'good');
+  return spot;
+}
+
+export function openSaveSpotModal() {
+  const s = store.getState();
+  const wTitle = s.selectedWaterName || WATER_PROFILES[s.water]?.shortName || s.water;
+  const defName = `${s.locLabel} (${wTitle})`;
+  let chosenCat = 'bite';
+
+  const html = `
+    <div style="display:flex;flex-direction:column;gap:12px;font-size:var(--fs-sm);">
+      <div style="font-size:var(--fs-xs);color:var(--muted);">
+        <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#ef4444"/></svg> Координаты: <b>${s.lat.toFixed(4)}°N, ${s.lon.toFixed(4)}°E</b> • Глубина: <b>~${s.depth.toFixed(1)} м</b>
+      </div>
+      <div>
+        <label style="display:block;font-size:11.5px;font-weight:800;color:var(--muted);margin-bottom:5px;">1. ВЫБЕРИТЕ ТИП ТОЧКИ НА КАРТЕ:</label>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:6px;" id="spotCatPickerGrid">
+          ${Object.values(SPOT_CATEGORIES).map(cat => `
+            <button type="button" class="btn btn-sm ${cat.id === 'bite' ? 'btn-accent' : ''}" data-pick-spot-cat="${cat.id}" style="justify-content:flex-start;min-height:40px;font-size:12px;">
+              <span>${cat.label}</span>
+            </button>
+          `).join('')}
+        </div>
+      </div>
+      <div>
+        <label for="saveSpotCustomNameInp" style="display:block;font-size:11.5px;font-weight:800;color:var(--muted);margin-bottom:4px;">2. НАЗВАНИЕ ТОЧКИ / ОРИЕНТИР:</label>
+        <input type="text" id="saveSpotCustomNameInp" class="input" value="${escapeHtml(defName)}" maxlength="64" placeholder="Например: Бровка у коряги, Слип у моста...">
+      </div>
+      <button type="button" class="btn btn-good" id="saveSpotConfirmModalBtn" style="width:100%;min-height:44px;font-weight:900;">
+        <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.1 6.5L12 17.4l-5.8 3.1 1.1-6.5-4.8-4.6 6.6-.9L12 2.5z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6" stroke-linejoin="round"/></svg> Сохранить точку на карте
+      </button>
+    </div>
+  `;
+
+  openModal('<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.1 6.5L12 17.4l-5.8 3.1 1.1-6.5-4.8-4.6 6.6-.9L12 2.5z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6" stroke-linejoin="round"/></svg> Сохранить точку в закладки', html, (bodyEl) => {
+    bodyEl.querySelectorAll('[data-pick-spot-cat]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        chosenCat = btn.getAttribute('data-pick-spot-cat') || 'bite';
+        bodyEl.querySelectorAll('[data-pick-spot-cat]').forEach(b => {
+          b.classList.toggle('btn-accent', b.getAttribute('data-pick-spot-cat') === chosenCat);
+        });
+      });
+    });
+    bodyEl.querySelector('#saveSpotConfirmModalBtn')?.addEventListener('click', async () => {
+      const customTitle = bodyEl.querySelector('#saveSpotCustomNameInp')?.value || defName;
+      await saveSpot(customTitle, chosenCat);
+      closeModal();
+    });
+  });
+}
+
+export async function deleteSpot(id) {
+  await storage.deleteFromStore('spots', id);
+  const all = await storage.getAllFromStore('spots');
+  store.dispatch({ type: 'SET_SAVED_SPOTS', payload: all });
+}
+
+/**
+ * Экспорт сохранённых точек в формат .GPX (для эхолотов Garmin / Lowrance / Практик в режиме « Профи»)
+ */
+export function exportSpotsToGpx() {
+  const s = store.getState();
+  const spots = s.savedSpots || [];
+  if (spots.length === 0) {
+    showToast('Нет сохранённых точек для выгрузки в .GPX. Сначала добавьте точку кнопкой « В закладки».', 'warn');
+    return;
+  }
+  const wpts = spots.map(sp => {
+    const safeName = String(sp.name || 'Точка').replace(/[<>&"']/g, '');
+    return `  <wpt lat="${sp.lat}" lon="${sp.lon}">\n    <ele>-${sp.depth || 2.0}</ele>\n    <name>${safeName}</name>\n    <desc>Глубина: ${sp.depth || 2.0} м, тип: ${sp.water || 'small_river'}</desc>\n  </wpt>`;
+  }).join('\n');
+
+  const gpxXml = `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="KlevPRO 2.0" xmlns="http://www.topografix.com/GPX/1/1">\n${wpts}\n</gpx>`;
+  const fname = `klev-pro-spots-${new Date().toISOString().slice(0, 10)}.gpx`;
+  downloadFileCrossPlatform(fname, gpxXml, 'application/gpx+xml;charset=utf-8');
+  showToast(` Выгружено ${spots.length} точек в файл ${fname} (Garmin / Lowrance / Практик / Сусанин)`, 'good');
+}
+
+export function exportSpotsToKml() {
+  const s = store.getState();
+  const spots = s.savedSpots || [];
+  if (spots.length === 0) {
+    showToast('Нет сохранённых точек для выгрузки в .KML. Сначала добавьте точку кнопкой « В закладки».', 'warn');
+    return;
+  }
+  const placemarks = spots.map(sp => {
+    const safeName = String(sp.name || 'Точка').replace(/[<>&"']/g, '');
+    return `    <Placemark>\n      <name>${safeName}</name>\n      <description>Глубина: ${sp.depth || 2.0} м, тип: ${sp.water || 'small_river'}</description>\n      <Point><coordinates>${sp.lon},${sp.lat},-${sp.depth || 2.0}</coordinates></Point>\n    </Placemark>`;
+  }).join('\n');
+  const kmlXml = `<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2">\n <Document>\n <name>Клёв ПРО 2.0 — Рыболовные точки</name>\n${placemarks}\n </Document>\n</kml>`;
+  const fname = `klev-pro-spots-${new Date().toISOString().slice(0, 10)}.kml`;
+  downloadFileCrossPlatform(fname, kmlXml, 'application/vnd.google-earth.kml+xml;charset=utf-8');
+  showToast(` Выгружено ${spots.length} точек в файл ${fname} (Google Earth / Яндекс / Locus Map)`, 'good');
+}
+
+/**
+ * Импорт точек из файла .GPX (wpt/rtept/trkpt + глубины эхолота), .KML (Placemark) или .JSON
+ */
+export async function importSpotsFromFileText(fileText) {
+  if (!fileText) return 0;
+  let importedCount = 0;
+
+  try {
+    const trimmed = fileText.trim();
+    if (trimmed.startsWith('<')) {
+      // 1. Парсинг GPX (<wpt>, <rtept>, <trkpt>)
+      const gpxRegex = /<(?:wpt|rtept|trkpt)[^>]*lat=["']([0-9.-]+)["'][^>]*lon=["']([0-9.-]+)["'][^>]*>([\s\S]*?)<\/(?:wpt|rtept|trkpt)>/gi;
+      let match;
+      while ((match = gpxRegex.exec(trimmed)) !== null) {
+        const lat = parseFloat(match[1]);
+        const lon = parseFloat(match[2]);
+        const inner = match[3] || '';
+        const nameMatch = inner.match(/<name>([\s\S]*?)<\/name>/i);
+        const eleMatch = inner.match(/<(?:ele|depth|gpxtpx:depth|waterdepth)>([\s\S]*?)<\/(?:ele|depth|gpxtpx:depth|waterdepth)>/i);
+        if (Number.isFinite(lat) && Number.isFinite(lon)) {
+          const depthVal = eleMatch ? Math.abs(parseFloat(eleMatch[1])) || 2.5 : 2.5;
+          const sp = {
+            id: `spot_gpx_${Date.now()}_${importedCount}`,
+            name: (nameMatch ? nameMatch[1].replace(/<!\[CDATA\[|\]\]>/g, '').trim() : `GPX Точка #${importedCount + 1}`),
+            lat: Math.round(lat * 10000) / 10000,
+            lon: Math.round(lon * 10000) / 10000,
+            basinCode: detectBasinByCoords(lat, lon),
+            water: 'small_river',
+            selectedWaterName: '',
+            depth: Math.min(25, Math.max(0.5, depthVal)),
+            createdAt: new Date().toISOString()
+          };
+          await storage.putToStore('spots', sp);
+          importedCount++;
+        }
+      }
+      // 2. Парсинг KML (<Placemark> ... <coordinates>lon,lat,alt</coordinates>)
+      if (importedCount === 0 && /<Placemark/i.test(trimmed)) {
+        const kmlRegex = /<Placemark[^>]*>([\s\S]*?)<\/Placemark>/gi;
+        let km;
+        while ((km = kmlRegex.exec(trimmed)) !== null) {
+          const block = km[1] || '';
+          const coordMatch = block.match(/<coordinates>\s*([0-9.-]+)\s*,\s*([0-9.-]+)(?:\s*,\s*([0-9.-]+))?/i);
+          if (coordMatch) {
+            const lon = parseFloat(coordMatch[1]);
+            const lat = parseFloat(coordMatch[2]);
+            const alt = coordMatch[3] ? Math.abs(parseFloat(coordMatch[3])) : 2.5;
+            const nameMatch = block.match(/<name>([\s\S]*?)<\/name>/i);
+            if (Number.isFinite(lat) && Number.isFinite(lon)) {
+              const sp = {
+                id: `spot_kml_${Date.now()}_${importedCount}`,
+                name: (nameMatch ? nameMatch[1].replace(/<!\[CDATA\[|\]\]>/g, '').trim() : `KML Точка #${importedCount + 1}`),
+                lat: Math.round(lat * 10000) / 10000,
+                lon: Math.round(lon * 10000) / 10000,
+                basinCode: detectBasinByCoords(lat, lon),
+                water: 'small_river',
+                selectedWaterName: '',
+                depth: Math.min(25, Math.max(0.5, alt || 2.5)),
+                createdAt: new Date().toISOString()
+              };
+              await storage.putToStore('spots', sp);
+              importedCount++;
+            }
+          }
+        }
+      }
+    } else {
+      const parsed = safeJsonParse(trimmed);
+      const arr = Array.isArray(parsed)
+        ? parsed
+        : (Array.isArray(parsed?.spots) ? parsed.spots : (Array.isArray(parsed?.data?.spots) ? parsed.data.spots : (Array.isArray(parsed?.savedSpots) ? parsed.savedSpots : [])));
+      for (const item of arr) {
+        if (item && Number.isFinite(Number(item.lat)) && Number.isFinite(Number(item.lon))) {
+          const lat = Number(item.lat);
+          const lon = Number(item.lon);
+          await storage.putToStore('spots', {
+            id: item.id || `spot_json_${Date.now()}_${importedCount}`,
+            name: item.name || `Точка #${importedCount + 1}`,
+            lat: Math.round(lat * 10000) / 10000,
+            lon: Math.round(lon * 10000) / 10000,
+            basinCode: item.basinCode || detectBasinByCoords(lat, lon),
+            water: item.water || 'small_river',
+            selectedWaterName: item.selectedWaterName || '',
+            depth: Number(item.depth) || 2.0,
+            createdAt: item.createdAt || new Date().toISOString()
+          });
+          importedCount++;
+        }
+      }
+    }
+  } catch (e) {}
+
+  if (importedCount > 0) {
+    const all = await storage.getAllFromStore('spots');
+    store.dispatch({ type: 'SET_SAVED_SPOTS', payload: all });
+    showToast(` Импортировано рыболовных точек: ${importedCount} шт.`, 'good');
+  } else {
+    showToast('Не удалось найти путевые точки (<wpt>) в выбранном файле.', 'bad');
+  }
+  return importedCount;
+}
+
+/**
+ * Отрисовывает на карте дополнительные слои:
+ * - <svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><rect x=\"5\" y=\"11\" width=\"14\" height=\"10\" rx=\"2.5\" fill=\"rgba(251,191,36,0.22)\" stroke=\"#fbbf24\" stroke-width=\"1.8\"/><path d=\"M8 11V7a4 4 0 0 1 8 0v4\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\"/></svg> Мои сохранённые точки
+ * - <svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"9\" cy=\"8\" r=\"3.5\" fill=\"rgba(56,189,248,0.25)\" stroke=\"currentColor\" stroke-width=\"1.8\"/><path d=\"M3 19c0-3.2 2.7-5.5 6-5.5s6 2.3 6 5.5\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\"/><circle cx=\"17\" cy=\"9\" r=\"2.8\" stroke=\"currentColor\" stroke-width=\"1.6\"/><path d=\"M16 14c2.6.3 4.8 2 5 4.8\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\"/></svg> Размытые круги ±5 км из «Круга»
+ * - <svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0\" stroke=\"#38bdf8\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg> Точные точки «Экипажа (72ч)»
+ * - <svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"11\" cy=\"11\" r=\"6.5\" stroke=\"currentColor\" stroke-width=\"2\"/><path d=\"M16 16l4.5 4.5\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg> Маркер разведки «Что здесь клюёт?»
+ */
+function renderMapOverlays() {
+  if (!mapInstance || typeof L === 'undefined') return;
+  const s = store.getState();
+
+  if (!overlayLayerGroup) {
+    overlayLayerGroup = L.layerGroup().addTo(mapInstance);
+  } else {
+    overlayLayerGroup.clearLayers();
+  }
+  _circleLayersMap.clear();
+
+  const ident = getCurrentFisherIdentity(s);
+
+  // 1. Мои точки с 5 цветовыми категориями (<svg class=\"k-ico\" style=\"color:var(--good);\" viewBox=\"0 0 16 16\"><circle cx=\"8\" cy=\"8\" r=\"5.5\" fill=\"currentColor\" stroke=\"rgba(255,255,255,0.65)\" stroke-width=\"1.4\"/></svg> Клёв, <svg class=\"k-ico\" style=\"color:var(--accent);\" viewBox=\"0 0 16 16\"><circle cx=\"8\" cy=\"8\" r=\"5.5\" fill=\"currentColor\" stroke=\"rgba(255,255,255,0.65)\" stroke-width=\"1.4\"/></svg> Слип, <svg class=\"k-ico\" style=\"color:var(--warn);\" viewBox=\"0 0 16 16\"><circle cx=\"8\" cy=\"8\" r=\"5.5\" fill=\"currentColor\" stroke=\"rgba(255,255,255,0.65)\" stroke-width=\"1.4\"/></svg> Стоянка, <svg class=\"k-ico\" style=\"color:var(--bad);\" viewBox=\"0 0 16 16\"><circle cx=\"8\" cy=\"8\" r=\"5.5\" fill=\"currentColor\" stroke=\"rgba(255,255,255,0.65)\" stroke-width=\"1.4\"/></svg> Опасно, <svg class=\"k-ico\" style=\"color:#a855f7;\" viewBox=\"0 0 16 16\"><circle cx=\"8\" cy=\"8\" r=\"5.5\" fill=\"currentColor\" stroke=\"rgba(255,255,255,0.65)\" stroke-width=\"1.4\"/></svg> Магазин)
+  if (visibleMapLayers.mySpots && visibleMapLayers.ownership !== "foreign" && Array.isArray(s.savedSpots)) {
+    s.savedSpots.forEach(sp => {
+      if (!Number.isFinite(sp.lat) || !Number.isFinite(sp.lon)) return;
+      const catKey = sp.category && SPOT_CATEGORIES[sp.category] ? sp.category : 'bite';
+      if (visibleMapLayers.spotCategory !== 'all' && visibleMapLayers.spotCategory !== catKey) return;
+      const catObj = SPOT_CATEGORIES[catKey] || SPOT_CATEGORIES.bite;
+      const m = L.circleMarker([sp.lat, sp.lon], {
+        radius: 7,
+        color: '#ffffff',
+        fillColor: catObj.color,
+        fillOpacity: 0.92,
+        weight: 2
+      });
+      m.bindPopup(
+        `<div style="font-size:12px;line-height:1.45;">` +
+        `<b>${catObj.icon} ${escapeHtml(catObj.short)}:</b> ${escapeHtml(sp.name)}<br>` +
+        `Глубина: <b>${sp.depth || 1.5} м</b>` +
+        `</div>`
+      );
+      overlayLayerGroup.addLayer(m);
+    });
+  }
+
+  // 2. Слои «Круга (±5 км)» и «Экипажа (72ч)» с фильтром МОИ / ЧУЖИЕ и скрытием чужих
+  const now = Date.now();
+  const circleItems = Array.isArray(s.circleItems) ? s.circleItems : [];
+  circleItems.forEach(item => {
+    if (!item || !Number.isFinite(item.lat) || !Number.isFinite(item.lon)) return;
+    if (isCircleItemHidden(item, s)) return;
+
+    const mine = isCircleItemMine(item, s);
+    if (visibleMapLayers.ownership === "mine" && !mine) return;
+    if (visibleMapLayers.ownership === "foreign" && mine) return;
+
+    const ownerBadgeHtml = mine
+      ? `<span style="color:#10b981;font-weight:800;"><svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"12\" cy=\"8\" r=\"4\" fill=\"rgba(56,189,248,0.22)\" stroke=\"currentColor\" stroke-width=\"1.8\"/><path d=\"M4 20c0-3.8 3.6-6.5 8-6.5s8 2.7 8 6.5\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\"/></svg> Моя</span>`
+      : `<span style="color:#38bdf8;font-weight:800;"><svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"12\" cy=\"12\" r=\"9\" stroke=\"currentColor\" stroke-width=\"1.8\"/><path d=\"M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18\" stroke=\"currentColor\" stroke-width=\"1.6\"/></svg> Чужая</span>`;
+    const actionBtnHtml = (mine || ident.isOwner)
+      ? `<button type="button" data-popup-del-circle="${item.id}" style="margin-top:5px;padding:3px 8px;border-radius:5px;border:1px solid #ef4444;background:#ef4444;color:#fff;font-size:11px;font-weight:800;cursor:pointer;"><svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg> Удалить точку</button>`
+      : `<button type="button" data-popup-hide-circle="${item.id}" style="margin-top:5px;padding:3px 8px;border-radius:5px;border:1px solid #64748b;background:#334155;color:#fff;font-size:11px;font-weight:800;cursor:pointer;"><svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M17.94 17.94A10.07 10.07 0 0 1 12 19c-6.4 0-10-7-10-7a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c6.4 0 10 7 10 7a18.5 18.5 0 0 1-2.16 3.19M1 1l22 22\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\"/></svg> Скрыть чужую точку</button>`;
+
+    const isFocused = (_focusedCircleId && String(_focusedCircleId) === String(item.id));
+
+    if (item.sos) {
+      // <svg class=\"k-ico\" style=\"color:var(--bad);\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"12\" cy=\"12\" r=\"9.5\" fill=\"#dc2626\" stroke=\"#fca5a5\" stroke-width=\"1.8\"/><text x=\"12\" y=\"15\" text-anchor=\"middle\" fill=\"#fff\" font-size=\"7.5\" font-weight=\"900\" font-family=\"sans-serif\">SOS</text></svg> Сигнал SOS: пульсирующий красный круг 8 км + яркий маркер
+      const sosZone = L.circle([item.lat, item.lon], {
+        radius: 8000,
+        color: '#ef4444',
+        fillColor: '#ef4444',
+        fillOpacity: isFocused ? 0.35 : 0.22,
+        weight: isFocused ? 3.5 : 2.5,
+        dashArray: '4, 4'
+      });
+      const sosMarker = L.marker([item.lat, item.lon], {
+        icon: L.divIcon({
+          className: 'klev-sos-icon',
+          html: '<div style="font-size:18px;line-height:1;filter:drop-shadow(0 0 6px #ef4444);animation:pulse 1.5s infinite;"><svg class=\"k-ico\" style=\"color:var(--bad);\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"12\" cy=\"12\" r=\"9.5\" fill=\"#dc2626\" stroke=\"#fca5a5\" stroke-width=\"1.8\"/><text x=\"12\" y=\"15\" text-anchor=\"middle\" fill=\"#fff\" font-size=\"7.5\" font-weight=\"900\" font-family=\"sans-serif\">SOS</text></svg></div>',
+          iconSize: [22, 22],
+          iconAnchor: [11, 11]
+        })
+      });
+      const sosPopupHtml = `<div style="font-size:12px;line-height:1.4;">` +
+        `<b style="color:#ef4444;font-size:13px;"><svg class=\"k-ico\" style=\"color:var(--bad);\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"12\" cy=\"12\" r=\"9.5\" fill=\"#dc2626\" stroke=\"#fca5a5\" stroke-width=\"1.8\"/><text x=\"12\" y=\"15\" text-anchor=\"middle\" fill=\"#fff\" font-size=\"7.5\" font-weight=\"900\" font-family=\"sans-serif\">SOS</text></svg> СИГНАЛ SOS (${ownerBadgeHtml}):</b><br>` +
+        `<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z\" fill=\"rgba(239,68,68,0.22)\" stroke=\"#ef4444\" stroke-width=\"1.9\"/><circle cx=\"12\" cy=\"11\" r=\"2.3\" fill=\"#ef4444\"/></svg> ${item.wn || item.lb || 'Водоём'} (<b>${Number(item.lat).toFixed(4)}°N, ${Number(item.lon).toFixed(4)}°E</b>)<br>` +
+        `<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"12\" cy=\"8\" r=\"4\" fill=\"rgba(56,189,248,0.22)\" stroke=\"currentColor\" stroke-width=\"1.8\"/><path d=\"M4 20c0-3.8 3.6-6.5 8-6.5s8 2.7 8 6.5\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\"/></svg> От: <b>${escapeHtml(item.au || 'Рыболов')}</b><br>` +
+        `<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z\" fill=\"rgba(56,189,248,0.18)\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/></svg> «${escapeHtml(item.nt || 'Требуется срочная помощь!')}»<br>` +
+        `${actionBtnHtml}</div>`;
+      sosZone.bindPopup(sosPopupHtml);
+      sosMarker.bindPopup(sosPopupHtml);
+      overlayLayerGroup.addLayer(sosZone);
+      overlayLayerGroup.addLayer(sosMarker);
+      _circleLayersMap.set(item.id, sosZone);
+      if (isFocused) sosZone.openPopup();
+    } else if (item.t === 'crew' && visibleMapLayers.crewExact) {
+      if (Number.isFinite(item.ea) && item.ea < now) return;
+      const hrsLeft = Math.max(1, Math.round(((item.ea || now) - now) / 3600000));
+      const hasAccess = canUserAccessCrewItem(item, s) || mine || ident.isOwner;
+
+      if (hasAccess) {
+        // Точный открытый Экипаж: изумрудный круг 1500м + маркер лодки
+        const crewZone = L.circle([item.lat, item.lon], {
+          radius: 1500,
+          color: isFocused ? '#34d399' : '#10b981',
+          fillColor: '#10b981',
+          fillOpacity: isFocused ? 0.32 : 0.20,
+          weight: isFocused ? 3 : 2
+        });
+        const crewMarker = L.marker([item.lat, item.lon], {
+          icon: L.divIcon({
+            className: 'klev-crew-icon',
+            html: '<div style="font-size:16px;line-height:1;text-shadow:0 1px 3px rgba(0,0,0,0.8);"><svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M3 16l2 4h14l2-4-9-2-9 2z\" fill=\"rgba(56,189,248,0.22)\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/><path d=\"M12 4v10M12 4l6 6h-6\" stroke=\"#38bdf8\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/></svg></div>',
+            iconSize: [20, 20],
+            iconAnchor: [10, 10]
+          })
+        });
+        const cKey = item.crewKey || '';
+        const crewPopupHtml = `<div style="font-size:12px;line-height:1.4;">` +
+          `<b style="color:#10b981;font-size:13px;"><svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0\" stroke=\"#38bdf8\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg> Экипаж ${cKey ? `(${cKey})` : ''} (${ownerBadgeHtml}):</b><br>` +
+          `<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z\" fill=\"rgba(239,68,68,0.22)\" stroke=\"#ef4444\" stroke-width=\"1.9\"/><circle cx=\"12\" cy=\"11\" r=\"2.3\" fill=\"#ef4444\"/></svg> <b>${item.wn || item.lb || 'Стоянка'}</b> (глубина ${item.dp || 2} м)<br>` +
+          `<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M2 12s4-6 11-6c4.2 0 7 2.5 9 6-2 3.5-4.8 6-9 6-7 0-11-6-11-6z\" fill=\"rgba(56,189,248,0.28)\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/><path d=\"M2 12l-1.5-3.5L5 10.5M2 12l-1.5 3.5L5 13.5\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\"/><circle cx=\"16.5\" cy=\"10.8\" r=\"1.3\" fill=\"currentColor\"/></svg> Рыба: <b>${escapeHtml(item.fn || '—')}</b> • <svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M4 18c0-4 4-4 4-8s4-4 4-6 5-1 5 3-3 5-3 8 4 4 6 2\" stroke=\"#f43f5e\" stroke-width=\"2.2\" stroke-linecap=\"round\"/></svg> ${escapeHtml(item.bt || 'по сезону')}<br>` +
+          `<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"12\" cy=\"8\" r=\"4\" fill=\"rgba(56,189,248,0.22)\" stroke=\"currentColor\" stroke-width=\"1.8\"/><path d=\"M4 20c0-3.8 3.6-6.5 8-6.5s8 2.7 8 6.5\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\"/></svg> Напарник: <b>${escapeHtml(item.au || 'Экипаж')}</b><br>` +
+          `<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"12\" cy=\"12\" r=\"9\" stroke=\"currentColor\" stroke-width=\"1.8\"/><path d=\"M12 7v5l3.5 2\" stroke=\"#38bdf8\" stroke-width=\"1.9\" stroke-linecap=\"round\"/></svg> Осталось: <b>~${hrsLeft} ч</b><br>` +
+          (item.nt ? `<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z\" fill=\"rgba(56,189,248,0.18)\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/></svg> «${escapeHtml(item.nt)}»<br>` : '') +
+          (cKey ? `<button type="button" data-popup-crew-chat="${cKey}" style="margin-top:6px;padding:3px 9px;border-radius:5px;border:1px solid #10b981;background:#10b981;color:#fff;font-size:11px;font-weight:800;cursor:pointer;"><svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z\" fill=\"rgba(56,189,248,0.18)\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/></svg> Чат экипажа (${cKey})</button><br>` : '') +
+          `${actionBtnHtml}</div>`;
+        crewZone.bindPopup(crewPopupHtml);
+        crewMarker.bindPopup(crewPopupHtml);
+        overlayLayerGroup.addLayer(crewZone);
+        overlayLayerGroup.addLayer(crewMarker);
+        _circleLayersMap.set(item.id, crewZone);
+        if (isFocused) crewZone.openPopup();
+      } else {
+        // Закрытый чужой экипаж (информативный размытый круг ±3.5 км, без раскрытия секретной стоянки)
+        const lockedZone = L.circle([item.lat, item.lon], {
+          radius: 3500,
+          color: isFocused ? '#38bdf8' : '#64748b',
+          fillColor: '#0284c7',
+          fillOpacity: isFocused ? 0.22 : 0.12,
+          weight: isFocused ? 2.5 : 1.5,
+          dashArray: '6, 6'
+        });
+        const lockMarker = L.marker([item.lat, item.lon], {
+          icon: L.divIcon({
+            className: 'klev-lock-icon',
+            html: '<div style="font-size:14px;line-height:1;opacity:0.85;"><svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><rect x=\"5\" y=\"11\" width=\"14\" height=\"10\" rx=\"2.5\" fill=\"rgba(251,191,36,0.22)\" stroke=\"#fbbf24\" stroke-width=\"1.8\"/><path d=\"M8 11V7a4 4 0 0 1 8 0v4\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\"/></svg></div>',
+            iconSize: [18, 18],
+            iconAnchor: [9, 9]
+          })
+        });
+        const lockedPopupHtml = `<div style="font-size:12px;line-height:1.4;">` +
+          `<b><svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><rect x=\"5\" y=\"11\" width=\"14\" height=\"10\" rx=\"2.5\" fill=\"rgba(251,191,36,0.22)\" stroke=\"#fbbf24\" stroke-width=\"1.8\"/><path d=\"M8 11V7a4 4 0 0 1 8 0v4\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\"/></svg> Закрытый Экипаж (72 ч, ${ownerBadgeHtml}):</b><br>` +
+          `Район: <b>${item.wn || item.lb || 'Новый Уренгой'}</b> • ~${hrsLeft} ч<br>` +
+          `<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"12\" cy=\"8\" r=\"4\" fill=\"rgba(56,189,248,0.22)\" stroke=\"currentColor\" stroke-width=\"1.8\"/><path d=\"M4 20c0-3.8 3.6-6.5 8-6.5s8 2.7 8 6.5\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\"/></svg> Создатель: <b>${escapeHtml(item.au || 'Рыболов')}</b><br>` +
+          `<div style="font-size:11px;color:var(--muted);margin-top:4px;">Точные координаты и радиочат скрыты создателем. Чтобы вступить, введите 4-значный ключ экипажа во вкладке «<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"9\" cy=\"8\" r=\"3.5\" fill=\"rgba(56,189,248,0.25)\" stroke=\"currentColor\" stroke-width=\"1.8\"/><path d=\"M3 19c0-3.2 2.7-5.5 6-5.5s6 2.3 6 5.5\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\"/><circle cx=\"17\" cy=\"9\" r=\"2.8\" stroke=\"currentColor\" stroke-width=\"1.6\"/><path d=\"M16 14c2.6.3 4.8 2 5 4.8\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\"/></svg> Круг».</div>` +
+          `${actionBtnHtml}</div>`;
+        lockedZone.bindPopup(lockedPopupHtml);
+        lockMarker.bindPopup(lockedPopupHtml);
+        overlayLayerGroup.addLayer(lockedZone);
+        overlayLayerGroup.addLayer(lockMarker);
+        _circleLayersMap.set(item.id, lockedZone);
+        if (isFocused) lockedZone.openPopup();
+      }
+    } else if (item.t === 'circle' && visibleMapLayers.circleBlur) {
+      // <svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"9\" cy=\"8\" r=\"3.5\" fill=\"rgba(56,189,248,0.25)\" stroke=\"currentColor\" stroke-width=\"1.8\"/><path d=\"M3 19c0-3.2 2.7-5.5 6-5.5s6 2.3 6 5.5\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\"/><circle cx=\"17\" cy=\"9\" r=\"2.8\" stroke=\"currentColor\" stroke-width=\"1.6\"/><path d=\"M16 14c2.6.3 4.8 2 5 4.8\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\"/></svg> Размытый информативный круг Круга ±5 км
+      const effRadiusKm = getEffectiveCircleRadiusKm(item, now);
+      const polyColor = mine ? '#10b981' : '#38bdf8';
+      const circleRadiusM = effRadiusKm * 1000;
+      const blurZone = L.circle([item.lat, item.lon], {
+        radius: circleRadiusM,
+        color: isFocused ? '#fbbf24' : polyColor,
+        fillColor: polyColor,
+        fillOpacity: isFocused ? 0.28 : 0.16,
+        weight: isFocused ? 2.8 : 1.8,
+        dashArray: '5, 5'
+      });
+      const fishIconMarker = L.marker([item.lat, item.lon], {
+        icon: L.divIcon({
+          className: 'klev-circle-icon',
+          html: `<div style="font-size:15px;line-height:1;text-shadow:0 1px 3px rgba(0,0,0,0.8);">${item.kg ? '<svg class=\"k-ico\" style=\"color:#fbbf24;\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M7 4h10v5a5 5 0 0 1-10 0V4z\" fill=\"rgba(251,191,36,0.28)\" stroke=\"#fbbf24\" stroke-width=\"1.8\"/><path d=\"M7 6H4v2a3 3 0 0 0 3 3M17 6h3v2a3 3 0 0 1-3 3M12 14v4M8 20h8\" stroke=\"#fbbf24\" stroke-width=\"1.8\" stroke-linecap=\"round\"/></svg>' : '<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M2 12s4-6 11-6c4.2 0 7 2.5 9 6-2 3.5-4.8 6-9 6-7 0-11-6-11-6z\" fill=\"rgba(56,189,248,0.28)\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/><path d=\"M2 12l-1.5-3.5L5 10.5M2 12l-1.5 3.5L5 13.5\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\"/><circle cx=\"16.5\" cy=\"10.8\" r=\"1.3\" fill=\"currentColor\"/></svg>'}</div>`,
+          iconSize: [18, 18],
+          iconAnchor: [9, 9]
+        })
+      });
+      const circlePopupHtml = `<div style="font-size:12px;line-height:1.4;">` +
+        `<b style="color:${polyColor};font-size:13px;">⬡ Сектор Круга ±${effRadiusKm} км (${ownerBadgeHtml}):</b><br>` +
+        `<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z\" fill=\"rgba(239,68,68,0.22)\" stroke=\"#ef4444\" stroke-width=\"1.9\"/><circle cx=\"12\" cy=\"11\" r=\"2.3\" fill=\"#ef4444\"/></svg> <b>${item.wn || item.lb || 'Водоём'}</b> (глубина ~${item.dp || 1.5} м)<br>` +
+        `<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M2 12s4-6 11-6c4.2 0 7 2.5 9 6-2 3.5-4.8 6-9 6-7 0-11-6-11-6z\" fill=\"rgba(56,189,248,0.28)\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/><path d=\"M2 12l-1.5-3.5L5 10.5M2 12l-1.5 3.5L5 13.5\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\"/><circle cx=\"16.5\" cy=\"10.8\" r=\"1.3\" fill=\"currentColor\"/></svg> <b>${escapeHtml(item.fn || 'Рыба')}${item.kg ? ` (${item.kg} кг)` : ''}</b> • <svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z\" fill=\"rgba(56,189,248,0.32)\" stroke=\"#38bdf8\" stroke-width=\"1.8\"/><path d=\"M9.5 15.5c.5 1.2 1.7 2 3 2\" stroke=\"#fff\" stroke-width=\"1.4\" stroke-linecap=\"round\"/></svg> Вода ~${item.tw ?? 8}°C<br>` +
+        `<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M4 18c0-4 4-4 4-8s4-4 4-6 5-1 5 3-3 5-3 8 4 4 6 2\" stroke=\"#f43f5e\" stroke-width=\"2.2\" stroke-linecap=\"round\"/></svg> Приманка: <b>${escapeHtml(item.bt || 'по сезону')}</b><br>` +
+        `<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"12\" cy=\"8\" r=\"4\" fill=\"rgba(56,189,248,0.22)\" stroke=\"currentColor\" stroke-width=\"1.8\"/><path d=\"M4 20c0-3.8 3.6-6.5 8-6.5s8 2.7 8 6.5\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\"/></svg> От: <b>${escapeHtml(item.au || 'Рыболов')}</b><br>` +
+        (item.nt ? `<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z\" fill=\"rgba(56,189,248,0.18)\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/></svg> «${escapeHtml(item.nt)}»<br>` : '') +
+        `${actionBtnHtml}</div>`;
+      blurZone.bindPopup(circlePopupHtml);
+      fishIconMarker.bindPopup(circlePopupHtml);
+      overlayLayerGroup.addLayer(blurZone);
+      overlayLayerGroup.addLayer(fishIconMarker);
+      _circleLayersMap.set(item.id, blurZone);
+      if (isFocused) blurZone.openPopup();
+    }
+  });
+
+  // 3. Временный маркер разведки «<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"11\" cy=\"11\" r=\"6.5\" stroke=\"currentColor\" stroke-width=\"2\"/><path d=\"M16 16l4.5 4.5\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg> Что здесь клюёт?»
+  if (inspectMode && inspectedPoint && Number.isFinite(inspectedPoint.lat)) {
+    const scMarker = L.circleMarker([inspectedPoint.lat, inspectedPoint.lon], {
+      radius: 9,
+      color: '#f59e0b',
+      fillColor: '#fbbf24',
+      fillOpacity: 0.9,
+      weight: 2.5
+    });
+    scMarker.bindPopup(`<b><svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"11\" cy=\"11\" r=\"6.5\" stroke=\"currentColor\" stroke-width=\"2\"/><path d=\"M16 16l4.5 4.5\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg> Разведка точки:</b> ${inspectedPoint.settlementLabel}<br>Топ: ${inspectedPoint.topSpecies[0]?.fish?.name || 'Щука'} (${inspectedPoint.topSpecies[0]?.score || 70}%)`);
+    overlayLayerGroup.addLayer(scMarker);
+  }
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener("resize", () => {
+    if (mapInstance) mapInstance.invalidateSize();
+  }, { passive: true });
+}
+
+export function renderMap(mapBoxEl) {
+  if (typeof window !== 'undefined') window.__KLEV_RENDER_MAP__ = renderMap;
+  if (!mapBoxEl || typeof L === 'undefined') return;
+  const s = store.getState();
+  const targetZoom = mapInstance ? clamp(mapInstance.getZoom(), 7, 14) : 10;
+  if (!mapInstance || mapInstance._container !== mapBoxEl) {
+    if (mapInstance) {
+      try { mapInstance.remove(); } catch (e) {}
+    }
+    overlayLayerGroup = null;
+    mapInstance = L.map(mapBoxEl).setView([s.lat, s.lon], targetZoom);
+    mapInstance.attributionControl.setPrefix(false);
+    currentTileLayer = createResilientTileLayer(currentLayerKey).addTo(mapInstance);
+    mapMarker = L.marker([s.lat, s.lon]).addTo(mapInstance);
+    mapInstance.on('click', (e) => {
+      if (inspectMode) {
+        inspectWhatBitesHere(e.latlng.lat, e.latlng.lng);
+        const secGeo = document.getElementById('secGeo');
+        if (secGeo) render(secGeo);
+      } else {
+        setLocation(e.latlng.lat, e.latlng.lng);
+      }
+    });
+  } else {
+    mapInstance.invalidateSize();
+    mapMarker.setLatLng([s.lat, s.lon]);
+  }
+  renderMapOverlays();
+}
+
+export function getMethodOptions(iceState, waterType) {
+  const s = store.getState();
+  const fish = FISH_DB.find(f => f.id === s.fishId) || FISH_DB[0];
+  const day = s.weatherDays[s.dayIdx] || s.weatherDays[2] || s.weatherDays[0];
+  const effIce = day?.iceState || iceState || s.iceState || 'open_water';
+  const effWaterTemp = day?.waterTemp ?? 12;
+  return getCompatibleMethods(fish, effIce, waterType, effWaterTemp);
+}
+
+export function render(container) {
+  if (!container) return;
+  const prevScrolls = Array.from(container.querySelectorAll('.chip-scroll-row')).map(el => el.scrollLeft);
+  const s = store.getState();
+  const availableWaters = getAvailableWaterTypes(s.basinCode, s.lat, s.lon);
+  const prof = WATER_PROFILES[s.water] || WATER_PROFILES.small_river;
+  const showDrawer = true;
+  const compatibleMethods = getMethodOptions(s.iceState, s.water);
+  const activeRadius = s.waterRadiusKm === 120 ? 120 : 50;
+  const isProMode = s.appMode === 'pro';
+
+  const circleItems = (Array.isArray(s.circleItems) ? s.circleItems : []).filter(x => !isCircleItemHidden(x, s));
+  const circleBlurCount = circleItems.filter(x => x.t === 'circle').length;
+  const crewExactCount = circleItems.filter(x => x.t === 'crew' && (!x.ea || x.ea > Date.now()) && canUserAccessCrewItem(x, s)).length;
+  const mineMapCount = circleItems.filter(x => isCircleItemMine(x, s)).length + (s.savedSpots || []).length;
+  const foreignMapCount = circleItems.filter(x => !isCircleItemMine(x, s)).length;
+
+  container.innerHTML = `
+    <div class="card">
+      <div style="margin-bottom:8px;">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px;">
+          <span class="section-title"><svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z\" fill=\"rgba(239,68,68,0.22)\" stroke=\"#ef4444\" stroke-width=\"1.9\"/><circle cx=\"12\" cy=\"11\" r=\"2.3\" fill=\"#ef4444\"/></svg> Водоём, карта глубин и точки</span>
+          <span style="font-size:var(--fs-xs);color:var(--accent);font-weight:700;">
+            ${s.lat.toFixed(2)}°N, ${s.lon.toFixed(2)}°E
+          </span>
+        </div>
+        <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:8px;">
+          <button type="button" class="btn btn-sm" id="geoGpsBtn" style="flex:1 1 85px;padding:5px 6px;font-size:11.5px;"><svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"12\" cy=\"12\" r=\"8.5\" stroke=\"currentColor\" stroke-width=\"1.8\"/><circle cx=\"12\" cy=\"12\" r=\"4.5\" stroke=\"#38bdf8\" stroke-width=\"1.6\"/><circle cx=\"12\" cy=\"12\" r=\"1.8\" fill=\"#10b981\"/></svg> Мой GPS</button>
+          <button type="button" class="btn btn-sm ${inspectMode ? 'btn-good' : ''}" id="geoInspectModeBtn" style="flex:1.3 1 125px;padding:5px 6px;font-size:11.5px;" title="Тап по любой точке карты покажет, какая рыба там клюёт, без смены вашей основной локации">
+            ${inspectMode ? '<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"11\" cy=\"11\" r=\"6.5\" stroke=\"currentColor\" stroke-width=\"2\"/><path d=\"M16 16l4.5 4.5\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg> Разведка ВКЛ' : '<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"11\" cy=\"11\" r=\"6.5\" stroke=\"currentColor\" stroke-width=\"2\"/><path d=\"M16 16l4.5 4.5\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg> Что здесь клюёт?'}
+          </button>
+          <button type="button" class="btn btn-sm" id="geoSaveSpotBtn" style="flex:1 1 90px;padding:5px 6px;font-size:11.5px;"><svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M12 2.5l2.9 6 6.6.9-4.8 4.6 1.1 6.5L12 17.4l-5.8 3.1 1.1-6.5-4.8-4.6 6.6-.9L12 2.5z\" fill=\"#fbbf24\" stroke=\"#f59e0b\" stroke-width=\"1.6\" stroke-linejoin=\"round\"/></svg> В закладки</button>
+          <button type="button" class="btn btn-sm btn-good" id="geoQuickLogCatchBtn" style="flex:1 1 110px;padding:5px 6px;font-size:11.5px;font-weight:800;"><svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M4 20C5 11 11 5 20 4\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/><path d=\"M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3\" stroke=\"#38bdf8\" stroke-width=\"1.8\" stroke-linecap=\"round\"/><circle cx=\"14\" cy=\"16\" r=\"2.2\" fill=\"#10b981\"/></svg> + В журнал</button>
+        </div>
+      </div>
+
+      ${inlineGpsHint ? `<div style="margin-bottom:8px;padding:7px 11px;border-radius:var(--r-sm);background:var(--pill-warn-bg);color:var(--pill-warn-text);font-size:var(--fs-xs);font-weight:700;line-height:1.4;"><svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"12\" cy=\"12\" r=\"9\" fill=\"rgba(56,189,248,0.18)\" stroke=\"#38bdf8\" stroke-width=\"1.8\"/><path d=\"M12 11v5M12 8h.01\" stroke=\"#38bdf8\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg> ${inlineGpsHint}</div>` : ''}
+
+      <div id="geoMapSection" style="display:${showDrawer ? 'block' : 'none'};margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--border);">
+        <div style="display:flex;gap:6px;margin-bottom:8px;">
+          <input type="search" id="geoSearchInput" class="input" style="flex:1;" placeholder="Поиск реки, озера, города или посёлка РФ...">
+          <button type="button" class="btn btn-sm btn-accent" id="geoSearchBtn" style="min-height:38px;padding:0 14px;">Найти</button>
+        </div>
+
+        <div class="map-layers-row">
+          ${Object.entries(MAP_LAYERS).map(([k, v]) => `
+            <button type="button" class="btn btn-sm map-layer-btn ${currentLayerKey === k ? 'btn-accent' : ''}" data-map-layer="${k}">${v.name}</button>
+          `).join('')}
+        </div>
+
+        <!-- Слои приватности и навигации «Клёв ПРО: Круг» (с понятной подписью без лишних кнопок) -->
+        <div style="margin-bottom:8px;width:100%;max-width:100%;overflow:hidden;">
+          <div style="font-size:10.5px;color:var(--muted);font-weight:800;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.3px;">
+            Слои меток на карте (нажмите для вкл/выкл):
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;width:100%;">
+            <button type="button" class="btn btn-sm ${visibleMapLayers.mySpots ? 'btn-accent' : ''}" data-toggle-overlay="mySpots" title="Показать или скрыть ваши личные сохранённые закладки на карте" style="width:100%;min-width:0;padding:4px 4px;font-size:11px;min-height:32px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+              <svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><rect x=\"5\" y=\"11\" width=\"14\" height=\"10\" rx=\"2.5\" fill=\"rgba(251,191,36,0.22)\" stroke=\"#fbbf24\" stroke-width=\"1.8\"/><path d=\"M8 11V7a4 4 0 0 1 8 0v4\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\"/></svg> Закладки (${s.savedSpots.length})
+            </button>
+            <button type="button" class="btn btn-sm ${visibleMapLayers.circleBlur ? 'btn-accent' : ''}" data-toggle-overlay="circleBlur" title="Показать или скрыть публичные точки сообщества Круг (размытие ±5 км)" style="width:100%;min-width:0;padding:4px 4px;font-size:11px;min-height:32px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+              <svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"9\" cy=\"8\" r=\"3.5\" fill=\"rgba(56,189,248,0.25)\" stroke=\"currentColor\" stroke-width=\"1.8\"/><path d=\"M3 19c0-3.2 2.7-5.5 6-5.5s6 2.3 6 5.5\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\"/><circle cx=\"17\" cy=\"9\" r=\"2.8\" stroke=\"currentColor\" stroke-width=\"1.6\"/><path d=\"M16 14c2.6.3 4.8 2 5 4.8\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\"/></svg> Круг (${circleBlurCount})
+            </button>
+            <button type="button" class="btn btn-sm ${visibleMapLayers.crewExact ? 'btn-accent' : ''}" data-toggle-overlay="crewExact" title="Показать или скрыть точные точки вашего закрытого Экипажа" style="width:100%;min-width:0;padding:4px 4px;font-size:11px;min-height:32px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+              <svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0\" stroke=\"#38bdf8\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg> Экипаж (${crewExactCount})
+            </button>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;margin-top:4px;width:100%;">
+            <button type="button" class="btn btn-sm ${visibleMapLayers.ownership === 'all' ? 'btn-accent' : ''}" data-map-owner="all" title="Показывать на карте и ваши, и чужие метки" style="width:100%;min-width:0;padding:3px 4px;font-size:11px;min-height:28px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+              <svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3V6z\" fill=\"rgba(56,189,248,0.18)\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/><path d=\"M9 3v15M15 6v15\" stroke=\"currentColor\" stroke-width=\"1.6\"/><circle cx=\"12\" cy=\"10\" r=\"2.2\" fill=\"#38bdf8\" stroke=\"#fff\" stroke-width=\"1\"/></svg> Все метки (${mineMapCount + foreignMapCount})
+            </button>
+            <button type="button" class="btn btn-sm ${visibleMapLayers.ownership === 'mine' ? 'btn-good' : ''}" data-map-owner="mine" title="Оставить на карте только ваши собственные точки и закладки" style="width:100%;min-width:0;padding:3px 4px;font-size:11px;min-height:28px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+              <svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"12\" cy=\"8\" r=\"4\" fill=\"rgba(56,189,248,0.22)\" stroke=\"currentColor\" stroke-width=\"1.8\"/><path d=\"M4 20c0-3.8 3.6-6.5 8-6.5s8 2.7 8 6.5\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\"/></svg> Только мои (${mineMapCount})
+            </button>
+            <button type="button" class="btn btn-sm ${visibleMapLayers.ownership === 'foreign' ? 'btn-accent' : ''}" data-map-owner="foreign" title="Оставить на карте только точки других рыболовов" style="width:100%;min-width:0;padding:3px 4px;font-size:11px;min-height:28px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+              <svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"12\" cy=\"12\" r=\"9\" stroke=\"currentColor\" stroke-width=\"1.8\"/><path d=\"M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18\" stroke=\"currentColor\" stroke-width=\"1.6\"/></svg> Только чужие (${foreignMapCount})
+            </button>
+          </div>
+          <div style="font-size:11px;color:${inspectMode ? 'var(--good)' : 'var(--muted)'};font-weight:700;margin-top:5px;">
+            ${inspectMode ? '<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"11\" cy=\"11\" r=\"6.5\" stroke=\"currentColor\" stroke-width=\"2\"/><path d=\"M16 16l4.5 4.5\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg> Режим разведки активен: нажмите в любое место карты, чтобы узнать клёв без смены вашей локации' : '<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z\" fill=\"rgba(239,68,68,0.22)\" stroke=\"#ef4444\" stroke-width=\"1.9\"/><circle cx=\"12\" cy=\"11\" r=\"2.3\" fill=\"#ef4444\"/></svg> Нажмите на карту для выбора точки лова • Топо-карта глубин работает без VPN'}
+          </div>
+        </div>
+
+        <div id="mapBox" role="application" aria-label="Карта выбора водоёма"></div>
+
+        <!-- Карточка мгновенной разведки «<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"11\" cy=\"11\" r=\"6.5\" stroke=\"currentColor\" stroke-width=\"2\"/><path d=\"M16 16l4.5 4.5\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg> Что здесь клюёт?» (Шаг 1) -->
+        ${inspectedPoint ? `
+          <div class="card" id="geoScoutResultCard" style="margin-top:10px;background:var(--card);border:1.5px solid var(--good);padding:10px 12px;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap;">
+              <div>
+                <span class="pill pill-good" style="font-size:10px;"><svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"11\" cy=\"11\" r=\"6.5\" stroke=\"currentColor\" stroke-width=\"2\"/><path d=\"M16 16l4.5 4.5\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg> Разведка точки (без перезаписи вашей локации)</span>
+                <div style="font-weight:800;font-size:var(--fs-md);margin-top:4px;">
+                  <svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z\" fill=\"rgba(239,68,68,0.22)\" stroke=\"#ef4444\" stroke-width=\"1.9\"/><circle cx=\"12\" cy=\"11\" r=\"2.3\" fill=\"#ef4444\"/></svg> ${inspectedPoint.settlementLabel} • ${inspectedPoint.primaryWaterName}
+                </div>
+                <div style="font-size:var(--fs-xs);color:var(--muted);">
+                  ${inspectedPoint.basinName} (${inspectedPoint.lat.toFixed(3)}°N, ${inspectedPoint.lon.toFixed(3)}°E)
+                </div>
+              </div>
+            </div>
+            <div style="margin-top:8px;font-size:var(--fs-xs);color:var(--accent);font-weight:800;">
+              <svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M2 12s4-6 11-6c4.2 0 7 2.5 9 6-2 3.5-4.8 6-9 6-7 0-11-6-11-6z\" fill=\"rgba(56,189,248,0.28)\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/><path d=\"M2 12l-1.5-3.5L5 10.5M2 12l-1.5 3.5L5 13.5\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\"/><circle cx=\"16.5\" cy=\"10.8\" r=\"1.3\" fill=\"currentColor\"/></svg> ТОП-6 АКТИВНЫХ ВИДОВ РЫБ ЗДЕСЬ СЕГОДНЯ:
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:6px;margin-top:6px;">
+              ${inspectedPoint.topSpecies.map(item => {
+                const tone = item.score >= 60 ? 'var(--good)' : (item.score >= 38 ? 'var(--warn)' : 'var(--bad)');
+                return `
+                  <div style="padding:6px 8px;background:var(--panel);border:1px solid var(--border);border-radius:6px;font-size:var(--fs-xs);">
+                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                      <b>${item.fish.name}</b>
+                      <span style="font-weight:800;color:${tone};">${item.score}%</span>
+                    </div>
+                    <div style="font-size:10px;color:var(--muted);margin-top:2px;">${item.methodText}</div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;padding-top:8px;border-top:1px solid var(--border);">
+              <button type="button" class="btn btn-sm btn-accent" id="scoutApplyLocationBtn" style="flex:2;min-width:170px;"><svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z\" fill=\"rgba(239,68,68,0.22)\" stroke=\"#ef4444\" stroke-width=\"1.9\"/><circle cx=\"12\" cy=\"11\" r=\"2.3\" fill=\"#ef4444\"/></svg> Сделать основной точкой</button>
+              <button type="button" class="btn btn-sm" id="scoutCloseBtn" style="flex:1;min-width:110px;"><svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z\" fill=\"rgba(251,191,36,0.32)\" stroke=\"#fbbf24\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/></svg> Закрыть</button>
+            </div>
+          </div>
+        ` : ''}
+
+        ${(s.nearbyPlaces && s.nearbyPlaces.length) ? `
+          <div style="margin-top:8px;">
+            <div style="font-size:var(--fs-xs);color:var(--muted);font-weight:700;margin-bottom:4px;"><svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M3 10.5L12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1v-9.5z\" fill=\"rgba(56,189,248,0.18)\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/></svg> БЛИЖАЙШИЕ ГОРОДА И НАСЕЛЁННЫЕ ПУНКТЫ (единая база РФ • кликните для ${inspectMode ? 'разведки' : 'перехода'}):</div>
+            <div class="chip-scroll-row">
+              ${s.nearbyPlaces.map(p => `
+                <button type="button" class="w-chip" data-nearby-place="${p.lat},${p.lon},${p.name}"><svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M3 10.5L12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1v-9.5z\" fill=\"rgba(56,189,248,0.18)\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/></svg> ${p.name} • ${p.distKm} км</button>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+
+        ${s.savedSpots.length ? `
+          <div style="margin-top:8px;">
+            <div style="font-size:var(--fs-xs);color:var(--muted);font-weight:700;margin-bottom:4px;"><svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z\" fill=\"rgba(239,68,68,0.22)\" stroke=\"#ef4444\" stroke-width=\"1.9\"/><circle cx=\"12\" cy=\"11\" r=\"2.3\" fill=\"#ef4444\"/></svg> ВАШИ СОХРАНЁННЫЕ ЗАКЛАДКИ (<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><rect x=\"5\" y=\"11\" width=\"14\" height=\"10\" rx=\"2.5\" fill=\"rgba(251,191,36,0.22)\" stroke=\"#fbbf24\" stroke-width=\"1.8\"/><path d=\"M8 11V7a4 4 0 0 1 8 0v4\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\"/></svg> 100% ПРИВАТНО НА УСТРОЙСТВЕ):</div>
+            <div style="font-size:10.5px;color:var(--muted);margin-bottom:4px;">Фильтр ваших закладок по назначению:</div>
+            <div class="chip-scroll-row" style="margin-bottom:6px;padding-bottom:2px;">
+              <button type="button" class="w-chip ${visibleMapLayers.spotCategory === 'all' ? 'active' : ''}" data-spot-cat-filter="all" style="min-height:28px;padding:3px 9px;font-size:11px;"><svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3V6z\" fill=\"rgba(56,189,248,0.18)\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/><path d=\"M9 3v15M15 6v15\" stroke=\"currentColor\" stroke-width=\"1.6\"/><circle cx=\"12\" cy=\"10\" r=\"2.2\" fill=\"#38bdf8\" stroke=\"#fff\" stroke-width=\"1\"/></svg> Все закладки (${s.savedSpots.length})</button>
+              ${Object.values(SPOT_CATEGORIES).map(cat => `
+                <button type="button" class="w-chip ${visibleMapLayers.spotCategory === cat.id ? 'active' : ''}" data-spot-cat-filter="${cat.id}" style="min-height:28px;padding:3px 9px;font-size:11px;">
+                  ${cat.icon} ${cat.label}
+                </button>
+              `).join('')}
+            </div>
+            <div class="chip-scroll-row">
+              ${s.savedSpots.filter(sp => visibleMapLayers.spotCategory === 'all' || (sp.category || 'bite') === visibleMapLayers.spotCategory).map(sp => `
+                <span class="w-chip" style="gap:6px;">
+                  <button type="button" style="background:none;border:none;cursor:pointer;font-weight:700;color:var(--text);" data-load-spot="${sp.id}">${(SPOT_CATEGORIES[sp.category] || SPOT_CATEGORIES.bite).icon} ${escapeHtml(sp.name)}</button>
+                  <button type="button" style="background:none;border:none;cursor:pointer;color:var(--bad);" data-del-spot="${sp.id}" aria-label="Удалить точку"><svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z\" fill=\"rgba(251,191,36,0.32)\" stroke=\"#fbbf24\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/></svg></button>
+                </span>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+
+        <div style="margin-top:10px;padding:8px 10px;background:var(--card);border:1px dashed var(--accent);border-radius:var(--r-sm);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+          <span style="font-size:var(--fs-xs);font-weight:800;color:var(--accent);"><svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"12\" cy=\"12\" r=\"9\" stroke=\"currentColor\" stroke-width=\"1.8\"/><circle cx=\"12\" cy=\"12\" r=\"5\" stroke=\"#38bdf8\" stroke-width=\"1.5\"/><path d=\"M12 12l6-6\" stroke=\"#10b981\" stroke-width=\"2\" stroke-linecap=\"round\"/><circle cx=\"12\" cy=\"12\" r=\"1.8\" fill=\"#10b981\"/></svg> Обмен путевыми точками и глубинами эхолота (.GPX / .KML / .JSON)</span>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <button type="button" class="btn btn-sm" id="geoExportGpxBtn"><svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M12 15V3m0 0L8 7m4-4l4 4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2\" stroke=\"currentColor\" stroke-width=\"1.9\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg> Экспорт .GPX</button>
+            <button type="button" class="btn btn-sm" id="geoExportKmlBtn"><svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M12 15V3m0 0L8 7m4-4l4 4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2\" stroke=\"currentColor\" stroke-width=\"1.9\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg> Экспорт .KML</button>
+            <label class="btn btn-sm btn-accent" style="cursor:pointer;margin:0;">
+              <svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2\" stroke=\"currentColor\" stroke-width=\"1.9\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg> Импорт .GPX / .KML / .JSON
+              <input type="file" id="geoImportGpxInput" accept=".gpx,.kml,.xml,.json,application/gpx+xml,application/vnd.google-earth.kml+xml,application/json,text/xml,*/*" style="display:none;">
+ </label>
+ </div>
+ </div>
+ </div>
+
+ <div style="margin-bottom:10px;">
+ <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:6px;">
+ <div style="font-size:var(--fs-xs);color:var(--muted);font-weight:700;">
+ ВОДОЁМЫ В РАДИУСЕ <b>ДО ${activeRadius} КМ</b> (${(s.nearbyWaters || []).length} шт.)
+ ${s.selectedWaterName ? `• выбран: <b style="color:var(--accent);">${s.selectedWaterName}</b> [${getWaterTypeShortTag(s.water)}]` : '(кликните для выбора)'}:
+ </div>
+ <div style="display:inline-flex;gap:5px;align-items:center;">
+ <button type="button" class="btn btn-sm ${activeRadius === 50 ? 'btn-accent' : ''}" data-water-radius="50" style="min-height:30px;padding:3px 10px;"> До 50 км</button>
+ <button type="button" class="btn btn-sm ${activeRadius === 120 ? 'btn-accent' : ''}" data-water-radius="120" style="min-height:30px;padding:3px 10px;"> До 120 км</button>
+ </div>
+ </div>
+ <div class="chip-scroll-row">
+ ${(s.nearbyWaters || []).map(w => {
+ const isSelected = s.selectedWaterName ? (s.selectedWaterName === w.name) : (s.water === w.wType);
+ return `<button type="button" class="w-chip ${isSelected ? 'active' : ''}" data-nearby-water="${w.wType}" data-nearby-name="${w.name || w.label}" data-nearby-depth="${w.defDepth || ''}">${w.label}</button>`;
+ }).join('')}
+ </div>
+ </div>
+
+ <div class="card" style="background:var(--card);margin-bottom:12px;padding:10px 12px;border:1px solid var(--border);">
+ <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:6px;">
+ <span style="font-size:var(--fs-xs);font-weight:800;color:var(--accent);"> КАРТА ГЛУБИН И РЕЛЬЕФ ДНА: ${s.selectedWaterName || prof.name} (${getWaterTypeShortTag(s.water)})</span>
+ <span class="pill pill-neutral" style="font-size:var(--fs-xs);">Эхолокационный диапазон: ${prof.minD}–${prof.maxD} м</span>
+ </div>
+ <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;font-size:var(--fs-xs);">
+ <div style="background:var(--panel);padding:6px 8px;border-radius:6px;">
+ <div style="color:var(--muted);font-size:var(--fs-xs);">ТЕКУЩИЙ ГОРИЗОНТ ЛОВЛИ</div>
+ <div id="geoCurrentHorizonVal" style="font-weight:800;font-size:var(--fs-sm);color:var(--accent);">${s.depth.toFixed(1)} м (свал / русло)</div>
+ </div>
+ <div style="background:var(--panel);padding:6px 8px;border-radius:6px;">
+ <div style="color:var(--muted);font-size:var(--fs-xs);">ХАРАКТЕР РЕЛЬЕФА</div>
+ <div style="font-weight:700;">${prof.flow > 1.5 ? 'Русловая бровка, песчано-галечный свал' : 'Илистое дно, перепады глубин, старичные ямы'}</div>
+ </div>
+ <div style="background:var(--panel);padding:6px 8px;border-radius:6px;">
+ <div style="color:var(--muted);font-size:var(--fs-xs);">СКОРОСТЬ ТЕЧЕНИЯ (ВЛИЯЕТ НА ВОДУ И ЛЁД)</div>
+ <div style="font-weight:700;">${prof.flow >= 2.0 ? 'Быстрое (до ' + prof.flow + ' м/с)' : (prof.flow >= 1.0 ? 'Умеренное (~' + prof.flow + ' м/с)' : 'Слабое / стоячая вода')}</div>
+ </div>
+ </div>
+ </div>
+
+ <div class="controls-grid" style="grid-template-columns:repeat(auto-fit,minmax(230px,1fr));">
+ <div>
+ <label for="geoWaterSelect" style="display:block;font-size:var(--fs-xs);color:var(--muted);font-weight:700;margin-bottom:3px;">ТИП ВОДНОГО ОБЪЕКТА (БИОТОП)</label>
+ <select id="geoWaterSelect">
+ ${availableWaters.map(w => `<option value="${w.id}" ${w.id === s.water ? 'selected' : ''}>${String(w.name || '').replace(/<[^>]+>/g, '').trim()}</option>`).join('')}
+ </select>
+ </div>
+
+ <div>
+ <label for="geoDepthRange" style="display:block;font-size:var(--fs-xs);color:var(--muted);font-weight:700;margin-bottom:3px;">
+ РАБОЧАЯ ГЛУБИНА В ТОЧКЕ: <span id="geoDepthVal" style="color:var(--accent);font-weight:800;">${s.depth.toFixed(1)}</span> м (${prof.minD}–${prof.maxD} м)
+ </label>
+ <input type="range" id="geoDepthRange" min="${prof.minD}" max="${prof.maxD}" step="0.1" value="${s.depth}" style="width:100%;margin-top:8px;">
+ </div>
+ </div>
+ </div>
+ `;
+
+ bindGeoEvents(container, showDrawer);
+ const newRows = container.querySelectorAll('.chip-scroll-row');
+ newRows.forEach((el, idx) => {
+ if (Array.isArray(prevScrolls) && prevScrolls[idx] > 0) el.scrollLeft = prevScrolls[idx];
+ });
+}
+
+function bindGeoEvents(container, showDrawer) {
+ const toggleBtn = container.querySelector('#geoToggleMapBtn');
+ if (toggleBtn) {
+ toggleBtn.addEventListener('click', () => {
+ mapOpen = !mapOpen;
+ render(container);
+ });
+ }
+
+ const inspectBtn = container.querySelector('#geoInspectModeBtn');
+ if (inspectBtn) {
+ inspectBtn.addEventListener('click', () => {
+ inspectMode = !inspectMode;
+ if (inspectMode) {
+ mapOpen = true;
+ const st = store.getState();
+ if (!inspectedPoint) {
+ inspectWhatBitesHere(st.lat, st.lon);
+ }
+ showToast(' Включён режим разведки «Что здесь клюёт?»: тапните в любую точку карты или выберите посёлок ниже!', 'good');
+ } else {
+ inspectedPoint = null;
+ }
+ render(container);
+ });
+ }
+
+ const scoutApplyBtn = container.querySelector('#scoutApplyLocationBtn');
+ if (scoutApplyBtn && inspectedPoint) {
+ scoutApplyBtn.addEventListener('click', () => {
+ const pt = inspectedPoint;
+ inspectMode = false;
+ inspectedPoint = null;
+ setLocation(pt.lat, pt.lon);
+ showToast(` Основная точка перенесена: ${pt.settlementLabel}`, 'good');
+ });
+ }
+
+ const scoutCloseBtn = container.querySelector('#scoutCloseBtn');
+ if (scoutCloseBtn) {
+ scoutCloseBtn.addEventListener('click', () => {
+ inspectMode = false;
+ inspectedPoint = null;
+ render(container);
+ });
+ }
+
+ const gpsBtn = container.querySelector('#geoGpsBtn');
+ if (gpsBtn) gpsBtn.addEventListener('click', () => requestGPS(container));
+
+ const saveSpotBtn = container.querySelector('#geoSaveSpotBtn');
+ if (saveSpotBtn) saveSpotBtn.addEventListener('click', () => openSaveSpotModal());
+
+ const quickCatchBtn = container.querySelector('#geoQuickLogCatchBtn');
+ if (quickCatchBtn) {
+ quickCatchBtn.addEventListener('click', () => {
+ const sNow = store.getState();
+ events.emit('forecast:hourSelected', {
+ dayIdx: sNow.dayIdx ?? 2,
+ hour: sNow.selectedHour ?? new Date().getHours()
+ });
+ });
+ }
+
+ const shareCrewBtn = container.querySelector('#geoShareCrewBtn');
+ if (shareCrewBtn) {
+ shareCrewBtn.addEventListener('click', () => {
+ events.emit('circle:openShareModal', { mode: 'crew' });
+ });
+ }
+
+ container.querySelectorAll('[data-toggle-overlay]').forEach(btn => {
+ btn.addEventListener('click', () => {
+ const key = btn.getAttribute('data-toggle-overlay');
+ if (key && key in visibleMapLayers) {
+ visibleMapLayers[key] = !visibleMapLayers[key];
+ renderMapOverlays();
+ render(container);
+ }
+ });
+ });
+
+ container.querySelectorAll('[data-map-owner]').forEach(btn => {
+ btn.addEventListener('click', () => {
+ visibleMapLayers.ownership = btn.getAttribute('data-map-owner') || 'all';
+ renderMapOverlays();
+ render(container);
+ });
+ });
+
+ container.querySelectorAll('[data-spot-cat-filter]').forEach(btn => {
+ btn.addEventListener('click', () => {
+ visibleMapLayers.spotCategory = btn.getAttribute('data-spot-cat-filter') || 'all';
+ renderMapOverlays();
+ render(container);
+ });
+ });
+
+ if (typeof document !== "undefined" && !window.__KLEV_MAP_POPUP_ACTIONS_BOUND__) {
+ window.__KLEV_MAP_POPUP_ACTIONS_BOUND__ = true;
+ document.addEventListener("click", (e) => {
+ const delBtn = e.target.closest?.("[data-popup-del-circle]");
+ if (delBtn) {
+ const id = delBtn.getAttribute("data-popup-del-circle");
+ const targetPt = (store.getState().circleItems || []).find(x => x && x.id === id);
+ openConfirmDeleteModal({
+ title: " Удалить точку с карты и из Круга?",
+ message: `Точка «${escapeHtml(targetPt?.fn || targetPt?.wn || targetPt?.lb || "Сводка")}» будет удалена с карты и из ленты Круга.`,
+ confirmLabel: " Да, удалить",
+ onConfirm: () => {
+ events.emit("circle:deleteSharedCatchItem", { circleItemId: id });
+ const next = (store.getState().circleItems || []).filter(x => x.id !== id);
+ storage.saveCircleItems(next);
+ store.dispatch({ type: "SET_CIRCLE_ITEMS", payload: next });
+ renderMapOverlays();
+ showToast(" Точка удалена с карты и из Круга", "info");
+ }
+ });
+ return;
+ }
+ const hideBtn = e.target.closest?.("[data-popup-hide-circle]");
+ if (hideBtn) {
+ const id = hideBtn.getAttribute("data-popup-hide-circle");
+ store.dispatch({ type: "HIDE_CIRCLE_ITEM", payload: id });
+ renderMapOverlays();
+ showToast(" Чужая точка скрыта с вашей карты (можно вернуть во вкладке «Круг -> Скрытые»)", "info");
+ }
+ });
+ }
+
+ const expGpxBtn = container.querySelector('#geoExportGpxBtn');
+ if (expGpxBtn) {
+ expGpxBtn.addEventListener('click', () => exportSpotsToGpx());
+ }
+
+ const expKmlBtn = container.querySelector('#geoExportKmlBtn');
+ if (expKmlBtn) {
+ expKmlBtn.addEventListener('click', () => exportSpotsToKml());
+ }
+
+ const impGpxInput = container.querySelector('#geoImportGpxInput');
+ if (impGpxInput) {
+ impGpxInput.addEventListener('change', (e) => {
+ const file = e.target.files?.[0];
+ if (!file) return;
+ const reader = new FileReader();
+ reader.onload = () => {
+ importSpotsFromFileText(String(reader.result || ''));
+ impGpxInput.value = '';
+ };
+ reader.readAsText(file);
+ });
+ }
+
+ container.querySelectorAll('[data-install-app]').forEach(btn => {
+ btn.addEventListener('click', () => installShortcut());
+ });
+ syncInstallButtons();
+
+ const searchBtn = container.querySelector('#geoSearchBtn');
+ const searchInput = container.querySelector('#geoSearchInput');
+ if (searchBtn && searchInput) {
+ searchBtn.addEventListener('click', () => searchPlaceByQuery(searchInput.value));
+ searchInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') searchPlaceByQuery(searchInput.value); });
+ }
+
+ container.querySelectorAll('[data-map-layer]').forEach(btn => {
+ btn.addEventListener('click', () => {
+ currentLayerKey = btn.getAttribute('data-map-layer');
+ if (mapInstance) {
+ if (currentTileLayer) mapInstance.removeLayer(currentTileLayer);
+ currentTileLayer = createResilientTileLayer(currentLayerKey).addTo(mapInstance);
+ }
+ render(container);
+ });
+ });
+
+ container.querySelectorAll('[data-water-radius]').forEach(btn => {
+ btn.addEventListener('click', () => {
+ const nextRadius = parseInt(btn.getAttribute('data-water-radius'), 10) === 120 ? 120 : 50;
+ store.dispatch({ type: 'SET_WATER_RADIUS', payload: nextRadius });
+ const st = store.getState();
+ getNearbyWatersAndPlaces(st.lat, st.lon, nextRadius);
+ showToast(`Радиус поиска водоёмов и видового состава рыб: до ${nextRadius} км`, 'info');
+ });
+ });
+
+ container.querySelectorAll('[data-nearby-place]').forEach(btn => {
+ btn.addEventListener('click', () => {
+ const [latStr, lonStr, name] = btn.getAttribute('data-nearby-place').split(',');
+ const pLat = parseFloat(latStr);
+ const pLon = parseFloat(lonStr);
+ if (inspectMode) {
+ inspectWhatBitesHere(pLat, pLon);
+ render(container);
+ } else {
+ store.dispatch({ type: 'SET_LOCATION_LABELS', payload: { locLabel: name, locAdmin2: name } });
+ setLocation(pLat, pLon, true);
+ }
+ });
+ });
+
+ container.querySelectorAll('[data-nearby-water]').forEach(btn => {
+ btn.addEventListener('click', () => {
+ const wType = btn.getAttribute('data-nearby-water');
+ const wName = btn.getAttribute('data-nearby-name') || '';
+ const defD = parseFloat(btn.getAttribute('data-nearby-depth')) || WATER_PROFILES[wType]?.defD || 1.5;
+ store.dispatch({ type: 'SET_WATER', payload: { water: wType, depth: defD, selectedWaterName: wName } });
+ showToast(`Выбран водоём: ${wName} (${getWaterTypeShortTag(wType)})`, 'info');
+ });
+ });
+
+ container.querySelectorAll('[data-load-spot]').forEach(btn => {
+ btn.addEventListener('click', () => {
+ const id = btn.getAttribute('data-load-spot');
+ const sp = store.getState().savedSpots.find(x => x.id === id);
+ if (sp) {
+ store.dispatch({ type: 'SET_LOCATION_LABELS', payload: { locLabel: sp.name } });
+ store.dispatch({ type: 'SET_WATER', payload: { water: sp.water, depth: sp.depth, selectedWaterName: sp.selectedWaterName || '' } });
+ setLocation(sp.lat, sp.lon, true);
+ }
+ });
+ });
+
+ container.querySelectorAll('[data-del-spot]').forEach(btn => {
+ btn.addEventListener('click', () => {
+ const id = btn.getAttribute('data-del-spot');
+ const sp = (store.getState().savedSpots || []).find(x => x && x.id === id);
+ openConfirmDeleteModal({
+ title: ' Удалить сохранённую закладку?',
+ message: `Точка «${escapeHtml(sp?.name || 'Закладка')}» будет удалена из ваших закладок на карте.`,
+ confirmLabel: ' Удалить',
+ onConfirm: () => deleteSpot(id)
+ });
+ });
+ });
+
+ const wSel = container.querySelector('#geoWaterSelect');
+ if (wSel) {
+ wSel.addEventListener('change', (e) => {
+ const wType = e.target.value;
+ const prof = WATER_PROFILES[wType] || WATER_PROFILES.small_river;
+ const clampedDepth = clamp(store.getState().depth, prof.minD, prof.maxD);
+ store.dispatch({ type: 'SET_WATER', payload: { water: wType, depth: clampedDepth, selectedWaterName: '' } });
+ });
+ }
+
+ const mSel = container.querySelector('#geoMethodSelect');
+ if (mSel) {
+ mSel.addEventListener('change', (e) => {
+ store.dispatch({ type: 'SET_METHOD', payload: e.target.value });
+ });
+ }
+
+ const dRange = container.querySelector('#geoDepthRange');
+ const dVal = container.querySelector('#geoDepthVal');
+ const dHorVal = container.querySelector('#geoCurrentHorizonVal');
+ if (dRange) {
+ dRange.addEventListener('input', (e) => {
+ const fv = parseFloat(e.target.value).toFixed(1);
+ if (dVal) dVal.textContent = fv;
+ if (dHorVal) dHorVal.textContent = `${fv} м (свал / русло)`;
+ });
+ dRange.addEventListener('change', (e) => {
+ store.dispatch({ type: 'SET_DEPTH', payload: parseFloat(e.target.value) });
+ });
+ }
+
+ if (showDrawer) {
+ setTimeout(() => {
+ const box = container.querySelector('#mapBox');
+ if (box && box.offsetParent !== null) renderMap(box);
+ }, 60);
+ }
+}
+
+let unsub = null;
+
+export async function init(container) {
+ const localSpots = storage.getLocalBackup ? storage.getLocalBackup('spots') : [];
+ if (Array.isArray(localSpots) && localSpots.length > 0) {
+ store.dispatch({ type: 'SET_SAVED_SPOTS', payload: localSpots });
+ }
+
+ const s = store.getState();
+ if (!s.locLabel || s.locLabel.includes('Определение') || s.locAdmin1 === 'Автоопределение') {
+ resolveReverseGeocode(s.lat, s.lon);
+ }
+
+ getNearbyWatersAndPlaces(s.lat, s.lon, s.waterRadiusKm || 50, true);
+ render(container);
+ setTimeout(() => {
+ const stNow = store.getState();
+ getNearbyWatersAndPlaces(stNow.lat, stNow.lon, stNow.waterRadiusKm || 50, false).catch(() => {});
+ }, 1500);
+
+ if (unsub) unsub();
+ unsub = store.subscribe(
+ st => {
+ const activeDay = st.weatherDays?.[st.dayIdx] || st.weatherDays?.[2] || st.weatherDays?.[0];
+ return {
+ appMode: st.appMode,
+ lat: st.lat,
+ lon: st.lon,
+ basinCode: st.basinCode,
+ isCoastal: st.isCoastal,
+ water: st.water,
+ waterRadiusKm: st.waterRadiusKm,
+ selectedWaterName: st.selectedWaterName,
+ method: st.method,
+ selectedBait: st.selectedBait,
+ depth: st.depth,
+ iceState: st.iceState,
+ dayIdx: st.dayIdx,
+ dayIceState: activeDay?.iceState || st.iceState,
+ dayWaterTemp: activeDay?.waterTemp ?? 12,
+ nearbyWaters: st.nearbyWaters,
+ nearbyPlaces: st.nearbyPlaces,
+ savedSpots: st.savedSpots,
+ circleItems: st.circleItems,
+ hiddenCircleIds: st.userProfile?.hiddenCircleIds,
+ route: st.route,
+ fishId: st.fishId
+ };
+ },
+ (next, prev) => {
+ if (next.route && next.route !== 'geo') {
+ container._geoNeedsRender = true;
+ return;
+ }
+ container._geoNeedsRender = false;
+
+ // Если пользователь сейчас вводит текст в поле поиска (#geoSearchInput или координаты) — НЕ разрушаем DOM!
+ if (typeof document !== 'undefined' && container.contains(document.activeElement) && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
+ renderMapOverlays();
+ return;
+ }
+
+ // Быстрый путь: если локация, водоём, метод и режим не менялись, а изменились только точки Круга/закладки — обновляем только слои карты без пересоздания карты!
+ if (prev &&
+ next.lat === prev.lat &&
+ next.lon === prev.lon &&
+ next.water === prev.water &&
+ next.waterRadiusKm === prev.waterRadiusKm &&
+ next.selectedWaterName === prev.selectedWaterName &&
+ next.method === prev.method &&
+ next.depth === prev.depth &&
+ next.appMode === prev.appMode &&
+ next.dayIdx === prev.dayIdx) {
+ renderMapOverlays();
+ return;
+ }
+
+ render(container);
+ }
+ );
+
+ autoDetectStartupLocation();
+
+ try {
+ const spots = await storage.getAllFromStore('spots');
+ if (Array.isArray(spots)) {
+ store.dispatch({ type: 'SET_SAVED_SPOTS', payload: spots });
+ }
+ } catch (e) {}
+}
+
+export function destroy() {
+ if (unsub) unsub();
+}
+
+export const geoModule = {
+ setLocation,
+ inspectWhatBitesHere,
+ exportSpotsToGpx,
+ importSpotsFromFileText,
+ autoDetectStartupLocation,
+ locateByIpFallback,
+ detectUserPosition,
+ resolveReverseGeocode,
+ searchPlaceByQuery,
+ requestGPS,
+ getNearbyWatersAndPlaces,
+ classifyOsmWaterElement,
+ saveSpot,
+ deleteSpot,
+ renderMap,
+ getMethodOptions,
+ init,
+ render,
+ destroy
+};

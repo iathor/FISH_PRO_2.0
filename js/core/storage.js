@@ -1,1 +1,925 @@
-import{STATE_CACHE_KEY as e,WEATHER_CACHE_KEY as t,WEATHER_TTL_MS as r}from"./config.js?v=2.5.0";import{formatLocalYYYYMMDD as a}from"./format.js?v=2.5.0";const o="KlevProDB_v2_1_1";export const CLEAN_SLATE_FLAG_KEY="klev_pro_clean_slate_v2_1_1_r4";export const CLEAN_SLATE_NOTICE_KEY="klev_pro_clean_slate_notice_v2_1_1_r4";export function runCleanSlateMigrationV2100(){if("undefined"==typeof localStorage)return!1;try{if("1"===localStorage.getItem(CLEAN_SLATE_FLAG_KEY))return!1;let t=null;try{const r=localStorage.getItem(e);if(r){const e=JSON.parse(r);e&&e.userProfile&&e.userProfile.login&&(t={...e.userProfile},delete t.authShadow)}}catch(e){}const r=[];for(let e=0;e<localStorage.length;e++){const t=localStorage.key(e);t&&(t.startsWith("klev_pro_")||t.startsWith("KLEV_")||t.includes("klev"))&&r.push(t)}if(r.forEach((e=>{try{localStorage.removeItem(e)}catch(e){}})),"undefined"!=typeof indexedDB&&"function"==typeof indexedDB.deleteDatabase)try{indexedDB.deleteDatabase("KlevProDB_v2")}catch(e){}if(t)try{localStorage.setItem(e,JSON.stringify({appMode:t.appMode||"angler",hasUserLocation:!1,lat:66.0833,lon:76.68,locCountry:"Россия",locAdmin1:"Ямало-Ненецкий АО",locAdmin2:"Новый Уренгой",locLabel:"Новый Уренгой",userProfile:t}))}catch(e){}return localStorage.setItem(CLEAN_SLATE_FLAG_KEY,"1"),localStorage.setItem(CLEAN_SLATE_NOTICE_KEY,"1"),!0}catch(e){return!1}}runCleanSlateMigrationV2100();export const GEO_WEATHER_ARCHIVE_KEY="klev_pro_geo_weather_archive_v2";export const GEO_WATERS_CACHE_KEY="klev_pro_geo_waters_cache_v2";export const CIRCLE_PACKS_CACHE_KEY="klev_pro_circle_packs_v2";export const CIRCLE_CHATS_CACHE_KEY="klev_pro_circle_chats_v2";export const CIRCLE_NOTIFS_CACHE_KEY="klev_pro_circle_notifs_v2";export const DEVICE_ID_CACHE_KEY="klev_pro_device_id_v2";export const PHOTO_HASHES_CACHE_KEY="klev_pro_photo_dhashes_v2";export const GEO_CLUSTER_RADIUS_KM=10;const s={spots:"klev_pro_spots_backup_v2",catches:"klev_pro_catches_backup_v2",chats:CIRCLE_CHATS_CACHE_KEY};export function safeJsonParse(e,t=null){if(!e||"string"!=typeof e)return t;try{return JSON.parse(e,((e,t)=>{if("__proto__"!==e&&"constructor"!==e&&"prototype"!==e)return t}))}catch(e){return t}}let n=null;const c={catches:[],spots:[],weather_archive:[],chats:[]},i={catches:!1,spots:!1,chats:!1};let l=null,h=null,u=null,d=null;function y(e){const t=s[e];if(!t)return[...c[e]||[]];if(i[e]&&Array.isArray(c[e]))return[...c[e]];try{const r=localStorage.getItem(t);if(i[e]=!0,!r)return[...c[e]||[]];const a=safeJsonParse(r);if(Array.isArray(a))return c[e]=a,[...a]}catch(e){}return[...c[e]||[]]}function f(e,t){if(!Array.isArray(t))return;c[e]=[...t],i[e]=!0;const r=s[e];if(r)try{localStorage.setItem(r,JSON.stringify(t))}catch(e){}}export function calcGeoDistanceKm(e,t,r,a){const o=(r-e)*Math.PI/180,s=(a-t)*Math.PI/180,n=Math.sin(o/2)**2+Math.cos(e*Math.PI/180)*Math.cos(r*Math.PI/180)*Math.sin(s/2)**2;return Math.round(12742*Math.atan2(Math.sqrt(n),Math.sqrt(1-n))*100)/100}function _(){return n||(n=new Promise((e=>{if("undefined"==typeof indexedDB)return void e(null);let t=!1;const r=r=>{t||(t=!0,clearTimeout(a),r||(n=null),e(r||null))},a=setTimeout((()=>r(null)),550);try{const e=indexedDB.open(o,2);e.onupgradeneeded=e=>{const t=e.target.result;if(!t.objectStoreNames.contains("catches")){const e=t.createObjectStore("catches",{keyPath:"id"});e.createIndex("fishId","fishId",{unique:!1}),e.createIndex("timestamp","timestamp",{unique:!1})}t.objectStoreNames.contains("spots")||t.createObjectStore("spots",{keyPath:"id"}),t.objectStoreNames.contains("weather_archive")||t.createObjectStore("weather_archive",{keyPath:"clusterId"}),t.objectStoreNames.contains("chats")||t.createObjectStore("chats",{keyPath:"id"})},e.onsuccess=()=>{const t=e.result;t&&(t.onversionchange=()=>{try{t.close()}catch(e){}n=null}),r(t)},e.onerror=()=>r(null),e.onblocked=()=>r(null)}catch(e){r(null)}})),n)}function m(){if(null!==l)return l;try{const e=localStorage.getItem(GEO_WEATHER_ARCHIVE_KEY);if(!e)return l=[],l;const t=safeJsonParse(e);return l=Array.isArray(t)?t:[],l}catch(e){return l=[],l}}let A=null;function p(e){l=Array.isArray(e)?e:[];try{localStorage.setItem(GEO_WEATHER_ARCHIVE_KEY,JSON.stringify(l))}catch(e){}A&&clearTimeout(A),A=setTimeout((()=>{_().then((e=>{if(e&&e.objectStoreNames.contains("weather_archive"))try{const t=e.transaction("weather_archive","readwrite").objectStore("weather_archive");(l||[]).forEach((e=>{e&&e.clusterId&&t.put(e)}))}catch(e){}})).catch((()=>{}))}),350)}export const storage={_memDeviceId:"",getDeviceId(){try{if("undefined"!=typeof window&&window.AndroidBridge&&"function"==typeof window.AndroidBridge.getDeviceId){const e=String(window.AndroidBridge.getDeviceId()||"").trim();if(e&&e.length>=6&&"unknown"!==e&&"9774d56d682e549c"!==e){const t=`hw_${e}`;this._memDeviceId=t;try{localStorage.setItem(DEVICE_ID_CACHE_KEY,t)}catch(e){}return t}}if("undefined"!=typeof localStorage){const e=localStorage.getItem(DEVICE_ID_CACHE_KEY);if(e&&"string"==typeof e&&e.length>=10&&"dev_local_fallback"!==e)return this._memDeviceId=e,e}if(this._memDeviceId&&this._memDeviceId.length>=10)return this._memDeviceId;let e="";if("undefined"!=typeof crypto&&"function"==typeof crypto.randomUUID)e="dev_"+crypto.randomUUID().replace(/-/g,"");else if("undefined"!=typeof crypto&&"function"==typeof crypto.getRandomValues){const t=new Uint8Array(16);crypto.getRandomValues(t),e="dev_"+Array.from(t,(e=>e.toString(16).padStart(2,"0"))).join("")}else e="dev_"+Date.now().toString(36)+"_"+Math.random().toString(36).slice(2,12)+"_"+Math.random().toString(36).slice(2,10);this._memDeviceId=e;try{localStorage.setItem(DEVICE_ID_CACHE_KEY,e)}catch(e){}return e}catch(e){return this._memDeviceId||(this._memDeviceId="dev_"+Date.now().toString(36)+"_"+Math.random().toString(36).slice(2,12)),this._memDeviceId}},loadPhotoHashes(){try{const e=localStorage.getItem(PHOTO_HASHES_CACHE_KEY);if(!e)return[];const t=safeJsonParse(e);return Array.isArray(t)?t:[]}catch(e){return[]}},savePhotoHash(e){if(e)try{const t=this.loadPhotoHashes().filter((t=>t!==e));t.unshift(e),localStorage.setItem(PHOTO_HASHES_CACHE_KEY,JSON.stringify(t.slice(0,200)))}catch(e){}},loadSettings(){try{const t=localStorage.getItem(e);return t?safeJsonParse(t,null):null}catch(e){return null}},_flushSettingsNow(t){const r=t||d;if(r){d=null;try{const t={appMode:r.appMode||"angler",hasUserLocation:r.hasUserLocation,lat:r.lat,lon:r.lon,locCountry:r.locCountry,locAdmin1:r.locAdmin1,locAdmin2:r.locAdmin2,locLabel:r.locLabel,basinCode:r.basinCode,basinName:r.basinName,isCoastal:r.isCoastal,water:r.water,waterRadiusKm:r.waterRadiusKm||50,selectedWaterName:r.selectedWaterName,method:r.method,selectedBait:r.selectedBait,depth:r.depth,fishId:r.fishId,showAllSpecies:r.showAllSpecies,onlyFavoritesFilter:r.onlyFavoritesFilter,favorites:r.favorites,favoritesExplicitlySet:r.favoritesExplicitlySet,compareSpeciesIds:r.compareSpeciesIds,theme:r.theme,userProfile:r.userProfile,proFactorWeights:r.proFactorWeights};localStorage.setItem(e,JSON.stringify(t))}catch(e){}}},saveSettings(e){d=e,"undefined"!=typeof window?(u&&clearTimeout(u),u=setTimeout((()=>{u=null,this._flushSettingsNow()}),90)):this._flushSettingsNow(e)},loadCircleItems(){try{const e=localStorage.getItem(CIRCLE_PACKS_CACHE_KEY);if(!e)return[];const t=safeJsonParse(e);return Array.isArray(t)?t:[]}catch(e){return[]}},saveCircleItems(e){try{Array.isArray(e)&&localStorage.setItem(CIRCLE_PACKS_CACHE_KEY,JSON.stringify(e))}catch(e){}},loadChatMessages(){try{const e=localStorage.getItem(CIRCLE_CHATS_CACHE_KEY);if(!e)return[];const t=safeJsonParse(e);return Array.isArray(t)?t:[]}catch(e){return[]}},saveChatMessages(e){if(!Array.isArray(e))return;const t=e.slice(0,500);f("chats",t),_().then((e=>{if(e&&e.objectStoreNames.contains("chats"))try{const r=e.transaction("chats","readwrite").objectStore("chats");r.clear(),t.slice(0,100).forEach((e=>{e&&e.id&&r.put(e)}))}catch(e){}})).catch((()=>{}))},loadNotifications(){try{const e=localStorage.getItem(CIRCLE_NOTIFS_CACHE_KEY);if(!e)return[];const t=safeJsonParse(e);return Array.isArray(t)?t:[]}catch(e){return[]}},saveNotifications(e){try{Array.isArray(e)&&localStorage.setItem(CIRCLE_NOTIFS_CACHE_KEY,JSON.stringify(e.slice(0,120)))}catch(e){}},exportFullProfileBackup(e){return{schema:"KlevProProfileBackup_v2",version:"2.1.1",exportedAt:(new Date).toISOString(),deviceId:this.getDeviceId(),userProfile:(()=>{const t={...e?.userProfile||{}};return delete t.authShadow,delete t.authTokenHash,delete t.secureTokenHash,delete t.pinHash,delete t.adminSessionToken,t})(),favorites:e?.favorites||[],proFactorWeights:e?.proFactorWeights||{},location:{lat:e?.lat,lon:e?.lon,locLabel:e?.locLabel,locAdmin1:e?.locAdmin1,water:e?.water,selectedWaterName:e?.selectedWaterName,depth:e?.depth},savedSpots:e?.savedSpots||y("spots"),catches:e?.catches||y("catches"),circleItems:e?.circleItems||this.loadCircleItems(),chatMessages:e?.chatMessages||this.loadChatMessages(),notifications:e?.notifications||this.loadNotifications()}},async importFullProfileBackup(e){if(!e||"object"!=typeof e)return!1;try{if(Array.isArray(e.savedSpots)){f("spots",e.savedSpots);for(const t of e.savedSpots)t&&t.id&&await this.putToStore("spots",t)}if(Array.isArray(e.catches)){f("catches",e.catches);for(const t of e.catches)t&&t.id&&await this.putToStore("catches",t)}return Array.isArray(e.circleItems)&&this.saveCircleItems(e.circleItems),Array.isArray(e.chatMessages)&&this.saveChatMessages(e.chatMessages),Array.isArray(e.notifications)&&this.saveNotifications(e.notifications),!0}catch(e){return!1}},getLocalBackup:e=>y(e),findGeoWeatherCluster(e,t,r=10){const a=m();let o=null,s=1/0;for(const n of a){if(!n||!Number.isFinite(n.lat)||!Number.isFinite(n.lon))continue;const a=calcGeoDistanceKm(e,t,n.lat,n.lon);a<=r&&a<s&&(s=a,o=n)}return o?{cluster:o,distKm:s}:null},saveWeatherCache(e,r,o,s=[]){const n=a(new Date),c=m();let i=null,l=1/0;for(const t of c){if(!t||!Number.isFinite(t.lat)||!Number.isFinite(t.lon))continue;const a=calcGeoDistanceKm(e,r,t.lat,t.lon);a<=10&&a<l&&(l=a,i=t)}i?(i.updatedAt=Date.now(),Number.isFinite(o.elevation)&&(i.elevation=o.elevation),Number.isFinite(o.normPress)&&(i.normPress=o.normPress)):(i={clusterId:`geo_${e.toFixed(3)}_${r.toFixed(3)}`,lat:Math.round(1e4*e)/1e4,lon:Math.round(1e4*r)/1e4,elevation:o.elevation||90,normPress:o.normPress||752,createdAt:Date.now(),updatedAt:Date.now(),hasRealArchive:Boolean(o.hasRealArchive),daysByDate:{}},c.push(i)),i.daysByDate&&"object"==typeof i.daysByDate||(i.daysByDate={});const h=[...Array.isArray(s)?s:[],...Array.isArray(o.days)?o.days:[]];for(const e of h){if(!e||!e.date||!Array.isArray(e.hours)||0===e.hours.length)continue;const t=e.date,r=t<n,a=i.daysByDate[t],o={date:t,label:e.label||t,relTitle:e.relTitle||"",tDay:e.tDay,tNight:e.tNight,waterTemp:e.waterTemp,pressAvg:e.pressAvg,dP:e.dP,windMax:e.windMax,windDir:e.windDir,sunriseHr:e.sunriseHr,sunsetHr:e.sunsetHr,iceState:e.iceState,iceSubState:e.iceSubState,iceThickness:e.iceThickness,iceNote:e.iceNote,moon:e.moon,hours:e.hours.map((e=>({...e}))),isReal:!1!==e.isReal,savedAt:Date.now()};r?(!a||!a.isReal&&o.isReal)&&(i.daysByDate[t]=o):i.daysByDate[t]=o}const u=Object.keys(i.daysByDate).filter((e=>e<n)).sort().filter((e=>!1!==i.daysByDate[e]?.isReal)).length;i.hasRealArchive=u>=3||Boolean(o.hasRealArchive),p(c);try{localStorage.setItem(t,JSON.stringify({lat:e,lon:r,timestamp:Date.now(),hasRealArchive:i.hasRealArchive,...o}))}catch(e){}return i},loadWeatherCache(e,o){const s=a(new Date),n=this.findGeoWeatherCluster(e,o,10);if(n&&n.cluster&&n.cluster.daysByDate){const t=n.cluster,c=Date.now()-(t.updatedAt||0),i=new Date(s+"T00:00:00"),l=[];let h=!0;for(let e=0;e<12;e++){const r=e-2,o=new Date(i.getTime()+864e5*r),s=a(o),n=t.daysByDate[s];if(!n||!Array.isArray(n.hours)||n.hours.length<24){h=!1;break}l.push({...n,relOffset:r,isArchive:r<0,relTitle:-2===r?"Позавчера":-1===r?"Вчера":0===r?"Сегодня":1===r?"Завтра":2===r?"Послезавтра":""})}const u=this.getArchiveDaysForLocation(e,o,5,s);if(h&&12===l.length){const e=l[2]||l[0];return{lat:t.lat,lon:t.lon,timestamp:t.updatedAt,elevation:t.elevation||90,normPress:t.normPress||752,iceState:e.iceState||"open_water",iceSubState:e.iceSubState||"open_water",iceThickness:e.iceThickness||0,iceNote:e.iceNote||"",days:l,archive5Days:u.days,hasRealArchive:u.hasRealArchive,isExpired:c>r,ageMinutes:Math.max(1,Math.round(c/6e4)),clusterDistKm:n.distKm}}}try{const a=localStorage.getItem(t);if(!a)return null;const s=safeJsonParse(a);if(calcGeoDistanceKm(s.lat||0,s.lon||0,e,o)>10||!s.days||12!==s.days.length)return null;const n=Date.now()-(s.timestamp||0);return{...s,isExpired:n>r,ageMinutes:Math.max(1,Math.round(n/6e4))}}catch(e){return null}},getArchiveDaysForLocation(e,t,r=5,o=null){const s=o||a(new Date),n=this.findGeoWeatherCluster(e,t,10);if(!n||!n.cluster||!n.cluster.daysByDate)return{days:[],allArchiveDays:[],hasRealArchive:!1,totalArchiveCount:0,cluster:null};const c=n.cluster.daysByDate,i=Object.keys(c).filter((e=>e<s)).sort().map((e=>c[e])).filter(Boolean),l=i.slice(-r),h=l.filter((e=>e&&!1!==e.isReal)).length;return{days:l,allArchiveDays:i,hasRealArchive:h>=3||Boolean(n.cluster.hasRealArchive&&l.length>=2),totalArchiveCount:i.length,cluster:n.cluster}},getDayWeatherByDate(e,t,r){if(!r)return null;const a=this.findGeoWeatherCluster(e,t,10);return a&&a.cluster&&a.cluster.daysByDate&&a.cluster.daysByDate[r]?a.cluster.daysByDate[r]:null},getWeatherArchiveStats(e,t){const r=a(new Date),o=m();let s=o.length,n=0,c=0,i=0,l=null;for(const a of o){const o=Object.keys(a?.daysByDate||{}).sort(),s=o.filter((e=>e<r)),h=o.filter((e=>e>=r));n+=s.length,c+=h.length,Number.isFinite(e)&&Number.isFinite(t)&&calcGeoDistanceKm(e,t,a.lat,a.lon)<=10&&(i+=s.length,s.length>0&&(!l||s[0]<l)&&(l=s[0]))}return{totalLocations:s,totalArchiveDays:n,totalFutureDays:c,localArchiveDays:i,localOldestDate:l}},clearWeatherArchiveKeep5Days(){const e=new Date;e.setHours(0,0,0,0);const t=new Date(e.getTime()-432e6),r=a(t),o=a(e),s=m();let n=0,c=0;for(const e of s)if(e&&e.daysByDate)for(const t of Object.keys(e.daysByDate))t<r?(delete e.daysByDate[t],n++):t<o&&c++;return p(s),{removedCount:n,keptArchiveCount:c,keepCutoffStr:r}},loadNearbyWatersCache(e,t,r=50){try{if(null===h){const e=localStorage.getItem(GEO_WATERS_CACHE_KEY),t=e?safeJsonParse(e,[]):[];h=Array.isArray(t)?t:[]}for(const a of h)if(a.radiusKm===r&&calcGeoDistanceKm(e,t,a.lat,a.lon)<=10&&Date.now()-(a.savedAt||0)<6048e5)return a;return null}catch(e){return null}},saveNearbyWatersCache(e,t,r,a,o=[]){try{if(null===h){const e=localStorage.getItem(GEO_WATERS_CACHE_KEY),t=e?safeJsonParse(e,[]):[];h=Array.isArray(t)?t:[]}const s=h.filter((a=>!(a.radiusKm===r&&calcGeoDistanceKm(e,t,a.lat,a.lon)<=10))).slice(0,24);s.unshift({lat:e,lon:t,radiusKm:r,waters:a,places:o,savedAt:Date.now()}),h=s,localStorage.setItem(GEO_WATERS_CACHE_KEY,JSON.stringify(s))}catch(e){}},async getAllFromStore(e){const t=y(e),r=await _();return r&&r.objectStoreNames.contains(e)?new Promise((a=>{let o=!1;const s=e=>{o||(o=!0,clearTimeout(n),a(e))},n=setTimeout((()=>s(t)),500);try{const a=r.transaction(e,"readonly").objectStore(e).getAll();a.onsuccess=()=>{const r=function(e=[],t=[]){const r=new Map;for(const e of t)e&&e.id&&r.set(e.id,e);for(const t of e)t&&t.id&&r.set(t.id,t);return Array.from(r.values())}(a.result||[],t);f(e,r),s(r)},a.onerror=()=>s(t)}catch(e){s(t)}})):t},async putToStore(e,t){const r=y(e),a=r.findIndex((e=>e.id===t.id));a>=0?r[a]=t:r.unshift(t),f(e,r);const o=await _();return o&&o.objectStoreNames.contains(e)?new Promise((r=>{let a=!1;const s=()=>{a||(a=!0,clearTimeout(n),r(t))},n=setTimeout(s,500);try{const r=o.transaction(e,"readwrite");r.objectStore(e).put(t),r.oncomplete=s,r.onerror=s}catch(e){s()}})):t},async deleteFromStore(e,t){const r=y(e).filter((e=>e.id!==t));f(e,r);const a=await _();return!a||!a.objectStoreNames.contains(e)||new Promise((r=>{let o=!1;const s=e=>{o||(o=!0,clearTimeout(n),r(e))},n=setTimeout((()=>s(!0)),500);try{const r=a.transaction(e,"readwrite");r.objectStore(e).delete(t),r.oncomplete=()=>s(!0),r.onerror=()=>s(!1)}catch(e){s(!1)}}))}};
+import { STATE_CACHE_KEY, WEATHER_CACHE_KEY, WEATHER_TTL_MS } from './config.js?v=2.5.0';
+import { formatLocalYYYYMMDD } from './format.js?v=2.5.0';
+
+const DB_NAME = 'KlevProDB_v2_1_1';
+export const CLEAN_SLATE_FLAG_KEY = 'klev_pro_clean_slate_v2_1_1_r4';
+export const CLEAN_SLATE_NOTICE_KEY = 'klev_pro_clean_slate_notice_v2_1_1_r4';
+
+/**
+ * Автоматический сброс старого кэша и настроек («С чистого листа») при первом запуске релиза V.2.1.1 (r2)
+ * с автоматическим восстановлением эксклюзивного ID Владельца (iAthor -> FP_89VIP089)
+ */
+export function runCleanSlateMigrationV2100() {
+  if (typeof localStorage === 'undefined') return false;
+  try {
+    if (localStorage.getItem(CLEAN_SLATE_FLAG_KEY) === '1') {
+      return false;
+    }
+    let preservedUserProfile = null;
+    try {
+      const prevRaw = localStorage.getItem(STATE_CACHE_KEY);
+      if (prevRaw) {
+        const prevParsed = JSON.parse(prevRaw);
+        if (prevParsed && prevParsed.userProfile && prevParsed.userProfile.login) {
+          preservedUserProfile = { ...prevParsed.userProfile };
+          delete preservedUserProfile.authShadow;
+        }
+      }
+    } catch (_) {}
+
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && (k.startsWith('klev_pro_') || k.startsWith('KLEV_') || k.includes('klev'))) {
+        keysToRemove.push(k);
+      }
+    }
+    keysToRemove.forEach(k => {
+      try { localStorage.removeItem(k); } catch (e) {}
+    });
+    if (typeof indexedDB !== 'undefined' && typeof indexedDB.deleteDatabase === 'function') {
+      try { indexedDB.deleteDatabase('KlevProDB_v2'); } catch (e) {}
+    }
+    if (preservedUserProfile) {
+      try {
+        localStorage.setItem(STATE_CACHE_KEY, JSON.stringify({
+          appMode: preservedUserProfile.appMode || 'angler',
+          hasUserLocation: false,
+          lat: 66.0833,
+          lon: 76.6800,
+          locCountry: 'Россия',
+          locAdmin1: 'Ямало-Ненецкий АО',
+          locAdmin2: 'Новый Уренгой',
+          locLabel: 'Новый Уренгой',
+          userProfile: preservedUserProfile
+        }));
+      } catch (_) {}
+    }
+    localStorage.setItem(CLEAN_SLATE_FLAG_KEY, '1');
+    localStorage.setItem(CLEAN_SLATE_NOTICE_KEY, '1');
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+runCleanSlateMigrationV2100();
+
+export const GEO_WEATHER_ARCHIVE_KEY = 'klev_pro_geo_weather_archive_v2';
+export const GEO_WATERS_CACHE_KEY = 'klev_pro_geo_waters_cache_v2';
+export const CIRCLE_PACKS_CACHE_KEY = 'klev_pro_circle_packs_v2';
+export const CIRCLE_CHATS_CACHE_KEY = 'klev_pro_circle_chats_v2';
+export const CIRCLE_NOTIFS_CACHE_KEY = 'klev_pro_circle_notifs_v2';
+export const DEVICE_ID_CACHE_KEY = 'klev_pro_device_id_v2';
+export const PHOTO_HASHES_CACHE_KEY = 'klev_pro_photo_dhashes_v2';
+export const GEO_CLUSTER_RADIUS_KM = 10.0;
+
+const LOCAL_STORE_KEYS = {
+  spots: 'klev_pro_spots_backup_v2',
+  catches: 'klev_pro_catches_backup_v2',
+  chats: CIRCLE_CHATS_CACHE_KEY
+};
+
+/**
+ * Безопасный парсер JSON с защитой от Prototype Pollution (__proto__, constructor, prototype)
+ */
+export function safeJsonParse(rawStr, fallback = null) {
+  if (!rawStr || typeof rawStr !== 'string') return fallback;
+  try {
+    return JSON.parse(rawStr, (key, value) => {
+      if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+        return undefined;
+      }
+      return value;
+    });
+  } catch (e) {
+    return fallback;
+  }
+}
+
+let dbPromise = null;
+const memoryFallback = { catches: [], spots: [], weather_archive: [], chats: [] };
+const memoryBackupLoaded = { catches: false, spots: false, chats: false };
+let _clustersMemoryCache = null;
+let _nearbyWatersMemoryCache = null;
+let _saveSettingsTimer = null;
+let _pendingSettingsState = null;
+
+function readLocalBackup(storeName) {
+  const key = LOCAL_STORE_KEYS[storeName];
+  if (!key) return [...(memoryFallback[storeName] || [])];
+  if (memoryBackupLoaded[storeName] && Array.isArray(memoryFallback[storeName])) {
+    return [...memoryFallback[storeName]];
+  }
+  try {
+    const raw = localStorage.getItem(key);
+    memoryBackupLoaded[storeName] = true;
+    if (!raw) return [...(memoryFallback[storeName] || [])];
+    const parsed = safeJsonParse(raw);
+    if (Array.isArray(parsed)) {
+      memoryFallback[storeName] = parsed;
+      return [...parsed];
+    }
+  } catch (e) {}
+  return [...(memoryFallback[storeName] || [])];
+}
+
+function writeLocalBackup(storeName, list) {
+  if (!Array.isArray(list)) return;
+  memoryFallback[storeName] = [...list];
+  memoryBackupLoaded[storeName] = true;
+  const key = LOCAL_STORE_KEYS[storeName];
+  if (!key) return;
+  try {
+    localStorage.setItem(key, JSON.stringify(list));
+  } catch (e) {}
+}
+
+function mergeRecordsById(idbList = [], localList = []) {
+  const map = new Map();
+  for (const item of localList) {
+    if (item && item.id) map.set(item.id, item);
+  }
+  for (const item of idbList) {
+    if (item && item.id) map.set(item.id, item);
+  }
+  return Array.from(map.values());
+}
+
+export function calcGeoDistanceKm(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
+  return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 100) / 100;
+}
+
+function openDB() {
+  if (dbPromise) return dbPromise;
+  dbPromise = new Promise((resolve) => {
+    if (typeof indexedDB === 'undefined') {
+      resolve(null);
+      return;
+    }
+    let settled = false;
+    const finish = (dbInstance) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      if (!dbInstance) {
+        dbPromise = null;
+      }
+      resolve(dbInstance || null);
+    };
+    const timer = setTimeout(() => finish(null), 550);
+
+    try {
+      const req = indexedDB.open(DB_NAME, 2);
+      req.onupgradeneeded = (e) => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains('catches')) {
+          const cs = db.createObjectStore('catches', { keyPath: 'id' });
+          cs.createIndex('fishId', 'fishId', { unique: false });
+          cs.createIndex('timestamp', 'timestamp', { unique: false });
+        }
+        if (!db.objectStoreNames.contains('spots')) {
+          db.createObjectStore('spots', { keyPath: 'id' });
+        }
+        if (!db.objectStoreNames.contains('weather_archive')) {
+          db.createObjectStore('weather_archive', { keyPath: 'clusterId' });
+        }
+        if (!db.objectStoreNames.contains('chats')) {
+          db.createObjectStore('chats', { keyPath: 'id' });
+        }
+      };
+      req.onsuccess = () => {
+        const db = req.result;
+        if (db) {
+          db.onversionchange = () => {
+            try { db.close(); } catch (e) {}
+            dbPromise = null;
+          };
+        }
+        finish(db);
+      };
+      req.onerror = () => finish(null);
+      req.onblocked = () => finish(null);
+    } catch (e) {
+      finish(null);
+    }
+  });
+  return dbPromise;
+}
+
+function readClustersFromLocalStorage() {
+  if (_clustersMemoryCache !== null) {
+    return _clustersMemoryCache;
+  }
+  try {
+    const raw = localStorage.getItem(GEO_WEATHER_ARCHIVE_KEY);
+    if (!raw) {
+      _clustersMemoryCache = [];
+      return _clustersMemoryCache;
+    }
+    const parsed = safeJsonParse(raw);
+    _clustersMemoryCache = Array.isArray(parsed) ? parsed : [];
+    return _clustersMemoryCache;
+  } catch (e) {
+    _clustersMemoryCache = [];
+    return _clustersMemoryCache;
+  }
+}
+
+let _idbClusterTimer = null;
+function writeClustersToLocalStorage(clusters) {
+  _clustersMemoryCache = Array.isArray(clusters) ? clusters : [];
+  try {
+    localStorage.setItem(GEO_WEATHER_ARCHIVE_KEY, JSON.stringify(_clustersMemoryCache));
+  } catch (e) {}
+  if (_idbClusterTimer) clearTimeout(_idbClusterTimer);
+  _idbClusterTimer = setTimeout(() => {
+    openDB().then(db => {
+      if (!db || !db.objectStoreNames.contains('weather_archive')) return;
+      try {
+        const tx = db.transaction('weather_archive', 'readwrite');
+        const st = tx.objectStore('weather_archive');
+        (_clustersMemoryCache || []).forEach(c => {
+          if (c && c.clusterId) st.put(c);
+        });
+      } catch (e) {}
+    }).catch(() => {});
+  }, 350);
+}
+
+export const storage = {
+  _memDeviceId: '',
+  getDeviceId() {
+    try {
+      // 1. Аппаратный ANDROID_ID через NativeBridge в APK (если доступен)
+      if (typeof window !== 'undefined' && window.AndroidBridge && typeof window.AndroidBridge.getDeviceId === 'function') {
+        const hw = String(window.AndroidBridge.getDeviceId() || '').trim();
+        if (hw && hw.length >= 6 && hw !== 'unknown' && hw !== '9774d56d682e549c') {
+          const hwId = `hw_${hw}`;
+          this._memDeviceId = hwId;
+          try { localStorage.setItem(DEVICE_ID_CACHE_KEY, hwId); } catch (_) {}
+          return hwId;
+        }
+      }
+      // 2. Сохранённый крипто-UUID устройства из localStorage
+      if (typeof localStorage !== 'undefined') {
+        const saved = localStorage.getItem(DEVICE_ID_CACHE_KEY);
+        if (saved && typeof saved === 'string' && saved.length >= 10 && saved !== 'dev_local_fallback') {
+          this._memDeviceId = saved;
+          return saved;
+        }
+      }
+      if (this._memDeviceId && this._memDeviceId.length >= 10) {
+        return this._memDeviceId;
+      }
+      // 3. Генерация криптографически стойкого уникального UUID v4
+      let freshId = '';
+      if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+        freshId = 'dev_' + crypto.randomUUID().replace(/-/g, '');
+      } else if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+        const arr = new Uint8Array(16);
+        crypto.getRandomValues(arr);
+        freshId = 'dev_' + Array.from(arr, b => b.toString(16).padStart(2, '0')).join('');
+      } else {
+        freshId = 'dev_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 12) + '_' + Math.random().toString(36).slice(2, 10);
+      }
+      this._memDeviceId = freshId;
+      try { localStorage.setItem(DEVICE_ID_CACHE_KEY, freshId); } catch (_) {}
+      return freshId;
+    } catch (e) {
+      if (!this._memDeviceId) {
+        this._memDeviceId = 'dev_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 12);
+      }
+      return this._memDeviceId;
+    }
+  },
+
+  loadPhotoHashes() {
+    try {
+      const raw = localStorage.getItem(PHOTO_HASHES_CACHE_KEY);
+      if (!raw) return [];
+      const parsed = safeJsonParse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      return [];
+    }
+  },
+
+  savePhotoHash(dHash) {
+    if (!dHash) return;
+    try {
+      const list = this.loadPhotoHashes().filter(x => x !== dHash);
+      list.unshift(dHash);
+      localStorage.setItem(PHOTO_HASHES_CACHE_KEY, JSON.stringify(list.slice(0, 200)));
+    } catch (e) {}
+  },
+
+  loadSettings() {
+    try {
+      const raw = localStorage.getItem(STATE_CACHE_KEY);
+      return raw ? safeJsonParse(raw, null) : null;
+    } catch (e) {
+      return null;
+    }
+  },
+
+  _flushSettingsNow(stateObj) {
+    const s = stateObj || _pendingSettingsState;
+    if (!s) return;
+    _pendingSettingsState = null;
+    try {
+      const persist = {
+        appMode: s.appMode || 'angler',
+        hasUserLocation: s.hasUserLocation,
+        lat: s.lat,
+        lon: s.lon,
+        locCountry: s.locCountry,
+        locAdmin1: s.locAdmin1,
+        locAdmin2: s.locAdmin2,
+        locLabel: s.locLabel,
+        basinCode: s.basinCode,
+        basinName: s.basinName,
+        isCoastal: s.isCoastal,
+        water: s.water,
+        waterRadiusKm: s.waterRadiusKm || 50,
+        selectedWaterName: s.selectedWaterName,
+        method: s.method,
+        selectedBait: s.selectedBait,
+        depth: s.depth,
+        fishId: s.fishId,
+        showAllSpecies: s.showAllSpecies,
+        onlyFavoritesFilter: s.onlyFavoritesFilter,
+        favorites: s.favorites,
+        favoritesExplicitlySet: s.favoritesExplicitlySet,
+        compareSpeciesIds: s.compareSpeciesIds,
+        theme: s.theme,
+        userProfile: s.userProfile,
+        proFactorWeights: s.proFactorWeights
+      };
+      localStorage.setItem(STATE_CACHE_KEY, JSON.stringify(persist));
+    } catch (e) {}
+  },
+
+  saveSettings(state) {
+    _pendingSettingsState = state;
+    if (typeof window === 'undefined') {
+      this._flushSettingsNow(state);
+      return;
+    }
+    if (_saveSettingsTimer) clearTimeout(_saveSettingsTimer);
+    _saveSettingsTimer = setTimeout(() => {
+      _saveSettingsTimer = null;
+      this._flushSettingsNow();
+    }, 90);
+  },
+
+  loadCircleItems() {
+    try {
+      const raw = localStorage.getItem(CIRCLE_PACKS_CACHE_KEY);
+      if (!raw) return [];
+      const parsed = safeJsonParse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      return [];
+    }
+  },
+
+  saveCircleItems(list) {
+    try {
+      if (Array.isArray(list)) {
+        localStorage.setItem(CIRCLE_PACKS_CACHE_KEY, JSON.stringify(list));
+      }
+    } catch (e) {}
+  },
+
+  loadChatMessages() {
+    try {
+      const raw = localStorage.getItem(CIRCLE_CHATS_CACHE_KEY);
+      if (!raw) return [];
+      const parsed = safeJsonParse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      return [];
+    }
+  },
+
+  saveChatMessages(list) {
+    if (!Array.isArray(list)) return;
+    const trimmed = list.slice(0, 500);
+    writeLocalBackup('chats', trimmed);
+    openDB().then(db => {
+      if (!db || !db.objectStoreNames.contains('chats')) return;
+      try {
+        const tx = db.transaction('chats', 'readwrite');
+        const st = tx.objectStore('chats');
+        st.clear();
+        trimmed.slice(0, 100).forEach(msg => {
+          if (msg && msg.id) st.put(msg);
+        });
+      } catch (e) {}
+    }).catch(() => {});
+  },
+
+  loadNotifications() {
+    try {
+      const raw = localStorage.getItem(CIRCLE_NOTIFS_CACHE_KEY);
+      if (!raw) return [];
+      const parsed = safeJsonParse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      return [];
+    }
+  },
+
+  saveNotifications(list) {
+    try {
+      if (Array.isArray(list)) {
+        localStorage.setItem(CIRCLE_NOTIFS_CACHE_KEY, JSON.stringify(list.slice(0, 120)));
+      }
+    } catch (e) {}
+  },
+
+  exportFullProfileBackup(state) {
+    return {
+      schema: 'KlevProProfileBackup_v2',
+      version: '2.1.1',
+      exportedAt: new Date().toISOString(),
+      deviceId: this.getDeviceId(),
+      userProfile: (() => {
+        const up = { ...(state?.userProfile || {}) };
+        delete up.authShadow;
+        delete up.authTokenHash;
+        delete up.secureTokenHash;
+        delete up.pinHash;
+        delete up.adminSessionToken;
+        return up;
+      })(),
+      favorites: state?.favorites || [],
+      proFactorWeights: state?.proFactorWeights || {},
+      location: {
+        lat: state?.lat,
+        lon: state?.lon,
+        locLabel: state?.locLabel,
+        locAdmin1: state?.locAdmin1,
+        water: state?.water,
+        selectedWaterName: state?.selectedWaterName,
+        depth: state?.depth
+      },
+      savedSpots: state?.savedSpots || readLocalBackup('spots'),
+      catches: state?.catches || readLocalBackup('catches'),
+      circleItems: state?.circleItems || this.loadCircleItems(),
+      chatMessages: state?.chatMessages || this.loadChatMessages(),
+      notifications: state?.notifications || this.loadNotifications()
+    };
+  },
+
+  async importFullProfileBackup(backupObj) {
+    if (!backupObj || typeof backupObj !== 'object') return false;
+    try {
+      if (Array.isArray(backupObj.savedSpots)) {
+        writeLocalBackup('spots', backupObj.savedSpots);
+        for (const sp of backupObj.savedSpots) {
+          if (sp && sp.id) await this.putToStore('spots', sp);
+        }
+      }
+      if (Array.isArray(backupObj.catches)) {
+        writeLocalBackup('catches', backupObj.catches);
+        for (const c of backupObj.catches) {
+          if (c && c.id) await this.putToStore('catches', c);
+        }
+      }
+      if (Array.isArray(backupObj.circleItems)) {
+        this.saveCircleItems(backupObj.circleItems);
+      }
+      if (Array.isArray(backupObj.chatMessages)) {
+        this.saveChatMessages(backupObj.chatMessages);
+      }
+      if (Array.isArray(backupObj.notifications)) {
+        this.saveNotifications(backupObj.notifications);
+      }
+      return true;
+    } catch (e) {
+      return false;
+    }
+  },
+
+  getLocalBackup(storeName) {
+    return readLocalBackup(storeName);
+  },
+
+  findGeoWeatherCluster(lat, lon, radiusKm = GEO_CLUSTER_RADIUS_KM) {
+    const clusters = readClustersFromLocalStorage();
+    let best = null;
+    let bestDist = Infinity;
+    for (const c of clusters) {
+      if (!c || !Number.isFinite(c.lat) || !Number.isFinite(c.lon)) continue;
+      const d = calcGeoDistanceKm(lat, lon, c.lat, c.lon);
+      if (d <= radiusKm && d < bestDist) {
+        bestDist = d;
+        best = c;
+      }
+    }
+    return best ? { cluster: best, distKm: bestDist } : null;
+  },
+
+  saveWeatherCache(lat, lon, payload, extraArchiveDays = []) {
+    const todayStr = formatLocalYYYYMMDD(new Date());
+    const clusters = readClustersFromLocalStorage();
+    let targetCluster = null;
+    let bestDist = Infinity;
+
+    for (const c of clusters) {
+      if (!c || !Number.isFinite(c.lat) || !Number.isFinite(c.lon)) continue;
+      const d = calcGeoDistanceKm(lat, lon, c.lat, c.lon);
+      if (d <= GEO_CLUSTER_RADIUS_KM && d < bestDist) {
+        bestDist = d;
+        targetCluster = c;
+      }
+    }
+
+    if (!targetCluster) {
+      targetCluster = {
+        clusterId: `geo_${lat.toFixed(3)}_${lon.toFixed(3)}`,
+        lat: Math.round(lat * 10000) / 10000,
+        lon: Math.round(lon * 10000) / 10000,
+        elevation: payload.elevation || 90,
+        normPress: payload.normPress || 752,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        hasRealArchive: Boolean(payload.hasRealArchive),
+        daysByDate: {}
+      };
+      clusters.push(targetCluster);
+    } else {
+      targetCluster.updatedAt = Date.now();
+      if (Number.isFinite(payload.elevation)) targetCluster.elevation = payload.elevation;
+      if (Number.isFinite(payload.normPress)) targetCluster.normPress = payload.normPress;
+    }
+
+    if (!targetCluster.daysByDate || typeof targetCluster.daysByDate !== 'object') {
+      targetCluster.daysByDate = {};
+    }
+
+    const incomingDays = [
+      ...(Array.isArray(extraArchiveDays) ? extraArchiveDays : []),
+      ...(Array.isArray(payload.days) ? payload.days : [])
+    ];
+
+    for (const day of incomingDays) {
+      if (!day || !day.date || !Array.isArray(day.hours) || day.hours.length === 0) continue;
+      const dStr = day.date;
+      const isPastDay = dStr < todayStr;
+      const existing = targetCluster.daysByDate[dStr];
+
+      const recordToStore = {
+        date: dStr,
+        label: day.label || dStr,
+        relTitle: day.relTitle || '',
+        tDay: day.tDay,
+        tNight: day.tNight,
+        waterTemp: day.waterTemp,
+        pressAvg: day.pressAvg,
+        dP: day.dP,
+        windMax: day.windMax,
+        windDir: day.windDir,
+        sunriseHr: day.sunriseHr,
+        sunsetHr: day.sunsetHr,
+        iceState: day.iceState,
+        iceSubState: day.iceSubState,
+        iceThickness: day.iceThickness,
+        iceNote: day.iceNote,
+        moon: day.moon,
+        hours: day.hours.map(h => ({ ...h })),
+        isReal: day.isReal !== false,
+        savedAt: Date.now()
+      };
+
+      if (isPastDay) {
+        if (!existing || (!existing.isReal && recordToStore.isReal)) {
+          targetCluster.daysByDate[dStr] = recordToStore;
+        }
+      } else {
+        targetCluster.daysByDate[dStr] = recordToStore;
+      }
+    }
+
+    const pastDates = Object.keys(targetCluster.daysByDate).filter(d => d < todayStr).sort();
+    const realPastCount = pastDates.filter(d => targetCluster.daysByDate[d]?.isReal !== false).length;
+    targetCluster.hasRealArchive = realPastCount >= 3 || Boolean(payload.hasRealArchive);
+
+    writeClustersToLocalStorage(clusters);
+
+    try {
+      localStorage.setItem(WEATHER_CACHE_KEY, JSON.stringify({
+        lat,
+        lon,
+        timestamp: Date.now(),
+        hasRealArchive: targetCluster.hasRealArchive,
+        ...payload
+      }));
+    } catch (e) {}
+
+    return targetCluster;
+  },
+
+  loadWeatherCache(lat, lon) {
+    const todayStr = formatLocalYYYYMMDD(new Date());
+    const found = this.findGeoWeatherCluster(lat, lon, GEO_CLUSTER_RADIUS_KM);
+
+    if (found && found.cluster && found.cluster.daysByDate) {
+      const c = found.cluster;
+      const ageMs = Date.now() - (c.updatedAt || 0);
+      const todayDt = new Date(todayStr + 'T00:00:00');
+      const reconstructedDays = [];
+      let allPresent = true;
+
+      for (let idx = 0; idx < 12; idx++) {
+        const rel = idx - 2; // -2..+9
+        const curDt = new Date(todayDt.getTime() + rel * 86400000);
+        const dStr = formatLocalYYYYMMDD(curDt);
+        const storedDay = c.daysByDate[dStr];
+        if (!storedDay || !Array.isArray(storedDay.hours) || storedDay.hours.length < 24) {
+          allPresent = false;
+          break;
+        }
+        reconstructedDays.push({
+          ...storedDay,
+          relOffset: rel,
+          isArchive: rel < 0,
+          relTitle: rel === -2 ? 'Позавчера' : (rel === -1 ? 'Вчера' : (rel === 0 ? 'Сегодня' : (rel === 1 ? 'Завтра' : (rel === 2 ? 'Послезавтра' : ''))))
+        });
+      }
+
+      const past5Archive = this.getArchiveDaysForLocation(lat, lon, 5, todayStr);
+
+      if (allPresent && reconstructedDays.length === 12) {
+        const todayObj = reconstructedDays[2] || reconstructedDays[0];
+        return {
+          lat: c.lat,
+          lon: c.lon,
+          timestamp: c.updatedAt,
+          elevation: c.elevation || 90,
+          normPress: c.normPress || 752,
+          iceState: todayObj.iceState || 'open_water',
+          iceSubState: todayObj.iceSubState || 'open_water',
+          iceThickness: todayObj.iceThickness || 0,
+          iceNote: todayObj.iceNote || '',
+          days: reconstructedDays,
+          archive5Days: past5Archive.days,
+          hasRealArchive: past5Archive.hasRealArchive,
+          isExpired: ageMs > WEATHER_TTL_MS,
+          ageMinutes: Math.max(1, Math.round(ageMs / 60000)),
+          clusterDistKm: found.distKm
+        };
+      }
+    }
+
+    try {
+      const raw = localStorage.getItem(WEATHER_CACHE_KEY);
+      if (!raw) return null;
+      const parsed = safeJsonParse(raw);
+      const distKm = calcGeoDistanceKm(parsed.lat || 0, parsed.lon || 0, lat, lon);
+      if (distKm > GEO_CLUSTER_RADIUS_KM || !parsed.days || parsed.days.length !== 12) return null;
+      const ageMs = Date.now() - (parsed.timestamp || 0);
+      return {
+        ...parsed,
+        isExpired: ageMs > WEATHER_TTL_MS,
+        ageMinutes: Math.max(1, Math.round(ageMs / 60000))
+      };
+    } catch (e) {
+      return null;
+    }
+  },
+
+  getArchiveDaysForLocation(lat, lon, maxPastDays = 5, refDateStr = null) {
+    const targetRef = refDateStr || formatLocalYYYYMMDD(new Date());
+    const found = this.findGeoWeatherCluster(lat, lon, GEO_CLUSTER_RADIUS_KM);
+    if (!found || !found.cluster || !found.cluster.daysByDate) {
+      return {
+        days: [],
+        allArchiveDays: [],
+        hasRealArchive: false,
+        totalArchiveCount: 0,
+        cluster: null
+      };
+    }
+
+    const map = found.cluster.daysByDate;
+    const allPastDates = Object.keys(map).filter(d => d < targetRef).sort();
+    const allArchiveDays = allPastDates.map(d => map[d]).filter(Boolean);
+    const recentSlice = allArchiveDays.slice(-maxPastDays);
+    const realCount = recentSlice.filter(d => d && d.isReal !== false).length;
+
+    return {
+      days: recentSlice,
+      allArchiveDays,
+      hasRealArchive: realCount >= 3 || Boolean(found.cluster.hasRealArchive && recentSlice.length >= 2),
+      totalArchiveCount: allArchiveDays.length,
+      cluster: found.cluster
+    };
+  },
+
+  getDayWeatherByDate(lat, lon, dateStr) {
+    if (!dateStr) return null;
+    const found = this.findGeoWeatherCluster(lat, lon, GEO_CLUSTER_RADIUS_KM);
+    if (found && found.cluster && found.cluster.daysByDate && found.cluster.daysByDate[dateStr]) {
+      return found.cluster.daysByDate[dateStr];
+    }
+    return null;
+  },
+
+  getWeatherArchiveStats(lat, lon) {
+    const todayStr = formatLocalYYYYMMDD(new Date());
+    const clusters = readClustersFromLocalStorage();
+    let totalLocations = clusters.length;
+    let totalArchiveDays = 0;
+    let totalFutureDays = 0;
+    let localArchiveDays = 0;
+    let localOldestDate = null;
+
+    for (const c of clusters) {
+      const dates = Object.keys(c?.daysByDate || {}).sort();
+      const past = dates.filter(d => d < todayStr);
+      const fut = dates.filter(d => d >= todayStr);
+      totalArchiveDays += past.length;
+      totalFutureDays += fut.length;
+      if (Number.isFinite(lat) && Number.isFinite(lon) && calcGeoDistanceKm(lat, lon, c.lat, c.lon) <= GEO_CLUSTER_RADIUS_KM) {
+        localArchiveDays += past.length;
+        if (past.length > 0 && (!localOldestDate || past[0] < localOldestDate)) {
+          localOldestDate = past[0];
+        }
+      }
+    }
+
+    return {
+      totalLocations,
+      totalArchiveDays,
+      totalFutureDays,
+      localArchiveDays,
+      localOldestDate
+    };
+  },
+
+  clearWeatherArchiveKeep5Days() {
+    const todayDt = new Date();
+    todayDt.setHours(0, 0, 0, 0);
+    const keepStartDt = new Date(todayDt.getTime() - 5 * 86400000);
+    const keepCutoffStr = formatLocalYYYYMMDD(keepStartDt);
+    const todayStr = formatLocalYYYYMMDD(todayDt);
+
+    const clusters = readClustersFromLocalStorage();
+    let removedCount = 0;
+    let keptArchiveCount = 0;
+
+    for (const c of clusters) {
+      if (!c || !c.daysByDate) continue;
+      for (const dStr of Object.keys(c.daysByDate)) {
+        if (dStr < keepCutoffStr) {
+          delete c.daysByDate[dStr];
+          removedCount++;
+        } else if (dStr < todayStr) {
+          keptArchiveCount++;
+        }
+      }
+    }
+
+    writeClustersToLocalStorage(clusters);
+    return {
+      removedCount,
+      keptArchiveCount,
+      keepCutoffStr
+    };
+  },
+
+  loadNearbyWatersCache(lat, lon, radiusKm = 50) {
+    try {
+      if (_nearbyWatersMemoryCache === null) {
+        const raw = localStorage.getItem(GEO_WATERS_CACHE_KEY);
+        const parsed = raw ? safeJsonParse(raw, []) : [];
+        _nearbyWatersMemoryCache = Array.isArray(parsed) ? parsed : [];
+      }
+      for (const item of _nearbyWatersMemoryCache) {
+        if (item.radiusKm === radiusKm && calcGeoDistanceKm(lat, lon, item.lat, item.lon) <= GEO_CLUSTER_RADIUS_KM) {
+          if (Date.now() - (item.savedAt || 0) < 7 * 86400000) {
+            return item;
+          }
+        }
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  },
+
+  saveNearbyWatersCache(lat, lon, radiusKm, waters, places = []) {
+    try {
+      if (_nearbyWatersMemoryCache === null) {
+        const raw = localStorage.getItem(GEO_WATERS_CACHE_KEY);
+        const parsed = raw ? safeJsonParse(raw, []) : [];
+        _nearbyWatersMemoryCache = Array.isArray(parsed) ? parsed : [];
+      }
+      const filtered = _nearbyWatersMemoryCache
+        .filter(x => !(x.radiusKm === radiusKm && calcGeoDistanceKm(lat, lon, x.lat, x.lon) <= GEO_CLUSTER_RADIUS_KM))
+        .slice(0, 24);
+      filtered.unshift({
+        lat,
+        lon,
+        radiusKm,
+        waters,
+        places,
+        savedAt: Date.now()
+      });
+      _nearbyWatersMemoryCache = filtered;
+      localStorage.setItem(GEO_WATERS_CACHE_KEY, JSON.stringify(filtered));
+    } catch (e) {}
+  },
+
+  async getAllFromStore(storeName) {
+    const localList = readLocalBackup(storeName);
+    const db = await openDB();
+    if (!db || !db.objectStoreNames.contains(storeName)) {
+      return localList;
+    }
+    return new Promise((resolve) => {
+      let done = false;
+      const finish = (res) => {
+        if (done) return;
+        done = true;
+        clearTimeout(t);
+        resolve(res);
+      };
+      const t = setTimeout(() => finish(localList), 500);
+      try {
+        const tx = db.transaction(storeName, 'readonly');
+        const req = tx.objectStore(storeName).getAll();
+        req.onsuccess = () => {
+          const merged = mergeRecordsById(req.result || [], localList);
+          writeLocalBackup(storeName, merged);
+          finish(merged);
+        };
+        req.onerror = () => finish(localList);
+      } catch (e) {
+        finish(localList);
+      }
+    });
+  },
+
+  async putToStore(storeName, item) {
+    const list = readLocalBackup(storeName);
+    const idx = list.findIndex(x => x.id === item.id);
+    if (idx >= 0) list[idx] = item; else list.unshift(item);
+    writeLocalBackup(storeName, list);
+
+    const db = await openDB();
+    if (!db || !db.objectStoreNames.contains(storeName)) return item;
+    return new Promise((resolve) => {
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        clearTimeout(t);
+        resolve(item);
+      };
+      const t = setTimeout(finish, 500);
+      try {
+        const tx = db.transaction(storeName, 'readwrite');
+        tx.objectStore(storeName).put(item);
+        tx.oncomplete = finish;
+        tx.onerror = finish;
+      } catch (e) {
+        finish();
+      }
+    });
+  },
+
+  async deleteFromStore(storeName, id) {
+    const list = readLocalBackup(storeName).filter(x => x.id !== id);
+    writeLocalBackup(storeName, list);
+
+    const db = await openDB();
+    if (!db || !db.objectStoreNames.contains(storeName)) return true;
+    return new Promise((resolve) => {
+      let done = false;
+      const finish = (ok) => {
+        if (done) return;
+        done = true;
+        clearTimeout(t);
+        resolve(ok);
+      };
+      const t = setTimeout(() => finish(true), 500);
+      try {
+        const tx = db.transaction(storeName, 'readwrite');
+        tx.objectStore(storeName).delete(id);
+        tx.oncomplete = () => finish(true);
+        tx.onerror = () => finish(false);
+      } catch (e) {
+        finish(false);
+      }
+    });
+  }
+};
