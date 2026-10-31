@@ -1,19 +1,19 @@
-import { getFilteredFishList, openFishDetail } from '../fish/fish.module.js?v=2.5.1';
-import { logBlankTrip } from '../log/log.module.js?v=2.5.1';
-import { getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.5.1';
-import { RU } from '../../i18n/ru.js?v=2.5.1';
-import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.5.1';
-import { events } from '../../core/events.js?v=2.5.1';
-import { storage } from '../../core/storage.js?v=2.5.1';
-import { store } from '../../core/store.js?v=2.5.1';
-import { formatLocalYYYYMMDD, fmtDeltaPress, fmtHM } from '../../core/format.js?v=2.5.1';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.5.1';
-import { FISH_DB } from '../../data/species.js?v=2.5.1';
-import { renderFiveFish } from '../../ui/svg.js?v=2.5.1';
-import { createPill, showToast, openModal } from '../../ui/components.js?v=2.5.1';
-import { computeIceSafetyIndex } from '../weather/weather.module.js?v=2.5.1';
-import { evaluateCircleFieldConfirmation, requireRegisteredFisherId } from '../circle/circle.module.js?v=2.5.1';
-import { isTelegramWebApp, getTelegramUser, shareToTelegramChat, openBotChatInTelegram, buildForecastShareUrls, TELEGRAM_BOT_USERNAME } from '../../core/telegram.js?v=2.5.1';
+import { getFilteredFishList, openFishDetail } from '../fish/fish.module.js?v=2.5.2';
+import { logBlankTrip } from '../log/log.module.js?v=2.5.2';
+import { getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.5.2';
+import { RU } from '../../i18n/ru.js?v=2.5.2';
+import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.5.2';
+import { events } from '../../core/events.js?v=2.5.2';
+import { storage } from '../../core/storage.js?v=2.5.2';
+import { store } from '../../core/store.js?v=2.5.2';
+import { formatLocalYYYYMMDD, fmtDeltaPress, fmtHM } from '../../core/format.js?v=2.5.2';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.5.2';
+import { FISH_DB } from '../../data/species.js?v=2.5.2';
+import { renderFiveFish } from '../../ui/svg.js?v=2.5.2';
+import { createPill, showToast, openModal } from '../../ui/components.js?v=2.5.2';
+import { computeIceSafetyIndex } from '../weather/weather.module.js?v=2.5.2';
+import { evaluateCircleFieldConfirmation, requireRegisteredFisherId } from '../circle/circle.module.js?v=2.5.2';
+import { isTelegramWebApp, getTelegramUser, shareToTelegramChat, openBotChatInTelegram, buildForecastShareUrls, TELEGRAM_BOT_USERNAME } from '../../core/telegram.js?v=2.5.2';
 
 /**
  * Список морских, проходных и полупроходных видов, которые заходят в пресные реки
@@ -365,8 +365,15 @@ export function computeHourFactors(fish, day, hrObj, method, water, depth, normP
 
     if (['Ю', 'ЮЗ', 'З'].includes(hrObj.windDir)) windDelta += 4;
     else if (['С', 'СВ', 'В'].includes(hrObj.windDir)) windDelta -= 4;
+
+    if (['carp', 'grass_carp', 'crucian', 'bream', 'tench', 'buffalo'].includes(fish.id) && hrObj.wind >= 2.5 && hrObj.wind <= 7.0) {
+      windDelta += 4;
+    }
   }
-  const windNote = `Ветер ${hrObj.windDir} ${hrObj.wind} м/с`;
+  const isCarpSurf = dayIce === 'open_water' && ['carp', 'grass_carp', 'crucian', 'bream', 'tench', 'buffalo'].includes(fish.id) && hrObj.wind >= 2.5 && hrObj.wind <= 7.0;
+  const windNote = isCarpSurf
+    ? `Ветер ${hrObj.windDir} ${hrObj.wind} м/с (фактор «Прибойный берег» +кислород)`
+    : `Ветер ${hrObj.windDir} ${hrObj.wind} м/с`;
 
   // 5. Сезонный биоритм, нерест и речной ход морских/проходных рыб
   const dtMonthIdx = day._mIdx !== undefined ? day._mIdx : (day._mIdx = (parseInt(String(day.date || '2026-06').slice(5, 7), 10) - 1) || 0);
@@ -988,6 +995,72 @@ function computeDayKpAndDaylight(day) {
   return { sr, ss, daylightStr, kpVal, kpLabel, kpTone };
 }
 
+let _recastTimerInterval = null;
+let _recastTimerTargetTs = 0;
+
+function playCarpRecastChime() {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.25);
+    gain.gain.setValueAtTime(0.18, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.55);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.55);
+  } catch (e) {}
+}
+
+function startCarpRecastTimer(minutes, container) {
+  const mins = Math.max(1, parseInt(minutes, 10) || 15);
+  _recastTimerTargetTs = Date.now() + mins * 60000;
+  if (_recastTimerInterval) clearInterval(_recastTimerInterval);
+  const updateDisp = () => {
+    const remSec = Math.max(0, Math.ceil((_recastTimerTargetTs - Date.now()) / 1000));
+    const disp = typeof document !== 'undefined' ? document.getElementById('fcRecastTimerDisplay') : null;
+    if (disp) {
+      if (remSec > 0) {
+        const mm = String(Math.floor(remSec / 60)).padStart(2, '0');
+        const ss = String(remSec % 60).padStart(2, '0');
+        disp.textContent = `${mm}:${ss}`;
+        disp.className = 'pill pill-good';
+      } else {
+        disp.textContent = '00:00!';
+        disp.className = 'pill pill-warn';
+      }
+    }
+    if (remSec <= 0) {
+      clearInterval(_recastTimerInterval);
+      _recastTimerInterval = null;
+      _recastTimerTargetTs = 0;
+      playCarpRecastChime();
+      const clip = store.getState().userProfile?.carpClipMeters || 42;
+      showToast(` Время перезаброса снасти / докорма свима (клипса ${clip} м)!`, 'good');
+    }
+  };
+  updateDisp();
+  _recastTimerInterval = setInterval(updateDisp, 1000);
+  showToast(` Таймер перезаброса запущен на ${mins} мин.`, 'good');
+}
+
+function stopCarpRecastTimer() {
+  if (_recastTimerInterval) clearInterval(_recastTimerInterval);
+  _recastTimerInterval = null;
+  _recastTimerTargetTs = 0;
+  const disp = typeof document !== 'undefined' ? document.getElementById('fcRecastTimerDisplay') : null;
+  if (disp) {
+    disp.textContent = 'Выкл';
+    disp.className = 'pill pill-neutral';
+  }
+  showToast('Таймер перезаброса остановлен', 'info');
+}
+
 function buildSpecializedTacticalHtml(fish, s, day, waterTemp, iceState) {
   const m = String(s.method || 'spin_jig');
   const wind = Number(day?.windMax ?? 3);
@@ -1019,24 +1092,66 @@ function buildSpecializedTacticalHtml(fish, s, day, waterTemp, iceState) {
     `;
   }
 
-  if (m === 'bottom' || m === 'float') {
-    const isCold = waterTemp < 9.0;
-    const tempo = isCold ? '12–18 минут (точечный докорм без мути)' : '3–6 минут (активный темп кормового стола)';
-    const mixAdvice = isCold
-      ? `Холодная вода (+${waterTemp}°C): используйте тёмную мелкофракционную инертную смесь (чёрный лещ/плотва) со щепоткой кормового мотыля. Исключите сладкую ароматику и крупные зерновые, чтобы не перекормить рыбу.`
-      : `Прогретая вода (+${waterTemp}°C): активная средне- и крупнофракционная прикормка с добавлением опарыша, резаного червя или сладкой кукурузы.`;
+  const isCarpSpecies = ['carp', 'grass_carp', 'silver_carp', 'crucian', 'bream', 'tench', 'buffalo', 'black_carp'].includes(fish.id);
+  if (m === 'bottom' || m === 'float' || isCarpSpecies) {
+    const isCold = waterTemp < 12.0;
+    const savedClip = Number(s.userProfile?.carpClipMeters || 42);
+    const savedBottom = s.userProfile?.carpBottomType || 'Ракушечник / Бровка';
+    const timerLeftSec = _recastTimerTargetTs > Date.now() ? Math.ceil((_recastTimerTargetTs - Date.now()) / 1000) : 0;
+    const timerMm = String(Math.floor(timerLeftSec / 60)).padStart(2, '0');
+    const timerSs = String(timerLeftSec % 60).padStart(2, '0');
+
+    const carpProgramAdvice = isCarpSpecies
+      ? (isCold
+          ? `Холодная вода (+${waterTemp}°C): одиночный подрезанный Поп-ап или Вафтерс 8–10 мм (специи, робин ред, чеснок, криль) + компактный ПВА-стик с микро-пеллетсом 1.5–2 мм. Исключите жирные рыбные масла и обильный закорм спомбом!`
+          : `Прогретая вода (+${waterTemp}°C): тонущие и нейтральные бойлы 14–20 мм (рыбная мука / палтус / клубника / слива / тигровый орех) или «снеговик» с поп-апом 10 мм. Активный стартовый закорм спомбом (зерновые, конопля, резаные бойлы, пеллетс).`)
+      : (isCold
+          ? `Холодная вода (+${waterTemp}°C): тёмная мелкофракционная инертная смесь (чёрный лещ/плотва) со щепоткой кормового мотыля без сладкой ароматики.`
+          : `Прогретая вода (+${waterTemp}°C): активная средне- и крупнофракционная прикормка с добавлением опарыша, резаного червя или сладкой кукурузы.`);
+
+    const surfShoreAdvice = (wind >= 2.5 && wind <= 7.5)
+      ? `Активный «Прибойный берег» (${windDir} ${wind} м/с): волна насыщает бровку кислородом и вымывает донный корм — карп, сазан и крупный лещ выходят кормиться на границу прибойной мути!`
+      : (wind < 2.5
+          ? `Штиль / слабый ветер (${windDir} ${wind} м/с): рыба осторожна — используйте флюорокарбоновый поводок, нейтральную презентацию Wafters и точечный ПВА-стик.`
+          : `Сильный ветер (${windDir} ${wind} м/с): используйте тяжёлую кормушку-пулю / флэт 60–90 г и опустите вершинку удилища к воде.`);
+
     return `
       <div class="bento-card" style="padding:11px 13px;border:1.5px solid var(--good);">
-        <div class="bento-card-title" style="font-size:14px;margin-bottom:6px;">
-          <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg></span>
-          <span>Тактика Фидера / Донки и Поплавка: Механика прикормки</span>
+        <div class="bento-card-title" style="font-size:14px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+          <div style="display:flex;align-items:center;gap:6px;">
+            <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg></span>
+            <span>Карпфишинг, Сазан и Флэт-Фидер: Программа питания и Свим (${fish.name})</span>
+          </div>
+          <span class="pill pill-good" style="font-size:10.5px;">Клипса: <b id="fcCarpClipBadgeVal">${savedClip} м</b> • ${savedBottom}</span>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px;font-size:12px;line-height:1.4;">
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:8px;font-size:12px;line-height:1.42;">
           <div style="padding:8px 10px;background:var(--panel);border-radius:11px;border:1px solid var(--border);">
-            <b style="color:var(--good);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M17 3C11 3 5 7 5 15c0 2.5 1.5 4 4 4 8 0 12-6 12-12 0-2.5-1.5-4-4-4z" fill="rgba(16,185,129,0.25)" stroke="#10b981" stroke-width="1.8"/><path d="M5 19L15 9" stroke="#10b981" stroke-width="1.8" stroke-linecap="round"/></svg> Состав и физика смеси:</b> ${mixAdvice}
+            <b style="color:var(--good);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M17 3C11 3 5 7 5 15c0 2.5 1.5 4 4 4 8 0 12-6 12-12 0-2.5-1.5-4-4-4z" fill="rgba(16,185,129,0.25)" stroke="#10b981" stroke-width="1.8"/><path d="M5 19L15 9" stroke="#10b981" stroke-width="1.8" stroke-linecap="round"/></svg> Программа бойлов и прикормки:</b> ${carpProgramAdvice}
           </div>
           <div style="padding:8px 10px;background:var(--panel);border-radius:11px;border:1px solid var(--border);">
-            <b style="color:var(--accent);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.5 2" stroke="#38bdf8" stroke-width="1.9" stroke-linecap="round"/></svg> Темп перезаброса и поводок:</b> Интервал <b>${tempo}</b>. Поводок флюорокарбон ${isCold ? '0.10–0.12 мм (длина 60–90 см)' : '0.14–0.18 мм (длина 40–60 см)'}.
+            <b style="color:var(--accent);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Фактор ветра «Прибойный берег»:</b> ${surfShoreAdvice}
+          </div>
+        </div>
+
+        <div style="margin-top:8px;padding:8px 10px;background:var(--panel);border-radius:11px;border:1px solid var(--border);display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;font-size:11.5px;">
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+            <b style="color:var(--text);">Карта свима (клипса, м):</b>
+            <input type="number" id="fcCarpClipInput" class="input" min="5" max="220" step="1" value="${savedClip}" style="width:68px;min-height:30px;padding:2px 6px;font-size:12px;font-weight:800;">
+            <select id="fcCarpBottomSelect" class="input" style="width:auto;min-width:155px;min-height:30px;padding:2px 6px;font-size:11.5px;">
+              ${['Ракушечник / Бровка', 'Выход из ила на твёрдое', 'Русловой свал / Яма', 'Граница камыша / Коряга'].map(opt => `<option value="${opt}" ${opt === savedBottom ? 'selected' : ''}>${opt}</option>`).join('')}
+            </select>
+            <button type="button" class="btn btn-sm btn-good" id="fcSaveCarpSwimBtn" style="min-height:30px;padding:2px 9px;font-size:11px;font-weight:800;">Запомнить свим</button>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
+            <b style="color:var(--accent);">Таймер перезаброса:</b>
+            <button type="button" class="btn btn-sm" data-recast-timer-min="10" style="min-height:28px;padding:2px 7px;font-size:11px;">10 мин</button>
+            <button type="button" class="btn btn-sm" data-recast-timer-min="15" style="min-height:28px;padding:2px 7px;font-size:11px;">15 мин</button>
+            <button type="button" class="btn btn-sm" data-recast-timer-min="45" style="min-height:28px;padding:2px 7px;font-size:11px;">45 мин</button>
+            <button type="button" class="btn btn-sm" data-recast-timer-min="120" style="min-height:28px;padding:2px 7px;font-size:11px;">2 ч</button>
+            <span id="fcRecastTimerDisplay" class="pill ${timerLeftSec > 0 ? 'pill-good' : 'pill-neutral'}" style="font-family:monospace;font-size:11.5px;font-weight:900;">${timerLeftSec > 0 ? `${timerMm}:${timerSs}` : 'Выкл'}</span>
+            ${timerLeftSec > 0 ? `<button type="button" class="btn btn-sm" id="fcStopRecastTimerBtn" style="min-height:26px;padding:1px 6px;font-size:10.5px;color:var(--bad);">Стоп</button>` : ''}
           </div>
         </div>
       </div>
@@ -2171,6 +2286,36 @@ function bindForecastEvents(container) {
     if (target.closest('#fcQuickBlankTripBtn')) {
       e.stopPropagation();
       logBlankTrip();
+      return;
+    }
+
+    if (target.closest('#fcSaveCarpSwimBtn')) {
+      e.stopPropagation();
+      const clipInp = container.querySelector('#fcCarpClipInput');
+      const botSel = container.querySelector('#fcCarpBottomSelect');
+      const clipMeters = Math.max(5, Math.min(250, parseInt(clipInp?.value, 10) || 42));
+      const bottomType = botSel?.value || 'Ракушечник / Бровка';
+      store.dispatch({
+        type: 'UPDATE_USER_PROFILE',
+        payload: { carpClipMeters: clipMeters, carpBottomType: bottomType }
+      });
+      const badgeEl = container.querySelector('#fcCarpClipBadgeVal');
+      if (badgeEl) badgeEl.textContent = `${clipMeters} м`;
+      showToast(` Свим сохранён: клипса ${clipMeters} м (${bottomType})`, 'good');
+      return;
+    }
+
+    const timerBtn = target.closest('[data-recast-timer-min]');
+    if (timerBtn) {
+      e.stopPropagation();
+      const mins = parseInt(timerBtn.getAttribute('data-recast-timer-min'), 10) || 15;
+      startCarpRecastTimer(mins, container);
+      return;
+    }
+
+    if (target.closest('#fcStopRecastTimerBtn')) {
+      e.stopPropagation();
+      stopCarpRecastTimer();
       return;
     }
 

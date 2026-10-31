@@ -65,7 +65,7 @@
             regs.forEach(function(r) { r.unregister(); });
           }).catch(function() {});
         }
-        var MIGRATION_KEY = 'klev_pro_migrated_v251_r188';
+        var MIGRATION_KEY = 'klev_pro_migrated_v251_r189';
         if (localStorage.getItem(MIGRATION_KEY) !== '1') {
           try {
             var stRaw = localStorage.getItem('klev_pro_state_v2.0');
@@ -92,10 +92,10 @@
       } catch (e) {}
     })();
   </script>
-  <link rel="stylesheet" href="css/tokens.css?v=2.5.1">
-  <link rel="stylesheet" href="css/base.css?v=2.5.1">
-  <link rel="stylesheet" href="css/components.css?v=2.5.1">
-  <link rel="stylesheet" href="css/layout.css?v=2.5.1">
+  <link rel="stylesheet" href="css/tokens.css?v=2.5.2">
+  <link rel="stylesheet" href="css/base.css?v=2.5.2">
+  <link rel="stylesheet" href="css/components.css?v=2.5.2">
+  <link rel="stylesheet" href="css/layout.css?v=2.5.2">
   <script>
     (function() {
       var cssUrls = [
@@ -253,11 +253,11 @@
   <main id="app" class="app-main">
     <div id="androidApkSiteBanner" class="bento-card" style="display:none;background:rgba(16,185,129,0.12);border:1.5px solid var(--good);padding:9px 12px;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:2px;">
       <div style="min-width:0;flex:1;">
-        <div id="androidApkBannerTitle" style="font-weight:800;font-size:var(--fs-xs);color:var(--good);">Приложение «Клёв ПРО 2.0» для Android (v2.5.1 r188)</div>
+        <div id="androidApkBannerTitle" style="font-weight:800;font-size:var(--fs-xs);color:var(--good);">Приложение «Клёв ПРО 2.0» для Android (v2.5.2 r189)</div>
         <div style="font-size:11px;color:var(--muted);">Установите автономное приложение (.APK) на ваш смартфон</div>
       </div>
       <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
-        <button type="button" class="btn btn-sm btn-good" id="androidApkBannerDownloadBtn" style="min-height:32px;padding:4px 10px;font-size:11.5px;font-weight:800;">Скачать APK (v2.5.1 r188)</button>
+        <button type="button" class="btn btn-sm btn-good" id="androidApkBannerDownloadBtn" style="min-height:32px;padding:4px 10px;font-size:11.5px;font-weight:800;">Скачать APK (v2.5.2 r189)</button>
         <button type="button" class="btn btn-sm" id="androidApkBannerCloseBtn" title="Скрыть плашку" aria-label="Закрыть плашку загрузки APK" style="min-height:32px;padding:4px 8px;font-size:12px;">Закрыть</button>
       </div>
     </div>
@@ -314,6 +314,6 @@
     </div>
   </nav>
 
-  <script type="module" src="js/app.js?v=2.5.1"></script>
+  <script type="module" src="js/app.js?v=2.5.2"></script>
 </body>
 </html>

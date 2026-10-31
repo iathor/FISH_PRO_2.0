@@ -1,4 +1,4 @@
-import { store } from './store.js?v=2.5.1';
+import { store } from './store.js?v=2.5.2';
 /**
  * @file updater.js
  * @description Модуль контроля версий и внутренних ревизий (v2.5.0 r186),
@@ -6,13 +6,13 @@ import { store } from './store.js?v=2.5.1';
  * с учётом как номера версии (X.Y.Z), так и внутреннего счётчика сборки (rNNN).
  */
 
-import { APP_VERSION, APP_BUILD_NUMBER, APP_REVISION, APP_DISPLAY_VERSION, RELEASE_CACHE_KEY, CURRENT_RELEASE_INFO } from './config.js?v=2.5.1';
-import { showToast } from '../ui/components.js?v=2.5.1';
+import { APP_VERSION, APP_BUILD_NUMBER, APP_REVISION, APP_DISPLAY_VERSION, RELEASE_CACHE_KEY, CURRENT_RELEASE_INFO } from './config.js?v=2.5.2';
+import { showToast } from '../ui/components.js?v=2.5.2';
 
 export const PUBLIC_SITE_ORIGIN = 'https://klevpro.ru';
 export const APK_MANIFEST_PATH = '/apk/apk-version.json';
-export const DEFAULT_APK_DOWNLOAD_URL = 'https://klevpro.ru/apk/klev-pro-v2.5.1.apk';
-export const APK_BANNER_DISMISSED_KEY = 'klev_pro_hide_apk_banner_v2.5.1_r188';
+export const DEFAULT_APK_DOWNLOAD_URL = 'https://klevpro.ru/apk/klev-pro-v2.5.2.apk';
+export const APK_BANNER_DISMISSED_KEY = 'klev_pro_hide_apk_banner_v2.5.2_r189';
 
 let pendingSwRegistration = null;
 let pendingReleaseInfo = null;

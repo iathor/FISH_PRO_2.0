@@ -10,16 +10,16 @@
  * - Закрытый режим Супер-Админа (только для Владельца + управляемая База Администраторов с синхронизацией).
  */
 
-import { events } from '../../core/events.js?v=2.5.1';
-import { store } from '../../core/store.js?v=2.5.1';
-import { storage, calcGeoDistanceKm, safeJsonParse } from '../../core/storage.js?v=2.5.1';
-import { router } from '../../core/router.js?v=2.5.1';
-import { getSeasonalBaitsForContext } from '../../core/config.js?v=2.5.1';
-import { detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.5.1';
-import { findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.5.1';
-import { WATER_PROFILES } from '../../data/waters.js?v=2.5.1';
-import { FISH_DB } from '../../data/species.js?v=2.5.1';
-import { escapeHtml, isAnonymousCallsignValid, createPill, showToast, openModal, closeModal, copyFisherIdToClipboard, openConfirmDeleteModal, openUserAgreementModal, isUserAgreementAccepted, downloadFileCrossPlatform, triggerSystemNotificationCrossPlatform, requestSystemNotificationsAccess } from '../../ui/components.js?v=2.5.1';
+import { events } from '../../core/events.js?v=2.5.2';
+import { store } from '../../core/store.js?v=2.5.2';
+import { storage, calcGeoDistanceKm, safeJsonParse } from '../../core/storage.js?v=2.5.2';
+import { router } from '../../core/router.js?v=2.5.2';
+import { getSeasonalBaitsForContext, SPOT_CATEGORIES } from '../../core/config.js?v=2.5.2';
+import { detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.5.2';
+import { findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.5.2';
+import { WATER_PROFILES } from '../../data/waters.js?v=2.5.2';
+import { FISH_DB } from '../../data/species.js?v=2.5.2';
+import { escapeHtml, isAnonymousCallsignValid, createPill, showToast, openModal, closeModal, copyFisherIdToClipboard, openConfirmDeleteModal, openUserAgreementModal, isUserAgreementAccepted, downloadFileCrossPlatform, triggerSystemNotificationCrossPlatform, requestSystemNotificationsAccess } from '../../ui/components.js?v=2.5.2';
 import {
   RELAY_WORKER_URL,
   buildShareUrls,
@@ -32,9 +32,9 @@ import {
   syncToTelegramCloud,
   readFromTelegramCloud,
   triggerHaptic
-} from '../../core/telegram.js?v=2.5.1';
-import { setLocation } from '../geo/geo.module.js?v=2.5.1';
-import { calcDynamicRig } from '../forecast/forecast.module.js?v=2.5.1';
+} from '../../core/telegram.js?v=2.5.2';
+import { setLocation } from '../geo/geo.module.js?v=2.5.2';
+import { calcDynamicRig } from '../forecast/forecast.module.js?v=2.5.2';
 
 export const CREW_TTL_MS = 72 * 60 * 60 * 1000;
 export const CIRCLE_BLUR_RADIUS_KM = 5.0;
@@ -567,7 +567,7 @@ async function _executeSingleGatewayRequest(kind, fullUrl, method, bodyStr, canU
 }
 
 /**
- * Многоканальный отказоустойчивый транспорт БД (Вариант Б — v2.5.1 r188):
+ * Многоканальный отказоустойчивый транспорт БД (Вариант Б — v2.5.2 r189):
  * - 6 независимых каналов связи (Direct POST/GET, Direct GET-Payload для VPN, и 4 HTTPS Anti-DPI ретранслятора для мобильных сетей РФ без VPN).
  * - Строгая валидация ответа (исключает ложные 403/429 и HTML-заглушки прокси).
  * - Параллельная гонка каналов (Promise.any), выбирающая самый быстрый рабочий маршрут в текущей сети за 300–700 мс.
@@ -1269,7 +1269,7 @@ export async function ensureFisherIdentityInitialized(forceReallocateForRegion =
         tgId: ident.isRegistered ? (ident.tgLinkedId || '') : '',
         tgUsername: ident.isRegistered ? (ident.tgUsername || '') : '',
         platform: detectClientPlatformLabel(),
-        version: '2.5.1',
+        version: '2.5.2',
         lat: s.lat,
         lon: s.lon
       })
@@ -1350,7 +1350,7 @@ export async function publishCircleItemToServer(itemObj, packToken = '') {
         authTokenHash: s.userProfile?.authTokenHash || '',
         adminToken: _serverAdminSessionToken || s.userProfile?.adminSessionToken || '',
         platform: detectClientPlatformLabel(),
-        version: '2.5.1'
+        version: '2.5.2'
       })
     }, 4800, 2);
 
@@ -1473,7 +1473,7 @@ export async function syncNearbyCirclePointsFromServer(showFeedbackToast = false
       crewKeys: crewKeysParam,
       adminToken: adminTok,
       platform: detectClientPlatformLabel(),
-      version: '2.5.1',
+      version: '2.5.2',
       locLabel: s.locLabel || ''
     });
     const res = await workerFetch(`/api/circle/nearby?${qs.toString()}`, { method: 'GET' }, 4800, 1);
@@ -1808,7 +1808,7 @@ export async function authenticateAndSyncAccount(rawLogin, rawPassword, mode = '
         pinHash: creds.pinHash,
         regionCode: regCode,
         platform: detectClientPlatformLabel(),
-        version: '2.5.1',
+        version: '2.5.2',
         profileSnapshot: snapshot
       })
     });
@@ -1921,7 +1921,7 @@ export async function syncCurrentProfileToCloudIfLoggedIn() {
         pinHash: up.pinHash || '',
         regionCode: resolveRussianRegionCode(s),
         platform: detectClientPlatformLabel(),
-        version: '2.5.1',
+        version: '2.5.2',
         profileSnapshot: snapshot
       })
     });
@@ -3624,7 +3624,171 @@ export function evaluateCircleFieldConfirmation(fish, lat, lon, circleItems = []
   };
 }
 
+export function openAddThematicMapPointModal(initialCat = 'slip') {
+  const s = store.getState();
+  const ident = getCurrentFisherIdentity(s);
+  const wTitle = s.selectedWaterName || WATER_PROFILES[s.water]?.shortName || s.locLabel || 'Водоём';
+  let chosenCat = SPOT_CATEGORIES[initialCat] ? initialCat : 'slip';
+  let chosenScope = ident.isRegistered ? 'shared' : 'private';
+
+  const html = `
+    <div style="display:flex;flex-direction:column;gap:12px;font-size:var(--fs-sm);">
+      <div style="padding:9px 11px;background:rgba(56,189,248,0.10);border:1px solid var(--accent);border-radius:var(--r-sm);font-size:var(--fs-xs);line-height:1.42;">
+        <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#ef4444"/></svg>
+        <b>Координаты точки:</b> ${Number(s.lat).toFixed(4)}°N, ${Number(s.lon).toFixed(4)}°E (${escapeHtml(wTitle)})<br>
+        <span style="color:var(--muted);">На карте тематические точки отображаются ненавязчивыми цветными значками при масштабе мельче 1 км/см (а при отдалении аккуратно сворачиваются в круг с числом точек).</span>
+      </div>
+
+      <div>
+        <label style="display:block;font-size:11.5px;font-weight:800;color:var(--muted);margin-bottom:6px;">1. ВЫБЕРИТЕ ТЕМАТИКУ ТОЧКИ НА КАРТЕ:</label>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:6px;" id="thematicCatGrid">
+          ${Object.values(SPOT_CATEGORIES).map(cat => `
+            <button type="button" class="btn btn-sm ${cat.id === chosenCat ? 'btn-accent' : ''}" data-pick-tcat="${cat.id}" style="justify-content:flex-start;min-height:38px;font-size:12px;border-color:${cat.color};">
+              <span>${cat.label}</span>
+            </button>
+          `).join('')}
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px;">
+        <div>
+          <label for="thematicSpotTitleInp" style="display:block;font-size:11px;font-weight:800;color:var(--muted);margin-bottom:3px;">2. ОРИЕНТИР / ОПИСАНИЕ:</label>
+          <input type="text" id="thematicSpotTitleInp" class="input" maxlength="64" value="${escapeHtml(s.locLabel + ' (' + wTitle + ')')}" placeholder="Напр.: Бетонный слип, Коряжник на бровке...">
+        </div>
+        <div>
+          <label for="thematicSpotDepthInp" style="display:block;font-size:11px;font-weight:800;color:var(--muted);margin-bottom:3px;">ГЛУБИНА (М):</label>
+          <input type="number" id="thematicSpotDepthInp" class="input" min="0.2" max="50" step="0.1" value="${Number(s.depth || 2.0).toFixed(1)}">
+        </div>
+        <div>
+          <label for="thematicSpotClipInp" style="display:block;font-size:11px;font-weight:800;color:var(--muted);margin-bottom:3px;" title="Дистанция до клипсы для фидера / карпфишинга">КЛИПСА (М):</label>
+          <input type="number" id="thematicSpotClipInp" class="input" min="0" max="200" step="1" value="${Number(s.userProfile?.carpClipMeters || 0) || ''}" placeholder="Напр. 42">
+        </div>
+      </div>
+
+      <div>
+        <label style="display:block;font-size:11.5px;font-weight:800;color:var(--muted);margin-bottom:5px;">3. РЕЖИМ ДОСТУПА К ТОЧКЕ:</label>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:6px;">
+          <button type="button" class="btn btn-sm ${chosenScope === 'private' ? 'btn-good' : ''}" data-pick-tscope="private" style="min-height:40px;flex-direction:column;gap:2px;">
+            <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="5" y="11" width="14" height="10" rx="2.5" fill="rgba(251,191,36,0.22)" stroke="#fbbf24" stroke-width="1.8"/><path d="M8 11V7a4 4 0 0 1 8 0v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Личная закладка</span>
+            <span style="font-size:10px;opacity:0.85;">100% приватно на устройстве</span>
+          </button>
+          <button type="button" class="btn btn-sm ${chosenScope === 'shared' ? 'btn-accent' : ''}" data-pick-tscope="shared" style="min-height:40px;flex-direction:column;gap:2px;">
+            <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" stroke="currentColor" stroke-width="1.6"/></svg> Общая точка для региона</span>
+            <span style="font-size:10px;opacity:0.85;">Слип / коряга / опасность всем</span>
+          </button>
+        </div>
+      </div>
+
+      <button type="button" class="btn btn-good" id="thematicSpotSaveConfirmBtn" style="width:100%;min-height:44px;font-weight:900;">
+        <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg> Добавить точку на карту
+      </button>
+    </div>
+  `;
+
+  openModal('<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#ef4444"/></svg> Добавить точку на карту (Слип • Коряга • Стоянка)', html, (bodyEl) => {
+    bodyEl.querySelectorAll('[data-pick-tcat]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        chosenCat = btn.getAttribute('data-pick-tcat') || 'slip';
+        bodyEl.querySelectorAll('[data-pick-tcat]').forEach(b => {
+          b.classList.toggle('btn-accent', b.getAttribute('data-pick-tcat') === chosenCat);
+        });
+      });
+    });
+
+    bodyEl.querySelectorAll('[data-pick-tscope]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        chosenScope = btn.getAttribute('data-pick-tscope') || 'private';
+        bodyEl.querySelectorAll('[data-pick-tscope]').forEach(b => {
+          const sc = b.getAttribute('data-pick-tscope');
+          b.classList.toggle('btn-good', sc === 'private' && chosenScope === 'private');
+          b.classList.toggle('btn-accent', sc === 'shared' && chosenScope === 'shared');
+        });
+      });
+    });
+
+    bodyEl.querySelector('#thematicSpotSaveConfirmBtn')?.addEventListener('click', async () => {
+      const catObj = SPOT_CATEGORIES[chosenCat] || SPOT_CATEGORIES.slip;
+      const customName = (bodyEl.querySelector('#thematicSpotTitleInp')?.value || '').trim() || `${catObj.short}: ${s.locLabel}`;
+      const depthVal = Math.max(0.2, Math.min(50, parseFloat(bodyEl.querySelector('#thematicSpotDepthInp')?.value) || s.depth || 2.0));
+      const clipMeters = Math.max(0, Math.min(250, parseInt(bodyEl.querySelector('#thematicSpotClipInp')?.value, 10) || 0));
+
+      if (clipMeters > 0) {
+        store.dispatch({ type: 'UPDATE_USER_PROFILE', payload: { carpClipMeters: clipMeters } });
+      }
+
+      const now = Date.now();
+      const spotObj = {
+        id: `spot_${now.toString(36)}`,
+        name: clipMeters > 0 ? `${customName} [клипса ${clipMeters} м]` : customName,
+        category: catObj.id,
+        clipMeters,
+        lat: s.lat,
+        lon: s.lon,
+        basinCode: s.basinCode,
+        water: s.water,
+        selectedWaterName: s.selectedWaterName,
+        depth: depthVal,
+        fid: ident.fisherId,
+        au: ident.callsign,
+        did: storage.getDeviceId ? storage.getDeviceId() : 'dev_local',
+        visibility: chosenScope,
+        createdAt: new Date().toISOString()
+      };
+
+      await storage.putToStore('spots', spotObj);
+      const allSpots = await storage.getAllFromStore('spots');
+      store.dispatch({ type: 'SET_SAVED_SPOTS', payload: allSpots });
+
+      if (chosenScope === 'shared') {
+        if (!requireRegisteredFisherId('публикации общей точки на карту региона')) {
+          showToast(`${catObj.icon} Точка «${spotObj.name}» сохранена в ваши личные закладки!`, 'good');
+          closeModal();
+          return;
+        }
+        const circleSpotItem = {
+          id: `cspot_${now.toString(36)}`,
+          t: 'spot',
+          cat: catObj.id,
+          clipMeters,
+          lat: Math.round(s.lat * 10000) / 10000,
+          lon: Math.round(s.lon * 10000) / 10000,
+          lb: s.locLabel || 'Водоём',
+          wn: spotObj.name,
+          wt: s.water,
+          dp: depthVal,
+          fi: s.fishId || 'pike',
+          fn: `${catObj.short}: ${spotObj.name}`,
+          mt: s.method,
+          bt: catObj.short,
+          tw: s.weatherDays?.[s.dayIdx]?.waterTemp ?? 8,
+          pr: s.weatherDays?.[s.dayIdx]?.pressAvg ?? 754,
+          ws: s.weatherDays?.[s.dayIdx]?.windMax ?? 3,
+          fid: ident.fisherId,
+          au: ident.callsign,
+          did: ident.deviceId,
+          ca: now,
+          ea: now + CREW_TTL_MS,
+          nt: `${catObj.short} • глубина ${depthVal} м${clipMeters ? ` • клипса ${clipMeters} м` : ''}`
+        };
+        const existing = purgeExpiredCircleItems(store.getState().circleItems || []);
+        const updated = [circleSpotItem, ...existing.filter(x => x && x.id !== circleSpotItem.id)].slice(0, 80);
+        storage.saveCircleItems(updated);
+        store.dispatch({ type: 'SET_CIRCLE_ITEMS', payload: updated });
+        publishCircleItemToServer(circleSpotItem, '').catch(() => {});
+        showToast(`${catObj.icon} Общая точка «${spotObj.name}» (${catObj.short}) добавлена на карту региона и в Круг!`, 'good');
+      } else {
+        showToast(`${catObj.icon} Личная точка «${spotObj.name}» (${catObj.short}) сохранена на карте!`, 'good');
+      }
+      closeModal();
+    });
+  });
+}
+
 export function openShareModalForCurrentContext(initialMode = 'circle', overrideCatch = null) {
+  if (initialMode === 'spot') {
+    openAddThematicMapPointModal('slip');
+    return;
+  }
   if (!requireRegisteredFisherId('публикации точки в Круг / Экипаж / SOS')) return;
   let currentMode = initialMode;
   let customNote = '';
@@ -4613,6 +4777,16 @@ export function renderChatsSubView(s, ident, visibleCrews) {
             <button type="button" class="btn btn-sm btn-good" id="chatStartDmBtn" style="min-height:34px;">Написать</button>
           </div>
         </div>
+
+        <div class="card" style="background:var(--card);padding:8px 10px;border:1.5px solid var(--warn);display:flex;flex-direction:column;justify-content:space-between;gap:5px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;">
+            <span style="font-weight:800;font-size:11px;color:var(--warn);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(245,158,11,0.22)" stroke="#f59e0b" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#f59e0b"/></svg> 3. ТОЧКА НА КАРТУ (СЛИП • КОРЯГА • СТОЯНКА):</span>
+            <span class="pill pill-warn" style="font-size:9.5px;padding:1px 6px;">&lt; 1 км/см</span>
+          </div>
+          <button type="button" class="btn btn-sm btn-accent" id="chatAddThematicSpotBtn" style="width:100%;min-height:34px;font-weight:800;">
+            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg> + Добавить точку (Слип / Коряга / Яма)
+          </button>
+        </div>
       </div>
 
       <!-- Вертикальный список чатов сверху вниз -->
@@ -4743,6 +4917,12 @@ function renderCompactCircleRow(item, s, ident, now) {
     catBadge = `<span class="pill pill-ice" style="font-size:10px;padding:1px 6px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> Экипаж ${cKey}</span>`;
     titleText = `${item.fn || 'Рыба'} • ${item.wn || item.lb || 'Точка'}`;
     subMetaText = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="3" y="8" width="18" height="8" rx="2" transform="rotate(-35 12 12)" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8"/><path d="M8 11l1.5 2M11 9l1.5 2M14 7l1.5 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg> ${item.dp || 2}м • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> ${item.tw ?? 8}°C • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.5 2" stroke="#38bdf8" stroke-width="1.9" stroke-linecap="round"/></svg> ${formatRemainingHours(item.ea)}`;
+  } else if (item.t === 'spot') {
+    const spCat = SPOT_CATEGORIES[item.cat] || SPOT_CATEGORIES.slip;
+    catBadge = `<span class="pill" style="font-size:10px;padding:1px 6px;border:1px solid ${spCat.color};color:${spCat.color};">${spCat.icon} ${spCat.short}</span>`;
+    titleText = `${item.wn || item.fn || item.lb || 'Точка на карте'}`;
+    subMetaText = `Глубина ~${item.dp || 2}м${item.clipMeters ? ` • Клипса ${item.clipMeters}м` : ''} • ${ageLabel}`;
+    rowBorderColor = spCat.color;
   } else if (item.t === 'workshop') {
     catBadge = `<span class="pill pill-warn" style="font-size:10px;padding:1px 6px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" fill="rgba(56,189,248,0.2)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> Снасть</span>`;
     titleText = `${item.fn || 'Рыба'}: ${(item.rw || 'Монтаж').split(',')[0]}`;
@@ -4918,6 +5098,7 @@ export function render(container) {
     if (activeCategoryFilter === 'sos') return item.t === 'crew' && Boolean(item.sos);
     if (activeCategoryFilter === 'crew') return item.t === 'crew' && !item.sos;
     if (activeCategoryFilter === 'circle') return item.t === 'circle';
+    if (activeCategoryFilter === 'spot') return item.t === 'spot';
     if (activeCategoryFilter === 'workshop') return item.t === 'workshop';
     return true;
   });
@@ -4981,13 +5162,13 @@ export function render(container) {
           </div>
         </button>
 
-        <button type="button" class="card" data-quick-share="sos" style="text-align:left;cursor:pointer;padding:10px 12px;background:rgba(239,68,68,0.08);border:1.5px solid var(--bad);display:flex;flex-direction:column;gap:4px;">
+        <button type="button" class="card" data-quick-share="spot" style="text-align:left;cursor:pointer;padding:10px 12px;background:var(--card);border:1.5px solid var(--warn);display:flex;flex-direction:column;gap:4px;">
           <div style="display:flex;justify-content:space-between;align-items:center;">
-            <span style="font-weight:900;font-size:var(--fs-sm);color:var(--bad);"><svg class="k-ico" style="color:var(--bad);" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9.5" fill="#dc2626" stroke="#fca5a5" stroke-width="1.8"/><text x="12" y="15" text-anchor="middle" fill="#fff" font-size="7.5" font-weight="900" font-family="sans-serif">SOS</text></svg> SOS на воде</span>
-            <span class="pill pill-bad" style="font-size:10px;">Всем рядом</span>
+            <span style="font-weight:900;font-size:var(--fs-sm);color:var(--warn);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(245,158,11,0.22)" stroke="#f59e0b" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#f59e0b"/></svg> Точка на карту (Слип • Коряга)</span>
+            <span class="pill pill-warn" style="font-size:10px;">&lt; 1 км/см</span>
           </div>
           <div style="font-size:11px;color:var(--muted);line-height:1.35;">
-            Экстренный сигнал помощи с точными GPS-координатами всем рыбакам в регионе
+            Отметить слип, корягу, стоянку, рабочую яму или опасность (лично или для региона)
           </div>
         </button>
       </div>
@@ -5028,6 +5209,7 @@ export function render(container) {
         <button type="button" class="w-chip ${activeCategoryFilter === 'all' ? 'active' : ''}" data-circle-cat="all"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="5" stroke="#38bdf8" stroke-width="1.5"/><path d="M12 12l6-6" stroke="#10b981" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="12" r="1.8" fill="#10b981"/></svg> Все сигналы (${baseList.length})</button>
         <button type="button" class="w-chip ${activeCategoryFilter === 'circle' ? 'active' : ''}" data-circle-cat="circle"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3.5" fill="rgba(56,189,248,0.25)" stroke="currentColor" stroke-width="1.8"/><path d="M3 19c0-3.2 2.7-5.5 6-5.5s6 2.3 6 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="17" cy="9" r="2.8" stroke="currentColor" stroke-width="1.6"/><path d="M16 14c2.6.3 4.8 2 5 4.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg> Круг ±5км (${baseList.filter(x => x.t === 'circle').length})</button>
         <button type="button" class="w-chip ${activeCategoryFilter === 'crew' ? 'active' : ''}" data-circle-cat="crew"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> Экипаж 72ч (${baseList.filter(x => x.t === 'crew' && !x.sos).length})</button>
+        <button type="button" class="w-chip ${activeCategoryFilter === 'spot' ? 'active' : ''}" data-circle-cat="spot"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(245,158,11,0.22)" stroke="#f59e0b" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#f59e0b"/></svg> Слипы и Коряги (${baseList.filter(x => x.t === 'spot').length})</button>
         <button type="button" class="w-chip ${activeCategoryFilter === 'sos' ? 'active' : ''}" data-circle-cat="sos"><svg class="k-ico" style="color:var(--bad);" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9.5" fill="#dc2626" stroke="#fca5a5" stroke-width="1.8"/><text x="12" y="15" text-anchor="middle" fill="#fff" font-size="7.5" font-weight="900" font-family="sans-serif">SOS</text></svg> SOS (${baseList.filter(x => x.t === 'crew' && x.sos).length})</button>
 
       </div>
@@ -5096,7 +5278,7 @@ export async function openFullServerWebConsoleModal() {
                 ${d1Connected ? 'Cloudflare D1 SQL: ПОДКЛЮЧЕНА (' + escapeHtml(db.d1BindingName || 'DB') + ')' : 'Автономная синхронизация (нажмите «Обновить с сервера»)'}
               </div>
               <div style="font-size:11px;color:var(--muted);margin-top:2px;">
-                Активный канал связи: <b style="color:var(--accent);">${escapeHtml(getLastActiveDbGatewayLabel())}</b> • Версия ядра: <b>v2.5.1 r188</b>
+                Активный канал связи: <b style="color:var(--accent);">${escapeHtml(getLastActiveDbGatewayLabel())}</b> • Версия ядра: <b>v2.5.2 r189</b>
               </div>
             </div>
             <div style="display:flex;gap:6px;flex-wrap:wrap;">
@@ -5152,7 +5334,7 @@ export async function openFullServerWebConsoleModal() {
                       <td style="padding:6px;font-family:monospace;font-weight:800;color:${isOwn ? 'var(--good)' : 'var(--accent)'};" data-copy-fisher-id="${escapeHtml(u.fisherId)}">${escapeHtml(u.fisherId)}</td>
                       <td style="padding:6px;"><b>${escapeHtml(u.login || u.callsign || 'Гость')}</b> ${u.tgUsername ? `<span style="color:var(--accent);">@${escapeHtml(u.tgUsername)}</span>` : ''}</td>
                       <td style="padding:6px;">[${escapeHtml(u.regionCode || '89')}] ${escapeHtml(u.locLabel || 'РФ')}</td>
-                      <td style="padding:6px;">${escapeHtml(u.platform || 'WEB')} <span style="color:var(--muted);font-size:10px;">v${escapeHtml(u.version || '2.5.1')}</span></td>
+                      <td style="padding:6px;">${escapeHtml(u.platform || 'WEB')} <span style="color:var(--muted);font-size:10px;">v${escapeHtml(u.version || '2.5.2')}</span></td>
                       <td style="padding:6px;text-align:right;">
                         ${isOwn ? '<span style="color:var(--good);font-weight:800;">Владелец</span>' : `<button type="button" class="btn btn-sm" data-wc-del-user="${escapeHtml(u.fisherId)}" style="min-height:24px;padding:1px 7px;color:var(--bad);border-color:var(--bad);">Удалить</button>`}
                       </td>
@@ -5194,7 +5376,7 @@ export async function openFullServerWebConsoleModal() {
 
     bodyEl.querySelector('#wcModalExportJsonBtn')?.addEventListener('click', () => {
       const fname = `klev-pro-users-db-${new Date().toISOString().slice(0, 10)}.json`;
-      downloadFileCrossPlatform(fname, JSON.stringify({ exportedAt: new Date().toISOString(), version: '2.5.1', total: users.length, users, points }, null, 2), 'application/json;charset=utf-8');
+      downloadFileCrossPlatform(fname, JSON.stringify({ exportedAt: new Date().toISOString(), version: '2.5.2', total: users.length, users, points }, null, 2), 'application/json;charset=utf-8');
       showToast(`База сохранена: ${fname}`, 'good');
     });
 
@@ -5364,7 +5546,7 @@ export function renderAdminSection(customContainer = null) {
         <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;">
           <div>
             <div style="font-size:var(--fs-md);font-weight:900;color:var(--good);">
-              <svg class="k-ico" style="color:#fbbf24;" viewBox="0 0 24 24" fill="none"><path d="M3 18h18l-2-11-5 4-2-6-2 6-5-4-2 11z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> ПАНЕЛЬ СУПЕР-АДМИНА И СТАТИСТИКА БД «КЛЁВ ПРО V.2.5.1 r188»
+              <svg class="k-ico" style="color:#fbbf24;" viewBox="0 0 24 24" fill="none"><path d="M3 18h18l-2-11-5 4-2-6-2 6-5-4-2 11z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> ПАНЕЛЬ СУПЕР-АДМИНА И СТАТИСТИКА БД «КЛЁВ ПРО V.2.5.2 r189»
             </div>
             <div style="font-size:var(--fs-xs);color:var(--muted);margin-top:3px;">
               Владелец: <b style="color:var(--text);">Антон (${escapeHtml(ident.login)})</b> • Эксклюзивные неприкосновенные ID Владельца:
@@ -5401,7 +5583,7 @@ export function renderAdminSection(customContainer = null) {
             <div style="font-weight:900;color:var(--good);font-size:13px;"><svg class="k-ico" style="color:var(--good);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg> Cloudflare D1 База Данных: ПОДКЛЮЧЕНА (${escapeHtml(db.d1BindingName || 'DB')})</div>
             <div style="font-size:11px;color:var(--muted);margin-top:2px;">Все постоянные ID, реестр пользователей, чаты и точки Круга сохраняются в SQL-таблицах D1.</div>
           </div>
-          <span class="pill pill-good" style="font-size:11px;font-weight:800;">D1 Engine 2.5.1</span>
+          <span class="pill pill-good" style="font-size:11px;font-weight:800;">D1 Engine 2.5.2</span>
         </div>
       ` : `
         <div class="card" style="border:1.5px solid var(--warn);background:rgba(245,158,11,0.10);padding:10px 14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
@@ -5612,7 +5794,7 @@ function bindAdminSectionEvents(container, users) {
 
   container.querySelector('#admExportUsersJsonBtn')?.addEventListener('click', () => {
     const fname = `klev-pro-users-db-${new Date().toISOString().slice(0, 10)}.json`;
-    const jsonStr = JSON.stringify({ exportedAt: new Date().toISOString(), version: '2.5.1', total: users.length, users }, null, 2);
+    const jsonStr = JSON.stringify({ exportedAt: new Date().toISOString(), version: '2.5.2', total: users.length, users }, null, 2);
     downloadFileCrossPlatform(fname, jsonStr, 'application/json;charset=utf-8');
     showToast(` База пользователей сохранена: ${fname}`, 'good');
   });
@@ -5815,6 +5997,10 @@ function deleteChatChannelWithConfirm(targetChanId, targetTitle, container) {
 
 function bindChatViewEvents(container) {
   if (!container) return;
+
+  container.querySelector('#chatAddThematicSpotBtn')?.addEventListener('click', () => {
+    openAddThematicMapPointModal('slip');
+  });
 
   container.querySelector('#chatShareCatchTopBtn')?.addEventListener('click', () => {
     openShareCatchToChatModal(null);
@@ -6464,6 +6650,7 @@ export const circleModule = {
   purgeExpiredCircleItems,
   importSharePackToken,
   evaluateCircleFieldConfirmation,
+  openAddThematicMapPointModal,
   openShareModalForCurrentContext,
   openShareCatchToChatModal,
   openImportPackModal,

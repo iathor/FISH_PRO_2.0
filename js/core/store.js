@@ -6,11 +6,11 @@
  * закрытый Супер-Админ + управляемая База Администраторов) (Ревизия 2.1.1)
  */
 
-import { DEFAULT_STATE, getCompatibleMethods, getSeasonalBaitsForContext } from './config.js?v=2.5.1';
-import { storage } from './storage.js?v=2.5.1';
-import { detectBasinByCoords, BASIN_CONFIGS, isCoastalInBasin, getSpotEcoregion } from '../data/basins.js?v=2.5.1';
-import { findNearestRussianSettlement } from '../data/russia-waters.js?v=2.5.1';
-import { FISH_DB } from '../data/species.js?v=2.5.1';
+import { DEFAULT_STATE, getCompatibleMethods, getSeasonalBaitsForContext } from './config.js?v=2.5.2';
+import { storage } from './storage.js?v=2.5.2';
+import { detectBasinByCoords, BASIN_CONFIGS, isCoastalInBasin, getSpotEcoregion } from '../data/basins.js?v=2.5.2';
+import { findNearestRussianSettlement } from '../data/russia-waters.js?v=2.5.2';
+import { FISH_DB } from '../data/species.js?v=2.5.2';
 
 function getActiveDaySeasonContext(state, overrideDays = null, overrideDayIdx = null, overrideIceState = null) {
   const rawDays = overrideDays ?? state?.weatherDays;
@@ -446,7 +446,10 @@ function reducer(state, action) {
         weatherUpdatedAt: action.payload.updatedAt ?? Date.now()
       };
       const nextSeason = getActiveDaySeasonContext(nextBase);
+      const isMethodIncompatible = (nextSeason.effIce === 'ice_safe' && !String(nextBase.method || '').startsWith('winter_')) ||
+        (nextSeason.effIce !== 'ice_safe' && String(nextBase.method || '').startsWith('winter_'));
       const seasonShifted = prevSeason.effIce !== nextSeason.effIce ||
+        isMethodIncompatible ||
         (prevSeason.effWaterTemp <= 10.5) !== (nextSeason.effWaterTemp <= 10.5);
       return syncTackleForContext(nextBase, seasonShifted);
     }

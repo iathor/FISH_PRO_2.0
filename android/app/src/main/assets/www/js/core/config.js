@@ -3,38 +3,38 @@
  * @description Конфигурация приложения (Релиз 2.5.0 r187), слои карт без VPN и адаптивные справочники снастей и сезонных наживок
  */
 
-export const APP_VERSION = '2.5.1';
-export const APP_BUILD_NUMBER = 188;
-export const APP_REVISION = 'r188';
-export const APP_DISPLAY_VERSION = 'v2.5.1 r188';
+export const APP_VERSION = '2.5.2';
+export const APP_BUILD_NUMBER = 189;
+export const APP_REVISION = 'r189';
+export const APP_DISPLAY_VERSION = 'v2.5.2 r189';
 export const STATE_CACHE_KEY = 'klev_pro_state_v2.0';
 export const WEATHER_CACHE_KEY = 'klev_pro_weather_v2.0';
 export const RELEASE_CACHE_KEY = 'klev_pro_release_v2.0';
 export const WEATHER_TTL_MS = 2 * 60 * 60 * 1000;
 
 export const CURRENT_RELEASE_INFO = {
-  "version": "2.5.1",
-  "versionCode": 251188,
-  "buildNumber": 188,
-  "revision": "r188",
-  "displayVersion": "v2.5.1 r188",
+  "version": "2.5.2",
+  "versionCode": 252189,
+  "buildNumber": 189,
+  "revision": "r189",
+  "displayVersion": "v2.5.2 r189",
   "date": "31 октября 2026",
-  "releasedAt": "2026-10-31T12:30:00Z",
-  "apkUrl": "https://klevpro.ru/apk/klev-pro-v2.5.1.apk",
-  "fileSize": "38.2 МБ",
-  "title": "Выпущена новая версия «Клёв ПРО 2.0» (v2.5.1 r188)",
-  "subtitle": "Стабильная работа БД и Топо-карт без VPN, свайп рыбы на главном экране, запись холостых выездов, личная аналитика уловов, 5 типов точек на карте и региональные чаты РФ.",
-  "summary": "Реализован Второй этап Дорожной карты (v2.5.1 r188): бесперебойная синхронизация БД без VPN и с бесплатными VPN, топографические карты РФ без VPN, контроль обновлений APK по ревизиям (r188), свайп рыбы на главном блоке прогноза, кнопка «Холостой выезд (0 поклёвок)» и личная аналитика в Журнале, тактические блоки Фидер/Спиннинг/Лёд, 5 цветовых типов точек на карте, общие региональные чаты РФ и справочник оснасток.",
+  "releasedAt": "2026-10-31T16:00:00Z",
+  "apkUrl": "https://klevpro.ru/apk/klev-pro-v2.5.2.apk",
+  "fileSize": "38.4 МБ",
+  "title": "Выпущена новая версия «Клёв ПРО 2.0» (v2.5.2 r189)",
+  "subtitle": "Точная гидрологическая математика ледостава и зимних снастей, тематические точки на карте (Слип, Коряга, Стоянка) с масштабом < 1 км/см и кластеризацией, а также специализированный Карповый и Флэт-Фидерный модуль.",
+  "summary": "В релизе v2.5.2 r189 модернизирована математическая модель Стефана-Зубова для расчёта толщины льда и автоматического переключения на зимние снасти (жерлицы, вибы/раттлины, балансиры, мормышки), во вкладку «Чаты и Круг» добавлен 3-й блок «Точка на карту (Слип • Коряга • Стоянка • Опасность)» с умной кластеризацией на карте при масштабе крупнее 1 км/см, а также внедрён модуль Карпфишинга, Сазана и Флэт-Фидера с программой бойлов/ПВА по температуре воды, дистанцией клипсы и таймером перезаброса.",
   "changes": [
     {
       "icon": "<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M12 2.5l7 3.2v5.8c0 5-3 9.3-7 10.8-4-1.5-7-5.8-7-10.8V5.7l7-3.2z\" fill=\"rgba(56,189,248,0.22)\" stroke=\"#38bdf8\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/></svg>",
-      "title": "Работа БД и Топо-карт без VPN и с любыми бесплатными VPN (r188)",
+      "title": "Работа БД и Топо-карт без VPN и с любыми бесплатными VPN (r189)",
       "text": "Внедрён многоканальный сетевой транспорт с автообходом блокировок ТСПУ и кривых прокси для 100% сохранения данных в БД, а топо-карта переведена на быстрый сервер рельефа, работающий без VPN по всей России."
     },
     {
       "icon": "<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M20 11a8 8 0 0 0-14.5-4.5L4 8m0-5v5h5M4 13a8 8 0 0 0 14.5 4.5L20 16m0 5v-5h-5\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>",
-      "title": "Точное автообновление APK по номеру ревизии (v2.5.1 r188)",
-      "text": "Теперь приложение проверяет не только основной номер версии (2.5.0), но и внутренний счётчик сборки (r188), мгновенно оповещая о выходе любых исправлений."
+      "title": "Точное автообновление APK по номеру ревизии (v2.5.2 r189)",
+      "text": "Теперь приложение проверяет не только основной номер версии (2.5.0), но и внутренний счётчик сборки (r189), мгновенно оповещая о выходе любых исправлений."
     },
     {
       "icon": "<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"12\" cy=\"12\" r=\"8.5\" stroke=\"currentColor\" stroke-width=\"1.8\"/><circle cx=\"12\" cy=\"12\" r=\"4.5\" stroke=\"#38bdf8\" stroke-width=\"1.6\"/><circle cx=\"12\" cy=\"12\" r=\"1.8\" fill=\"#10b981\"/></svg>",
@@ -50,13 +50,13 @@ export const CURRENT_RELEASE_INFO = {
   "items": [
     {
       "icon": "<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M12 2.5l7 3.2v5.8c0 5-3 9.3-7 10.8-4-1.5-7-5.8-7-10.8V5.7l7-3.2z\" fill=\"rgba(56,189,248,0.22)\" stroke=\"#38bdf8\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/></svg>",
-      "title": "Работа БД и Топо-карт без VPN и с любыми бесплатными VPN (r188)",
+      "title": "Работа БД и Топо-карт без VPN и с любыми бесплатными VPN (r189)",
       "text": "Внедрён многоканальный сетевой транспорт с автообходом блокировок ТСПУ и кривых прокси для 100% сохранения данных в БД, а топо-карта переведена на быстрый сервер рельефа, работающий без VPN по всей России."
     },
     {
       "icon": "<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M20 11a8 8 0 0 0-14.5-4.5L4 8m0-5v5h5M4 13a8 8 0 0 0 14.5 4.5L20 16m0 5v-5h-5\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>",
-      "title": "Точное автообновление APK по номеру ревизии (v2.5.1 r188)",
-      "text": "Теперь приложение проверяет не только основной номер версии (2.5.0), но и внутренний счётчик сборки (r188), мгновенно оповещая о выходе любых исправлений."
+      "title": "Точное автообновление APK по номеру ревизии (v2.5.2 r189)",
+      "text": "Теперь приложение проверяет не только основной номер версии (2.5.0), но и внутренний счётчик сборки (r189), мгновенно оповещая о выходе любых исправлений."
     },
     {
       "icon": "<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"12\" cy=\"12\" r=\"8.5\" stroke=\"currentColor\" stroke-width=\"1.8\"/><circle cx=\"12\" cy=\"12\" r=\"4.5\" stroke=\"#38bdf8\" stroke-width=\"1.6\"/><circle cx=\"12\" cy=\"12\" r=\"1.8\" fill=\"#10b981\"/></svg>",
@@ -123,13 +123,50 @@ export const MAP_LAYERS = {
   }
 };
 
-// 5 цветовых типов пользовательских точек на карте (Пункт 19 Дорожной карты v2.5.0)
+// 6 тематических типов точек на карте (Слип, Коряга, Стоянка, Опасность, Рабочая яма/Свим, Магазин/База)
 export const SPOT_CATEGORIES = {
-  bite:   { id: 'bite',   icon: '<svg class="k-ico" style="color:var(--good);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg>', short: 'Клёв',      label: '<svg class="k-ico" style="color:var(--good);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg> Клёв / Уловистая точка', color: '#10b981' },
-  slip:   { id: 'slip',   icon: '<svg class="k-ico" style="color:var(--accent);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg>', short: 'Слип',      label: '<svg class="k-ico" style="color:var(--accent);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg> Слип / Спуск лодки',     color: '#38bdf8' },
-  camp:   { id: 'camp',   icon: '<svg class="k-ico" style="color:var(--warn);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg>', short: 'Стоянка',   label: '<svg class="k-ico" style="color:var(--warn);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg> Стоянка / Кемпинг',      color: '#f59e0b' },
-  hazard: { id: 'hazard', icon: '<svg class="k-ico" style="color:var(--bad);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg>', short: 'Опасно',    label: '<svg class="k-ico" style="color:var(--bad);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg> Опасное место / Зацеп',  color: '#ef4444' },
-  shop:   { id: 'shop',   icon: '<svg class="k-ico" style="color:#a855f7;" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg>', short: 'Магазин',   label: '<svg class="k-ico" style="color:#a855f7;" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg> Магазин снастей / База', color: '#a855f7' }
+  slip: {
+    id: 'slip',
+    short: 'Слип',
+    color: '#38bdf8',
+    icon: '<svg class="k-ico" style="color:#38bdf8;" viewBox="0 0 24 24" fill="none"><path d="M3 17l18-5v7H3v-2z" fill="rgba(56,189,248,0.25)" stroke="#38bdf8" stroke-width="1.8" stroke-linejoin="round"/><path d="M6 12l9-3 3 3-12 2v-2z" fill="#38bdf8"/></svg>',
+    label: '<svg class="k-ico" style="color:#38bdf8;" viewBox="0 0 24 24" fill="none"><path d="M3 17l18-5v7H3v-2z" fill="rgba(56,189,248,0.25)" stroke="#38bdf8" stroke-width="1.8" stroke-linejoin="round"/><path d="M6 12l9-3 3 3-12 2v-2z" fill="#38bdf8"/></svg> Слип / Спуск лодки'
+  },
+  snag: {
+    id: 'snag',
+    short: 'Коряга',
+    color: '#d97706',
+    icon: '<svg class="k-ico" style="color:#d97706;" viewBox="0 0 24 24" fill="none"><path d="M12 20V8m0 4l-5-4m5 6l5-5M7 20h10" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    label: '<svg class="k-ico" style="color:#d97706;" viewBox="0 0 24 24" fill="none"><path d="M12 20V8m0 4l-5-4m5 6l5-5M7 20h10" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Коряга / Бровка / Зацеп'
+  },
+  camp: {
+    id: 'camp',
+    short: 'Стоянка',
+    color: '#10b981',
+    icon: '<svg class="k-ico" style="color:#10b981;" viewBox="0 0 24 24" fill="none"><path d="M12 4L3 19h18L12 4z" fill="rgba(16,185,129,0.24)" stroke="#10b981" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 12l-3 7h6l-3-7z" fill="#10b981"/></svg>',
+    label: '<svg class="k-ico" style="color:#10b981;" viewBox="0 0 24 24" fill="none"><path d="M12 4L3 19h18L12 4z" fill="rgba(16,185,129,0.24)" stroke="#10b981" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 12l-3 7h6l-3-7z" fill="#10b981"/></svg> Стоянка / Подъезд / Лагерь'
+  },
+  hazard: {
+    id: 'hazard',
+    short: 'Опасно',
+    color: '#ef4444',
+    icon: '<svg class="k-ico" style="color:#ef4444;" viewBox="0 0 24 24" fill="none"><path d="M12 3L2.5 19.5h19L12 3z" fill="rgba(239,68,68,0.24)" stroke="#ef4444" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9v5M12 17h.01" stroke="#fca5a5" stroke-width="2" stroke-linecap="round"/></svg>',
+    label: '<svg class="k-ico" style="color:#ef4444;" viewBox="0 0 24 24" fill="none"><path d="M12 3L2.5 19.5h19L12 3z" fill="rgba(239,68,68,0.24)" stroke="#ef4444" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9v5M12 17h.01" stroke="#fca5a5" stroke-width="2" stroke-linecap="round"/></svg> Опасность / Промоина / Сеть'
+  },
+  bite: {
+    id: 'bite',
+    short: 'Яма / Клёв',
+    color: '#06b6d4',
+    icon: '<svg class="k-ico" style="color:#06b6d4;" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8" fill="rgba(6,182,212,0.22)" stroke="#06b6d4" stroke-width="1.8"/><circle cx="12" cy="12" r="3" fill="#06b6d4"/></svg>',
+    label: '<svg class="k-ico" style="color:#06b6d4;" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8" fill="rgba(6,182,212,0.22)" stroke="#06b6d4" stroke-width="1.8"/><circle cx="12" cy="12" r="3" fill="#06b6d4"/></svg> Клёв / Рабочая яма / Свим'
+  },
+  shop: {
+    id: 'shop',
+    short: 'Магазин',
+    color: '#a855f7',
+    icon: '<svg class="k-ico" style="color:#a855f7;" viewBox="0 0 24 24" fill="none"><rect x="4" y="8" width="16" height="12" rx="2" fill="rgba(168,85,247,0.22)" stroke="#a855f7" stroke-width="1.8"/><path d="M8 8V6a4 4 0 0 1 8 0v2" stroke="#a855f7" stroke-width="1.8"/></svg>',
+    label: '<svg class="k-ico" style="color:#a855f7;" viewBox="0 0 24 24" fill="none"><rect x="4" y="8" width="16" height="12" rx="2" fill="rgba(168,85,247,0.22)" stroke="#a855f7" stroke-width="1.8"/><path d="M8 8V6a4 4 0 0 1 8 0v2" stroke="#a855f7" stroke-width="1.8"/></svg> Магазин снастей / База'
+  }
 };
 
 export const SEASONAL_BAITS = {
@@ -239,9 +276,9 @@ export function getSeasonalBaitsForContext(fish, method, waterTemp = 12, iceStat
         ];
       }
       return [
-        'Балансир 50–70 мм (натурал / кислотник)',
-        'Зимний раттлин (виб 55–80 мм)',
-        'Широкая зимняя колебалка на щуку',
+        'Зимний раттлин / Виб 65–85 мм (натурал / редхед / кислотник)',
+        'Балансир 60–80 мм (щучий профиль)',
+        'Широкая зимняя колебалка на щуку (Вильямс / Власовская)',
         'Донная блесна с подсадкой резки'
       ];
     }
@@ -389,10 +426,27 @@ export function getSeasonalBaitsForContext(fish, method, waterTemp = 12, iceStat
       ];
     }
     if (['grass_carp'].includes(fid)) {
-      return [
-        'Сладкая кукуруза (цепочка на волосе с плавающей пенкой)',
-        'Молодой побег камыша / сердцевина рогоза',
-        'Плавающий бойл (ананас, слива, скопекс, трава)'
+      return isCold ? [
+        'Подрезанный поп-ап / вафтерс 8–10 мм (ананас, чеснок, специи) с ПВА-стиком',
+        'Одиночная кукуруза с плавающей пенкой на волосе №8–10',
+        'Флэт-кормушка (микро-пеллетс 1.5–2 мм) с нейтральной насадкой'
+      ] : [
+        'Сладкая ферментированная кукуруза (цепочка на волосе с плавающей пенкой)',
+        'Плавающий или нейтральный бойл 12–16 мм (ананас, слива, скопекс, трава)',
+        'Молодой побег камыша / сердцевина рогоза / технопланктон'
+      ];
+    }
+    if (['carp', 'buffalo', 'black_carp'].includes(fid)) {
+      return isCold ? [
+        'Одиночный подрезанный Поп-ап / Вафтерс 8–10 мм (специи, робин ред, чеснок, криль) + ПВА-стик',
+        'Флэт-кормушка (пеллетс 1.5–2 мм криль/палтус) с нейтральной насадкой Wafters 8 мм',
+        'Пучок крупного мотыля / опарыша на клипсе с дипом «Специи / Чеснок»',
+        'Кусочек червя Дендробена с подсадкой пенопласта'
+      ] : [
+        'Тонущий бойл 14–20 мм (рыбная мука / палтус / монстер краб) или «снеговик» с поп-апом 10 мм',
+        'Фруктовый бойл / Вафтерс 12–16 мм (клубника, слива, ананас, скопекс) под флэт-фидер',
+        'Тигровый орех / цепочка ферментированной кукурузы на волосе с пенкой',
+        'Пеллетс Халибут (Палтус) 8–14 мм на волосе со спомбовым закормом'
       ];
     }
     if (isPred) {
@@ -528,7 +582,8 @@ export function getCompatibleMethods(fish, iceState = 'open_water', waterType = 
       if (['pike'].includes(fid)) {
         return [
           { val: 'winter_livebait', text: 'Жерлицы на живца (плотва, карась, окунь)' },
-          { val: 'winter_lure', text: 'Зимнее блеснение: Балансир 60–70 мм / Виб' }
+          { val: 'winter_lure', text: 'Зимнее блеснение: Раттлин (Виб 65–85 мм) / Балансир' },
+          { val: 'winter_jig', text: 'Зимняя блесна / Крупная мормышка с резкой' }
         ];
       }
       if (['zander', 'volga_zander'].includes(fid)) {
@@ -766,9 +821,9 @@ export const DEFAULT_STATE = {
   water: 'small_river',
   waterRadiusKm: 50,
   selectedWaterName: '',
-  method: 'spin_micro',
+  method: 'winter_livebait',
   selectedBait: '',
-  depth: 1.5,
+  depth: 2.0,
   fishId: '',
   dayIdx: 2, // 0=Позавчера, 1=Вчера, 2=Сегодня (активен Сегодня!)
   selectedHour: new Date().getHours(),
@@ -784,8 +839,8 @@ export const DEFAULT_STATE = {
   theme: 'auto',
   elevation: 120,
   normPress: 750,
-  iceState: 'open_water',
-  iceThickness: 0,
+  iceState: 'ice_safe',
+  iceThickness: 16,
   weatherSource: 'fallback',
   weatherUpdatedAt: 0,
   weatherDays: [],

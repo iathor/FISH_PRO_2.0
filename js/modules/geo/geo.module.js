@@ -1,12 +1,12 @@
-import { MAP_LAYERS, SPOT_CATEGORIES, getCompatibleMethods } from '../../core/config.js?v=2.5.1';
-import { events } from '../../core/events.js?v=2.5.1';
-import { storage, safeJsonParse } from '../../core/storage.js?v=2.5.1';
-import { store } from '../../core/store.js?v=2.5.1';
-import { fetchWithTimeout } from '../../core/http.js?v=2.5.1';
-import { installShortcut, syncInstallButtons } from '../../core/pwa.js?v=2.5.1';
-import { triggerHaptic } from '../../core/telegram.js?v=2.5.1';
-import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.5.1';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.5.1';
+import { MAP_LAYERS, SPOT_CATEGORIES, getCompatibleMethods } from '../../core/config.js?v=2.5.2';
+import { events } from '../../core/events.js?v=2.5.2';
+import { storage, safeJsonParse } from '../../core/storage.js?v=2.5.2';
+import { store } from '../../core/store.js?v=2.5.2';
+import { fetchWithTimeout } from '../../core/http.js?v=2.5.2';
+import { installShortcut, syncInstallButtons } from '../../core/pwa.js?v=2.5.2';
+import { triggerHaptic } from '../../core/telegram.js?v=2.5.2';
+import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.5.2';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.5.2';
 import {
   RUSSIA_CITIES,
   RUSSIA_WATERS,
@@ -14,12 +14,12 @@ import {
   getNearestRussianSettlements,
   getNearestRussianWaters,
   getWaterTypeShortTag
-} from '../../data/russia-waters.js?v=2.5.1';
-import { FISH_DB } from '../../data/species.js?v=2.5.1';
-import { escapeHtml, createPill, showToast, openModal, closeModal, openConfirmDeleteModal, downloadFileCrossPlatform } from '../../ui/components.js?v=2.5.1';
-import { fetchWeather } from '../weather/weather.module.js?v=2.5.1';
-import { calcDayBest } from '../forecast/forecast.module.js?v=2.5.1';
-import { computeHexPolygonForCircle, getEffectiveCircleRadiusKm, getCircleHexDecayState, canUserAccessCrewItem, getCurrentFisherIdentity, isCircleItemMine, isCircleItemHidden } from '../circle/circle.module.js?v=2.5.1';
+} from '../../data/russia-waters.js?v=2.5.2';
+import { FISH_DB } from '../../data/species.js?v=2.5.2';
+import { escapeHtml, createPill, showToast, openModal, closeModal, openConfirmDeleteModal, downloadFileCrossPlatform } from '../../ui/components.js?v=2.5.2';
+import { fetchWeather } from '../weather/weather.module.js?v=2.5.2';
+import { calcDayBest } from '../forecast/forecast.module.js?v=2.5.2';
+import { computeHexPolygonForCircle, getEffectiveCircleRadiusKm, getCircleHexDecayState, canUserAccessCrewItem, getCurrentFisherIdentity, isCircleItemMine, isCircleItemHidden, openAddThematicMapPointModal } from '../circle/circle.module.js?v=2.5.2';
 
 let mapInstance = null;
 let mapMarker = null;
@@ -849,7 +849,11 @@ export async function saveSpot(customName = '', category = 'bite') {
   return spot;
 }
 
-export function openSaveSpotModal() {
+export function openSaveSpotModal(defaultCat = 'bite') {
+  if (typeof openAddThematicMapPointModal === 'function') {
+    openAddThematicMapPointModal(defaultCat);
+    return;
+  }
   const s = store.getState();
   const wTitle = s.selectedWaterName || WATER_PROFILES[s.water]?.shortName || s.water;
   const defName = `${s.locLabel} (${wTitle})`;
@@ -1063,28 +1067,159 @@ function renderMapOverlays() {
 
   const ident = getCurrentFisherIdentity(s);
 
-  // 1. Мои точки с 5 цветовыми категориями (<svg class=\"k-ico\" style=\"color:var(--good);\" viewBox=\"0 0 16 16\"><circle cx=\"8\" cy=\"8\" r=\"5.5\" fill=\"currentColor\" stroke=\"rgba(255,255,255,0.65)\" stroke-width=\"1.4\"/></svg> Клёв, <svg class=\"k-ico\" style=\"color:var(--accent);\" viewBox=\"0 0 16 16\"><circle cx=\"8\" cy=\"8\" r=\"5.5\" fill=\"currentColor\" stroke=\"rgba(255,255,255,0.65)\" stroke-width=\"1.4\"/></svg> Слип, <svg class=\"k-ico\" style=\"color:var(--warn);\" viewBox=\"0 0 16 16\"><circle cx=\"8\" cy=\"8\" r=\"5.5\" fill=\"currentColor\" stroke=\"rgba(255,255,255,0.65)\" stroke-width=\"1.4\"/></svg> Стоянка, <svg class=\"k-ico\" style=\"color:var(--bad);\" viewBox=\"0 0 16 16\"><circle cx=\"8\" cy=\"8\" r=\"5.5\" fill=\"currentColor\" stroke=\"rgba(255,255,255,0.65)\" stroke-width=\"1.4\"/></svg> Опасно, <svg class=\"k-ico\" style=\"color:#a855f7;\" viewBox=\"0 0 16 16\"><circle cx=\"8\" cy=\"8\" r=\"5.5\" fill=\"currentColor\" stroke=\"rgba(255,255,255,0.65)\" stroke-width=\"1.4\"/></svg> Магазин)
-  if (visibleMapLayers.mySpots && visibleMapLayers.ownership !== "foreign" && Array.isArray(s.savedSpots)) {
+  // 1. Тематические точки на карте (Слип, Коряга, Стоянка, Опасность, Яма/Клёв, Магазин):
+  // При масштабе мельче 1 км в 1 см (zoom >= 12) показываются ненавязчивые цветные точки по тематике;
+  // при масштабе крупнее 1 км в 1 см (zoom < 12) точки автоматически схлопываются в круг с цифрой по количеству!
+  const curZoom = (typeof mapInstance.getZoom === 'function' ? mapInstance.getZoom() : 10) || 10;
+  const thematicCandidates = [];
+  const seenThematicKeys = new Set();
+
+  if (visibleMapLayers.mySpots && visibleMapLayers.ownership !== 'foreign' && Array.isArray(s.savedSpots)) {
     s.savedSpots.forEach(sp => {
-      if (!Number.isFinite(sp.lat) || !Number.isFinite(sp.lon)) return;
+      if (!sp || !Number.isFinite(sp.lat) || !Number.isFinite(sp.lon)) return;
       const catKey = sp.category && SPOT_CATEGORIES[sp.category] ? sp.category : 'bite';
       if (visibleMapLayers.spotCategory !== 'all' && visibleMapLayers.spotCategory !== catKey) return;
-      const catObj = SPOT_CATEGORIES[catKey] || SPOT_CATEGORIES.bite;
-      const m = L.circleMarker([sp.lat, sp.lon], {
-        radius: 7,
-        color: '#ffffff',
-        fillColor: catObj.color,
-        fillOpacity: 0.92,
-        weight: 2
+      const dedupKey = `${catKey}_${sp.lat.toFixed(4)}_${sp.lon.toFixed(4)}`;
+      seenThematicKeys.add(dedupKey);
+      thematicCandidates.push({
+        id: sp.id,
+        lat: sp.lat,
+        lon: sp.lon,
+        catKey,
+        name: sp.name || 'Точка',
+        depth: sp.depth || 2.0,
+        clipMeters: sp.clipMeters || 0,
+        au: sp.au || ident.callsign,
+        mine: true,
+        isSavedSpot: true
       });
-      m.bindPopup(
-        `<div style="font-size:12px;line-height:1.45;">` +
-        `<b>${catObj.icon} ${escapeHtml(catObj.short)}:</b> ${escapeHtml(sp.name)}<br>` +
-        `Глубина: <b>${sp.depth || 1.5} м</b>` +
-        `</div>`
-      );
-      overlayLayerGroup.addLayer(m);
     });
+  }
+
+  const rawCircleList = Array.isArray(s.circleItems) ? s.circleItems : [];
+  if (visibleMapLayers.mySpots) {
+    rawCircleList.forEach(item => {
+      if (!item || item.t !== 'spot' || !Number.isFinite(item.lat) || !Number.isFinite(item.lon)) return;
+      if (isCircleItemHidden(item, s)) return;
+      const mine = isCircleItemMine(item, s);
+      if (visibleMapLayers.ownership === 'mine' && !mine) return;
+      if (visibleMapLayers.ownership === 'foreign' && mine) return;
+      const catKey = item.cat && SPOT_CATEGORIES[item.cat] ? item.cat : 'slip';
+      if (visibleMapLayers.spotCategory !== 'all' && visibleMapLayers.spotCategory !== catKey) return;
+      const dedupKey = `${catKey}_${Number(item.lat).toFixed(4)}_${Number(item.lon).toFixed(4)}`;
+      if (seenThematicKeys.has(dedupKey)) return;
+      seenThematicKeys.add(dedupKey);
+      thematicCandidates.push({
+        id: item.id,
+        lat: Number(item.lat),
+        lon: Number(item.lon),
+        catKey,
+        name: item.wn || item.fn || item.lb || 'Точка',
+        depth: item.dp || 2.0,
+        clipMeters: item.clipMeters || 0,
+        au: item.au || 'Рыболов',
+        mine,
+        isSavedSpot: false
+      });
+    });
+  }
+
+  if (thematicCandidates.length > 0) {
+    if (curZoom >= 12) {
+      // Масштаб мельче 1 км в 1 см: показываем отдельные ненавязчивые точки в цвет по тематике
+      thematicCandidates.forEach(pt => {
+        const catObj = SPOT_CATEGORIES[pt.catKey] || SPOT_CATEGORIES.slip;
+        const delOrHideBtn = pt.isSavedSpot
+          ? `<button type="button" data-popup-del-spot="${escapeHtml(pt.id)}" style="margin-top:5px;padding:2px 8px;border-radius:5px;border:1px solid #ef4444;background:#ef4444;color:#fff;font-size:10.5px;font-weight:800;cursor:pointer;">Удалить закладку</button>`
+          : ((pt.mine || ident.isOwner)
+              ? `<button type="button" data-popup-del-circle="${escapeHtml(pt.id)}" style="margin-top:5px;padding:2px 8px;border-radius:5px;border:1px solid #ef4444;background:#ef4444;color:#fff;font-size:10.5px;font-weight:800;cursor:pointer;">Удалить точку</button>`
+              : `<button type="button" data-popup-hide-circle="${escapeHtml(pt.id)}" style="margin-top:5px;padding:2px 8px;border-radius:5px;border:1px solid #64748b;background:#334155;color:#fff;font-size:10.5px;font-weight:800;cursor:pointer;">Скрыть точку</button>`);
+
+        let marker;
+        if (typeof L.divIcon === 'function' && typeof L.marker === 'function') {
+          marker = L.marker([pt.lat, pt.lon], {
+            icon: L.divIcon({
+              className: 'klev-thematic-spot-icon',
+              html: `<div style="width:22px;height:22px;border-radius:50%;background:rgba(15,23,42,0.86);border:1.8px solid ${catObj.color};box-shadow:0 1px 5px rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;font-size:12px;">${catObj.icon}</div>`,
+              iconSize: [22, 22],
+              iconAnchor: [11, 11]
+            })
+          });
+        } else {
+          marker = L.circleMarker([pt.lat, pt.lon], {
+            radius: 7,
+            color: '#ffffff',
+            fillColor: catObj.color,
+            fillOpacity: 0.92,
+            weight: 2
+          });
+        }
+
+        marker.bindPopup(
+          `<div style="font-size:12px;line-height:1.45;">` +
+          `<b style="color:${catObj.color};">${catObj.icon} ${escapeHtml(catObj.short)}:</b> ${escapeHtml(pt.name)}<br>` +
+          `Глубина: <b>${pt.depth} м</b>${pt.clipMeters ? ` • Клипса: <b>${pt.clipMeters} м</b>` : ''}<br>` +
+          `<span style="font-size:10.5px;color:#94a3b8;">${pt.isSavedSpot ? 'Личная закладка' : `Общая точка (${escapeHtml(pt.au)})`}</span><br>` +
+          `${delOrHideBtn}</div>`
+        );
+        overlayLayerGroup.addLayer(marker);
+      });
+    } else {
+      // Масштаб крупнее 1 км в 1 см (zoom < 12): схлопываем близкие точки в ненавязчивый круг с цифрой по количеству!
+      const clusterRadiusKm = Math.max(0.85, Math.pow(2, 12 - curZoom) * 1.15);
+      const clusters = [];
+      thematicCandidates.forEach(pt => {
+        let foundCluster = null;
+        for (const cl of clusters) {
+          if (calcHaversineKm(pt.lat, pt.lon, cl.lat, cl.lon) <= clusterRadiusKm) {
+            foundCluster = cl;
+            break;
+          }
+        }
+        if (foundCluster) {
+          foundCluster.items.push(pt);
+          const n = foundCluster.items.length;
+          foundCluster.lat = (foundCluster.lat * (n - 1) + pt.lat) / n;
+          foundCluster.lon = (foundCluster.lon * (n - 1) + pt.lon) / n;
+        } else {
+          clusters.push({ lat: pt.lat, lon: pt.lon, items: [pt] });
+        }
+      });
+
+      clusters.forEach(cl => {
+        const count = cl.items.length;
+        const firstCat = SPOT_CATEGORIES[cl.items[0].catKey] || SPOT_CATEGORIES.slip;
+        let clMarker;
+        if (typeof L.divIcon === 'function' && typeof L.marker === 'function') {
+          clMarker = L.marker([cl.lat, cl.lon], {
+            icon: L.divIcon({
+              className: 'klev-thematic-cluster-icon',
+              html: `<div title="Точек: ${count} (нажмите для приближения < 1 км/см)" style="width:26px;height:26px;border-radius:50%;background:rgba(15,23,42,0.88);border:2px solid ${firstCat.color};color:#fff;font-size:11.5px;font-weight:900;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,0.5);cursor:pointer;">${count}</div>`,
+              iconSize: [26, 26],
+              iconAnchor: [13, 13]
+            })
+          });
+          if (typeof clMarker.on === 'function') {
+            clMarker.on('click', () => {
+              if (mapInstance && typeof mapInstance.flyTo === 'function') {
+                mapInstance.flyTo([cl.lat, cl.lon], 12);
+              } else if (mapInstance && typeof mapInstance.setView === 'function') {
+                mapInstance.setView([cl.lat, cl.lon], 12);
+              }
+            });
+          }
+        } else {
+          clMarker = L.circleMarker([cl.lat, cl.lon], {
+            radius: 10,
+            color: firstCat.color,
+            fillColor: '#0f172a',
+            fillOpacity: 0.9,
+            weight: 2
+          });
+        }
+        overlayLayerGroup.addLayer(clMarker);
+      });
+    }
   }
 
   // 2. Слои «Круга (±5 км)» и «Экипажа (72ч)» с фильтром МОИ / ЧУЖИЕ и скрытием чужих
@@ -1301,6 +1436,18 @@ export function renderMap(mapBoxEl) {
         setLocation(e.latlng.lat, e.latlng.lng);
       }
     });
+    if (typeof mapInstance.on === 'function') {
+      mapInstance.on('zoomend', () => {
+        renderMapOverlays();
+        const z = mapInstance.getZoom ? (mapInstance.getZoom() || 10) : 10;
+        const badge = typeof document !== 'undefined' ? document.getElementById('geoZoomScaleHintBadge') : null;
+        if (badge) {
+          badge.innerHTML = z >= 12
+            ? 'Масштаб &lt; 1 км/см: показаны отдельные точки (слипы, коряги, стоянки)'
+            : 'Обзорный масштаб: точки сгруппированы в круги с цифрой (приблизьте для деталей)';
+        }
+      });
+    }
   } else {
     mapInstance.invalidateSize();
     mapMarker.setLatLng([s.lat, s.lon]);
@@ -1409,8 +1556,17 @@ export function render(container) {
               <svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"12\" cy=\"12\" r=\"9\" stroke=\"currentColor\" stroke-width=\"1.8\"/><path d=\"M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18\" stroke=\"currentColor\" stroke-width=\"1.6\"/></svg> Только чужие (${foreignMapCount})
             </button>
           </div>
-          <div style="font-size:11px;color:${inspectMode ? 'var(--good)' : 'var(--muted)'};font-weight:700;margin-top:5px;">
-            ${inspectMode ? '<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"11\" cy=\"11\" r=\"6.5\" stroke=\"currentColor\" stroke-width=\"2\"/><path d=\"M16 16l4.5 4.5\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg> Режим разведки активен: нажмите в любое место карты, чтобы узнать клёв без смены вашей локации' : '<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z\" fill=\"rgba(239,68,68,0.22)\" stroke=\"#ef4444\" stroke-width=\"1.9\"/><circle cx=\"12\" cy=\"11\" r=\"2.3\" fill=\"#ef4444\"/></svg> Нажмите на карту для выбора точки лова • Яндекс Карты (EPSG:3395) и 72ч гексагоны работают без VPN'}
+          <div class="chip-scroll-row" style="margin-top:6px;padding-bottom:2px;">
+            <button type="button" class="w-chip ${visibleMapLayers.spotCategory === 'all' ? 'active' : ''}" data-spot-cat-filter="all" style="min-height:26px;padding:2px 8px;font-size:11px;">Все точки</button>
+            ${Object.values(SPOT_CATEGORIES).map(cat => `
+              <button type="button" class="w-chip ${visibleMapLayers.spotCategory === cat.id ? 'active' : ''}" data-spot-cat-filter="${cat.id}" style="min-height:26px;padding:2px 8px;font-size:11px;">
+                ${cat.icon} ${cat.short}
+              </button>
+            `).join('')}
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;font-size:11px;color:${inspectMode ? 'var(--good)' : 'var(--muted)'};font-weight:700;margin-top:5px;">
+            <span>${inspectMode ? '<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"11\" cy=\"11\" r=\"6.5\" stroke=\"currentColor\" stroke-width=\"2\"/><path d=\"M16 16l4.5 4.5\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg> Режим разведки активен: нажмите в любое место карты' : '<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z\" fill=\"rgba(239,68,68,0.22)\" stroke=\"#ef4444\" stroke-width=\"1.9\"/><circle cx=\"12\" cy=\"11\" r=\"2.3\" fill=\"#ef4444\"/></svg> Яндекс Карты (EPSG:3395) и 72ч гексагоны без VPN'}</span>
+            <span id="geoZoomScaleHintBadge" style="color:var(--accent);font-size:10.5px;">${(mapInstance && mapInstance.getZoom && mapInstance.getZoom() >= 12) ? 'Масштаб &lt; 1 км/см: показаны отдельные точки (слипы, коряги, стоянки)' : 'Обзорный масштаб: точки сгруппированы в круги с цифрой (приблизьте для деталей)'}</span>
           </div>
         </div>
 
@@ -1667,6 +1823,16 @@ function bindGeoEvents(container, showDrawer) {
  if (typeof document !== "undefined" && !window.__KLEV_MAP_POPUP_ACTIONS_BOUND__) {
  window.__KLEV_MAP_POPUP_ACTIONS_BOUND__ = true;
  document.addEventListener("click", (e) => {
+ const delSpotBtn = e.target.closest?.("[data-popup-del-spot]");
+ if (delSpotBtn) {
+  const spId = delSpotBtn.getAttribute("data-popup-del-spot");
+  if (spId) {
+   deleteSpot(spId);
+   renderMapOverlays();
+   showToast(" Закладка удалена с карты", "info");
+  }
+  return;
+ }
  const delBtn = e.target.closest?.("[data-popup-del-circle]");
  if (delBtn) {
  const id = delBtn.getAttribute("data-popup-del-circle");
