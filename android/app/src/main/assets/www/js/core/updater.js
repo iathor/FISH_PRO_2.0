@@ -1,24 +1,15 @@
-import { store } from './store.js?v=2.5.2';
-/**
- * @file updater.js
- * @description Модуль контроля версий и внутренних ревизий (v2.5.0 r186),
- * загрузки Android APK с сайта и автоматической проверки обновлений внутри APK
- * с учётом как номера версии (X.Y.Z), так и внутреннего счётчика сборки (rNNN).
- */
-
-import { APP_VERSION, APP_BUILD_NUMBER, APP_REVISION, APP_DISPLAY_VERSION, RELEASE_CACHE_KEY, CURRENT_RELEASE_INFO } from './config.js?v=2.5.2';
-import { showToast } from '../ui/components.js?v=2.5.2';
-
+/* Klev PRO v2.5.3 r190 (Protected Build) */
+import { store } from './store.js?v=2.5.3';
+import { APP_VERSION, APP_BUILD_NUMBER, APP_REVISION, APP_DISPLAY_VERSION, RELEASE_CACHE_KEY, CURRENT_RELEASE_INFO } from './config.js?v=2.5.3';
+import { showToast } from '../ui/components.js?v=2.5.3';
 export const PUBLIC_SITE_ORIGIN = 'https://klevpro.ru';
 export const APK_MANIFEST_PATH = '/apk/apk-version.json';
-export const DEFAULT_APK_DOWNLOAD_URL = 'https://klevpro.ru/apk/klev-pro-v2.5.2.apk';
-export const APK_BANNER_DISMISSED_KEY = 'klev_pro_hide_apk_banner_v2.5.2_r189';
-
+export const DEFAULT_APK_DOWNLOAD_URL = 'https://klevpro.ru/apk/klev-pro-v2.5.3.apk';
+export const APK_BANNER_DISMISSED_KEY = 'klev_pro_hide_apk_banner_v2.5.3_r190';
 let pendingSwRegistration = null;
 let pendingReleaseInfo = null;
 let updateBannerShown = false;
 let _cachedApkManifest = null;
-
 export function isInsideAndroidApk() {
   try {
     if (typeof window === 'undefined') return false;
@@ -32,7 +23,6 @@ export function isInsideAndroidApk() {
   } catch (e) {}
   return false;
 }
-
 export function isInsideTelegramMiniApp() {
   try {
     if (typeof window === 'undefined') return false;
@@ -45,7 +35,6 @@ export function isInsideTelegramMiniApp() {
   } catch (e) {}
   return false;
 }
-
 export function isAndroidWebsiteVisitor() {
   try {
     if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
@@ -58,10 +47,6 @@ export function isAndroidWebsiteVisitor() {
     return false;
   }
 }
-
-/**
- * Извлекает числовой номер ревизии сборки (например, 186 из 'r186', '2026.10.30-r186', '2.5.0-r186' или 186)
- */
 export function extractBuildRevisionNumber(rawRevOrObj) {
   if (typeof rawRevOrObj === 'number' && Number.isFinite(rawRevOrObj)) {
     return rawRevOrObj > 100000 ? (rawRevOrObj % 1000) : rawRevOrObj;
@@ -82,13 +67,11 @@ export function extractBuildRevisionNumber(rawRevOrObj) {
   if (/^\d+$/.test(s)) return parseInt(s, 10);
   return 0;
 }
-
 export function formatVersionWithRevision(ver = APP_VERSION, rev = APP_REVISION) {
   const cleanVer = String(ver || APP_VERSION).replace(/-r\d+$/i, '').trim();
   const revNum = extractBuildRevisionNumber(rev);
   return revNum > 0 ? `v${cleanVer} r${revNum}` : `v${cleanVer}`;
 }
-
 export function getInstalledApkVersionString() {
   try {
     if (typeof window !== 'undefined' && window.AndroidBridge && typeof window.AndroidBridge.getAppVersion === 'function') {
@@ -101,7 +84,6 @@ export function getInstalledApkVersionString() {
   } catch (e) {}
   return APP_VERSION;
 }
-
 export function getInstalledApkRevisionNumber() {
   try {
     if (typeof window !== 'undefined' && window.AndroidBridge && typeof window.AndroidBridge.getAppVersion === 'function') {
@@ -115,7 +97,6 @@ export function getInstalledApkRevisionNumber() {
   } catch (e) {}
   return APP_BUILD_NUMBER;
 }
-
 export function compareSemverStrings(vA = '', vB = '') {
   const cleanA = String(vA || '').replace(/-r\d+$/i, '').replace(/[^0-9.]/g, '').split('.').map(n => parseInt(n, 10) || 0);
   const cleanB = String(vB || '').replace(/-r\d+$/i, '').replace(/[^0-9.]/g, '').split('.').map(n => parseInt(n, 10) || 0);
@@ -128,11 +109,6 @@ export function compareSemverStrings(vA = '', vB = '') {
   }
   return 0;
 }
-
-/**
- * Сравнивает два релиза с учётом И семантической версии (2.5.0), И внутреннего счётчика ревизии (r186).
- * Даже если версия одинаковая (2.5.0 == 2.5.0), но ревизия выросла (r187 > r186), возвращает 1!
- */
 export function compareReleaseVersions(verA, revA, verB, revB) {
   const semCmp = compareSemverStrings(verA, verB);
   if (semCmp !== 0) return semCmp;
@@ -144,7 +120,6 @@ export function compareReleaseVersions(verA, revA, verB, revB) {
   }
   return 0;
 }
-
 function getInstalledReleaseRecord() {
   try {
     const raw = localStorage.getItem(RELEASE_CACHE_KEY);
@@ -153,7 +128,6 @@ function getInstalledReleaseRecord() {
     return null;
   }
 }
-
 function saveInstalledReleaseRecord(info) {
   try {
     const revNum = extractBuildRevisionNumber(info) || APP_BUILD_NUMBER;
@@ -165,7 +139,6 @@ function saveInstalledReleaseRecord(info) {
     }));
   } catch (e) {}
 }
-
 function normalizeReleaseChanges(info) {
   const rawList = (Array.isArray(info?.changes) && info.changes.length > 0)
     ? info.changes
@@ -174,7 +147,6 @@ function normalizeReleaseChanges(info) {
         : ((Array.isArray(info?.items) && info.items.length > 0)
             ? info.items
             : (Array.isArray(CURRENT_RELEASE_INFO?.changes) ? CURRENT_RELEASE_INFO.changes : [])));
-
   return rawList.map((item) => {
     if (typeof item === 'string') {
       const parts = item.split(':');
@@ -194,10 +166,8 @@ function normalizeReleaseChanges(info) {
     };
   });
 }
-
 function parseManifestJsonPayload(rawJson) {
   if (!rawJson || typeof rawJson !== 'object') return null;
-  // Поддержка ответа GitHub Contents API (где содержимое лежит в base64 в поле content)
   if (rawJson.content && rawJson.encoding === 'base64') {
     try {
       const cleanB64 = String(rawJson.content).replace(/\s+/g, '');
@@ -209,10 +179,6 @@ function parseManifestJsonPayload(rawJson) {
   }
   return rawJson;
 }
-
-/**
- * Проверяет информационный файл /apk/apk-version.json (на сайте, через прямой GitHub API без кэша, в воркере и через резервный прокси без VPN)
- */
 export async function fetchApkReleaseManifest() {
   const ts = Date.now();
   const inApk = isInsideAndroidApk();
@@ -233,7 +199,6 @@ export async function fetchApkReleaseManifest() {
         siteManifestUrl,
         ghApiUrl
       ];
-
   let bestManifest = null;
   for (const url of candidateUrls) {
     try {
@@ -274,12 +239,10 @@ export async function fetchApkReleaseManifest() {
       }
     } catch (e) {}
   }
-
   if (bestManifest) {
     _cachedApkManifest = bestManifest;
     return _cachedApkManifest;
   }
-
   _cachedApkManifest = {
     ...CURRENT_RELEASE_INFO,
     buildNumber: APP_BUILD_NUMBER,
@@ -291,7 +254,6 @@ export async function fetchApkReleaseManifest() {
   };
   return _cachedApkManifest;
 }
-
 export function getCachedApkManifest() {
   return _cachedApkManifest || {
     ...CURRENT_RELEASE_INFO,
@@ -303,7 +265,6 @@ export function getCachedApkManifest() {
     changes: normalizeReleaseChanges(CURRENT_RELEASE_INFO)
   };
 }
-
 export async function triggerApkFileDownload(customManifest = null) {
   showToast(' Проверка актуальной ревизии APK...', 'info');
   const manifest = customManifest || (await fetchApkReleaseManifest());
@@ -311,7 +272,6 @@ export async function triggerApkFileDownload(customManifest = null) {
   const rev = manifest?.revision || APP_REVISION;
   const disp = formatVersionWithRevision(ver, rev);
   const targetUrl = `${manifest?.apkUrl || `${PUBLIC_SITE_ORIGIN}/apk/klev-pro-v${ver}.apk`}${manifest?.apkUrl?.includes('?') ? '&' : '?'}rev=${encodeURIComponent(rev)}_${Date.now()}`;
-
   if (isInsideAndroidApk()) {
     try {
       if (window.AndroidBridge && typeof window.AndroidBridge.downloadApkUpdate === 'function') {
@@ -326,7 +286,6 @@ export async function triggerApkFileDownload(customManifest = null) {
       return true;
     } catch (e) {}
   }
-
   try {
     const a = document.createElement('a');
     a.href = targetUrl;
@@ -343,7 +302,6 @@ export async function triggerApkFileDownload(customManifest = null) {
     return true;
   }
 }
-
 export async function syncAndroidSiteApkDownloadUI() {
   if (typeof document === 'undefined') return;
   const bannerEl = document.getElementById('androidApkSiteBanner');
@@ -351,18 +309,15 @@ export async function syncAndroidSiteApkDownloadUI() {
     if (bannerEl) bannerEl.style.display = 'none';
     return;
   }
-
   const manifest = await fetchApkReleaseManifest();
   const ver = manifest?.version || APP_VERSION;
   const rev = manifest?.revision || APP_REVISION;
   const disp = formatVersionWithRevision(ver, rev);
   const sizeStr = manifest?.fileSize ? ` • ${manifest.fileSize}` : '';
-
   let isDismissed = false;
   try {
     isDismissed = localStorage.getItem(APK_BANNER_DISMISSED_KEY) === '1';
   } catch (e) {}
-
   if (bannerEl) {
     if (isDismissed) {
       bannerEl.style.display = 'none';
@@ -371,7 +326,6 @@ export async function syncAndroidSiteApkDownloadUI() {
       const titleEl = bannerEl.querySelector('#androidApkBannerTitle');
       const dlBtn = bannerEl.querySelector('#androidApkBannerDownloadBtn');
       const closeBtn = bannerEl.querySelector('#androidApkBannerCloseBtn');
-
       if (titleEl) {
         titleEl.innerHTML = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="6" y="2" width="12" height="20" rx="2.5" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="18" r="1.2" fill="#38bdf8"/></svg> Приложение «Клёв ПРО 2.0» для Android (${disp}${sizeStr})`;
       }
@@ -397,7 +351,6 @@ export async function syncAndroidSiteApkDownloadUI() {
     }
   }
 }
-
 export async function fetchServerReleaseInfo() {
   if (isInsideAndroidApk()) {
     return await fetchApkReleaseManifest();
@@ -429,7 +382,6 @@ export async function fetchServerReleaseInfo() {
     changes: normalizeReleaseChanges(CURRENT_RELEASE_INFO)
   };
 }
-
 function markHeaderUpdateAvailable(hasUpdate, releaseInfo = null) {
   const btn = document.getElementById('topNavSettingsBtn');
   if (!btn) return;
@@ -444,7 +396,6 @@ function markHeaderUpdateAvailable(hasUpdate, releaseInfo = null) {
     btn.removeAttribute('data-has-update');
   }
 }
-
 export function showReleaseUpdateModal(releaseInfo = CURRENT_RELEASE_INFO, isPendingInstall = false) {
   const info = releaseInfo || CURRENT_RELEASE_INFO;
   const changesList = normalizeReleaseChanges(info);
@@ -454,7 +405,6 @@ export function showReleaseUpdateModal(releaseInfo = CURRENT_RELEASE_INFO, isPen
   const installedDisp = formatVersionWithRevision(installedApkVer, installedApkRev);
   const remoteDisp = formatVersionWithRevision(info.version || APP_VERSION, info.revision || info.buildNumber || APP_REVISION);
   const hasNewerApk = inApk && compareReleaseVersions(info.version, info.revision || info.buildNumber, installedApkVer, installedApkRev) > 0;
-
   let modal = document.getElementById('releaseUpdateModal');
   if (!modal) {
     modal = document.createElement('div');
@@ -463,7 +413,6 @@ export function showReleaseUpdateModal(releaseInfo = CURRENT_RELEASE_INFO, isPen
     modal.style.zIndex = '9995';
     document.body.appendChild(modal);
   }
-
   const changesHtml = changesList.map(item => `
     <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);padding:10px 12px;margin-bottom:8px;">
       <div style="font-weight:800;font-size:var(--fs-sm);color:var(--accent);margin-bottom:4px;">
@@ -474,15 +423,12 @@ export function showReleaseUpdateModal(releaseInfo = CURRENT_RELEASE_INFO, isPen
       </div>
     </div>
   `).join('');
-
   const headerTitle = (hasNewerApk || isPendingInstall)
     ? `Выпущена новая сборка «Клёв ПРО 2.0» (${remoteDisp})`
     : `Версия приложения «Клёв ПРО 2.0» (${remoteDisp})`;
-
   const subtitleText = hasNewerApk
     ? `У вас установлена сборка ${installedDisp} • Доступна новая сборка ${remoteDisp}`
     : (info.subtitle || 'Исправлены ошибки, устранены баги и ускорена работа сервисов.');
-
   modal.innerHTML = `
     <div class="modal-box modal-has-sticky-footer" role="dialog" aria-modal="true" aria-label="${headerTitle}" style="max-width:540px;border-color:var(--accent);">
       <div style="margin-bottom:8px;">
@@ -496,19 +442,15 @@ export function showReleaseUpdateModal(releaseInfo = CURRENT_RELEASE_INFO, isPen
           ${subtitleText}
         </div>
       </div>
-
       <div style="font-weight:800;font-size:var(--fs-xs);color:var(--accent);margin-top:4px;">
         <svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="9" y="9" width="11" height="11" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Что изменилось в сборке ${remoteDisp}:
       </div>
-
       <div style="max-height:46vh;overflow-y:auto;padding-right:2px;margin:8px 0;">
         ${changesHtml}
       </div>
-
       <div style="padding:9px 11px;background:rgba(16,185,129,0.10);border:1px solid rgba(16,185,129,0.30);border-radius:var(--r-sm);font-size:var(--fs-xs);color:var(--muted);margin-bottom:4px;">
         <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2.5l7 3.2v5.8c0 5-3 9.3-7 10.8-4-1.5-7-5.8-7-10.8V5.7l7-3.2z" fill="rgba(56,189,248,0.22)" stroke="#38bdf8" stroke-width="1.8" stroke-linejoin="round"/></svg> <b>Ваши данные сохраняются:</b> все ваши рыболовные точки, профиль, чаты, избранные виды рыб и журнал уловов остаются на месте при обновлении.
       </div>
-
       <div class="modal-sticky-footer" style="flex-wrap:wrap;">
         ${inApk ? `
           ${hasNewerApk ? `
@@ -530,12 +472,10 @@ export function showReleaseUpdateModal(releaseInfo = CURRENT_RELEASE_INFO, isPen
       </div>
     </div>
   `;
-
   modal.classList.add('open');
   if (typeof window !== 'undefined' && typeof window.__KLEV_PUSH_BACK_GUARD__ === 'function') {
     window.__KLEV_PUSH_BACK_GUARD__('releaseModal');
   }
-
   const closeLater = () => {
     saveInstalledReleaseRecord(info);
     const revKey = `${info?.version || APP_VERSION}_${info?.revision || APP_REVISION}`;
@@ -543,20 +483,16 @@ export function showReleaseUpdateModal(releaseInfo = CURRENT_RELEASE_INFO, isPen
     try { localStorage.setItem('klev_pro_dismissed_ver', revKey); } catch (e) {}
     modal.classList.remove('open');
   };
-
   modal.onclick = (e) => {
     if (e.target === modal) closeLater();
   };
-
   modal.querySelector('#relModalCloseBtn')?.addEventListener('click', closeLater);
   modal.querySelector('#relModalLaterBtn')?.addEventListener('click', closeLater);
   modal.querySelector('#relModalOkBtn')?.addEventListener('click', closeLater);
-
   modal.querySelector('#relModalDownloadApkBtn')?.addEventListener('click', async () => {
     modal.classList.remove('open');
     await triggerApkFileDownload(info);
   });
-
   modal.querySelector('#relModalConfirmBtn')?.addEventListener('click', async () => {
     const btn = modal.querySelector('#relModalConfirmBtn');
     if (btn) {
@@ -565,7 +501,6 @@ export function showReleaseUpdateModal(releaseInfo = CURRENT_RELEASE_INFO, isPen
     }
     await applyFullReleaseUpdate(info);
   });
-
   modal.querySelector('#relModalForceSyncBtn')?.addEventListener('click', async () => {
     const btn = modal.querySelector('#relModalForceSyncBtn');
     if (btn) {
@@ -575,38 +510,31 @@ export function showReleaseUpdateModal(releaseInfo = CURRENT_RELEASE_INFO, isPen
     await applyFullReleaseUpdate(info);
   });
 }
-
 export async function applyFullReleaseUpdate(info = CURRENT_RELEASE_INFO) {
   saveInstalledReleaseRecord(info);
-
   try {
     if (pendingSwRegistration && pendingSwRegistration.waiting) {
       pendingSwRegistration.waiting.postMessage({ type: 'SKIP_WAITING' });
     }
   } catch (e) {}
-
   try {
     if ('caches' in window) {
       const keys = await caches.keys();
       await Promise.all(keys.map(k => caches.delete(k)));
     }
   } catch (e) {}
-
   try {
     if ('serviceWorker' in navigator) {
       const regs = await navigator.serviceWorker.getRegistrations();
       await Promise.all(regs.map(r => r.update().catch(() => {})));
     }
   } catch (e) {}
-
   const cleanPath = window.location.pathname || '/';
   const hash = window.location.hash || '#/forecast';
   window.location.replace(`${cleanPath}?v=${encodeURIComponent(info?.version || APP_VERSION)}&rev=${encodeURIComponent(info?.revision || APP_REVISION)}_${Date.now()}${hash}`);
 }
-
 export async function checkForReleaseUpdate({ manual = false } = {}) {
   const inApk = isInsideAndroidApk();
-
   if (inApk) {
     const apkManifest = await fetchApkReleaseManifest();
     const installedApkVer = getInstalledApkVersionString();
@@ -614,7 +542,6 @@ export async function checkForReleaseUpdate({ manual = false } = {}) {
     const isApkNewer = compareReleaseVersions(apkManifest.version, apkManifest.revision || apkManifest.buildNumber, installedApkVer, installedApkRev) > 0;
     const targetRevKey = `${apkManifest.version}_${apkManifest.revision || apkManifest.buildNumber}`;
     const dismissedVer = (typeof localStorage !== 'undefined') ? localStorage.getItem('klev_pro_dismissed_ver') : null;
-
     if (isApkNewer) {
       pendingReleaseInfo = apkManifest;
       markHeaderUpdateAvailable(true, apkManifest);
@@ -624,7 +551,6 @@ export async function checkForReleaseUpdate({ manual = false } = {}) {
       }
       return true;
     }
-
     markHeaderUpdateAvailable(false);
     if (manual) {
       const disp = formatVersionWithRevision(installedApkVer, installedApkRev);
@@ -633,13 +559,10 @@ export async function checkForReleaseUpdate({ manual = false } = {}) {
     }
     return false;
   }
-
   const serverInfo = await fetchServerReleaseInfo();
   const installed = getInstalledReleaseRecord();
-
   const isNewer = !installed ||
     compareReleaseVersions(serverInfo.version, serverInfo.revision || serverInfo.buildNumber, installed.version, installed.revision || installed.buildNumber) > 0;
-
   if (!installed) {
     saveInstalledReleaseRecord(serverInfo);
     if (manual) {
@@ -647,11 +570,9 @@ export async function checkForReleaseUpdate({ manual = false } = {}) {
     }
     return false;
   }
-
   const targetRevKey = `${serverInfo.version}_${serverInfo.revision || serverInfo.buildNumber}`;
   const dismissedRev = (typeof localStorage !== 'undefined') ? localStorage.getItem('klev_pro_dismissed_rev') : null;
   const isDismissed = dismissedRev && dismissedRev === targetRevKey;
-
   if (isNewer) {
     pendingReleaseInfo = serverInfo;
     markHeaderUpdateAvailable(true, serverInfo);
@@ -661,14 +582,12 @@ export async function checkForReleaseUpdate({ manual = false } = {}) {
     }
     return true;
   }
-
   markHeaderUpdateAvailable(false);
   if (manual) {
     showReleaseUpdateModal(serverInfo, false);
   }
   return false;
 }
-
 export function initReleaseUpdater() {
   const installed = getInstalledReleaseRecord();
   if (!installed) {
@@ -676,11 +595,9 @@ export function initReleaseUpdater() {
   } else if (installed.version !== APP_VERSION || extractBuildRevisionNumber(installed) !== APP_BUILD_NUMBER) {
     saveInstalledReleaseRecord(CURRENT_RELEASE_INFO);
   }
-
   setTimeout(() => {
     syncAndroidSiteApkDownloadUI().catch(() => {});
   }, 600);
-
   setTimeout(() => {
     checkForReleaseUpdate({ manual: false }).catch(() => {});
   }, 3200);

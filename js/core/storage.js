@@ -1,14 +1,9 @@
-import { STATE_CACHE_KEY, WEATHER_CACHE_KEY, WEATHER_TTL_MS } from './config.js?v=2.5.2';
-import { formatLocalYYYYMMDD } from './format.js?v=2.5.2';
-
+/* Klev PRO v2.5.3 r190 (Protected Build) */
+import { STATE_CACHE_KEY, WEATHER_CACHE_KEY, WEATHER_TTL_MS } from './config.js?v=2.5.3';
+import { formatLocalYYYYMMDD } from './format.js?v=2.5.3';
 const DB_NAME = 'KlevProDB_v2_1_1';
 export const CLEAN_SLATE_FLAG_KEY = 'klev_pro_clean_slate_v2_1_1_r4';
 export const CLEAN_SLATE_NOTICE_KEY = 'klev_pro_clean_slate_notice_v2_1_1_r4';
-
-/**
- * Автоматический сброс старого кэша и настроек («С чистого листа») при первом запуске релиза V.2.1.1 (r2)
- * с автоматическим восстановлением эксклюзивного ID Владельца (iAthor -> FP_89VIP089)
- */
 export function runCleanSlateMigrationV2100() {
   if (typeof localStorage === 'undefined') return false;
   try {
@@ -26,7 +21,6 @@ export function runCleanSlateMigrationV2100() {
         }
       }
     } catch (_) {}
-
     const keysToRemove = [];
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
@@ -62,9 +56,7 @@ export function runCleanSlateMigrationV2100() {
     return false;
   }
 }
-
 runCleanSlateMigrationV2100();
-
 export const GEO_WEATHER_ARCHIVE_KEY = 'klev_pro_geo_weather_archive_v2';
 export const GEO_WATERS_CACHE_KEY = 'klev_pro_geo_waters_cache_v2';
 export const CIRCLE_PACKS_CACHE_KEY = 'klev_pro_circle_packs_v2';
@@ -73,16 +65,11 @@ export const CIRCLE_NOTIFS_CACHE_KEY = 'klev_pro_circle_notifs_v2';
 export const DEVICE_ID_CACHE_KEY = 'klev_pro_device_id_v2';
 export const PHOTO_HASHES_CACHE_KEY = 'klev_pro_photo_dhashes_v2';
 export const GEO_CLUSTER_RADIUS_KM = 10.0;
-
 const LOCAL_STORE_KEYS = {
   spots: 'klev_pro_spots_backup_v2',
   catches: 'klev_pro_catches_backup_v2',
   chats: CIRCLE_CHATS_CACHE_KEY
 };
-
-/**
- * Безопасный парсер JSON с защитой от Prototype Pollution (__proto__, constructor, prototype)
- */
 export function safeJsonParse(rawStr, fallback = null) {
   if (!rawStr || typeof rawStr !== 'string') return fallback;
   try {
@@ -96,7 +83,6 @@ export function safeJsonParse(rawStr, fallback = null) {
     return fallback;
   }
 }
-
 let dbPromise = null;
 const memoryFallback = { catches: [], spots: [], weather_archive: [], chats: [] };
 const memoryBackupLoaded = { catches: false, spots: false, chats: false };
@@ -104,7 +90,6 @@ let _clustersMemoryCache = null;
 let _nearbyWatersMemoryCache = null;
 let _saveSettingsTimer = null;
 let _pendingSettingsState = null;
-
 function readLocalBackup(storeName) {
   const key = LOCAL_STORE_KEYS[storeName];
   if (!key) return [...(memoryFallback[storeName] || [])];
@@ -123,7 +108,6 @@ function readLocalBackup(storeName) {
   } catch (e) {}
   return [...(memoryFallback[storeName] || [])];
 }
-
 function writeLocalBackup(storeName, list) {
   if (!Array.isArray(list)) return;
   memoryFallback[storeName] = [...list];
@@ -134,7 +118,6 @@ function writeLocalBackup(storeName, list) {
     localStorage.setItem(key, JSON.stringify(list));
   } catch (e) {}
 }
-
 function mergeRecordsById(idbList = [], localList = []) {
   const map = new Map();
   for (const item of localList) {
@@ -145,7 +128,6 @@ function mergeRecordsById(idbList = [], localList = []) {
   }
   return Array.from(map.values());
 }
-
 export function calcGeoDistanceKm(lat1, lon1, lat2, lon2) {
   const R = 6371;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
@@ -154,7 +136,6 @@ export function calcGeoDistanceKm(lat1, lon1, lat2, lon2) {
     Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
   return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 100) / 100;
 }
-
 function openDB() {
   if (dbPromise) return dbPromise;
   dbPromise = new Promise((resolve) => {
@@ -173,7 +154,6 @@ function openDB() {
       resolve(dbInstance || null);
     };
     const timer = setTimeout(() => finish(null), 550);
-
     try {
       const req = indexedDB.open(DB_NAME, 2);
       req.onupgradeneeded = (e) => {
@@ -211,7 +191,6 @@ function openDB() {
   });
   return dbPromise;
 }
-
 function readClustersFromLocalStorage() {
   if (_clustersMemoryCache !== null) {
     return _clustersMemoryCache;
@@ -230,7 +209,6 @@ function readClustersFromLocalStorage() {
     return _clustersMemoryCache;
   }
 }
-
 let _idbClusterTimer = null;
 function writeClustersToLocalStorage(clusters) {
   _clustersMemoryCache = Array.isArray(clusters) ? clusters : [];
@@ -251,12 +229,10 @@ function writeClustersToLocalStorage(clusters) {
     }).catch(() => {});
   }, 350);
 }
-
 export const storage = {
   _memDeviceId: '',
   getDeviceId() {
     try {
-      // 1. Аппаратный ANDROID_ID через NativeBridge в APK (если доступен)
       if (typeof window !== 'undefined' && window.AndroidBridge && typeof window.AndroidBridge.getDeviceId === 'function') {
         const hw = String(window.AndroidBridge.getDeviceId() || '').trim();
         if (hw && hw.length >= 6 && hw !== 'unknown' && hw !== '9774d56d682e549c') {
@@ -266,7 +242,6 @@ export const storage = {
           return hwId;
         }
       }
-      // 2. Сохранённый крипто-UUID устройства из localStorage
       if (typeof localStorage !== 'undefined') {
         const saved = localStorage.getItem(DEVICE_ID_CACHE_KEY);
         if (saved && typeof saved === 'string' && saved.length >= 10 && saved !== 'dev_local_fallback') {
@@ -277,7 +252,6 @@ export const storage = {
       if (this._memDeviceId && this._memDeviceId.length >= 10) {
         return this._memDeviceId;
       }
-      // 3. Генерация криптографически стойкого уникального UUID v4
       let freshId = '';
       if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
         freshId = 'dev_' + crypto.randomUUID().replace(/-/g, '');
@@ -298,7 +272,6 @@ export const storage = {
       return this._memDeviceId;
     }
   },
-
   loadPhotoHashes() {
     try {
       const raw = localStorage.getItem(PHOTO_HASHES_CACHE_KEY);
@@ -309,7 +282,6 @@ export const storage = {
       return [];
     }
   },
-
   savePhotoHash(dHash) {
     if (!dHash) return;
     try {
@@ -318,7 +290,6 @@ export const storage = {
       localStorage.setItem(PHOTO_HASHES_CACHE_KEY, JSON.stringify(list.slice(0, 200)));
     } catch (e) {}
   },
-
   loadSettings() {
     try {
       const raw = localStorage.getItem(STATE_CACHE_KEY);
@@ -327,7 +298,6 @@ export const storage = {
       return null;
     }
   },
-
   _flushSettingsNow(stateObj) {
     const s = stateObj || _pendingSettingsState;
     if (!s) return;
@@ -364,7 +334,6 @@ export const storage = {
       localStorage.setItem(STATE_CACHE_KEY, JSON.stringify(persist));
     } catch (e) {}
   },
-
   saveSettings(state) {
     _pendingSettingsState = state;
     if (typeof window === 'undefined') {
@@ -377,7 +346,6 @@ export const storage = {
       this._flushSettingsNow();
     }, 90);
   },
-
   loadCircleItems() {
     try {
       const raw = localStorage.getItem(CIRCLE_PACKS_CACHE_KEY);
@@ -388,7 +356,6 @@ export const storage = {
       return [];
     }
   },
-
   saveCircleItems(list) {
     try {
       if (Array.isArray(list)) {
@@ -396,7 +363,6 @@ export const storage = {
       }
     } catch (e) {}
   },
-
   loadChatMessages() {
     try {
       const raw = localStorage.getItem(CIRCLE_CHATS_CACHE_KEY);
@@ -407,7 +373,6 @@ export const storage = {
       return [];
     }
   },
-
   saveChatMessages(list) {
     if (!Array.isArray(list)) return;
     const trimmed = list.slice(0, 500);
@@ -424,7 +389,6 @@ export const storage = {
       } catch (e) {}
     }).catch(() => {});
   },
-
   loadNotifications() {
     try {
       const raw = localStorage.getItem(CIRCLE_NOTIFS_CACHE_KEY);
@@ -435,7 +399,6 @@ export const storage = {
       return [];
     }
   },
-
   saveNotifications(list) {
     try {
       if (Array.isArray(list)) {
@@ -443,7 +406,6 @@ export const storage = {
       }
     } catch (e) {}
   },
-
   exportFullProfileBackup(state) {
     return {
       schema: 'KlevProProfileBackup_v2',
@@ -477,7 +439,6 @@ export const storage = {
       notifications: state?.notifications || this.loadNotifications()
     };
   },
-
   async importFullProfileBackup(backupObj) {
     if (!backupObj || typeof backupObj !== 'object') return false;
     try {
@@ -507,11 +468,9 @@ export const storage = {
       return false;
     }
   },
-
   getLocalBackup(storeName) {
     return readLocalBackup(storeName);
   },
-
   findGeoWeatherCluster(lat, lon, radiusKm = GEO_CLUSTER_RADIUS_KM) {
     const clusters = readClustersFromLocalStorage();
     let best = null;
@@ -526,13 +485,11 @@ export const storage = {
     }
     return best ? { cluster: best, distKm: bestDist } : null;
   },
-
   saveWeatherCache(lat, lon, payload, extraArchiveDays = []) {
     const todayStr = formatLocalYYYYMMDD(new Date());
     const clusters = readClustersFromLocalStorage();
     let targetCluster = null;
     let bestDist = Infinity;
-
     for (const c of clusters) {
       if (!c || !Number.isFinite(c.lat) || !Number.isFinite(c.lon)) continue;
       const d = calcGeoDistanceKm(lat, lon, c.lat, c.lon);
@@ -541,7 +498,6 @@ export const storage = {
         targetCluster = c;
       }
     }
-
     if (!targetCluster) {
       targetCluster = {
         clusterId: `geo_${lat.toFixed(3)}_${lon.toFixed(3)}`,
@@ -560,22 +516,18 @@ export const storage = {
       if (Number.isFinite(payload.elevation)) targetCluster.elevation = payload.elevation;
       if (Number.isFinite(payload.normPress)) targetCluster.normPress = payload.normPress;
     }
-
     if (!targetCluster.daysByDate || typeof targetCluster.daysByDate !== 'object') {
       targetCluster.daysByDate = {};
     }
-
     const incomingDays = [
       ...(Array.isArray(extraArchiveDays) ? extraArchiveDays : []),
       ...(Array.isArray(payload.days) ? payload.days : [])
     ];
-
     for (const day of incomingDays) {
       if (!day || !day.date || !Array.isArray(day.hours) || day.hours.length === 0) continue;
       const dStr = day.date;
       const isPastDay = dStr < todayStr;
       const existing = targetCluster.daysByDate[dStr];
-
       const recordToStore = {
         date: dStr,
         label: day.label || dStr,
@@ -598,7 +550,6 @@ export const storage = {
         isReal: day.isReal !== false,
         savedAt: Date.now()
       };
-
       if (isPastDay) {
         if (!existing || (!existing.isReal && recordToStore.isReal)) {
           targetCluster.daysByDate[dStr] = recordToStore;
@@ -607,13 +558,10 @@ export const storage = {
         targetCluster.daysByDate[dStr] = recordToStore;
       }
     }
-
     const pastDates = Object.keys(targetCluster.daysByDate).filter(d => d < todayStr).sort();
     const realPastCount = pastDates.filter(d => targetCluster.daysByDate[d]?.isReal !== false).length;
     targetCluster.hasRealArchive = realPastCount >= 3 || Boolean(payload.hasRealArchive);
-
     writeClustersToLocalStorage(clusters);
-
     try {
       localStorage.setItem(WEATHER_CACHE_KEY, JSON.stringify({
         lat,
@@ -623,21 +571,17 @@ export const storage = {
         ...payload
       }));
     } catch (e) {}
-
     return targetCluster;
   },
-
   loadWeatherCache(lat, lon) {
     const todayStr = formatLocalYYYYMMDD(new Date());
     const found = this.findGeoWeatherCluster(lat, lon, GEO_CLUSTER_RADIUS_KM);
-
     if (found && found.cluster && found.cluster.daysByDate) {
       const c = found.cluster;
       const ageMs = Date.now() - (c.updatedAt || 0);
       const todayDt = new Date(todayStr + 'T00:00:00');
       const reconstructedDays = [];
       let allPresent = true;
-
       for (let idx = 0; idx < 12; idx++) {
         const rel = idx - 2; // -2..+9
         const curDt = new Date(todayDt.getTime() + rel * 86400000);
@@ -654,9 +598,7 @@ export const storage = {
           relTitle: rel === -2 ? 'Позавчера' : (rel === -1 ? 'Вчера' : (rel === 0 ? 'Сегодня' : (rel === 1 ? 'Завтра' : (rel === 2 ? 'Послезавтра' : ''))))
         });
       }
-
       const past5Archive = this.getArchiveDaysForLocation(lat, lon, 5, todayStr);
-
       if (allPresent && reconstructedDays.length === 12) {
         const todayObj = reconstructedDays[2] || reconstructedDays[0];
         return {
@@ -678,7 +620,6 @@ export const storage = {
         };
       }
     }
-
     try {
       const raw = localStorage.getItem(WEATHER_CACHE_KEY);
       if (!raw) return null;
@@ -695,7 +636,6 @@ export const storage = {
       return null;
     }
   },
-
   getArchiveDaysForLocation(lat, lon, maxPastDays = 5, refDateStr = null) {
     const targetRef = refDateStr || formatLocalYYYYMMDD(new Date());
     const found = this.findGeoWeatherCluster(lat, lon, GEO_CLUSTER_RADIUS_KM);
@@ -708,13 +648,11 @@ export const storage = {
         cluster: null
       };
     }
-
     const map = found.cluster.daysByDate;
     const allPastDates = Object.keys(map).filter(d => d < targetRef).sort();
     const allArchiveDays = allPastDates.map(d => map[d]).filter(Boolean);
     const recentSlice = allArchiveDays.slice(-maxPastDays);
     const realCount = recentSlice.filter(d => d && d.isReal !== false).length;
-
     return {
       days: recentSlice,
       allArchiveDays,
@@ -723,7 +661,6 @@ export const storage = {
       cluster: found.cluster
     };
   },
-
   getDayWeatherByDate(lat, lon, dateStr) {
     if (!dateStr) return null;
     const found = this.findGeoWeatherCluster(lat, lon, GEO_CLUSTER_RADIUS_KM);
@@ -732,7 +669,6 @@ export const storage = {
     }
     return null;
   },
-
   getWeatherArchiveStats(lat, lon) {
     const todayStr = formatLocalYYYYMMDD(new Date());
     const clusters = readClustersFromLocalStorage();
@@ -741,7 +677,6 @@ export const storage = {
     let totalFutureDays = 0;
     let localArchiveDays = 0;
     let localOldestDate = null;
-
     for (const c of clusters) {
       const dates = Object.keys(c?.daysByDate || {}).sort();
       const past = dates.filter(d => d < todayStr);
@@ -755,7 +690,6 @@ export const storage = {
         }
       }
     }
-
     return {
       totalLocations,
       totalArchiveDays,
@@ -764,18 +698,15 @@ export const storage = {
       localOldestDate
     };
   },
-
   clearWeatherArchiveKeep5Days() {
     const todayDt = new Date();
     todayDt.setHours(0, 0, 0, 0);
     const keepStartDt = new Date(todayDt.getTime() - 5 * 86400000);
     const keepCutoffStr = formatLocalYYYYMMDD(keepStartDt);
     const todayStr = formatLocalYYYYMMDD(todayDt);
-
     const clusters = readClustersFromLocalStorage();
     let removedCount = 0;
     let keptArchiveCount = 0;
-
     for (const c of clusters) {
       if (!c || !c.daysByDate) continue;
       for (const dStr of Object.keys(c.daysByDate)) {
@@ -787,7 +718,6 @@ export const storage = {
         }
       }
     }
-
     writeClustersToLocalStorage(clusters);
     return {
       removedCount,
@@ -795,7 +725,6 @@ export const storage = {
       keepCutoffStr
     };
   },
-
   loadNearbyWatersCache(lat, lon, radiusKm = 50) {
     try {
       if (_nearbyWatersMemoryCache === null) {
@@ -815,7 +744,6 @@ export const storage = {
       return null;
     }
   },
-
   saveNearbyWatersCache(lat, lon, radiusKm, waters, places = []) {
     try {
       if (_nearbyWatersMemoryCache === null) {
@@ -838,7 +766,6 @@ export const storage = {
       localStorage.setItem(GEO_WATERS_CACHE_KEY, JSON.stringify(filtered));
     } catch (e) {}
   },
-
   async getAllFromStore(storeName) {
     const localList = readLocalBackup(storeName);
     const db = await openDB();
@@ -868,13 +795,11 @@ export const storage = {
       }
     });
   },
-
   async putToStore(storeName, item) {
     const list = readLocalBackup(storeName);
     const idx = list.findIndex(x => x.id === item.id);
     if (idx >= 0) list[idx] = item; else list.unshift(item);
     writeLocalBackup(storeName, list);
-
     const db = await openDB();
     if (!db || !db.objectStoreNames.contains(storeName)) return item;
     return new Promise((resolve) => {
@@ -896,11 +821,9 @@ export const storage = {
       }
     });
   },
-
   async deleteFromStore(storeName, id) {
     const list = readLocalBackup(storeName).filter(x => x.id !== id);
     writeLocalBackup(storeName, list);
-
     const db = await openDB();
     if (!db || !db.objectStoreNames.contains(storeName)) return true;
     return new Promise((resolve) => {

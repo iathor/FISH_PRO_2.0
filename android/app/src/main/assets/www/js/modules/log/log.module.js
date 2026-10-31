@@ -1,23 +1,19 @@
-import { isSpeciesInGeoRange } from '../../data/basins.js?v=2.5.2';
-import { RU } from '../../i18n/ru.js?v=2.5.2';
-import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.5.2';
-import { events } from '../../core/events.js?v=2.5.2';
-import { storage } from '../../core/storage.js?v=2.5.2';
-import { store } from '../../core/store.js?v=2.5.2';
-import { formatLocalYYYYMMDD, fmtDeltaPress } from '../../core/format.js?v=2.5.2';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.5.2';
-import { FISH_DB } from '../../data/species.js?v=2.5.2';
-import { escapeHtml, createPill, showToast, openModal, closeModal, openConfirmDeleteModal, downloadFileCrossPlatform } from '../../ui/components.js?v=2.5.2';
-
+/* Klev PRO v2.5.3 r190 (Protected Build) */
+import { isSpeciesInGeoRange } from '../../data/basins.js?v=2.5.3';
+import { RU } from '../../i18n/ru.js?v=2.5.3';
+import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.5.3';
+import { events } from '../../core/events.js?v=2.5.3';
+import { storage } from '../../core/storage.js?v=2.5.3';
+import { store } from '../../core/store.js?v=2.5.3';
+import { formatLocalYYYYMMDD, fmtDeltaPress } from '../../core/format.js?v=2.5.3';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.5.3';
+import { FISH_DB } from '../../data/species.js?v=2.5.3';
+import { escapeHtml, createPill, showToast, openModal, closeModal, openConfirmDeleteModal, downloadFileCrossPlatform } from '../../ui/components.js?v=2.5.3';
 let activeLogTab = 'active'; // 'active' | 'trash'
-import { computeMoon } from '../weather/weather.module.js?v=2.5.2';
-import { calcHourly } from '../forecast/forecast.module.js?v=2.5.2';
-
+import { computeMoon } from '../weather/weather.module.js?v=2.5.3';
+import { calcHourly } from '../forecast/forecast.module.js?v=2.5.3';
+import { openFishPhotoScannerModal, analyzeFishPhotoHybrid } from '../fish/scanner.js?v=2.5.3';
 let currentFilter = { fishId: 'all', cond: 'all' };
-
-/**
- * Биологические верхние пределы веса (кг) для защиты от накрутки и опечаток
- */
 const SPECIES_MAX_WEIGHT_KG = {
   bleak: 0.25, gudgeon: 0.30, tugun: 0.25, smelt: 0.45, vendace: 0.8, cisco: 1.2,
   ruffe: 0.5, rotan: 0.8, dace: 0.8, roach: 2.5, rudd: 2.5, perch: 3.5,
@@ -27,16 +23,11 @@ const SPECIES_MAX_WEIGHT_KG = {
   burbot: 24.0, pike: 32.0, carp: 40.0, grass_carp: 45.0, silver_carp: 55.0,
   salmon: 35.0, chinook_salmon: 50.0, catfish: 120.0, halibut: 150.0
 };
-
 export function getBiologicalMaxWeightKg(fish) {
   if (!fish) return 45;
   if (SPECIES_MAX_WEIGHT_KG[fish.id]) return SPECIES_MAX_WEIGHT_KG[fish.id];
   return fish.type === "predator" ? 35 : 15;
 }
-
-/**
- * Вычисляет детерминированный 64-битный перцептивный хэш (dHash / контент-отпечаток) фото
- */
 export function computeDataUrlFingerprint(dataUrl) {
   const s = String(dataUrl || "");
   if (!s) return "";
@@ -52,11 +43,6 @@ export function computeDataUrlFingerprint(dataUrl) {
   h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
   return "dh_" + (h1 >>> 0).toString(16).padStart(8, "0") + (h2 >>> 0).toString(16).padStart(8, "0");
 }
-
-/**
- * Очищает фотографии улова от всех скрытых EXIF GPS-тегов камеры через перерисовку на <canvas>
- * и возвращает очищенный DataURL + 64-битный перцептивный хэш (dHash) для защиты от дубликатов.
- */
 export async function sanitizeCatchPhotoAndComputeHash(rawDataUrl) {
   if (!rawDataUrl || typeof rawDataUrl !== "string") {
     return { cleanDataUrl: "", dHash: "", exifStripped: false };
@@ -73,7 +59,6 @@ export async function sanitizeCatchPhotoAndComputeHash(rawDataUrl) {
       const img = new Image();
       img.onload = () => {
         try {
-          // 1. Вычисляем 8x8 dHash на мини-холсте 9x8
           const hc = document.createElement("canvas");
           hc.width = 9;
           hc.height = 8;
@@ -96,8 +81,6 @@ export async function sanitizeCatchPhotoAndComputeHash(rawDataUrl) {
             const hex2 = parseInt(bits.slice(32, 64), 2).toString(16).padStart(8, "0");
             dHash = "dh_" + hex1 + hex2;
           }
-
-          // 2. Перерисовываем фото на чистый холст (макс 1280px) -> 100% удаление EXIF GPS-метаданных!
           const maxDim = 1280;
           let w = img.width || 800;
           let h = img.height || 600;
@@ -144,39 +127,27 @@ export async function sanitizeCatchPhotoAndComputeHash(rawDataUrl) {
     }
   });
 }
-
-/**
- * Находит суточный и почасовой (24 ч) метеопрогноз из 10-км кэша локации по выбранной календарной дате YYYY-MM-DD
- */
 export function resolveDayWeatherForDate(s, dateStr = null, fallbackDayIdx = null) {
   const todayDt = new Date();
   todayDt.setHours(0, 0, 0, 0);
   const todayStr = formatLocalYYYYMMDD(todayDt);
-
   let targetDate = dateStr;
   if (!targetDate && Number.isFinite(fallbackDayIdx) && s.weatherDays?.[fallbackDayIdx]) {
     targetDate = s.weatherDays[fallbackDayIdx].date;
   }
   if (!targetDate) targetDate = todayStr;
-
-  // 1. Проверяем 10-км гео-кэш и архив погоды (GeoWeatherArchive)
   const fromGeoCache = storage.getDayWeatherByDate(s.lat, s.lon, targetDate);
   if (fromGeoCache && Array.isArray(fromGeoCache.hours) && fromGeoCache.hours.length > 0) {
     return fromGeoCache;
   }
-
-  // 2. Проверяем массив 5-дневного архива и 12 дней прогноза в store
   const fromArchive5 = (s.weatherArchive5Days || []).find(d => d && d.date === targetDate);
   if (fromArchive5 && Array.isArray(fromArchive5.hours) && fromArchive5.hours.length > 0) {
     return fromArchive5;
   }
-
   const fromWeatherDays = (s.weatherDays || []).find(d => d && d.date === targetDate);
   if (fromWeatherDays && Array.isArray(fromWeatherDays.hours) && fromWeatherDays.hours.length > 0) {
     return fromWeatherDays;
   }
-
-  // 3. Если выбрана произвольная дата в календаре, которой ещё нет в кэше — строим расчётный день на основе ближайшего дня в кэше
   const refDay = s.weatherDays?.[2] || s.weatherDays?.[0] || {};
   const dt = new Date(targetDate + 'T00:00:00');
   const diffDays = Math.round((dt.getTime() - todayDt.getTime()) / 86400000);
@@ -189,7 +160,6 @@ export function resolveDayWeatherForDate(s, dateStr = null, fallbackDayIdx = nul
     const bh = baseHours[h] || { tAir: refDay.tDay || 8, press: refDay.pressAvg || 754, dp3h: 0, wind: refDay.windMax || 3, windDir: 'З', cloud: 50, precip: 0 };
     hours.push({ ...bh, hour: h });
   }
-
   return {
     date: targetDate,
     relTitle,
@@ -206,7 +176,6 @@ export function resolveDayWeatherForDate(s, dateStr = null, fallbackDayIdx = nul
     hours
   };
 }
-
 export async function logCatch(catchData) {
   const s = store.getState();
   const day = resolveDayWeatherForDate(s, catchData.date, catchData.dayIdx ?? s.dayIdx);
@@ -222,21 +191,18 @@ export async function logCatch(catchData) {
   const fish = FISH_DB.find(f => f.id === (catchData.fishId || s.fishId)) || FISH_DB[0];
   const predScore = day.hours ? calcHourly(fish, day, hr, catchData.method || s.method, s.water, s.depth, s.normPress, s.iceState) : 50;
   const waterTitle = catchData.waterName || s.selectedWaterName || WATER_PROFILES[s.water]?.shortName || s.locLabel;
-
   const dt = new Date((day.date || new Date().toISOString().slice(0, 10)) + 'T00:00:00');
   const todayDt = new Date();
   todayDt.setHours(0, 0, 0, 0);
   const diffDays = Math.round((dt.getTime() - todayDt.getTime()) / 86400000);
   const relPrefix = diffDays === 0 ? 'Сегодня' : (diffDays === -1 ? 'Вчера' : (diffDays === -2 ? 'Позавчера' : (diffDays < 0 && diffDays >= -5 ? `${Math.abs(diffDays)} дн. назад` : '')));
   const formattedLabel = day.label || `${RU.daysShort[dt.getDay()]}, ${dt.getDate()} ${RU.monthsGen[dt.getMonth()]}`;
-
   const rawWeight = Math.max(0, parseFloat(catchData.weightKg) || 0);
   const maxBioWeight = getBiologicalMaxWeightKg(fish);
   const validatedWeight = rawWeight > maxBioWeight ? maxBioWeight : rawWeight;
   if (rawWeight > maxBioWeight) {
     showToast(` Вес ${rawWeight} кг превышает биологический максимум для вида «${fish.name}» (${maxBioWeight} кг) — скорректировано до ${maxBioWeight} кг.`, "warn");
   }
-
   let cleanPhoto = catchData.photoDataUrl || "";
   let photoHash = catchData.photoHash || "";
   if (cleanPhoto && !photoHash) {
@@ -244,7 +210,6 @@ export async function logCatch(catchData) {
     cleanPhoto = sanitized.cleanDataUrl;
     photoHash = sanitized.dHash;
   }
-
   if (photoHash && storage.loadPhotoHashes) {
     const knownHashes = storage.loadPhotoHashes();
     const isDupInCatches = (s.catches || []).some(c => c && c.photoHash === photoHash);
@@ -254,7 +219,6 @@ export async function logCatch(catchData) {
       storage.savePhotoHash(photoHash);
     }
   }
-
   const up = s.userProfile || {};
   const record = {
     id: `catch_${Date.now()}`,
@@ -289,7 +253,6 @@ export async function logCatch(catchData) {
     moonPhase: day.moon?.phaseName || 'Луна',
     predictedScore: predScore
   };
-
   await storage.putToStore('catches', record);
   const all = await storage.getAllFromStore('catches');
   all.sort((a, b) => b.timestamp - a.timestamp);
@@ -297,7 +260,6 @@ export async function logCatch(catchData) {
   showToast(` Улов (${fish.name}, ${record.dateLabel}) записан в журнал и учтён в прогнозе клёва!`, 'good');
   return record;
 }
-
 export async function markCatchForDeletion(id, removeSharedFromCircle = true) {
   const all = await storage.getAllFromStore('catches');
   const target = all.find(c => c && c.id === id);
@@ -312,7 +274,6 @@ export async function markCatchForDeletion(id, removeSharedFromCircle = true) {
   }
   showToast(` Запись «${target.fishName}» перемещена в «Помеченные на удаление»`, 'info');
 }
-
 export async function restoreCatchFromTrash(id) {
   const all = await storage.getAllFromStore('catches');
   const target = all.find(c => c && c.id === id);
@@ -324,7 +285,6 @@ export async function restoreCatchFromTrash(id) {
   store.dispatch({ type: 'SET_CATCHES', payload: nextAll });
   showToast(` Запись «${target.fishName}» восстановлена в Журнал уловов!`, 'good');
 }
-
 export async function deleteCatch(id, removeSharedFromCircle = true) {
   const existing = (store.getState().catches || []).find(c => c && c.id === id);
   await storage.deleteFromStore('catches', id);
@@ -335,7 +295,6 @@ export async function deleteCatch(id, removeSharedFromCircle = true) {
     events.emit('circle:deleteSharedCatchItem', { catchObj: existing });
   }
 }
-
 export function getCatches(filter = {}) {
   const list = (store.getState().catches || []).filter(c => c && !c.markedForDeletion);
   return list.filter(c => {
@@ -346,7 +305,6 @@ export function getCatches(filter = {}) {
     return true;
   });
 }
-
 export async function logBlankTrip(customFishId = '') {
   const s = store.getState();
   const fish = FISH_DB.find(f => f.id === (customFishId || s.fishId)) || FISH_DB[0];
@@ -371,13 +329,11 @@ export async function logBlankTrip(customFishId = '') {
   showToast(`Выезд без улова (0 поклёвок • ${fish.name}) записан в журнал для калибровки прогноза!`, 'info');
   return rec;
 }
-
 export function getPersonalStats(fishId) {
   const all = (store.getState().catches || []).filter(c => c && !c.markedForDeletion);
   const byFish = fishId && fishId !== 'all' ? all.filter(c => c.fishId === fishId) : all;
   const successList = byFish.filter(c => !c.isBlankTrip && !String(c.fishName || '').includes('Холостой'));
   const blankCount = byFish.length - successList.length;
-
   if (!byFish.length) {
     return {
       count: 0,
@@ -402,7 +358,6 @@ export function getPersonalStats(fishId) {
   const sortedBaits = Object.entries(baitCounts).sort((a, b) => b[1] - a[1]);
   const topBait = sortedBaits[0]?.[0] || '—';
   const top3Baits = sortedBaits.slice(0, 3).map(([bName, cnt], i) => `${i + 1}. ${bName.split('(')[0].trim()} (${cnt})`);
-
   return {
     count: byFish.length,
     successCount: successList.length,
@@ -414,25 +369,16 @@ export function getPersonalStats(fishId) {
     top3Baits
   };
 }
-
-/**
- * Ревизия 2.0.15:
- * Окно записи улова « Я поймал» с обычным календарём (<input type="date">),
- * быстрыми кнопками выбора за предыдущие 5 дней (и Сегодня) и автоматической подгрузкой почасового прогноза из кэша 10 км!
- */
 export function openCatchWizard(prefill = {}) {
   const s = store.getState();
   const todayDt = new Date();
   todayDt.setHours(0, 0, 0, 0);
   const todayStr = formatLocalYYYYMMDD(todayDt);
-
   const initialDayIdx = prefill.dayIdx ?? s.dayIdx;
   const initialDateStr = prefill.date || s.weatherDays[initialDayIdx]?.date || todayStr;
   let activeDateStr = initialDateStr > todayStr ? todayStr : initialDateStr;
   let activeHour = prefill.hour ?? s.selectedHour;
   const targetFishId = prefill.fishId || s.fishId;
-
-  // Формируем быстрые чипсы: Сегодня + предыдущие 5 дней (Вчера, Позавчера, -3, -4, -5 дн.)
   const quickDates = [];
   for (let offset = 0; offset >= -5; offset--) {
     const dt = new Date(todayDt.getTime() + offset * 86400000);
@@ -441,37 +387,31 @@ export function openCatchWizard(prefill = {}) {
     const shortLbl = `${RU.daysShort[dt.getDay()]}, ${dt.getDate()} ${RU.monthsGen[dt.getMonth()]}`;
     quickDates.push({ date: dStr, title, shortLbl });
   }
-
   let day = resolveDayWeatherForDate(s, activeDateStr, initialDayIdx);
   let hr = (day.hours && day.hours[activeHour]) || { hour: activeHour, tAir: day.tDay || 8, press: day.pressAvg || 754, wind: day.windMax || 3, windDir: 'З' };
   const currentFish = FISH_DB.find(f => f.id === targetFishId) || FISH_DB[0];
-
   const favSet = new Set(s.favorites || []);
   const sortedSpecies = [...FISH_DB]
     .filter(f => f.legal !== 'redbook' && isSpeciesInGeoRange(f, s.lat, s.lon, s.basinCode, s.water, 120, new Set(['small_river', 'big_river', 'quarry', 'tundra_lake', ...(s.isCoastal ? ['sea_gulf', 'open_sea'] : [])]), s.isCoastal, true, s.selectedWaterName))
     .sort((a, b) => (favSet.has(b.id) ? 1 : 0) - (favSet.has(a.id) ? 1 : 0));
-
   const compatibleMethods = getCompatibleMethods(currentFish, day.iceState || s.iceState, s.water, day.waterTemp);
   const currentMethodVal = compatibleMethods.some(m => m.val === s.method) ? s.method : compatibleMethods[0]?.val;
   const seasonalBaits = getSeasonalBaitsForContext(currentFish, currentMethodVal, day.waterTemp ?? 12, day.iceState || s.iceState);
   const defaultBait = prefill.bait || s.selectedBait || seasonalBaits[0];
-
   const availWaters = getAvailableWaterTypes(s.basinCode, s.lat, s.lon);
   const initialWaterName = s.selectedWaterName || (s.nearbyWaters && s.nearbyWaters[0]?.name) || WATER_PROFILES[s.water]?.shortName || 'Река / озеро';
-
-  let photoDataUrl = '';
-
+  let photoDataUrl = prefill.photoDataUrl || '';
+  const initialWeightVal = prefill.weightKg ? String(prefill.weightKg) : '';
+  const initialLengthVal = prefill.lengthCm ? String(prefill.lengthCm) : '';
   const formatSummaryBanner = (dObj, hObj) => {
     const tAirStr = (hObj.tAir > 0 ? '+' + hObj.tAir : hObj.tAir) + '°C';
     return `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="13" r="4" stroke="#38bdf8" stroke-width="1.8"/></svg> <b>Метеосводка из кэша 10 км (${dObj.date}, ${String(hObj.hour).padStart(2, '0')}:00):</b> Воздух ${tAirStr} • Вода ~${dObj.waterTemp ?? 10}°C • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><polygon points="16,8 13.5,13.5 8,16 10.5,10.5" fill="#38bdf8" stroke="currentColor" stroke-width="1.3"/></svg> ${hObj.press} мм (Δ ${fmtDeltaPress(dObj.dP ?? 0)}) • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> ${hObj.windDir} ${hObj.wind} м/с • ${dObj.moon?.phaseIcon || '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6" stroke-linejoin="round"/></svg>'} ${dObj.moon?.moonDay || 12} л.д.`;
   };
-
   const html = `
     <div style="display:flex;flex-direction:column;gap:10px;font-size:var(--fs-sm);">
       <div id="cwWeatherSummaryBox" style="padding:9px 11px;border-radius:var(--r-sm);background:var(--card);border:1px solid var(--border);font-size:var(--fs-xs);color:var(--accent);line-height:1.4;">
         ${formatSummaryBanner(day, hr)}
       </div>
-
       <div style="padding:9px 11px;border-radius:var(--r-sm);background:var(--card);border:1px solid var(--border);">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:6px;">
           <label for="cwDateInput" style="font-weight:800;font-size:var(--fs-xs);color:var(--accent);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="3" fill="rgba(56,189,248,0.14)" stroke="currentColor" stroke-width="1.8"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="7" y="13" width="3" height="3" rx="0.8" fill="#38bdf8"/><rect x="14" y="13" width="3" height="3" rx="0.8" fill="#10b981"/></svg> ДАТА УЛОВА (ОБЫЧНЫЙ КАЛЕНДАРЬ ИЛИ ПРЕДЫДУЩИЕ 5 ДНЕЙ):</label>
@@ -485,25 +425,26 @@ export function openCatchWizard(prefill = {}) {
           `).join('')}
         </div>
       </div>
-
       <div style="border-left:3px solid var(--accent);padding-left:8px;margin-bottom:2px;">
         <span style="font-size:var(--fs-xs);color:var(--muted);font-weight:700;">СТРОГАЯ ЦЕПОЧКА ПОИМКИ (УЧИТЫВАЕТСЯ В ПРОГНОЗЕ КЛЁВА):</span>
       </div>
-
       <div>
-        <label style="font-weight:700;font-size:var(--fs-xs);color:var(--muted);">ШАГ 1. ПОЙМАННАЯ РЫБА (ИЗБРАННЫЕ ВВЕРХУ)</label>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;">
+          <label style="font-weight:700;font-size:var(--fs-xs);color:var(--muted);">ШАГ 1. ПОЙМАННАЯ РЫБА (ИЗБРАННЫЕ ВВЕРХУ)</label>
+          <button type="button" class="btn btn-sm btn-accent" id="cwOpenAiScannerBtn" style="min-height:26px;padding:2px 9px;font-size:11px;font-weight:800;">
+            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 8V6a2 2 0 0 1 2-2h2M4 16v2a2 2 0 0 0 2 2h2m8-16h2a2 2 0 0 1 2 2v2m-4 12h2a2 2 0 0 0 2-2v-2" stroke="#38bdf8" stroke-width="1.9" stroke-linecap="round"/><path d="M6 12s2.5-3.8 6.5-3.8c2.6 0 4.5 1.5 5.5 3.8-1 2.3-2.9 3.8-5.5 3.8-4 0-6.5-3.8-6.5-3.8z" fill="rgba(16,185,129,0.28)" stroke="#10b981" stroke-width="1.7"/></svg> Нейро-определитель по фото (ИИ)
+          </button>
+        </div>
         <select id="cwFishId" style="margin-top:3px;">
           ${sortedSpecies.map(f => `<option value="${f.id}" ${f.id === currentFish.id ? 'selected' : ''}>${favSet.has(f.id) ? ' ' : ''}${f.name}</option>`).join('')}
         </select>
       </div>
-
       <div>
         <label style="font-weight:700;font-size:var(--fs-xs);color:var(--muted);">ШАГ 2. СНАСТЬ (ПОДХОДЯЩАЯ ПОД РЫБУ)</label>
         <select id="cwMethod" style="margin-top:3px;">
           ${compatibleMethods.map(m => `<option value="${m.val}" ${m.val === currentMethodVal ? 'selected' : ''}>${String(m.text || '').replace(/<[^>]+>/g, '').trim()}</option>`).join('')}
         </select>
       </div>
-
       <div>
         <label style="font-weight:700;font-size:var(--fs-xs);color:var(--muted);">ШАГ 3. СЕЗОННАЯ НАЖИВКА / ПРИМАНКА</label>
         <select id="cwBaitSelect" style="margin-top:3px;">
@@ -512,7 +453,6 @@ export function openCatchWizard(prefill = {}) {
         </select>
         <input type="text" id="cwBaitCustom" class="input" value="${defaultBait}" placeholder="Уточните модель воблера, насадку или цвет..." style="margin-top:6px;">
       </div>
-
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
         <div>
           <label style="font-weight:700;font-size:var(--fs-xs);color:var(--muted);">ШАГ 4. БЛИЖАЙШИЙ ВОДОЁМ</label>
@@ -526,7 +466,6 @@ export function openCatchWizard(prefill = {}) {
           <input type="text" id="cwWaterName" class="input" value="${initialWaterName}" style="margin-top:3px;">
         </div>
       </div>
-
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
         <div>
           <label style="font-weight:700;font-size:var(--fs-xs);color:var(--muted);">ШАГ 5. ЧАС ПОИМКИ (ПОЧАСОВОЙ КЭШ)</label>
@@ -536,14 +475,13 @@ export function openCatchWizard(prefill = {}) {
         </div>
         <div>
           <label style="font-weight:700;font-size:var(--fs-xs);color:var(--muted);">ВЕС ТРОФЕЯ (КГ)</label>
-          <input type="number" id="cwWeight" class="input" step="0.05" min="0" placeholder="Напр. 1.85" style="margin-top:3px;">
+          <input type="number" id="cwWeight" class="input" step="0.05" min="0" value="${initialWeightVal}" placeholder="Напр. 1.85" style="margin-top:3px;">
         </div>
       </div>
-
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
         <div>
           <label style="font-weight:700;font-size:var(--fs-xs);color:var(--muted);">ДЛИНА (СМ, ПО ЖЕЛАНИЮ)</label>
-          <input type="number" id="cwLength" class="input" step="1" min="0" placeholder="Напр. 52" style="margin-top:3px;">
+          <input type="number" id="cwLength" class="input" step="1" min="0" value="${initialLengthVal}" placeholder="Напр. 52" style="margin-top:3px;">
         </div>
         <div>
           <label style="font-weight:700;font-size:var(--fs-xs);color:var(--muted);">СОВПАДЕНИЕ С ПРОГНОЗОМ</label>
@@ -553,19 +491,19 @@ export function openCatchWizard(prefill = {}) {
           </select>
         </div>
       </div>
-
       <div>
-        <label style="font-weight:700;font-size:var(--fs-xs);color:var(--muted);">ФОТОГРАФИЯ УЛОВА</label>
+        <label style="font-weight:700;font-size:var(--fs-xs);color:var(--muted);">ФОТОГРАФИЯ УЛОВА (АВТО-РАСПОЗНАВАНИЕ ВИДА И ВЕСА ИИ)</label>
         <input type="file" id="cwPhoto" accept="image/*" class="input" style="margin-top:3px;padding:5px;">
+        <div id="cwAiPhotoBadge" style="margin-top:6px;display:${photoDataUrl ? 'block' : 'none'};padding:8px 10px;border-radius:var(--r-sm);background:rgba(56,189,248,0.10);border:1px solid var(--accent);font-size:11.5px;line-height:1.4;">
+          ${photoDataUrl ? '<b>Фото прикреплено из Ихтио-Сканера</b> (EXIF GPS очищен).' : ''}
+        </div>
       </div>
-
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:8px;margin-top:6px;">
         <button type="button" class="btn btn-good" id="cwSubmitBtn"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" fill="rgba(16,185,129,0.2)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M17 21v-8H7v8M7 3v5h8" stroke="currentColor" stroke-width="1.7"/></svg> Записать в журнал</button>
         <button type="button" class="btn btn-accent" id="cwSubmitAndChatBtn"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> Записать и отправить в чат</button>
       </div>
     </div>
   `;
-
   openModal('<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg> Запись улова «Я поймал» (календарь + 5-дневный кэш)', html, (bodyEl) => {
     const dateInput = bodyEl.querySelector('#cwDateInput');
     const summaryBox = bodyEl.querySelector('#cwWeatherSummaryBox');
@@ -576,33 +514,26 @@ export function openCatchWizard(prefill = {}) {
     const baitCustom = bodyEl.querySelector('#cwBaitCustom');
     const waterSel = bodyEl.querySelector('#cwWaterSelect');
     const waterNameInput = bodyEl.querySelector('#cwWaterName');
-
     const syncDateAndHourWeather = (nextDateStr, nextHourVal) => {
       if (nextDateStr) activeDateStr = nextDateStr;
       if (Number.isFinite(nextHourVal)) activeHour = nextHourVal;
-
       day = resolveDayWeatherForDate(store.getState(), activeDateStr, initialDayIdx);
       hr = (day.hours && day.hours[activeHour]) || day.hours?.[12] || { hour: activeHour, tAir: day.tDay || 8, press: day.pressAvg || 754, wind: day.windMax || 3, windDir: 'З' };
-
       if (dateInput && dateInput.value !== activeDateStr) {
         dateInput.value = activeDateStr;
       }
-
       bodyEl.querySelectorAll('[data-cw-quick-date]').forEach(btn => {
         btn.classList.toggle('active', btn.getAttribute('data-cw-quick-date') === activeDateStr);
       });
-
       if (hourSel && Array.isArray(day.hours)) {
         hourSel.innerHTML = day.hours.map(h =>
           `<option value="${h.hour}" ${h.hour === activeHour ? 'selected' : ''}>${String(h.hour).padStart(2, '0')}:00 (${h.tAir > 0 ? '+' + h.tAir : h.tAir}°C, ${h.press} мм, ${h.wind} м/с)</option>`
         ).join('');
       }
-
       if (summaryBox) {
         summaryBox.innerHTML = formatSummaryBanner(day, hr);
       }
     };
-
     if (dateInput) {
       dateInput.addEventListener('change', (e) => {
         if (e.target.value) {
@@ -610,26 +541,22 @@ export function openCatchWizard(prefill = {}) {
         }
       });
     }
-
     bodyEl.querySelectorAll('[data-cw-quick-date]').forEach(btn => {
       btn.addEventListener('click', () => {
         const dStr = btn.getAttribute('data-cw-quick-date');
         if (dStr) syncDateAndHourWeather(dStr, activeHour);
       });
     });
-
     if (hourSel) {
       hourSel.addEventListener('change', (e) => {
         syncDateAndHourWeather(activeDateStr, parseInt(e.target.value, 10));
       });
     }
-
     if (fishSel) {
       fishSel.addEventListener('change', (e) => {
         const chosenId = e.target.value;
         const fObj = FISH_DB.find(x => x.id === chosenId) || FISH_DB[0];
         const newMethods = getCompatibleMethods(fObj, day.iceState || s.iceState, s.water, day.waterTemp);
-
         if (methodSel) {
           methodSel.innerHTML = newMethods.map(m => `<option value="${m.val}">${String(m.text || '').replace(/<[^>]+>/g, '').trim()}</option>`).join('');
           const mVal = newMethods[0]?.val;
@@ -641,7 +568,6 @@ export function openCatchWizard(prefill = {}) {
         }
       });
     }
-
     if (methodSel) {
       methodSel.addEventListener('change', (e) => {
         const chosenMethod = e.target.value;
@@ -654,7 +580,6 @@ export function openCatchWizard(prefill = {}) {
         }
       });
     }
-
     if (baitSel && baitCustom) {
       baitSel.addEventListener('change', (e) => {
         if (e.target.value !== '__custom__') {
@@ -665,15 +590,20 @@ export function openCatchWizard(prefill = {}) {
         }
       });
     }
-
     if (waterSel && waterNameInput) {
       waterSel.addEventListener('change', (e) => {
         waterNameInput.value = e.target.value;
       });
     }
-
+    const aiScannerBtn = bodyEl.querySelector('#cwOpenAiScannerBtn');
+    if (aiScannerBtn) {
+      aiScannerBtn.addEventListener('click', () => {
+        openFishPhotoScannerModal();
+      });
+    }
     let photoHash = '';
     const fileInput = bodyEl.querySelector('#cwPhoto');
+    const aiBadgeEl = bodyEl.querySelector('#cwAiPhotoBadge');
     if (fileInput) {
       fileInput.addEventListener('change', (e) => {
         const file = e.target.files?.[0];
@@ -684,12 +614,53 @@ export function openCatchWizard(prefill = {}) {
           const sanitized = await sanitizeCatchPhotoAndComputeHash(rawUrl);
           photoDataUrl = sanitized.cleanDataUrl;
           photoHash = sanitized.dHash;
-          showToast(' Фото подготовлено (координаты места съёмки скрыты для вашей приватности)', 'good');
+          showToast(' Фото подготовлено (EXIF скрыт). Запущен ИИ-анализ вида...', 'good');
+          try {
+            const aiRes = await analyzeFishPhotoHybrid(photoDataUrl, {
+              basinCode: s.basinCode,
+              lat: s.lat,
+              lon: s.lon
+            });
+            const top = aiRes?.topMatch;
+            if (top && aiBadgeEl) {
+              aiBadgeEl.style.display = 'block';
+              if (top.isRedBook) {
+                aiBadgeEl.style.borderColor = 'var(--bad)';
+                aiBadgeEl.style.background = 'rgba(239,68,68,0.12)';
+                aiBadgeEl.innerHTML = `<b style="color:var(--bad);">ВНИМАНИЕ (ИИ ${top.confidence}%): ${escapeHtml(top.fish.name)} — КРАСНАЯ КНИГА!</b><br>Вид запрещён к изъятию (поймал — отпусти).`;
+              } else {
+                aiBadgeEl.style.borderColor = 'var(--good)';
+                aiBadgeEl.style.background = 'rgba(16,185,129,0.12)';
+                aiBadgeEl.innerHTML = `
+                  <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;">
+                    <span><b>ИИ распознал (${top.confidence}%):</b> ${escapeHtml(top.fish.name)} • ~${top.estimatedWeightKg} кг (~${top.estimatedLengthCm} см)</span>
+                    <button type="button" class="btn btn-sm btn-good" id="cwApplyAiDetectedBtn" style="min-height:24px;padding:2px 8px;font-size:11px;">Подставить</button>
+                  </div>
+                `;
+                if (fishSel && Array.from(fishSel.options).some(o => o.value === top.fishId)) {
+                  fishSel.value = top.fishId;
+                  fishSel.dispatchEvent(new Event('change'));
+                }
+                const wInp = bodyEl.querySelector('#cwWeight');
+                const lInp = bodyEl.querySelector('#cwLength');
+                if (wInp && !wInp.value) wInp.value = String(top.estimatedWeightKg);
+                if (lInp && !lInp.value) lInp.value = String(top.estimatedLengthCm);
+                aiBadgeEl.querySelector('#cwApplyAiDetectedBtn')?.addEventListener('click', () => {
+                  if (fishSel && Array.from(fishSel.options).some(o => o.value === top.fishId)) {
+                    fishSel.value = top.fishId;
+                    fishSel.dispatchEvent(new Event('change'));
+                  }
+                  if (wInp) wInp.value = String(top.estimatedWeightKg);
+                  if (lInp) lInp.value = String(top.estimatedLengthCm);
+                  showToast(`Подставлено: ${top.fish.name} (${top.estimatedWeightKg} кг, ${top.estimatedLengthCm} см)`, 'good');
+                });
+              }
+            }
+          } catch (err) {}
         };
         reader.readAsDataURL(file);
       });
     }
-
     const saveWizardCatch = async () => {
       const chosenHr = parseInt(bodyEl.querySelector('#cwHour')?.value ?? activeHour, 10);
       const chosenDate = bodyEl.querySelector('#cwDateInput')?.value || activeDateStr;
@@ -708,7 +679,6 @@ export function openCatchWizard(prefill = {}) {
         photoHash
       });
     };
-
     const submitBtn = bodyEl.querySelector('#cwSubmitBtn');
     if (submitBtn) {
       submitBtn.addEventListener('click', async () => {
@@ -716,7 +686,6 @@ export function openCatchWizard(prefill = {}) {
         closeModal();
       });
     }
-
     const submitChatBtn = bodyEl.querySelector('#cwSubmitAndChatBtn');
     if (submitChatBtn) {
       submitChatBtn.addEventListener('click', async () => {
@@ -729,7 +698,6 @@ export function openCatchWizard(prefill = {}) {
     }
   });
 }
-
 export function renderLog(container) {
   if (!container) return;
   const s = store.getState();
@@ -740,7 +708,6 @@ export function renderLog(container) {
   const filtered = getCatches(currentFilter);
   const statsAll = getPersonalStats('all');
   const statsFish = getPersonalStats(activeFish.id);
-
   container.innerHTML = `
     <div class="card">
       <div class="section-head">
@@ -750,6 +717,7 @@ export function renderLog(container) {
         </div>
         <div class="toolbar-row" style="display:flex;gap:6px;flex-wrap:wrap;">
           <button type="button" class="btn btn-sm btn-good" id="logOpenWizardBtn"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg> + Записать улов</button>
+          <button type="button" class="btn btn-sm btn-accent" id="logOpenAiScannerBtn" title="Определить вид рыбы и вес по фотографии"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 8V6a2 2 0 0 1 2-2h2M4 16v2a2 2 0 0 0 2 2h2m8-16h2a2 2 0 0 1 2 2v2m-4 12h2a2 2 0 0 0 2-2v-2" stroke="#38bdf8" stroke-width="1.9" stroke-linecap="round"/><path d="M6 12s2.5-3.8 6.5-3.8c2.6 0 4.5 1.5 5.5 3.8-1 2.3-2.9 3.8-5.5 3.8-4 0-6.5-3.8-6.5-3.8z" fill="rgba(16,185,129,0.28)" stroke="#10b981" stroke-width="1.7"/></svg> По фото (ИИ)</button>
           <button type="button" class="btn btn-sm" id="logBlankTripBtn" style="border-color:var(--warn);color:var(--warn);" title="Если рыбалка прошла без поклёвок — нажмите, чтобы алгоритм учёл бесклёвье при этой погоде"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="4.5" stroke="#38bdf8" stroke-width="1.6"/><circle cx="12" cy="12" r="1.8" fill="#10b981"/></svg> Выезд без улова (0 поклёвок)</button>
           <button type="button" class="btn btn-sm" id="logExportJsonBtn" title="Выгрузить журнал уловов в .JSON"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 15V3m0 0L8 7m4-4l4 4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg> .JSON</button>
           <button type="button" class="btn btn-sm" id="logExportCsvBtn" title="Выгрузить таблицу уловов в .CSV (для Excel)"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M3 3v18h18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M7 15l4-5 4 3 5-7" stroke="#38bdf8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg> .CSV</button>
@@ -759,7 +727,6 @@ export function renderLog(container) {
           </label>
         </div>
       </div>
-
       <!-- Переключатель: Основной журнал vs Помеченные на удаление (защита от случайного удаления) -->
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;padding:8px 10px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);">
         <div style="display:flex;gap:6px;flex-wrap:wrap;">
@@ -776,7 +743,6 @@ export function renderLog(container) {
           </button>
         ` : ''}
       </div>
-
       ${activeLogTab === 'trash' ? `
         <div style="padding:10px 12px;margin-bottom:10px;background:rgba(245,158,11,0.10);border:1px solid var(--warn);border-radius:var(--r-sm);font-size:var(--fs-xs);color:var(--text);line-height:1.42;">
           <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2.5l7 3.2v5.8c0 5-3 9.3-7 10.8-4-1.5-7-5.8-7-10.8V5.7l7-3.2z" fill="rgba(56,189,248,0.22)" stroke="#38bdf8" stroke-width="1.8" stroke-linejoin="round"/></svg> <b>Защита от случайного удаления:</b> помеченные записи хранятся здесь до вашего подтверждения. Вы можете вернуть любую запись обратно в журнал или окончательно удалить её (вместе с публикацией в «Круге»).
@@ -831,7 +797,6 @@ export function renderLog(container) {
             </div>
           </div>
         </div>
-
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
           <select id="logFilterFish" style="max-width:220px;">
             <option value="all" ${currentFilter.fishId === 'all' ? 'selected' : ''}>Все рыбы (${activeRecords.length})</option>
@@ -846,7 +811,6 @@ export function renderLog(container) {
             <option value="wind_strong" ${currentFilter.cond === 'wind_strong' ? 'selected' : ''}>Свежий ветер (> 5 м/с)</option>
           </select>
         </div>
-
         ${filtered.length === 0 ? `
           <div style="padding:16px;text-align:center;background:var(--card);border-radius:var(--r-sm);color:var(--muted);font-size:var(--fs-sm);">
             Записей пока нет. Нажмите <b>«<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg> + Записать улов»</b>, чтобы выбрать дату за последние 5 дней (или сегодня) — почасовой прогноз подставится автоматически!
@@ -882,27 +846,23 @@ export function renderLog(container) {
       `}
     </div>
   `;
-
   bindLogEvents(container);
 }
-
 function bindLogEvents(container) {
   const openBtn = container.querySelector('#logOpenWizardBtn');
   if (openBtn) openBtn.addEventListener('click', () => openCatchWizard());
-
+  const aiScanBtn = container.querySelector('#logOpenAiScannerBtn');
+  if (aiScanBtn) aiScanBtn.addEventListener('click', () => openFishPhotoScannerModal());
   const blankBtn = container.querySelector('#logBlankTripBtn');
   if (blankBtn) blankBtn.addEventListener('click', () => logBlankTrip());
-
   container.querySelector('#logTabActiveBtn')?.addEventListener('click', () => {
     activeLogTab = 'active';
     renderLog(container);
   });
-
   container.querySelector('#logTabTrashBtn')?.addEventListener('click', () => {
     activeLogTab = 'trash';
     renderLog(container);
   });
-
   container.querySelector('#logPurgeAllTrashBtn')?.addEventListener('click', () => {
     const trashList = (store.getState().catches || []).filter(c => c && c.markedForDeletion);
     if (!trashList.length) return;
@@ -922,7 +882,6 @@ function bindLogEvents(container) {
       }
     });
   });
-
   const expBtn = container.querySelector('#logExportJsonBtn');
   if (expBtn) {
     expBtn.addEventListener('click', () => {
@@ -932,7 +891,6 @@ function bindLogEvents(container) {
       showToast(` Журнал уловов (${sanitized.length} зап.) сохранён в файл ${fname}`, 'good');
     });
   }
-
   const expCsvBtn = container.querySelector('#logExportCsvBtn');
   if (expCsvBtn) {
     expCsvBtn.addEventListener('click', () => {
@@ -945,7 +903,6 @@ function bindLogEvents(container) {
       showToast(` Таблица уловов (${list.length} зап.) сохранена в файл ${fname}`, 'good');
     });
   }
-
   const impLogInput = container.querySelector('#logImportFileInput');
   if (impLogInput) {
     impLogInput.addEventListener('change', (e) => {
@@ -1022,7 +979,6 @@ function bindLogEvents(container) {
       reader.readAsText(file);
     });
   }
-
   const fFish = container.querySelector('#logFilterFish');
   if (fFish) {
     fFish.addEventListener('change', (e) => {
@@ -1030,7 +986,6 @@ function bindLogEvents(container) {
       renderLog(container);
     });
   }
-
   const fCond = container.querySelector('#logFilterCond');
   if (fCond) {
     fCond.addEventListener('change', (e) => {
@@ -1038,7 +993,6 @@ function bindLogEvents(container) {
       renderLog(container);
     });
   }
-
   container.querySelectorAll('[data-apply-catch-rig]').forEach(btn => {
     btn.addEventListener('click', () => {
       const id = btn.getAttribute('data-apply-catch-rig');
@@ -1055,7 +1009,6 @@ function bindLogEvents(container) {
       }
     });
   });
-
   container.querySelectorAll('[data-chat-share-catch]').forEach(btn => {
     btn.addEventListener('click', () => {
       const id = btn.getAttribute('data-chat-share-catch');
@@ -1065,7 +1018,6 @@ function bindLogEvents(container) {
       }
     });
   });
-
   container.querySelectorAll('[data-share-catch]').forEach(btn => {
     btn.addEventListener('click', () => {
       const id = btn.getAttribute('data-share-catch');
@@ -1075,7 +1027,6 @@ function bindLogEvents(container) {
       }
     });
   });
-
   container.querySelectorAll('[data-del-catch]').forEach(btn => {
     btn.addEventListener('click', () => {
       const id = btn.getAttribute('data-del-catch');
@@ -1093,14 +1044,12 @@ function bindLogEvents(container) {
       });
     });
   });
-
   container.querySelectorAll('[data-restore-catch]').forEach(btn => {
     btn.addEventListener('click', async () => {
       const id = btn.getAttribute('data-restore-catch');
       if (id) await restoreCatchFromTrash(id);
     });
   });
-
   container.querySelectorAll('[data-purge-catch]').forEach(btn => {
     btn.addEventListener('click', () => {
       const id = btn.getAttribute('data-purge-catch');
@@ -1120,24 +1069,21 @@ function bindLogEvents(container) {
     });
   });
 }
-
 export function render(container) {
   renderLog(container);
 }
-
 let unsub = null;
 let unsubEvent = null;
-
 export async function init(container) {
-  // 1. Мгновенная синхронная подгрузка из резерва и первичная отрисовка Журнала (0 мс, без ожидания IndexedDB!)
+  if (typeof window !== 'undefined') {
+    window.__KLEV_OPEN_CATCH_WIZARD__ = openCatchWizard;
+  }
   const localCatches = storage.getLocalBackup ? storage.getLocalBackup('catches') : [];
   if (Array.isArray(localCatches) && localCatches.length > 0) {
     localCatches.sort((a, b) => b.timestamp - a.timestamp);
     store.dispatch({ type: 'SET_CATCHES', payload: localCatches });
   }
-
   render(container);
-
   if (unsub) unsub();
   unsub = store.subscribe(
     s => ({ route: s.route, catches: s.catches, fishId: s.fishId }),
@@ -1150,13 +1096,10 @@ export async function init(container) {
       render(container);
     }
   );
-
   if (unsubEvent) unsubEvent();
   unsubEvent = events.on('forecast:hourSelected', (payload) => {
     openCatchWizard(payload);
   });
-
-  // 2. Асинхронная двусторонняя синхронизация с IndexedDB и localStorage (полностью независимо от присвоенного резервного или постоянного Fisher ID!)
   try {
     const idbCatches = await storage.getAllFromStore('catches');
     const backupCatches = storage.getLocalBackup ? storage.getLocalBackup('catches') : [];
@@ -1180,12 +1123,10 @@ export async function init(container) {
     store.dispatch({ type: 'SET_CATCHES', payload: mergedAll });
   } catch (e) {}
 }
-
 export function destroy() {
   if (unsub) unsub();
   if (unsubEvent) unsubEvent();
 }
-
 export const logModule = {
   resolveDayWeatherForDate,
   getBiologicalMaxWeightKg,

@@ -1,17 +1,9 @@
-/**
- * @file store.js
- * @description Централизованное хранилище состояния (Store) с поддержкой 3 режимов («Новичок / Рыбак / Профи»),
- * модуля «Клёв ПРО: Круг» (разделение «Мои / Чужие», компактная лента, Экипаж 72ч по ключу, SOS всем рыбакам,
- * выделенная вкладка « Чаты» с отправкой улова, автопривязка и автокопирование ID рыбака FP-XXXXX,
- * закрытый Супер-Админ + управляемая База Администраторов) (Ревизия 2.1.1)
- */
-
-import { DEFAULT_STATE, getCompatibleMethods, getSeasonalBaitsForContext } from './config.js?v=2.5.2';
-import { storage } from './storage.js?v=2.5.2';
-import { detectBasinByCoords, BASIN_CONFIGS, isCoastalInBasin, getSpotEcoregion } from '../data/basins.js?v=2.5.2';
-import { findNearestRussianSettlement } from '../data/russia-waters.js?v=2.5.2';
-import { FISH_DB } from '../data/species.js?v=2.5.2';
-
+/* Klev PRO v2.5.3 r190 (Protected Build) */
+import { DEFAULT_STATE, getCompatibleMethods, getSeasonalBaitsForContext } from './config.js?v=2.5.3';
+import { storage } from './storage.js?v=2.5.3';
+import { detectBasinByCoords, BASIN_CONFIGS, isCoastalInBasin, getSpotEcoregion } from '../data/basins.js?v=2.5.3';
+import { findNearestRussianSettlement } from '../data/russia-waters.js?v=2.5.3';
+import { FISH_DB } from '../data/species.js?v=2.5.3';
 function getActiveDaySeasonContext(state, overrideDays = null, overrideDayIdx = null, overrideIceState = null) {
   const rawDays = overrideDays ?? state?.weatherDays;
   const days = Array.isArray(rawDays) ? rawDays : [];
@@ -21,44 +13,36 @@ function getActiveDaySeasonContext(state, overrideDays = null, overrideDayIdx = 
   const effWaterTemp = Number.isFinite(day?.waterTemp) ? day.waterTemp : 12;
   return { effIce, effWaterTemp };
 }
-
 function syncTackleForContext(nextState, forcePrimaryMethod = false) {
   const fishObj = FISH_DB.find(f => f.id === nextState.fishId) || FISH_DB[0];
   const { effIce, effWaterTemp } = getActiveDaySeasonContext(nextState);
   const compat = getCompatibleMethods(fishObj, effIce, nextState.water, effWaterTemp);
-
   let nextMethod = nextState.method;
   if (forcePrimaryMethod || !compat.some(m => m.val === nextMethod)) {
     nextMethod = compat[0]?.val || nextState.method;
   }
-
   const baits = getSeasonalBaitsForContext(fishObj, nextMethod, effWaterTemp, effIce);
   const nextBait = (!forcePrimaryMethod && nextState.selectedBait && baits.includes(nextState.selectedBait))
     ? nextState.selectedBait
     : (baits[0] || '');
-
   return {
     ...nextState,
     method: nextMethod,
     selectedBait: nextBait
   };
 }
-
 function createStore(initialState) {
   let state = { ...initialState };
   const subscribers = new Set();
-
   function getState() {
     return state;
   }
-
   function dispatch(action) {
     const prev = state;
     const next = reducer(state, action);
     if (next === prev) return;
     state = next;
     storage.saveSettings(state);
-
     for (const sub of subscribers) {
       try {
         const prevSlice = sub.selector ? sub.selector(prev) : prev;
@@ -71,7 +55,6 @@ function createStore(initialState) {
       }
     }
   }
-
   function subscribe(selectorOrCb, maybeCb) {
     const sub = typeof maybeCb === 'function'
       ? { selector: selectorOrCb, callback: maybeCb }
@@ -79,10 +62,8 @@ function createStore(initialState) {
     subscribers.add(sub);
     return () => subscribers.delete(sub);
   }
-
   return { getState, dispatch, subscribe };
 }
-
 function shallowEqual(a, b) {
   if (Object.is(a, b)) return true;
   if (typeof a !== 'object' || a === null || typeof b !== 'object' || b === null) return false;
@@ -94,7 +75,6 @@ function shallowEqual(a, b) {
   }
   return true;
 }
-
 function reducer(state, action) {
   switch (action.type) {
     case 'SET_ROUTE':
@@ -311,7 +291,6 @@ function reducer(state, action) {
       const nearestPlace = findNearestRussianSettlement(lat, lon);
       const fallbackLabel = nearestPlace ? nearestPlace.label : `${lat.toFixed(2)}°N, ${lon.toFixed(2)}°E`;
       const fallbackAdmin1 = nearestPlace ? nearestPlace.admin1 : '';
-
       const nextBase = {
         ...state,
         hasUserLocation: hasUserLocation ?? true,
@@ -497,7 +476,6 @@ function reducer(state, action) {
       return state;
   }
 }
-
 const rawSavedSettings = storage.loadSettings() || {};
 const isOldDefaultMoscow = (!rawSavedSettings.hasUserLocation && (rawSavedSettings.locLabel === 'Москва' || Math.abs((rawSavedSettings.lat || 0) - 55.7558) < 0.01));
 const saved = isOldDefaultMoscow
@@ -512,7 +490,6 @@ if (!initCoastal && (initWater === 'sea_gulf' || initWater === 'open_sea')) {
   initWater = 'small_river';
 }
 const initEcoregion = getSpotEcoregion(initLat, initLon, initBasin, initWater, saved.selectedWaterName || '');
-
 const nearestSettlement = findNearestRussianSettlement(initLat, initLon);
 const rawSavedLabel = saved.locLabel || '';
 const isStuckLabel = !rawSavedLabel || rawSavedLabel.includes('Определение') || rawSavedLabel.includes('Поиск');
@@ -523,15 +500,12 @@ const rawSavedAdmin1 = saved.locAdmin1 || '';
 const initLocAdmin1 = (rawSavedAdmin1 && rawSavedAdmin1 !== 'Автоопределение')
   ? rawSavedAdmin1
   : (nearestSettlement ? nearestSettlement.admin1 : 'Ямало-Ненецкий АО');
-
 const initFavorites = saved.favoritesExplicitlySet === true && Array.isArray(saved.favorites)
   ? saved.favorites
   : [];
-
 const initAppMode = ['novice', 'angler', 'pro'].includes(saved.appMode)
   ? saved.appMode
   : (['novice', 'angler', 'pro'].includes(saved.userProfile?.appMode) ? saved.userProfile.appMode : 'angler');
-
 const mergedUserProfile = {
   ...DEFAULT_STATE.userProfile,
   ...(saved.userProfile || {}),
@@ -546,7 +520,6 @@ const mergedUserProfile = {
     ...(saved.userProfile?.notifSettings || {})
   }
 };
-
 export const store = createStore(syncTackleForContext({
   ...DEFAULT_STATE,
   ...saved,

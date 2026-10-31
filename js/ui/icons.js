@@ -1,11 +1,5 @@
-/**
- * @file icons.js
- * @description Единая векторная система иконографии «Клёв ПРО 2.5.0» (100% SVG без единого системного эмодзи).
- * Обеспечивает чёткие, масштабируемые, объёмные SVG-значки во всех кнопках, вкладках, карточках, текстах и уведомлениях.
- */
-
+/* Klev PRO v2.5.3 r190 (Protected Build) */
 export const SVG_ICON_PATHS = {
-  // Навигация и основные разделы
   map: `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3V6z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 3v15M15 6v15" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="10" r="2.2" fill="#38bdf8" stroke="#fff" stroke-width="1"/></svg>`,
   pin: `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#ef4444"/></svg>`,
   gps: `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="7" stroke="#ef4444" stroke-width="1.9"/><circle cx="12" cy="12" r="2.6" fill="#ef4444"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`,
@@ -32,8 +26,6 @@ export const SVG_ICON_PATHS = {
   chat: `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>`,
   users: `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3.5" fill="rgba(56,189,248,0.25)" stroke="currentColor" stroke-width="1.8"/><path d="M3 19c0-3.2 2.7-5.5 6-5.5s6 2.3 6 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="17" cy="9" r="2.8" stroke="currentColor" stroke-width="1.6"/><path d="M16 14c2.6.3 4.8 2 5 4.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`,
   user: `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" fill="rgba(56,189,248,0.22)" stroke="currentColor" stroke-width="1.8"/><path d="M4 20c0-3.8 3.6-6.5 8-6.5s8 2.7 8 6.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`,
-
-  // Статусы, индикаторы и кружки категорий
   dot: `<svg class="k-ico" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg>`,
   dot_green: `<svg class="k-ico" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="#10b981" stroke="rgba(255,255,255,0.65)" stroke-width="1.5"/></svg>`,
   dot_blue: `<svg class="k-ico" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="#38bdf8" stroke="rgba(255,255,255,0.65)" stroke-width="1.5"/></svg>`,
@@ -42,8 +34,6 @@ export const SVG_ICON_PATHS = {
   dot_red: `<svg class="k-ico" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="#ef4444" stroke="rgba(255,255,255,0.65)" stroke-width="1.5"/></svg>`,
   dot_purple: `<svg class="k-ico" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="#a855f7" stroke="rgba(255,255,255,0.65)" stroke-width="1.5"/></svg>`,
   ring_empty: `<svg class="k-ico" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="6.5" stroke="#f59e0b" stroke-width="2.2"/></svg>`,
-
-  // Действия, поиск, закладки, файлы, безопасность
   search: `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="2"/><path d="M16 16l4.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`,
   star: `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.1 6.5L12 17.4l-5.8 3.1 1.1-6.5-4.8-4.6 6.6-.9L12 2.5z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6" stroke-linejoin="round"/></svg>`,
   spark: `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg>`,
@@ -69,8 +59,6 @@ export const SVG_ICON_PATHS = {
   eye: `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/></svg>`,
   eyeOff: `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 19c-6.4 0-10-7-10-7a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c6.4 0 10 7 10 7a18.5 18.5 0 0 1-2.16 3.19M1 1l22 22" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`,
   globe: `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" stroke="currentColor" stroke-width="1.6"/></svg>`,
-
-  // Метео, графики, компас, луна, солнце
   chart: `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M3 3v18h18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M7 15l4-5 4 3 5-7" stroke="#38bdf8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
   bars: `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="4" y="12" width="4" height="8" rx="1" fill="#38bdf8"/><rect x="10" y="6" width="4" height="14" rx="1" fill="#10b981"/><rect x="16" y="9" width="4" height="11" rx="1" fill="#fbbf24"/></svg>`,
   compass: `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><polygon points="16,8 13.5,13.5 8,16 10.5,10.5" fill="#38bdf8" stroke="currentColor" stroke-width="1.3"/></svg>`,
@@ -92,8 +80,6 @@ export const SVG_ICON_PATHS = {
   backpack: `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="6" y="7" width="12" height="14" rx="3" fill="rgba(56,189,248,0.16)" stroke="currentColor" stroke-width="1.8"/><path d="M9 7V5a3 3 0 0 1 6 0v2M9 14h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`,
   bag: `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="6" y="7" width="12" height="14" rx="3" fill="rgba(56,189,248,0.16)" stroke="currentColor" stroke-width="1.8"/><path d="M9 7V5a3 3 0 0 1 6 0v2M9 14h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`,
   sos: `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9.5" fill="#dc2626" stroke="#fca5a5" stroke-width="1.8"/><text x="12" y="15" text-anchor="middle" fill="#fff" font-size="7.5" font-weight="900" font-family="sans-serif">SOS</text></svg>`,
-
-  // Лодка, якорь, палатка, природа, снасти, инструменты и управление
   boat: `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M3 16l2 4h14l2-4-9-2-9 2z" fill="rgba(56,189,248,0.22)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 4v10M12 4l6 6h-6" stroke="#38bdf8" stroke-width="1.8" stroke-linejoin="round"/></svg>`,
   anchor: `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="5" r="2.5" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5V21M5 13c0 4.5 3.1 8 7 8s7-3.5 7-8M8 10h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`,
   tent: `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M3 20L12 4l9 16H3z" fill="rgba(16,185,129,0.2)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 12l-4 8h8l-4-8z" fill="#10b981"/></svg>`,
@@ -126,7 +112,6 @@ export const SVG_ICON_PATHS = {
   thumbUp: `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3" fill="rgba(16,185,129,0.22)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>`,
   thumbDown: `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h3a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-3" fill="rgba(245,158,11,0.22)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>`
 };
-
 export function svgIcon(name, colorOrClass = '') {
   const raw = SVG_ICON_PATHS[name] || SVG_ICON_PATHS.info;
   if (!colorOrClass) return raw;

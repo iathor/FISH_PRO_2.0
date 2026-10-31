@@ -1,12 +1,11 @@
-import { RU } from '../../i18n/ru.js?v=2.5.2';
-import { store } from '../../core/store.js?v=2.5.2';
-import { generateSpawnICS } from '../../core/format.js?v=2.5.2';
-import { BASIN_CONFIGS, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.5.2';
-import { FISH_DB } from '../../data/species.js?v=2.5.2';
-import { showToast, downloadFileCrossPlatform } from '../../ui/components.js?v=2.5.2';
-
+/* Klev PRO v2.5.3 r190 (Protected Build) */
+import { RU } from '../../i18n/ru.js?v=2.5.3';
+import { store } from '../../core/store.js?v=2.5.3';
+import { generateSpawnICS } from '../../core/format.js?v=2.5.3';
+import { BASIN_CONFIGS, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.5.3';
+import { FISH_DB } from '../../data/species.js?v=2.5.3';
+import { showToast, downloadFileCrossPlatform } from '../../ui/components.js?v=2.5.3';
 const COMPARE_COLORS = ['#10b981', '#38bdf8', '#a855f7'];
-
 export function getSpawnWindows(fishId, basinCode) {
   const fish = FISH_DB.find(f => f.id === fishId) || FISH_DB[0];
   const shiftWeeks = BASIN_CONFIGS[basinCode]?.spawnShiftWeeks || 0;
@@ -14,18 +13,15 @@ export function getSpawnWindows(fishId, basinCode) {
   const shiftNote = shiftWeeks === 0
     ? 'Базовый (без региональной поправки)'
     : `Региональная поправка бассейна: ${shiftWeeks > 0 ? '+' + shiftWeeks : shiftWeeks} нед.`;
-
   const monthShift = shiftWeeks >= 2 ? 1 : (shiftWeeks <= -2 ? -1 : 0);
   const shiftedSpawn = baseMonths.map(m => {
     const next = ((m - 1 + monthShift) % 12 + 12) % 12 + 1;
     return next;
   });
-
   const shiftedActivity = fish.monthActivity.map((_, idx) => {
     const srcIdx = ((idx - monthShift) % 12 + 12) % 12;
     return fish.monthActivity[srcIdx];
   });
-
   return {
     fish,
     shiftWeeks,
@@ -34,7 +30,6 @@ export function getSpawnWindows(fishId, basinCode) {
     monthActivity: shiftedActivity
   };
 }
-
 export function compareSpecies(ids) {
   const s = store.getState();
   const validIds = (ids && ids.length ? ids : s.compareSpeciesIds).slice(0, 3);
@@ -43,7 +38,6 @@ export function compareSpecies(ids) {
     color: COMPARE_COLORS[idx % COMPARE_COLORS.length]
   }));
 }
-
 export function renderCalendar(container, fishId) {
   if (!container) return;
   const prevMonthScroll = container.querySelector('.month-grid')?.scrollLeft || 0;
@@ -52,7 +46,6 @@ export function renderCalendar(container, fishId) {
   const info = getSpawnWindows(targetId, s.basinCode);
   const fish = info.fish;
   const curMonth = new Date().getMonth();
-
   const maxAct = Math.max(...info.monthActivity);
   const bestMonths = (maxAct > 0
         ? info.monthActivity.map((v, i) => v === maxAct ? RU.monthsShort[i] : null).filter(Boolean).join(', ')
@@ -60,7 +53,6 @@ export function renderCalendar(container, fishId) {
   const spawnText = info.spawnMonths.length
     ? info.spawnMonths.map(m => RU.monthsShort[m - 1]).join(' — ')
     : 'Не выражен';
-
   const singleHtml = `
     <div class="bento-metrics-grid" style="margin-bottom:12px;">
       <div class="bento-metric-tile">
@@ -80,7 +72,6 @@ export function renderCalendar(container, fishId) {
         <div class="bento-metric-val" style="color:var(--accent);">${fish.depthOpt[0]}–${fish.depthOpt[1]} м <span style="font-size:11px;color:var(--muted);">(до ${fish.depthMax} м)</span></div>
       </div>
     </div>
-
     <div class="month-grid">
       ${RU.monthsShort.map((mName, idx) => {
         const act = info.monthActivity[idx];
@@ -101,14 +92,12 @@ export function renderCalendar(container, fishId) {
       }).join('')}
     </div>
   `;
-
   const compared = compareSpecies(s.compareSpeciesIds);
   const compareHtml = `
     <!-- Пояснение формирования списка видов (Point 5) -->
     <div style="padding:8px 10px;background:var(--card);border-radius:var(--r-sm);margin-bottom:10px;font-size:var(--fs-xs);color:var(--muted);">
       <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="rgba(56,189,248,0.18)" stroke="#38bdf8" stroke-width="1.8"/><path d="M12 11v5M12 8h.01" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> <b>Формирование списка:</b> в выборке представлены только виды, обитающие в вашем регионе ловли (<b>${s.basinName}</b>) и разрешённые к любительскому вылову. Красная книга исключена из сравнения.
     </div>
-
     <div style="margin-bottom:10px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
       <span style="font-size:var(--fs-xs);color:var(--muted);font-weight:700;">Сравнить до 3 видов рыб:</span>
       ${(() => {
@@ -124,7 +113,6 @@ export function renderCalendar(container, fishId) {
         return `<button type="button" class="btn btn-sm ${active ? 'btn-accent' : ''}" data-cal-cmp="${f.id}">${f.name}</button>`;
       }).join('')}
     </div>
-
     <!-- Адаптивная легенда сравниваемых видов -->
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px;margin-bottom:10px;">
       ${compared.map(c => `
@@ -136,7 +124,6 @@ export function renderCalendar(container, fishId) {
         </div>
       `).join('')}
     </div>
-
     <div class="month-grid">
       ${RU.monthsShort.map((mName, idx) => {
         const isJointPeak = compared.length >= 2 && compared.every(c => c.monthActivity[idx] >= 2 && !c.spawnMonths.includes(idx + 1));
@@ -157,12 +144,10 @@ export function renderCalendar(container, fishId) {
         `;
       }).join('')}
     </div>
-
     <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:10px;font-size:var(--fs-xs);color:var(--muted);padding-top:6px;border-top:1px solid var(--border);">
       <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2c1.5 3.5 4.5 5.5 4.5 10a5.5 5.5 0 1 1-11 0c0-3 2-5.5 3.5-7 0 2 1.5 3 1.5 3S12 5.5 12 2z" fill="#f97316" stroke="#fbbf24" stroke-width="1.5" stroke-linejoin="round"/></svg> <b>Общий жор</b> — месяцы совпадения высокой кормовой активности всех выбранных видов</span>
     </div>
   `;
-
   container.innerHTML = `
     <div class="card">
       <div class="section-head">
@@ -176,9 +161,7 @@ export function renderCalendar(container, fishId) {
           ${s.calendarMode === 'single' ? `<button type="button" class="btn btn-sm" id="calExportIcsBtn"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg> Скачать .ics (Нерест)</button>` : ''}
         </div>
       </div>
-
       ${s.calendarMode === 'compare' ? compareHtml : singleHtml}
-
       ${s.calendarMode === 'single' ? `
         <div style="margin-top:12px;padding-top:8px;border-top:1px solid var(--border);font-size:var(--fs-xs);color:var(--muted);display:flex;gap:14px;flex-wrap:wrap;">
           <span><b style="color:var(--good);">■</b> Жор (пик активности)</span>
@@ -190,27 +173,23 @@ export function renderCalendar(container, fishId) {
       ` : ''}
     </div>
   `;
-
   bindCalendarEvents(container, info);
   if (prevMonthScroll > 0) {
     const mg = container.querySelector('.month-grid');
     if (mg) mg.scrollLeft = prevMonthScroll;
   }
 }
-
 function bindCalendarEvents(container, info) {
   container.querySelectorAll('[data-cal-mode]').forEach(btn => {
     btn.addEventListener('click', () => {
       store.dispatch({ type: 'SET_CALENDAR_MODE', payload: btn.getAttribute('data-cal-mode') });
     });
   });
-
   container.querySelectorAll('[data-cal-cmp]').forEach(btn => {
     btn.addEventListener('click', () => {
       store.dispatch({ type: 'TOGGLE_COMPARE_SPECIES', payload: btn.getAttribute('data-cal-cmp') });
     });
   });
-
   const icsBtn = container.querySelector('#calExportIcsBtn');
   if (icsBtn) {
     icsBtn.addEventListener('click', () => {
@@ -221,11 +200,9 @@ function bindCalendarEvents(container, info) {
     });
   }
 }
-
 export function render(container) {
   renderCalendar(container, store.getState().fishId);
 }
-
 let unsub = null;
 export function init(container) {
   render(container);
@@ -247,11 +224,9 @@ export function init(container) {
     }
   );
 }
-
 export function destroy() {
   if (unsub) unsub();
 }
-
 export const calendarModule = {
   getSpawnWindows,
   compareSpecies,

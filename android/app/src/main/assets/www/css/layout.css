@@ -1,9 +1,13 @@
+/* Main application layout & 3D Liquid Glass UI System (v2.5.0 r187 — по Фото 2) */
+
 :root {
   --header-h: 112px;
 }
+
 html {
   width: 100%;
 }
+
 body {
   width: 100%;
   max-width: 100vw;
@@ -13,10 +17,13 @@ body {
   background: var(--bg-grad, var(--bg)) !important;
   background-attachment: fixed !important;
 }
+
 #app, .bottom-nav {
   width: 100%;
   max-width: 100vw;
 }
+
+/* Базовый векторный значок .k-ico (полная замена эмодзи) */
 .k-ico {
   width: 1.15em;
   height: 1.15em;
@@ -28,6 +35,10 @@ body {
   overflow: visible;
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35));
 }
+
+/* ==========================================================================
+   1. ШАПКА 3D GLASS (СЛЕВА СТАТУС СЕТИ И ВОДЫ, СПРАВА ТЕМА И ID + ОКРУГ)
+   ========================================================================== */
 .app-header {
   position: fixed;
   top: 0;
@@ -48,6 +59,7 @@ body {
   border-bottom-color: #b8d4ee;
   box-shadow: 0 4px 16px rgba(20, 45, 76, 0.12), inset 0 1px 0 #ffffff;
 }
+
 .header-bar {
   max-width: 1200px;
   margin: 0 auto;
@@ -58,6 +70,8 @@ body {
   padding-bottom: 6px;
   width: 100%;
 }
+
+/* Выпуклый 3D-блок статуса слева в шапке */
 .header-status-block {
   flex: 1 1 auto;
   min-width: 0;
@@ -98,6 +112,7 @@ body {
   background: linear-gradient(180deg, #ffffff 0%, #e6f2fc 100%);
   box-shadow: inset 0 1.5px 1px #ffffff, 0 3px 8px rgba(20, 45, 76, 0.10);
 }
+
 .header-status-main {
   display: flex;
   align-items: center;
@@ -105,6 +120,7 @@ body {
   min-width: 0;
   width: 100%;
 }
+
 .header-online-badge {
   display: inline-flex;
   align-items: center;
@@ -121,6 +137,7 @@ body {
 [data-theme="light"] .header-online-badge {
   background: rgba(255, 255, 255, 0.85);
 }
+
 .header-season-verdict {
   font-size: 12px;
   font-weight: 900;
@@ -132,6 +149,7 @@ body {
   min-width: 0;
   line-height: 1.2;
 }
+
 .header-status-sub {
   display: flex;
   align-items: center;
@@ -151,12 +169,14 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
 .header-right-actions {
   display: flex;
   align-items: center;
   gap: 5px;
   flex-shrink: 0;
 }
+
 .btn-theme-chip {
   width: 36px;
   height: 36px;
@@ -178,6 +198,7 @@ body {
   border-color: #b5d0ea;
   box-shadow: inset 0 1.5px 1px #ffffff, 0 3px 8px rgba(20, 45, 76, 0.10);
 }
+
 .header-id-profile-btn {
   display: inline-flex;
   align-items: center;
@@ -196,6 +217,7 @@ body {
   background: linear-gradient(180deg, #ffffff 0%, #e6f4f1 100%);
   box-shadow: inset 0 1.5px 1px #ffffff, 0 3px 8px rgba(20, 45, 76, 0.10);
 }
+
 .header-id-text-col {
   display: flex;
   flex-direction: column;
@@ -203,6 +225,7 @@ body {
   line-height: 1.15;
   min-width: 0;
 }
+
 .header-id-code {
   font-family: monospace;
   font-size: 11px;
@@ -213,6 +236,7 @@ body {
   align-items: center;
   gap: 3px;
 }
+
 .header-id-sub {
   font-size: 9.5px;
   font-weight: 800;
@@ -222,6 +246,7 @@ body {
   text-overflow: ellipsis;
   max-width: 132px;
 }
+
 .header-avatar-circle {
   width: 26px;
   height: 26px;
@@ -235,6 +260,10 @@ body {
   font-size: 13px;
   flex-shrink: 0;
 }
+
+/* ==========================================================================
+   2. ВЕРХНЯЯ ПАНЕЛЬ НАВИГАЦИИ: ВЫПУКЛЫЕ 3D-СТЕКЛЯННЫЕ КНОПКИ БЕЗ ОБРЕЗКИ ТЕКСТА
+   ========================================================================== */
 .top-section-nav {
   max-width: 1200px;
   margin: 0 auto;
@@ -247,6 +276,7 @@ body {
 .top-section-nav[data-has-admin="1"] {
   grid-template-columns: repeat(5, minmax(0, 1fr));
 }
+
 .top-nav-item {
   border: 1.5px solid rgba(148, 210, 255, 0.32);
   background: linear-gradient(180deg, rgba(38, 62, 92, 0.92) 0%, rgba(17, 31, 52, 0.96) 55%, rgba(11, 21, 38, 0.98) 100%);
@@ -283,6 +313,7 @@ body {
 .top-nav-item:active {
   transform: scale(0.96);
 }
+
 .top-nav-ico {
   font-size: 18px;
   line-height: 1;
@@ -291,6 +322,7 @@ body {
   align-items: center;
   justify-content: center;
 }
+
 .top-nav-lbl {
   font-size: 10.5px;
   font-weight: 800;
@@ -299,6 +331,7 @@ body {
   max-width: 100%;
   line-height: 1.15;
 }
+
 .top-nav-item.active {
   color: #ffffff;
   background: linear-gradient(180deg, #38bdf8 0%, #0284c7 52%, #0369a1 100%);
@@ -310,6 +343,10 @@ body {
   border-color: #fde68a;
   color: #ffffff;
 }
+
+/* ==========================================================================
+   3. КАРТОЧКИ 3D LIQUID GLASS С ДИАГОНАЛЬНЫМ БЛИКОМ (ПО ФОТО 2)
+   ========================================================================== */
 .app-main {
   max-width: 1200px;
   margin: 0 auto;
@@ -318,6 +355,7 @@ body {
   flex-direction: column;
   gap: 12px;
 }
+
 .app-main > section,
 .card,
 .bento-card,
@@ -328,12 +366,14 @@ body {
   max-width: 100%;
   min-width: 0;
 }
+
 .bento-dashboard-wrap {
   display: flex;
   flex-direction: column;
   gap: 12px;
   width: 100%;
 }
+
 .bento-card,
 .card {
   background: linear-gradient(155deg, rgba(24, 45, 72, 0.92) 0%, rgba(12, 25, 44, 0.96) 55%, rgba(8, 17, 31, 0.98) 100%);
@@ -357,6 +397,8 @@ body {
   background: linear-gradient(155deg, rgba(28, 39, 58, 0.96) 0%, rgba(16, 23, 36, 0.98) 100%);
   border-color: rgba(245, 158, 11, 0.34);
 }
+
+/* Диагональный стеклянный блик на карточках, как на Фото 2 (1000131310.jpg) */
 .bento-card::before,
 .card::before {
   content: "";
@@ -374,6 +416,7 @@ body {
   position: relative;
   z-index: 1;
 }
+
 .bento-card.bento-hero-card {
   border-color: var(--bento-hero-border, rgba(56, 189, 248, 0.42));
 }
@@ -388,6 +431,7 @@ body {
   border-color: var(--bento-weather-border, rgba(16, 185, 129, 0.38));
   cursor: pointer;
 }
+
 .bento-card-head,
 .section-head {
   display: flex;
@@ -397,6 +441,7 @@ body {
   flex-wrap: wrap;
   margin-bottom: 10px;
 }
+
 .bento-card-title,
 .section-title {
   font-size: 15.5px;
@@ -409,30 +454,36 @@ body {
   text-transform: none !important;
   letter-spacing: 0 !important;
 }
+
 .bento-card-sub {
   font-size: 11.5px;
   color: var(--muted);
   font-weight: 700;
   margin-top: 2px;
 }
+
+/* Герой-сетка (Ихтиологический Прогноз / Режим водоёма) */
 .bento-hero-grid {
   display: grid;
   grid-template-columns: 1.15fr 0.95fr;
   gap: 12px;
   align-items: center;
 }
+
 @media (max-width: 400px) {
   .bento-hero-grid {
     grid-template-columns: 1.08fr 0.92fr;
     gap: 8px;
   }
 }
+
 .bento-active-status-row {
   display: flex;
   align-items: center;
   gap: 10px;
   margin-bottom: 10px;
 }
+
 .bento-splash-fish-box {
   width: 68px;
   height: 52px;
@@ -446,12 +497,14 @@ body {
   flex-shrink: 0;
   padding: 3px;
 }
+
 .bento-splash-fish-box img {
   width: 100%;
   height: 100%;
   object-fit: contain;
   filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.35));
 }
+
 .bento-status-verdict {
   font-size: 16.5px;
   font-weight: 900;
@@ -459,17 +512,20 @@ body {
   line-height: 1.15;
   color: var(--good);
 }
+
 .bento-top3-label {
   font-size: 11.5px;
   font-weight: 800;
   color: var(--muted);
   margin-bottom: 6px;
 }
+
 .bento-top3-row {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
 }
+
 .bento-top3-item {
   border: 1.5px solid rgba(148, 210, 255, 0.28);
   background: linear-gradient(180deg, rgba(34, 56, 84, 0.90) 0%, rgba(15, 28, 48, 0.95) 100%);
@@ -487,15 +543,18 @@ body {
   background: linear-gradient(180deg, #ffffff 0%, #eaf3fc 100%);
   border-color: #bdd4ea;
 }
+
 .bento-top3-item.active {
   border: 1.5px solid var(--accent);
   box-shadow: inset 0 1.5px 1px rgba(255, 255, 255, 0.4), 0 0 0 1.5px var(--accent);
 }
+
 .bento-top3-item img {
   width: 54px;
   height: 26px;
   object-fit: contain;
 }
+
 .bento-top3-name {
   font-size: 11px;
   font-weight: 800;
@@ -505,17 +564,20 @@ body {
   text-overflow: ellipsis;
   max-width: 100%;
 }
+
 .bento-top3-pct {
   font-size: 10px;
   font-weight: 900;
   color: var(--good);
 }
+
 .bento-gauge-col {
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
 }
+
 .bento-gauge-svg-box {
   position: relative;
   width: 156px;
@@ -524,6 +586,7 @@ body {
   align-items: flex-end;
   justify-content: center;
 }
+
 .bento-gauge-center-text {
   position: absolute;
   bottom: 2px;
@@ -534,16 +597,19 @@ body {
   align-items: center;
   line-height: 1.12;
 }
+
 .bento-gauge-sub {
   font-size: 11px;
   font-weight: 700;
   color: var(--muted);
 }
+
 .bento-gauge-lvl {
   font-size: 13px;
   font-weight: 900;
   color: var(--text);
 }
+
 .bento-gauge-pct {
   font-size: 27px;
   font-weight: 900;
@@ -557,33 +623,39 @@ body {
 [data-theme="contrast"] .bento-gauge-pct {
   color: #fbbf24;
 }
+
 .bento-tackle-summary {
   margin-top: 6px;
   font-size: 12px;
   line-height: 1.3;
   color: var(--text);
 }
+
 .bento-tackle-rec {
   font-size: 11px;
   color: var(--muted);
   margin-top: 2px;
   line-height: 1.28;
 }
+
 .bento-bottom-duo {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
+
 @media (max-width: 360px) {
   .bento-bottom-duo {
     grid-template-columns: 1fr;
   }
 }
+
 .bento-metrics-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
   gap: 9px;
 }
+
 .bento-metric-tile {
   background: linear-gradient(180deg, rgba(30, 52, 80, 0.88) 0%, rgba(14, 27, 46, 0.94) 100%);
   border: 1.5px solid rgba(125, 195, 245, 0.28);
@@ -599,6 +671,7 @@ body {
   border-color: #bdd4ea;
   box-shadow: inset 0 1px 0 #ffffff, 0 3px 8px rgba(20, 45, 76, 0.08);
 }
+
 .bento-metric-label {
   font-size: 11px;
   font-weight: 800;
@@ -607,17 +680,20 @@ body {
   align-items: center;
   gap: 5px;
 }
+
 .bento-metric-val {
   font-size: 18px;
   font-weight: 900;
   color: var(--text);
   line-height: 1.2;
 }
+
 .bento-metric-sub {
   font-size: 11px;
   color: var(--muted);
   line-height: 1.3;
 }
+
 .bento-radar-visual {
   position: relative;
   height: 126px;
@@ -636,6 +712,7 @@ body {
   background: radial-gradient(circle at 50% 50%, rgba(56, 189, 248, 0.18) 0%, #0f1623 78%);
   border-color: rgba(56, 189, 248, 0.36);
 }
+
 .bento-radar-badge-zone {
   position: absolute;
   top: 7px;
@@ -650,6 +727,7 @@ body {
   color: var(--text);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
 }
+
 .bento-radar-badge-crew {
   position: absolute;
   bottom: 7px;
@@ -663,27 +741,32 @@ body {
   color: var(--good);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
 }
+
 .bento-weather-rows {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
+
 .bento-temp-split {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 6px;
 }
+
 .bento-temp-air {
   font-size: 24px;
   font-weight: 900;
   color: var(--text);
   line-height: 1.05;
 }
+
 .bento-temp-water-box {
   text-align: right;
   line-height: 1.15;
 }
+
 .bento-weather-item-row {
   display: flex;
   align-items: center;
@@ -693,16 +776,22 @@ body {
   font-size: 12px;
   line-height: 1.22;
 }
+
+/* ==========================================================================
+   4. ЛЕНТЫ ПРОКРУТКИ, КАРТОЧКИ ДНЕЙ, ЧАСОВ И РЫБ
+   ========================================================================== */
 .express-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 10px;
 }
+
 .controls-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(225px, 1fr));
   gap: 10px;
 }
+
 .fish-strip,
 .week-strip,
 .bite-timeline,
@@ -717,6 +806,7 @@ body {
   -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
 }
+
 .fish-toolbar-onerow {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -724,6 +814,7 @@ body {
   width: 100%;
   margin-bottom: 8px;
 }
+
 .fish-toolbar-onerow .btn {
   width: 100%;
   min-width: 0;
@@ -734,16 +825,19 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
 .fish-strip-placeholder {
   width: 100%;
   min-width: 0;
 }
+
 .fish-strip-dock-wrap {
   width: 100%;
   min-width: 0;
   will-change: height, transform;
   transition: background-color 0.2s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.2s cubic-bezier(0.22, 1, 0.36, 1), height 0.12s cubic-bezier(0.22, 1, 0.36, 1);
 }
+
 .fish-strip-dock-wrap.docked-mini {
   position: fixed;
   top: var(--header-h, 112px);
@@ -756,12 +850,14 @@ body {
   box-shadow: var(--shadow-header);
   padding: 4px 12px;
 }
+
 .fish-strip-dock-wrap.docked-mini .fish-strip {
   max-width: 1200px;
   margin: 0 auto;
   padding: 2px 0;
   gap: 6px;
 }
+
 .fish-strip-dock-wrap.docked-mini .fish-card {
   flex-direction: row;
   align-items: center;
@@ -773,6 +869,7 @@ body {
   border-radius: var(--r-sm);
   transform: none !important;
 }
+
 .fish-strip-dock-wrap.docked-mini .fish-img-wrap {
   width: calc(118px - var(--shrink, 1) * 78px);
   height: calc(52px - var(--shrink, 1) * 26px);
@@ -780,12 +877,14 @@ body {
   flex-shrink: 0;
   transition: width 0.14s ease, height 0.14s ease;
 }
+
 .fish-strip-dock-wrap.docked-mini .fish-name {
   font-size: 13.5px;
   font-weight: 800;
   margin: 0;
   white-space: nowrap;
 }
+
 .fish-strip-dock-wrap.docked-mini .fav-btn,
 .fish-strip-dock-wrap.docked-mini .fish-latin,
 .fish-strip-dock-wrap.docked-mini .fish-badge-wrap,
@@ -794,6 +893,7 @@ body {
 .fish-strip-dock-wrap.docked-mini [data-info-fish] {
   display: none !important;
 }
+
 .week-strip {
   display: flex;
   gap: 8px;
@@ -801,6 +901,7 @@ body {
   padding-bottom: 6px;
   align-items: stretch;
 }
+
 .day-card {
   min-width: 146px;
   background: linear-gradient(180deg, rgba(32, 54, 82, 0.90) 0%, rgba(14, 27, 46, 0.95) 100%);
@@ -830,6 +931,7 @@ body {
 [data-theme="light"] .day-card.active {
   background: linear-gradient(180deg, #dbeafe 0%, #eff6ff 100%);
 }
+
 .day-card.archive-day {
   min-width: 118px;
   max-width: 132px;
@@ -843,17 +945,20 @@ body {
   padding: 10px 12px;
   border-width: 1.5px;
 }
+
 .day-status-stripe {
   height: 4px;
   width: 100%;
   border-radius: 3px;
 }
+
 .month-grid {
   display: flex;
   gap: 6px;
   overflow-x: auto;
   padding-bottom: 4px;
 }
+
 .month-cell {
   flex: 1 0 62px;
   min-width: 62px;
@@ -867,6 +972,10 @@ body {
   gap: 4px;
 }
 .month-cell.current { border-color: var(--accent); box-shadow: 0 0 0 1.5px var(--accent); }
+
+/* ==========================================================================
+   5. НИЖНИЙ 3D МАТОВЫЙ СТЕКЛЯННЫЙ ДОК «БЫСТРЫЙ ДОСТУП» (ПО ФОТО 2)
+   ========================================================================== */
 .bottom-nav {
   position: fixed;
   bottom: 0;
@@ -879,6 +988,7 @@ body {
   padding: 0 8px 6px 8px;
   pointer-events: none;
 }
+
 .quick-dock-tab-label {
   width: fit-content;
   margin: 0 auto -1px auto;
@@ -899,6 +1009,7 @@ body {
   border-color: #b4d0eb;
   color: #1e3a8a;
 }
+
 .bottom-nav-inner {
   pointer-events: auto;
   max-width: 580px;
@@ -921,6 +1032,7 @@ body {
   border-color: #a8c8e8;
   box-shadow: inset 0 2px 1px #ffffff, 0 6px 20px rgba(20, 45, 76, 0.16);
 }
+
 .nav-tab {
   display: flex;
   flex-direction: column;
@@ -940,6 +1052,7 @@ body {
   min-width: 0;
   transition: all 0.15s ease;
 }
+
 .nav-tab.active {
   opacity: 1;
   color: #38bdf8;
@@ -957,6 +1070,7 @@ body {
   color: var(--accent);
   border-color: rgba(245, 158, 11, 0.6);
 }
+
 .bottom-nav-inner .nav-tab .dock-ico {
   font-size: 20px;
   line-height: 1;
@@ -964,10 +1078,12 @@ body {
   align-items: center;
   justify-content: center;
 }
+
 .nav-sos-btn {
   opacity: 1 !important;
   color: #ef4444 !important;
 }
+
 .sos-red-circle {
   width: 32px;
   height: 32px;
@@ -983,11 +1099,16 @@ body {
   justify-content: center;
   box-shadow: inset 0 2px 2px rgba(255, 255, 255, 0.55), 0 3px 12px rgba(220, 38, 38, 0.65);
 }
+
 .sos-lbl-text {
   font-size: 10.5px;
   font-weight: 900;
   color: #ef4444;
 }
+
+/* ==========================================================================
+   6. КАРТА И ПРОЧИЕ МОДУЛИ
+   ========================================================================== */
 #mapBox {
   width: 100%;
   height: 330px;
@@ -1001,6 +1122,7 @@ body {
   overflow: hidden;
   transition: height 0.2s ease;
 }
+
 @media (min-width: 768px) {
   #mapBox { height: 520px; }
 }
@@ -1010,6 +1132,7 @@ body {
 @media (min-width: 1440px) {
   #mapBox { height: 720px; }
 }
+
 .map-layers-row {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -1017,6 +1140,7 @@ body {
   width: 100%;
   margin-bottom: 8px;
 }
+
 .map-layer-btn {
   width: 100%;
   text-align: center;
@@ -1026,10 +1150,12 @@ body {
   min-height: 36px;
   border-radius: 999px !important;
 }
+
 @media (max-width: 720px) {
   .factor-row { grid-template-columns: 135px 1fr 50px; font-size: var(--fs-xs); }
   .nav-tab { font-size: 10.5px; padding: 3px 1px; }
 }
+
 .circle-chats-hub-bar {
   display: grid !important;
   grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
@@ -1040,12 +1166,15 @@ body {
   border-radius: 16px !important;
   margin-bottom: 12px !important;
 }
+
 .circle-chats-hub-btn {
   min-height: 44px !important;
   border-radius: 12px !important;
   font-weight: 900 !important;
   font-size: 13.5px !important;
 }
+
+/* Загрузочный сплеш-экран */
 .app-splash-screen {
   position: fixed;
   inset: 0;
@@ -1123,6 +1252,7 @@ body {
   color: #94a3b8;
   letter-spacing: 0.2px;
 }
+
 .app-splash-screen[data-app-splash-theme="light"] {
   background: linear-gradient(180deg, #e3f1fc 0%, #f5faff 50%, #d8ecfa 100%) !important;
 }
@@ -1134,6 +1264,7 @@ body {
 .app-splash-screen[data-app-splash-theme="light"] .app-splash-sub {
   color: #1e3a8a;
 }
+
 .app-splash-screen[data-app-splash-theme="contrast"] {
   background: #0b1018 !important;
 }
@@ -1149,6 +1280,7 @@ body {
   color: #fbbf24;
   font-family: monospace;
 }
+
 .fisher-id-copy-badge {
   user-select: none;
   -webkit-user-select: none;

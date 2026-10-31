@@ -1,7 +1,5 @@
-import { svgIcon } from './icons.js?v=2.5.2';
-/**
- * Экранирует пользовательские строки перед вставкой в HTML (защита от DOM XSS и инъекций тегов)
- */
+/* Klev PRO v2.5.3 r190 (Protected Build) */
+import { svgIcon } from './icons.js?v=2.5.3';
 export function escapeHtml(raw) {
   if (raw === null || raw === undefined) return '';
   const str = String(raw);
@@ -26,11 +24,6 @@ export function escapeHtml(raw) {
     .replace(/'/g, '&#39;');
   return escaped.replace(/__KLEV_SVG_TOKEN_(\d+)__/g, (_, idx) => tokens[Number(idx)] || '');
 }
-
-/**
- * Проверяет, что рыболовный позывной (логин) не содержит персональных данных (номера телефона или e-mail)
- * для соблюдения архитектуры Zero-PII в соответствии со ст. 3 и ст. 22 ФЗ № 152-ФЗ «О персональных данных».
- */
 export function isAnonymousCallsignValid(rawLogin = '') {
   const s = String(rawLogin || '').trim();
   if (!s) return { ok: true };
@@ -47,24 +40,20 @@ export function isAnonymousCallsignValid(rawLogin = '') {
   }
   return { ok: true };
 }
-
 export function createPill({ text, tone = 'neutral', icon = '', ariaLabel = '' }) {
   const cls = `pill pill-${tone}`;
   const aria = ariaLabel ? ` aria-label="${ariaLabel}"` : '';
   return `<span class="${cls}"${aria}>${icon ? `<span aria-hidden="true">${icon}</span>` : ''}<span>${text}</span></span>`;
 }
-
 export function createChip({ label, active = false, attrs = '' }) {
   return `<button type="button" class="btn btn-sm chip-interactive ${active ? 'btn-accent' : ''}" ${attrs}>${label}</button>`;
 }
-
 export function createCard({ title = '', rightHtml = '', bodyHtml = '', extraClass = '' }) {
   const head = (title || rightHtml)
     ? `<div class="section-head"><span class="section-title">${title}</span><div>${rightHtml}</div></div>`
     : '';
   return `<div class="card ${extraClass}">${head}${bodyHtml}</div>`;
 }
-
 export function createSkeleton(lines = 3) {
   let out = '<div class="card" aria-busy="true">';
   for (let i = 0; i < lines; i++) {
@@ -72,7 +61,6 @@ export function createSkeleton(lines = 3) {
   }
   return out + '</div>';
 }
-
 export function showToast(message, tone = 'info') {
   let box = document.getElementById('toastContainer');
   if (!box) {
@@ -96,16 +84,10 @@ export function showToast(message, tone = 'info') {
     item.remove();
   }, 3800);
 }
-
-/**
- * Автокопирование Рыболовного ID (FP_FMP089 / FP_89AAA001) или ключа Экипажа (KP-XXXX) в буфер обмена
- * в 1 нажатие (работает в браузере, Android APK WebView, iOS Safari и Telegram Mini App)
- */
 export async function copyFisherIdToClipboard(rawId, labelPrefix = 'ID рыбака') {
   const cleanId = String(rawId || '').trim();
   if (!cleanId) return false;
   let copied = false;
-
   try {
     if (typeof navigator !== 'undefined' && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
       const clipPromise = navigator.clipboard.writeText(cleanId);
@@ -114,7 +96,6 @@ export async function copyFisherIdToClipboard(rawId, labelPrefix = 'ID рыба�
       copied = Boolean(res);
     }
   } catch (e) {}
-
   if (!copied && typeof document !== 'undefined') {
     try {
       const ta = document.createElement('textarea');
@@ -128,11 +109,9 @@ export async function copyFisherIdToClipboard(rawId, labelPrefix = 'ID рыба�
       ta.remove();
     } catch (e) {}
   }
-
   showToast(` ${labelPrefix} ${cleanId} скопирован!`, 'good');
   return copied;
 }
-
 if (typeof document !== 'undefined' && !window.__KLEV_COPY_ID_BOUND__) {
   window.__KLEV_COPY_ID_BOUND__ = true;
   document.addEventListener('click', (e) => {
@@ -152,13 +131,6 @@ if (typeof document !== 'undefined' && !window.__KLEV_COPY_ID_BOUND__) {
     }
   });
 }
-
-/**
- * Открывает адаптивное модальное окно / подменю.
- * - Все кнопки «<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Закрыть» расположены внизу в закреплённом нижнем баре (.modal-sticky-footer).
- * - При открытии ставится защитная запись в history (Back-Guard), чтобы боковой свайп «Назад»
- *   аккуратно закрывал подменю/модалку (или возвращал в хаб настроек), а не сворачивал приложение.
- */
 export function openModal(title, contentHtml, onMount = null, canClose = true, options = {}) {
   let backdrop = document.getElementById('appModalBackdrop');
   if (!backdrop) {
@@ -170,12 +142,10 @@ export function openModal(title, contentHtml, onMount = null, canClose = true, o
   backdrop.onclick = (e) => {
     if (canClose && e.target === backdrop) closeModal();
   };
-
   const onBackFn = (options && typeof options.onBack === 'function') ? options.onBack : null;
   if (typeof window !== 'undefined') {
     window.__KLEV_MODAL_BACK_FN__ = onBackFn;
   }
-
   let footerHtml = (options && options.footerHtml) ? String(options.footerHtml) : '';
   if (!footerHtml && canClose) {
     const backBtnPart = onBackFn
@@ -188,9 +158,7 @@ export function openModal(title, contentHtml, onMount = null, canClose = true, o
   } else if (footerHtml && canClose && !footerHtml.includes('data-modal-close') && !footerHtml.includes('modalCloseBtn')) {
     footerHtml += `<button type="button" class="btn" id="modalCloseBtn" data-modal-close style="flex:1;min-width:0;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Закрыть</button>`;
   }
-
   const headerRightHtml = (options && options.headerRightHtml) ? String(options.headerRightHtml) : '';
-
   backdrop.innerHTML = `
     <div class="modal-box ${footerHtml ? 'modal-has-sticky-footer' : ''}" role="dialog" aria-modal="true" aria-label="${title}">
       <div class="section-head" style="margin-bottom:10px;">
@@ -202,11 +170,9 @@ export function openModal(title, contentHtml, onMount = null, canClose = true, o
     </div>
   `;
   backdrop.classList.add('open');
-
   if (typeof window !== 'undefined' && typeof window.__KLEV_PUSH_BACK_GUARD__ === 'function') {
     window.__KLEV_PUSH_BACK_GUARD__('modal');
   }
-
   const closeBtn = backdrop.querySelector('#modalCloseBtn');
   if (closeBtn) closeBtn.addEventListener('click', closeModal);
   backdrop.querySelectorAll('[data-modal-close]').forEach(btn => {
@@ -221,12 +187,10 @@ export function openModal(title, contentHtml, onMount = null, canClose = true, o
       fn();
     });
   }
-
   if (typeof onMount === 'function') {
     onMount(backdrop.querySelector('#modalDynamicBody'), backdrop.querySelector('#modalStickyFooter'));
   }
 }
-
 export function closeModal() {
   if (typeof window !== 'undefined') {
     window.__KLEV_MODAL_BACK_FN__ = null;
@@ -234,11 +198,6 @@ export function closeModal() {
   const backdrop = document.getElementById('appModalBackdrop');
   if (backdrop) backdrop.classList.remove('open');
 }
-
-/**
- * Универсальное модальное окно подтверждения удаления (для Супер-Админа, Журнала уловов, Чатов, Карты и Круга).
- * Отрисовывается поверх любых открытых окон (z-index: 12500), не сбрасывая текущее состояние экрана.
- */
 export function openConfirmDeleteModal({
   title = '<svg class="k-ico" style="color:var(--warn);" viewBox="0 0 24 24" fill="none"><path d="M12 3L2.5 19.5h19L12 3z" fill="rgba(245,158,11,0.24)" stroke="#f59e0b" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9v5M12 17h.01" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/></svg> Подтверждение удаления',
   message = 'Вы уверены, что хотите выполнить удаление?',
@@ -257,12 +216,10 @@ export function openConfirmDeleteModal({
     overlay.style.cssText = 'position:fixed;inset:0;z-index:12500;background:rgba(4,9,20,0.78);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:16px;';
     document.body.appendChild(overlay);
   }
-
   const closeConfirm = () => {
     overlay.style.display = 'none';
     overlay.innerHTML = '';
   };
-
   overlay.style.display = 'flex';
   overlay.innerHTML = `
     <div class="card" role="alertdialog" aria-modal="true" style="max-width:420px;width:100%;background:var(--panel);border:2px solid var(--bad);border-radius:var(--r-md);padding:16px;box-shadow:0 16px 40px rgba(0,0,0,0.65);display:flex;flex-direction:column;gap:12px;">
@@ -288,19 +245,16 @@ export function openConfirmDeleteModal({
       </div>
     </div>
   `;
-
   overlay.onclick = (e) => {
     if (e.target === overlay) {
       closeConfirm();
       if (typeof onCancel === 'function') onCancel();
     }
   };
-
   overlay.querySelector('#klevConfirmCancelBtn')?.addEventListener('click', () => {
     closeConfirm();
     if (typeof onCancel === 'function') onCancel();
   });
-
   overlay.querySelector('#klevConfirmOkBtn')?.addEventListener('click', async () => {
     const extraChecked = Boolean(overlay.querySelector('#klevConfirmExtraChk')?.checked);
     closeConfirm();
@@ -309,10 +263,8 @@ export function openConfirmDeleteModal({
     }
   });
 }
-
 export const USER_AGREEMENT_STORAGE_KEY = 'klev_pro_ua_accepted_v213';
 export const USER_AGREEMENT_MIN_READ_SECONDS = 15;
-
 export function isUserAgreementAccepted() {
   try {
     return Boolean(typeof localStorage !== 'undefined' && localStorage.getItem(USER_AGREEMENT_STORAGE_KEY));
@@ -320,13 +272,6 @@ export function isUserAgreementAccepted() {
     return false;
   }
 }
-
-/**
- * Отдельное окно «<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" fill="rgba(56,189,248,0.14)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M14 2v6h6M8 13h8M8 17h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Пользовательское соглашение и Политика конфиденциальности (152-ФЗ)» при регистрации и в настройках профиля.
- * При регистрации (requireVerification === true) требует:
- * 1) Прокрутки текста соглашения до самого конца («Пролистано до конца»)
- * 2) Минимального времени чтения текста (таймер не менее USER_AGREEMENT_MIN_READ_SECONDS секунд)
- */
 export function openUserAgreementModal({
   requireVerification = false,
   onAccepted = null,
@@ -340,18 +285,15 @@ export function openUserAgreementModal({
     overlay.style.cssText = 'position:fixed;inset:0;z-index:12400;background:rgba(4,9,20,0.86);backdrop-filter:blur(5px);display:flex;align-items:center;justify-content:center;padding:12px;';
     document.body.appendChild(overlay);
   }
-
   let timerInterval = null;
   let secondsLeft = requireVerification ? USER_AGREEMENT_MIN_READ_SECONDS : 0;
   let scrolledToBottom = !requireVerification;
-
   const cleanupAndClose = () => {
     if (timerInterval) clearInterval(timerInterval);
     overlay.style.display = 'none';
     overlay.innerHTML = '';
     if (typeof onClose === 'function') onClose();
   };
-
   overlay.style.display = 'flex';
   overlay.innerHTML = `
     <div class="card" role="dialog" aria-modal="true" aria-label="Пользовательское соглашение Клёв ПРО 2.0" style="max-width:540px;width:100%;max-height:92vh;background:var(--panel);border:1.5px solid var(--accent);border-radius:var(--r-md);padding:14px;display:flex;flex-direction:column;gap:10px;box-shadow:0 18px 48px rgba(0,0,0,0.75);">
@@ -368,7 +310,6 @@ export function openUserAgreementModal({
           </div>
         </div>
       </div>
-
       ${requireVerification ? `
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11px;">
           <div id="uaScrollStatusBox" style="padding:6px 8px;border-radius:6px;background:rgba(245,158,11,0.12);border:1px solid var(--warn);color:var(--warn);font-weight:800;text-align:center;">
@@ -379,7 +320,6 @@ export function openUserAgreementModal({
           </div>
         </div>
       ` : ''}
-
       <div id="uaScrollTextContainer" style="flex:1;min-height:220px;max-height:54vh;overflow-y:auto;padding:12px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);font-size:12.5px;line-height:1.52;color:var(--text);display:flex;flex-direction:column;gap:10px;">
         <div>
           <b style="color:var(--accent);">1. Общие положения и некоммерческий статус (ст. 9 ЗоЗПП РФ, ст. 10 ФЗ № 149-ФЗ)</b><br>
@@ -416,7 +356,6 @@ export function openUserAgreementModal({
           <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Конец текста Пользовательского соглашения и Политики конфиденциальности «Клёв ПРО 2.0»
         </div>
       </div>
-
       <div style="display:grid;grid-template-columns:minmax(100px,1fr) minmax(150px,1.6fr);gap:8px;padding-top:4px;width:100%;">
         <button type="button" class="btn btn-sm" id="uaCancelCloseBtn" style="width:100%;min-height:42px;padding:6px 10px;font-size:13px;font-weight:800;">
           <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Закрыть
@@ -433,12 +372,10 @@ export function openUserAgreementModal({
       </div>
     </div>
   `;
-
   const scrollBox = overlay.querySelector('#uaScrollTextContainer');
   const scrollBadge = overlay.querySelector('#uaScrollStatusBox');
   const timerBadge = overlay.querySelector('#uaTimerStatusBox');
   const acceptBtn = overlay.querySelector('#uaAcceptConfirmBtn');
-
   const updateAcceptButtonState = () => {
     if (!requireVerification) return;
     if (scrollBadge) {
@@ -478,7 +415,6 @@ export function openUserAgreementModal({
       }
     }
   };
-
   if (requireVerification && scrollBox) {
     const checkScrollPos = () => {
       if (scrollBox.scrollTop + scrollBox.clientHeight >= scrollBox.scrollHeight - 18) {
@@ -488,7 +424,6 @@ export function openUserAgreementModal({
     };
     scrollBox.addEventListener('scroll', checkScrollPos, { passive: true });
     setTimeout(checkScrollPos, 150);
-
     timerInterval = setInterval(() => {
       secondsLeft = Math.max(0, secondsLeft - 1);
       updateAcceptButtonState();
@@ -498,11 +433,9 @@ export function openUserAgreementModal({
       }
     }, 1000);
   }
-
   overlay.querySelector('#uaCancelCloseBtn')?.addEventListener('click', () => {
     cleanupAndClose();
   });
-
   acceptBtn?.addEventListener('click', () => {
     if (requireVerification && (!scrolledToBottom || secondsLeft > 0)) return;
     try {
@@ -516,11 +449,9 @@ export function openUserAgreementModal({
     }
   });
 }
-
 if (typeof window !== 'undefined') {
   window.openLegalModal = () => openUserAgreementModal({ requireVerification: false });
 }
-
 export function openFishLightbox(fishTitle, latinTitle, visualHtml) {
   let lb = document.getElementById('fishImageLightbox');
   if (!lb) {
@@ -559,23 +490,15 @@ export function openFishLightbox(fishTitle, latinTitle, visualHtml) {
   lb.querySelector('#fishLightboxCloseBtn')?.addEventListener('click', closeLb);
   lb.querySelector('#fishLightboxStage')?.addEventListener('click', closeLb);
 }
-
-
-/**
- * Кроссплатформенная выгрузка файла на устройство (100% работает в Android APK, iOS Safari/PWA, Telegram Mini App и браузере ПК).
- * В Android APK сохраняет файл напрямую в системную папку «Загрузки» (Downloads) и отправляет системное уведомление.
- */
 export function downloadFileCrossPlatform(filename, content, mimeType = 'application/octet-stream') {
   const cleanName = String(filename || 'klev-pro-export.txt').trim();
   const strContent = typeof content === 'string' ? content : JSON.stringify(content, null, 2);
-
   try {
     if (typeof window !== 'undefined' && window.AndroidBridge && typeof window.AndroidBridge.saveFileToDownloads === 'function') {
       const ok = window.AndroidBridge.saveFileToDownloads(cleanName, strContent, mimeType, false);
       if (ok) return true;
     }
   } catch (e) {}
-
   try {
     const blob = new Blob([strContent], { type: mimeType });
     const url = URL.createObjectURL(blob);
@@ -599,10 +522,6 @@ export function downloadFileCrossPlatform(filename, content, mimeType = 'applica
   }
   return false;
 }
-
-/**
- * Отправляет системное уведомление в шторку Android (через AndroidBridge) или через Web Notification API / Service Worker.
- */
 export function triggerSystemNotificationCrossPlatform(title, body, category = 'alerts') {
   const cleanTitle = String(title || 'Клёв ПРО 2.0').trim();
   const cleanBody = String(body || '').trim();
@@ -612,7 +531,6 @@ export function triggerSystemNotificationCrossPlatform(title, body, category = '
       return true;
     }
   } catch (e) {}
-
   try {
     if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
       if ('serviceWorker' in navigator && navigator.serviceWorker.ready) {
@@ -634,11 +552,6 @@ export function triggerSystemNotificationCrossPlatform(title, body, category = '
   } catch (e) {}
   return false;
 }
-
-/**
- * Запрашивает системное разрешение на показ уведомлений в шторке смартфона (Android 13+ / iOS / Web)
- * или открывает системный экран настроек уведомлений приложения.
- */
 export async function requestSystemNotificationsAccess() {
   try {
     if (typeof window !== 'undefined' && window.AndroidBridge) {
@@ -653,7 +566,6 @@ export async function requestSystemNotificationsAccess() {
       }
     }
   } catch (e) {}
-
   if (typeof window !== 'undefined' && 'Notification' in window) {
     try {
       const perm = await Notification.requestPermission();
@@ -666,7 +578,6 @@ export async function requestSystemNotificationsAccess() {
       return false;
     } catch (e) {}
   }
-
   showToast(' Активны звуковые и всплывающие уведомления внутри приложения', 'info');
   return false;
 }
