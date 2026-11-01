@@ -529,10 +529,10 @@ export function getStoredGeminiApiKey() {
   try {
     const s = store.getState();
     const fromProfile = String(s?.userProfile?.geminiApiKey || '').trim();
-    if (fromProfile && fromProfile.length >= 20) return fromProfile;
+    if (fromProfile && fromProfile.length >= 16) return fromProfile;
     if (typeof localStorage !== 'undefined') {
       const fromLs = String(localStorage.getItem(LOCAL_GEMINI_KEY_STORAGE) || '').trim();
-      if (fromLs && fromLs.length >= 20) return fromLs;
+      if (fromLs && fromLs.length >= 16) return fromLs;
     }
   } catch (e) {}
   return '';
@@ -552,8 +552,8 @@ export function getLocalGeminiQuotaState(customKeyStr = null) {
   const todayStr = new Date().toISOString().slice(0, 10);
   const rawKeys = String(customKeyStr !== null ? customKeyStr : getStoredGeminiApiKey())
     .split(',')
-    .map(k => k.trim())
-    .filter(k => k.length >= 20);
+    .map(k => k.trim().replace(/^["'\s]+|["'\s]+$/g, ''))
+    .filter(k => k.length >= 16);
   const keyCount = rawKeys.length;
   const limitPerDay = Math.max(1500, keyCount * 1500);
   let usedToday = 0;
@@ -594,6 +594,139 @@ export function incrementLocalGeminiQuotaUsed(serverQuotaObj = null) {
     }
   } catch (e) {}
   return getLocalGeminiQuotaState();
+}
+const CLIENT_GEMINI_MODELS_CASCADE = [
+  'gemini-2.5-flash',
+  'gemini-2.5-flash-lite',
+  'gemini-3.8-flash',
+  'gemini-3.7-flash',
+  'gemini-3.6-flash',
+  'gemini-3.5-flash-lite',
+  'gemini-3.5-flash',
+  'gemini-3-flash-preview',
+  'gemini-2.5-pro',
+  'gemini-1.5-flash'
+];
+export async function callGeminiClientSmart(apiKey, contentsPayload, genConfig = {}, timeoutMs = 6000) {
+  const cleanKey = String(apiKey || '').trim().replace(/^["'\s]+|["'\s]+$/g, '');
+  if (!cleanKey) return { ok: false, status: 400, errorText: 'Empty key' };
+  const candidates = [];
+  try {
+    if (typeof localStorage !== 'undefined') {
+      const savedMod = String(localStorage.getItem('klev_gemini_active_model_v2') || '').trim();
+      if (savedMod && !/2\.0-flash|flash-latest/i.test(savedMod)) {
+        candidates.push(savedMod);
+      }
+    }
+  } catch (e) {}
+  let listModelsVerified = false;
+  try {
+    const lCtrl = new AbortController();
+    const lTimer = setTimeout(() => lCtrl.abort(), 3200);
+    const lRes = await fetch('https://generativelanguage.googleapis.com/v1beta/models?key=' + encodeURIComponent(cleanKey), {
+      method: 'GET',
+      signal: lCtrl.signal
+    }).catch(() => null);
+    clearTimeout(lTimer);
+    if (lRes && lRes.ok) {
+      const lData = await lRes.json().catch(() => null);
+      if (lData && Array.isArray(lData.models)) {
+        listModelsVerified = true;
+        const scored = [];
+        for (const m of lData.models) {
+          const methods = Array.isArray(m.supportedGenerationMethods) ? m.supportedGenerationMethods : [];
+          if (!methods.includes('generateContent')) continue;
+          const id = String(m.name || '').replace(/^models\//, '');
+          if (!id.startsWith('gemini-')) continue;
+          if (/embedding|imagen|veo|tts|audio|aqa|bisect|learnlm|robotics|computer-use|-image$|2\.0-flash|flash-latest|1\.0/i.test(id)) continue;
+          let sc = 100;
+          if (id.includes('flash')) sc += 500;
+          if (id.includes('flash-lite')) sc += 45;
+          if (id.includes('pro')) sc += 200;
+          const vm = id.match(/gemini-(\d+(?:\.\d+)?)/);
+          if (vm) sc += Math.round(parseFloat(vm[1]) * 100);
+          if (!id.includes('exp') && !id.includes('preview')) sc += 35;
+          scored.push({ id, sc });
+        }
+        scored.sort((a, b) => b.sc - a.sc);
+        for (const item of scored) {
+          if (!candidates.includes(item.id)) candidates.push(item.id);
+        }
+      }
+    }
+  } catch (e) {}
+  for (const fb of CLIENT_GEMINI_MODELS_CASCADE) {
+    if (!candidates.includes(fb)) candidates.push(fb);
+  }
+  let lastStatus = 0;
+  let lastErrorText = '';
+  const maxAttempts = Math.min(5, candidates.length);
+  for (let i = 0; i < maxAttempts; i++) {
+    const modelId = candidates[i];
+    const cfgVariants = [
+      {
+        temperature: genConfig.temperature ?? 0.1,
+        maxOutputTokens: genConfig.maxOutputTokens ?? 1536,
+        ...(genConfig.responseMimeType ? { responseMimeType: genConfig.responseMimeType } : {})
+      }
+    ];
+    if (genConfig.responseMimeType) {
+      cfgVariants.push({
+        temperature: genConfig.temperature ?? 0.1,
+        maxOutputTokens: genConfig.maxOutputTokens ?? 1536
+      });
+    }
+    for (let cIdx = 0; cIdx < cfgVariants.length; cIdx++) {
+      try {
+        const gCtrl = new AbortController();
+        const gTimer = setTimeout(() => gCtrl.abort(), timeoutMs);
+        const gUrl = 'https://generativelanguage.googleapis.com/v1beta/models/' + modelId + ':generateContent?key=' + encodeURIComponent(cleanKey);
+        const gRes = await fetch(gUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: contentsPayload,
+            generationConfig: cfgVariants[cIdx]
+          }),
+          signal: gCtrl.signal
+        }).catch(() => null);
+        clearTimeout(gTimer);
+        if (!gRes) continue;
+        lastStatus = gRes.status;
+        if (gRes.ok) {
+          const gJson = await gRes.json().catch(() => null);
+          const parts = gJson?.candidates?.[0]?.content?.parts || [];
+          const nonThought = parts.filter(p => !p.thought && typeof p.text === 'string');
+          const rawTxt = (nonThought.length > 0 ? nonThought.map(p => p.text).join('\n') : parts.map(p => p.text || '').join('\n')).trim();
+          try {
+            if (typeof localStorage !== 'undefined') localStorage.setItem('klev_gemini_active_model_v2', modelId);
+          } catch (e) {}
+          return { ok: true, model: modelId, status: 200, json: gJson, text: rawTxt };
+        }
+        const errTxt = await gRes.text().catch(() => '');
+        lastErrorText = errTxt;
+        if (gRes.status === 400 && cIdx === 0 && cfgVariants.length > 1 && /mime|schema|config/i.test(errTxt)) {
+          continue;
+        }
+        if (gRes.status === 404) {
+          const suggested = errTxt.match(/models\/(gemini-[a-z0-9.-]+)/i);
+          if (suggested && suggested[1] && !candidates.includes(suggested[1]) && !/2\.0-flash/i.test(suggested[1])) {
+            candidates.splice(i + 1, 0, suggested[1]);
+          }
+        }
+        break;
+      } catch (e) {
+        break;
+      }
+    }
+  }
+  return {
+    ok: false,
+    keyVerifiedByModelsList: listModelsVerified,
+    model: candidates[0] || 'gemini-2.5-flash',
+    status: lastStatus,
+    errorText: lastErrorText
+  };
 }
 function loadLocalVisionCache() {
   try {
@@ -725,7 +858,7 @@ export async function analyzeFishPhotoHybrid(imgSrc, options = {}) {
     }
     atlasCandidates.sort((a, b) => a.combined - b.combined);
     const bestAtlas = atlasCandidates[0];
-    if (bestAtlas && ((bestAtlas.minH <= 12 && bestAtlas.minB <= 25) || bestAtlas.combined <= 40)) {
+    if (bestAtlas && bestAtlas.minH <= 3 && bestAtlas.minB <= 8) {
       const topMatches = atlasCandidates.slice(0, 3).map((item, idx) => {
         const conf = idx === 0
           ? Math.max(91, Math.min(99, Math.round(99 - item.combined * 0.2)))
@@ -799,31 +932,23 @@ export async function analyzeFishPhotoHybrid(imgSrc, options = {}) {
       const pureB64 = imagePayload.includes(',') ? imagePayload.split(',')[1] : imagePayload;
       const gKey = geminiQuota.keys[Math.floor(Math.random() * geminiQuota.keys.length)];
       try {
-        const gCtrl = new AbortController();
-        const gTimer = setTimeout(() => gCtrl.abort(), 6500);
-        const gUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + encodeURIComponent(gKey);
-        const gRes = await fetch(gUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{
-              parts: [
-                { text: VISION_PROMPT + '\nРегион/бассейн вылова: ' + basinName + ' (' + basinCode + ').' },
-                { inline_data: { mime_type: 'image/jpeg', data: pureB64 } }
-              ]
-            }],
-            generationConfig: {
-              temperature: 0.1,
-              maxOutputTokens: 450,
-              responseMimeType: 'application/json'
-            }
-          }),
-          signal: gCtrl.signal
-        }).catch(() => null);
-        clearTimeout(gTimer);
-        if (gRes && gRes.ok) {
-          const gJson = await gRes.json().catch(() => null);
-          const rawTxt = String(gJson?.candidates?.[0]?.content?.parts?.[0]?.text || '').replace(/```json/gi, '').replace(/```/g, '').trim();
+        const smartRes = await callGeminiClientSmart(
+          gKey,
+          [{
+            parts: [
+              { text: VISION_PROMPT + '\nРегион/бассейн вылова: ' + basinName + ' (' + basinCode + ').' },
+              { inline_data: { mime_type: 'image/jpeg', data: pureB64 } }
+            ]
+          }],
+          {
+            temperature: 0.1,
+            maxOutputTokens: 1536,
+            responseMimeType: 'application/json'
+          },
+          5800
+        );
+        if (smartRes && smartRes.ok && smartRes.text) {
+          const rawTxt = String(smartRes.text || '').replace(/```json/gi, '').replace(/```/g, '').trim();
           const b0 = rawTxt.indexOf('{');
           const b1 = rawTxt.lastIndexOf('}');
           if (b0 !== -1 && b1 > b0) {
@@ -832,9 +957,10 @@ export async function analyzeFishPhotoHybrid(imgSrc, options = {}) {
               const updatedQuota = incrementLocalGeminiQuotaUsed();
               const topMatches = enrichMatchList(parsed.matches, '', parsed.estimatedLengthCm);
               if (topMatches.length > 0) {
+                const engLabel = 'Google ' + (smartRes.model || 'Gemini Flash') + ' Vision ИИ';
                 if (cacheHashKey) {
                   saveLocalVisionCache(cacheHashKey, {
-                    engine: 'Google Gemini 2.0 Flash Vision ИИ',
+                    engine: engLabel,
                     sceneTitle: parsed.sceneTitle,
                     estimatedLengthCm: topMatches[0].estimatedLengthCm,
                     matches: parsed.matches
@@ -842,11 +968,11 @@ export async function analyzeFishPhotoHybrid(imgSrc, options = {}) {
                 }
                 return {
                   ok: true,
-                  engine: 'Google Gemini 2.0 Flash Vision ИИ (осталось ' + updatedQuota.remainingToday + ' из ' + updatedQuota.limitPerDay + ')',
-                  sourceMode: 'Google Gemini 2.0 Flash Vision ИИ',
+                  engine: engLabel + ' (осталось ' + updatedQuota.remainingToday + ' из ' + updatedQuota.limitPerDay + ')',
+                  sourceMode: engLabel,
                   basinCode,
                   basinName,
-                  sceneTitle: parsed.sceneTitle || ('Распознано Gemini 2.0 Flash Vision (' + basinName + ')'),
+                  sceneTitle: parsed.sceneTitle || ('Распознано ' + engLabel + ' (' + basinName + ')'),
                   morphNote: topMatches[0].reason,
                   primaryMatch: topMatches[0],
                   topMatch: topMatches[0],
@@ -896,9 +1022,13 @@ export async function analyzeFishPhotoHybrid(imgSrc, options = {}) {
           if (parsed && Array.isArray(parsed.matches) && parsed.matches.length > 0 && FISH_DB.some(f => f.id === parsed.matches[0].fishId)) {
             const topMatches = enrichMatchList(parsed.matches, '', parsed.estimatedLengthCm);
             if (topMatches.length > 0) {
+              const qStateAfter = geminiQuota.hasKey ? incrementLocalGeminiQuotaUsed() : null;
+              const engTitle = qStateAfter
+                ? ('Gemini Vision ИИ • Облачный конвейер (осталось ' + qStateAfter.remainingToday + ' из ' + qStateAfter.limitPerDay + ')')
+                : 'Мультимодальная нейросеть Vision ИИ';
               if (cacheHashKey) {
                 saveLocalVisionCache(cacheHashKey, {
-                  engine: 'Мультимодальная нейросеть Vision ИИ',
+                  engine: engTitle,
                   sceneTitle: parsed.sceneTitle,
                   estimatedLengthCm: topMatches[0].estimatedLengthCm,
                   matches: parsed.matches
@@ -906,8 +1036,8 @@ export async function analyzeFishPhotoHybrid(imgSrc, options = {}) {
               }
               return {
                 ok: true,
-                engine: 'Мультимодальная нейросеть Vision ИИ',
-                sourceMode: 'Мультимодальная нейросеть Vision ИИ',
+                engine: engTitle,
+                sourceMode: engTitle,
                 basinCode,
                 basinName,
                 sceneTitle: parsed.sceneTitle || `Распознано Vision ИИ (${basinName})`,

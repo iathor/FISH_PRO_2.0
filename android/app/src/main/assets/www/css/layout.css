@@ -178,8 +178,8 @@ body {
 }
 
 .btn-theme-chip {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   border-radius: 12px;
   border: 1.5px solid rgba(148, 210, 255, 0.35);
   background: linear-gradient(180deg, rgba(38, 62, 92, 0.95) 0%, rgba(16, 30, 50, 0.98) 100%);
@@ -202,8 +202,9 @@ body {
 .header-id-profile-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 7px 4px 9px;
+  gap: 5px;
+  padding: 4px 6px 4px 8px;
+  overflow: hidden;
   border-radius: 14px;
   border: 1.5px solid rgba(16, 185, 129, 0.55);
   background: linear-gradient(180deg, rgba(22, 54, 68, 0.95) 0%, rgba(11, 28, 42, 0.98) 100%);

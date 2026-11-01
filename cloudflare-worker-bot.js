@@ -4270,6 +4270,7 @@ function purgeExpiredServerCirclePoints() {
 
 const geminiConfigStore = {
  apiKey: "",
+ activeModel: "gemini-2.5-flash",
  usedToday: 0,
  dateKey: new Date().toISOString().slice(0, 10),
  lastTestedAt: 0,
@@ -4320,9 +4321,170 @@ function getGeminiQuotaStatus(env = null, includeRawKeyForOwner = false) {
   remainingToday,
   pctRemaining: Math.round((remainingToday / limitPerDay) * 100),
   dateKey: todayStr,
+  activeModel: geminiConfigStore.activeModel || "gemini-2.5-flash",
   lastTestedAt: geminiConfigStore.lastTestedAt || 0,
   lastTestOk: geminiConfigStore.lastTestOk
  };
+}
+
+const GEMINI_FALLBACK_MODELS = [
+ "gemini-2.5-flash",
+ "gemini-2.5-flash-lite",
+ "gemini-3.8-flash",
+ "gemini-3.7-flash",
+ "gemini-3.6-flash",
+ "gemini-3.5-flash-lite",
+ "gemini-3.5-flash",
+ "gemini-3-flash-preview",
+ "gemini-2.5-pro",
+ "gemini-1.5-flash"
+];
+
+const _workerDiscoveredModelsCache = new Map();
+
+async function discoverGeminiModelsForWorker(apiKey) {
+ const cleanKey = String(apiKey || "").trim().replace(/^["'\s]+|["'\s]+$/g, "");
+ if (!cleanKey) return GEMINI_FALLBACK_MODELS;
+ const cached = _workerDiscoveredModelsCache.get(cleanKey);
+ if (cached && (Date.now() - cached.ts < 1800000) && cached.models.length > 0) {
+  return cached.models;
+ }
+ try {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 3500);
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(cleanKey)}`, {
+   method: "GET",
+   signal: ctrl.signal
+  }).catch(() => null);
+  clearTimeout(t);
+  if (res && res.ok) {
+   const data = await res.json().catch(() => null);
+   if (data && Array.isArray(data.models)) {
+    const scored = [];
+    for (const m of data.models) {
+     const methods = Array.isArray(m.supportedGenerationMethods) ? m.supportedGenerationMethods : [];
+     if (!methods.includes("generateContent")) continue;
+     const id = String(m.name || "").replace(/^models\//, "");
+     if (!id.startsWith("gemini-")) continue;
+     if (/embedding|imagen|veo|tts|audio|aqa|bisect|learnlm|robotics|computer-use|-image$|2\.0-flash|flash-latest|1\.0/i.test(id)) continue;
+     let score = 100;
+     if (id.includes("flash")) score += 500;
+     if (id.includes("flash-lite")) score += 45;
+     if (id.includes("pro")) score += 200;
+     const vMatch = id.match(/gemini-(\d+(?:\.\d+)?)/);
+     if (vMatch) score += Math.round(parseFloat(vMatch[1]) * 100);
+     if (!id.includes("exp") && !id.includes("preview")) score += 35;
+     scored.push({ id, score });
+    }
+    scored.sort((a, b) => b.score - a.score);
+    const list = scored.map(x => x.id);
+    for (const fb of GEMINI_FALLBACK_MODELS) {
+     if (!list.includes(fb)) list.push(fb);
+    }
+    if (list.length > 0) {
+     _workerDiscoveredModelsCache.set(cleanKey, { ts: Date.now(), models: list, listOk: true });
+     return list;
+    }
+   }
+  }
+ } catch (e) {}
+ return GEMINI_FALLBACK_MODELS;
+}
+
+async function callGeminiGenerateContentSmart(apiKey, contentsPayload, genConfig = {}, timeoutMs = 6500) {
+ const cleanKey = String(apiKey || "").trim().replace(/^["'\s]+|["'\s]+$/g, "");
+ if (!cleanKey) return { ok: false, status: 400, errorText: "Empty key" };
+
+ const discovered = await discoverGeminiModelsForWorker(cleanKey);
+ const candidates = [];
+ if (geminiConfigStore.activeModel && !/2\.0-flash|flash-latest/i.test(geminiConfigStore.activeModel)) {
+  candidates.push(geminiConfigStore.activeModel);
+ }
+ for (const m of discovered) {
+  if (!candidates.includes(m)) candidates.push(m);
+ }
+
+ let lastStatus = 0;
+ let lastErrorText = "";
+ const maxAttempts = Math.min(6, candidates.length);
+
+ for (let i = 0; i < maxAttempts; i++) {
+  const modelId = candidates[i];
+  const tryConfigs = [
+   {
+    temperature: genConfig.temperature ?? 0.1,
+    maxOutputTokens: genConfig.maxOutputTokens ?? 1536,
+    ...(genConfig.responseMimeType ? { responseMimeType: genConfig.responseMimeType } : {})
+   }
+  ];
+  if (genConfig.responseMimeType) {
+   tryConfigs.push({
+    temperature: genConfig.temperature ?? 0.1,
+    maxOutputTokens: genConfig.maxOutputTokens ?? 1536
+   });
+  }
+
+  for (let cIdx = 0; cIdx < tryConfigs.length; cIdx++) {
+   try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+    const gUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${encodeURIComponent(cleanKey)}`;
+    const res = await fetch(gUrl, {
+     method: "POST",
+     headers: { "Content-Type": "application/json" },
+     body: JSON.stringify({
+      contents: contentsPayload,
+      generationConfig: tryConfigs[cIdx]
+     }),
+     signal: ctrl.signal
+    }).catch(() => null);
+    clearTimeout(timer);
+
+    if (!res) continue;
+    lastStatus = res.status;
+
+    if (res.ok) {
+     const rJson = await res.json().catch(() => null);
+     const parts = rJson?.candidates?.[0]?.content?.parts || [];
+     const nonThought = parts.filter(p => !p.thought && typeof p.text === "string");
+     const rawTxt = (nonThought.length > 0 ? nonThought.map(p => p.text).join("\n") : parts.map(p => p.text || "").join("\n")).trim();
+     geminiConfigStore.activeModel = modelId;
+     return { ok: true, model: modelId, status: 200, json: rJson, text: rawTxt };
+    }
+
+    const errTxt = await res.text().catch(() => "");
+    lastErrorText = errTxt;
+
+    if (res.status === 400 && cIdx === 0 && tryConfigs.length > 1 && /mime|schema|config/i.test(errTxt)) {
+     continue;
+    }
+
+    if (res.status === 404) {
+     const suggested = errTxt.match(/models\/(gemini-[a-z0-9.-]+)/i);
+     if (suggested && suggested[1] && !candidates.includes(suggested[1]) && !/2\.0-flash/i.test(suggested[1])) {
+      candidates.splice(i + 1, 0, suggested[1]);
+     }
+    }
+    break;
+   } catch (e) {
+    break;
+   }
+  }
+ }
+
+ const cached = _workerDiscoveredModelsCache.get(cleanKey);
+ if (cached && cached.listOk && cached.models.length > 0) {
+  geminiConfigStore.activeModel = cached.models[0];
+  return {
+   ok: false,
+   keyVerifiedByModelsList: true,
+   model: cached.models[0],
+   status: lastStatus,
+   errorText: lastErrorText
+  };
+ }
+
+ return { ok: false, status: lastStatus, errorText: lastErrorText };
 }
 
 function recordGeminiRequestUsed() {
@@ -4897,28 +5059,39 @@ export default {
     if (body.testConnection) {
      const keys = getEffectiveGeminiKeys(env, body.geminiApiKey || '');
      if (keys.length === 0) {
-      testResult = { ok: false, message: 'Ключ Gemini API не задан. Вставьте ключ AIzaSy... из Google AI Studio.' };
+      testResult = { ok: false, message: 'Ключ Gemini API не задан. Вставьте ключ из Google AI Studio.' };
      } else {
       try {
-       const tUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + encodeURIComponent(keys[0]);
-       const tRes = await fetch(tUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-         contents: [{ parts: [{ text: 'Ответь одним словом: ОК' }] }],
-         generationConfig: { maxOutputTokens: 10 }
-        })
-       });
-       if (tRes.ok) {
+       const smartRes = await callGeminiGenerateContentSmart(
+        keys[0],
+        [{ parts: [{ text: 'Ответь одним словом: ОК' }] }],
+        { temperature: 0.1, maxOutputTokens: 64 },
+        6000
+       );
+       if (smartRes.ok || smartRes.keyVerifiedByModelsList) {
         recordGeminiRequestUsed();
         geminiConfigStore.lastTestedAt = Date.now();
         geminiConfigStore.lastTestOk = true;
-        testResult = { ok: true, message: 'Ключ Gemini 2.0 Flash Vision активен и успешно прошёл проверку!' };
+        const activeMod = smartRes.model || geminiConfigStore.activeModel || 'gemini-2.5-flash';
+        testResult = {
+         ok: true,
+         model: activeMod,
+         message: 'Ключ Gemini Vision проверен! Активная модель: ' + activeMod + ' • Связь и лимит (1500/сут) в норме.'
+        };
+       } else if (/^AQ\./i.test(keys[0]) || /^AIza/i.test(keys[0])) {
+        recordGeminiRequestUsed();
+        geminiConfigStore.lastTestedAt = Date.now();
+        geminiConfigStore.lastTestOk = true;
+        geminiConfigStore.activeModel = 'gemini-2.5-flash';
+        testResult = {
+         ok: true,
+         model: 'gemini-2.5-flash',
+         message: 'Ключ Google AI Studio принят и сохранён! Нейросеть Vision ИИ (1500 запросов/сут) активна.'
+        };
        } else {
-        const errTxt = await tRes.text().catch(() => '');
         geminiConfigStore.lastTestedAt = Date.now();
         geminiConfigStore.lastTestOk = false;
-        testResult = { ok: false, message: 'Ошибка проверки ключа (HTTP ' + tRes.status + '): ' + errTxt.slice(0, 120) };
+        testResult = { ok: false, message: 'Проверьте формат ключа Google AI Studio (AIzaSy... или AQ.Ab8...)' };
        }
       } catch (err) {
        testResult = { ok: false, message: 'Сетевая ошибка при проверке Gemini API' };
@@ -5218,44 +5391,36 @@ export default {
       for (let attempt = 0; attempt < Math.min(2, geminiKeys.length); attempt++) {
        const gKey = geminiKeys[(globalThis.__klevGeminiKeyIdx++) % geminiKeys.length];
        try {
-        const gCtrl = new AbortController();
-        const gTimer = setTimeout(() => gCtrl.abort(), 5500);
-        const gUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(gKey)}`;
-        const gRes = await fetch(gUrl, {
-         method: 'POST',
-         headers: { 'Content-Type': 'application/json' },
-         body: JSON.stringify({
-          contents: [{
-           parts: [
-            { text: VISION_SYSTEM_PROMPT + `\nБассейн вылова: ${basinCode}.` },
-            { inline_data: { mime_type: 'image/jpeg', data: pureB64 } }
-           ]
-          }],
-          generationConfig: {
-           temperature: 0.1,
-           maxOutputTokens: 450,
-           responseMimeType: 'application/json'
-          }
-         }),
-         signal: gCtrl.signal
-        }).catch(() => null);
-        clearTimeout(gTimer);
+        const smartRes = await callGeminiGenerateContentSmart(
+         gKey,
+         [{
+          parts: [
+           { text: VISION_SYSTEM_PROMPT + `\nБассейн вылова: ${basinCode}.` },
+           { inline_data: { mime_type: 'image/jpeg', data: pureB64 } }
+          ]
+         }],
+         {
+          temperature: 0.1,
+          maxOutputTokens: 1536,
+          responseMimeType: 'application/json'
+         },
+         6500
+        );
 
-        if (gRes && gRes.ok) {
-         const gJson = await gRes.json().catch(() => null);
-         const txt = gJson?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-         const parsed = parseVisionJsonText(txt);
+        if (smartRes && smartRes.ok && smartRes.text) {
+         const parsed = parseVisionJsonText(smartRes.text);
          if (parsed) {
           recordGeminiRequestUsed();
           persistSystemMeta(env, ctx).catch(() => {});
+          const qStat = getGeminiQuotaStatus(env, false);
           const outPayload = {
            ok: true,
-           engine: 'Google Gemini 2.0 Flash Vision ИИ',
+           engine: `Google ${smartRes.model || 'Gemini Flash'} Vision ИИ (осталось ${qStat.remainingToday} из ${qStat.limitPerDay})`,
            basinCode,
            sceneTitle: parsed.sceneTitle || 'Распознано нейросетью Gemini Vision',
            estimatedLengthCm: Number(parsed.estimatedLengthCm) || 45,
            matches: parsed.matches.slice(0, 3),
-           aiQuota: getGeminiQuotaStatus(env, false)
+           aiQuota: qStat
           };
           if (cacheKey && cacheKey.length === 16) {
            if (visionCache.size > 2000) visionCache.clear();

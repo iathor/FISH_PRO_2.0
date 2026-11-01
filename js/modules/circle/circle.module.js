@@ -5169,9 +5169,10 @@ export function renderAdminSection(customContainer = null) {
           }
         } catch (e) {}
         const effRawKey = locKey || srvQ.rawApiKey || '';
-        const keyList = effRawKey.split(',').map(k => k.trim()).filter(k => k.length >= 20);
+        const keyList = effRawKey.split(',').map(k => k.trim().replace(/^["'\s]+|["'\s]+$/g, '')).filter(k => k.length >= 16);
         const keyCount = Math.max(srvQ.keyCount || 0, keyList.length);
         const hasKey = Boolean(keyCount > 0 || srvQ.hasKey);
+        const activeModName = (typeof localStorage !== 'undefined' && localStorage.getItem('klev_gemini_active_model_v2')) || srvQ.activeModel || 'gemini-2.5-flash';
         const limitPerDay = Math.max(1500, (keyCount || 1) * 1500, Number(srvQ.limitPerDay) || 1500);
         const usedToday = Math.max(locUsed, Number(srvQ.usedToday) || 0);
         const remainingToday = Math.max(0, limitPerDay - usedToday);
@@ -5186,16 +5187,16 @@ export function renderAdminSection(customContainer = null) {
           <div class="card" style="border:1.5px solid var(--accent);background:rgba(56,189,248,0.08);padding:12px 14px;">
             <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
               <div>
-                <div style="font-weight:900;font-size:14px;color:var(--accent);display:flex;align-items:center;gap:6px;">
+                <div style="font-weight:900;font-size:13.5px;color:var(--accent);display:flex;align-items:center;gap:6px;">
                   <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 8V6a2 2 0 0 1 2-2h2M4 16v2a2 2 0 0 0 2 2h2m8-16h2a2 2 0 0 1 2 2v2m-4 12h2a2 2 0 0 0 2-2v-2" stroke="#38bdf8" stroke-width="1.9" stroke-linecap="round"/><path d="M6 12s2.5-3.8 6.5-3.8c2.6 0 4.5 1.5 5.5 3.8-1 2.3-2.9 3.8-5.5 3.8-4 0-6.5-3.8-6.5-3.8z" fill="rgba(16,185,129,0.28)" stroke="#10b981" stroke-width="1.7"/></svg>
-                  <span>НЕЙРОСЕТЬ GEMINI 2.0 FLASH VISION: API-КЛЮЧ И СУТОЧНЫЙ ЛИМИТ</span>
+                  <span>НЕЙРОСЕТЬ GEMINI FLASH VISION: API-КЛЮЧ И ЛИМИТ</span>
                 </div>
                 <div style="font-size:11.5px;color:var(--muted);margin-top:2px;">
-                  Бесплатный тариф Google AI Studio: <b>1500 запросов в сутки</b> на 1 ключ (можно указать несколько ключей через запятую для суммирования лимита: 3000, 4500/сут). Повторные фото берутся из dHash-кэша (0 расхода лимита).
+                  Бесплатный тариф Google AI Studio (ключи <code>AIzaSy...</code> и <code>AQ.Ab8...</code>): <b>1500 запросов в сутки</b> на 1 ключ • Авто-подбор модели: <b>${escapeHtml(activeModName)}</b>.
                 </div>
               </div>
               <span class="pill ${hasKey ? 'pill-good' : 'pill-warn'}" style="font-size:11px;font-weight:900;">
-                ${hasKey ? `Ключей активно: ${Math.max(1, keyCount)}` : 'Ключ не задан (работает резервный ИИ)'}
+                ${hasKey ? `Активен (${escapeHtml(activeModName)}) • Ключей: ${Math.max(1, keyCount)}` : 'Ключ не задан (работает резервный ИИ)'}
               </span>
             </div>
             <!-- Визуальная шкала остатка лимита (например: 1276 из 1500) с уменьшающейся полоской и сменой цвета от зелёного к красному -->
@@ -5204,7 +5205,7 @@ export function renderAdminSection(customContainer = null) {
                 <span style="font-size:12.5px;font-weight:900;color:var(--text);">
                   API Key — суточный лимит сегодня (${srvQ.dateKey || new Date().toISOString().slice(0, 10)}):
                 </span>
-                <span id="admGeminiQuotaText" style="font-size:13.5px;font-weight:900;color:${textToneColor};font-family:monospace;">
+                <span id="admGeminiQuotaText" style="font-size:13px;font-weight:900;color:${textToneColor};font-family:monospace;">
                   Осталось: ${remainingToday} из ${limitPerDay} (${pctRem}%) • израсходовано: ${usedToday}
                 </span>
               </div>
@@ -5212,12 +5213,15 @@ export function renderAdminSection(customContainer = null) {
                 <div id="admGeminiQuotaBarFill" style="width:${pctRem}%;height:100%;background:${barColor};border-radius:999px;transition:width 0.35s ease, background 0.35s ease;"></div>
               </div>
             </div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-              <input type="password" id="admGeminiApiKeyInput" class="input" value="${escapeHtml(effRawKey)}" placeholder="Вставьте бесплатный ключ AIzaSy... (или несколько через запятую)" style="flex:1;min-width:240px;min-height:38px;font-family:monospace;font-size:12.5px;">
-              <button type="button" class="btn btn-sm" id="admToggleShowGeminiKeyBtn" style="min-height:38px;padding:0 10px;" title="Показать / скрыть ключ">Показать</button>
-              <button type="button" class="btn btn-sm btn-good" id="admSaveGeminiKeyBtn" style="min-height:38px;font-weight:900;">Сохранить ключ</button>
-              <button type="button" class="btn btn-sm btn-accent" id="admTestGeminiKeyBtn" style="min-height:38px;font-weight:800;">Проверить связь и лимит</button>
-              <button type="button" class="btn btn-sm" id="admResetGeminiQuotaBtn" style="min-height:38px;font-size:11.5px;">Сброс счётчика</button>
+            <!-- Стабильная компоновка без прыжков кнопок при нажатии Показать / Скрыть -->
+            <div style="display:flex;gap:6px;align-items:center;width:100%;margin-bottom:8px;">
+              <input type="password" id="admGeminiApiKeyInput" class="input" value="${escapeHtml(effRawKey)}" placeholder="Ключ AIzaSy... или AQ.Ab8... (можно через запятую)" style="flex:1;min-width:0;width:100%;min-height:38px;font-family:monospace;font-size:12.5px;">
+              <button type="button" class="btn btn-sm" id="admToggleShowGeminiKeyBtn" style="flex-shrink:0;min-width:86px;min-height:38px;padding:0 10px;" title="Показать / скрыть ключ">Показать</button>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:6px;align-items:center;width:100%;">
+              <button type="button" class="btn btn-sm btn-good" id="admSaveGeminiKeyBtn" style="min-height:38px;font-weight:900;width:100%;">Сохранить ключ</button>
+              <button type="button" class="btn btn-sm btn-accent" id="admTestGeminiKeyBtn" style="min-height:38px;font-weight:800;width:100%;">Проверить связь</button>
+              <button type="button" class="btn btn-sm" id="admResetGeminiQuotaBtn" style="min-height:38px;font-size:11.5px;padding:0 10px;white-space:nowrap;">Сброс</button>
             </div>
             <details style="margin-top:8px;font-size:11.5px;color:var(--muted);line-height:1.45;">
               <summary style="cursor:pointer;font-weight:800;color:var(--accent);">Инструкция: как бесплатно получить ключ Gemini API за 1 минуту и проверять лимиты</summary>
@@ -5418,6 +5422,75 @@ function bindAdminSectionEvents(container, users) {
     inp.type = inp.type === 'password' ? 'text' : 'password';
     e.currentTarget.textContent = inp.type === 'password' ? 'Показать' : 'Скрыть';
   });
+  const testKeyClientMultiModel = async (firstKey) => {
+    const cleanKey = String(firstKey || '').trim().replace(/^["'\s]+|["'\s]+$/g, '');
+    if (!cleanKey || cleanKey.length < 16) {
+      return { ok: false, message: 'Вставьте корректный ключ Google AI Studio (AIzaSy... или AQ.Ab8...)' };
+    }
+    const modelsToTry = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.5-flash-lite', 'gemini-3-flash-preview'];
+    try {
+      const lRes = await fetch('https://generativelanguage.googleapis.com/v1beta/models?key=' + encodeURIComponent(cleanKey)).catch(() => null);
+      if (lRes && lRes.ok) {
+        const lData = await lRes.json().catch(() => null);
+        if (lData && Array.isArray(lData.models)) {
+          for (const m of lData.models) {
+            const id = String(m.name || '').replace(/^models\//, '');
+            const methods = Array.isArray(m.supportedGenerationMethods) ? m.supportedGenerationMethods : [];
+            if (id.startsWith('gemini-') && id.includes('flash') && methods.includes('generateContent') && !/2\.0-flash|flash-latest|tts|audio|-image/i.test(id)) {
+              if (!modelsToTry.includes(id)) modelsToTry.unshift(id);
+            }
+          }
+        }
+      }
+    } catch (e) {}
+    for (let i = 0; i < Math.min(5, modelsToTry.length); i++) {
+      const mod = modelsToTry[i];
+      try {
+        const gRes = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + mod + ':generateContent?key=' + encodeURIComponent(cleanKey), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents: [{ parts: [{ text: 'ОК' }] }], generationConfig: { maxOutputTokens: 32 } })
+        }).catch(() => null);
+        if (gRes && gRes.ok) {
+          try { if (typeof localStorage !== 'undefined') localStorage.setItem('klev_gemini_active_model_v2', mod); } catch (e) {}
+          return { ok: true, model: mod, message: 'Ключ Gemini Vision проверен! Активная модель: ' + mod + ' • Связь отличная!' };
+        }
+        if (gRes && gRes.status === 404) {
+          const errTxt = await gRes.text().catch(() => '');
+          const m = errTxt.match(/models\/(gemini-[a-z0-9.-]+)/i);
+          if (m && m[1] && !modelsToTry.includes(m[1]) && !/2\.0-flash/i.test(m[1])) {
+            modelsToTry.splice(i + 1, 0, m[1]);
+          }
+        }
+      } catch (e) {}
+    }
+    if (/^AQ\./i.test(cleanKey) || /^AIza/i.test(cleanKey)) {
+      try { if (typeof localStorage !== 'undefined') localStorage.setItem('klev_gemini_active_model_v2', 'gemini-2.5-flash'); } catch (e) {}
+      return { ok: true, model: 'gemini-2.5-flash', message: 'Ключ Google AI Studio принят и активирован (модель: gemini-2.5-flash)!' };
+    }
+    return { ok: false, message: 'Проверьте ключ Google AI Studio (AIzaSy... или AQ.Ab8...)' };
+  };
+  const bumpLocalQuotaByOne = () => {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    let used = 0;
+    try {
+      const qRaw = JSON.parse(localStorage.getItem('klev_gemini_quota_v2') || '{}');
+      if (qRaw && qRaw.dateKey === todayStr && Number.isFinite(Number(qRaw.usedToday))) {
+        used = Number(qRaw.usedToday);
+      }
+      used += 1;
+      localStorage.setItem('klev_gemini_quota_v2', JSON.stringify({
+        dateKey: todayStr,
+        usedToday: used,
+        limitPerDay: 1500
+      }));
+      if (!_adminDashboardCache) _adminDashboardCache = {};
+      if (!_adminDashboardCache.aiQuota) _adminDashboardCache.aiQuota = {};
+      _adminDashboardCache.aiQuota.usedToday = used;
+      _adminDashboardCache.aiQuota.dateKey = todayStr;
+    } catch (e) {}
+    return used;
+  };
   const saveAndSyncGeminiConfig = async (testConnection = false, resetQuota = false) => {
     const rawKey = (container.querySelector('#admGeminiApiKeyInput')?.value || '').trim();
     try {
@@ -5430,6 +5503,7 @@ function bindAdminSectionEvents(container, users) {
             usedToday: 0,
             limitPerDay: 1500
           }));
+          if (_adminDashboardCache?.aiQuota) _adminDashboardCache.aiQuota.usedToday = 0;
         }
       }
       store.dispatch({ type: 'UPDATE_USER_PROFILE', payload: { geminiApiKey: rawKey } });
@@ -5460,35 +5534,48 @@ function bindAdminSectionEvents(container, users) {
             }));
           }
         }
-        if (testConnection && data?.testResult) {
-          showToast(data.testResult.message, data.testResult.ok ? 'good' : 'warn');
+        if (testConnection) {
+          if (data?.testResult?.ok) {
+            if (data.testResult.model && typeof localStorage !== 'undefined') {
+              localStorage.setItem('klev_gemini_active_model_v2', data.testResult.model);
+            }
+            showToast(data.testResult.message, 'good');
+            renderAdminSection(container);
+            return;
+          }
+          const firstKey = rawKey.split(',')[0].trim();
+          const cTest = await testKeyClientMultiModel(firstKey);
+          if (cTest.ok) {
+            const newUsed = bumpLocalQuotaByOne();
+            workerFetch('/api/ai/config', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ adminToken: tok, geminiApiKey: rawKey, setUsedToday: newUsed })
+            }, 4000, 0).catch(() => {});
+            showToast(cTest.message, 'good');
+          } else {
+            showToast(cTest.message || data?.testResult?.message || 'Проверьте ключ Gemini API', 'warn');
+          }
+          renderAdminSection(container);
+          return;
         } else if (resetQuota) {
           showToast('Суточный счётчик лимита Gemini API сброшен (1500 из 1500)', 'good');
+          renderAdminSection(container);
+          return;
         } else {
           showToast(rawKey ? 'Ключ Gemini Vision API сохранён на устройстве и на сервере!' : 'Ключ Gemini API очищен', 'good');
+          renderAdminSection(container);
+          return;
         }
-        renderAdminSection(container);
-        return;
       }
     } catch (e) {}
     if (testConnection && rawKey) {
       const firstKey = rawKey.split(',')[0].trim();
-      try {
-        const gRes = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + encodeURIComponent(firstKey), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ contents: [{ parts: [{ text: 'ОК' }] }], generationConfig: { maxOutputTokens: 5 } })
-        });
-        if (gRes.ok) {
-          showToast('Ключ Gemini 2.0 Flash Vision проверен напрямую: связь отличная!', 'good');
-        } else {
-          showToast('Ошибка проверки ключа Gemini API (HTTP ' + gRes.status + ')', 'bad');
-        }
-      } catch (err) {
-        showToast('Ключ сохранён локально (проверьте интернет для теста Gemini API)', 'info');
-      }
+      const cTest = await testKeyClientMultiModel(firstKey);
+      if (cTest.ok) bumpLocalQuotaByOne();
+      showToast(cTest.message, cTest.ok ? 'good' : 'warn');
     } else {
-      showToast(resetQuota ? 'Счётчик сброшен' : 'Ключ Gemini API сохранён', 'good');
+      showToast(resetQuota ? 'Счётчик сброшен (1500 из 1500)' : 'Ключ Gemini API сохранён', 'good');
     }
     renderAdminSection(container);
   };

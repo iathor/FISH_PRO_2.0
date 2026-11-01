@@ -176,13 +176,13 @@ function updateHeaderUI() {
   if (topWeatherIco && topWeatherLbl) {
     if (ice === 'ice_safe' || ice === 'ice_danger') {
       topWeatherIco.innerHTML = svgIcon('snow');
-      topWeatherLbl.textContent = 'Погода·Лёд';
+      topWeatherLbl.textContent = 'Погода';
     } else if (ice === 'ice_slush') {
       topWeatherIco.innerHTML = svgIcon('wave');
-      topWeatherLbl.textContent = 'Погода·Вода';
+      topWeatherLbl.textContent = 'Погода';
     } else {
       topWeatherIco.innerHTML = svgIcon('weather');
-      topWeatherLbl.textContent = 'Погода·Вода';
+      topWeatherLbl.textContent = 'Погода';
     }
   }
   if (statusBlock) {
@@ -193,19 +193,17 @@ function updateHeaderUI() {
   }
   if (seasonMain && seasonSub) {
     if (ice === 'ice_safe') {
-      seasonMain.innerHTML = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1" stroke="#7dd3fc" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="#38bdf8"/></svg> Безопасный лёд ~${thick || 12} см`;
-      seasonSub.innerHTML = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> Вода ~${wTemp}°C (${flowShort}) • Пешком разрешено`;
+      seasonMain.innerHTML = `Лёд ~${thick || 12} см`;
+      seasonSub.innerHTML = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg><span>Вода ~${wTemp}°C • Лёд ~${thick || 12} см</span>`;
     } else if (ice === 'ice_danger') {
-      seasonMain.innerHTML = subState === 'spring_rotten_ice'
-        ? `<svg class="k-ico" style="color:var(--warn);" viewBox="0 0 24 24" fill="none"><path d="M12 3L2.5 19.5h19L12 3z" fill="rgba(245,158,11,0.24)" stroke="#f59e0b" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9v5M12 17h.01" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/></svg> Рыхлый лёд (~${thick} см)`
-        : `<svg class="k-ico" style="color:var(--warn);" viewBox="0 0 24 24" fill="none"><path d="M12 3L2.5 19.5h19L12 3z" fill="rgba(245,158,11,0.24)" stroke="#f59e0b" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9v5M12 17h.01" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/></svg> Опасный лёд (~${thick} см)`;
-      seasonSub.innerHTML = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> Вода ~${wTemp}°C • <svg class="k-ico" style="color:var(--bad);" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><path d="M6 6l12 12" stroke="#ef4444" stroke-width="2.1" stroke-linecap="round"/></svg> Выход на лёд запрещён!`;
+      seasonMain.innerHTML = subState === 'spring_rotten_ice' ? `Рыхлый ~${thick} см` : `Опасный ~${thick} см`;
+      seasonSub.innerHTML = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg><span>Вода ~${wTemp}°C • Опасный лёд</span>`;
     } else if (ice === 'ice_slush') {
-      seasonMain.innerHTML = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1" stroke="#7dd3fc" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="#38bdf8"/></svg> Забереги и редкая шуга`;
-      seasonSub.innerHTML = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> Вода ~${wTemp}°C (${flowShort}) • Только с берега`;
+      seasonMain.innerHTML = `Шуга / Забереги`;
+      seasonSub.innerHTML = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg><span>Вода ~${wTemp}°C • Шуга</span>`;
     } else {
-      seasonMain.innerHTML = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> Открытая вода (льда нет)`;
-      seasonSub.innerHTML = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> Вода ~${wTemp}°C (${flowShort}) • Лодка и берег`;
+      seasonMain.innerHTML = `Открытая вода`;
+      seasonSub.innerHTML = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg><span>Вода ~${wTemp}°C • Льда нет</span>`;
     }
   }
   const profBtn = document.getElementById('headerProfileBtn');
@@ -219,7 +217,7 @@ function updateHeaderUI() {
     const ident = circleModule.getCurrentFisherIdentity(s);
     if (idCodeEl && idSubEl) {
       if (ident.isOwner) {
-        idCodeEl.innerHTML = `${svgIcon('crown', '#fbbf24')} ID: ${ident.fisherId}`;
+        idCodeEl.textContent = `ID: ${ident.fisherId}`;
         idCodeEl.style.color = 'var(--good)';
         idSubEl.textContent = okrugLabel;
         if (idAvatarEl) idAvatarEl.innerHTML = svgIcon('crown', '#fbbf24');
