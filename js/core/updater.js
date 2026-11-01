@@ -1,11 +1,16 @@
-/* Klev PRO v2.5.5 r192 (Protected Build) */
-import { store } from './store.js?v=2.5.5';
-import { APP_VERSION, APP_BUILD_NUMBER, APP_REVISION, APP_DISPLAY_VERSION, RELEASE_CACHE_KEY, CURRENT_RELEASE_INFO } from './config.js?v=2.5.5';
-import { showToast } from '../ui/components.js?v=2.5.5';
+import { store } from './store.js?v=2.5.6';
+/**
+ * @file updater.js
+ * @description Модуль контроля версий и внутренних ревизий (v2.5.0 r186),
+ * загрузки Android APK с сайта и автоматической проверки обновлений внутри APK
+ * с учётом как номера версии (X.Y.Z), так и внутреннего счётчика сборки (rNNN).
+ */
+import { APP_VERSION, APP_BUILD_NUMBER, APP_REVISION, APP_DISPLAY_VERSION, RELEASE_CACHE_KEY, CURRENT_RELEASE_INFO } from './config.js?v=2.5.6';
+import { showToast } from '../ui/components.js?v=2.5.6';
 export const PUBLIC_SITE_ORIGIN = 'https://klevpro.ru';
 export const APK_MANIFEST_PATH = '/apk/apk-version.json';
-export const DEFAULT_APK_DOWNLOAD_URL = 'https://klevpro.ru/apk/klev-pro-v2.5.5.apk';
-export const APK_BANNER_DISMISSED_KEY = 'klev_pro_hide_apk_banner_v2.5.5_r192';
+export const DEFAULT_APK_DOWNLOAD_URL = 'https://klevpro.ru/apk/klev-pro-v2.5.6.apk';
+export const APK_BANNER_DISMISSED_KEY = 'klev_pro_hide_apk_banner_v2.5.6_r193';
 let pendingSwRegistration = null;
 let pendingReleaseInfo = null;
 let updateBannerShown = false;
@@ -47,6 +52,9 @@ export function isAndroidWebsiteVisitor() {
     return false;
   }
 }
+/**
+ * Извлекает числовой номер ревизии сборки (например, 186 из 'r186', '2026.10.30-r186', '2.5.0-r186' или 186)
+ */
 export function extractBuildRevisionNumber(rawRevOrObj) {
   if (typeof rawRevOrObj === 'number' && Number.isFinite(rawRevOrObj)) {
     return rawRevOrObj > 100000 ? (rawRevOrObj % 1000) : rawRevOrObj;
@@ -109,6 +117,10 @@ export function compareSemverStrings(vA = '', vB = '') {
   }
   return 0;
 }
+/**
+ * Сравнивает два релиза с учётом И семантической версии (2.5.0), И внутреннего счётчика ревизии (r186).
+ * Даже если версия одинаковая (2.5.0 == 2.5.0), но ревизия выросла (r187 > r186), возвращает 1!
+ */
 export function compareReleaseVersions(verA, revA, verB, revB) {
   const semCmp = compareSemverStrings(verA, verB);
   if (semCmp !== 0) return semCmp;
@@ -179,6 +191,9 @@ function parseManifestJsonPayload(rawJson) {
   }
   return rawJson;
 }
+/**
+ * Проверяет информационный файл /apk/apk-version.json (на сайте, через прямой GitHub API без кэша, в воркере и через резервный прокси без VPN)
+ */
 export async function fetchApkReleaseManifest() {
   const ts = Date.now();
   const inApk = isInsideAndroidApk();

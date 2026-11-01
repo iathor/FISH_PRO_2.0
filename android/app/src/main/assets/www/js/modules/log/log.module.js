@@ -1,19 +1,21 @@
-/* Klev PRO v2.5.5 r192 (Protected Build) */
-import { isSpeciesInGeoRange } from '../../data/basins.js?v=2.5.5';
-import { RU } from '../../i18n/ru.js?v=2.5.5';
-import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.5.5';
-import { events } from '../../core/events.js?v=2.5.5';
-import { storage } from '../../core/storage.js?v=2.5.5';
-import { store } from '../../core/store.js?v=2.5.5';
-import { formatLocalYYYYMMDD, fmtDeltaPress } from '../../core/format.js?v=2.5.5';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.5.5';
-import { FISH_DB } from '../../data/species.js?v=2.5.5';
-import { escapeHtml, createPill, showToast, openModal, closeModal, openConfirmDeleteModal, downloadFileCrossPlatform } from '../../ui/components.js?v=2.5.5';
+import { isSpeciesInGeoRange } from '../../data/basins.js?v=2.5.6';
+import { RU } from '../../i18n/ru.js?v=2.5.6';
+import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.5.6';
+import { events } from '../../core/events.js?v=2.5.6';
+import { storage } from '../../core/storage.js?v=2.5.6';
+import { store } from '../../core/store.js?v=2.5.6';
+import { formatLocalYYYYMMDD, fmtDeltaPress } from '../../core/format.js?v=2.5.6';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.5.6';
+import { FISH_DB } from '../../data/species.js?v=2.5.6';
+import { escapeHtml, createPill, showToast, openModal, closeModal, openConfirmDeleteModal, downloadFileCrossPlatform } from '../../ui/components.js?v=2.5.6';
 let activeLogTab = 'active'; // 'active' | 'trash'
-import { computeMoon } from '../weather/weather.module.js?v=2.5.5';
-import { calcHourly } from '../forecast/forecast.module.js?v=2.5.5';
-import { openFishPhotoScannerModal, analyzeFishPhotoHybrid, requestAppCameraAndPhotoAccess } from '../fish/scanner.js?v=2.5.5';
+import { computeMoon } from '../weather/weather.module.js?v=2.5.6';
+import { calcHourly } from '../forecast/forecast.module.js?v=2.5.6';
+import { openFishPhotoScannerModal, analyzeFishPhotoHybrid, requestAppCameraAndPhotoAccess } from '../fish/scanner.js?v=2.5.6';
 let currentFilter = { fishId: 'all', cond: 'all' };
+/**
+ * Биологические верхние пределы веса (кг) для защиты от накрутки и опечаток
+ */
 const SPECIES_MAX_WEIGHT_KG = {
   bleak: 0.25, gudgeon: 0.30, tugun: 0.25, smelt: 0.45, vendace: 0.8, cisco: 1.2,
   ruffe: 0.5, rotan: 0.8, dace: 0.8, roach: 2.5, rudd: 2.5, perch: 3.5,
@@ -28,6 +30,9 @@ export function getBiologicalMaxWeightKg(fish) {
   if (SPECIES_MAX_WEIGHT_KG[fish.id]) return SPECIES_MAX_WEIGHT_KG[fish.id];
   return fish.type === "predator" ? 35 : 15;
 }
+/**
+ * Вычисляет детерминированный 64-битный перцептивный хэш (dHash / контент-отпечаток) фото
+ */
 export function computeDataUrlFingerprint(dataUrl) {
   const s = String(dataUrl || "");
   if (!s) return "";
@@ -43,6 +48,10 @@ export function computeDataUrlFingerprint(dataUrl) {
   h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
   return "dh_" + (h1 >>> 0).toString(16).padStart(8, "0") + (h2 >>> 0).toString(16).padStart(8, "0");
 }
+/**
+ * Очищает фотографии улова от всех скрытых EXIF GPS-тегов камеры через перерисовку на <canvas>
+ * и возвращает очищенный DataURL + 64-битный перцептивный хэш (dHash) для защиты от дубликатов.
+ */
 export async function sanitizeCatchPhotoAndComputeHash(rawDataUrl) {
   if (!rawDataUrl || typeof rawDataUrl !== "string") {
     return { cleanDataUrl: "", dHash: "", exifStripped: false };
@@ -127,6 +136,9 @@ export async function sanitizeCatchPhotoAndComputeHash(rawDataUrl) {
     }
   });
 }
+/**
+ * Находит суточный и почасовой (24 ч) метеопрогноз из 10-км кэша локации по выбранной календарной дате YYYY-MM-DD
+ */
 export function resolveDayWeatherForDate(s, dateStr = null, fallbackDayIdx = null) {
   const todayDt = new Date();
   todayDt.setHours(0, 0, 0, 0);
@@ -369,6 +381,11 @@ export function getPersonalStats(fishId) {
     top3Baits
   };
 }
+/**
+ * Ревизия 2.0.15:
+ * Окно записи улова « Я поймал» с обычным календарём (<input type="date">),
+ * быстрыми кнопками выбора за предыдущие 5 дней (и Сегодня) и автоматической подгрузкой почасового прогноза из кэша 10 км!
+ */
 export function openCatchWizard(prefill = {}) {
   const s = store.getState();
   const todayDt = new Date();

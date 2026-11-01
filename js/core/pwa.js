@@ -1,5 +1,4 @@
-/* Klev PRO v2.5.5 r192 (Protected Build) */
-import { showToast } from '../ui/components.js?v=2.5.5';
+import { showToast } from '../ui/components.js?v=2.5.6';
 export const PWA_INSTALLED_KEY = 'klev_pro_pwa_installed';
 let deferredInstallPrompt = null;
 export function generateFloatIconDataURL(size = 512) {
@@ -47,6 +46,10 @@ export function initDynamicTouchIcon() {
     if (touch) touch.href = 'apple-touch-icon.png?v=2.5.0';
   } catch (e) {}
 }
+/**
+ * Проверяет, запущено ли приложение внутри Android APK WebView или Telegram Mini App,
+ * где кнопка «Установить приложение / На экран» не нужна и должна быть полностью скрыта.
+ */
 export function isApkOrTmaContainer() {
   try {
     if (typeof window === 'undefined') return false;

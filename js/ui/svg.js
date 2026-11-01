@@ -1,8 +1,12 @@
-/* Klev PRO v2.5.5 r192 (Protected Build) */
-import { APP_VERSION, IMG_SEARCH_DIRS } from '../core/config.js?v=2.5.5';
-import { getRatingWord } from '../core/format.js?v=2.5.5';
-import { FISH_DB } from '../data/species.js?v=2.5.5';
+import { APP_VERSION, IMG_SEARCH_DIRS } from '../core/config.js?v=2.5.6';
+import { getRatingWord } from '../core/format.js?v=2.5.6';
+import { FISH_DB } from '../data/species.js?v=2.5.6';
 let clipSeq = 0;
+/**
+ * Кеш статуса внешних PNG-изображений рыб:
+ * - 'ok': PNG найден и успешно загружен
+ * - 'missing': PNG отсутствует по всем путям (показываем детальный векторный атлас без повторных 404)
+ */
 const pngStatusCache = new Map();
 const PNG_CACHE_STORAGE_KEY = 'klev_pro_png_status_v2_166';
 try {
@@ -27,6 +31,12 @@ function savePngStatus(fid, status) {
     }
   } catch (_) {}
 }
+/**
+ * Гибридная отрисовка рыбы (Ревизия 2.1.1):
+ * 1. Мгновенно рендерит детализированную анатомическую векторную иллюстрацию вида (0 мс, работает 100% офлайн на сайте, в TMA и в APK).
+ * 2. Если для вида на сервере или в папке assets/fish/ есть кастомный PNG, плавно подгружает его поверх SVG;
+ * если PNG ещё нет — оставляет векторную иллюстрацию из встроенного Ихтиологического атласа без пустых рамок и повторных 404.
+ */
 export function renderFishVisual(f) {
   const fish = f || { id: 'pike', name: 'Рыба' };
   const fid = fish.id || 'pike';
@@ -106,6 +116,12 @@ export function renderFiveFish(score0to100, size = 18, theme = 'dark', showWord 
   if (!showWord) return iconsHtml;
   return `<div class="fish-rating-box">${iconsHtml}<span class="fish-rating-label">${rating.toFixed(1)}/5 • ${word}</span></div>`;
 }
+/**
+ * Индивидуальные анатомические и цветовые профили всех 115 видов рыб РФ (Ревизия 2.1.1)
+ * m: морфотип корпуса и плавников
+ * c: [спина, середина бока, брюшко, плавники, хвостовой/спинной, радужка глаза]
+ * p: паттерн окраски (spots_gold, bars_perch, bars_zander, mesh_gold, mesh_silver, spots_trout, spots_char, spots_pike_black, marbled, scutes, stripes_mackerel, lateral_pink, spot_haddock, spots_plaice)
+ */
 const SPECIES_VISUAL_PROFILES = {
   pike:              { m: 'pike', c: ['#1e3a1e', '#4d7c2b', '#fef9c3', '#c2410c', '#365314', '#facc15'], p: 'spots_gold' },
   amur_pike:         { m: 'pike', c: ['#3f6212', '#a3b18a', '#f8fafc', '#b45309', '#4d7c0f', '#fde047'], p: 'spots_pike_black' },

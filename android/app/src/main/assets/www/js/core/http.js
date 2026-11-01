@@ -1,4 +1,3 @@
-/* Klev PRO v2.5.5 r192 (Protected Build) */
 export async function fetchWithTimeout(url, ms = 6800, options = {}) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), ms);

@@ -1,12 +1,11 @@
-/* Klev PRO v2.5.5 r192 (Protected Build) */
-import { RU } from '../../i18n/ru.js?v=2.5.5';
-import { events } from '../../core/events.js?v=2.5.5';
-import { storage } from '../../core/storage.js?v=2.5.5';
-import { store } from '../../core/store.js?v=2.5.5';
-import { fetchWithTimeout, fallbackChain } from '../../core/http.js?v=2.5.5';
-import { formatLocalYYYYMMDD, fmtHM, fmtDeltaPress } from '../../core/format.js?v=2.5.5';
-import { WATER_PROFILES } from '../../data/waters.js?v=2.5.5';
-import { createPill, showToast } from '../../ui/components.js?v=2.5.5';
+import { RU } from '../../i18n/ru.js?v=2.5.6';
+import { events } from '../../core/events.js?v=2.5.6';
+import { storage } from '../../core/storage.js?v=2.5.6';
+import { store } from '../../core/store.js?v=2.5.6';
+import { fetchWithTimeout, fallbackChain } from '../../core/http.js?v=2.5.6';
+import { formatLocalYYYYMMDD, fmtHM, fmtDeltaPress } from '../../core/format.js?v=2.5.6';
+import { WATER_PROFILES } from '../../data/waters.js?v=2.5.6';
+import { createPill, showToast } from '../../ui/components.js?v=2.5.6';
 const DIRS = ['С', 'СВ', 'В', 'ЮВ', 'Ю', 'ЮЗ', 'З', 'СЗ'];
 export function computeMoon(dateStr) {
   const dt = new Date(dateStr + 'T12:00:00Z');
@@ -40,6 +39,12 @@ export function computeMoon(dateStr) {
     minorWindows: [`${String(riseHour).padStart(2, '0')}:00–${String((riseHour + 1) % 24).padStart(2, '0')}:00`, `${String(setHour).padStart(2, '0')}:00–${String((setHour + 1) % 24).padStart(2, '0')}:00`]
   };
 }
+/**
+ * Ревизия 2.0.15: Физический расчёт температуры воды с учётом тепловой инерции за прошлые дни И скорости течения (flow).
+ * - На реках с умеренным и быстрым течением (flow >= 1.1) турбулентное перемешивание водной толщи
+ * предотвращает мгновенное переохлаждение поверхности при околонулевых качелях (-4..+3 °C).
+ * - В стоячих мелководных озёрах (flow <= 0.4) вода быстрее остывает осенью и быстрее прогревается весной.
+ */
 export function computeWaterTempSeries(dailyMeans, dailyMaxs, dailyMins, waterType = 'small_river', lat = null) {
   if (!Array.isArray(dailyMeans) || dailyMeans.length === 0) return [8.0];
   const prof = WATER_PROFILES[waterType] || WATER_PROFILES.small_river;
@@ -75,6 +80,10 @@ export function computeWaterTempSeries(dailyMeans, dailyMaxs, dailyMins, waterTy
   }
   return result;
 }
+/**
+ * Ревизия 2.5.6 (r193): Выверенная гидрологическая модель Стефана-Зубова с учётом широты (ЯНАО/Сибирь/Север РФ),
+ * сезонного накопления градусо-дней мороза (FDD) с начала ледостава и скорости течения (flow).
+ */
 export function evaluateDayIce(historyMeanTemps, tDayMax, tNightMin, waterTemp, waterType = 'small_river', dateStr = '', windSpeed = 3, precip = 0, lat = null) {
   if (waterType === 'cooling_reservoir') {
     return {
@@ -339,6 +348,10 @@ export function buildFallback(lat = 55.75, waterType = 'small_river') {
     iceNote: todayObj.iceNote
   };
 }
+/**
+ * Ревизия 2.0.15: Нормализация ответа Open-Meteo (past_days=14, forecast_days=10)
+ * Возвращает как 12 плиток прогноза (2 архивных + Сегодня + 9 будущих), так и полный 5-дневный архив (archive5Days) для кэша 10 км!
+ */
 export function normalizeOpenMeteo(data, waterType) {
   const elevation = Math.round(data.elevation || 90);
   const normPress = Math.round(760 - elevation / 11.5);
@@ -443,6 +456,13 @@ export function normalizeOpenMeteo(data, waterType) {
     iceNote: todayObj?.iceNote || ''
   };
 }
+/**
+ * Ревизия 2.0.15: Полностью переработанная нормализация MET.no (работа без VPN в РФ):
+ * - Никогда не оставляет синтетические морозы (-13..-20 °C) из buildFallback() во «Вчера» и «Позавчера»!
+ * - Подтягивает реальные архивные дни за последние 5 дней из 10-км гео-кэша (GeoWeatherArchive) или из архивного API.
+ * - Если это первый запрос в локации и архивный сервер не ответил, плавно реконструирует прошлые дни от реального
+ * сегодняшнего дня MET.no, пересчитывает waterTemp (с учётом течения flow) и ледостав, и выставляет hasRealArchive = false!
+ */
 export function normalizeMetNo(metNo, lat, waterType, prevArchiveDays = []) {
   const coords = metNo.geometry?.coordinates || [];
   const elevation = Math.round(coords[2] || 90);
@@ -591,6 +611,9 @@ export function normalizeMetNo(metNo, lat, waterType, prevArchiveDays = []) {
     iceNote: todayObj?.iceNote || ''
   };
 }
+/**
+ * Пересчитывает температуру воды (с учётом скорости течения flow) и ледовую обстановку при смене типа водоёма
+ */
 export function recalculateIceForWaterType(days, waterType, archive5Days = []) {
   if (!Array.isArray(days) || days.length === 0) return null;
   const firstDayDate = days[0]?.date || '';
@@ -628,6 +651,10 @@ export function recalculateIceForWaterType(days, waterType, archive5Days = []) {
     iceNote: todayObj.iceNote
   };
 }
+/**
+ * При первом запросе в локации (когда в 10-км кэше ещё нет архивных данных за прошлые дни)
+ * запрашивает реальный архив погоды минимум за 3–5 предыдущих дней у проверенных источников.
+ */
 const WORKER_WEATHER_EDGE_URL = 'https://klevprohbot.thorantony82.workers.dev/weather';
 const inFlightWeatherRequests = new Map();
 function snapCoord10km(val) {

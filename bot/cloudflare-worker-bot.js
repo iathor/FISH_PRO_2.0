@@ -1,7 +1,7 @@
 // @file bot/cloudflare-worker-bot.js — @KlevProClubBot (V.2.1.1)
 // Компактная сборка для Cloudflare Workers (115 рыб, 491 водоём, 609 городов РФ + Triple-Engine $0 DB + E2EE Relay + Обмен точками Круга/Экипажа/SOS + Уникальные Региональные ID FP_89AAA001 & Эксклюзивный VIP ID владельца FP_89VIP089 + Секретная Серверная Консоль Супер-Админа)
 
-const WORKER_VERSION = '2.5.5';
+const WORKER_VERSION = '2.5.6';
 const RESERVE_ID_TTL_MS = 24 * 60 * 60 * 1000; // Временный резервный ID живёт строго не более 24 часов (суток)
 const deletedFisherIdsSet = new Set(); // Удалённые вручную через Админ-панель ID (защита от повторной фоновой вставки)
 const rateBuckets = new Map();
@@ -4268,6 +4268,72 @@ function purgeExpiredServerCirclePoints() {
  }
 }
 
+const geminiConfigStore = {
+ apiKey: "",
+ usedToday: 0,
+ dateKey: new Date().toISOString().slice(0, 10),
+ lastTestedAt: 0,
+ lastTestOk: null
+};
+
+function getEffectiveGeminiKeys(env = null, extraClientKey = "") {
+ const raw = [
+  extraClientKey || "",
+  geminiConfigStore.apiKey || "",
+  (env && env.GEMINI_API_KEYS) || "",
+  (env && env.GEMINI_API_KEY) || ""
+ ].filter(Boolean).join(",");
+ const unique = [];
+ const seen = new Set();
+ for (const part of raw.split(",")) {
+  const k = part.trim();
+  if (k.length >= 20 && !seen.has(k)) {
+   seen.add(k);
+   unique.push(k);
+  }
+ }
+ return unique;
+}
+
+function getGeminiQuotaStatus(env = null, includeRawKeyForOwner = false) {
+ const todayStr = new Date().toISOString().slice(0, 10);
+ if (geminiConfigStore.dateKey !== todayStr) {
+  geminiConfigStore.dateKey = todayStr;
+  geminiConfigStore.usedToday = 0;
+ }
+ const keys = getEffectiveGeminiKeys(env);
+ const keyCount = keys.length;
+ const limitPerDay = Math.max(1500, keyCount * 1500);
+ const usedToday = Math.max(0, Number(geminiConfigStore.usedToday) || 0);
+ const remainingToday = Math.max(0, limitPerDay - usedToday);
+ const firstKey = keys[0] || "";
+ const maskedKey = firstKey.length >= 12
+  ? (firstKey.slice(0, 6) + "••••" + firstKey.slice(-4))
+  : "";
+ return {
+  hasKey: keyCount > 0,
+  keyCount,
+  maskedKey,
+  rawApiKey: includeRawKeyForOwner ? (geminiConfigStore.apiKey || firstKey) : undefined,
+  limitPerDay,
+  usedToday,
+  remainingToday,
+  pctRemaining: Math.round((remainingToday / limitPerDay) * 100),
+  dateKey: todayStr,
+  lastTestedAt: geminiConfigStore.lastTestedAt || 0,
+  lastTestOk: geminiConfigStore.lastTestOk
+ };
+}
+
+function recordGeminiRequestUsed() {
+ const todayStr = new Date().toISOString().slice(0, 10);
+ if (geminiConfigStore.dateKey !== todayStr) {
+  geminiConfigStore.dateKey = todayStr;
+  geminiConfigStore.usedToday = 0;
+ }
+ geminiConfigStore.usedToday = (Number(geminiConfigStore.usedToday) || 0) + 1;
+}
+
 function serializeFullServerState() {
  purgeExpiredServerCirclePoints();
  return JSON.stringify({
@@ -4285,7 +4351,8 @@ function serializeFullServerState() {
   users: Array.from(usersRegistryStore.values()).slice(-5000),
   points: Array.from(circlePointsStore.values()).slice(-1200),
   boxes: Object.fromEntries(Array.from(transitBoxes.entries()).map(([k, v]) => [k, (v || []).slice(-30)])),
-  profiles: Object.fromEntries(Array.from(cloudAuthProfiles.entries()).slice(-3000))
+  profiles: Object.fromEntries(Array.from(cloudAuthProfiles.entries()).slice(-3000)),
+  geminiConfig: { ...geminiConfigStore }
  });
 }
 
@@ -4394,6 +4461,16 @@ function applyLoadedSysMeta(parsed) {
     }
     if (prof.login) loginToAuthKeyMap.set(String(prof.login).trim().toLowerCase().replace(/^@/, ''), k);
    }
+  }
+ }
+ if (parsed.geminiConfig && typeof parsed.geminiConfig === "object") {
+  if (typeof parsed.geminiConfig.apiKey === "string" && parsed.geminiConfig.apiKey.trim()) {
+   geminiConfigStore.apiKey = parsed.geminiConfig.apiKey.trim();
+  }
+  const todayStr = new Date().toISOString().slice(0, 10);
+  if (parsed.geminiConfig.dateKey === todayStr && Number(parsed.geminiConfig.usedToday) > geminiConfigStore.usedToday) {
+   geminiConfigStore.usedToday = Number(parsed.geminiConfig.usedToday);
+   geminiConfigStore.dateKey = todayStr;
   }
  }
  adminWhitelistStore.set(OWNER_FISHER_ID, { id: OWNER_FISHER_ID, label: "iAthor • Антон (Владелец / Супер-Админ)", addedAt: "2026-10-27" });
@@ -4539,7 +4616,7 @@ function renderSuperAdminConsoleHtml(originUrl = '', d1Info = null) {
        <div style="font-weight:900;color:#34d399;font-size:14px;">🟢 Cloudflare D1 База Данных: ПОДКЛЮЧЕНА (Имя привязки: ${esc(d1Info.name)})</div>
        <div style="font-size:12px;color:#94a3b8;margin-top:2px;">Все постоянные ID, реестр пользователей, чаты и точки сохраняются в постоянных SQL-таблицах D1.</div>
       </div>
-      <span style="padding:4px 10px;border-radius:6px;background:#1e293b;border:1px solid #334155;font-size:11px;font-weight:800;color:#38bdf8;">D1 Engine 2.5.5</span>
+      <span style="padding:4px 10px;border-radius:6px;background:#1e293b;border:1px solid #334155;font-size:11px;font-weight:800;color:#38bdf8;">D1 Engine 2.5.6</span>
      </div>`
   : `<div style="padding:12px 14px;border-radius:10px;background:rgba(239,68,68,0.15);border:1.5px solid #ef4444;margin-bottom:12px;display:flex;flex-direction:column;gap:6px;">
       <div style="font-weight:900;color:#f87171;font-size:14px;">🔴 ВНИМАНИЕ: Cloudflare D1 База Данных НЕ ПРИВЯЗАНА!</div>
@@ -4764,7 +4841,7 @@ export default {
   try {
   const BOT_TOKEN = (env && env.BOT_TOKEN) || '';
   const WEBHOOK_SECRET = (env && env.WEBHOOK_SECRET) || '';
-  const WEBAPP_URL = ((env && env.WEBAPP_URL) || 'https://klevpro.ru/').replace(/\/?$/, '/');
+  const WEBAPP_URL = ((env && env.WEBAPP_URL) || 'https://ia-thor.github.io/klev-pro-2/').replace(/\/?$/, '/');
   const reqUrl = new URL(request.url);
 
   // Пункт 19: Принудительный HTTPS (кроме локальной отладки)
@@ -4777,6 +4854,87 @@ export default {
   }
 
   const clientIp = request.headers.get('CF-Connecting-IP') || 'anon_ip';
+
+  // ── Универсальный редиректор коротких ссылок /go?p=KP1_... (гарантия отсутствия 404 на любых доменах) ──
+  if (reqUrl.pathname.endsWith('/go') && request.method === 'GET') {
+   const pTok = reqUrl.searchParams.get('p') || reqUrl.searchParams.get('pack') || '';
+   const targetBase = 'https://ia-thor.github.io/klev-pro-2/';
+   const dest = pTok ? (targetBase + '#p=' + encodeURIComponent(pTok)) : (targetBase + (reqUrl.search || '') + '#/forecast');
+   return Response.redirect(dest, 302);
+  }
+
+  // ── Статус и управление ключом и лимитами Gemini Vision API (1500/сут) (/api/ai/status и /api/ai/config) ──
+  if (reqUrl.pathname.endsWith('/api/ai/status') && (request.method === 'GET' || request.method === 'POST')) {
+   await ensurePersistentStateLoaded(env);
+   const tok = extractAdminTokenFromRequest(request, reqUrl, {});
+   const isOwner = isValidOwnerAdminToken(tok, env);
+   return new Response(JSON.stringify({
+    ok: true,
+    aiQuota: getGeminiQuotaStatus(env, isOwner)
+   }), { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
+  }
+
+  if (reqUrl.pathname.endsWith('/api/ai/config') && (request.method === 'POST' || reqUrl.searchParams.has('payload'))) {
+   await ensurePersistentStateLoaded(env);
+   try {
+    const body = await readWorkerRequestPayload(request, reqUrl);
+    const tok = extractAdminTokenFromRequest(request, reqUrl, body);
+    if (!isValidOwnerAdminToken(tok, env)) {
+     return new Response(JSON.stringify({ ok: false, error: 'Доступ разрешён только Супер-Админу (FP_89VIP089)' }), { status: 403, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
+    }
+    if (typeof body.geminiApiKey === 'string') {
+     geminiConfigStore.apiKey = body.geminiApiKey.trim();
+    }
+    if (body.resetQuota === true) {
+     geminiConfigStore.usedToday = 0;
+     geminiConfigStore.dateKey = new Date().toISOString().slice(0, 10);
+    }
+    if (typeof body.setUsedToday === 'number' && Number.isFinite(body.setUsedToday)) {
+     geminiConfigStore.usedToday = Math.max(0, Math.round(body.setUsedToday));
+     geminiConfigStore.dateKey = new Date().toISOString().slice(0, 10);
+    }
+    let testResult = null;
+    if (body.testConnection) {
+     const keys = getEffectiveGeminiKeys(env, body.geminiApiKey || '');
+     if (keys.length === 0) {
+      testResult = { ok: false, message: 'Ключ Gemini API не задан. Вставьте ключ AIzaSy... из Google AI Studio.' };
+     } else {
+      try {
+       const tUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + encodeURIComponent(keys[0]);
+       const tRes = await fetch(tUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+         contents: [{ parts: [{ text: 'Ответь одним словом: ОК' }] }],
+         generationConfig: { maxOutputTokens: 10 }
+        })
+       });
+       if (tRes.ok) {
+        recordGeminiRequestUsed();
+        geminiConfigStore.lastTestedAt = Date.now();
+        geminiConfigStore.lastTestOk = true;
+        testResult = { ok: true, message: 'Ключ Gemini 2.0 Flash Vision активен и успешно прошёл проверку!' };
+       } else {
+        const errTxt = await tRes.text().catch(() => '');
+        geminiConfigStore.lastTestedAt = Date.now();
+        geminiConfigStore.lastTestOk = false;
+        testResult = { ok: false, message: 'Ошибка проверки ключа (HTTP ' + tRes.status + '): ' + errTxt.slice(0, 120) };
+       }
+      } catch (err) {
+       testResult = { ok: false, message: 'Сетевая ошибка при проверке Gemini API' };
+      }
+     }
+    }
+    await persistSystemMeta(env, ctx);
+    return new Response(JSON.stringify({
+     ok: true,
+     testResult,
+     aiQuota: getGeminiQuotaStatus(env, true)
+    }), { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
+   } catch (e) {
+    return new Response(JSON.stringify({ ok: false, error: 'Invalid config request' }), { status: 400, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
+   }
+  }
 
   // ── 0. Секретная серверная страница Базы Пользователей и Статистики (ТОЛЬКО для iAthor / FP_89VIP089) ──
   if (reqUrl.pathname.endsWith('/fp-vip089-console') && (request.method === 'GET' || request.method === 'POST')) {
@@ -4920,6 +5078,7 @@ export default {
   // ── Мульти-провайдерный бесплатный Vision ИИ-определитель рыбы (/api/ai/identify-fish) с кэшем и защитой от 100500 запросов ──
   if (reqUrl.pathname.endsWith('/api/ai/identify-fish') && request.method === 'POST') {
    try {
+    await ensurePersistentStateLoaded(env);
     const b = await readWorkerRequestPayload(request, reqUrl);
     const dhash = String(b?.dhash || '').toLowerCase().replace(/^dh_/, '');
     const roiDhash = String(b?.roiDhash || '').toLowerCase().replace(/^dh_/, '');
@@ -5053,12 +5212,7 @@ export default {
     // 4. Каскад бесплатных облачных Vision-провайдеров (если передано изображение и не превышен лимит)
     if (withinRateLimit && pureB64 && pureB64.length > 200) {
      // Провайдер А: Google Gemini 2.0 Flash / 1.5 Flash Free Tier (с поддержкой пула ключей GEMINI_API_KEYS для кратного увеличения лимита)
-     const rawKeysStr = [
-      clientGeminiKey,
-      env?.GEMINI_API_KEYS || '',
-      env?.GEMINI_API_KEY || ''
-     ].filter(Boolean).join(',');
-     const geminiKeys = rawKeysStr.split(',').map(k => k.trim()).filter(k => k.length >= 20);
+     const geminiKeys = getEffectiveGeminiKeys(env, clientGeminiKey);
 
      if (geminiKeys.length > 0) {
       for (let attempt = 0; attempt < Math.min(2, geminiKeys.length); attempt++) {
@@ -5092,13 +5246,16 @@ export default {
          const txt = gJson?.candidates?.[0]?.content?.parts?.[0]?.text || '';
          const parsed = parseVisionJsonText(txt);
          if (parsed) {
+          recordGeminiRequestUsed();
+          persistSystemMeta(env, ctx).catch(() => {});
           const outPayload = {
            ok: true,
            engine: 'Google Gemini 2.0 Flash Vision ИИ',
            basinCode,
            sceneTitle: parsed.sceneTitle || 'Распознано нейросетью Gemini Vision',
            estimatedLengthCm: Number(parsed.estimatedLengthCm) || 45,
-           matches: parsed.matches.slice(0, 3)
+           matches: parsed.matches.slice(0, 3),
+           aiQuota: getGeminiQuotaStatus(env, false)
           };
           if (cacheKey && cacheKey.length === 16) {
            if (visionCache.size > 2000) visionCache.clear();
@@ -5369,7 +5526,8 @@ export default {
     points: Array.from(circlePointsStore.values()),
     whitelist: Array.from(adminWhitelistStore.values()),
     counters: Object.fromEntries(regionSequenceCounters.entries()),
-    reserveCounters: Object.fromEntries(regionReserveCounters.entries())
+    reserveCounters: Object.fromEntries(regionReserveCounters.entries()),
+    aiQuota: getGeminiQuotaStatus(env, true)
    }), {
     headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
    });
@@ -5525,7 +5683,7 @@ function generateSyntheticWeatherJson(lat, lon) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 4500);
     const upstreamRes = await fetch(omUrl, {
-     headers: { 'User-Agent': 'KlevProClubBot/2.5.5 (https://klevpro.ru)' },
+     headers: { 'User-Agent': 'KlevProClubBot/2.5.6 (https://klevpro.ru)' },
      signal: controller.signal,
      cf: { cacheTtl: 1800, cacheEverything: true }
     }).catch(() => null);
@@ -5541,7 +5699,7 @@ function generateSyntheticWeatherJson(lat, lon) {
     try {
      const metUrl = `https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${gLat}&lon=${gLon}`;
      const metRes = await fetch(metUrl, {
-      headers: { 'User-Agent': 'KlevProClubBot/2.5.5 (https://klevpro.ru, i@athor.ru)' }
+      headers: { 'User-Agent': 'KlevProClubBot/2.5.6 (https://klevpro.ru, i@athor.ru)' }
      }).catch(() => null);
      if (metRes && metRes.ok) {
       const metJson = await metRes.json();
@@ -6467,8 +6625,8 @@ function generateSyntheticWeatherJson(lat, lon) {
     appName: 'Клёв ПРО 2.0',
     packageName: 'ru.klevpro.app',
     version: WORKER_VERSION,
-    versionCode: 255192,
-    buildRevision: '2026.10.31-r192',
+    versionCode: 256193,
+    buildRevision: '2026.10.31-r193',
     releaseDate: '2026-10-30',
     apkFileName: `klev-pro-v${WORKER_VERSION}.apk`,
     apkUrl: `https://klevpro.ru/apk/klev-pro-v${WORKER_VERSION}.apk`,

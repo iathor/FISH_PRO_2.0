@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta http-equiv="X-Content-Type-Options" content="nosniff">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: blob:; script-src 'self' 'unsafe-inline' https://telegram.org https://yastatic.net https://cdn.jsdelivr.net https://appassets.androidplatform.net; style-src 'self' 'unsafe-inline' https://yastatic.net https://cdn.jsdelivr.net https://appassets.androidplatform.net; img-src 'self' data: blob: https:; connect-src 'self' https://klevpro.ru https://www.klevpro.ru https://xn--b1apdneg0j.xn--p1ai https://api.github.com https://klevprohbot.thorantony82.workers.dev https://*.workers.dev https://api.open-meteo.com https://archive-api.open-meteo.com https://api.met.no https://api.codetabs.com https://api.allorigins.win https://maps.mail.ru https://overpass.kumi.systems https://overpass.private.coffee https://overpass-api.de https://nominatim.openstreetmap.org https://api.bigdatacloud.net https://ipwho.is https://ipapi.co https://raw.githubusercontent.com https://github.com https://*.githubusercontent.com https://appassets.androidplatform.net;">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: blob:; script-src 'self' 'unsafe-inline' https://telegram.org https://yastatic.net https://cdn.jsdelivr.net https://appassets.androidplatform.net; style-src 'self' 'unsafe-inline' https://yastatic.net https://cdn.jsdelivr.net https://appassets.androidplatform.net; img-src 'self' data: blob: https:; connect-src 'self' https://klevpro.ru https://www.klevpro.ru https://xn--b1apdneg0j.xn--p1ai https://api.github.com https://klevprohbot.thorantony82.workers.dev https://*.workers.dev https://generativelanguage.googleapis.com https://text.pollinations.ai https://ia-thor.github.io https://api.open-meteo.com https://archive-api.open-meteo.com https://api.met.no https://api.codetabs.com https://api.allorigins.win https://maps.mail.ru https://overpass.kumi.systems https://overpass.private.coffee https://overpass-api.de https://nominatim.openstreetmap.org https://api.bigdatacloud.net https://ipwho.is https://ipapi.co https://raw.githubusercontent.com https://github.com https://*.githubusercontent.com https://appassets.androidplatform.net;">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="theme-color" content="#0b1120">
   <meta name="mobile-web-app-capable" content="yes">
@@ -13,9 +13,9 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Клёв ПРО 2.0 • Прогноз клёва, Круг и Атлас Ихтиофауны РФ (12+)</title>
   <script src="https://telegram.org/js/telegram-web-app.js" async onload="window.__KLEV_ON_TG_SDK_LOAD__&&window.__KLEV_ON_TG_SDK_LOAD__()"></script>
-  <link rel="manifest" href="manifest.json?v=2.5.0-r187">
-  <link id="dynamicFavicon" rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=2.5.0-r187">
-  <link id="dynamicTouchIcon" rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=2.5.0-r187">
+  <link rel="manifest" href="manifest.json?v=2.5.6-r193">
+  <link id="dynamicFavicon" rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=2.5.6-r193">
+  <link id="dynamicTouchIcon" rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=2.5.6-r193">
   <script>
     (function() {
       try {
@@ -27,6 +27,9 @@
           : (['dark', 'light', 'contrast'].indexOf(saved) !== -1 ? saved : 'dark');
         document.documentElement.setAttribute('data-theme', eff);
         document.documentElement.setAttribute('data-theme-mode', saved || 'auto');
+        var parsedSt = raw ? JSON.parse(raw) : null;
+        var lgOn = (!parsedSt || parsedSt.liquidGlass !== false);
+        document.documentElement.setAttribute('data-liquid-glass', lgOn ? '1' : '0');
       } catch (e) {}
 
       try {
@@ -65,7 +68,7 @@
             regs.forEach(function(r) { r.unregister(); });
           }).catch(function() {});
         }
-        var MIGRATION_KEY = 'klev_pro_migrated_v251_r192';
+        var MIGRATION_KEY = 'klev_pro_migrated_v256_r193';
         if (localStorage.getItem(MIGRATION_KEY) !== '1') {
           try {
             var stRaw = localStorage.getItem('klev_pro_state_v2.0');
@@ -92,10 +95,10 @@
       } catch (e) {}
     })();
   </script>
-  <link rel="stylesheet" href="css/tokens.css?v=2.5.5">
-  <link rel="stylesheet" href="css/base.css?v=2.5.5">
-  <link rel="stylesheet" href="css/components.css?v=2.5.5">
-  <link rel="stylesheet" href="css/layout.css?v=2.5.5">
+  <link rel="stylesheet" href="css/tokens.css?v=2.5.6">
+  <link rel="stylesheet" href="css/base.css?v=2.5.6">
+  <link rel="stylesheet" href="css/components.css?v=2.5.6">
+  <link rel="stylesheet" href="css/layout.css?v=2.5.6">
   <script>
     (function() {
       var cssUrls = [
@@ -139,14 +142,17 @@
   </script>
 </head>
 <body>
-  <div id="appSplashScreen" class="app-splash-screen" role="status" aria-label="Загрузка Клёв ПРО 2.0" onclick="this.classList.add('splash-hide')">
+  <div id="appSplashScreen" class="app-splash-screen" role="status" aria-label="Загрузка Клёв ПРО 2.0">
     <div class="app-splash-inner">
       <div class="app-splash-art-wrap" id="appSplashArtWrap">
         <img id="appSplashImg" src="assets/splash.jpg" alt="Клёв ПРО 2.0 • FISH PRO 2.0" class="app-splash-img">
       </div>
       <div class="app-splash-loader" id="appSplashLoader">
-        <div class="app-splash-bar"><div class="app-splash-bar-fill"></div></div>
-        <div class="app-splash-sub" id="appSplashSubText">Клёв ПРО 2.0 • Радар клёва и Атлас ихтиофауны РФ (12+)</div>
+        <div class="app-splash-hud-row">
+          <span class="app-splash-stage" id="appSplashSubText">Инициализация гео-ядра и карт водоёмов РФ...</span>
+          <span class="app-splash-pct" id="appSplashPctText">8%</span>
+        </div>
+        <div class="app-splash-bar"><div class="app-splash-bar-fill" id="appSplashBarFill"></div></div>
       </div>
     </div>
   </div>
@@ -154,31 +160,41 @@
     (function() {
       try {
         var root = document.documentElement;
-        var isAppEnv = root.getAttribute('data-pwa-installed') === '1' ||
-                       root.getAttribute('data-apk-webview') === '1' ||
-                       root.getAttribute('data-tg-webapp') === '1';
         var theme = root.getAttribute('data-theme') || 'dark';
         var splashEl = document.getElementById('appSplashScreen');
         var splashImg = document.getElementById('appSplashImg');
         var splashSub = document.getElementById('appSplashSubText');
-        if (isAppEnv && splashEl && splashImg) {
+        var splashPct = document.getElementById('appSplashPctText');
+        var splashFill = document.getElementById('appSplashBarFill');
+        if (splashEl && splashImg) {
           splashEl.setAttribute('data-app-splash-theme', theme);
           if (theme === 'light') {
             splashImg.src = 'assets/splash-light.jpg';
-            if (splashSub) splashSub.textContent = 'КЛЁВ ПРО 2.0 • КРУГ — Единая рыболовная экосистема (V.2.5.0 r187)';
           } else if (theme === 'contrast') {
             splashImg.src = 'assets/splash-contrast.jpg';
-            if (splashSub) splashSub.textContent = 'FISH PRO 2.0 • OFFLINE NAVIGATION READY // СЕТЬ ОФЛАЙН ГОТОВА';
           } else {
             splashImg.src = 'assets/splash-dark.jpg';
-            if (splashSub) splashSub.textContent = 'FISH PRO 2.0 • INIT: 115 SPECIES OFFLINE CACHE • RF 01-92';
           }
         }
+        var stages = [
+          { ms: 0, pct: 12, text: 'Инициализация гео-ядра и карт водоёмов РФ...' },
+          { ms: 550, pct: 38, text: 'Загрузка атласа 115 видов рыб и барической модели...' },
+          { ms: 1150, pct: 68, text: 'Расчёт ледовой обстановки и температурного профиля...' },
+          { ms: 1750, pct: 92, text: 'Подключение радара Круга и нейросети Vision ИИ...' },
+          { ms: 2220, pct: 100, text: 'Система Клёв ПРО 2.0 (v2.5.6 r193) готова к работе' }
+        ];
+        stages.forEach(function(st) {
+          setTimeout(function() {
+            if (splashSub) splashSub.textContent = st.text;
+            if (splashPct) splashPct.textContent = st.pct + '%';
+            if (splashFill) splashFill.style.width = st.pct + '%';
+          }, st.ms);
+        });
       } catch (e) {}
       setTimeout(function() {
         var sp = document.getElementById('appSplashScreen');
         if (sp) sp.classList.add('splash-hide');
-      }, 1350);
+      }, 2450);
     })();
   </script>
 
@@ -200,6 +216,9 @@
       </div>
 
       <div class="header-right-actions">
+        <button type="button" class="btn-theme-chip" id="headerLiquidGlassBtn" title="Эффект «Жидкое стекло» (Liquid Glass): ВКЛ / ВЫКЛ — переключение между жидким стеклом и классической отрисовкой" aria-label="Эффект Жидкое стекло">
+          <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2.5c0 0-6.5 7.2-6.5 12a6.5 6.5 0 0 0 13 0c0-4.8-6.5-12-6.5-12z" fill="rgba(56,189,248,0.34)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.2 15.2c.6 1.5 2 2.4 3.6 2.4" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round"/></svg>
+        </button>
         <button type="button" class="btn-theme-chip" id="headerThemeBtn" title="Переключить тему: Светлая / Тёмная / Контраст / Авто" aria-label="Тема оформления">
           <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6" stroke-linejoin="round"/></svg>
         </button>
@@ -253,11 +272,11 @@
   <main id="app" class="app-main">
     <div id="androidApkSiteBanner" class="bento-card" style="display:none;background:rgba(16,185,129,0.12);border:1.5px solid var(--good);padding:9px 12px;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:2px;">
       <div style="min-width:0;flex:1;">
-        <div id="androidApkBannerTitle" style="font-weight:800;font-size:var(--fs-xs);color:var(--good);">Приложение «Клёв ПРО 2.0» для Android (v2.5.5 r192)</div>
+        <div id="androidApkBannerTitle" style="font-weight:800;font-size:var(--fs-xs);color:var(--good);">Приложение «Клёв ПРО 2.0» для Android (v2.5.6 r193)</div>
         <div style="font-size:11px;color:var(--muted);">Установите автономное приложение (.APK) на ваш смартфон</div>
       </div>
       <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
-        <button type="button" class="btn btn-sm btn-good" id="androidApkBannerDownloadBtn" style="min-height:32px;padding:4px 10px;font-size:11.5px;font-weight:800;">Скачать APK (v2.5.5 r192)</button>
+        <button type="button" class="btn btn-sm btn-good" id="androidApkBannerDownloadBtn" style="min-height:32px;padding:4px 10px;font-size:11.5px;font-weight:800;">Скачать APK (v2.5.6 r193)</button>
         <button type="button" class="btn btn-sm" id="androidApkBannerCloseBtn" title="Скрыть плашку" aria-label="Закрыть плашку загрузки APK" style="min-height:32px;padding:4px 8px;font-size:12px;">Закрыть</button>
       </div>
     </div>
@@ -314,6 +333,6 @@
     </div>
   </nav>
 
-  <script type="module" src="js/app.js?v=2.5.5"></script>
+  <script type="module" src="js/app.js?v=2.5.6"></script>
 </body>
 </html>

@@ -1,4 +1,8 @@
-/* Klev PRO v2.5.5 r192 (Protected Build) */
+/**
+ * @file icons.js
+ * @description Единая векторная система иконографии «Клёв ПРО 2.5.0» (100% SVG без единого системного эмодзи).
+ * Обеспечивает чёткие, масштабируемые, объёмные SVG-значки во всех кнопках, вкладках, карточках, текстах и уведомлениях.
+ */
 export const SVG_ICON_PATHS = {
   map: `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3V6z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 3v15M15 6v15" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="10" r="2.2" fill="#38bdf8" stroke="#fff" stroke-width="1"/></svg>`,
   pin: `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#ef4444"/></svg>`,

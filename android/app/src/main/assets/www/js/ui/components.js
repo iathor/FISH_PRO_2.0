@@ -1,5 +1,7 @@
-/* Klev PRO v2.5.5 r192 (Protected Build) */
-import { svgIcon } from './icons.js?v=2.5.5';
+import { svgIcon } from './icons.js?v=2.5.6';
+/**
+ * Экранирует пользовательские строки перед вставкой в HTML (защита от DOM XSS и инъекций тегов)
+ */
 export function escapeHtml(raw) {
   if (raw === null || raw === undefined) return '';
   const str = String(raw);
@@ -24,6 +26,10 @@ export function escapeHtml(raw) {
     .replace(/'/g, '&#39;');
   return escaped.replace(/__KLEV_SVG_TOKEN_(\d+)__/g, (_, idx) => tokens[Number(idx)] || '');
 }
+/**
+ * Проверяет, что рыболовный позывной (логин) не содержит персональных данных (номера телефона или e-mail)
+ * для соблюдения архитектуры Zero-PII в соответствии со ст. 3 и ст. 22 ФЗ № 152-ФЗ «О персональных данных».
+ */
 export function isAnonymousCallsignValid(rawLogin = '') {
   const s = String(rawLogin || '').trim();
   if (!s) return { ok: true };
@@ -84,6 +90,10 @@ export function showToast(message, tone = 'info') {
     item.remove();
   }, 3800);
 }
+/**
+ * Автокопирование Рыболовного ID (FP_FMP089 / FP_89AAA001) или ключа Экипажа (KP-XXXX) в буфер обмена
+ * в 1 нажатие (работает в браузере, Android APK WebView, iOS Safari и Telegram Mini App)
+ */
 export async function copyFisherIdToClipboard(rawId, labelPrefix = 'ID рыбака') {
   const cleanId = String(rawId || '').trim();
   if (!cleanId) return false;
@@ -131,6 +141,12 @@ if (typeof document !== 'undefined' && !window.__KLEV_COPY_ID_BOUND__) {
     }
   });
 }
+/**
+ * Открывает адаптивное модальное окно / подменю.
+ * - Все кнопки «<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Закрыть» расположены внизу в закреплённом нижнем баре (.modal-sticky-footer).
+ * - При открытии ставится защитная запись в history (Back-Guard), чтобы боковой свайп «Назад»
+ *   аккуратно закрывал подменю/модалку (или возвращал в хаб настроек), а не сворачивал приложение.
+ */
 export function openModal(title, contentHtml, onMount = null, canClose = true, options = {}) {
   let backdrop = document.getElementById('appModalBackdrop');
   if (!backdrop) {
@@ -198,6 +214,10 @@ export function closeModal() {
   const backdrop = document.getElementById('appModalBackdrop');
   if (backdrop) backdrop.classList.remove('open');
 }
+/**
+ * Универсальное модальное окно подтверждения удаления (для Супер-Админа, Журнала уловов, Чатов, Карты и Круга).
+ * Отрисовывается поверх любых открытых окон (z-index: 12500), не сбрасывая текущее состояние экрана.
+ */
 export function openConfirmDeleteModal({
   title = '<svg class="k-ico" style="color:var(--warn);" viewBox="0 0 24 24" fill="none"><path d="M12 3L2.5 19.5h19L12 3z" fill="rgba(245,158,11,0.24)" stroke="#f59e0b" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9v5M12 17h.01" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/></svg> Подтверждение удаления',
   message = 'Вы уверены, что хотите выполнить удаление?',
@@ -272,6 +292,12 @@ export function isUserAgreementAccepted() {
     return false;
   }
 }
+/**
+ * Отдельное окно «<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" fill="rgba(56,189,248,0.14)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M14 2v6h6M8 13h8M8 17h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Пользовательское соглашение и Политика конфиденциальности (152-ФЗ)» при регистрации и в настройках профиля.
+ * При регистрации (requireVerification === true) требует:
+ * 1) Прокрутки текста соглашения до самого конца («Пролистано до конца»)
+ * 2) Минимального времени чтения текста (таймер не менее USER_AGREEMENT_MIN_READ_SECONDS секунд)
+ */
 export function openUserAgreementModal({
   requireVerification = false,
   onAccepted = null,
@@ -490,6 +516,10 @@ export function openFishLightbox(fishTitle, latinTitle, visualHtml) {
   lb.querySelector('#fishLightboxCloseBtn')?.addEventListener('click', closeLb);
   lb.querySelector('#fishLightboxStage')?.addEventListener('click', closeLb);
 }
+/**
+ * Кроссплатформенная выгрузка файла на устройство (100% работает в Android APK, iOS Safari/PWA, Telegram Mini App и браузере ПК).
+ * В Android APK сохраняет файл напрямую в системную папку «Загрузки» (Downloads) и отправляет системное уведомление.
+ */
 export function downloadFileCrossPlatform(filename, content, mimeType = 'application/octet-stream') {
   const cleanName = String(filename || 'klev-pro-export.txt').trim();
   const strContent = typeof content === 'string' ? content : JSON.stringify(content, null, 2);
@@ -522,6 +552,9 @@ export function downloadFileCrossPlatform(filename, content, mimeType = 'applica
   }
   return false;
 }
+/**
+ * Отправляет системное уведомление в шторку Android (через AndroidBridge) или через Web Notification API / Service Worker.
+ */
 export function triggerSystemNotificationCrossPlatform(title, body, category = 'alerts') {
   const cleanTitle = String(title || 'Клёв ПРО 2.0').trim();
   const cleanBody = String(body || '').trim();
@@ -552,6 +585,10 @@ export function triggerSystemNotificationCrossPlatform(title, body, category = '
   } catch (e) {}
   return false;
 }
+/**
+ * Запрашивает системное разрешение на показ уведомлений в шторке смартфона (Android 13+ / iOS / Web)
+ * или открывает системный экран настроек уведомлений приложения.
+ */
 export async function requestSystemNotificationsAccess() {
   try {
     if (typeof window !== 'undefined' && window.AndroidBridge) {

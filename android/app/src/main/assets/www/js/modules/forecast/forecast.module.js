@@ -1,20 +1,23 @@
-/* Klev PRO v2.5.5 r192 (Protected Build) */
-import { getFilteredFishList, openFishDetail } from '../fish/fish.module.js?v=2.5.5';
-import { logBlankTrip } from '../log/log.module.js?v=2.5.5';
-import { getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.5.5';
-import { RU } from '../../i18n/ru.js?v=2.5.5';
-import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.5.5';
-import { events } from '../../core/events.js?v=2.5.5';
-import { storage } from '../../core/storage.js?v=2.5.5';
-import { store } from '../../core/store.js?v=2.5.5';
-import { formatLocalYYYYMMDD, fmtDeltaPress, fmtHM } from '../../core/format.js?v=2.5.5';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.5.5';
-import { FISH_DB } from '../../data/species.js?v=2.5.5';
-import { renderFiveFish } from '../../ui/svg.js?v=2.5.5';
-import { createPill, showToast, openModal } from '../../ui/components.js?v=2.5.5';
-import { computeIceSafetyIndex } from '../weather/weather.module.js?v=2.5.5';
-import { evaluateCircleFieldConfirmation, requireRegisteredFisherId } from '../circle/circle.module.js?v=2.5.5';
-import { isTelegramWebApp, getTelegramUser, shareToTelegramChat, openBotChatInTelegram, buildForecastShareUrls, TELEGRAM_BOT_USERNAME } from '../../core/telegram.js?v=2.5.5';
+import { getFilteredFishList, openFishDetail } from '../fish/fish.module.js?v=2.5.6';
+import { logBlankTrip } from '../log/log.module.js?v=2.5.6';
+import { getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.5.6';
+import { RU } from '../../i18n/ru.js?v=2.5.6';
+import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.5.6';
+import { events } from '../../core/events.js?v=2.5.6';
+import { storage } from '../../core/storage.js?v=2.5.6';
+import { store } from '../../core/store.js?v=2.5.6';
+import { formatLocalYYYYMMDD, fmtDeltaPress, fmtHM } from '../../core/format.js?v=2.5.6';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.5.6';
+import { FISH_DB } from '../../data/species.js?v=2.5.6';
+import { renderFiveFish } from '../../ui/svg.js?v=2.5.6';
+import { createPill, showToast, openModal } from '../../ui/components.js?v=2.5.6';
+import { computeIceSafetyIndex } from '../weather/weather.module.js?v=2.5.6';
+import { evaluateCircleFieldConfirmation, requireRegisteredFisherId } from '../circle/circle.module.js?v=2.5.6';
+import { isTelegramWebApp, getTelegramUser, shareToTelegramChat, openBotChatInTelegram, buildForecastShareUrls, TELEGRAM_BOT_USERNAME } from '../../core/telegram.js?v=2.5.6';
+/**
+ * Список морских, проходных и полупроходных видов, которые заходят в пресные реки
+ * (big_river, small_river) и эстуарии (sea_gulf) при нересте, сезонных миграциях или приливах/отливах.
+ */
 const RIVER_ENTERING_SPECIES = {
   smelt: { runMonths: [12, 1, 2, 3, 4, 5], reason: 'весенне-зимний нерестовый и кормовой ход из заливов в устья рек' },
   navaga: { runMonths: [11, 12, 1, 2, 3], reason: 'зимний приливной и преднерестовый заход в устья северных и дальневосточных рек' },
@@ -40,6 +43,9 @@ const RIVER_ENTERING_SPECIES = {
   goby: { runMonths: [4, 5, 6, 7, 8, 9, 10], reason: 'обитание бычка в эстуариях, водохранилищах и низовьях рек' },
   herring: { runMonths: [4, 5, 6], reason: 'весенний подход сельди в опреснённые заливы и предустьевые зоны' }
 };
+/**
+ * Собирает до 5 предшествующих архивных дней для указанного дня day из 10-км гео-кэша и ленты прогноза
+ */
 const _prev5DaysMemo = new Map();
 const _archiveShockMemo = new Map();
 const _circleFieldMemo = new Map();
@@ -95,6 +101,11 @@ export function getPreceding5DaysForTarget(day, state = null) {
   _prev5DaysMemo.set(memoKey, res);
   return res;
 }
+/**
+ * 7-й ФАКТОР ПРОГНОЗИРОВАНИЯ (Ревизия 2.0.15):
+ * Анализ 5-дневного метеоархива (в радиусе 10 км) и эффекта «барического шока» (ступора рыбы после скачков давления за 1–2 суток).
+ * Даже если сегодня погода и давление нормализовались, при резких скачках за предыдущие 24–72 часа рыба находится в барическом «шоке» и болеет.
+ */
 export function evaluate5DayArchiveAndBaricShock(fish, day, prev5Days = [], hasRealArchive = true) {
   const sens = Number.isFinite(fish?.bladderSens) ? fish.bladderSens : 0.8;
   const isBurbot = fish?.id === 'burbot';
@@ -164,6 +175,10 @@ export function evaluate5DayArchiveAndBaricShock(fish, day, prev5Days = [], hasR
   val = Math.max(-20, Math.min(12, val));
   return { val, isShock, note, commentary, swing5d, maxRecentJump };
 }
+/**
+ * Аналитика Личного журнала рыболова для калибровки прогноза клёва (Ревизия 2.0.15):
+ * Сравнивает текущие условия (температура воды, давление, ветер, снасть, час) с реальными уловами пользователя из журнала.
+ */
 export function evaluateLogbookInsight(fish, day, hrObj, method, water, catches = []) {
   if (!Array.isArray(catches) || catches.length === 0 || !fish) {
     return {
@@ -220,6 +235,18 @@ export function evaluateLogbookInsight(fish, day, hrObj, method, water, catches 
   }
   return { val, hasData: true, topBait, count: byFish.length, note, commentary };
 }
+/**
+ * Ревизия 2.0.15:
+ * 7-факторный расчёт почасового прогноза клёва + калибровка по Личному журналу рыболова:
+ * 1) Температура воды (с учётом течения водоёма)
+ * 2) Давление и его суточный/3ч ход
+ * 3) Метеоархив за 5 дней и барический шок (7-й уникальный фактор из 10-км гео-кэша!)
+ * 4) Сезон, биоритм и миграция
+ * 5) Глубина, течение, свет и снасть
+ * 6) Ветер и волнение
+ * 7) Фаза Луны и приливные окна
+ * + Учёт Личного журнала уловов пользователя
+ */
 export function computeHourFactors(fish, day, hrObj, method, water, depth, normPress = 752, globalIceState = 'open_water', fastScoreOnly = false) {
   const st = store.getState();
   const dayIce = day.iceState || globalIceState;
@@ -527,6 +554,9 @@ export function getFactorBreakdown(fish, day, method, water, depth, normPress = 
   }
   return computeHourFactors(fish, day, targetHr, method, water, depth, normPress, iceState);
 }
+/**
+ * Автоматически отрисовывает наглядные цветные кружки-маркеры расцветки рядом с названием приманки (Пункт 6 Дорожной карты v2.5.0 r186)
+ */
 export function renderBaitWithColorDots(baitText = '') {
   const raw = String(baitText || '').trim();
   if (!raw) return '';
@@ -728,6 +758,9 @@ export function generateAdaptiveGuides(fish, water, depth, day, method, globalIc
   baitAdvice = `<div>${fish.feedBase || 'Естественный бентос, зоопланктон и сезонные приманки.'}</div><div style="margin-top:6px;color:var(--accent);">${seasonTone}</div>`;
   return { standAdvice, tackleAdvice, baitAdvice };
 }
+/**
+ * Формирует простое человеческое объяснение прогноза в одно предложение для режима « Новичок»
+ */
 export function buildPlainLanguageSummary(fish, day, bd, bestScore) {
   const wt = day?.waterTemp ?? 8;
   const dp = Math.abs(day?.dP || 0);
@@ -747,6 +780,9 @@ export function buildPlainLanguageSummary(fish, day, bd, bestScore) {
   }
   return `Умеренная кормовая активность вида «${fish.name}» при воде ~${wt}°C — лучший шанс на уверенную поклёвку будет в часы утренней и вечерней зорьки.`;
 }
+/**
+ * Вычисляет 30-дневную ретроспективную точность модели прогноза по данным личного Журнала уловов пользователя
+ */
 export function computeModel30DayValidation(catches = []) {
   const now = Date.now();
   const window30d = 30 * 86400 * 1000;
@@ -769,6 +805,9 @@ export function computeModel30DayValidation(catches = []) {
     label: `Подтверждённая точность на ваших водоёмах за 30 дн.: ${pct}% (${matched} из ${sample.length} выездов)`
   };
 }
+/**
+ * Автоматический генератор чек-листа сборов и безопасности на выезд (под текущую рыбу, снасть, температуру и лёд)
+ */
 export function generateTripChecklist(fish, day, method, water, depth) {
   const s = store.getState();
   const rig = calcDynamicRig(method, water, depth, day?.windMax || 3, fish, day?.waterTemp ?? 10, day?.iceState || s.iceState);
@@ -1222,24 +1261,39 @@ export function renderExpress(container) {
     if (h >= 4 && h <= 12 && sc > morningPeakSc) { morningPeakSc = sc; morningPeakHr = h; }
     if (h >= 13 && h <= 22 && sc > eveningPeakSc) { eveningPeakSc = sc; eveningPeakHr = h; }
   });
-  const svgW = 320, svgH = 92, padL = 10, padR = 10, padT = 18, padB = 18;
+  const svgW = 360, svgH = 118, padL = 14, padR = 14, padT = 26, padB = 18;
   const plotW = svgW - padL - padR;
   const plotH = svgH - padT - padB;
+  const rawMinSc = Math.min(...hrScores);
+  const rawMaxSc = Math.max(...hrScores);
+  const spanSc = Math.max(12, rawMaxSc - rawMinSc);
+  const floorSc = Math.max(0, rawMinSc - Math.max(3, spanSc * 0.18));
+  const ceilSc = Math.min(100, rawMaxSc + Math.max(4, spanSc * 0.15));
+  const effRange = Math.max(10, ceilSc - floorSc);
   const pts = hrScores.map((sc, idx) => {
     const x = Math.round((padL + (idx / 23) * plotW) * 10) / 10;
-    const y = Math.round((padT + (1 - Math.max(10, Math.min(100, sc)) / 100) * plotH) * 10) / 10;
+    const norm = Math.max(0.06, Math.min(0.96, (sc - floorSc) / effRange));
+    const y = Math.round((padT + (1 - norm) * plotH) * 10) / 10;
     return { x, y, sc, hr: idx };
   });
-  let wavePathD = `M ${pts[0].x} ${pts[0].y}`;
+  let wavePathD = 'M ' + pts[0].x + ' ' + pts[0].y;
   for (let i = 0; i < pts.length - 1; i++) {
     const p0 = pts[i];
     const p1 = pts[i + 1];
     const cx = Math.round(((p0.x + p1.x) / 2) * 10) / 10;
-    wavePathD += ` C ${cx} ${p0.y}, ${cx} ${p1.y}, ${p1.x} ${p1.y}`;
+    wavePathD += ' C ' + cx + ' ' + p0.y + ', ' + cx + ' ' + p1.y + ', ' + p1.x + ' ' + p1.y;
   }
-  const waveAreaD = `${wavePathD} L ${pts[pts.length - 1].x} ${svgH - 4} L ${pts[0].x} ${svgH - 4} Z`;
+  const baseLineY = svgH - 6;
+  const waveAreaD = wavePathD + ' L ' + pts[pts.length - 1].x + ' ' + baseLineY + ' L ' + pts[0].x + ' ' + baseLineY + ' Z';
+  const hourlyBarsSvg = pts.map(p => {
+    const bh = Math.max(4, Math.round((baseLineY - p.y) * 10) / 10);
+    const col = p.sc >= 60 ? 'rgba(16,185,129,0.22)' : (p.sc >= 38 ? 'rgba(56,189,248,0.20)' : 'rgba(148,163,184,0.15)');
+    return '<rect x="' + (p.x - 3.2).toFixed(1) + '" y="' + p.y + '" width="6.4" height="' + bh + '" rx="2.5" fill="' + col + '"/>';
+  }).join('');
   const mPt = pts[morningPeakHr] || pts[7];
   const ePt = pts[eveningPeakHr] || pts[17];
+  const mLabelX = Math.max(46, Math.min(svgW - 46, mPt.x));
+  const eLabelX = Math.max(46, Math.min(svgW - 46, ePt.x));
   const tAirVal = activeDayForTackle.tDay ?? 3;
   const tAirStr = `${tAirVal > 0 ? '+' + tAirVal : tAirVal}°C`;
   const tWatStr = `${effWaterTempForTackle > 0 ? '+' + effWaterTempForTackle : effWaterTempForTackle}°C`;
@@ -1352,28 +1406,32 @@ export function renderExpress(container) {
           <span style="font-size:12.5px;font-weight:800;color:var(--muted);">00:00–24:00</span>
         </div>
         <div style="width:100%;overflow:hidden;">
-          <svg viewBox="0 0 ${svgW} ${svgH}" width="100%" height="94" preserveAspectRatio="none" style="display:block;overflow:visible;">
+          <svg viewBox="0 0 ${svgW} ${svgH}" width="100%" height="122" preserveAspectRatio="none" style="display:block;overflow:visible;max-height:132px;">
             <defs>
               <linearGradient id="bentoWaveFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="var(--wave-fill-top, rgba(59,130,246,0.35))"/>
-                <stop offset="100%" stop-color="var(--wave-fill-bot, rgba(59,130,246,0.02))"/>
+                <stop offset="0%" stop-color="var(--wave-fill-top, rgba(56,189,248,0.42))"/>
+                <stop offset="100%" stop-color="var(--wave-fill-bot, rgba(56,189,248,0.03))"/>
               </linearGradient>
             </defs>
-            <line x1="${padL}" y1="${padT + plotH * 0.5}" x2="${svgW - padR}" y2="${padT + plotH * 0.5}" stroke="var(--border)" stroke-dasharray="3 3" stroke-width="0.8" opacity="0.6"/>
+            <line x1="${padL}" y1="${padT + plotH * 0.25}" x2="${svgW - padR}" y2="${padT + plotH * 0.25}" stroke="var(--border)" stroke-dasharray="3 3" stroke-width="0.8" opacity="0.45"/>
+            <line x1="${padL}" y1="${padT + plotH * 0.65}" x2="${svgW - padR}" y2="${padT + plotH * 0.65}" stroke="var(--border)" stroke-dasharray="3 3" stroke-width="0.8" opacity="0.55"/>
+            ${hourlyBarsSvg}
             <path d="${waveAreaD}" fill="url(#bentoWaveFill)"/>
-            <path d="${wavePathD}" fill="none" stroke="var(--wave-stroke, #2563eb)" stroke-width="2.8" stroke-linecap="round"/>
-            <line x1="${mPt.x}" y1="${mPt.y}" x2="${mPt.x}" y2="${svgH - 4}" stroke="var(--wave-stroke)" stroke-dasharray="2 2" stroke-width="1" opacity="0.55"/>
-            <line x1="${ePt.x}" y1="${ePt.y}" x2="${ePt.x}" y2="${svgH - 4}" stroke="var(--wave-stroke)" stroke-dasharray="2 2" stroke-width="1" opacity="0.55"/>
-            <circle cx="${mPt.x}" cy="${mPt.y}" r="4.2" fill="#ffffff" stroke="var(--wave-stroke, #2563eb)" stroke-width="2.5"/>
-            <circle cx="${ePt.x}" cy="${ePt.y}" r="4.2" fill="#ffffff" stroke="var(--wave-stroke, #2563eb)" stroke-width="2.5"/>
-            <text x="${mPt.x}" y="${Math.max(11, mPt.y - 6)}" text-anchor="middle" fill="var(--text)" font-size="9.5" font-weight="800">${String(mPt.hr).padStart(2, '0')}:00 (${mPt.sc}%)</text>
-            <text x="${ePt.x}" y="${Math.max(11, ePt.y - 6)}" text-anchor="middle" fill="var(--text)" font-size="9.5" font-weight="800">${String(ePt.hr).padStart(2, '0')}:00 (${ePt.sc}%)</text>
+            <path d="${wavePathD}" fill="none" stroke="var(--wave-stroke, #38bdf8)" stroke-width="3.2" stroke-linecap="round"/>
+            <line x1="${mPt.x}" y1="${mPt.y}" x2="${mPt.x}" y2="${svgH - 6}" stroke="var(--wave-stroke, #38bdf8)" stroke-dasharray="2 2" stroke-width="1.2" opacity="0.65"/>
+            <line x1="${ePt.x}" y1="${ePt.y}" x2="${ePt.x}" y2="${svgH - 6}" stroke="var(--wave-stroke, #38bdf8)" stroke-dasharray="2 2" stroke-width="1.2" opacity="0.65"/>
+            <circle cx="${mPt.x}" cy="${mPt.y}" r="4.8" fill="#10b981" stroke="#ffffff" stroke-width="2.2"/>
+            <circle cx="${ePt.x}" cy="${ePt.y}" r="4.8" fill="#38bdf8" stroke="#ffffff" stroke-width="2.2"/>
+            <rect x="${mLabelX - 42}" y="${Math.max(2, mPt.y - 23)}" width="84" height="17" rx="6" fill="var(--panel)" stroke="var(--border)" stroke-width="1"/>
+            <text x="${mLabelX}" y="${Math.max(14, mPt.y - 11)}" text-anchor="middle" fill="var(--text)" font-size="11.5" font-weight="900">${String(mPt.hr).padStart(2, '0')}:00 (${mPt.sc}%)</text>
+            <rect x="${eLabelX - 42}" y="${Math.max(2, ePt.y - 23)}" width="84" height="17" rx="6" fill="var(--panel)" stroke="var(--border)" stroke-width="1"/>
+            <text x="${eLabelX}" y="${Math.max(14, ePt.y - 11)}" text-anchor="middle" fill="var(--text)" font-size="11.5" font-weight="900">${String(ePt.hr).padStart(2, '0')}:00 (${ePt.sc}%)</text>
           </svg>
-          <div style="display:flex;justify-content:space-between;align-items:center;padding:2px 12px 0;font-size:11.5px;font-weight:800;color:var(--muted);">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 8px 0;font-size:12.5px;font-weight:900;color:var(--muted);">
             <span>00:00</span>
-            <span style="color:var(--text);">Утро (${String(morningPeakHr).padStart(2, '0')}:00)</span>
+            <span style="color:var(--good);">Утро ${String(morningPeakHr).padStart(2, '0')}:00 (${mPt.sc}%)</span>
             <span>12:00</span>
-            <span style="color:var(--text);">Вечер (${String(eveningPeakHr).padStart(2, '0')}:00)</span>
+            <span style="color:var(--accent);">Вечер ${String(eveningPeakHr).padStart(2, '0')}:00 (${ePt.sc}%)</span>
             <span>24:00</span>
           </div>
           ${(() => {
@@ -1396,20 +1454,24 @@ export function renderExpress(container) {
             <span>Карта & Радар</span>
           </div>
           <div class="bento-radar-visual">
-            <svg viewBox="0 0 200 120" width="100%" height="100%" preserveAspectRatio="xMidYMid slice" fill="none">
-              <path d="M-10,25 Q50,5 110,35 T210,20 L210,130 L-10,130 Z" fill="rgba(59,130,246,0.18)"/>
-              <path d="M-10,65 Q65,40 125,70 T210,55 L210,130 L-10,130 Z" fill="rgba(14,165,233,0.22)"/>
-              <circle cx="100" cy="62" r="42" stroke="var(--accent)" stroke-width="1.4" stroke-dasharray="4 3" fill="rgba(56,189,248,0.12)"/>
-              <circle cx="100" cy="62" r="22" stroke="var(--good)" stroke-width="1" stroke-dasharray="2 2" fill="rgba(16,185,129,0.12)"/>
-              <circle cx="100" cy="62" r="6" fill="var(--accent)" stroke="#ffffff" stroke-width="2"/>
+            <svg viewBox="0 0 240 136" width="100%" height="100%" preserveAspectRatio="xMidYMid slice" fill="none">
+              <path d="M-10,28 Q60,6 130,38 T250,22 L250,145 L-10,145 Z" fill="rgba(59,130,246,0.18)"/>
+              <path d="M-10,76 Q75,48 145,82 T250,62 L250,145 L-10,145 Z" fill="rgba(14,165,233,0.24)"/>
+              <polygon points="120,18 158,40 158,84 120,106 82,84 82,40" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="5 3" fill="rgba(56,189,248,0.12)"/>
+              <circle cx="120" cy="62" r="24" stroke="var(--good)" stroke-width="1.2" stroke-dasharray="3 2" fill="rgba(16,185,129,0.14)"/>
+              <line x1="120" y1="62" x2="152" y2="36" stroke="#10b981" stroke-width="2" stroke-linecap="round"/>
+              <circle cx="120" cy="62" r="6.5" fill="var(--accent)" stroke="#ffffff" stroke-width="2.2"/>
             </svg>
             <div class="bento-radar-badge-zone">
-              <b>±5 км</b><br>
-              <span style="font-size:9.5px;color:var(--muted);">Зона Круга</span>
+              <b>⬡ ±5 км</b> • Гексагон
             </div>
             <div class="bento-radar-badge-crew" id="bentoOpenCrewBadge">
-              Экипаж${activeCircleCount > 0 ? ` (${activeCircleCount})` : ''}
+              Круг / Экипаж${activeCircleCount > 0 ? ` (${activeCircleCount})` : ''}
             </div>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;padding-top:6px;margin-top:6px;border-top:1px solid var(--border);font-size:11px;font-weight:800;color:var(--muted);">
+            <span style="color:var(--text);">Слипы • Коряги • SOS</span>
+            <span style="color:var(--accent);">На карту →</span>
           </div>
         </div>
         <!-- Правая карточка: Автоматически меняет название по сезону (летом — Погода & Вода, в межсезонье — Погода & Шуга, зимой — Погода & Лёд) -->
@@ -1748,6 +1810,10 @@ export function renderHourly(container) {
     if (strip) strip.scrollLeft = prevScroll;
   }
 }
+/**
+ * Блок записи архивного улова с обычным календарём (<input type="date">) и быстрыми кнопками за предыдущие 5 дней
+ * с автоматической подгрузкой почасового прогноза из кэша 10 км!
+ */
 let selectedArchiveDateOverride = null;
 function renderArchiveDayLogger(container, s, defaultDay, currentFish) {
   const todayDt = new Date();
@@ -1925,6 +1991,10 @@ function updateLiveWeightLabelsAndScores(container) {
     window.scrollTo({ top: savedWinScrollY, behavior: 'instant' });
   }
 }
+/**
+ * Делегированная привязка событий на корневой контейнер #secForecast.
+ * Привязывается ОДИН РАЗ и никогда не слетает при частичном перерендере #fcHourlyBox или #fcWeekBox!
+ */
 function bindForecastEvents(container) {
   if (!container || container.__fcDelegatedBound) return;
   container.__fcDelegatedBound = true;
@@ -2122,13 +2192,13 @@ function bindForecastEvents(container) {
       const waterTitle = s.selectedWaterName || WATER_PROFILES[s.water]?.shortName || 'водоём';
       const { webUrl, botStartUrl } = buildForecastShareUrls(s.lat, s.lon, s.locLabel, fish.id);
       const summary =
-        `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg> Клёв ПРО 2.0 • Прогноз клёва (${day.relTitle || day.label})\n` +
-        `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#ef4444"/></svg> ${s.locLabel} (${waterTitle})\n` +
-        `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 12s4-6 11-6c4.2 0 7 2.5 9 6-2 3.5-4.8 6-9 6-7 0-11-6-11-6z" fill="rgba(56,189,248,0.28)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M2 12l-1.5-3.5L5 10.5M2 12l-1.5 3.5L5 13.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="16.5" cy="10.8" r="1.3" fill="currentColor"/></svg> Рыба: ${fish.name} — активность ${sc}%\n` +
-        `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.5 2" stroke="#38bdf8" stroke-width="1.9" stroke-linecap="round"/></svg> Лучший выход: ${win}\n` +
-        `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> Вода ~${day.waterTemp}°C • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><polygon points="16,8 13.5,13.5 8,16 10.5,10.5" fill="#38bdf8" stroke="currentColor" stroke-width="1.3"/></svg> ${day.pressAvg} мм (${fmtDeltaPress(day.dP)}) • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> ${day.windDir} ${day.windMax} м/с\n` +
-        `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="4.5" stroke="#38bdf8" stroke-width="1.6"/><circle cx="12" cy="12" r="1.8" fill="#10b981"/></svg> Снасть: ${rig.weight} (${rig.line})\n` +
-        `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="4" y="8" width="16" height="12" rx="3" fill="rgba(56,189,248,0.2)" stroke="currentColor" stroke-width="1.8"/><path d="M12 3v5M9 3h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="9" cy="14" r="1.5" fill="#38bdf8"/><circle cx="15" cy="14" r="1.5" fill="#38bdf8"/></svg> Открыть в Telegram-боте / Mini App: ${botStartUrl}`;
+        'Клёв ПРО 2.0 • Прогноз клёва (' + (day.relTitle || day.label) + ')\n' +
+        'Локация: ' + s.locLabel + ' (' + waterTitle + ')\n' +
+        'Рыба: ' + fish.name + ' — активность ' + sc + '%\n' +
+        'Лучший выход: ' + win + '\n' +
+        'Вода ~' + day.waterTemp + '°C • Давление ' + day.pressAvg + ' мм (' + fmtDeltaPress(day.dP) + ') • Ветер ' + day.windDir + ' ' + day.windMax + ' м/с\n' +
+        'Снасть: ' + rig.weight + ' (' + rig.line + ')\n' +
+        'Бот в Telegram: ' + botStartUrl;
       shareToTelegramChat(webUrl, summary);
       return;
     }

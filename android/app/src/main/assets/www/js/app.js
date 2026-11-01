@@ -1,11 +1,10 @@
-/* Klev PRO v2.5.5 r192 (Protected Build) */
-import { svgIcon } from './ui/icons.js?v=2.5.5';
-import { initReleaseUpdater, checkForReleaseUpdate } from './core/updater.js?v=2.5.5';
-import { RU } from './i18n/ru.js?v=2.5.5';
-import { events } from './core/events.js?v=2.5.5';
-import { store } from './core/store.js?v=2.5.5';
-import { router } from './core/router.js?v=2.5.5';
-import { installShortcut, initPwa } from './core/pwa.js?v=2.5.5';
+import { svgIcon } from './ui/icons.js?v=2.5.6';
+import { initReleaseUpdater, checkForReleaseUpdate } from './core/updater.js?v=2.5.6';
+import { RU } from './i18n/ru.js?v=2.5.6';
+import { events } from './core/events.js?v=2.5.6';
+import { store } from './core/store.js?v=2.5.6';
+import { router } from './core/router.js?v=2.5.6';
+import { installShortcut, initPwa } from './core/pwa.js?v=2.5.6';
 import {
   initTelegramMiniApp,
   extractIncomingDeepLinkParams,
@@ -15,17 +14,17 @@ import {
   syncTelegramTheme,
   syncTelegramBackButton,
   getTelegramUser
-} from './core/telegram.js?v=2.5.5';
-import { FISH_DB } from './data/species.js?v=2.5.5';
-import { WATER_PROFILES } from './data/waters.js?v=2.5.5';
-import { showToast, openModal, closeModal } from './ui/components.js?v=2.5.5';
-import { weatherModule } from './modules/weather/weather.module.js?v=2.5.5';
-import { geoModule } from './modules/geo/geo.module.js?v=2.5.5';
-import { fishModule } from './modules/fish/fish.module.js?v=2.5.5';
-import { forecastModule } from './modules/forecast/forecast.module.js?v=2.5.5';
-import { calendarModule } from './modules/calendar/calendar.module.js?v=2.5.5';
-import { logModule } from './modules/log/log.module.js?v=2.5.5';
-import { circleModule } from './modules/circle/circle.module.js?v=2.5.5';
+} from './core/telegram.js?v=2.5.6';
+import { FISH_DB } from './data/species.js?v=2.5.6';
+import { WATER_PROFILES } from './data/waters.js?v=2.5.6';
+import { showToast, openModal, closeModal } from './ui/components.js?v=2.5.6';
+import { weatherModule } from './modules/weather/weather.module.js?v=2.5.6';
+import { geoModule } from './modules/geo/geo.module.js?v=2.5.6';
+import { fishModule } from './modules/fish/fish.module.js?v=2.5.6';
+import { forecastModule } from './modules/forecast/forecast.module.js?v=2.5.6';
+import { calendarModule } from './modules/calendar/calendar.module.js?v=2.5.6';
+import { logModule } from './modules/log/log.module.js?v=2.5.6';
+import { circleModule } from './modules/circle/circle.module.js?v=2.5.6';
 if (typeof window !== 'undefined') {
   window.__KLEV_BOOTSTRAPPED__ = true;
   window.__KLEV_STORE__ = store;
@@ -124,6 +123,30 @@ function initAutoThemeListeners() {
       applyTheme('auto', false);
     }
   }, 60000);
+}
+export function applyLiquidGlassMode(enabled, showNotificationToast = false) {
+  const isOn = enabled !== false;
+  document.documentElement.setAttribute('data-liquid-glass', isOn ? '1' : '0');
+  const lgBtn = document.getElementById('headerLiquidGlassBtn');
+  if (lgBtn) {
+    lgBtn.classList.toggle('liquid-glass-active', isOn);
+    lgBtn.style.borderColor = isOn ? 'var(--accent)' : 'var(--border)';
+    lgBtn.style.opacity = isOn ? '1' : '0.68';
+    lgBtn.title = isOn
+      ? 'Эффект «Жидкое стекло»: ВКЛЮЧЁН (нажмите для возврата к классической отрисовке)'
+      : 'Эффект «Жидкое стекло»: ВЫКЛЮЧЕН (классическая отрисовка • нажмите для включения)';
+  }
+  if (showNotificationToast) {
+    showToast(
+      isOn
+        ? ' Включён эффект «Жидкое стекло» (Liquid Glass) на кнопках и панелях'
+        : ' Эффект «Жидкое стекло» отключён — включена классическая отрисовка компонентов',
+      isOn ? 'good' : 'info'
+    );
+  }
+}
+if (typeof window !== 'undefined') {
+  window.__KLEV_APPLY_LIQUID_GLASS__ = applyLiquidGlassMode;
 }
 export function applyAppTheme(themeMode, showNotificationToast = false) {
   applyTheme(themeMode, showNotificationToast);
@@ -249,6 +272,16 @@ function bindGlobalShellEvents() {
   if (profileBtn) {
     profileBtn.addEventListener('click', () => {
       fishModule.openOnboardingModal(true);
+    });
+  }
+  const lgBtn = document.getElementById('headerLiquidGlassBtn');
+  if (lgBtn) {
+    lgBtn.addEventListener('click', () => {
+      triggerHaptic('selection');
+      const cur = store.getState().liquidGlass !== false;
+      const next = !cur;
+      store.dispatch({ type: 'SET_LIQUID_GLASS', payload: next });
+      applyLiquidGlassMode(next, true);
     });
   }
   const themeBtn = document.getElementById('headerThemeBtn');
@@ -471,6 +504,7 @@ function bootstrapApp() {
   window.__KLEV_BOOTSTRAPPED__ = true;
   window.__KLEV_STORE__ = store;
   applyTheme(store.getState().theme || 'auto', false);
+  applyLiquidGlassMode(store.getState().liquidGlass !== false, false);
   initAutoThemeListeners();
   const earlyDeepLink = extractIncomingDeepLinkParams();
   const earlyShareToken = extractIncomingShareToken();
@@ -546,6 +580,7 @@ function bootstrapApp() {
   store.subscribe(
     s => ({
       theme: s.theme,
+      liquidGlass: s.liquidGlass,
       appMode: s.appMode,
       locLabel: s.locLabel,
       locAdmin1: s.locAdmin1,
@@ -567,6 +602,9 @@ function bootstrapApp() {
     (next, prev) => {
       if (!prev || next.theme !== prev.theme || (next.theme === 'auto' && next.weatherDays !== prev.weatherDays)) {
         applyTheme(next.theme || 'auto', false);
+      }
+      if (!prev || next.liquidGlass !== prev.liquidGlass) {
+        applyLiquidGlassMode(next.liquidGlass !== false, false);
       }
       const curRoute = store.getState().route || 'forecast';
       updateHeaderUI();
@@ -591,7 +629,7 @@ function bootstrapApp() {
   setTimeout(() => {
     const sp = document.getElementById('appSplashScreen');
     if (sp) sp.classList.add('splash-hide');
-  }, 950);
+  }, 2400);
   safeInit('updater', () => initReleaseUpdater());
   setTimeout(() => {
     if (circleModule && typeof circleModule.syncCurrentProfileToCloudIfLoggedIn === 'function') {

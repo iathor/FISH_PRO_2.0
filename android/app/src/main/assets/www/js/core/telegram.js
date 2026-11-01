@@ -1,16 +1,26 @@
-/* Klev PRO v2.5.5 r192 (Protected Build) */
-import { showToast } from '../ui/components.js?v=2.5.5';
-import { syncInstallButtons } from './pwa.js?v=2.5.5';
-import { store } from './store.js?v=2.5.5';
-import { storage } from './storage.js?v=2.5.5';
+/**
+ * @file telegram.js
+ * @description Модуль глубокой интеграции с Telegram Mini Apps (TMA / Telegram WebApp API),
+ * двухэтапной связки автономного Рыболовного ID (FP_89AAA001 / FP_89VIP089) и единого профиля
+ * с аккаунтом Telegram (@KlevProClubBot) по запросу пользователя, нативными кнопками BackButton / MainButton,
+ * синхронизацией цветов шапки Telegram, Telegram CloudStorage, HapticFeedback и Deep-Linking (Ревизия 2.1.1).
+ */
+import { showToast } from '../ui/components.js?v=2.5.6';
+import { syncInstallButtons } from './pwa.js?v=2.5.6';
+import { store } from './store.js?v=2.5.6';
+import { storage } from './storage.js?v=2.5.6';
 export const TELEGRAM_BOT_USERNAME = 'KlevProClubBot';
-export const PUBLIC_APP_URL = 'https://klevpro.ru/';
+export const PUBLIC_APP_URL = 'https://ia-thor.github.io/klev-pro-2/';
 export const RELAY_WORKER_URL = 'https://klevprohbot.thorantony82.workers.dev';
 let tgWebApp = null;
 let cloudSyncEnabled = false;
 let backBtnHandler = null;
 let _bindPollerTimer = null;
 let _bindFocusListenerAttached = false;
+/**
+ * Кодирует координаты, ID рыбы и (опционально) Рыболовный ID в безопасный токен Telegram без точек (только [A-Za-z0-9_-])
+ * Пример: (57.6261, 39.8845, 'zander') -> 'KPLOC_576261_398845_zander'
+ */
 export function encodeKplocToken(lat, lon, fishId = 'pike', fisherId = '') {
   const latInt = Math.round((Number(lat) || 66.0833) * 10000);
   const lonInt = Math.round((Number(lon) || 76.6800) * 10000);
@@ -24,6 +34,10 @@ export function encodeKplocToken(lat, lon, fishId = 'pike', fisherId = '') {
   }
   return `KPLOC_${latStr}_${lonStr}_${cleanFish}`;
 }
+/**
+ * Декодирует токен KPLOC_... (поддерживает и новый целочисленный формат KPLOC_576261_398845_zander,
+ * и суффикс _FP_89AAA001, и старый дробный формат KPLOC_66.0847_76.6700_smelt)
+ */
 export function decodeKplocToken(rawParam = '') {
   const str = String(rawParam || '').trim();
   if (!str.startsWith('KPLOC_')) return null;
@@ -51,6 +65,9 @@ export function decodeKplocToken(rawParam = '') {
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
   return { lat, lon, fish, fisherId };
 }
+/**
+ * Проверяет, запущено ли приложение внутри контейнера Telegram Mini App
+ */
 export function isTelegramWebApp() {
   if (typeof window === 'undefined') return false;
   const twa = window.Telegram && window.Telegram.WebApp;
@@ -65,6 +82,9 @@ export function isTelegramWebApp() {
   const search = window.location.search || '';
   return hash.includes('tgWebAppData') || search.includes('tgWebAppStartParam') || search.includes('tg_city=') || search.includes('tg_fish=');
 }
+/**
+ * Возвращает объект пользователя Telegram (если приложение открыто внутри Telegram)
+ */
 export function getTelegramUser() {
   try {
     const u = window.Telegram?.WebApp?.initDataUnsafe?.user;
@@ -80,6 +100,9 @@ export function getTelegramUser() {
   } catch (e) {}
   return null;
 }
+/**
+ * Проверяет на сервере, была ли завершена связка текущего Рыболовного ID с аккаунтом Telegram (@KlevProClubBot)
+ */
 export async function checkServerTelegramBindStatus(silent = false) {
   try {
     const s = store.getState();
@@ -122,6 +145,10 @@ export async function checkServerTelegramBindStatus(silent = false) {
   } catch (e) {}
   return null;
 }
+/**
+ * Запускает отслеживание возврата пользователя из Telegram в приложение (APK / Браузер)
+ * для мгновенного подтверждения связки ID + Telegram
+ */
 export function setupTelegramBindReturnPoller() {
   if (typeof window === 'undefined') return;
   if (!_bindFocusListenerAttached) {
@@ -145,6 +172,11 @@ export function setupTelegramBindReturnPoller() {
     }
   }, 3500);
 }
+/**
+ * Двухэтапная связка автономного Рыболовного ID (FP_89...) и единого профиля (Логин + Пароль) с Telegram:
+ * Вызывается только тогда, когда пользователь сам взаимодействует с Telegram (отправка карточки,
+ * открытие бота @KlevProClubBot или нажатие кнопки «Связать ID с Telegram»).
+ */
 export async function bindFisherIdWithTelegram(options = {}) {
   const s = store.getState();
   const up = s?.userProfile || {};
@@ -218,6 +250,9 @@ export async function bindFisherIdWithTelegram(options = {}) {
   }
   return { ok: true, bound: Boolean(up.tgLinkedId), fisherId };
 }
+/**
+ * Синхронизирует цвет верхней системной панели и фона Telegram Mini App с темой приложения
+ */
 export function syncTelegramTheme(effectiveTheme = 'dark') {
   try {
     const twa = window.Telegram?.WebApp;
@@ -229,6 +264,10 @@ export function syncTelegramTheme(effectiveTheme = 'dark') {
     if (typeof twa.setBackgroundColor === 'function') twa.setBackgroundColor(bgHex);
   } catch (e) {}
 }
+/**
+ * Управляет системной кнопкой «Назад» (←) в шапке Telegram Mini App:
+ * на внутренних вкладках возвращает в «Прогноз» вместо случайного закрытия всего приложения
+ */
 export function syncTelegramBackButton(currentRoute, onBack) {
   try {
     const bb = window.Telegram?.WebApp?.BackButton;
@@ -248,6 +287,9 @@ export function syncTelegramBackButton(currentRoute, onBack) {
     }
   } catch (e) {}
 }
+/**
+ * Вызывает тактильный отклик (вибрацию) в Telegram Mini App или стандартный navigator.vibrate
+ */
 export function triggerHaptic(type = 'light') {
   try {
     const hf = window.Telegram?.WebApp?.HapticFeedback;
@@ -266,6 +308,9 @@ export function triggerHaptic(type = 'light') {
     }
   } catch (e) {}
 }
+/**
+ * Извлекает параметры быстрого перехода из ответа бота (?tg_lat=...&tg_lon=...&tg_city=...&tg_fish=... или KPLOC_...)
+ */
 export function extractIncomingDeepLinkParams() {
   if (typeof window === 'undefined') return null;
   try {
@@ -305,6 +350,9 @@ export function extractIncomingDeepLinkParams() {
   } catch (e) {}
   return null;
 }
+/**
+ * Извлекает стартовый параметр пакета (#p=KP1_... или #klev_pack=KP1_... или ?startapp=KP1_...)
+ */
 export function extractIncomingShareToken() {
   if (typeof window === 'undefined') return null;
   try {
@@ -325,6 +373,9 @@ export function extractIncomingShareToken() {
   } catch (e) {}
   return null;
 }
+/**
+ * Очищает одноразовый токен пакета из адресной строки после успешного импорта
+ */
 export function clearIncomingShareTokenFromUrl() {
   if (typeof window === 'undefined' || !window.history?.replaceState) return;
   try {
@@ -334,6 +385,9 @@ export function clearIncomingShareTokenFromUrl() {
     }
   } catch (e) {}
 }
+/**
+ * Сохраняет компактный слепок точек и пакетов «Круга» в Telegram CloudStorage (если доступно)
+ */
 export async function syncToTelegramCloud(key, dataObj) {
   try {
     const cs = window.Telegram?.WebApp?.CloudStorage;
@@ -349,6 +403,9 @@ export async function syncToTelegramCloud(key, dataObj) {
     return false;
   }
 }
+/**
+ * Читает сохранённые данные из Telegram CloudStorage
+ */
 export async function readFromTelegramCloud(key) {
   try {
     const cs = window.Telegram?.WebApp?.CloudStorage;
@@ -370,25 +427,42 @@ export async function readFromTelegramCloud(key) {
     return null;
   }
 }
+/**
+ * Формирует универсальные рабочие ссылки для открытия пакета и прогноза (всегда публичный домен, никогда не androidplatform.net)
+ */
+export function stripPlainTextSvgAndHtml(raw = "") {
+  return String(raw || "")
+    .replace(/<svg[\s\S]*?<\/svg>/gi, "")
+    .replace(/<[^>]+>/g, "")
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/\n\s+/g, "\n")
+    .trim();
+}
 export function getPublicShareBaseUrl() {
   try {
-    if (typeof window !== 'undefined' && window.location?.origin) {
-      const host = (window.location.hostname || '').toLowerCase();
+    if (typeof window !== "undefined" && window.location?.origin) {
+      const host = (window.location.hostname || "").toLowerCase();
       if (
-        window.location.origin.startsWith('http') &&
+        window.location.origin.startsWith("http") &&
         host &&
-        host !== 'localhost' &&
-        host !== '127.0.0.1' &&
-        !host.endsWith('.androidplatform.net') &&
-        !host.startsWith('192.168.') &&
-        !host.startsWith('10.')
+        host !== "localhost" &&
+        host !== "127.0.0.1" &&
+        !host.endsWith(".androidplatform.net") &&
+        !host.startsWith("192.168.") &&
+        !host.startsWith("10.")
       ) {
-        return window.location.origin + '/';
+        const cleanPath = String(window.location.pathname || "/")
+          .replace(/\/index\.html$/i, "/")
+          .replace(/\/?$/, "/");
+        return window.location.origin + cleanPath;
       }
     }
   } catch (e) {}
   return PUBLIC_APP_URL;
 }
+/**
+ * Формирует ультракороткую ссылку #p=KP1_... (~50 символов целиком!)
+ */
 export function buildShareUrls(token) {
   const baseOrigin = getPublicShareBaseUrl();
   const webUrl = `${baseOrigin}#p=${encodeURIComponent(token)}`;
@@ -397,6 +471,9 @@ export function buildShareUrls(token) {
     : webUrl;
   return { webUrl, tgMiniAppUrl };
 }
+/**
+ * Формирует пару ссылок для шаринга конкретного прогноза по координатам и рыбе
+ */
 export function buildForecastShareUrls(lat, lon, cityLabel, fishId) {
   const baseOrigin = getPublicShareBaseUrl();
   const cleanLat = (Number(lat) || 66.0833).toFixed(4);
@@ -406,6 +483,10 @@ export function buildForecastShareUrls(lat, lon, cityLabel, fishId) {
   const botStartUrl = `https://t.me/${TELEGRAM_BOT_USERNAME}?start=${kplocToken}`;
   return { webUrl, botStartUrl, kplocToken };
 }
+/**
+ * Открывает диалог отправки сообщения/карточки (Прогноз / Экипаж / Круг / SOS) в Telegram
+ * (в группу, канал или другу) и автоматически запускает двухэтапную связку ID с Telegram с уведомлением пользователя
+ */
 export function shareToTelegramChat(shareUrl, textSummary) {
   triggerHaptic('light');
   const s = store.getState();
@@ -422,7 +503,8 @@ export function shareToTelegramChat(shareUrl, textSummary) {
   } else {
     showToast(` Отправка в Telegram: ваш ID (${fisherId}) прикреплён к карточке! Для полной синхронизации с ботом нажмите «Связать ID с ТГ» в Профиле.`, 'info');
   }
-  const fullTgShare = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(textSummary)}`;
+  const cleanSummary = stripPlainTextSvgAndHtml(textSummary);
+  const fullTgShare = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(cleanSummary)}`;
   try {
     if (window.Telegram?.WebApp && typeof window.Telegram.WebApp.openTelegramLink === 'function' && isTelegramWebApp()) {
       window.Telegram.WebApp.openTelegramLink(fullTgShare);
@@ -435,6 +517,10 @@ export function shareToTelegramChat(shareUrl, textSummary) {
   } catch (e) {}
   return false;
 }
+/**
+ * Открывает чат с ботом @KlevProClubBot и автоматически передаёт токен связки BIND_<fisherId>,
+ * чтобы объединить выданный автономно ID рыбака и единый профиль с Telegram пользователя
+ */
 export function openBotChatInTelegram(explicitFisherId = '') {
   triggerHaptic('light');
   const s = store.getState();
@@ -460,12 +546,17 @@ export function openBotChatInTelegram(explicitFisherId = '') {
   } catch (e) {}
   return false;
 }
+/**
+ * Универсальная функция «Поделиться» (Web Share API -> Копирование в буфер обмена)
+ */
 export async function shareOrCopyPack({ title, text, url }) {
-  triggerHaptic('light');
-  const fullText = `${text}\n${url}`;
+  triggerHaptic("light");
+  const cleanTitle = stripPlainTextSvgAndHtml(title || "Клёв ПРО 2.0");
+  const cleanText = stripPlainTextSvgAndHtml(text || "");
+  const fullText = cleanText ? `${cleanText}\n${url}` : String(url || "");
   if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
     try {
-      await navigator.share({ title, text, url });
+      await navigator.share({ title: cleanTitle, text: cleanText, url });
       showToast(' Пакет успешно отправлен!', 'good');
       return { method: 'web_share', ok: true };
     } catch (err) {
@@ -483,6 +574,9 @@ export async function shareOrCopyPack({ title, text, url }) {
   } catch (e) {}
   return { method: 'manual', ok: false, fullText };
 }
+/**
+ * Базовая проверка целостности строки initData на клиенте (наличие 64-символьного hex-хэша HMAC-SHA256 и свежести auth_date)
+ */
 export function validateTelegramInitDataStructure(rawInitData = "") {
   const str = String(rawInitData || window.Telegram?.WebApp?.initData || "").trim();
   if (!str) return { present: false, validStructure: false, reason: "empty" };

@@ -348,7 +348,7 @@ body {
    3. КАРТОЧКИ 3D LIQUID GLASS С ДИАГОНАЛЬНЫМ БЛИКОМ (ПО ФОТО 2)
    ========================================================================== */
 .app-main {
-  max-width: 1200px;
+  max-width: 960px;
   margin: 0 auto;
   padding: 10px 10px 18px;
   display: flex;
@@ -465,15 +465,33 @@ body {
 /* Герой-сетка (Ихтиологический Прогноз / Режим водоёма) */
 .bento-hero-grid {
   display: grid;
-  grid-template-columns: 1.15fr 0.95fr;
-  gap: 12px;
+  grid-template-columns: minmax(0, 1.12fr) minmax(0, 0.88fr);
+  gap: 10px;
   align-items: center;
+  width: 100%;
 }
 
-@media (max-width: 400px) {
+.bento-hero-left,
+.bento-gauge-col {
+  min-width: 0;
+  max-width: 100%;
+}
+
+@media (max-width: 420px) {
   .bento-hero-grid {
-    grid-template-columns: 1.08fr 0.92fr;
+    grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.92fr);
     gap: 8px;
+  }
+  .bento-gauge-svg-box {
+    width: 138px;
+    height: 82px;
+  }
+  .bento-gauge-svg-box svg {
+    width: 138px;
+    height: 80px;
+  }
+  .bento-status-verdict {
+    font-size: 15px;
   }
 }
 
@@ -694,13 +712,25 @@ body {
   line-height: 1.3;
 }
 
+.bento-bottom-duo {
+  align-items: stretch;
+}
+.bento-radar-card,
+.bento-weather-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100%;
+}
 .bento-radar-visual {
   position: relative;
-  height: 126px;
+  flex: 1 1 auto;
+  min-height: 142px;
+  height: 100%;
   border-radius: 14px;
   overflow: hidden;
-  border: 1.5px solid rgba(125, 195, 245, 0.32);
-  background: radial-gradient(circle at 52% 54%, rgba(56, 189, 248, 0.26) 0%, rgba(37, 99, 235, 0.12) 55%, rgba(15, 23, 42, 0.25) 100%);
+  border: 1.5px solid rgba(125, 195, 245, 0.36);
+  background: radial-gradient(circle at 52% 54%, rgba(56, 189, 248, 0.28) 0%, rgba(37, 99, 235, 0.14) 55%, rgba(15, 23, 42, 0.32) 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1174,18 +1204,22 @@ body {
   font-size: 13.5px !important;
 }
 
-/* Загрузочный сплеш-экран */
+/* Полноэкранный загрузочный экран (100vw × 100dvh, единая плавная строка прогресса 2.4 сек) */
 .app-splash-screen {
   position: fixed;
   inset: 0;
+  width: 100vw;
+  height: 100dvh;
   z-index: 12000;
-  background: radial-gradient(circle at 50% 42%, #0d2137 0%, #07101e 75%, #040914 100%);
+  background: #040914;
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: center;
-  padding: 16px;
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: hidden;
   opacity: 1;
-  transition: opacity 0.38s ease, visibility 0.38s ease;
+  transition: opacity 0.45s cubic-bezier(0.22, 1, 0.36, 1), visibility 0.45s ease;
 }
 .app-splash-screen.splash-hide {
   opacity: 0;
@@ -1193,92 +1227,126 @@ body {
   pointer-events: none;
 }
 .app-splash-inner {
-  width: 100%;
-  max-width: 420px;
+  position: relative;
+  width: 100vw;
+  height: 100dvh;
+  max-width: none !important;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 14px;
-  text-align: center;
+  justify-content: flex-end;
 }
 .app-splash-art-wrap {
-  width: 100%;
-  max-width: min(92vw, 380px);
-  border-radius: 20px;
+  position: absolute;
+  inset: 0;
+  width: 100vw;
+  height: 100dvh;
+  max-width: none !important;
+  border-radius: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
   overflow: hidden;
-  border: 1.5px solid rgba(56, 189, 248, 0.45);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.75), 0 0 28px rgba(16, 185, 129, 0.22);
-  background: #071324;
-  margin: 0 auto;
+  background: #050c1a;
+  margin: 0;
+}
+.app-splash-art-wrap::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 30%;
+  background: linear-gradient(180deg, rgba(4, 9, 20, 0) 0%, rgba(4, 9, 20, 0.82) 55%, rgba(4, 9, 20, 0.96) 100%);
+  pointer-events: none;
+}
+.app-splash-screen[data-app-splash-theme="light"] .app-splash-art-wrap::after {
+  background: linear-gradient(180deg, rgba(233, 241, 248, 0) 0%, rgba(233, 241, 248, 0.88) 55%, rgba(225, 238, 250, 0.98) 100%);
 }
 .app-splash-img {
-  width: 100%;
-  height: auto;
-  max-height: 68vh;
-  aspect-ratio: 9 / 16;
+  width: 100vw;
+  height: 100dvh;
+  max-height: none !important;
   object-fit: cover;
+  object-position: center center;
   display: block;
 }
 .app-splash-loader {
-  width: 100%;
-  max-width: 340px;
+  position: relative;
+  z-index: 2;
+  width: min(90vw, 420px);
+  margin: 0 auto 34px auto;
+  padding: 12px 16px;
+  border-radius: 16px;
+  background: rgba(10, 22, 40, 0.78);
+  border: 1.5px solid rgba(56, 189, 248, 0.42);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.28), 0 10px 28px rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 8px;
+}
+.app-splash-hud-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.app-splash-stage {
+  font-size: 12px;
+  font-weight: 800;
+  color: #e2e8f0;
+  text-align: left;
+  line-height: 1.25;
+}
+.app-splash-pct {
+  font-size: 12.5px;
+  font-weight: 900;
+  font-family: monospace;
+  color: #38bdf8;
+  flex-shrink: 0;
 }
 .app-splash-bar {
   width: 100%;
-  height: 6px;
-  background: rgba(30, 41, 59, 0.85);
+  height: 8px;
+  background: rgba(15, 23, 42, 0.9);
   border-radius: 999px;
   overflow: hidden;
-  border: 1px solid rgba(56, 189, 248, 0.3);
+  border: 1px solid rgba(56, 189, 248, 0.38);
 }
 .app-splash-bar-fill {
   height: 100%;
-  width: 35%;
-  background: linear-gradient(90deg, #10b981, #38bdf8);
+  width: 12%;
+  background: linear-gradient(90deg, #10b981 0%, #38bdf8 60%, #60a5fa 100%);
   border-radius: 999px;
-  animation: klevSplashProgress 1.1s ease-out forwards;
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.65);
+  transition: width 0.48s cubic-bezier(0.22, 1, 0.36, 1);
 }
-@keyframes klevSplashProgress {
-  0% { width: 15%; }
-  60% { width: 82%; }
-  100% { width: 100%; }
-}
-.app-splash-sub {
-  font-size: 12px;
-  font-weight: 700;
-  color: #94a3b8;
-  letter-spacing: 0.2px;
-}
-
-.app-splash-screen[data-app-splash-theme="light"] {
-  background: linear-gradient(180deg, #e3f1fc 0%, #f5faff 50%, #d8ecfa 100%) !important;
-}
-.app-splash-screen[data-app-splash-theme="light"] .app-splash-art-wrap {
-  background: #ffffff;
+.app-splash-screen[data-app-splash-theme="light"] .app-splash-loader {
+  background: rgba(255, 255, 255, 0.88);
   border-color: #93c5fd;
-  box-shadow: 0 14px 36px rgba(37, 99, 235, 0.18);
+  box-shadow: inset 0 1px 0 #ffffff, 0 8px 24px rgba(30, 58, 138, 0.16);
 }
-.app-splash-screen[data-app-splash-theme="light"] .app-splash-sub {
-  color: #1e3a8a;
+.app-splash-screen[data-app-splash-theme="light"] .app-splash-stage {
+  color: #0f172a;
 }
-
-.app-splash-screen[data-app-splash-theme="contrast"] {
-  background: #0b1018 !important;
+.app-splash-screen[data-app-splash-theme="light"] .app-splash-pct {
+  color: #0284c7;
 }
-.app-splash-screen[data-app-splash-theme="contrast"] .app-splash-art-wrap {
-  background: #111827;
-  border: 1.5px solid rgba(245, 158, 11, 0.55);
-  box-shadow: 0 0 24px rgba(245, 158, 11, 0.22);
+.app-splash-screen[data-app-splash-theme="light"] .app-splash-bar {
+  background: #dbeafe;
+  border-color: #93c5fd;
+}
+.app-splash-screen[data-app-splash-theme="contrast"] .app-splash-loader {
+  background: rgba(12, 17, 26, 0.92);
+  border-color: rgba(245, 158, 11, 0.65);
 }
 .app-splash-screen[data-app-splash-theme="contrast"] .app-splash-bar-fill {
-  background: linear-gradient(90deg, #f59e0b, #10b981);
+  background: linear-gradient(90deg, #f59e0b 0%, #10b981 100%);
 }
-.app-splash-screen[data-app-splash-theme="contrast"] .app-splash-sub {
+.app-splash-screen[data-app-splash-theme="contrast"] .app-splash-stage,
+.app-splash-screen[data-app-splash-theme="contrast"] .app-splash-pct {
   color: #fbbf24;
-  font-family: monospace;
 }
 
 .fisher-id-copy-badge {

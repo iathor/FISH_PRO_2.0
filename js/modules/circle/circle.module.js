@@ -1,14 +1,24 @@
-/* Klev PRO v2.5.5 r192 (Protected Build) */
-import { events } from '../../core/events.js?v=2.5.5';
-import { store } from '../../core/store.js?v=2.5.5';
-import { storage, calcGeoDistanceKm, safeJsonParse } from '../../core/storage.js?v=2.5.5';
-import { router } from '../../core/router.js?v=2.5.5';
-import { getSeasonalBaitsForContext, SPOT_CATEGORIES } from '../../core/config.js?v=2.5.5';
-import { detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.5.5';
-import { findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.5.5';
-import { WATER_PROFILES } from '../../data/waters.js?v=2.5.5';
-import { FISH_DB } from '../../data/species.js?v=2.5.5';
-import { escapeHtml, isAnonymousCallsignValid, createPill, showToast, openModal, closeModal, copyFisherIdToClipboard, openConfirmDeleteModal, openUserAgreementModal, isUserAgreementAccepted, downloadFileCrossPlatform, triggerSystemNotificationCrossPlatform, requestSystemNotificationsAccess } from '../../ui/components.js?v=2.5.5';
+/**
+ * @file circle.module.js
+ * @description Модуль «Клёв ПРО: Круг» и выделенная вкладка « Чаты» (Ревизия 2.1.1):
+ * - Ультракороткая бинарная упаковка V3 (#p=KP1_<28_символов>) со встроенным 20-битным ID рыбака (FP_89AAA001).
+ * - Автоматическая привязка ID рыбака (FP_89AAA001) ко всем точкам: Круг, Экипаж 72ч, SOS, Мастерская, Закладки и Уловы.
+ * - Автокопирование ID рыбака (FP_89AAA001) и ключей Экипажа (KP-XXXX) в 1 касание (data-copy-fisher-id).
+ * - Разделение всех событий на « МОИ» (с возможностью удаления ) и « ЧУЖИЕ» (только скрытие / возврат ).
+ * - Компактный список событий (.circle-compact-list) с раскрывающимися деталями без «взрыва ленты».
+ * - Выделенная вкладка « Чаты» на нижней панели навигации + отправка карточки улова прямо в чат.
+ * - Закрытый режим Супер-Админа (только для Владельца + управляемая База Администраторов с синхронизацией).
+ */
+import { events } from '../../core/events.js?v=2.5.6';
+import { store } from '../../core/store.js?v=2.5.6';
+import { storage, calcGeoDistanceKm, safeJsonParse } from '../../core/storage.js?v=2.5.6';
+import { router } from '../../core/router.js?v=2.5.6';
+import { getSeasonalBaitsForContext, SPOT_CATEGORIES } from '../../core/config.js?v=2.5.6';
+import { detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.5.6';
+import { findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.5.6';
+import { WATER_PROFILES } from '../../data/waters.js?v=2.5.6';
+import { FISH_DB } from '../../data/species.js?v=2.5.6';
+import { escapeHtml, isAnonymousCallsignValid, createPill, showToast, openModal, closeModal, copyFisherIdToClipboard, openConfirmDeleteModal, openUserAgreementModal, isUserAgreementAccepted, downloadFileCrossPlatform, triggerSystemNotificationCrossPlatform, requestSystemNotificationsAccess } from '../../ui/components.js?v=2.5.6';
 import {
   RELAY_WORKER_URL,
   buildShareUrls,
@@ -21,9 +31,9 @@ import {
   syncToTelegramCloud,
   readFromTelegramCloud,
   triggerHaptic
-} from '../../core/telegram.js?v=2.5.5';
-import { setLocation } from '../geo/geo.module.js?v=2.5.5';
-import { calcDynamicRig } from '../forecast/forecast.module.js?v=2.5.5';
+} from '../../core/telegram.js?v=2.5.6';
+import { setLocation } from '../geo/geo.module.js?v=2.5.6';
+import { calcDynamicRig } from '../forecast/forecast.module.js?v=2.5.6';
 export const CREW_TTL_MS = 72 * 60 * 60 * 1000;
 export const CIRCLE_BLUR_RADIUS_KM = 5.0;
 export const CIRCLE_OLDER_BLUR_RADIUS_KM = 10.0;
@@ -413,6 +423,11 @@ function _removeOutboxRelay(key) {
     _savePendingOutbox(box);
   }
 }
+/**
+ * Надёжный сетевой транспорт для iOS (Safari / WebKit / PWA / Telegram Mini App), Android APK и ПК:
+ * - Для POST-запросов использует Content-Type: text/plain;charset=UTF-8 (CORS Simple Request без блокирующего OPTIONS preflight в WebKit)
+ * - На iOS WebKit включает keepalive, анти-кэш метку _t на всех GET-запросах и быстрый переход на GET ?payload=... при малейшей задержке POST-сокета
+ */
 let _preferredRelayProxyUntil = 0;
 let _lastWorkingGatewayLabel = 'Прямой канал D1 / Edge';
 export function getLastActiveDbGatewayLabel() {
@@ -514,6 +529,12 @@ async function _executeSingleGatewayRequest(kind, fullUrl, method, bodyStr, canU
     throw err;
   }
 }
+/**
+ * Многоканальный отказоустойчивый транспорт БД (Вариант Б — v2.5.6 r193):
+ * - 6 независимых каналов связи (Direct POST/GET, Direct GET-Payload для VPN, и 4 HTTPS Anti-DPI ретранслятора для мобильных сетей РФ без VPN).
+ * - Строгая валидация ответа (исключает ложные 403/429 и HTML-заглушки прокси).
+ * - Параллельная гонка каналов (Promise.any), выбирающая самый быстрый рабочий маршрут в текущей сети за 300–700 мс.
+ */
 export async function workerFetch(endpointOrUrl, options = {}, timeoutMs = 5500, retries = 2) {
   const fullUrl = String(endpointOrUrl || '').startsWith('http')
     ? endpointOrUrl
@@ -599,6 +620,9 @@ export function getCanonicalDmChannelId(myFidRaw, peerFidRaw, allMsgs = []) {
   }
   return canonical;
 }
+/**
+ * Быстрый детерминированный 32-битный FNV-1a хэш
+ */
 export function fnv1a32(str = '') {
   let h = 0x811c9dc5;
   const s = String(str || '');
@@ -608,6 +632,9 @@ export function fnv1a32(str = '') {
   }
   return h >>> 0;
 }
+/**
+ * Вычисляет необратимый многораундовый крипто-токен авторизации (вместо хранения открытого пароля в localStorage)
+ */
 export function deriveSecureAuthToken(loginNorm = '', passClean = '') {
   const cleanL = String(loginNorm || '').trim().toLowerCase().replace(/^@/, '');
   const cleanP = String(passClean || '').trim();
@@ -619,6 +646,10 @@ export function deriveSecureAuthToken(loginNorm = '', passClean = '') {
   }
   return `KTOK_${h1.toString(16).toUpperCase().padStart(8, '0')}_${h2.toString(16).toUpperCase().padStart(8, '0')}`;
 }
+/**
+ * Определяет 2-значный код региона РФ (01..99, включая новые регионы России 80, 81, 84, 85, 82, 92)
+ * по названию субъекта/города или координатам рыбака
+ */
 export function resolveRussianRegionCode(stateOrText = null, lat = null, lon = null) {
   let text = '';
   let effLat = Number(lat);
@@ -652,6 +683,13 @@ export function resolveRussianRegionCode(stateOrText = null, lat = null, lon = n
   }
   return '89';
 }
+/**
+ * Генерирует региональный Рыболовный ID формата FP_<RR><AAA..ZZZ><001..999>
+ * Ёмкость: 26^3 * 999 = 17 558 424 уникальных ID на каждый регион РФ!
+ * - index0 = 0 -> FP_89AAA001 (1-й рыбак в регионе)
+ * - index0 = 998 -> FP_89AAA999 (999-й рыбак в регионе)
+ * - index0 = 999 -> FP_89AAB001 (1000-й рыбак в регионе — строго 001, без 000!)
+ */
 export function formatFisherIdFromIndex(regionCode = '89', index0Based = 0) {
   const regDigits = String(regionCode || '89').replace(/\D/g, '').padStart(2, '0').slice(-2);
   const reg = (regDigits === '00' ? '89' : regDigits);
@@ -663,6 +701,10 @@ export function formatFisherIdFromIndex(regionCode = '89', index0Based = 0) {
   const c3 = String.fromCharCode(65 + (letterBlock % 26));
   return `FP_${reg}${c1}${c2}${c3}${String(num).padStart(3, '0')}`;
 }
+/**
+ * Генерирует временный резервный ID для незарегистрированного рыбака формата FP_XXRZYYYY
+ * где XX — код региона РФ (01..92), RZ — шаблон резерва, YYYY — номер от 0001 до 9999.
+ */
 export function formatTempReserveFisherId(regionCode = '89', seedNumOrStr = 1) {
   const regDigits = String(regionCode || '89').replace(/\D/g, '').padStart(2, '0').slice(-2);
   const reg = (regDigits === '00' ? '89' : regDigits);
@@ -744,6 +786,10 @@ export function formatCrewKeyFromHash(hash16) {
   const clean = (Number(hash16) || 0x7a3f) & 0xffff;
   return `KP-${(clean || 0x7a3f).toString(16).toUpperCase().padStart(4, '0')}`;
 }
+/**
+ * Упаковывает Рыболовный ID (как региональный FP_89AAA001, так и VIP/Владельца FP_89VIP089)
+ * в 32-битное целое число (0 .. 1 755 842 399 < 2^31) без единой потери и обратно!
+ */
 export function encodeFisherIdTo32Bit(fisherIdStr = '') {
   const norm = normalizeFisherId(fisherIdStr || OWNER_BOUND_FISHER_ID);
   const regMatch = norm.match(/^FP_(\d{2})([A-Z]{3})(\d{3})$/);
@@ -786,6 +832,10 @@ export function formatFisherIdFrom20Bit(val20) {
   if (clean === 0x89a01) return OWNER_BOUND_FISHER_ID;
   return formatFisherIdFromIndex('89', clean % 99999);
 }
+/**
+ * Проверяет логин и пароль рыбака; распознаёт постоянный аккаунт Владельца (iAthor -> FP_89VIP089)
+ * и детерминированно/последовательно формирует региональный ID рыбака (FP_<RR><AAA><001..999>).
+ */
 export function resolveAccountCredentials(rawLogin = '', rawPassword = '', preferredRegionCode = null) {
   const loginClean = String(rawLogin || '').trim().slice(0, 48);
   const loginNorm = loginClean.toLowerCase().replace(/[@\s]/g, '');
@@ -843,6 +893,9 @@ export function resolveAccountCredentials(rawLogin = '', rawPassword = '', prefe
     regionCode: regCode
   };
 }
+/**
+ * Проверяет, является ли текущий пользователь Владельцем (Супер-Админом Антоном: iAthor / iAthor82 -> FP_89VIP089 & FP_FMP089)
+ */
 export function isOwnerAdmin(stateObj = null) {
   const s = stateObj || store.getState();
   const up = s?.userProfile || {};
@@ -855,6 +908,9 @@ export function isOwnerAdmin(stateObj = null) {
   if (uname && OWNER_TG_USERNAMES.includes(uname)) return true;
   return false;
 }
+/**
+ * Возвращает полный список администраторов из базы (Владелец FP_89VIP089 + FP_FMP089 + добавленные им в базу рыбаки)
+ */
 export function getAdminWhitelistEntries(stateObj = null) {
   const s = stateObj || store.getState();
   const up = s?.userProfile || {};
@@ -875,6 +931,9 @@ export function getAdminWhitelistEntries(stateObj = null) {
   }
   return Array.from(map.values());
 }
+/**
+ * Проверяет, имеет ли текущий пользователь права Администратора
+ */
 export function isUserAdmin(stateObj = null) {
   const s = stateObj || store.getState();
   const up = s?.userProfile || {};
@@ -890,6 +949,12 @@ export function isUserAdmin(stateObj = null) {
     return (myFisherId && eid === myFisherId) || (myUname && eid === myUname);
   });
 }
+/**
+ * Возвращает текущую учётную запись рыбака:
+ * 1. Без регистрации (нет логина и пароля): выдаётся ВРЕМЕННЫЙ РЕЗЕРВНЫЙ ID формата FP_XXRZYYYY (напр. FP_89RZ0001).
+ * 2. При регистрации логина и пароля: выдаётся ПОСТОЯННЫЙ ID формата FP_XXAAA001, жёстко привязанный ТОЛЬКО к логину и паролю на всех устройствах!
+ * 3. Для Владельца (iAthor / iAthor82): эксклюзивные неприкосновенные ID FP_89VIP089 и FP_FMP089.
+ */
 export function getCurrentFisherIdentity(stateObj = null) {
   const s = stateObj || store.getState();
   const up = s?.userProfile || {};
@@ -948,6 +1013,10 @@ export function getCurrentFisherIdentity(stateObj = null) {
     }
   };
 }
+/**
+ * Блокирует отправку точек/сообщений/пакетов для незарегистрированных рыбаков с временным резервным ID (FP_XXRZYYYY)
+ * и открывает окно регистрации Логина и Пароля!
+ */
 export function requireRegisteredFisherId(actionLabel = 'отправки данных') {
   const s = store.getState();
   const ident = getCurrentFisherIdentity(s);
@@ -974,12 +1043,21 @@ export function isCircleItemMine(item, stateObj = null) {
   }
   return false;
 }
+/**
+ * Проверяет, скрыта ли чужая точка/событие пользователем
+ */
 export function isCircleItemHidden(item, stateObj = null) {
   if (!item || !item.id) return false;
   const s = stateObj || store.getState();
   const hidden = s?.userProfile?.hiddenCircleIds;
   return Array.isArray(hidden) && hidden.includes(item.id);
 }
+/**
+ * Проверяет доступ к закрытой точке «Экипажа (72 ч)»:
+ * - Сигналы SOS видны ВСЕМ.
+ * - Сводки Круга и Мастерской видны всем.
+ * - Закрытые Экипажи видны ТОЛЬКО создателю, участникам с ключом KP-XXXX и Администраторам из базы!
+ */
 export function canUserAccessCrewItem(item, stateObj = null) {
   if (!item) return false;
   if (item.t !== 'crew') return true;
@@ -994,6 +1072,9 @@ export function canUserAccessCrewItem(item, stateObj = null) {
   if (item.id && unlocked.includes(String(item.id).toUpperCase())) return true;
   return false;
 }
+/**
+ * Синхронизация базы администраторов с Cloudflare Worker (/admin/whitelist)
+ */
 export async function syncAdminWhitelistWithCloud(pushChange = null) {
   try {
     if (pushChange && isOwnerAdmin()) {
@@ -1043,6 +1124,9 @@ export function detectClientPlatformLabel() {
   }
   return isIOS ? 'iOS-Web' : 'WEB';
 }
+/**
+ * Гарантирует фиксацию уникального ID устройства и выделение уникального серверного ID рыбака (/api/id/allocate)
+ */
 export async function ensureFisherIdentityInitialized(forceReallocateForRegion = false) {
   const s = store.getState();
   const up = s?.userProfile || {};
@@ -1091,7 +1175,7 @@ export async function ensureFisherIdentityInitialized(forceReallocateForRegion =
         tgId: ident.isRegistered ? (ident.tgLinkedId || '') : '',
         tgUsername: ident.isRegistered ? (ident.tgUsername || '') : '',
         platform: detectClientPlatformLabel(),
-        version: '2.5.5',
+        version: '2.5.6',
         lat: s.lat,
         lon: s.lon
       })
@@ -1131,6 +1215,10 @@ export async function ensureFisherIdentityInitialized(forceReallocateForRegion =
   _idAllocationInFlight = false;
   return ident.fisherId;
 }
+/**
+ * Публикует точку Круга, Экипажа, SOS или Мастерской на сервер (/api/circle/publish)
+ * (доступно ТОЛЬКО зарегистрированным рыбакам с постоянным ID FP_XXAAA001 или Владельцу!)
+ */
 export async function publishCircleItemToServer(itemObj, packToken = '') {
   if (!itemObj || !itemObj.t) return false;
   const s = store.getState();
@@ -1165,7 +1253,7 @@ export async function publishCircleItemToServer(itemObj, packToken = '') {
         authTokenHash: s.userProfile?.authTokenHash || '',
         adminToken: _serverAdminSessionToken || s.userProfile?.adminSessionToken || '',
         platform: detectClientPlatformLabel(),
-        version: '2.5.5'
+        version: '2.5.6'
       })
     }, 4800, 2);
     if (res && res.ok) {
@@ -1258,6 +1346,9 @@ export async function deleteCircleItemFromServer(itemId) {
     return false;
   }
 }
+/**
+ * Загружает с сервера все активные точки Круга, открытых Экипажей, SOS и Мастерской рядом (/api/circle/nearby)
+ */
 export async function syncNearbyCirclePointsFromServer(showFeedbackToast = false, forceImmediate = false) {
   const now = Date.now();
   if (!showFeedbackToast && !forceImmediate && (now - _lastNearbyCircleSyncTs < 5000 || _nearbySyncInFlight)) return false;
@@ -1280,7 +1371,7 @@ export async function syncNearbyCirclePointsFromServer(showFeedbackToast = false
       crewKeys: crewKeysParam,
       adminToken: adminTok,
       platform: detectClientPlatformLabel(),
-      version: '2.5.5',
+      version: '2.5.6',
       locLabel: s.locLabel || ''
     });
     const res = await workerFetch(`/api/circle/nearby?${qs.toString()}`, { method: 'GET' }, 4800, 1);
@@ -1406,6 +1497,12 @@ export async function syncNearbyCirclePointsFromServer(showFeedbackToast = false
     return false;
   }
 }
+/**
+ * Клиентское сквозное шифрование (E2EE) сообщений чата рыбаков и экипажа.
+ */
+/**
+ * Формирует слепок настроек профиля и рыбалки для межплатформенной облачной синхронизации
+ */
 export function buildProfileCloudSnapshot(stateObj = null) {
   const s = stateObj || store.getState();
   const ident = getCurrentFisherIdentity(s);
@@ -1448,6 +1545,9 @@ export function buildProfileCloudSnapshot(stateObj = null) {
     updatedAt: Date.now()
   };
 }
+/**
+ * Применяет загруженный из облака профиль к текущему устройству (браузер, APK, Telegram Mini App)
+ */
 export function applyCloudProfileToDevice(cloudProf, whitelist = null) {
   if (!cloudProf || typeof cloudProf !== 'object') return;
   const s = store.getState();
@@ -1511,6 +1611,11 @@ export function applyCloudProfileToDevice(cloudProf, whitelist = null) {
     store.dispatch({ type: 'SET_APP_MODE', payload: cloudProf.appMode });
   }
 }
+/**
+ * Регистрация или вход по Логину (или постоянному ID) и Паролю.
+ * Постоянный ID выдаётся ОДИН РАЗ и навсегда привязывается СТРОГО к Логину и Паролю (не к телефону!),
+ * обеспечивая единый ID и одинаковые данные на Android, iOS, планшетах, ПК и в Telegram Mini App.
+ */
 export async function authenticateAndSyncAccount(rawLogin, rawPassword, mode = 'login', overrideRegionCode = '') {
   const s = store.getState();
   const regCode = (overrideRegionCode && /^\d{2}$/.test(String(overrideRegionCode).trim()))
@@ -1574,7 +1679,7 @@ export async function authenticateAndSyncAccount(rawLogin, rawPassword, mode = '
         pinHash: creds.pinHash,
         regionCode: regCode,
         platform: detectClientPlatformLabel(),
-        version: '2.5.5',
+        version: '2.5.6',
         profileSnapshot: snapshot
       })
     });
@@ -1632,6 +1737,9 @@ export async function authenticateAndSyncAccount(rawLogin, rawPassword, mode = '
     cloudSynced
   };
 }
+/**
+ * Выход из зарегистрированного профиля на текущем устройстве (возвращает устройство на временный резервный ID FP_XXRZYYYY)
+ */
 export function logoutCurrentFisherAccount() {
   const s = store.getState();
   const regCode = resolveRussianRegionCode(s);
@@ -1680,7 +1788,7 @@ export async function syncCurrentProfileToCloudIfLoggedIn() {
         pinHash: up.pinHash || '',
         regionCode: resolveRussianRegionCode(s),
         platform: detectClientPlatformLabel(),
-        version: '2.5.5',
+        version: '2.5.6',
         profileSnapshot: snapshot
       })
     });
@@ -1701,6 +1809,10 @@ export async function syncCurrentProfileToCloudIfLoggedIn() {
   } catch (e) {}
   return false;
 }
+/**
+ * Генерирует компактную шапку-переключатель между 4 раздельными подменю настроек:
+ * 1) Вход и ID | 2) Рыбалка | 3) Параметры | 4) Уведомления
+ */
 export function renderSettingsZoneTabsHtml(activeZone = 'auth') {
   const effZone = activeZone === 'notif' ? 'app' : activeZone;
   const zones = [
@@ -1811,6 +1923,9 @@ export function playNotificationPing(kind = 'normal') {
     }
   } catch (e) {}
 }
+/**
+ * Обновляет бейджи непрочитанных событий на нижней вкладке « Круг» и непрочитанных сообщений на вкладке « Чаты»
+ */
 export function markCircleNotificationsRead() {
   try {
     const s = store.getState();
@@ -1895,6 +2010,13 @@ export function pushAppNotification({ category = 'circle', title = '', body = ''
 }
 export const CIRCLE_HEX_TTL_HOURS = 72;
 export const CIRCLE_HEX_TTL_MS = CIRCLE_HEX_TTL_HOURS * 3600 * 1000;
+/**
+ * Вычисляет состояние 72-часового угасания гексагона (соты) «Круга» на карте и в ленте:
+ * - 0..12 ч: яркая сота ±5 км (свежесть 83–100%), сплошной контур
+ * - 12..36 ч: актуальная сота ±6.5 км (свежесть 50–83%), штриховой контур
+ * - 36..72 ч: угасающая сота ±8.5 км (свежесть 1–50%), пунктирный полупрозрачный контур
+ * - > 72 ч: точка полностью погасла (expired = true)
+ */
 export function getCircleHexDecayState(item, nowMs = Date.now()) {
   const baseRadius = Number(item?.br) || CIRCLE_BLUR_RADIUS_KM;
   let createdMs = Number(item?.ca) || nowMs;
@@ -2069,6 +2191,11 @@ export function evaluateWorkshopRigMatch(rigItem, currentWaterType, currentDepth
     reasons
   };
 }
+/**
+ * Ультракомпактный бинарный упаковщик V3 со встроенным 20-битным Рыболовным ID (FP_89AAA001):
+ * Фиксированный заголовок 21 байт = 28 символов Base64url (без знаков '='),
+ * сохраняет точный ID рыбака (FP_89AAA001) во всех точках Круга, Экипажа, SOS и Мастерской!
+ */
 export function encodeSharePack(payloadObj) {
   const p = payloadObj || {};
   const ident = getCurrentFisherIdentity();
@@ -2138,6 +2265,9 @@ export function encodeSharePack(payloadObj) {
   const b64url = b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
   return `${PACK_PREFIX}${b64url}`;
 }
+/**
+ * Декодирует токен KP1_... (поддерживает V3 с 20-битным ID рыбака, V3 18-байтный, V2 и V1)
+ */
 export function decodeSharePack(rawInput) {
   if (!rawInput || typeof rawInput !== 'string') return null;
   const trimmed = rawInput.trim();
@@ -2250,7 +2380,7 @@ export function decodeSharePack(rawInput) {
           pr,
           wnd: 'по метеорадару',
           ice: tw <= 1.0 ? 'Лёд / забереги' : 'Открытая вода',
-          nt: customNote || '<svg class="k-ico" style="color:var(--bad);" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9.5" fill="#dc2626" stroke="#fca5a5" stroke-width="1.8"/><text x="12" y="15" text-anchor="middle" fill="#fff" font-size="7.5" font-weight="900" font-family="sans-serif">SOS</text></svg> ТРЕБУЕТСЯ ПОМОЩЬ НА ВОДЕ / ЛЬДУ! Проверьте мои координаты',
+          nt: customNote || 'Требуется срочная помощь на воде / льду! Проверьте мои координаты',
           isDemoSeed
         };
       }
@@ -2356,6 +2486,9 @@ export function decodeSharePack(rawInput) {
     return null;
   }
 }
+/**
+ * Создаёт зашифрованный пакет и лаконичное сообщение для Telegram с автопривязкой ID рыбака (FP_89AAA001)
+ */
 export function createSharePackFromContext(mode = 'circle', customNote = '', overrideCatch = null, customCrewKey = '') {
   const s = store.getState();
   const fish = FISH_DB.find(f => f.id === (overrideCatch?.fishId || s.fishId)) || FISH_DB[0];
@@ -2374,10 +2507,11 @@ export function createSharePackFromContext(mode = 'circle', customNote = '', ove
   const shortRigWeight = (rig.weight || 'Оснастка').split(',')[0].trim();
   if (mode === 'sos') {
     const expiresAt = now + CREW_TTL_MS;
+    const sosReasonText = cleanNote || 'Требуется срочная помощь на воде / льду!';
     const packObj = {
       t: 'crew',
       sos: true,
-      id: `sos_${now.toString(36)}`,
+      id: 'sos_' + now.toString(36),
       did: deviceId,
       fid: ident.fisherId,
       ca: now,
@@ -2391,23 +2525,22 @@ export function createSharePackFromContext(mode = 'circle', customNote = '', ove
       lon: Math.round(s.lon * 10000) / 10000,
       dp: s.depth,
       fi: fish.id,
-      fn: fish.name,
+      fn: 'СИГНАЛ SOS',
       tw: day.waterTemp ?? 4,
       pr: day.pressAvg ?? 754,
-      wnd: `${day.windDir || 'З'} ${day.windMax || 4} м/с`,
-      ice: day.iceNote || s.iceNote || 'Открытая вода',
-      nt: cleanNote || '<svg class="k-ico" style="color:var(--bad);" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9.5" fill="#dc2626" stroke="#fca5a5" stroke-width="1.8"/><text x="12" y="15" text-anchor="middle" fill="#fff" font-size="7.5" font-weight="900" font-family="sans-serif">SOS</text></svg> ТРЕБУЕТСЯ ПОМОЩЬ НА ВОДЕ / ЛЬДУ!',
-      _hasCustomNote: Boolean(cleanNote)
+      nt: sosReasonText,
+      _hasCustomNote: true
     };
     const token = encodeSharePack(packObj);
     const _decCanonical = decodeSharePack(token);
     if (_decCanonical && _decCanonical.id) packObj.id = _decCanonical.id;
     const { webUrl, tgMiniAppUrl } = buildShareUrls(token);
     const summaryText =
-      `<svg class="k-ico" style="color:var(--bad);" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9.5" fill="#dc2626" stroke="#fca5a5" stroke-width="1.8"/><text x="12" y="15" text-anchor="middle" fill="#fff" font-size="7.5" font-weight="900" font-family="sans-serif">SOS</text></svg> SOS НА ВОДЕ (ВСЕМ) • Клёв ПРО\n` +
-      `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#ef4444"/></svg> ${locDisplay} • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" fill="rgba(56,189,248,0.22)" stroke="currentColor" stroke-width="1.8"/><path d="M4 20c0-3.8 3.6-6.5 8-6.5s8 2.7 8 6.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> ${author}\n` +
-      `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="4.5" stroke="#38bdf8" stroke-width="1.6"/><circle cx="12" cy="12" r="1.8" fill="#10b981"/></svg> GPS: ${packObj.lat.toFixed(4)}°N, ${packObj.lon.toFixed(4)}°E • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1" stroke="#7dd3fc" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="#38bdf8"/></svg> ${packObj.ice} • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> ${packObj.wnd} • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> 112` +
-      (cleanNote ? `\n<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> ${cleanNote}` : '');
+      'СИГНАЛ SOS НА ВОДЕ • Клёв ПРО\n' +
+      'Ориентир: ' + locDisplay + '\n' +
+      'Точные координаты GPS: ' + packObj.lat.toFixed(4) + '°N, ' + packObj.lon.toFixed(4) + '°E\n' +
+      'Причина SOS: ' + sosReasonText + '\n' +
+      'Отправитель: ' + author + ' (' + ident.fisherId + ') • Экстренная служба: 112';
     return { mode: 'sos', packObj, token, webUrl, tgMiniAppUrl, summaryText };
   }
   if (mode === 'crew') {
@@ -2445,10 +2578,10 @@ export function createSharePackFromContext(mode = 'circle', customNote = '', ove
     if (_decCanonical && _decCanonical.id) packObj.id = _decCanonical.id;
     const { webUrl, tgMiniAppUrl } = buildShareUrls(token);
     const summaryText =
-      `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> ЭКИПАЖ (72 ч • Ключ ${crewKey}) • Клёв ПРО\n` +
-      `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#ef4444"/></svg> ${locDisplay} (~${s.depth.toFixed(1)} м) • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" fill="rgba(56,189,248,0.22)" stroke="currentColor" stroke-width="1.8"/><path d="M4 20c0-3.8 3.6-6.5 8-6.5s8 2.7 8 6.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> ${author}\n` +
-      `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 12s4-6 11-6c4.2 0 7 2.5 9 6-2 3.5-4.8 6-9 6-7 0-11-6-11-6z" fill="rgba(56,189,248,0.28)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M2 12l-1.5-3.5L5 10.5M2 12l-1.5 3.5L5 13.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="16.5" cy="10.8" r="1.3" fill="currentColor"/></svg> ${fish.name} • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> ~${packObj.tw}°C • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg> ${shortRigWeight} (${shortBait})` +
-      (cleanNote ? `\n<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> ${cleanNote}` : '');
+      'ЭКИПАЖ (72 ч • Ключ ' + crewKey + ') • Клёв ПРО\n' +
+      'Водоём: ' + locDisplay + ' (~' + s.depth.toFixed(1) + ' м) • От: ' + author + '\n' +
+      'Рыба: ' + fish.name + ' • Вода ~' + packObj.tw + '°C • Снасть: ' + shortRigWeight + ' (' + shortBait + ')' +
+      (cleanNote ? ('\nЗаметка: ' + cleanNote) : '');
     return { mode, packObj, token, webUrl, tgMiniAppUrl, summaryText };
   }
   if (mode === 'workshop') {
@@ -2487,10 +2620,10 @@ export function createSharePackFromContext(mode = 'circle', customNote = '', ove
     if (_decCanonical && _decCanonical.id) packObj.id = _decCanonical.id;
     const { webUrl, tgMiniAppUrl } = buildShareUrls(token);
     const summaryText =
-      `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" fill="rgba(56,189,248,0.2)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> МАСТЕРСКАЯ СНАСТЕЙ • Клёв ПРО\n` +
-      `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 12s4-6 11-6c4.2 0 7 2.5 9 6-2 3.5-4.8 6-9 6-7 0-11-6-11-6z" fill="rgba(56,189,248,0.28)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M2 12l-1.5-3.5L5 10.5M2 12l-1.5 3.5L5 13.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="16.5" cy="10.8" r="1.3" fill="currentColor"/></svg> ${fish.name} • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> ${prof.shortName} (~${s.depth.toFixed(1)} м, <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> ${twMin}–${twMax}°C)\n` +
-      `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3v18M5 7h14M5 7l-3 6h6l-3-6zm14 0l-3 6h6l-3-6zM8 21h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> ${shortRigWeight} • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 18c0-4 4-4 4-8s4-4 4-6 5-1 5 3-3 5-3 8 4 4 6 2" stroke="#f43f5e" stroke-width="2.2" stroke-linecap="round"/></svg> ${shortBait} • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" fill="rgba(56,189,248,0.22)" stroke="currentColor" stroke-width="1.8"/><path d="M4 20c0-3.8 3.6-6.5 8-6.5s8 2.7 8 6.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> ${author}` +
-      (cleanNote ? `\n<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> ${cleanNote}` : '');
+      'МАСТЕРСКАЯ СНАСТЕЙ • Клёв ПРО\n' +
+      'Рыба: ' + fish.name + ' • ' + prof.shortName + ' (~' + s.depth.toFixed(1) + ' м, вода ' + twMin + '–' + twMax + '°C)\n' +
+      'Оснастка: ' + shortRigWeight + ' • Приманка: ' + shortBait + ' • От: ' + author +
+      (cleanNote ? ('\nЗаметка: ' + cleanNote) : '');
     return { mode, packObj, token, webUrl, tgMiniAppUrl, summaryText };
   }
   const baseLat = overrideCatch?.lat ?? s.lat;
@@ -2529,10 +2662,10 @@ export function createSharePackFromContext(mode = 'circle', customNote = '', ove
   if (_decCanonical && _decCanonical.id) packObj.id = _decCanonical.id;
   const { webUrl, tgMiniAppUrl } = buildShareUrls(token);
   const summaryText =
-    `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3.5" fill="rgba(56,189,248,0.25)" stroke="currentColor" stroke-width="1.8"/><path d="M3 19c0-3.2 2.7-5.5 6-5.5s6 2.3 6 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="17" cy="9" r="2.8" stroke="currentColor" stroke-width="1.6"/><path d="M16 14c2.6.3 4.8 2 5 4.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg> СВОДКА В КРУГ (±5 км) • Клёв ПРО\n` +
-    `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#ef4444"/></svg> ${locDisplay} (~${packObj.dp} м) • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" fill="rgba(56,189,248,0.22)" stroke="currentColor" stroke-width="1.8"/><path d="M4 20c0-3.8 3.6-6.5 8-6.5s8 2.7 8 6.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> ${author}\n` +
-    `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 12s4-6 11-6c4.2 0 7 2.5 9 6-2 3.5-4.8 6-9 6-7 0-11-6-11-6z" fill="rgba(56,189,248,0.28)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M2 12l-1.5-3.5L5 10.5M2 12l-1.5 3.5L5 13.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="16.5" cy="10.8" r="1.3" fill="currentColor"/></svg> ${fish.name}${packObj.kg ? ` (${packObj.kg} кг)` : ''} • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> ~${packObj.tw}°C • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 18c0-4 4-4 4-8s4-4 4-6 5-1 5 3-3 5-3 8 4 4 6 2" stroke="#f43f5e" stroke-width="2.2" stroke-linecap="round"/></svg> ${shortBait}` +
-    (cleanNote ? `\n<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> ${cleanNote}` : '');
+    'СВОДКА В КРУГ (±5 км) • Клёв ПРО\n' +
+    'Сектор: ' + locDisplay + ' (~' + packObj.dp + ' м) • От: ' + author + '\n' +
+    'Рыба: ' + fish.name + (packObj.kg ? (' (' + packObj.kg + ' кг)') : '') + ' • Вода ~' + packObj.tw + '°C • Приманка: ' + shortBait +
+    (cleanNote ? ('\nЗаметка: ' + cleanNote) : '');
   return { mode: 'circle', packObj, token, webUrl, tgMiniAppUrl, summaryText };
 }
 export function purgeExpiredCircleItems(items = []) {
@@ -2845,6 +2978,9 @@ export async function sendFishermanChatMessage({ channelId, text, crewKey = '', 
   triggerHaptic('light');
   return { msgObj, cipherPayload, encryptionKey };
 }
+/**
+ * Модальное окно отправки улова в чат (из Журнала уловов или из вкладки « Чаты»)
+ */
 export function openShareCatchToChatModal(preselectedCatch = null) {
   if (!requireRegisteredFisherId('отправки улова в чат')) return;
   const s = store.getState();
@@ -2921,8 +3057,8 @@ export function openShareCatchToChatModal(preselectedCatch = null) {
         <input type="text" id="scCommentInput" class="input" maxlength="80" placeholder="Например: Взяла на бровке 3.5 м с утра на паузе!">
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:8px;margin-top:4px;">
-        <button type="button" class="btn btn-good" id="scConfirmSendChatBtn"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> Отправить в чат приложения</button>
-        <button type="button" class="btn btn-accent" id="scSendTelegramDirectBtn"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" fill="rgba(56,189,248,0.22)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> Переслать в Telegram</button>
+        <button type="button" class="btn btn-good" id="scConfirmSendChatBtn"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> В чат</button>
+        <button type="button" class="btn btn-accent" id="scSendTelegramDirectBtn"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" fill="rgba(56,189,248,0.22)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> В Telegram</button>
       </div>
     </div>
   `;
@@ -2950,12 +3086,12 @@ export function openShareCatchToChatModal(preselectedCatch = null) {
       const waterTemp = targetCatch?.waterTemp ?? sharePack.packObj.tw ?? 10;
       const press = targetCatch?.press ?? sharePack.packObj.pr ?? 754;
       const chatText =
-        `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg> УЛОВ: ${fishName}${trophyMeta ? ` (${trophyMeta})` : ''}\n` +
-        `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#ef4444"/></svg> ${spotStr} • Глубина ~${targetCatch?.depth ?? s.depth} м\n` +
-        `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 18c0-4 4-4 4-8s4-4 4-6 5-1 5 3-3 5-3 8 4 4 6 2" stroke="#f43f5e" stroke-width="2.2" stroke-linecap="round"/></svg> Приманка: ${baitStr} • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> Вода ${waterTemp}°C • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><polygon points="16,8 13.5,13.5 8,16 10.5,10.5" fill="#38bdf8" stroke="currentColor" stroke-width="1.3"/></svg> ${press} мм\n` +
-        `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" fill="rgba(56,189,248,0.22)" stroke="currentColor" stroke-width="1.8"/><path d="M4 20c0-3.8 3.6-6.5 8-6.5s8 2.7 8 6.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Рыбак: ${ident.callsign}` +
-        (comment ? `\n<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> ${comment}` : '') +
-        `\n<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Код точки: ${sharePack.token}`;
+        'УЛОВ: ' + fishName + (trophyMeta ? (' (' + trophyMeta + ')') : '') + '\n' +
+        'Водоём: ' + spotStr + ' • Глубина ~' + (targetCatch?.depth ?? s.depth) + ' м\n' +
+        'Приманка: ' + baitStr + ' • Вода ' + waterTemp + '°C • ' + press + ' мм\n' +
+        'Рыбак: ' + ident.callsign +
+        (comment ? ('\nЗаметка: ' + comment) : '') +
+        '\nКод точки: ' + sharePack.token;
       return {
         chatText,
         sharePack,
@@ -3382,10 +3518,17 @@ export function openShareModalForCurrentContext(initialMode = 'circle', override
           </button>
         </div>
         <div>
-          <label for="shareCustomNoteInput" style="display:block;font-size:var(--fs-xs);color:var(--muted);font-weight:700;margin-bottom:4px;">
-            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> КОРОТКИЙ КОММЕНТАРИЙ (ПО ЖЕЛАНИЮ):
+          <label for="shareCustomNoteInput" style="display:block;font-size:var(--fs-xs);color:${currentMode === 'sos' ? 'var(--bad)' : 'var(--muted)'};font-weight:800;margin-bottom:4px;">
+            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> ${currentMode === 'sos' ? 'ПРИЧИНА ПОДАЧИ СИГНАЛА SOS (ТОЛЬКО ТОЧКА И ПРИЧИНА):' : 'КОРОТКИЙ КОММЕНТАРИЙ (ПО ЖЕЛАНИЮ):'}
           </label>
-          <input type="text" id="shareCustomNoteInput" class="input" maxlength="48" value="${customNote}" placeholder="${currentMode === 'sos' ? 'Ситуация: заглох мотор, нужна буксировка, промоина...' : 'Оставьте пустым для минимальной длины ссылки (28 символов)...'}">
+          ${currentMode === 'sos' ? `
+            <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px;">
+              ${['Поломка мотора / техники', 'Наледь / Промоина', 'Нужна буксировка / топливо', 'Травма / Медпомощь'].map(reason => `
+                <button type="button" class="w-chip" data-sos-reason-chip="${reason}" style="min-height:28px;padding:3px 9px;font-size:11px;border-color:rgba(239,68,68,0.5);color:var(--text);">${reason}</button>
+              `).join('')}
+            </div>
+          ` : ''}
+          <input type="text" id="shareCustomNoteInput" class="input" maxlength="64" value="${escapeHtml(customNote)}" placeholder="${currentMode === 'sos' ? 'Укажите причину SOS: заглох мотор, наледь, нужна буксировка...' : 'Оставьте пустым для минимальной длины ссылки...'}">
         </div>
         <div class="card" style="background:var(--card);padding:10px 12px;border:1px solid ${currentMode === 'sos' ? 'var(--bad)' : 'var(--border)'};font-size:var(--fs-xs);line-height:1.45;color:var(--text);">
           <div style="font-family:monospace;font-size:11.5px;color:var(--accent);font-weight:800;margin-bottom:6px;word-break:break-all;" id="shareShortUrlPreview"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> ${pack.webUrl} (${pack.webUrl.length} симв.)</div>
@@ -3411,6 +3554,12 @@ export function openShareModalForCurrentContext(initialMode = 'circle', override
         currentMode = btn.getAttribute('data-share-mode');
         const noteEl = bodyEl.querySelector('#shareCustomNoteInput');
         if (noteEl) customNote = noteEl.value;
+        renderModalContent(bodyEl);
+      });
+    });
+    bodyEl.querySelectorAll('[data-sos-reason-chip]').forEach(chip => {
+      chip.addEventListener('click', () => {
+        customNote = chip.getAttribute('data-sos-reason-chip') || '';
         renderModalContent(bodyEl);
       });
     });
@@ -3655,6 +3804,13 @@ export function openNotificationsModal(onBackToHub = null) {
     renderNotifBody(bodyEl);
   }, true, { onBack: backFn });
 }
+/**
+ * Подменю Зоны 1: « Логин, Пароль, Мой ID, Супер-Админ и Бэкап»
+ * - Сквозной вход по Логину и Паролю на ВСЕХ устройствах (APK, Браузер, Telegram Mini App)
+ * - Постоянная привязка аккаунта Владельца (iAthor -> ID FP_89VIP089 + Супер-Админ)
+ * - Автокопирование ID рыбака (FP_89AAA001) в 1 касание
+ * - Управление Базой Администраторов и резервное копирование (.json)
+ */
 export function openAuthAndBackupModal(onBackToHub = null) {
   const backFn = typeof onBackToHub === 'function'
     ? onBackToHub
@@ -4075,6 +4231,9 @@ function formatRemainingHours(expiresAt) {
   const mins = Math.floor((diffMs % 3600000) / 60000);
   return `${hrs}ч ${mins}м`;
 }
+/**
+ * Отрисовка выделенной вкладки « Чаты» (Экипажи по ключу + Личные диалоги 1-на-1)
+ */
 export function formatCleanPeerTitle(peerNameRaw = '', peerIdRaw = '') {
   const name = String(peerNameRaw || '').trim();
   const pid = String(peerIdRaw || '').trim().toUpperCase();
@@ -4086,6 +4245,13 @@ export function formatCleanPeerTitle(peerNameRaw = '', peerIdRaw = '') {
   }
   return name;
 }
+/**
+ * Отрисовка выделенной вкладки « Чаты»:
+ * - Вертикальный список чатов сверху вниз (вместо горизонтальной карусели)
+ * - Открытие каждого чата в отдельном полноэкранном окне
+ * - Компактная кнопка « Гео» (поделиться местоположением) внутри окна чата
+ * - Корректное удаление всех чатов (включая последний) с подтверждением
+ */
 export function renderChatsSubView(s, ident, visibleCrews) {
   const allMsgs = Array.isArray(s.chatMessages) ? s.chatMessages : [];
   const deletedSet = new Set(Array.isArray(s.userProfile?.deletedChatChannels) ? s.userProfile.deletedChatChannels : []);
@@ -4105,7 +4271,7 @@ export function renderChatsSubView(s, ident, visibleCrews) {
       type: 'crew',
       crewKey: k,
       title: k.startsWith('REG-') ? `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" stroke="currentColor" stroke-width="1.6"/></svg> Региональный чат РФ (Регион ${k.replace('REG-', '')})` : `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> Экипаж ${k}${matchingCrew ? ` • ${matchingCrew.wn || matchingCrew.lb}` : ''}`,
-      subtitle: lastMsg ? `${lastMsg.senderName || 'Рыболов'}: ${String(lastMsg.text || '').slice(0, 55)}` : 'Чат участников экипажа по ключу',
+      subtitle: lastMsg ? `${String(lastMsg.senderName || 'Рыболов').replace(/<[^>]+>/g, '').trim()}: ${String(lastMsg.text || '').replace(/<svg[\s\S]*?<\/svg>/gi, '').replace(/<[^>]+>/g, '').trim().slice(0, 55)}` : 'Чат участников экипажа по ключу',
       lastTs: lastMsg?.ts || matchingCrew?.ca || 0
     });
   }
@@ -4128,7 +4294,7 @@ export function renderChatsSubView(s, ident, visibleCrews) {
         peerId,
         peerName: cleanTitle,
         title: `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> ${cleanTitle}`,
-        subtitle: `${m.senderId === ident.fisherId ? 'Вы' : cleanTitle}: ${String(m.text || '').slice(0, 55)}`,
+        subtitle: `${m.senderId === ident.fisherId ? 'Вы' : String(cleanTitle).replace(/<[^>]+>/g, '').trim()}: ${String(m.text || '').replace(/<svg[\s\S]*?<\/svg>/gi, '').replace(/<[^>]+>/g, '').trim().slice(0, 55)}`,
         lastTs: m.ts || 0
       });
     } else {
@@ -4137,7 +4303,7 @@ export function renderChatsSubView(s, ident, visibleCrews) {
         existingChan.title = cleanTitle;
       }
       if ((m.ts || 0) >= existingChan.lastTs) {
-        existingChan.subtitle = `${m.senderId === ident.fisherId ? 'Вы' : existingChan.peerName}: ${String(m.text || '').slice(0, 55)}`;
+        existingChan.subtitle = `${m.senderId === ident.fisherId ? 'Вы' : String(existingChan.peerName).replace(/<[^>]+>/g, '').trim()}: ${String(m.text || '').replace(/<svg[\s\S]*?<\/svg>/gi, '').replace(/<[^>]+>/g, '').trim().slice(0, 55)}`;
         existingChan.lastTs = m.ts || 0;
       }
     }
@@ -4182,7 +4348,7 @@ export function renderChatsSubView(s, ident, visibleCrews) {
             <div style="font-size:11px;color:var(--muted);">Открытые каналы по регионам России для обмена вестями с водоёмов и ледовой обстановкой</div>
           </div>
           <button type="button" class="btn btn-sm btn-good" data-open-regional-chat="REG-${resolveRussianRegionCode(s)}" style="min-height:34px;font-weight:900;">
-            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#ef4444"/></svg> Чат моего региона (${resolveRussianRegionCode(s)})
+            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#ef4444"/></svg> Чат региона (${resolveRussianRegionCode(s)})
           </button>
         </div>
         <div class="chip-scroll-row" style="padding-bottom:2px;">
@@ -4232,7 +4398,7 @@ export function renderChatsSubView(s, ident, visibleCrews) {
             <span class="pill pill-warn" style="font-size:9.5px;padding:1px 6px;">&lt; 1 км/см</span>
           </div>
           <button type="button" class="btn btn-sm btn-accent" id="chatAddThematicSpotBtn" style="width:100%;min-height:34px;font-weight:800;">
-            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg> + Добавить точку (Слип / Коряга / Яма)
+            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg> + Точка на карту
           </button>
         </div>
       </div>
@@ -4252,7 +4418,7 @@ export function renderChatsSubView(s, ident, visibleCrews) {
             <div class="card" style="background:var(--card);padding:10px 12px;border:1px solid ${unreadCnt > 0 ? 'var(--accent)' : 'var(--border)'};display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:pointer;" data-select-chat-chan="${escapeHtml(ch.channelId)}">
               <div style="min-width:0;flex:1;">
                 <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-                  <span style="font-weight:800;font-size:var(--fs-sm);color:var(--text);">${escapeHtml(ch.title)}</span>
+                  <span style="font-weight:800;font-size:var(--fs-sm);color:var(--text);">${ch.title}</span>
                   ${unreadCnt > 0 ? `<span class="pill pill-bad" style="font-size:10px;padding:1px 6px;">+${unreadCnt} новых</span>` : ''}
                   ${timeLbl ? `<span style="font-size:10.5px;color:var(--muted);">${timeLbl}</span>` : ''}
                 </div>
@@ -4282,7 +4448,7 @@ export function renderChatsSubView(s, ident, visibleCrews) {
               </button>
               <div style="min-width:0;flex:1;">
                 <div style="font-weight:900;font-size:var(--fs-sm);color:var(--accent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-                  ${escapeHtml(activeChan.title)}
+                  ${activeChan.title}
                 </div>
                 <div style="font-size:10.5px;color:var(--muted);">
                   ${activeChan.type === 'crew' ? 'Чат участников экипажа' : 'Личный диалог'}
@@ -4310,13 +4476,13 @@ export function renderChatsSubView(s, ident, visibleCrews) {
               return `
                 <div style="align-self:${isMe ? 'flex-end' : 'flex-start'};max-width:86%;padding:9px 12px;border-radius:12px;background:${isMe ? 'rgba(56,189,248,0.16)' : 'var(--card)'};border:1px solid ${isMe ? 'var(--accent)' : 'var(--border)'};font-size:var(--fs-xs);">
                   <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:3px;flex-wrap:wrap;">
-                    <b style="color:${isMe ? 'var(--accent)' : 'var(--good)'};">${escapeHtml(senderDisplay)}</b>
+                    <b style="color:${isMe ? 'var(--accent)' : 'var(--good)'};">${senderDisplay}</b>
                     <span style="font-size:10px;color:var(--muted);">${timeStr}</span>
                   </div>
-                  <div style="white-space:pre-wrap;line-height:1.45;color:var(--text);word-break:break-word;">${escapeHtml(m.text)}</div>
+                  <div style="white-space:pre-wrap;line-height:1.45;color:var(--text);word-break:break-word;">${escapeHtml(String(m.text || '').replace(/<svg[\s\S]*?<\/svg>/gi, '').replace(/<[^>]+>/g, '').trim())}</div>
                   ${packTok ? `
                     <div style="margin-top:6px;padding-top:5px;border-top:1px dashed var(--border);display:flex;gap:6px;flex-wrap:wrap;">
-                      <button type="button" class="btn btn-sm btn-good" data-chat-import-pack="${packTok}" style="min-height:28px;padding:2px 9px;font-size:11px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3V6z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 3v15M15 6v15" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="10" r="2.2" fill="#38bdf8" stroke="#fff" stroke-width="1"/></svg> Показать точку на карте</button>
+                      <button type="button" class="btn btn-sm btn-good" data-chat-import-pack="${packTok}" style="min-height:28px;padding:2px 9px;font-size:11px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3V6z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 3v15M15 6v15" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="10" r="2.2" fill="#38bdf8" stroke="#fff" stroke-width="1"/></svg> На карте</button>
                     </div>
                   ` : ''}
                 </div>
@@ -4402,26 +4568,38 @@ function renderCompactCircleRow(item, s, ident, now) {
         </div>
       </div>
       ${isExpanded ? `
-        <div style="padding:10px;background:var(--panel);border-radius:var(--r-sm);border:1px solid var(--border);margin-top:4px;display:flex;flex-direction:column;gap:6px;font-size:var(--fs-xs);">
-          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px;">
-            <span style="font-weight:900;color:var(--accent);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 12s4-6 11-6c4.2 0 7 2.5 9 6-2 3.5-4.8 6-9 6-7 0-11-6-11-6z" fill="rgba(56,189,248,0.28)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M2 12l-1.5-3.5L5 10.5M2 12l-1.5 3.5L5 13.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="16.5" cy="10.8" r="1.3" fill="currentColor"/></svg> ${escapeHtml(item.fn || 'Рыба')}${item.kg ? ` • Вес: ${item.kg} кг` : ''}</span>
-            <span style="color:var(--muted);font-size:11px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.5 2" stroke="#38bdf8" stroke-width="1.9" stroke-linecap="round"/></svg> До истечения: <b>${formatRemainingHours(item.ea || (item.ca ? item.ca + 72*3600000 : now + 72*3600000))}</b></span>
-          </div>
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:6px;margin:2px 0;">
-            <div><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> <b>Водоём:</b> ${escapeHtml(item.wn || item.lb || 'Водоём')}</div>
-            <div><svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="3" y="8" width="18" height="8" rx="2" transform="rotate(-35 12 12)" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8"/><path d="M8 11l1.5 2M11 9l1.5 2M14 7l1.5 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg> <b>Глубина:</b> ${item.dp || 1.5} м</div>
-            <div><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> <b>Вода:</b> ${item.tw ?? 8}°C</div>
-            <div><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><polygon points="16,8 13.5,13.5 8,16 10.5,10.5" fill="#38bdf8" stroke="currentColor" stroke-width="1.3"/></svg> <b>Атм. давление:</b> ${item.pr ?? 755} мм</div>
-            <div><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> <b>Ветер:</b> ${item.ws ?? 4} м/с</div>
-            <div><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 18c0-4 4-4 4-8s4-4 4-6 5-1 5 3-3 5-3 8 4 4 6 2" stroke="#f43f5e" stroke-width="2.2" stroke-linecap="round"/></svg> <b>Насадка:</b> ${escapeHtml(item.bt || 'мотыль / блесна')}</div>
-            <div><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg> <b>Снасть:</b> ${escapeHtml(item.rw || item.rg || 'по сезону')}</div>
-            <div><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" fill="rgba(56,189,248,0.22)" stroke="currentColor" stroke-width="1.8"/><path d="M4 20c0-3.8 3.6-6.5 8-6.5s8 2.7 8 6.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> <b>Автор:</b> ${escapeHtml(authorDisplay)}</div>
-          </div>
+        <div style="padding:10px;background:var(--panel);border-radius:var(--r-sm);border:1px solid ${item.sos ? 'var(--bad)' : 'var(--border)'};margin-top:4px;display:flex;flex-direction:column;gap:6px;font-size:var(--fs-xs);">
+          ${item.sos ? `
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px;">
+              <span style="font-weight:900;color:var(--bad);">ЭКСТРЕННЫЙ СИГНАЛ SOS НА ВОДЕ / ЛЬДУ</span>
+              <span style="color:var(--muted);font-size:11px;">Активен ещё: <b>${formatRemainingHours(item.ea || (item.ca ? item.ca + 72*3600000 : now + 72*3600000))}</b></span>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:6px;margin:2px 0;">
+              <div><b>Точные координаты:</b> <span style="font-family:monospace;font-weight:900;">${Number(item.lat).toFixed(4)}°N, ${Number(item.lon).toFixed(4)}°E</span></div>
+              <div><b>Ориентир / Водоём:</b> ${escapeHtml(item.wn || item.lb || 'Водоём')}</div>
+              <div><b>Отправитель:</b> ${escapeHtml(String(authorDisplay).replace(/<[^>]+>/g, '').trim())} (${escapeHtml(itemFid)})</div>
+            </div>
+          ` : `
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px;">
+              <span style="font-weight:900;color:var(--accent);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 12s4-6 11-6c4.2 0 7 2.5 9 6-2 3.5-4.8 6-9 6-7 0-11-6-11-6z" fill="rgba(56,189,248,0.28)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M2 12l-1.5-3.5L5 10.5M2 12l-1.5 3.5L5 13.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="16.5" cy="10.8" r="1.3" fill="currentColor"/></svg> ${escapeHtml(item.fn || 'Рыба')}${item.kg ? ` • Вес: ${item.kg} кг` : ''}</span>
+              <span style="color:var(--muted);font-size:11px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.5 2" stroke="#38bdf8" stroke-width="1.9" stroke-linecap="round"/></svg> До истечения: <b>${formatRemainingHours(item.ea || (item.ca ? item.ca + 72*3600000 : now + 72*3600000))}</b></span>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:6px;margin:2px 0;">
+              <div><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> <b>Водоём:</b> ${escapeHtml(item.wn || item.lb || 'Водоём')}</div>
+              <div><svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="3" y="8" width="18" height="8" rx="2" transform="rotate(-35 12 12)" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8"/><path d="M8 11l1.5 2M11 9l1.5 2M14 7l1.5 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg> <b>Глубина:</b> ${item.dp || 1.5} м</div>
+              <div><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> <b>Вода:</b> ${item.tw ?? 8}°C</div>
+              <div><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><polygon points="16,8 13.5,13.5 8,16 10.5,10.5" fill="#38bdf8" stroke="currentColor" stroke-width="1.3"/></svg> <b>Атм. давление:</b> ${item.pr ?? 755} мм</div>
+              <div><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> <b>Ветер:</b> ${item.ws ?? 4} м/с</div>
+              <div><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 18c0-4 4-4 4-8s4-4 4-6 5-1 5 3-3 5-3 8 4 4 6 2" stroke="#f43f5e" stroke-width="2.2" stroke-linecap="round"/></svg> <b>Насадка:</b> ${escapeHtml(item.bt || 'мотыль / блесна')}</div>
+              <div><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg> <b>Снасть:</b> ${escapeHtml(item.rw || item.rg || 'по сезону')}</div>
+              <div><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" fill="rgba(56,189,248,0.22)" stroke="currentColor" stroke-width="1.8"/><path d="M4 20c0-3.8 3.6-6.5 8-6.5s8 2.7 8 6.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> <b>Автор:</b> ${escapeHtml(String(authorDisplay).replace(/<[^>]+>/g, '').trim())}</div>
+            </div>
+          `}
           ${cKey ? `<div style="color:var(--good);font-weight:800;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="8" cy="15" r="4.5" fill="rgba(251,191,36,0.22)" stroke="#fbbf24" stroke-width="1.8"/><path d="M11.5 11.5L20 3m-3 3l2.5 2.5M14.5 8.5L17 11" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> Ключ закрытого экипажа: <code>${cKey}</code></div>` : ''}
-          ${item.nt ? `<div style="padding:6px 8px;background:var(--card);border-left:3px solid var(--accent);border-radius:4px;color:var(--text);font-style:italic;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> «${escapeHtml(item.nt)}»</div>` : ''}
+          ${item.nt ? `<div style="padding:6px 8px;background:var(--card);border-left:3px solid ${item.sos ? 'var(--bad)' : 'var(--accent)'};border-radius:4px;color:var(--text);font-style:italic;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> «${escapeHtml(String(item.nt || '').replace(/<[^>]+>/g, '').trim())}»</div>` : ''}
           <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;">
             ${item.t !== 'workshop' ? `<button type="button" class="btn btn-sm btn-accent" data-goto-circle="${item.id}" style="padding:4px 10px;font-size:11.5px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3V6z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 3v15M15 6v15" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="10" r="2.2" fill="#38bdf8" stroke="#fff" stroke-width="1"/></svg> Показать на карте</button>` : ''}
-            ${!item.sos ? `<button type="button" class="btn btn-sm btn-good" data-apply-workshop="${item.id}" style="padding:4px 10px;font-size:11.5px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg> Повторить снасть в прогнозе</button>` : ''}
+            ${!item.sos ? `<button type="button" class="btn btn-sm btn-good" data-apply-workshop="${item.id}" style="padding:4px 10px;font-size:11.5px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg> Применить снасть</button>` : ''}
             ${cKey ? `<button type="button" class="btn btn-sm btn-good" data-open-crew-chat="${cKey}" style="padding:4px 10px;font-size:11.5px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> Чат экипажа (${cKey})</button>` : (!mine ? `<button type="button" class="btn btn-sm" data-open-dm="${itemFid}" data-open-dm-name="${escapeHtml(authorDisplay)}" style="padding:4px 10px;font-size:11.5px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> Написать в ЛС</button>` : '')}
             ${(mine || ident.isOwner) ? `<button type="button" class="btn btn-sm" data-del-my-circle="${item.id}" style="padding:4px 10px;font-size:11.5px;color:var(--bad);border-color:rgba(239,68,68,0.4);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Удалить</button>` : ''}
           </div>
@@ -4496,6 +4674,9 @@ export function renderChatsSection(customContainer = null) {
   bindCircleChatsHubBarEvents(container);
   bindChatViewEvents(container);
 }
+/**
+ * Отрисовка вкладки « Круг»
+ */
 export function render(container) {
   if (!container) return;
   markCircleNotificationsRead();
@@ -4611,9 +4792,6 @@ export function render(container) {
           ${hiddenItems.length > 0 && activeOwnershipFilter === 'hidden' ? `
             <button type="button" class="btn btn-sm" id="circleUnhideAllBtn" style="min-height:28px;font-size:11px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/></svg> Вернуть все</button>
           ` : ''}
-          ${hiddenLockedCrewsCount > 0 ? `
-            <button type="button" class="btn btn-sm" id="circleUnlockHiddenCrewBtn" style="min-height:28px;font-size:11px;border-color:var(--accent);color:var(--accent);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="5" y="11" width="14" height="10" rx="2.5" fill="rgba(251,191,36,0.22)" stroke="#fbbf24" stroke-width="1.8"/><path d="M8 11V7a4 4 0 0 1 8 0v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Закрытых экипажей: ${hiddenLockedCrewsCount}</button>
-          ` : ''}
           ${activeCategoryFilter === 'workshop' ? `
             <button type="button" class="btn btn-sm btn-good" data-quick-share="workshop" style="min-height:28px;font-size:11px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" fill="rgba(56,189,248,0.2)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> + Добавить свой монтаж</button>
           ` : ''}
@@ -4641,7 +4819,14 @@ export function render(container) {
   bindCircleChatsHubBarEvents(container);
   bindCircleEvents(container);
 }
+/**
+ * Загружает с сервера полную статистику и реестр пользователей для вкладки Супер-Админа (« Админ»)
+ */
 let _lastAdminDashboardFetchTs = 0;
+/**
+ * Открывает полную серверную Веб-консоль Супер-Админа напрямую через многоканальный шлюз workerFetch
+ * (100% работает без VPN в мобильных сетях РФ, с VPN, в Android APK и в Telegram Mini App без блокировки iframe/CSP)
+ */
 export async function openFullServerWebConsoleModal() {
   const s = store.getState();
   const ident = getCurrentFisherIdentity(s);
@@ -4678,7 +4863,7 @@ export async function openFullServerWebConsoleModal() {
                 ${d1Connected ? 'Cloudflare D1 SQL: ПОДКЛЮЧЕНА (' + escapeHtml(db.d1BindingName || 'DB') + ')' : 'Автономная синхронизация (нажмите «Обновить с сервера»)'}
               </div>
               <div style="font-size:11px;color:var(--muted);margin-top:2px;">
-                Активный канал связи: <b style="color:var(--accent);">${escapeHtml(getLastActiveDbGatewayLabel())}</b> • Версия ядра: <b>v2.5.5 r192</b>
+                Активный канал связи: <b style="color:var(--accent);">${escapeHtml(getLastActiveDbGatewayLabel())}</b> • Версия ядра: <b>v2.5.6 r193</b>
               </div>
             </div>
             <div style="display:flex;gap:6px;flex-wrap:wrap;">
@@ -4731,7 +4916,7 @@ export async function openFullServerWebConsoleModal() {
                       <td style="padding:6px;font-family:monospace;font-weight:800;color:${isOwn ? 'var(--good)' : 'var(--accent)'};" data-copy-fisher-id="${escapeHtml(u.fisherId)}">${escapeHtml(u.fisherId)}</td>
                       <td style="padding:6px;"><b>${escapeHtml(u.login || u.callsign || 'Гость')}</b> ${u.tgUsername ? `<span style="color:var(--accent);">@${escapeHtml(u.tgUsername)}</span>` : ''}</td>
                       <td style="padding:6px;">[${escapeHtml(u.regionCode || '89')}] ${escapeHtml(u.locLabel || 'РФ')}</td>
-                      <td style="padding:6px;">${escapeHtml(u.platform || 'WEB')} <span style="color:var(--muted);font-size:10px;">v${escapeHtml(u.version || '2.5.5')}</span></td>
+                      <td style="padding:6px;">${escapeHtml(u.platform || 'WEB')} <span style="color:var(--muted);font-size:10px;">v${escapeHtml(u.version || '2.5.6')}</span></td>
                       <td style="padding:6px;text-align:right;">
                         ${isOwn ? '<span style="color:var(--good);font-weight:800;">Владелец</span>' : `<button type="button" class="btn btn-sm" data-wc-del-user="${escapeHtml(u.fisherId)}" style="min-height:24px;padding:1px 7px;color:var(--bad);border-color:var(--bad);">Удалить</button>`}
                       </td>
@@ -4770,7 +4955,7 @@ export async function openFullServerWebConsoleModal() {
     });
     bodyEl.querySelector('#wcModalExportJsonBtn')?.addEventListener('click', () => {
       const fname = `klev-pro-users-db-${new Date().toISOString().slice(0, 10)}.json`;
-      downloadFileCrossPlatform(fname, JSON.stringify({ exportedAt: new Date().toISOString(), version: '2.5.5', total: users.length, users, points }, null, 2), 'application/json;charset=utf-8');
+      downloadFileCrossPlatform(fname, JSON.stringify({ exportedAt: new Date().toISOString(), version: '2.5.6', total: users.length, users, points }, null, 2), 'application/json;charset=utf-8');
       showToast(`База сохранена: ${fname}`, 'good');
     });
     bodyEl.querySelector('#wcModalExportCsvBtn')?.addEventListener('click', () => {
@@ -4855,6 +5040,9 @@ export async function fetchSuperAdminDashboardData(forceToast = false) {
   renderAdminSection();
   return _adminDashboardCache;
 }
+/**
+ * Отрисовка выделенной вкладки Супер-Админа « Админ» (#secAdmin) со статистикой, реестром ID и базой
+ */
 let _adminSearchFilter = '';
 export function renderAdminSection(customContainer = null) {
   const container = customContainer || (typeof document !== 'undefined' ? document.getElementById('secAdmin') : null);
@@ -4921,7 +5109,7 @@ export function renderAdminSection(customContainer = null) {
         <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;">
           <div>
             <div style="font-size:var(--fs-md);font-weight:900;color:var(--good);">
-              <svg class="k-ico" style="color:#fbbf24;" viewBox="0 0 24 24" fill="none"><path d="M3 18h18l-2-11-5 4-2-6-2 6-5-4-2 11z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> ПАНЕЛЬ СУПЕР-АДМИНА И СТАТИСТИКА БД «КЛЁВ ПРО V.2.5.5 r192»
+              <svg class="k-ico" style="color:#fbbf24;" viewBox="0 0 24 24" fill="none"><path d="M3 18h18l-2-11-5 4-2-6-2 6-5-4-2 11z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> ПАНЕЛЬ СУПЕР-АДМИНА И СТАТИСТИКА БД «КЛЁВ ПРО V.2.5.6 r193»
             </div>
             <div style="font-size:var(--fs-xs);color:var(--muted);margin-top:3px;">
               Владелец: <b style="color:var(--text);">Антон (${escapeHtml(ident.login)})</b> • Эксклюзивные неприкосновенные ID Владельца:
@@ -4956,7 +5144,7 @@ export function renderAdminSection(customContainer = null) {
             <div style="font-weight:900;color:var(--good);font-size:13px;"><svg class="k-ico" style="color:var(--good);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg> Cloudflare D1 База Данных: ПОДКЛЮЧЕНА (${escapeHtml(db.d1BindingName || 'DB')})</div>
             <div style="font-size:11px;color:var(--muted);margin-top:2px;">Все постоянные ID, реестр пользователей, чаты и точки Круга сохраняются в SQL-таблицах D1.</div>
           </div>
-          <span class="pill pill-good" style="font-size:11px;font-weight:800;">D1 Engine 2.5.5</span>
+          <span class="pill pill-good" style="font-size:11px;font-weight:800;">D1 Engine 2.5.6</span>
         </div>
       ` : `
         <div class="card" style="border:1.5px solid var(--warn);background:rgba(245,158,11,0.10);padding:10px 14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
@@ -4965,6 +5153,83 @@ export function renderAdminSection(customContainer = null) {
           </div>
         </div>
       `}
+      <!-- 1c. Управление нейросетью Google Gemini Vision API и суточным лимитом (1500 запросов/сут) -->
+      ${(() => {
+        const srvQ = db.aiQuota || {};
+        let locUsed = 0;
+        let locKey = String(s.userProfile?.geminiApiKey || '');
+        try {
+          if (typeof localStorage !== 'undefined') {
+            if (!locKey) locKey = String(localStorage.getItem('klev_gemini_api_key_v2') || '').trim();
+            const qRaw = JSON.parse(localStorage.getItem('klev_gemini_quota_v2') || '{}');
+            const todayStr = new Date().toISOString().slice(0, 10);
+            if (qRaw && qRaw.dateKey === todayStr && Number.isFinite(Number(qRaw.usedToday))) {
+              locUsed = Number(qRaw.usedToday);
+            }
+          }
+        } catch (e) {}
+        const effRawKey = locKey || srvQ.rawApiKey || '';
+        const keyList = effRawKey.split(',').map(k => k.trim()).filter(k => k.length >= 20);
+        const keyCount = Math.max(srvQ.keyCount || 0, keyList.length);
+        const hasKey = Boolean(keyCount > 0 || srvQ.hasKey);
+        const limitPerDay = Math.max(1500, (keyCount || 1) * 1500, Number(srvQ.limitPerDay) || 1500);
+        const usedToday = Math.max(locUsed, Number(srvQ.usedToday) || 0);
+        const remainingToday = Math.max(0, limitPerDay - usedToday);
+        const pctRem = Math.max(0, Math.min(100, Math.round((remainingToday / limitPerDay) * 100)));
+        const barColor = pctRem > 55
+          ? 'linear-gradient(90deg, #059669 0%, #10b981 100%)'
+          : (pctRem > 22
+              ? 'linear-gradient(90deg, #d97706 0%, #f59e0b 100%)'
+              : 'linear-gradient(90deg, #b91c1c 0%, #ef4444 100%)');
+        const textToneColor = pctRem > 55 ? 'var(--good)' : (pctRem > 22 ? 'var(--warn)' : 'var(--bad)');
+        return `
+          <div class="card" style="border:1.5px solid var(--accent);background:rgba(56,189,248,0.08);padding:12px 14px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
+              <div>
+                <div style="font-weight:900;font-size:14px;color:var(--accent);display:flex;align-items:center;gap:6px;">
+                  <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 8V6a2 2 0 0 1 2-2h2M4 16v2a2 2 0 0 0 2 2h2m8-16h2a2 2 0 0 1 2 2v2m-4 12h2a2 2 0 0 0 2-2v-2" stroke="#38bdf8" stroke-width="1.9" stroke-linecap="round"/><path d="M6 12s2.5-3.8 6.5-3.8c2.6 0 4.5 1.5 5.5 3.8-1 2.3-2.9 3.8-5.5 3.8-4 0-6.5-3.8-6.5-3.8z" fill="rgba(16,185,129,0.28)" stroke="#10b981" stroke-width="1.7"/></svg>
+                  <span>НЕЙРОСЕТЬ GEMINI 2.0 FLASH VISION: API-КЛЮЧ И СУТОЧНЫЙ ЛИМИТ</span>
+                </div>
+                <div style="font-size:11.5px;color:var(--muted);margin-top:2px;">
+                  Бесплатный тариф Google AI Studio: <b>1500 запросов в сутки</b> на 1 ключ (можно указать несколько ключей через запятую для суммирования лимита: 3000, 4500/сут). Повторные фото берутся из dHash-кэша (0 расхода лимита).
+                </div>
+              </div>
+              <span class="pill ${hasKey ? 'pill-good' : 'pill-warn'}" style="font-size:11px;font-weight:900;">
+                ${hasKey ? `Ключей активно: ${Math.max(1, keyCount)}` : 'Ключ не задан (работает резервный ИИ)'}
+              </span>
+            </div>
+            <!-- Визуальная шкала остатка лимита (например: 1276 из 1500) с уменьшающейся полоской и сменой цвета от зелёного к красному -->
+            <div style="padding:10px 12px;background:var(--panel);border:1px solid var(--border);border-radius:12px;margin-bottom:10px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:6px;">
+                <span style="font-size:12.5px;font-weight:900;color:var(--text);">
+                  API Key — суточный лимит сегодня (${srvQ.dateKey || new Date().toISOString().slice(0, 10)}):
+                </span>
+                <span id="admGeminiQuotaText" style="font-size:13.5px;font-weight:900;color:${textToneColor};font-family:monospace;">
+                  Осталось: ${remainingToday} из ${limitPerDay} (${pctRem}%) • израсходовано: ${usedToday}
+                </span>
+              </div>
+              <div style="width:100%;height:12px;background:rgba(15,23,42,0.75);border-radius:999px;overflow:hidden;border:1px solid var(--border);box-shadow:inset 0 1px 3px rgba(0,0,0,0.5);">
+                <div id="admGeminiQuotaBarFill" style="width:${pctRem}%;height:100%;background:${barColor};border-radius:999px;transition:width 0.35s ease, background 0.35s ease;"></div>
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+              <input type="password" id="admGeminiApiKeyInput" class="input" value="${escapeHtml(effRawKey)}" placeholder="Вставьте бесплатный ключ AIzaSy... (или несколько через запятую)" style="flex:1;min-width:240px;min-height:38px;font-family:monospace;font-size:12.5px;">
+              <button type="button" class="btn btn-sm" id="admToggleShowGeminiKeyBtn" style="min-height:38px;padding:0 10px;" title="Показать / скрыть ключ">Показать</button>
+              <button type="button" class="btn btn-sm btn-good" id="admSaveGeminiKeyBtn" style="min-height:38px;font-weight:900;">Сохранить ключ</button>
+              <button type="button" class="btn btn-sm btn-accent" id="admTestGeminiKeyBtn" style="min-height:38px;font-weight:800;">Проверить связь и лимит</button>
+              <button type="button" class="btn btn-sm" id="admResetGeminiQuotaBtn" style="min-height:38px;font-size:11.5px;">Сброс счётчика</button>
+            </div>
+            <details style="margin-top:8px;font-size:11.5px;color:var(--muted);line-height:1.45;">
+              <summary style="cursor:pointer;font-weight:800;color:var(--accent);">Инструкция: как бесплатно получить ключ Gemini API за 1 минуту и проверять лимиты</summary>
+              <div style="margin-top:6px;padding:8px 10px;background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+                <b>1. Где получить бесплатный ключ (0 руб.):</b> откройте официальный портал разработчиков Google AI Studio: <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" style="color:var(--accent);font-weight:800;">https://aistudio.google.com/apikey</a> (войдите под Google-аккаунтом) и нажмите синюю кнопку <b>«Create API key»</b>. Скопируйте строку, начинающуюся на <code>AIzaSy...</code>.<br>
+                <b>2. Куда вставить:</b> вставьте скопированный ключ в поле выше и нажмите <b>«Сохранить ключ»</b> — он автоматически сохранится и на этом устройстве, и в серверной базе D1 вашего Cloudflare Worker (для всех пользователей приложения).<br>
+                <b>3. Как проверять лимиты:</b> бесплатный тариф Gemini 2.0 Flash / 1.5 Flash даёт <b>1 500 запросов в сутки</b> (15 запросов в минуту). Шкала выше показывает точный остаток на сегодня (зелёная полоска &gt; 55%, жёлтая 22–55%, красная &lt; 22%). Нажмите <b>«Проверить связь и лимит»</b> для живого теста ответа нейросети, либо проверьте статистику в консоли <a href="https://aistudio.google.com/Spend" target="_blank" rel="noopener noreferrer" style="color:var(--accent);font-weight:800;">Google AI Studio Usage / Rate Limits</a>.
+              </div>
+            </details>
+          </div>
+        `;
+      })()}
       <!-- 2. Шесть KPI-карточек серверной статистики -->
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;">
         <div class="card" style="background:var(--card);padding:10px 12px;">
@@ -5147,12 +5412,95 @@ function bindAdminSectionEvents(container, users) {
   container.querySelector('#admRefreshServerBtn')?.addEventListener('click', () => {
     fetchSuperAdminDashboardData(true);
   });
+  container.querySelector('#admToggleShowGeminiKeyBtn')?.addEventListener('click', (e) => {
+    const inp = container.querySelector('#admGeminiApiKeyInput');
+    if (!inp) return;
+    inp.type = inp.type === 'password' ? 'text' : 'password';
+    e.currentTarget.textContent = inp.type === 'password' ? 'Показать' : 'Скрыть';
+  });
+  const saveAndSyncGeminiConfig = async (testConnection = false, resetQuota = false) => {
+    const rawKey = (container.querySelector('#admGeminiApiKeyInput')?.value || '').trim();
+    try {
+      if (typeof localStorage !== 'undefined') {
+        if (rawKey) localStorage.setItem('klev_gemini_api_key_v2', rawKey);
+        else localStorage.removeItem('klev_gemini_api_key_v2');
+        if (resetQuota) {
+          localStorage.setItem('klev_gemini_quota_v2', JSON.stringify({
+            dateKey: new Date().toISOString().slice(0, 10),
+            usedToday: 0,
+            limitPerDay: 1500
+          }));
+        }
+      }
+      store.dispatch({ type: 'UPDATE_USER_PROFILE', payload: { geminiApiKey: rawKey } });
+      storage.saveSettings(store.getState());
+    } catch (e) {}
+    const tok = _serverAdminSessionToken || store.getState().userProfile?.adminSessionToken || OWNER_ADMIN_CONSOLE_TOKEN;
+    try {
+      const res = await workerFetch('/api/ai/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          adminToken: tok,
+          geminiApiKey: rawKey,
+          testConnection,
+          resetQuota
+        })
+      }, 7500, 1);
+      if (res && res.ok) {
+        const data = await res.json().catch(() => null);
+        if (data && data.aiQuota) {
+          if (!_adminDashboardCache) _adminDashboardCache = {};
+          _adminDashboardCache.aiQuota = data.aiQuota;
+          if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('klev_gemini_quota_v2', JSON.stringify({
+              dateKey: data.aiQuota.dateKey || new Date().toISOString().slice(0, 10),
+              usedToday: data.aiQuota.usedToday || 0,
+              limitPerDay: data.aiQuota.limitPerDay || 1500
+            }));
+          }
+        }
+        if (testConnection && data?.testResult) {
+          showToast(data.testResult.message, data.testResult.ok ? 'good' : 'warn');
+        } else if (resetQuota) {
+          showToast('Суточный счётчик лимита Gemini API сброшен (1500 из 1500)', 'good');
+        } else {
+          showToast(rawKey ? 'Ключ Gemini Vision API сохранён на устройстве и на сервере!' : 'Ключ Gemini API очищен', 'good');
+        }
+        renderAdminSection(container);
+        return;
+      }
+    } catch (e) {}
+    if (testConnection && rawKey) {
+      const firstKey = rawKey.split(',')[0].trim();
+      try {
+        const gRes = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + encodeURIComponent(firstKey), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents: [{ parts: [{ text: 'ОК' }] }], generationConfig: { maxOutputTokens: 5 } })
+        });
+        if (gRes.ok) {
+          showToast('Ключ Gemini 2.0 Flash Vision проверен напрямую: связь отличная!', 'good');
+        } else {
+          showToast('Ошибка проверки ключа Gemini API (HTTP ' + gRes.status + ')', 'bad');
+        }
+      } catch (err) {
+        showToast('Ключ сохранён локально (проверьте интернет для теста Gemini API)', 'info');
+      }
+    } else {
+      showToast(resetQuota ? 'Счётчик сброшен' : 'Ключ Gemini API сохранён', 'good');
+    }
+    renderAdminSection(container);
+  };
+  container.querySelector('#admSaveGeminiKeyBtn')?.addEventListener('click', () => saveAndSyncGeminiConfig(false, false));
+  container.querySelector('#admTestGeminiKeyBtn')?.addEventListener('click', () => saveAndSyncGeminiConfig(true, false));
+  container.querySelector('#admResetGeminiQuotaBtn')?.addEventListener('click', () => saveAndSyncGeminiConfig(false, true));
   container.querySelector('#admOpenFullConsoleBtn')?.addEventListener('click', async () => {
     openFullServerWebConsoleModal();
   });
   container.querySelector('#admExportUsersJsonBtn')?.addEventListener('click', () => {
     const fname = `klev-pro-users-db-${new Date().toISOString().slice(0, 10)}.json`;
-    const jsonStr = JSON.stringify({ exportedAt: new Date().toISOString(), version: '2.5.5', total: users.length, users }, null, 2);
+    const jsonStr = JSON.stringify({ exportedAt: new Date().toISOString(), version: '2.5.6', total: users.length, users }, null, 2);
     downloadFileCrossPlatform(fname, jsonStr, 'application/json;charset=utf-8');
     showToast(` База пользователей сохранена: ${fname}`, 'good');
   });
@@ -5358,11 +5706,9 @@ function bindChatViewEvents(container) {
     publishCircleItemToServer(sharePack.packObj, sharePack.token).catch(() => {});
     const waterTitle = s.selectedWaterName || WATER_PROFILES[s.water]?.shortName || s.locLabel;
     const locMsgText =
-      `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#ef4444"/></svg> МОЁ МЕСТОПОЛОЖЕНИЕ: ${s.locLabel} (${waterTitle})
-` +
-      `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="4.5" stroke="#38bdf8" stroke-width="1.6"/><circle cx="12" cy="12" r="1.8" fill="#10b981"/></svg> Координаты: ${Number(s.lat).toFixed(4)}°N, ${Number(s.lon).toFixed(4)}°E • Глубина ~${s.depth} м
-` +
-      `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Код точки: ${sharePack.token}`;
+      'МОЁ МЕСТОПОЛОЖЕНИЕ: ' + s.locLabel + ' (' + waterTitle + ')\n' +
+      'Координаты: ' + Number(s.lat).toFixed(4) + '°N, ' + Number(s.lon).toFixed(4) + '°E • Глубина ~' + s.depth + ' м\n' +
+      'Код точки: ' + sharePack.token;
     if (isCrew) {
       const cKey = activeChatChannelId.replace(/^crew:/, '');
       await sendFishermanChatMessage({ channelId: activeChatChannelId, text: locMsgText, crewKey: cKey });
@@ -5663,7 +6009,7 @@ function bindCircleEvents(container) {
           peerName,
           senderId: ident.fisherId,
           senderName: ident.callsign,
-          text: `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> Открыт личный диалог с ${peerName}.`,
+          text: 'Открыт личный диалог с ' + String(peerName || '').replace(/<[^>]+>/g, '').trim() + '.',
           ts: Date.now(),
           e2ee: true,
           unread: false

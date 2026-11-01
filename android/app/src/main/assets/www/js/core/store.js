@@ -1,9 +1,15 @@
-/* Klev PRO v2.5.5 r192 (Protected Build) */
-import { DEFAULT_STATE, getCompatibleMethods, getSeasonalBaitsForContext } from './config.js?v=2.5.5';
-import { storage } from './storage.js?v=2.5.5';
-import { detectBasinByCoords, BASIN_CONFIGS, isCoastalInBasin, getSpotEcoregion } from '../data/basins.js?v=2.5.5';
-import { findNearestRussianSettlement } from '../data/russia-waters.js?v=2.5.5';
-import { FISH_DB } from '../data/species.js?v=2.5.5';
+/**
+ * @file store.js
+ * @description Централизованное хранилище состояния (Store) с поддержкой 3 режимов («Новичок / Рыбак / Профи»),
+ * модуля «Клёв ПРО: Круг» (разделение «Мои / Чужие», компактная лента, Экипаж 72ч по ключу, SOS всем рыбакам,
+ * выделенная вкладка « Чаты» с отправкой улова, автопривязка и автокопирование ID рыбака FP-XXXXX,
+ * закрытый Супер-Админ + управляемая База Администраторов) (Ревизия 2.1.1)
+ */
+import { DEFAULT_STATE, getCompatibleMethods, getSeasonalBaitsForContext } from './config.js?v=2.5.6';
+import { storage } from './storage.js?v=2.5.6';
+import { detectBasinByCoords, BASIN_CONFIGS, isCoastalInBasin, getSpotEcoregion } from '../data/basins.js?v=2.5.6';
+import { findNearestRussianSettlement } from '../data/russia-waters.js?v=2.5.6';
+import { FISH_DB } from '../data/species.js?v=2.5.6';
 function getActiveDaySeasonContext(state, overrideDays = null, overrideDayIdx = null, overrideIceState = null) {
   const rawDays = overrideDays ?? state?.weatherDays;
   const days = Array.isArray(rawDays) ? rawDays : [];
@@ -81,6 +87,22 @@ function reducer(state, action) {
       return { ...state, route: action.payload };
     case 'SET_THEME':
       return { ...state, theme: action.payload };
+    case 'SET_LIQUID_GLASS': {
+      const lg = Boolean(action.payload);
+      return {
+        ...state,
+        liquidGlass: lg,
+        userProfile: { ...(state.userProfile || {}), liquidGlass: lg }
+      };
+    }
+    case 'TOGGLE_LIQUID_GLASS': {
+      const nextLg = !(state.liquidGlass !== false);
+      return {
+        ...state,
+        liquidGlass: nextLg,
+        userProfile: { ...(state.userProfile || {}), liquidGlass: nextLg }
+      };
+    }
     case 'SET_APP_MODE': {
       const mode = ['novice', 'angler', 'pro'].includes(action.payload) ? action.payload : 'angler';
       return {

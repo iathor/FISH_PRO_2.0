@@ -1,10 +1,9 @@
-/* Klev PRO v2.5.5 r192 (Protected Build) */
-import { RU } from '../../i18n/ru.js?v=2.5.5';
-import { store } from '../../core/store.js?v=2.5.5';
-import { generateSpawnICS } from '../../core/format.js?v=2.5.5';
-import { BASIN_CONFIGS, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.5.5';
-import { FISH_DB } from '../../data/species.js?v=2.5.5';
-import { showToast, downloadFileCrossPlatform } from '../../ui/components.js?v=2.5.5';
+import { RU } from '../../i18n/ru.js?v=2.5.6';
+import { store } from '../../core/store.js?v=2.5.6';
+import { generateSpawnICS } from '../../core/format.js?v=2.5.6';
+import { BASIN_CONFIGS, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.5.6';
+import { FISH_DB } from '../../data/species.js?v=2.5.6';
+import { showToast, downloadFileCrossPlatform } from '../../ui/components.js?v=2.5.6';
 const COMPARE_COLORS = ['#10b981', '#38bdf8', '#a855f7'];
 export function getSpawnWindows(fishId, basinCode) {
   const fish = FISH_DB.find(f => f.id === fishId) || FISH_DB[0];

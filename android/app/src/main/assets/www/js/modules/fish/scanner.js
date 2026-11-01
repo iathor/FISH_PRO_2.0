@@ -1,10 +1,19 @@
-/* Klev PRO v2.5.5 r192 (Protected Build) */
-import { store } from '../../core/store.js?v=2.5.5';
-import { router } from '../../core/router.js?v=2.5.5';
-import { RELAY_WORKER_URL, triggerHaptic } from '../../core/telegram.js?v=2.5.5';
-import { BASIN_CONFIGS } from '../../data/basins.js?v=2.5.5';
-import { FISH_DB } from '../../data/species.js?v=2.5.5';
-import { escapeHtml, openModal, closeModal, showToast } from '../../ui/components.js?v=2.5.5';
+/**
+ * @file scanner.js
+ * @description Мультимодальный нейро-определитель рыбы по фото («Ихтио-Сканер» v2.5.6 r193):
+ * - Явный запрос разрешений на Камеру и Медиатеку через AndroidBridge + живой видоискатель камеры (WebRTC getUserMedia)
+ * - Интерактивный холст (<canvas>) прямо по фотографии:
+ *   1) Режим «Рамка рыбы (Фокус ИИ)» — обрезка лишнего фона (леса, воды, лодки, одежды рыбака) перетаскиваемой рамкой
+ *   2) Режим «Линейка на фото (А–Б / В–Г)» — интерактивное измерение длины рыбы пальцем с экранной лупой 2.5x и пересчётом веса по формуле Фултона
+ * - Каскад бесплатных облачных Vision-нейросетей (Gemini 2.0 Flash Vision / Cloudflare Workers AI Vision / OpenAI-совместимый бесплатный Vision API)
+ *   с локальным и серверным кэшированием по dHash (0 мс и 0 расхода лимитов на повторных снимках, защита от 100500 запросов)
+ */
+import { store } from '../../core/store.js?v=2.5.6';
+import { router } from '../../core/router.js?v=2.5.6';
+import { RELAY_WORKER_URL, triggerHaptic } from '../../core/telegram.js?v=2.5.6';
+import { BASIN_CONFIGS } from '../../data/basins.js?v=2.5.6';
+import { FISH_DB } from '../../data/species.js?v=2.5.6';
+import { escapeHtml, openModal, closeModal, showToast } from '../../ui/components.js?v=2.5.6';
 const REFERENCE_SPECIES_SIGNATURES = {
   "amur_catfish": {"dhash": "0000e1c8c0e00000", "roiDhash": "60c0cc58c0d00000", "tightDhash": "60c1c9acf8d0e0f0", "bands": [9.0, 15.0, 29.0, 53.9, 55.4, 48.2, 47.5, 49.7, 50.3, 9.0, 15.0, 29.0], "roiBands": [22.8, 28.6, 37.6, 95.0, 91.0, 64.7, 47.0, 49.7, 51.3, 9.0, 15.0, 29.0], "tightBands": [27.1, 33.0, 40.7, 82.5, 80.3, 56.9, 111.0, 105.6, 79.5, 42.5, 46.0, 49.4]},
   "anglerfish": {"dhash": "016ce0d0d884c480", "roiDhash": "e8e0c098a84494a4", "tightDhash": "ece0e090a8449484", "bands": [25.1, 27.7, 37.7, 103.9, 91.6, 85.1, 83.1, 69.5, 62.8, 19.4, 22.1, 32.9], "roiBands": [119.6, 104.9, 95.8, 104.0, 90.7, 83.0, 88.8, 73.3, 63.7, 49.1, 43.7, 46.2], "tightBands": [86.3, 77.2, 74.3, 104.6, 92.0, 84.9, 85.7, 71.6, 63.7, 47.6, 42.5, 45.3]},
@@ -122,6 +131,9 @@ const REFERENCE_SPECIES_SIGNATURES = {
   "yellowcheek": {"dhash": "0000f3f0f0f10000", "roiDhash": "00f9f1f8f1f11000", "tightDhash": "3bf3e2f8f8f1f131", "bands": [9.0, 15.0, 29.0, 63.9, 69.5, 71.5, 74.5, 74.7, 73.8, 9.0, 15.0, 29.0], "roiBands": [12.3, 18.1, 31.1, 138.6, 142.1, 129.7, 75.5, 74.9, 74.3, 9.0, 15.0, 29.0], "tightBands": [24.5, 31.2, 40.3, 150.6, 155.1, 140.3, 167.8, 160.9, 139.3, 37.3, 39.9, 47.4]},
   "zander": {"dhash": "0020f1e1c0f53000", "roiDhash": "60e4e090c0e47400", "tightDhash": "6070e1e1d0c1e574", "bands": [10.9, 17.6, 30.7, 79.4, 91.3, 82.0, 74.3, 84.6, 82.6, 9.1, 15.1, 29.1], "roiBands": [40.1, 54.6, 53.2, 137.8, 147.6, 127.1, 80.3, 92.9, 87.8, 14.1, 21.1, 33.8], "tightBands": [27.2, 39.2, 44.6, 92.9, 104.2, 90.3, 130.2, 139.7, 124.9, 36.5, 48.0, 53.7]},
 };
+/**
+ * Полевые калибровочные сигнатуры реальных сложных ракурсов (полный кадр + центральная рамка ROI)
+ */
 const FIELD_CALIBRATION_SIGNATURES = [
   {
     id: 'field_pike_ice_row',
@@ -204,6 +216,10 @@ const FIELD_CALIBRATION_SIGNATURES = [
     ]
   }
 ];
+/**
+ * Коэффициент упитанности Фултона (k) по видам рыб для расчёта веса по длине:
+ * W (кг) = (k * L_см^3) / 100000
+ */
 const FULTON_CONDITION_K = {
   pike: 0.85,
   amur_pike: 0.86,
@@ -251,6 +267,9 @@ export function getDefaultTypicalLengthCm(fishId) {
   };
   return map[fishId] || 35;
 }
+/**
+ * Явно запрашивает разрешения на Камеру и Фото у Android-контейнера (APK) или браузера
+ */
 export function requestAppCameraAndPhotoAccess() {
   try {
     if (typeof window !== 'undefined' && window.AndroidBridge && typeof window.AndroidBridge.requestCameraAndPhotoPermissions === 'function') {
@@ -260,6 +279,9 @@ export function requestAppCameraAndPhotoAccess() {
   } catch (e) {}
   return false;
 }
+/**
+ * Вычисляет расстояние Хэмминга между двумя 16-символьными hex-строками (64 бита)
+ */
 export function hammingDistanceHex64(h1, h2) {
   const a = String(h1 || '').replace(/^dh_/, '').padStart(16, '0');
   const b = String(h2 || '').replace(/^dh_/, '').padStart(16, '0');
@@ -273,6 +295,9 @@ export function hammingDistanceHex64(h1, h2) {
   }
   return dist;
 }
+/**
+ * Вычисляет среднеквадратичное отклонение между 12-полосными цветовыми профилями
+ */
 function bandEuclideanDistance(b1, b2) {
   if (!Array.isArray(b1) || !Array.isArray(b2) || b1.length < 12 || b2.length < 12) return 999;
   let sumSq = 0;
@@ -368,6 +393,10 @@ function computeCanvasDhashAndBands(sourceCanvasOrImg, sx, sy, sw, sh) {
     bronzeRatio: bronzePixels / totalCenter
   };
 }
+/**
+ * Извлекает визуальные признаки из всего кадра И из выделенной рамки рыбы (ROI),
+ * отсекая фон (деревья, небо, воду, куртку рыбака)
+ */
 export async function extractPhotoVisualFeatures(imgSrc, cropBox = null) {
   if (typeof document === 'undefined' || typeof Image === 'undefined') {
     return {
@@ -493,7 +522,79 @@ export async function extractPhotoVisualFeatures(imgSrc, cropBox = null) {
     }
   });
 }
-const LOCAL_VISION_CACHE_KEY = 'klev_vision_ai_cache_v254';
+const LOCAL_VISION_CACHE_KEY = 'klev_vision_ai_cache_v256';
+const LOCAL_GEMINI_KEY_STORAGE = 'klev_gemini_api_key_v2';
+const LOCAL_GEMINI_QUOTA_STORAGE = 'klev_gemini_quota_v2';
+export function getStoredGeminiApiKey() {
+  try {
+    const s = store.getState();
+    const fromProfile = String(s?.userProfile?.geminiApiKey || '').trim();
+    if (fromProfile && fromProfile.length >= 20) return fromProfile;
+    if (typeof localStorage !== 'undefined') {
+      const fromLs = String(localStorage.getItem(LOCAL_GEMINI_KEY_STORAGE) || '').trim();
+      if (fromLs && fromLs.length >= 20) return fromLs;
+    }
+  } catch (e) {}
+  return '';
+}
+export function saveStoredGeminiApiKey(rawKey = '') {
+  const clean = String(rawKey || '').trim();
+  try {
+    if (typeof localStorage !== 'undefined') {
+      if (clean) localStorage.setItem(LOCAL_GEMINI_KEY_STORAGE, clean);
+      else localStorage.removeItem(LOCAL_GEMINI_KEY_STORAGE);
+    }
+    store.dispatch({ type: 'UPDATE_USER_PROFILE', payload: { geminiApiKey: clean } });
+  } catch (e) {}
+  return clean;
+}
+export function getLocalGeminiQuotaState(customKeyStr = null) {
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const rawKeys = String(customKeyStr !== null ? customKeyStr : getStoredGeminiApiKey())
+    .split(',')
+    .map(k => k.trim())
+    .filter(k => k.length >= 20);
+  const keyCount = rawKeys.length;
+  const limitPerDay = Math.max(1500, keyCount * 1500);
+  let usedToday = 0;
+  try {
+    if (typeof localStorage !== 'undefined') {
+      const raw = JSON.parse(localStorage.getItem(LOCAL_GEMINI_QUOTA_STORAGE) || '{}');
+      if (raw && raw.dateKey === todayStr && Number.isFinite(Number(raw.usedToday))) {
+        usedToday = Math.max(0, Number(raw.usedToday));
+      }
+    }
+  } catch (e) {}
+  const remainingToday = Math.max(0, limitPerDay - usedToday);
+  const pctRemaining = Math.round((remainingToday / limitPerDay) * 100);
+  return {
+    hasKey: keyCount > 0,
+    keyCount,
+    keys: rawKeys,
+    limitPerDay,
+    usedToday,
+    remainingToday,
+    pctRemaining,
+    dateKey: todayStr
+  };
+}
+export function incrementLocalGeminiQuotaUsed(serverQuotaObj = null) {
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const cur = getLocalGeminiQuotaState();
+  const nextUsed = (serverQuotaObj && Number.isFinite(Number(serverQuotaObj.usedToday)))
+    ? Math.max(cur.usedToday + 1, Number(serverQuotaObj.usedToday))
+    : (cur.usedToday + 1);
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(LOCAL_GEMINI_QUOTA_STORAGE, JSON.stringify({
+        dateKey: todayStr,
+        usedToday: nextUsed,
+        limitPerDay: cur.limitPerDay
+      }));
+    }
+  } catch (e) {}
+  return getLocalGeminiQuotaState();
+}
 function loadLocalVisionCache() {
   try {
     if (typeof localStorage === 'undefined') return {};
@@ -531,6 +632,12 @@ function enrichMatchList(rawCandidates, defaultPrimaryId = '', defaultLenCm = 0)
     };
   });
 }
+/**
+ * Выполняет гибридное нейро-определение вида рыбы по фото:
+ * 1) Проверяет локальный кэш и калибровочную базу полевых снимков (полный кадр + выделенная рамка ROI)
+ * 2) Отправляет сжатый снимок выделенной области рыбы (ROI) в облачный Vision-конвейер (/api/ai/identify-fish -> Gemini 2.0 Flash Vision / Cloudflare Workers AI / бесплатный мультимодальный Vision API)
+ * 3) Если интернет недоступен — использует сегментированный морфометрический анализатор по рамке рыбы (без влияния леса/воды/лодки)
+ */
 export async function analyzeFishPhotoHybrid(imgSrc, options = {}) {
   const s = store.getState();
   const useBasinFilter = options.useBasinFilter !== false;
@@ -687,6 +794,75 @@ export async function analyzeFishPhotoHybrid(imgSrc, options = {}) {
       'Ты — эксперт-ихтиолог РФ. Определи вид рыбы на фотографии (игнорируй фон: деревья, лодку, воду, одежду рыбака; смотри ТОЛЬКО на морфологию самой рыбы).\n' +
       'Допустимые ID видов (fishId): ' + FISH_DB.map(f => `${f.id} (${f.name})`).join(', ') + '.\n' +
       'Верни СТРОГО валидный JSON без обёрток: {"sceneTitle":"краткое описание","estimatedLengthCm":50,"matches":[{"fishId":"id_вида","confidence":95,"reason":"признаки на фото"},{"fishId":"id_2","confidence":35,"reason":"отличие"},{"fishId":"id_3","confidence":20,"reason":"отличие"}]}';
+    const geminiQuota = getLocalGeminiQuotaState();
+    if (geminiQuota.hasKey && geminiQuota.remainingToday > 0) {
+      const pureB64 = imagePayload.includes(',') ? imagePayload.split(',')[1] : imagePayload;
+      const gKey = geminiQuota.keys[Math.floor(Math.random() * geminiQuota.keys.length)];
+      try {
+        const gCtrl = new AbortController();
+        const gTimer = setTimeout(() => gCtrl.abort(), 6500);
+        const gUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + encodeURIComponent(gKey);
+        const gRes = await fetch(gUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{
+              parts: [
+                { text: VISION_PROMPT + '\nРегион/бассейн вылова: ' + basinName + ' (' + basinCode + ').' },
+                { inline_data: { mime_type: 'image/jpeg', data: pureB64 } }
+              ]
+            }],
+            generationConfig: {
+              temperature: 0.1,
+              maxOutputTokens: 450,
+              responseMimeType: 'application/json'
+            }
+          }),
+          signal: gCtrl.signal
+        }).catch(() => null);
+        clearTimeout(gTimer);
+        if (gRes && gRes.ok) {
+          const gJson = await gRes.json().catch(() => null);
+          const rawTxt = String(gJson?.candidates?.[0]?.content?.parts?.[0]?.text || '').replace(/```json/gi, '').replace(/```/g, '').trim();
+          const b0 = rawTxt.indexOf('{');
+          const b1 = rawTxt.lastIndexOf('}');
+          if (b0 !== -1 && b1 > b0) {
+            const parsed = JSON.parse(rawTxt.slice(b0, b1 + 1));
+            if (parsed && Array.isArray(parsed.matches) && parsed.matches.length > 0 && FISH_DB.some(f => f.id === parsed.matches[0].fishId)) {
+              const updatedQuota = incrementLocalGeminiQuotaUsed();
+              const topMatches = enrichMatchList(parsed.matches, '', parsed.estimatedLengthCm);
+              if (topMatches.length > 0) {
+                if (cacheHashKey) {
+                  saveLocalVisionCache(cacheHashKey, {
+                    engine: 'Google Gemini 2.0 Flash Vision ИИ',
+                    sceneTitle: parsed.sceneTitle,
+                    estimatedLengthCm: topMatches[0].estimatedLengthCm,
+                    matches: parsed.matches
+                  });
+                }
+                return {
+                  ok: true,
+                  engine: 'Google Gemini 2.0 Flash Vision ИИ (осталось ' + updatedQuota.remainingToday + ' из ' + updatedQuota.limitPerDay + ')',
+                  sourceMode: 'Google Gemini 2.0 Flash Vision ИИ',
+                  basinCode,
+                  basinName,
+                  sceneTitle: parsed.sceneTitle || ('Распознано Gemini 2.0 Flash Vision (' + basinName + ')'),
+                  morphNote: topMatches[0].reason,
+                  primaryMatch: topMatches[0],
+                  topMatch: topMatches[0],
+                  topMatches,
+                  matches: topMatches,
+                  estimatedLengthCm: topMatches[0].estimatedLengthCm,
+                  estimatedWeightKg: topMatches[0].estimatedWeightKg,
+                  thumbDataUrl: feat.thumbDataUrl || imgSrc,
+                  roiDataUrl: feat.roiDataUrl || feat.thumbDataUrl || imgSrc
+                };
+              }
+            }
+          }
+        }
+      } catch (e) {}
+    }
     try {
       const vCtrl = new AbortController();
       const vTimer = setTimeout(() => vCtrl.abort(), 7000);
@@ -761,6 +937,7 @@ export async function analyzeFishPhotoHybrid(imgSrc, options = {}) {
           dhash: feat.dhash,
           roiDhash: feat.roiDhash,
           imageBase64: imagePayload,
+          geminiApiKey: getStoredGeminiApiKey(),
           features: {
             redFinRatio: feat.redFinRatio,
             silverRatio: feat.silverRatio,
@@ -777,6 +954,7 @@ export async function analyzeFishPhotoHybrid(imgSrc, options = {}) {
         const eng = String(cloudData?.engine || '');
         const isStaleV253Fallback = eng.includes('v2.5.3') || eng.includes('Морфометрическое ядро');
         if (cloudData && cloudData.ok && !isStaleV253Fallback && Array.isArray(cloudData.matches) && cloudData.matches.length > 0) {
+          if (cloudData.aiQuota) incrementLocalGeminiQuotaUsed(cloudData.aiQuota);
           const topMatches = enrichMatchList(cloudData.matches, '', cloudData.estimatedLengthCm);
           if (topMatches.length > 0) {
             if (cacheHashKey) {
@@ -885,6 +1063,10 @@ export async function analyzeFishPhotoHybrid(imgSrc, options = {}) {
     roiDataUrl: feat.roiDataUrl || feat.thumbDataUrl || imgSrc
   };
 }
+/**
+ * Открывает интерактивное модальное окно «Нейро-определитель рыбы по фото (Ихтио-Сканер)»
+ * с живым видоискателем камеры, запросом разрешений и интерактивной линейкой/рамкой на <canvas>
+ */
 export function openFishPhotoScannerModal(options = {}) {
   requestAppCameraAndPhotoAccess();
   let activeResult = null;

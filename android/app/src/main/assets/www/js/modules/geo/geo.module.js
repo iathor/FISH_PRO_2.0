@@ -1,13 +1,12 @@
-/* Klev PRO v2.5.5 r192 (Protected Build) */
-import { MAP_LAYERS, SPOT_CATEGORIES, getCompatibleMethods } from '../../core/config.js?v=2.5.5';
-import { events } from '../../core/events.js?v=2.5.5';
-import { storage, safeJsonParse } from '../../core/storage.js?v=2.5.5';
-import { store } from '../../core/store.js?v=2.5.5';
-import { fetchWithTimeout } from '../../core/http.js?v=2.5.5';
-import { installShortcut, syncInstallButtons } from '../../core/pwa.js?v=2.5.5';
-import { triggerHaptic } from '../../core/telegram.js?v=2.5.5';
-import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.5.5';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.5.5';
+import { MAP_LAYERS, SPOT_CATEGORIES, getCompatibleMethods } from '../../core/config.js?v=2.5.6';
+import { events } from '../../core/events.js?v=2.5.6';
+import { storage, safeJsonParse } from '../../core/storage.js?v=2.5.6';
+import { store } from '../../core/store.js?v=2.5.6';
+import { fetchWithTimeout } from '../../core/http.js?v=2.5.6';
+import { installShortcut, syncInstallButtons } from '../../core/pwa.js?v=2.5.6';
+import { triggerHaptic } from '../../core/telegram.js?v=2.5.6';
+import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.5.6';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.5.6';
 import {
   RUSSIA_CITIES,
   RUSSIA_WATERS,
@@ -15,12 +14,12 @@ import {
   getNearestRussianSettlements,
   getNearestRussianWaters,
   getWaterTypeShortTag
-} from '../../data/russia-waters.js?v=2.5.5';
-import { FISH_DB } from '../../data/species.js?v=2.5.5';
-import { escapeHtml, createPill, showToast, openModal, closeModal, openConfirmDeleteModal, downloadFileCrossPlatform } from '../../ui/components.js?v=2.5.5';
-import { fetchWeather } from '../weather/weather.module.js?v=2.5.5';
-import { calcDayBest } from '../forecast/forecast.module.js?v=2.5.5';
-import { computeHexPolygonForCircle, getEffectiveCircleRadiusKm, getCircleHexDecayState, canUserAccessCrewItem, getCurrentFisherIdentity, isCircleItemMine, isCircleItemHidden, openAddThematicMapPointModal } from '../circle/circle.module.js?v=2.5.5';
+} from '../../data/russia-waters.js?v=2.5.6';
+import { FISH_DB } from '../../data/species.js?v=2.5.6';
+import { escapeHtml, createPill, showToast, openModal, closeModal, openConfirmDeleteModal, downloadFileCrossPlatform } from '../../ui/components.js?v=2.5.6';
+import { fetchWeather } from '../weather/weather.module.js?v=2.5.6';
+import { calcDayBest } from '../forecast/forecast.module.js?v=2.5.6';
+import { computeHexPolygonForCircle, getEffectiveCircleRadiusKm, getCircleHexDecayState, canUserAccessCrewItem, getCurrentFisherIdentity, isCircleItemMine, isCircleItemHidden, openAddThematicMapPointModal } from '../circle/circle.module.js?v=2.5.6';
 let mapInstance = null;
 let mapMarker = null;
 let scoutMarker = null;
@@ -34,7 +33,7 @@ export function focusCircleOnMap(circleId, lat, lon) {
   }
   setTimeout(() => {
     if (mapInstance && Number.isFinite(lat) && Number.isFinite(lon)) {
-      mapInstance.flyTo([lat, lon], 12);
+      mapInstance.flyTo([lat, lon], 13);
       renderMapOverlays();
       if (_circleLayersMap.has(circleId)) {
         const lyr = _circleLayersMap.get(circleId);
@@ -66,6 +65,10 @@ let visibleMapLayers = {
   ownership: "all", // "all" | "mine" | "foreign"
   spotCategory: "all" // "all" | "bite" | "slip" | "camp" | "hazard" | "shop"
 };
+/**
+ * Возвращает точную эллиптическую проекцию Меркатора EPSG:3395 (WGS-84) для Яндекс Карт,
+ * чтобы берега рек, острова и рыболовные точки совпадали с точностью до метра без вертикального сдвига.
+ */
 function getYandexEPSG3395CRS() {
   if (typeof L === 'undefined') return null;
   if (L.CRS && L.CRS.EPSG3395) return L.CRS.EPSG3395;
@@ -143,6 +146,10 @@ function calcHaversineKm(lat1, lon1, lat2, lon2) {
     Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
   return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 10) / 10;
 }
+/**
+ * Вычисляет мгновенную разведку для любой точки карты (« Что здесь клюёт?»)
+ * без изменения домашней локации пользователя в store!
+ */
 export function inspectWhatBitesHere(lat, lon) {
   const rLat = Math.round(lat * 10000) / 10000;
   const rLon = Math.round(lon * 10000) / 10000;
@@ -817,6 +824,9 @@ export async function deleteSpot(id) {
   const all = await storage.getAllFromStore('spots');
   store.dispatch({ type: 'SET_SAVED_SPOTS', payload: all });
 }
+/**
+ * Экспорт сохранённых точек в формат .GPX (для эхолотов Garmin / Lowrance / Практик в режиме « Профи»)
+ */
 export function exportSpotsToGpx() {
   const s = store.getState();
   const spots = s.savedSpots || [];
@@ -849,6 +859,9 @@ export function exportSpotsToKml() {
   downloadFileCrossPlatform(fname, kmlXml, 'application/vnd.google-earth.kml+xml;charset=utf-8');
   showToast(` Выгружено ${spots.length} точек в файл ${fname} (Google Earth / Яндекс / Locus Map)`, 'good');
 }
+/**
+ * Импорт точек из файла .GPX (wpt/rtept/trkpt + глубины эхолота), .KML (Placemark) или .JSON
+ */
 export async function importSpotsFromFileText(fileText) {
   if (!fileText) return 0;
   let importedCount = 0;
@@ -943,9 +956,26 @@ export async function importSpotsFromFileText(fileText) {
   }
   return importedCount;
 }
+/**
+ * Отрисовывает на карте дополнительные слои:
+ * - <svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><rect x=\"5\" y=\"11\" width=\"14\" height=\"10\" rx=\"2.5\" fill=\"rgba(251,191,36,0.22)\" stroke=\"#fbbf24\" stroke-width=\"1.8\"/><path d=\"M8 11V7a4 4 0 0 1 8 0v4\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\"/></svg> Мои сохранённые точки
+ * - <svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"9\" cy=\"8\" r=\"3.5\" fill=\"rgba(56,189,248,0.25)\" stroke=\"currentColor\" stroke-width=\"1.8\"/><path d=\"M3 19c0-3.2 2.7-5.5 6-5.5s6 2.3 6 5.5\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\"/><circle cx=\"17\" cy=\"9\" r=\"2.8\" stroke=\"currentColor\" stroke-width=\"1.6\"/><path d=\"M16 14c2.6.3 4.8 2 5 4.8\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\"/></svg> Размытые круги ±5 км из «Круга»
+ * - <svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0\" stroke=\"#38bdf8\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg> Точные точки «Экипажа (72ч)»
+ * - <svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"11\" cy=\"11\" r=\"6.5\" stroke=\"currentColor\" stroke-width=\"2\"/><path d=\"M16 16l4.5 4.5\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg> Маркер разведки «Что здесь клюёт?»
+ */
 function renderMapOverlays() {
   if (!mapInstance || typeof L === 'undefined') return;
   const s = store.getState();
+  if (mapInstance && typeof mapInstance.getPane === "function" && typeof mapInstance.createPane === "function") {
+    if (!mapInstance.getPane("hexagonsPane")) {
+      const hp = mapInstance.createPane("hexagonsPane");
+      hp.style.zIndex = "340";
+    }
+    if (!mapInstance.getPane("spotsAndSosPane")) {
+      const sp = mapInstance.createPane("spotsAndSosPane");
+      sp.style.zIndex = "660";
+    }
+  }
   if (!overlayLayerGroup) {
     overlayLayerGroup = L.layerGroup().addTo(mapInstance);
   } else {
@@ -1016,6 +1046,8 @@ function renderMapOverlays() {
         let marker;
         if (typeof L.divIcon === 'function' && typeof L.marker === 'function') {
           marker = L.marker([pt.lat, pt.lon], {
+            pane: (mapInstance && mapInstance.getPane && mapInstance.getPane("spotsAndSosPane")) ? "spotsAndSosPane" : "markerPane",
+            zIndexOffset: 900,
             icon: L.divIcon({
               className: 'klev-thematic-spot-icon',
               html: `<div style="width:22px;height:22px;border-radius:50%;background:rgba(15,23,42,0.86);border:1.8px solid ${catObj.color};box-shadow:0 1px 5px rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;font-size:12px;">${catObj.icon}</div>`,
@@ -1040,6 +1072,7 @@ function renderMapOverlays() {
           `${delOrHideBtn}</div>`
         );
         overlayLayerGroup.addLayer(marker);
+        if (pt.id) _circleLayersMap.set(pt.id, marker);
       });
     } else {
       const clusterRadiusKm = Math.max(0.85, Math.pow(2, 12 - curZoom) * 1.15);
@@ -1067,6 +1100,8 @@ function renderMapOverlays() {
         let clMarker;
         if (typeof L.divIcon === 'function' && typeof L.marker === 'function') {
           clMarker = L.marker([cl.lat, cl.lon], {
+            pane: (mapInstance && mapInstance.getPane && mapInstance.getPane("spotsAndSosPane")) ? "spotsAndSosPane" : "markerPane",
+            zIndexOffset: 950,
             icon: L.divIcon({
               className: 'klev-thematic-cluster-icon',
               html: `<div title="Точек: ${count} (нажмите для приближения < 1 км/см)" style="width:26px;height:26px;border-radius:50%;background:rgba(15,23,42,0.88);border:2px solid ${firstCat.color};color:#fff;font-size:11.5px;font-weight:900;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,0.5);cursor:pointer;">${count}</div>`,
@@ -1112,136 +1147,140 @@ function renderMapOverlays() {
       : `<button type="button" data-popup-hide-circle="${item.id}" style="margin-top:5px;padding:3px 8px;border-radius:5px;border:1px solid #64748b;background:#334155;color:#fff;font-size:11px;font-weight:800;cursor:pointer;"><svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M17.94 17.94A10.07 10.07 0 0 1 12 19c-6.4 0-10-7-10-7a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c6.4 0 10 7 10 7a18.5 18.5 0 0 1-2.16 3.19M1 1l22 22\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\"/></svg> Скрыть чужую точку</button>`;
     const isFocused = (_focusedCircleId && String(_focusedCircleId) === String(item.id));
     if (item.sos) {
-      const sosZone = L.circle([item.lat, item.lon], {
-        radius: 8000,
-        color: '#ef4444',
-        fillColor: '#ef4444',
-        fillOpacity: isFocused ? 0.35 : 0.22,
-        weight: isFocused ? 3.5 : 2.5,
-        dashArray: '4, 4'
-      });
+      const hasSpotsPane = Boolean(mapInstance && mapInstance.getPane && mapInstance.getPane("spotsAndSosPane"));
       const sosMarker = L.marker([item.lat, item.lon], {
+        pane: hasSpotsPane ? "spotsAndSosPane" : "markerPane",
+        zIndexOffset: 2200,
         icon: L.divIcon({
-          className: 'klev-sos-icon',
-          html: '<div style="font-size:18px;line-height:1;filter:drop-shadow(0 0 6px #ef4444);animation:pulse 1.5s infinite;"><svg class=\"k-ico\" style=\"color:var(--bad);\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"12\" cy=\"12\" r=\"9.5\" fill=\"#dc2626\" stroke=\"#fca5a5\" stroke-width=\"1.8\"/><text x=\"12\" y=\"15\" text-anchor=\"middle\" fill=\"#fff\" font-size=\"7.5\" font-weight=\"900\" font-family=\"sans-serif\">SOS</text></svg></div>',
+          className: "klev-sos-icon",
+          html: "<div style=\"width:28px;height:28px;display:flex;align-items:center;justify-content:center;filter:drop-shadow(0 0 8px #ef4444);animation:pulse 1.4s infinite;\"><svg class=\"k-ico\" style=\"width:26px;height:26px;color:var(--bad);\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"12\" cy=\"12\" r=\"10\" fill=\"#dc2626\" stroke=\"#ffffff\" stroke-width=\"2.2\"/><text x=\"12\" y=\"15\" text-anchor=\"middle\" fill=\"#fff\" font-size=\"7.5\" font-weight=\"900\" font-family=\"sans-serif\">SOS</text></svg></div>",
+          iconSize: [28, 28],
+          iconAnchor: [14, 14]
+        })
+      });
+      const cleanSosReason = String(item.nt || "Требуется срочная помощь на воде / льду!").replace(/<[^>]+>/g, "").trim();
+      const sosTimeStr = item.ca ? new Date(item.ca).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" }) : "сейчас";
+      const sosPopupHtml = `<div style="font-size:12px;line-height:1.45;min-width:210px;">` +
+        `<b style="color:#ef4444;font-size:13.5px;"><svg class="k-ico" style="color:var(--bad);" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9.5" fill="#dc2626" stroke="#fca5a5" stroke-width="1.8"/><text x="12" y="15" text-anchor="middle" fill="#fff" font-size="7.5" font-weight="900" font-family="sans-serif">SOS</text></svg> СИГНАЛ SOS (${ownerBadgeHtml}):</b><br>` +
+        `<div style="margin-top:4px;padding:6px 8px;border-radius:8px;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.4);">` +
+        `<b>Точные координаты:</b> <span style="font-family:monospace;font-weight:900;">${Number(item.lat).toFixed(4)}°N, ${Number(item.lon).toFixed(4)}°E</span><br>` +
+        `<b>Ориентир / Водоём:</b> ${escapeHtml(item.wn || item.lb || "Водоём")}<br>` +
+        `<b>Причина SOS:</b> <span style="color:#fca5a5;font-weight:800;">«${escapeHtml(cleanSosReason)}»</span><br>` +
+        `<b>Отправитель:</b> ${escapeHtml(item.au || "Рыболов")} (${escapeHtml(item.fid || "")}) • ${sosTimeStr}` +
+        `</div>` +
+        `${actionBtnHtml}</div>`;
+      sosMarker.bindPopup(sosPopupHtml);
+      overlayLayerGroup.addLayer(sosMarker);
+      _circleLayersMap.set(item.id, sosMarker);
+      if (isFocused) sosMarker.openPopup();
+    } else if (item.t === "crew" && visibleMapLayers.crewExact) {
+      if (Number.isFinite(item.ea) && item.ea < now) return;
+      const hrsLeft = Math.max(1, Math.round(((item.ea || now) - now) / 3600000));
+      const hasAccess = canUserAccessCrewItem(item, s) || mine || (ident.isOwner && s.userProfile?.adminShowAllCrews !== false);
+      if (!hasAccess) return;
+      const hasHexPane = Boolean(mapInstance && mapInstance.getPane && mapInstance.getPane("hexagonsPane"));
+      const hasSpotsPane = Boolean(mapInstance && mapInstance.getPane && mapInstance.getPane("spotsAndSosPane"));
+      const crewZone = L.circle([item.lat, item.lon], {
+        pane: hasHexPane ? "hexagonsPane" : "overlayPane",
+        radius: 1500,
+        color: isFocused ? "#34d399" : "#10b981",
+        fillColor: "#10b981",
+        fillOpacity: isFocused ? 0.28 : 0.16,
+        weight: isFocused ? 3 : 2
+      });
+      const crewMarker = L.marker([item.lat, item.lon], {
+        pane: hasSpotsPane ? "spotsAndSosPane" : "markerPane",
+        zIndexOffset: 1400,
+        icon: L.divIcon({
+          className: "klev-crew-icon",
+          html: "<div style=\"font-size:16px;line-height:1;text-shadow:0 1px 3px rgba(0,0,0,0.8);\"><svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M3 16l2 4h14l2-4-9-2-9 2z\" fill=\"rgba(56,189,248,0.22)\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/><path d=\"M12 4v10M12 4l6 6h-6\" stroke=\"#38bdf8\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/></svg></div>",
           iconSize: [22, 22],
           iconAnchor: [11, 11]
         })
       });
-      const sosPopupHtml = `<div style="font-size:12px;line-height:1.4;">` +
-        `<b style="color:#ef4444;font-size:13px;"><svg class=\"k-ico\" style=\"color:var(--bad);\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"12\" cy=\"12\" r=\"9.5\" fill=\"#dc2626\" stroke=\"#fca5a5\" stroke-width=\"1.8\"/><text x=\"12\" y=\"15\" text-anchor=\"middle\" fill=\"#fff\" font-size=\"7.5\" font-weight=\"900\" font-family=\"sans-serif\">SOS</text></svg> СИГНАЛ SOS (${ownerBadgeHtml}):</b><br>` +
-        `<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z\" fill=\"rgba(239,68,68,0.22)\" stroke=\"#ef4444\" stroke-width=\"1.9\"/><circle cx=\"12\" cy=\"11\" r=\"2.3\" fill=\"#ef4444\"/></svg> ${item.wn || item.lb || 'Водоём'} (<b>${Number(item.lat).toFixed(4)}°N, ${Number(item.lon).toFixed(4)}°E</b>)<br>` +
-        `<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"12\" cy=\"8\" r=\"4\" fill=\"rgba(56,189,248,0.22)\" stroke=\"currentColor\" stroke-width=\"1.8\"/><path d=\"M4 20c0-3.8 3.6-6.5 8-6.5s8 2.7 8 6.5\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\"/></svg> От: <b>${escapeHtml(item.au || 'Рыболов')}</b><br>` +
-        `<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z\" fill=\"rgba(56,189,248,0.18)\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/></svg> «${escapeHtml(item.nt || 'Требуется срочная помощь!')}»<br>` +
+      const cKey = item.crewKey || "";
+      const crewPopupHtml = `<div style="font-size:12px;line-height:1.4;">` +
+        `<b style="color:#10b981;font-size:13px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> Экипаж ${cKey ? `(${cKey})` : ""} (${ownerBadgeHtml}):</b><br>` +
+        `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#ef4444"/></svg> <b>${escapeHtml(item.wn || item.lb || "Стоянка")}</b> (глубина ${item.dp || 2} м)<br>` +
+        `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 12s4-6 11-6c4.2 0 7 2.5 9 6-2 3.5-4.8 6-9 6-7 0-11-6-11-6z" fill="rgba(56,189,248,0.28)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M2 12l-1.5-3.5L5 10.5M2 12l-1.5 3.5L5 13.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="16.5" cy="10.8" r="1.3" fill="currentColor"/></svg> Рыба: <b>${escapeHtml(item.fn || "—")}</b> • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 18c0-4 4-4 4-8s4-4 4-6 5-1 5 3-3 5-3 8 4 4 6 2" stroke="#f43f5e" stroke-width="2.2" stroke-linecap="round"/></svg> ${escapeHtml(item.bt || "по сезону")}<br>` +
+        `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" fill="rgba(56,189,248,0.22)" stroke="currentColor" stroke-width="1.8"/><path d="M4 20c0-3.8 3.6-6.5 8-6.5s8 2.7 8 6.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Напарник: <b>${escapeHtml(item.au || "Экипаж")}</b><br>` +
+        `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.5 2" stroke="#38bdf8" stroke-width="1.9" stroke-linecap="round"/></svg> Осталось: <b>~${hrsLeft} ч</b><br>` +
+        (item.nt ? `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> «${escapeHtml(item.nt)}»<br>` : "") +
+        (cKey ? `<button type="button" data-popup-crew-chat="${cKey}" style="margin-top:6px;padding:3px 9px;border-radius:5px;border:1px solid #10b981;background:#10b981;color:#fff;font-size:11px;font-weight:800;cursor:pointer;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> Чат экипажа (${cKey})</button><br>` : "") +
         `${actionBtnHtml}</div>`;
-      sosZone.bindPopup(sosPopupHtml);
-      sosMarker.bindPopup(sosPopupHtml);
-      overlayLayerGroup.addLayer(sosZone);
-      overlayLayerGroup.addLayer(sosMarker);
-      _circleLayersMap.set(item.id, sosZone);
-      if (isFocused) sosZone.openPopup();
-    } else if (item.t === 'crew' && visibleMapLayers.crewExact) {
-      if (Number.isFinite(item.ea) && item.ea < now) return;
-      const hrsLeft = Math.max(1, Math.round(((item.ea || now) - now) / 3600000));
-      const hasAccess = canUserAccessCrewItem(item, s) || mine || ident.isOwner;
-      if (hasAccess) {
-        const crewZone = L.circle([item.lat, item.lon], {
-          radius: 1500,
-          color: isFocused ? '#34d399' : '#10b981',
-          fillColor: '#10b981',
-          fillOpacity: isFocused ? 0.32 : 0.20,
-          weight: isFocused ? 3 : 2
-        });
-        const crewMarker = L.marker([item.lat, item.lon], {
-          icon: L.divIcon({
-            className: 'klev-crew-icon',
-            html: '<div style="font-size:16px;line-height:1;text-shadow:0 1px 3px rgba(0,0,0,0.8);"><svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M3 16l2 4h14l2-4-9-2-9 2z\" fill=\"rgba(56,189,248,0.22)\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/><path d=\"M12 4v10M12 4l6 6h-6\" stroke=\"#38bdf8\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/></svg></div>',
-            iconSize: [20, 20],
-            iconAnchor: [10, 10]
-          })
-        });
-        const cKey = item.crewKey || '';
-        const crewPopupHtml = `<div style="font-size:12px;line-height:1.4;">` +
-          `<b style="color:#10b981;font-size:13px;"><svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0\" stroke=\"#38bdf8\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg> Экипаж ${cKey ? `(${cKey})` : ''} (${ownerBadgeHtml}):</b><br>` +
-          `<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z\" fill=\"rgba(239,68,68,0.22)\" stroke=\"#ef4444\" stroke-width=\"1.9\"/><circle cx=\"12\" cy=\"11\" r=\"2.3\" fill=\"#ef4444\"/></svg> <b>${item.wn || item.lb || 'Стоянка'}</b> (глубина ${item.dp || 2} м)<br>` +
-          `<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M2 12s4-6 11-6c4.2 0 7 2.5 9 6-2 3.5-4.8 6-9 6-7 0-11-6-11-6z\" fill=\"rgba(56,189,248,0.28)\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/><path d=\"M2 12l-1.5-3.5L5 10.5M2 12l-1.5 3.5L5 13.5\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\"/><circle cx=\"16.5\" cy=\"10.8\" r=\"1.3\" fill=\"currentColor\"/></svg> Рыба: <b>${escapeHtml(item.fn || '—')}</b> • <svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M4 18c0-4 4-4 4-8s4-4 4-6 5-1 5 3-3 5-3 8 4 4 6 2\" stroke=\"#f43f5e\" stroke-width=\"2.2\" stroke-linecap=\"round\"/></svg> ${escapeHtml(item.bt || 'по сезону')}<br>` +
-          `<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"12\" cy=\"8\" r=\"4\" fill=\"rgba(56,189,248,0.22)\" stroke=\"currentColor\" stroke-width=\"1.8\"/><path d=\"M4 20c0-3.8 3.6-6.5 8-6.5s8 2.7 8 6.5\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\"/></svg> Напарник: <b>${escapeHtml(item.au || 'Экипаж')}</b><br>` +
-          `<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"12\" cy=\"12\" r=\"9\" stroke=\"currentColor\" stroke-width=\"1.8\"/><path d=\"M12 7v5l3.5 2\" stroke=\"#38bdf8\" stroke-width=\"1.9\" stroke-linecap=\"round\"/></svg> Осталось: <b>~${hrsLeft} ч</b><br>` +
-          (item.nt ? `<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z\" fill=\"rgba(56,189,248,0.18)\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/></svg> «${escapeHtml(item.nt)}»<br>` : '') +
-          (cKey ? `<button type="button" data-popup-crew-chat="${cKey}" style="margin-top:6px;padding:3px 9px;border-radius:5px;border:1px solid #10b981;background:#10b981;color:#fff;font-size:11px;font-weight:800;cursor:pointer;"><svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z\" fill=\"rgba(56,189,248,0.18)\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/></svg> Чат экипажа (${cKey})</button><br>` : '') +
-          `${actionBtnHtml}</div>`;
-        crewZone.bindPopup(crewPopupHtml);
-        crewMarker.bindPopup(crewPopupHtml);
-        overlayLayerGroup.addLayer(crewZone);
-        overlayLayerGroup.addLayer(crewMarker);
-        _circleLayersMap.set(item.id, crewZone);
-        if (isFocused) crewZone.openPopup();
-      } else {
-        const lockedHex = computeHexPolygonForCircle(item.lat, item.lon, 3.5, item.id);
-        const lockedZone = L.polygon(lockedHex.vertices, {
-          color: isFocused ? '#38bdf8' : '#64748b',
-          fillColor: '#0284c7',
-          fillOpacity: isFocused ? 0.24 : 0.13,
-          weight: isFocused ? 2.6 : 1.7,
-          dashArray: '6, 6'
-        });
-        const lockMarker = L.marker([item.lat, item.lon], {
-          icon: L.divIcon({
-            className: 'klev-lock-icon',
-            html: '<div style="font-size:14px;line-height:1;opacity:0.85;"><svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><rect x=\"5\" y=\"11\" width=\"14\" height=\"10\" rx=\"2.5\" fill=\"rgba(251,191,36,0.22)\" stroke=\"#fbbf24\" stroke-width=\"1.8\"/><path d=\"M8 11V7a4 4 0 0 1 8 0v4\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\"/></svg></div>',
-            iconSize: [18, 18],
-            iconAnchor: [9, 9]
-          })
-        });
-        const lockedPopupHtml = `<div style="font-size:12px;line-height:1.4;">` +
-          `<b><svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><rect x=\"5\" y=\"11\" width=\"14\" height=\"10\" rx=\"2.5\" fill=\"rgba(251,191,36,0.22)\" stroke=\"#fbbf24\" stroke-width=\"1.8\"/><path d=\"M8 11V7a4 4 0 0 1 8 0v4\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\"/></svg> Закрытый Экипаж (72 ч, ${ownerBadgeHtml}):</b><br>` +
-          `Район: <b>${item.wn || item.lb || 'Новый Уренгой'}</b> • ~${hrsLeft} ч<br>` +
-          `<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"12\" cy=\"8\" r=\"4\" fill=\"rgba(56,189,248,0.22)\" stroke=\"currentColor\" stroke-width=\"1.8\"/><path d=\"M4 20c0-3.8 3.6-6.5 8-6.5s8 2.7 8 6.5\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\"/></svg> Создатель: <b>${escapeHtml(item.au || 'Рыболов')}</b><br>` +
-          `<div style="font-size:11px;color:var(--muted);margin-top:4px;">Точные координаты и радиочат скрыты создателем. Чтобы вступить, введите 4-значный ключ экипажа во вкладке «<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"9\" cy=\"8\" r=\"3.5\" fill=\"rgba(56,189,248,0.25)\" stroke=\"currentColor\" stroke-width=\"1.8\"/><path d=\"M3 19c0-3.2 2.7-5.5 6-5.5s6 2.3 6 5.5\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\"/><circle cx=\"17\" cy=\"9\" r=\"2.8\" stroke=\"currentColor\" stroke-width=\"1.6\"/><path d=\"M16 14c2.6.3 4.8 2 5 4.8\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\"/></svg> Круг».</div>` +
-          `${actionBtnHtml}</div>`;
-        lockedZone.bindPopup(lockedPopupHtml);
-        lockMarker.bindPopup(lockedPopupHtml);
-        overlayLayerGroup.addLayer(lockedZone);
-        overlayLayerGroup.addLayer(lockMarker);
-        _circleLayersMap.set(item.id, lockedZone);
-        if (isFocused) lockedZone.openPopup();
-      }
-    } else if (item.t === 'circle' && visibleMapLayers.circleBlur) {
+      crewZone.bindPopup(crewPopupHtml);
+      crewMarker.bindPopup(crewPopupHtml);
+      overlayLayerGroup.addLayer(crewZone);
+      overlayLayerGroup.addLayer(crewMarker);
+      _circleLayersMap.set(item.id, crewMarker);
+      if (isFocused) crewMarker.openPopup();
+    } else if (item.t === "circle" && visibleMapLayers.circleBlur) {
       const decay = getCircleHexDecayState(item, now);
       if (decay.expired) return;
-      const polyColor = mine ? '#10b981' : '#38bdf8';
+      const polyColor = mine ? "#10b981" : "#38bdf8";
       const hexObj = computeHexPolygonForCircle(item.lat, item.lon, decay.radiusKm, item.id);
       const hexVertices = (Array.isArray(item.poly) && item.poly.length === 6 && decay.radiusKm === 5.0)
         ? item.poly
         : hexObj.vertices;
+      const hasHexPane = Boolean(mapInstance && mapInstance.getPane && mapInstance.getPane("hexagonsPane"));
       const blurZone = L.polygon(hexVertices, {
-        color: isFocused ? '#fbbf24' : polyColor,
+        pane: hasHexPane ? "hexagonsPane" : "overlayPane",
+        color: isFocused ? "#fbbf24" : polyColor,
         opacity: isFocused ? 1.0 : decay.strokeOpacity,
         fillColor: polyColor,
-        fillOpacity: isFocused ? 0.34 : decay.fillOpacity,
-        weight: isFocused ? 3.2 : decay.weight,
+        fillOpacity: isFocused ? 0.28 : Math.min(0.18, decay.fillOpacity),
+        weight: isFocused ? 3.0 : decay.weight,
         dashArray: isFocused ? null : decay.dashArray
       });
       const centerLat = Number.isFinite(hexObj.cellLat) ? hexObj.cellLat : item.lat;
       const centerLon = Number.isFinite(hexObj.cellLon) ? hexObj.cellLon : item.lon;
       const fishIconMarker = L.marker([centerLat, centerLon], {
+        pane: hasHexPane ? "hexagonsPane" : "markerPane",
         opacity: decay.markerOpacity,
         icon: L.divIcon({
-          className: 'klev-circle-icon',
-          html: `<div style="font-size:15px;line-height:1;opacity:${decay.markerOpacity};text-shadow:0 1px 3px rgba(0,0,0,0.8);">${item.kg ? '<svg class="k-ico" style="color:#fbbf24;" viewBox="0 0 24 24" fill="none"><path d="M7 4h10v5a5 5 0 0 1-10 0V4z" fill="rgba(251,191,36,0.28)" stroke="#fbbf24" stroke-width="1.8"/><path d="M7 6H4v2a3 3 0 0 0 3 3M17 6h3v2a3 3 0 0 1-3 3M12 14v4M8 20h8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg>' : '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 12s4-6 11-6c4.2 0 7 2.5 9 6-2 3.5-4.8 6-9 6-7 0-11-6-11-6z" fill="rgba(56,189,248,0.28)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M2 12l-1.5-3.5L5 10.5M2 12l-1.5 3.5L5 13.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="16.5" cy="10.8" r="1.3" fill="currentColor"/></svg>'}</div>`,
+          className: "klev-circle-icon",
+          html: `<div style="font-size:15px;line-height:1;opacity:${decay.markerOpacity};text-shadow:0 1px 3px rgba(0,0,0,0.8);">${item.kg ? "<svg class=\"k-ico\" style=\"color:#fbbf24;\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M7 4h10v5a5 5 0 0 1-10 0V4z\" fill=\"rgba(251,191,36,0.28)\" stroke=\"#fbbf24\" stroke-width=\"1.8\"/><path d=\"M7 6H4v2a3 3 0 0 0 3 3M17 6h3v2a3 3 0 0 1-3 3M12 14v4M8 20h8\" stroke=\"#fbbf24\" stroke-width=\"1.8\" stroke-linecap=\"round\"/></svg>" : "<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M2 12s4-6 11-6c4.2 0 7 2.5 9 6-2 3.5-4.8 6-9 6-7 0-11-6-11-6z\" fill=\"rgba(56,189,248,0.28)\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/><path d=\"M2 12l-1.5-3.5L5 10.5M2 12l-1.5 3.5L5 13.5\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\"/><circle cx=\"16.5\" cy=\"10.8\" r=\"1.3\" fill=\"currentColor\"/></svg>"}</div>`,
           iconSize: [18, 18],
           iconAnchor: [9, 9]
         })
       });
+      const overlappingPoints = [
+        ...thematicCandidates.map(tp => ({ id: tp.id, lat: tp.lat, lon: tp.lon, t: "spot", cat: tp.catKey, wn: tp.name })),
+        ...circleItems.filter(other => {
+          if (!other || other.id === item.id || !Number.isFinite(other.lat) || !Number.isFinite(other.lon)) return false;
+          if (isCircleItemHidden(other, s)) return false;
+          if (other.t === "circle" || other.t === "workshop" || other.t === "spot") return false;
+          if (other.t === "crew" && !other.sos) {
+            const acc = canUserAccessCrewItem(other, s) || isCircleItemMine(other, s) || (ident.isOwner && s.userProfile?.adminShowAllCrews !== false);
+            if (!acc) return false;
+          }
+          return true;
+        })
+      ].filter(pt => calcHaversineKm(centerLat, centerLon, pt.lat, pt.lon) <= (decay.radiusKm + 0.6));
+      const innerPointsHtml = overlappingPoints.length > 0
+        ? `<div style="margin-top:6px;padding:6px 8px;border-radius:7px;background:rgba(15,23,42,0.55);border:1px solid rgba(56,189,248,0.35);">` +
+          `<div style="font-size:10.5px;font-weight:900;color:#38bdf8;margin-bottom:4px;">Точки внутри этого гексагона (${overlappingPoints.length}):</div>` +
+          overlappingPoints.map(pt => {
+            const ptLbl = pt.sos
+              ? `SOS: ${escapeHtml(pt.wn || pt.lb || "Сигнал помощи")}`
+              : (pt.t === "spot"
+                  ? `${escapeHtml((SPOT_CATEGORIES[pt.cat] || SPOT_CATEGORIES.slip).short)}: ${escapeHtml(pt.wn || pt.fn || pt.lb || "Точка")}`
+                  : `Экипаж ${escapeHtml(pt.crewKey || "")}: ${escapeHtml(pt.wn || pt.lb || "Стоянка")}`);
+            const btnCol = pt.sos ? "#ef4444" : (pt.t === "spot" ? (SPOT_CATEGORIES[pt.cat]?.color || "#38bdf8") : "#10b981");
+            return `<button type="button" data-popup-focus-point="${escapeHtml(pt.id)}" data-popup-focus-lat="${pt.lat}" data-popup-focus-lon="${pt.lon}" style="display:block;width:100%;text-align:left;margin-top:3px;padding:4px 7px;border-radius:5px;border:1px solid ${btnCol};background:rgba(15,23,42,0.85);color:#fff;font-size:11px;font-weight:800;cursor:pointer;">→ Открыть: ${ptLbl}</button>`;
+          }).join("") +
+          `</div>`
+        : "";
       const freshnessPct = Math.round(decay.freshness * 100);
       const circlePopupHtml = `<div style="font-size:12px;line-height:1.42;">` +
         `<b style="color:${polyColor};font-size:13px;">⬡ Гексагон Круга ±${decay.radiusKm} км (${ownerBadgeHtml}):</b><br>` +
         `<span style="display:inline-block;margin:2px 0 4px;padding:1px 7px;border-radius:999px;background:rgba(56,189,248,0.16);border:1px solid ${polyColor};font-size:10.5px;font-weight:800;color:${polyColor};">${decay.stageLabel} • Свежесть ${freshnessPct}% (осталось ~${decay.hoursLeft} ч из 72 ч)</span><br>` +
-        `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#ef4444"/></svg> <b>${escapeHtml(item.wn || item.lb || 'Водоём')}</b> (глубина ~${item.dp || 1.5} м)<br>` +
-        `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 12s4-6 11-6c4.2 0 7 2.5 9 6-2 3.5-4.8 6-9 6-7 0-11-6-11-6z" fill="rgba(56,189,248,0.28)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M2 12l-1.5-3.5L5 10.5M2 12l-1.5 3.5L5 13.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="16.5" cy="10.8" r="1.3" fill="currentColor"/></svg> <b>${escapeHtml(item.fn || 'Рыба')}${item.kg ? ` (${item.kg} кг)` : ''}</b> • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> Вода ~${item.tw ?? 8}°C<br>` +
-        `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 18c0-4 4-4 4-8s4-4 4-6 5-1 5 3-3 5-3 8 4 4 6 2" stroke="#f43f5e" stroke-width="2.2" stroke-linecap="round"/></svg> Приманка: <b>${escapeHtml(item.bt || 'по сезону')}</b><br>` +
-        `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" fill="rgba(56,189,248,0.22)" stroke="currentColor" stroke-width="1.8"/><path d="M4 20c0-3.8 3.6-6.5 8-6.5s8 2.7 8 6.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> От: <b>${escapeHtml(item.au || 'Рыболов')}</b><br>` +
-        (item.nt ? `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> «${escapeHtml(item.nt)}»<br>` : '') +
+        `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#ef4444"/></svg> <b>${escapeHtml(item.wn || item.lb || "Водоём")}</b> (глубина ~${item.dp || 1.5} м)<br>` +
+        `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 12s4-6 11-6c4.2 0 7 2.5 9 6-2 3.5-4.8 6-9 6-7 0-11-6-11-6z" fill="rgba(56,189,248,0.28)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M2 12l-1.5-3.5L5 10.5M2 12l-1.5 3.5L5 13.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="16.5" cy="10.8" r="1.3" fill="currentColor"/></svg> <b>${escapeHtml(item.fn || "Рыба")}${item.kg ? ` (${item.kg} кг)` : ""}</b> • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> Вода ~${item.tw ?? 8}°C<br>` +
+        `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 18c0-4 4-4 4-8s4-4 4-6 5-1 5 3-3 5-3 8 4 4 6 2" stroke="#f43f5e" stroke-width="2.2" stroke-linecap="round"/></svg> Приманка: <b>${escapeHtml(item.bt || "по сезону")}</b><br>` +
+        `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" fill="rgba(56,189,248,0.22)" stroke="currentColor" stroke-width="1.8"/><path d="M4 20c0-3.8 3.6-6.5 8-6.5s8 2.7 8 6.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> От: <b>${escapeHtml(item.au || "Рыболов")}</b><br>` +
+        (item.nt ? `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> «${escapeHtml(item.nt)}»<br>` : "") +
+        innerPointsHtml +
         `${actionBtnHtml}</div>`;
       blurZone.bindPopup(circlePopupHtml);
       fishIconMarker.bindPopup(circlePopupHtml);
@@ -1650,6 +1689,16 @@ function bindGeoEvents(container, showDrawer) {
  if (typeof document !== "undefined" && !window.__KLEV_MAP_POPUP_ACTIONS_BOUND__) {
  window.__KLEV_MAP_POPUP_ACTIONS_BOUND__ = true;
  document.addEventListener("click", (e) => {
+ const focusPtBtn = e.target.closest?.("[data-popup-focus-point]");
+ if (focusPtBtn) {
+  const pid = focusPtBtn.getAttribute("data-popup-focus-point");
+  const plat = parseFloat(focusPtBtn.getAttribute("data-popup-focus-lat"));
+  const plon = parseFloat(focusPtBtn.getAttribute("data-popup-focus-lon"));
+  if (pid && Number.isFinite(plat) && Number.isFinite(plon)) {
+   focusCircleOnMap(pid, plat, plon);
+  }
+  return;
+ }
  const delSpotBtn = e.target.closest?.("[data-popup-del-spot]");
  if (delSpotBtn) {
   const spId = delSpotBtn.getAttribute("data-popup-del-spot");

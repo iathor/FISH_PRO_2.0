@@ -1,15 +1,14 @@
-/* Klev PRO v2.5.5 r192 (Protected Build) */
-import { RU } from '../../i18n/ru.js?v=2.5.5';
-import { events } from '../../core/events.js?v=2.5.5';
-import { store } from '../../core/store.js?v=2.5.5';
-import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.5.5';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.5.5';
-import { RUSSIA_CITIES, findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.5.5';
-import { FISH_DB } from '../../data/species.js?v=2.5.5';
-import { renderFishVisual, renderFiveFish } from '../../ui/svg.js?v=2.5.5';
-import { createPill, showToast, openModal, closeModal, openFishLightbox, openUserAgreementModal, isUserAgreementAccepted, requestSystemNotificationsAccess } from '../../ui/components.js?v=2.5.5';
-import { setLocation, detectUserPosition } from '../geo/geo.module.js?v=2.5.5';
-import { installShortcut, isApkOrTmaContainer, isAppInstalledOrShortcutPresent } from '../../core/pwa.js?v=2.5.5';
+import { RU } from '../../i18n/ru.js?v=2.5.6';
+import { events } from '../../core/events.js?v=2.5.6';
+import { store } from '../../core/store.js?v=2.5.6';
+import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.5.6';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.5.6';
+import { RUSSIA_CITIES, findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.5.6';
+import { FISH_DB } from '../../data/species.js?v=2.5.6';
+import { renderFishVisual, renderFiveFish } from '../../ui/svg.js?v=2.5.6';
+import { createPill, showToast, openModal, closeModal, openFishLightbox, openUserAgreementModal, isUserAgreementAccepted, requestSystemNotificationsAccess } from '../../ui/components.js?v=2.5.6';
+import { setLocation, detectUserPosition } from '../geo/geo.module.js?v=2.5.6';
+import { installShortcut, isApkOrTmaContainer, isAppInstalledOrShortcutPresent } from '../../core/pwa.js?v=2.5.6';
 import {
   openAuthAndBackupModal,
   openNotificationsModal,
@@ -19,11 +18,16 @@ import {
   syncCurrentProfileToCloudIfLoggedIn,
   renderSettingsZoneTabsHtml,
   bindSettingsZoneTabs
-} from '../circle/circle.module.js?v=2.5.5';
-import { fetchWeather } from '../weather/weather.module.js?v=2.5.5';
-import { checkForReleaseUpdate, isAndroidWebsiteVisitor, getCachedApkManifest, triggerApkFileDownload } from '../../core/updater.js?v=2.5.5';
-import { calcDayBest } from '../forecast/forecast.module.js?v=2.5.5';
-import { openFishPhotoScannerModal, analyzeFishPhotoHybrid, estimateWeightByLengthAndSpecies } from './scanner.js?v=2.5.5';
+} from '../circle/circle.module.js?v=2.5.6';
+import { fetchWeather } from '../weather/weather.module.js?v=2.5.6';
+import { checkForReleaseUpdate, isAndroidWebsiteVisitor, getCachedApkManifest, triggerApkFileDownload } from '../../core/updater.js?v=2.5.6';
+import { calcDayBest } from '../forecast/forecast.module.js?v=2.5.6';
+import { openFishPhotoScannerModal, analyzeFishPhotoHybrid, estimateWeightByLengthAndSpecies } from './scanner.js?v=2.5.6';
+/**
+ * Региональные приоритетные виды для каждого бассейна РФ,
+ * чтобы самые популярные и характерные для региона виды (например, Елец и Пелядь/Сырок в Новом Уренгое)
+ * всегда находились на видном месте в начале списка.
+ */
 const REGIONAL_SIGNATURE_SPECIES = {
   arctic_ob_taz: ['pike', 'perch', 'dace', 'peled', 'chir', 'pizhyan', 'ide', 'roach', 'crucian', 'burbot', 'grayling', 'tugun', 'cisco', 'ruffe', 'smelt'],
   yenisei_lena: ['pike', 'perch', 'grayling', 'lenok', 'dace', 'peled', 'chir', 'pizhyan', 'tugun', 'valek', 'ide', 'roach', 'crucian', 'burbot', 'char'],
@@ -442,6 +446,9 @@ export function openFavoritesEditorModal() {
     if (bodyEl) renderFavModalContent(bodyEl);
   });
 }
+/**
+ * Зона 3: « Параметры приложения и Тема оформления» (отдельно от рыб, снастей и логина/пароля)
+ */
 export function openAppParamsModal(onBackToHub = null) {
   const backFn = typeof onBackToHub === 'function' ? onBackToHub : (() => openProfileHubModal());
   function renderParamsBody(bodyEl) {
@@ -484,6 +491,15 @@ export function openAppParamsModal(onBackToHub = null) {
             <button type="button" class="btn btn-sm ${curTheme === 'dark' ? 'btn-accent' : ''}" data-onb-theme="dark"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6" stroke-linejoin="round"/></svg> Тёмная</button>
             <button type="button" class="btn btn-sm ${curTheme === 'light' ? 'btn-accent' : ''}" data-onb-theme="light"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.5" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> Светлая</button>
             <button type="button" class="btn btn-sm ${curTheme === 'contrast' ? 'btn-accent' : ''}" data-onb-theme="contrast"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="6.5" cy="14.5" r="3.5" fill="rgba(251,191,36,0.28)" stroke="currentColor" stroke-width="1.8"/><circle cx="17.5" cy="14.5" r="3.5" fill="rgba(251,191,36,0.28)" stroke="currentColor" stroke-width="1.8"/><path d="M10 14.5h4M3 14l2-7M21 14l-2-7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Контраст (Солнце)</button>
+          </div>
+          <div style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+            <div>
+              <div style="font-weight:800;font-size:12px;color:var(--text);">Эффект «Жидкое стекло» (Liquid Glass)</div>
+              <div style="font-size:11px;color:var(--muted);">Объёмное преломление, блики и игра с прозрачностью кнопок и панелей</div>
+            </div>
+            <button type="button" class="btn btn-sm ${st.liquidGlass !== false ? 'btn-good' : ''}" id="onbToggleLiquidGlassBtn" style="min-height:34px;font-weight:800;">
+              ${st.liquidGlass !== false ? 'ВКЛ (Жидкое стекло)' : 'ВЫКЛ (Классический стиль)'}
+            </button>
           </div>
         </div>
         <!-- Компактный объединённый блок «Уведомления и Сигналы Круга» -->
@@ -537,9 +553,9 @@ export function openAppParamsModal(onBackToHub = null) {
             <div style="padding:8px 10px;background:rgba(16,185,129,0.10);border:1px solid var(--good);border-radius:var(--r-sm);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-top:2px;">
               <div style="min-width:0;flex:1;">
                 <div style="font-weight:800;font-size:11.5px;color:var(--good);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="6" y="2" width="12" height="20" rx="2.5" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="18" r="1.2" fill="#38bdf8"/></svg> Приложение для Android (.APK)</div>
-                <div style="font-size:11px;color:var(--muted);">Доступна версия: <b>v${getCachedApkManifest().version || '2.5.5'}</b> (${getCachedApkManifest().fileSize || '7.9 МБ'})</div>
+                <div style="font-size:11px;color:var(--muted);">Доступна версия: <b>v${getCachedApkManifest().version || '2.5.6'}</b> (${getCachedApkManifest().fileSize || '7.9 МБ'})</div>
               </div>
-              <button type="button" class="btn btn-sm btn-good" id="onbDownloadAndroidApkBtn" style="font-weight:800;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg> Скачать APK (v${getCachedApkManifest().version || '2.5.5'})</button>
+              <button type="button" class="btn btn-sm btn-good" id="onbDownloadAndroidApkBtn" style="font-weight:800;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg> Скачать APK (v${getCachedApkManifest().version || '2.5.6'})</button>
             </div>
           ` : ''}
         </div>
@@ -568,6 +584,17 @@ export function openAppParamsModal(onBackToHub = null) {
         }
         showToast('Режим прогноза сохранён', 'good');
       });
+    });
+    bodyEl.querySelector('#onbToggleLiquidGlassBtn')?.addEventListener('click', (ev) => {
+      const nextLg = !(store.getState().liquidGlass !== false);
+      store.dispatch({ type: 'SET_LIQUID_GLASS', payload: nextLg });
+      syncCurrentProfileToCloudIfLoggedIn();
+      if (typeof window.__KLEV_APPLY_LIQUID_GLASS__ === 'function') {
+        window.__KLEV_APPLY_LIQUID_GLASS__(nextLg, true);
+      }
+      const b = ev.currentTarget;
+      b.classList.toggle('btn-good', nextLg);
+      b.textContent = nextLg ? 'ВКЛ (Жидкое стекло)' : 'ВЫКЛ (Классический стиль)';
     });
     bodyEl.querySelectorAll('[data-onb-theme]').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -624,6 +651,9 @@ export function openAppParamsModal(onBackToHub = null) {
     if (bodyEl) renderParamsBody(bodyEl);
   }, true, { onBack: backFn });
 }
+/**
+ * Зона 2: « Моя рыбалка: Локация, Водоёмы, Снасти и Рыбы» (отдельно от логина/пароля и параметров приложения)
+ */
 export function openFishingPrefsModal(isEditMode = true, onBackToHub = null) {
   const s = store.getState();
   let currentLat = s.lat;
@@ -764,12 +794,14 @@ export function openFishingPrefsModal(isEditMode = true, onBackToHub = null) {
               if (selectedWaters.size > 1) {
                 selectedWaters.delete(wid);
                 btn.classList.remove('active');
+                
               } else {
                 showToast('Должен быть выбран хотя бы один тип водоёма', 'warn');
               }
             } else {
               selectedWaters.add(wid);
               btn.classList.add('active');
+              
             }
             const cnt = bodyEl.querySelector('#onbWatersCount');
             if (cnt) cnt.textContent = selectedWaters.size;
@@ -785,12 +817,14 @@ export function openFishingPrefsModal(isEditMode = true, onBackToHub = null) {
               if (selectedMethods.size > 1) {
                 selectedMethods.delete(mid);
                 btn.classList.remove('active');
+                
               } else {
                 showToast('Должна быть выбрана хотя бы одна снасть', 'warn');
               }
             } else {
               selectedMethods.add(mid);
               btn.classList.add('active');
+              
             }
             const cnt = bodyEl.querySelector('#onbMethodsCount');
             if (cnt) cnt.textContent = selectedMethods.size;
@@ -805,9 +839,11 @@ export function openFishingPrefsModal(isEditMode = true, onBackToHub = null) {
             if (selectedFishes.has(fid)) {
               selectedFishes.delete(fid);
               btn.classList.remove('active');
+              
             } else {
               selectedFishes.add(fid);
               btn.classList.add('active');
+              
             }
           });
         });
@@ -826,6 +862,7 @@ export function openFishingPrefsModal(isEditMode = true, onBackToHub = null) {
             const fid = btn.getAttribute('data-onb-fish');
             const active = selectedFishes.has(fid);
             btn.classList.toggle('active', active);
+            
           });
         }
         showToast(`Отмечено ${typical.length} характерных видов региона`, 'good');
@@ -836,6 +873,7 @@ export function openFishingPrefsModal(isEditMode = true, onBackToHub = null) {
         if (speciesContainer) {
           speciesContainer.querySelectorAll('[data-onb-fish]').forEach(btn => {
             btn.classList.remove('active');
+            
           });
         }
         showToast('Список избранных рыб очищен', 'info');
@@ -982,6 +1020,9 @@ export function openFishingPrefsModal(isEditMode = true, onBackToHub = null) {
     { onBack: backFn }
   );
 }
+/**
+ * Центральный хаб « Профиль и настройки» с разделением на 4 отдельные зоны ответственности
+ */
 export function openProfileHubModal() {
   const s = store.getState();
   const ident = getCurrentFisherIdentity(s);
@@ -1100,6 +1141,10 @@ if (typeof window !== 'undefined') {
     openOnboardingModal(true, zone);
   };
 }
+/**
+ * Рендерит только внутреннюю область карточек рыб (#fishResultsArea),
+ * НЕ пересоздавая поле ввода #fishSearchInput, чтобы клавиатура смартфона НИКОГДА не сворачивалась!
+ */
 function buildFishResultsHtml(s, list) {
   const day = s.weatherDays[s.dayIdx] || s.weatherDays[2] || s.weatherDays[0];
   const curTheme = document.documentElement.getAttribute('data-theme') || 'dark';

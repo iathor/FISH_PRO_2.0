@@ -1,9 +1,12 @@
-/* Klev PRO v2.5.5 r192 (Protected Build) */
-import { STATE_CACHE_KEY, WEATHER_CACHE_KEY, WEATHER_TTL_MS } from './config.js?v=2.5.5';
-import { formatLocalYYYYMMDD } from './format.js?v=2.5.5';
+import { STATE_CACHE_KEY, WEATHER_CACHE_KEY, WEATHER_TTL_MS } from './config.js?v=2.5.6';
+import { formatLocalYYYYMMDD } from './format.js?v=2.5.6';
 const DB_NAME = 'KlevProDB_v2_1_1';
 export const CLEAN_SLATE_FLAG_KEY = 'klev_pro_clean_slate_v2_1_1_r4';
 export const CLEAN_SLATE_NOTICE_KEY = 'klev_pro_clean_slate_notice_v2_1_1_r4';
+/**
+ * Автоматический сброс старого кэша и настроек («С чистого листа») при первом запуске релиза V.2.1.1 (r2)
+ * с автоматическим восстановлением эксклюзивного ID Владельца (iAthor -> FP_89VIP089)
+ */
 export function runCleanSlateMigrationV2100() {
   if (typeof localStorage === 'undefined') return false;
   try {
@@ -70,6 +73,9 @@ const LOCAL_STORE_KEYS = {
   catches: 'klev_pro_catches_backup_v2',
   chats: CIRCLE_CHATS_CACHE_KEY
 };
+/**
+ * Безопасный парсер JSON с защитой от Prototype Pollution (__proto__, constructor, prototype)
+ */
 export function safeJsonParse(rawStr, fallback = null) {
   if (!rawStr || typeof rawStr !== 'string') return fallback;
   try {
@@ -328,6 +334,7 @@ export const storage = {
         favoritesExplicitlySet: s.favoritesExplicitlySet,
         compareSpeciesIds: s.compareSpeciesIds,
         theme: s.theme,
+        liquidGlass: s.liquidGlass !== false,
         userProfile: s.userProfile,
         proFactorWeights: s.proFactorWeights
       };
