@@ -164,7 +164,9 @@ function updateHeaderUI() {
   const topWeatherLbl = document.getElementById('topNavWeatherLbl');
   const isOff = !navigator.onLine || (s.weatherSource || '').includes('Автономный');
   if (statusDot) {
-    statusDot.innerHTML = isOff ? `${svgIcon('radar', 'var(--warn)')} ОФЛАЙН` : `${svgIcon('dot', 'var(--good)')} ОНЛАЙН`;
+    statusDot.innerHTML = isOff ? `${svgIcon('radar', 'var(--warn)')}` : `${svgIcon('dot', 'var(--good)')}`;
+    statusDot.style.padding = '1px 3px';
+    statusDot.title = isOff ? 'Офлайн-режим' : 'Онлайн';
   }
   const day = s.weatherDays?.[s.dayIdx] || s.weatherDays?.[2] || s.weatherDays?.[0];
   const ice = day?.iceState || s.iceState || 'open_water';
@@ -194,16 +196,16 @@ function updateHeaderUI() {
   if (seasonMain && seasonSub) {
     if (ice === 'ice_safe') {
       seasonMain.innerHTML = `Лёд ~${thick || 12} см`;
-      seasonSub.innerHTML = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg><span>Вода ~${wTemp}°C • Лёд ~${thick || 12} см</span>`;
+      seasonSub.innerHTML = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg><span>Вода ~${wTemp}°C</span>`;
     } else if (ice === 'ice_danger') {
       seasonMain.innerHTML = subState === 'spring_rotten_ice' ? `Рыхлый ~${thick} см` : `Опасный ~${thick} см`;
-      seasonSub.innerHTML = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg><span>Вода ~${wTemp}°C • Опасный лёд</span>`;
+      seasonSub.innerHTML = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg><span>Вода ~${wTemp}°C</span>`;
     } else if (ice === 'ice_slush') {
       seasonMain.innerHTML = `Шуга / Забереги`;
-      seasonSub.innerHTML = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg><span>Вода ~${wTemp}°C • Шуга</span>`;
+      seasonSub.innerHTML = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg><span>Вода ~${wTemp}°C</span>`;
     } else {
-      seasonMain.innerHTML = `Открытая вода`;
-      seasonSub.innerHTML = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg><span>Вода ~${wTemp}°C • Льда нет</span>`;
+      seasonMain.innerHTML = `Чистая вода`;
+      seasonSub.innerHTML = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg><span>Вода ~${wTemp}°C</span>`;
     }
   }
   const profBtn = document.getElementById('headerProfileBtn');

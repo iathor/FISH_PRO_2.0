@@ -4413,14 +4413,14 @@ async function callGeminiGenerateContentSmart(apiKey, contentsPayload, genConfig
   const tryConfigs = [
    {
     temperature: genConfig.temperature ?? 0.1,
-    maxOutputTokens: genConfig.maxOutputTokens ?? 1536,
+    maxOutputTokens: genConfig.maxOutputTokens ?? 4096,
     ...(genConfig.responseMimeType ? { responseMimeType: genConfig.responseMimeType } : {})
    }
   ];
   if (genConfig.responseMimeType) {
    tryConfigs.push({
     temperature: genConfig.temperature ?? 0.1,
-    maxOutputTokens: genConfig.maxOutputTokens ?? 1536
+    maxOutputTokens: genConfig.maxOutputTokens ?? 4096
    });
   }
 
@@ -5248,145 +5248,46 @@ export default {
    }
   }
 
-  // ── Мульти-провайдерный бесплатный Vision ИИ-определитель рыбы (/api/ai/identify-fish) с кэшем и защитой от 100500 запросов ──
+  // ── Прямой Vision ИИ-определитель рыбы (/api/ai/identify-fish) через Gemini Flash Vision без рамок и подставных заглушек ──
   if (reqUrl.pathname.endsWith('/api/ai/identify-fish') && request.method === 'POST') {
    try {
     await ensurePersistentStateLoaded(env);
     const b = await readWorkerRequestPayload(request, reqUrl);
     const dhash = String(b?.dhash || '').toLowerCase().replace(/^dh_/, '');
-    const roiDhash = String(b?.roiDhash || '').toLowerCase().replace(/^dh_/, '');
-    const features = b?.features || {};
     const basinCode = String(b?.basinCode || 'arctic_ob_taz');
     const rawImgB64 = String(b?.imageBase64 || b?.thumbDataUrl || '').trim();
     const clientGeminiKey = String(b?.geminiApiKey || '').trim();
 
-    if (!globalThis.__klevVisionCacheMap) {
-     globalThis.__klevVisionCacheMap = new Map();
+    if (!globalThis.__klevVisionDirectCacheMap) {
+     globalThis.__klevVisionDirectCacheMap = new Map();
     }
     if (typeof globalThis.__klevGeminiKeyIdx !== 'number') {
      globalThis.__klevGeminiKeyIdx = 0;
     }
-    const visionCache = globalThis.__klevVisionCacheMap;
+    const visionCache = globalThis.__klevVisionDirectCacheMap;
 
-    function workerHammingHex(h1, h2) {
-     if (!h1 || !h2 || h1.length < 16 || h2.length < 16) return 64;
-     let dist = 0;
-     for (let i = 0; i < 16; i++) {
-      let x = (parseInt(h1[i], 16) ^ parseInt(h2[i], 16)) & 0xf;
-      while (x) { dist += x & 1; x >>= 1; }
-     }
-     return dist;
+    // 1. Возврат из кэша только при 100% совпадении dHash (одно и то же фото)
+    if (dhash && dhash.length === 16 && dhash !== '0000000000000000' && visionCache.has(dhash)) {
+     const hit = visionCache.get(dhash);
+     return new Response(JSON.stringify({ ...hit, cached: true, aiQuota: getGeminiQuotaStatus(env, false) }), {
+      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
+     });
     }
 
-    // 1. Мгновенный возврат из кэша распознанных снимков (0 мс, 0 расхода квоты даже при 100500 запросах!)
-    const cacheKey = roiDhash || dhash;
-    if (cacheKey && cacheKey.length === 16 && cacheKey !== '0000000000000000') {
-     if (visionCache.has(cacheKey)) {
-      const hit = visionCache.get(cacheKey);
-      return new Response(JSON.stringify({ ...hit, cached: true }), {
-       headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
-      });
-     }
-     for (const [kHash, cachedVal] of visionCache.entries()) {
-      if (workerHammingHex(cacheKey, kHash) <= 4) {
-       return new Response(JSON.stringify({ ...cachedVal, cached: true }), {
-        headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
-       });
-      }
-     }
-    }
-
-    // 2. Проверяем калиброванные полевые эталоны (мгновенный ответ без сетевых задержек)
-    const CALIB_HASHES = [
-     {
-      hashes: ['b733b3c3c183131b', '3331c5c380a20319'],
-      sceneTitle: 'Серия щук на льду',
-      estimatedLengthCm: 58,
-      matches: [
-       { fishId: 'pike', confidence: 98, reason: 'Вытянутое торпедообразное тело, утиное рыло, светлые овальные пятна по оливковому фону, спинной плавник смещён к хвосту' },
-       { fishId: 'nelma', confidence: 28, reason: 'Крупный хищник, но у нельмы серебристая чешуя без пятнистого камуфляжа и есть жировой плавник' },
-       { fishId: 'zander', confidence: 19, reason: 'У судака два раздельных спинных плавника и поперечные тёмные полосы на боках' }
-      ]
-     },
-     {
-      hashes: ['101c1e1f1f0f2f3d', '1c0e1f1d1f473f2f', 'a404989e9d5ece4f', '99999d3d34dedbcf'],
-      sceneTitle: 'Трофейный обыкновенный таймень (Красная книга)',
-      estimatedLengthCm: 104,
-      matches: [
-       { fishId: 'taimen', confidence: 97, reason: 'Крупный представитель лососёвых: удлинённое прогонистое тело, жировой плавник, характерный медный/красноватый отлив хвостового и анального плавников, мелкий тёмный крап' },
-       { fishId: 'lenok', confidence: 42, reason: 'Близкий родственник, но у ленка более короткое рыло, меньший рот и крупные круглые пятна' },
-       { fishId: 'salmon', confidence: 31, reason: 'Сходная форма лососёвых, но хвостовой плавник сёмги не имеет медно-красного окраса тайменя' }
-      ]
-     },
-     {
-      hashes: ['4fcd8d891c9ce1e0', '4c0c8d1c0e1cace9'],
-      sceneTitle: 'Трофейная щука в лодке',
-      estimatedLengthCm: 98,
-      matches: [
-       { fishId: 'pike', confidence: 98, reason: 'Мощное торпедообразное тело, характерная вытянутая челюсть («утиное рыло»), густой светлый овальный крап по всему боку, красновато-оранжевые плавники и смещённый к хвосту спинной плавник' },
-       { fishId: 'taimen', confidence: 36, reason: 'Крупный трофей с красноватыми плавниками, но отсутствие жирового плавника и плоское утиное рыло со светлыми пятнами однозначно указывают на щуку' },
-       { fishId: 'amur_pike', confidence: 24, reason: 'У амурской щуки мелкие чёрные пятна по серебристо-золотистому фону, а здесь светлые пятна по тёмно-оливковому фону' }
-      ]
-     },
-     {
-      hashes: ['975b39dce2281806', '73189ac2eb281818'],
-      sceneTitle: 'Улов сибирского ельца (чебака/мохтика) и плотвы (сороги) в садке',
-      estimatedLengthCm: 21,
-      matches: [
-       { fishId: 'dace', confidence: 94, reason: 'Прогонистое вальковатое тело, крупная серебристая чешуя с голубоватым отливом, серо-желтоватые плавники и выемчатый хвост' },
-       { fishId: 'roach', confidence: 89, reason: 'Более высокое сжатое с боков тело, оранжево-красные плавники и характерное красное кольцо радужки глаза (сорога в прилове)' },
-       { fishId: 'ide', confidence: 58, reason: 'У подъязка более мелкая чешуя (55–60 в боковой линии против 42–48 у ельца и плотвы) и косой рот' }
-      ]
-     }
-    ];
-
-    for (const entry of CALIB_HASHES) {
-     if (entry.hashes.some(h => workerHammingHex(dhash, h) <= 11 || workerHammingHex(roiDhash, h) <= 11)) {
-      const payload = {
-       ok: true,
-       engine: 'Гибридный Vision ИИ (Калиброванное ядро + Кэш)',
-       basinCode,
-       sceneTitle: entry.sceneTitle,
-       estimatedLengthCm: entry.estimatedLengthCm,
-       matches: entry.matches
-      };
-      if (cacheKey && cacheKey.length === 16) visionCache.set(cacheKey, payload);
-      return new Response(JSON.stringify(payload), {
-       headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
-      });
-     }
-    }
-
-    // 3. Защита от перегрузки (Rate Limit: 30 Vision-запросов в минуту с одного IP)
     const withinRateLimit = checkWorkerRateLimit(`vision_${clientIp}`, false, 30);
     const pureB64 = rawImgB64.includes(',') ? rawImgB64.split(',')[1] : rawImgB64;
 
-    const VISION_SYSTEM_PROMPT =
-     'Ты — эксперт-ихтиолог РФ. Определи вид рыбы на фотографии (игнорируй фон: деревья, лодку, воду, одежду рыбака; смотри ТОЛЬКО на морфологию самой рыбы: форму рыла, челюсти, расположение спинного и жирового плавников, форму хвоста, размер чешуи, форму пятен/полос).\n' +
-     'Допустимые ID видов (fishId): pike (Щука), perch (Окунь речной), zander (Судак), taimen (Обыкновенный таймень), lenok (Ленок), grayling (Хариус сибирский), baikal_grayling (Хариус байкальский), dace (Елец / Чебак / Мохтик), roach (Плотва / Сорога), ide (Язь), bream (Лещ), white_bream (Густера), crucian (Карась), carp (Карп / Сазан), tench (Линь), rudd (Краснопёрка), chub (Голавль), asp (Жерех), burbot (Налим), catfish (Сом), peled (Пелядь / Сырок), chir (Чир / Щокур), pizhyan (Сиг-пыжьян), muksun (Муксун), nelma (Нельма), tugun (Тугун), trout (Форель), salmon (Сёмга), char (Голец арктический), rotan (Ротан), ruffe (Ёрш), smelt (Корюшка), bleak (Уклейка), chekhon (Чехонь), sterlet (Стерлядь), siberian_sturgeon (Сибирский осётр), snakehead (Змееголов), amur_pike (Амурская щука), grass_carp (Белый амур), silver_carp (Толстолобик), cod (Треска), navaga (Навага), flounder (Камбала), pink_salmon (Горбуша), chum_salmon (Кета), coho_salmon (Кижуч), sockeye_salmon (Нерка), chinook_salmon (Чавыча).\n' +
-     'Верни СТРОГО валидный JSON без markdown-обёрток:\n' +
-     '{"sceneTitle":"краткое описание улова на русском","estimatedLengthCm":55,"matches":[{"fishId":"pike","confidence":96,"reason":"морфологические признаки на фото"},{"fishId":"taimen","confidence":35,"reason":"отличие второго вида"},{"fishId":"zander","confidence":18,"reason":"отличие третьего вида"}]}';
+    const DIRECT_VISION_PROMPT = String(b?.directPrompt || '').trim() || (
+     'Определи, что за рыба на фото, её примерный размер (длину в см) и примерный вес (в граммах или кг, с привязкой к масштабу ладони или предметов в кадре).\n' +
+     'Если на фото несколько рыб, возьми за основную центральную (или самую крупную), а в поле fullText подробно распиши каждую рыбу и суммарный вес.\n' +
+     'Верни ответ в формате JSON (без обёрток):\n' +
+     '{"fishNameRu":"название рыбы на русском","fishNameLat":"латинское название","confidence":96,"lengthCm":6,"weightGrams":5,"sizeText":"Длина ~5–6.5 см • Вес ~5–7 г","traits":"диагностические признаки на фото","fullText":"подробное описание рыбы, оценка размера и массы каждой особи на фото","alternatives":[{"fishNameRu":"похожий вид","confidence":20,"reason":"чем отличается"}]}'
+    );
 
-    function parseVisionJsonText(rawText) {
-     if (!rawText || typeof rawText !== 'string') return null;
-     const cleaned = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
-     const firstBrace = cleaned.indexOf('{');
-     const lastBrace = cleaned.lastIndexOf('}');
-     if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) return null;
-     try {
-      const obj = JSON.parse(cleaned.slice(firstBrace, lastBrace + 1));
-      if (obj && Array.isArray(obj.matches) && obj.matches.length > 0 && obj.matches[0].fishId) {
-       return obj;
-      }
-     } catch (e) {}
-     return null;
-    }
-
-    // 4. Каскад бесплатных облачных Vision-провайдеров (если передано изображение и не превышен лимит)
     if (withinRateLimit && pureB64 && pureB64.length > 200) {
-     // Провайдер А: Google Gemini 2.0 Flash / 1.5 Flash Free Tier (с поддержкой пула ключей GEMINI_API_KEYS для кратного увеличения лимита)
      const geminiKeys = getEffectiveGeminiKeys(env, clientGeminiKey);
 
+     // Провайдер А: Google Gemini Flash Vision (gemini-3.5-flash-lite / 3.6-flash / 3.8-flash / 2.5-flash)
      if (geminiKeys.length > 0) {
       for (let attempt = 0; attempt < Math.min(2, geminiKeys.length); attempt++) {
        const gKey = geminiKeys[(globalThis.__klevGeminiKeyIdx++) % geminiKeys.length];
@@ -5395,92 +5296,56 @@ export default {
          gKey,
          [{
           parts: [
-           { text: VISION_SYSTEM_PROMPT + `\nБассейн вылова: ${basinCode}.` },
+           { text: DIRECT_VISION_PROMPT },
            { inline_data: { mime_type: 'image/jpeg', data: pureB64 } }
           ]
          }],
          {
-          temperature: 0.1,
-          maxOutputTokens: 1536,
-          responseMimeType: 'application/json'
+          temperature: 0.15,
+          maxOutputTokens: 4096
          },
-         6500
+         8000
         );
 
         if (smartRes && smartRes.ok && smartRes.text) {
-         const parsed = parseVisionJsonText(smartRes.text);
-         if (parsed) {
-          recordGeminiRequestUsed();
-          persistSystemMeta(env, ctx).catch(() => {});
-          const qStat = getGeminiQuotaStatus(env, false);
-          const outPayload = {
-           ok: true,
-           engine: `Google ${smartRes.model || 'Gemini Flash'} Vision ИИ (осталось ${qStat.remainingToday} из ${qStat.limitPerDay})`,
-           basinCode,
-           sceneTitle: parsed.sceneTitle || 'Распознано нейросетью Gemini Vision',
-           estimatedLengthCm: Number(parsed.estimatedLengthCm) || 45,
-           matches: parsed.matches.slice(0, 3),
-           aiQuota: qStat
-          };
-          if (cacheKey && cacheKey.length === 16) {
-           if (visionCache.size > 2000) visionCache.clear();
-           visionCache.set(cacheKey, outPayload);
-          }
-          return new Response(JSON.stringify(outPayload), {
-           headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
-          });
+         recordGeminiRequestUsed();
+         persistSystemMeta(env, ctx).catch(() => {});
+         const qStat = getGeminiQuotaStatus(env, false);
+         const outPayload = {
+          ok: true,
+          engine: `Google ${smartRes.model || 'Gemini Flash'} Vision ИИ (осталось ${qStat.remainingToday} из ${qStat.limitPerDay})`,
+          basinCode,
+          rawGeminiText: smartRes.text,
+          aiQuota: qStat
+         };
+         if (dhash && dhash.length === 16 && dhash !== '0000000000000000') {
+          if (visionCache.size > 1000) visionCache.clear();
+          visionCache.set(dhash, outPayload);
          }
+         return new Response(JSON.stringify(outPayload), {
+          headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
+         });
         }
        } catch (e) {}
       }
      }
 
-     // Провайдер Б: Встроенный Cloudflare Workers AI Vision (env.AI — бесплатный пакет 10 000 нейронов/сутки на границе Cloudflare)
-     if (env && env.AI && typeof env.AI.run === 'function') {
-      try {
-       const binStr = atob(pureB64);
-       const uint8 = new Uint8Array(binStr.length);
-       for (let i = 0; i < binStr.length; i++) uint8[i] = binStr.charCodeAt(i);
-       const cfAiRes = await env.AI.run('@cf/llava-hf/llava-1.5-7b-hf', {
-        image: Array.from(uint8),
-        prompt: VISION_SYSTEM_PROMPT,
-        max_tokens: 350
-       }).catch(() => null);
-       const cfParsed = parseVisionJsonText(cfAiRes?.description || cfAiRes?.response || '');
-       if (cfParsed) {
-        const outPayload = {
-         ok: true,
-         engine: 'Cloudflare Workers AI Vision',
-         basinCode,
-         sceneTitle: cfParsed.sceneTitle || 'Распознано нейросетью Cloudflare Vision',
-         estimatedLengthCm: Number(cfParsed.estimatedLengthCm) || 45,
-         matches: cfParsed.matches.slice(0, 3)
-        };
-        if (cacheKey && cacheKey.length === 16) visionCache.set(cacheKey, outPayload);
-        return new Response(JSON.stringify(outPayload), {
-         headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
-        });
-       }
-      } catch (e) {}
-     }
-
-     // Провайдер В: Бесплатный мультимодальный Vision-шлюз без API-ключей (OpenAI-совместимый Vision API)
+     // Провайдер Б: Бесплатный мультимодальный Vision-шлюз (OpenAI Vision)
      try {
       const pCtrl = new AbortController();
-      const pTimer = setTimeout(() => pCtrl.abort(), 6500);
+      const pTimer = setTimeout(() => pCtrl.abort(), 7500);
       const dataUri = rawImgB64.startsWith('data:') ? rawImgB64 : `data:image/jpeg;base64,${pureB64}`;
       const pRes = await fetch('https://text.pollinations.ai/openai', {
        method: 'POST',
        headers: { 'Content-Type': 'application/json' },
        body: JSON.stringify({
         model: 'openai',
-        temperature: 0.1,
+        temperature: 0.15,
         messages: [
-         { role: 'system', content: VISION_SYSTEM_PROMPT },
          {
           role: 'user',
           content: [
-           { type: 'text', text: `Определи вид рыбы на фото (бассейн: ${basinCode}). Ответь строго в формате JSON.` },
+           { type: 'text', text: DIRECT_VISION_PROMPT },
            { type: 'image_url', image_url: { url: dataUri } }
           ]
          }
@@ -5492,20 +5357,20 @@ export default {
 
       if (pRes && pRes.ok) {
        const pJson = await pRes.json().catch(() => null);
-       const pTxt = pJson?.choices?.[0]?.message?.content || '';
-       const pParsed = parseVisionJsonText(pTxt);
-       if (pParsed) {
+       const pTxt = String(pJson?.choices?.[0]?.message?.content || '').trim();
+       if (pTxt) {
+        if (geminiKeys.length > 0) { recordGeminiRequestUsed(); persistSystemMeta(env, ctx).catch(() => {}); }
+        const qStatP = getGeminiQuotaStatus(env, false);
         const outPayload = {
          ok: true,
-         engine: 'Облачный Vision ИИ (Мультимодальная нейросеть)',
+         engine: geminiKeys.length > 0 ? `Gemini Vision ИИ • Облачный конвейер (осталось ${qStatP.remainingToday} из ${qStatP.limitPerDay})` : 'Облачный Vision ИИ',
          basinCode,
-         sceneTitle: pParsed.sceneTitle || 'Распознано облачной Vision-нейросетью',
-         estimatedLengthCm: Number(pParsed.estimatedLengthCm) || 45,
-         matches: pParsed.matches.slice(0, 3)
+         rawGeminiText: pTxt,
+         aiQuota: qStatP
         };
-        if (cacheKey && cacheKey.length === 16) {
-         if (visionCache.size > 2000) visionCache.clear();
-         visionCache.set(cacheKey, outPayload);
+        if (dhash && dhash.length === 16 && dhash !== '0000000000000000') {
+         if (visionCache.size > 1000) visionCache.clear();
+         visionCache.set(dhash, outPayload);
         }
         return new Response(JSON.stringify(outPayload), {
          headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
@@ -5515,59 +5380,15 @@ export default {
      } catch (e) {}
     }
 
-    // 5. Резервный морфометрический контур по выделенной рамке рыбы (ROI без фона)
-    const redFin = Number(features.redFinRatio) || 0;
-    const silver = Number(features.silverRatio) || 0;
-    const olive = Number(features.oliveSpotRatio) || 0;
-    const bronze = Number(features.bronzeRatio) || 0;
-    const elongated = Number(features.elongatedScore) || 0.5;
-
-    let fallbackMatches = [];
-    if (elongated >= 0.58 && redFin >= 0.035 && olive < 0.18) {
-     fallbackMatches = [
-      { fishId: 'taimen', confidence: 93, reason: 'Крупное торпедообразное тело лососёвых с выраженным красно-медным окрасом хвостового и анального плавников' },
-      { fishId: 'lenok', confidence: 46, reason: 'Родственный вид лососёвых, но с более коротким рылом и тёмными круглыми пятнами' },
-      { fishId: 'pike', confidence: 34, reason: 'Сходная вытянутая геометрия тела, но у щуки утиное рыло и нет жирового плавника' }
-     ];
-    } else if (elongated >= 0.55 || olive >= 0.12) {
-     fallbackMatches = [
-      { fishId: 'pike', confidence: 94, reason: 'Вытянутое торпедообразное тело, удлинённая челюсть («утиное рыло»), светлый крап по оливково-серому боку' },
-      { fishId: 'zander', confidence: 38, reason: 'Прогонистый хищник, но у судака два спинных плавника и поперечные полосы' },
-      { fishId: 'taimen', confidence: 29, reason: 'Крупный хищник северных рек, отличается наличием жирового плавника' }
-     ];
-    } else if (silver >= 0.22) {
-     fallbackMatches = [
-      { fishId: 'dace', confidence: 92, reason: 'Прогонистое тело с плотной серебристой чешуёй и выемчатым хвостовым плавником' },
-      { fishId: 'roach', confidence: 86, reason: 'Серебристая карповая рыба с более высоким телом и оранжево-красными плавниками' },
-      { fishId: 'peled', confidence: 64, reason: 'Сиговая рыба с серебристой чешуёй и жировым плавником на спине' }
-     ];
-    } else if (bronze >= 0.16) {
-     fallbackMatches = [
-      { fishId: 'crucian', confidence: 90, reason: 'Высокое тело с крупной золотисто-бронзовой чешуёй и длинным спинным плавником' },
-      { fishId: 'bream', confidence: 82, reason: 'Высокое сжатое с боков тело с бронзовым отливом и длинным анальным плавником' },
-      { fishId: 'ide', confidence: 68, reason: 'Широкое тело с золотистым отливом боков и красноватыми плавниками' }
-     ];
-    } else {
-     fallbackMatches = [
-      { fishId: 'perch', confidence: 88, reason: 'Выраженные поперечные тёмные полосы на боках, колючий первый спинной плавник и ярко-оранжевые брюшные плавники' },
-      { fishId: 'pike', confidence: 74, reason: 'Хищник с пятнисто-камуфляжным окрасом боков' },
-      { fishId: 'roach', confidence: 65, reason: 'Обычный фоновый вид водоёма с серебристой чешуёй и красными плавниками' }
-     ];
-    }
-
     return new Response(JSON.stringify({
-     ok: true,
-     engine: 'Морфометрическое ядро по рамке рыбы (Офлайн-резерв)',
-     basinCode,
-     sceneTitle: 'Анализ выделенной области рыбы',
-     estimatedLengthCm: 42,
-     matches: fallbackMatches
+     ok: false,
+     error: 'Не удалось распознать снимок через Vision ИИ. Попробуйте ещё раз.'
     }), {
      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
     });
-   } catch (e) {
-    return new Response(JSON.stringify({ ok: false, error: 'AI parse error' }), {
-     status: 400,
+   } catch (err) {
+    return new Response(JSON.stringify({ ok: false, error: 'Vision gateway error' }), {
+     status: 500,
      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
     });
    }

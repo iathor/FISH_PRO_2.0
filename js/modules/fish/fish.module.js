@@ -497,8 +497,8 @@ export function openAppParamsModal(onBackToHub = null) {
               <div style="font-weight:800;font-size:12px;color:var(--text);">Эффект «Жидкое стекло» (Liquid Glass)</div>
               <div style="font-size:11px;color:var(--muted);">Объёмное преломление, блики и игра с прозрачностью кнопок и панелей</div>
             </div>
-            <button type="button" class="btn btn-sm ${st.liquidGlass !== false ? 'btn-good' : ''}" id="onbToggleLiquidGlassBtn" style="min-height:34px;font-weight:800;">
-              ${st.liquidGlass !== false ? 'ВКЛ (Жидкое стекло)' : 'ВЫКЛ (Классический стиль)'}
+            <button type="button" class="btn btn-sm ${s.liquidGlass !== false ? 'btn-good' : ''}" id="onbToggleLiquidGlassBtn" style="min-height:34px;font-weight:800;">
+              ${s.liquidGlass !== false ? 'ВКЛ (Жидкое стекло)' : 'ВЫКЛ (Классический стиль)'}
             </button>
           </div>
         </div>

@@ -61,7 +61,7 @@ export function runCleanSlateMigrationV2100() {
 }
 runCleanSlateMigrationV2100();
 export const GEO_WEATHER_ARCHIVE_KEY = 'klev_pro_geo_weather_archive_v2';
-export const GEO_WATERS_CACHE_KEY = 'klev_pro_geo_waters_cache_v2';
+export const GEO_WATERS_CACHE_KEY = 'klev_pro_v257_waters_cache';
 export const CIRCLE_PACKS_CACHE_KEY = 'klev_pro_circle_packs_v2';
 export const CIRCLE_CHATS_CACHE_KEY = 'klev_pro_circle_chats_v2';
 export const CIRCLE_NOTIFS_CACHE_KEY = 'klev_pro_circle_notifs_v2';

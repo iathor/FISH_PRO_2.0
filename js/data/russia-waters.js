@@ -71,6 +71,50 @@ export const RUSSIA_WATERS = [
     "region": "ЯНАО / Новый Уренгой"
   },
   {
+    "name": "Уренгойская ГРЭС (пос. Лимбияха, тёплый канал)",
+    "cleanName": "Уренгойская ГРЭС (пос. Лимбияха)",
+    "basin": "arctic_ob_taz",
+    "wType": "cooling_reservoir",
+    "typeTag": "ГРЭС / Тёплый сброс",
+    "defDepth": 3.5,
+    "lat": 66.062,
+    "lon": 77.815,
+    "region": "пос. Лимбияха / Новый Уренгой"
+  },
+  {
+    "name": "оз. Ямылимуяганто (охладитель ГРЭС, Лимбияха)",
+    "cleanName": "оз. Ямылимуяганто (ГРЭС Лимбияха)",
+    "basin": "arctic_ob_taz",
+    "wType": "cooling_reservoir",
+    "typeTag": "Озеро ГРЭС",
+    "defDepth": 4.2,
+    "lat": 66.068,
+    "lon": 77.835,
+    "region": "пос. Лимбияха / Новый Уренгой"
+  },
+  {
+    "name": "р. Лимбяяха (пос. Лимбияха)",
+    "cleanName": "р. Лимбяяха (Лимбияха)",
+    "basin": "arctic_ob_taz",
+    "wType": "small_river",
+    "typeTag": "Река малая",
+    "defDepth": 1.9,
+    "lat": 66.055,
+    "lon": 77.79,
+    "region": "пос. Лимбияха / Новый Уренгой"
+  },
+  {
+    "name": "р. Пур (Коротчаево / Уренгой)",
+    "cleanName": "р. Пур (Коротчаево / Уренгой)",
+    "basin": "arctic_ob_taz",
+    "wType": "big_river",
+    "typeTag": "Река большая",
+    "defDepth": 4.5,
+    "lat": 65.947,
+    "lon": 78.15,
+    "region": "Новый Уренгой / Коротчаево / Уренгой"
+  },
+  {
     "name": "р. Варенга-Яха",
     "cleanName": "Варенга-Яха",
     "basin": "arctic_ob_taz",
@@ -5744,15 +5788,15 @@ export const RUSSIA_CITIES = [
     "admin1": "Ямало-Ненецкий АО"
   },
   {
-    "name": "Коротчаево",
-    "lat": 65.9472,
-    "lon": 78.1486,
+    "name": "Лимбияха (Уренгойская ГРЭС)",
+    "lat": 66.0581,
+    "lon": 77.7914,
     "admin1": "Ямало-Ненецкий АО"
   },
   {
-    "name": "Лимбяяха",
-    "lat": 66.0581,
-    "lon": 77.7914,
+    "name": "Коротчаево (р. Пур)",
+    "lat": 65.9472,
+    "lon": 78.1486,
     "admin1": "Ямало-Ненецкий АО"
   },
   {
@@ -10755,7 +10799,7 @@ export function findNearestRussianSettlement(lat, lon) {
     label: bestDist <= 18 ? best.name : (bestDist <= 85 ? `${best.name} (${bestDist} км)` : best.name)
   };
 }
-export function getNearestRussianSettlements(lat, lon, maxCount = 10, maxRadiusKm = 120) {
+export function getNearestRussianSettlements(lat, lon, maxCount = 24, maxRadiusKm = 180) {
   const withDist = RUSSIA_CITIES.map(c => ({
     name: c.name,
     admin1: c.admin1,
@@ -10764,7 +10808,7 @@ export function getNearestRussianSettlements(lat, lon, maxCount = 10, maxRadiusK
     distKm: calcHaversine(lat, lon, c.lat, c.lon)
   })).sort((a, b) => a.distKm - b.distKm);
   const inRadius = withDist.filter(c => c.distKm <= maxRadiusKm);
-  return (inRadius.length > 0 ? inRadius : withDist.slice(0, 5)).slice(0, maxCount);
+  return (inRadius.length >= 6 ? inRadius : withDist.slice(0, 12)).slice(0, maxCount);
 }
 export function getWaterTypeShortTag(wType) {
   switch (wType) {
@@ -10778,8 +10822,8 @@ export function getWaterTypeShortTag(wType) {
     default: return 'Водоём';
   }
 }
-export function getNearestRussianWaters(lat, lon, basinCode, isCoastal, maxCount = 14, radiusKm = 50) {
-  const effRadius = Number.isFinite(radiusKm) && radiusKm > 0 ? radiusKm : 50;
+export function getNearestRussianWaters(lat, lon, basinCode, isCoastal, maxCount = 35, radiusKm = 120) {
+  const effRadius = Number.isFinite(radiusKm) && radiusKm > 0 ? radiusKm : 120;
   const calculated = RUSSIA_WATERS.map(w => {
     const distKm = calcHaversine(lat, lon, w.lat, w.lon);
     let penalty = 0;
@@ -10793,11 +10837,19 @@ export function getNearestRussianWaters(lat, lon, basinCode, isCoastal, maxCount
     };
   });
   calculated.sort((a, b) => a.sortScore - b.sortScore);
-  let withinRadius = calculated.filter(w => w.distKm <= effRadius && (isCoastal || w.distKm <= 55 || !w.wType.startsWith('sea')));
+  const seenClean = new Set();
+  let withinRadius = calculated.filter(w => {
+    const key = (w.cleanName || w.name || '').toLowerCase();
+    if (seenClean.has(key)) return false;
+    const isImportantRegional = (w.wType === 'big_river' || w.wType === 'cooling_reservoir') && w.distKm <= Math.max(effRadius, 85);
+    const ok = (w.distKm <= effRadius || isImportantRegional) && (isCoastal || w.distKm <= 55 || !w.wType.startsWith('sea'));
+    if (ok) seenClean.add(key);
+    return ok;
+  });
   if (withinRadius.length === 0) {
-    withinRadius = calculated.filter(w => isCoastal || !w.wType.startsWith('sea')).slice(0, 4);
+    withinRadius = calculated.filter(w => isCoastal || !w.wType.startsWith('sea')).slice(0, 6);
   } else {
-    withinRadius = withinRadius.slice(0, maxCount);
+    withinRadius = withinRadius.slice(0, Math.max(28, maxCount));
   }
   return withinRadius.map(w => {
     const isRiver = w.wType === 'big_river' || w.wType === 'small_river' || w.name.startsWith('р.');

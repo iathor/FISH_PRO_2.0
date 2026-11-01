@@ -560,7 +560,7 @@ export const store = createStore(syncTackleForContext({
   basinName: initEcoregion.displayBasinName || BASIN_CONFIGS[initBasin]?.name || DEFAULT_STATE.basinName,
   isCoastal: initCoastal,
   water: initWater,
-  waterRadiusKm: saved.waterRadiusKm === 120 ? 120 : 50,
+  waterRadiusKm: saved.waterRadiusKm === 50 ? 50 : 120,
   weatherArchive5Days: [],
   hasRealArchive: true,
   circleItems: storage.loadCircleItems ? storage.loadCircleItems() : [],
