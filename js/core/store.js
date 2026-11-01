@@ -1,9 +1,9 @@
-/* Klev PRO v2.5.3 r190 (Protected Build) */
-import { DEFAULT_STATE, getCompatibleMethods, getSeasonalBaitsForContext } from './config.js?v=2.5.3';
-import { storage } from './storage.js?v=2.5.3';
-import { detectBasinByCoords, BASIN_CONFIGS, isCoastalInBasin, getSpotEcoregion } from '../data/basins.js?v=2.5.3';
-import { findNearestRussianSettlement } from '../data/russia-waters.js?v=2.5.3';
-import { FISH_DB } from '../data/species.js?v=2.5.3';
+/* Klev PRO v2.5.4 r191 (Protected Build) */
+import { DEFAULT_STATE, getCompatibleMethods, getSeasonalBaitsForContext } from './config.js?v=2.5.4';
+import { storage } from './storage.js?v=2.5.4';
+import { detectBasinByCoords, BASIN_CONFIGS, isCoastalInBasin, getSpotEcoregion } from '../data/basins.js?v=2.5.4';
+import { findNearestRussianSettlement } from '../data/russia-waters.js?v=2.5.4';
+import { FISH_DB } from '../data/species.js?v=2.5.4';
 function getActiveDaySeasonContext(state, overrideDays = null, overrideDayIdx = null, overrideIceState = null) {
   const rawDays = overrideDays ?? state?.weatherDays;
   const days = Array.isArray(rawDays) ? rawDays : [];

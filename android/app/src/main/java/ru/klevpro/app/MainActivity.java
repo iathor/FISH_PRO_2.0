@@ -27,6 +27,7 @@ import android.util.Base64;
 import android.view.Window;
 import android.webkit.DownloadListener;
 import android.webkit.GeolocationPermissions;
+import android.webkit.PermissionRequest;
 import android.webkit.JavascriptInterface;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
@@ -56,6 +57,7 @@ public class MainActivity extends Activity {
     private static final String CHANNEL_ALERTS = "klev_pro_alerts";
     private static final String CHANNEL_FILES = "klev_pro_files";
     private static final String PERM_POST_NOTIFICATIONS = "android.permission.POST_NOTIFICATIONS";
+    private static final String PERM_READ_MEDIA_IMAGES = "android.permission.READ_MEDIA_IMAGES";
     private static final AtomicInteger NOTIF_ID_SEQ = new AtomicInteger(2000);
 
     private WebView webView;
@@ -71,6 +73,52 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public boolean hasCameraAndPhotoPermissions() {
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    boolean camOk = checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED;
+                    boolean mediaOk = true;
+                    if (Build.VERSION.SDK_INT >= 33) {
+                        mediaOk = checkSelfPermission(PERM_READ_MEDIA_IMAGES) == PackageManager.PERMISSION_GRANTED;
+                    } else {
+                        mediaOk = checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
+                    }
+                    return camOk && mediaOk;
+                }
+                return true;
+            } catch (Exception e) {
+                return false;
+            }
+        }
+
+        @JavascriptInterface
+        public void requestCameraAndPhotoPermissions() {
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        List<String> needed = new ArrayList<>();
+                        if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                            needed.add(Manifest.permission.CAMERA);
+                        }
+                        if (Build.VERSION.SDK_INT >= 33) {
+                            if (checkSelfPermission(PERM_READ_MEDIA_IMAGES) != PackageManager.PERMISSION_GRANTED) {
+                                needed.add(PERM_READ_MEDIA_IMAGES);
+                            }
+                        } else {
+                            if (checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                                needed.add(Manifest.permission.READ_EXTERNAL_STORAGE);
+                            }
+                        }
+                        if (!needed.isEmpty()) {
+                            requestPermissions(needed.toArray(new String[0]), REQ_PERMISSIONS);
+                        }
+                    }
+                }
+            });
+        }
+
+        @JavascriptInterface
         public String getDeviceId() {
             try {
                 String id = Settings.Secure.getString(ctx.getContentResolver(), Settings.Secure.ANDROID_ID);
@@ -82,7 +130,7 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String getAppVersion() {
-            return "2.5.3-r190";
+            return "2.5.4-r191";
         }
 
         @JavascriptInterface
@@ -356,7 +404,7 @@ public class MainActivity extends Activity {
         ws.setCacheMode(WebSettings.LOAD_NO_CACHE);
         webView.clearCache(true);
         String baseUa = ws.getUserAgentString();
-        ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.5.3-r190");
+        ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.5.4-r191");
 
         webView.addJavascriptInterface(new NativeBridge(this), "AndroidBridge");
 
@@ -436,6 +484,24 @@ public class MainActivity extends Activity {
 
         webView.setWebChromeClient(new WebChromeClient() {
             @Override
+            public void onPermissionRequest(final PermissionRequest request) {
+                if (request == null) return;
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                            if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                                requestPermissions(new String[]{Manifest.permission.CAMERA}, REQ_PERMISSIONS);
+                            }
+                        }
+                        try {
+                            request.grant(request.getResources());
+                        } catch (Exception ignored) {}
+                    }
+                });
+            }
+
+            @Override
             public void onGeolocationPermissionsShowPrompt(final String origin, final GeolocationPermissions.Callback callback) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                     if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
@@ -457,9 +523,25 @@ public class MainActivity extends Activity {
                     contentIntent.setType("*/*");
                     String[] acceptTypes = (fileChooserParams != null) ? fileChooserParams.getAcceptTypes() : null;
                     boolean imageOnly = false;
-                    if (acceptTypes != null && acceptTypes.length == 1 && acceptTypes[0] != null && acceptTypes[0].startsWith("image/")) {
+                    if (acceptTypes != null && acceptTypes.length >= 1 && acceptTypes[0] != null && acceptTypes[0].startsWith("image/")) {
                         imageOnly = true;
                         contentIntent.setType("image/*");
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                            List<String> mediaPerms = new ArrayList<>();
+                            if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                                mediaPerms.add(Manifest.permission.CAMERA);
+                            }
+                            if (Build.VERSION.SDK_INT >= 33) {
+                                if (checkSelfPermission(PERM_READ_MEDIA_IMAGES) != PackageManager.PERMISSION_GRANTED) {
+                                    mediaPerms.add(PERM_READ_MEDIA_IMAGES);
+                                }
+                            } else if (checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                                mediaPerms.add(Manifest.permission.READ_EXTERNAL_STORAGE);
+                            }
+                            if (!mediaPerms.isEmpty()) {
+                                requestPermissions(mediaPerms.toArray(new String[0]), REQ_PERMISSIONS);
+                            }
+                        }
                     }
                     Intent chooser = Intent.createChooser(contentIntent, imageOnly ? "Выберите фото улова" : "Выберите файл (.GPX, .KML, .JSON, .CSV, фото)");
                     startActivityForResult(chooser, REQ_FILE_CHOOSER);
@@ -506,7 +588,7 @@ public class MainActivity extends Activity {
     }
 
     private void loadEntryUrlFromIntent(Intent intent) {
-        String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/index.html?v=2.5.3_r190";
+        String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/index.html?v=2.5.4_r191";
         if (intent != null && intent.getData() != null) {
             Uri data = intent.getData();
             String q = data.getEncodedQuery();
@@ -531,14 +613,22 @@ public class MainActivity extends Activity {
                 needed.add(Manifest.permission.ACCESS_FINE_LOCATION);
                 needed.add(Manifest.permission.ACCESS_COARSE_LOCATION);
             }
+            if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                needed.add(Manifest.permission.CAMERA);
+            }
             if (Build.VERSION.SDK_INT >= 33) {
                 if (checkSelfPermission(PERM_POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                     needed.add(PERM_POST_NOTIFICATIONS);
                 }
-            } else if (Build.VERSION.SDK_INT <= 29) {
-                if (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-                    needed.add(Manifest.permission.WRITE_EXTERNAL_STORAGE);
+                if (checkSelfPermission(PERM_READ_MEDIA_IMAGES) != PackageManager.PERMISSION_GRANTED) {
+                    needed.add(PERM_READ_MEDIA_IMAGES);
+                }
+            } else {
+                if (checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
                     needed.add(Manifest.permission.READ_EXTERNAL_STORAGE);
+                }
+                if (Build.VERSION.SDK_INT <= 29 && checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                    needed.add(Manifest.permission.WRITE_EXTERNAL_STORAGE);
                 }
             }
             if (!needed.isEmpty()) {

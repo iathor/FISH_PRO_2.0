@@ -1,7 +1,7 @@
-/* Klev PRO v2.5.3 r190 (Protected Build) */
-import { store } from './store.js?v=2.5.3';
-import { renderMap } from '../modules/geo/geo.module.js?v=2.5.3';
-import { closeModal } from '../ui/components.js?v=2.5.3';
+/* Klev PRO v2.5.4 r191 (Protected Build) */
+import { store } from './store.js?v=2.5.4';
+import { renderMap } from '../modules/geo/geo.module.js?v=2.5.4';
+import { closeModal } from '../ui/components.js?v=2.5.4';
 const VALID_ROUTES = ['geo', 'weather', 'fish', 'forecast', 'circle', 'chats', 'log', 'calendar', 'admin'];
 const DEFAULT_ROUTE = 'forecast';
 const routeHistoryStack = [DEFAULT_ROUTE];

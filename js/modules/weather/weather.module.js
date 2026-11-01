@@ -1,12 +1,12 @@
-/* Klev PRO v2.5.3 r190 (Protected Build) */
-import { RU } from '../../i18n/ru.js?v=2.5.3';
-import { events } from '../../core/events.js?v=2.5.3';
-import { storage } from '../../core/storage.js?v=2.5.3';
-import { store } from '../../core/store.js?v=2.5.3';
-import { fetchWithTimeout, fallbackChain } from '../../core/http.js?v=2.5.3';
-import { formatLocalYYYYMMDD, fmtHM, fmtDeltaPress } from '../../core/format.js?v=2.5.3';
-import { WATER_PROFILES } from '../../data/waters.js?v=2.5.3';
-import { createPill, showToast } from '../../ui/components.js?v=2.5.3';
+/* Klev PRO v2.5.4 r191 (Protected Build) */
+import { RU } from '../../i18n/ru.js?v=2.5.4';
+import { events } from '../../core/events.js?v=2.5.4';
+import { storage } from '../../core/storage.js?v=2.5.4';
+import { store } from '../../core/store.js?v=2.5.4';
+import { fetchWithTimeout, fallbackChain } from '../../core/http.js?v=2.5.4';
+import { formatLocalYYYYMMDD, fmtHM, fmtDeltaPress } from '../../core/format.js?v=2.5.4';
+import { WATER_PROFILES } from '../../data/waters.js?v=2.5.4';
+import { createPill, showToast } from '../../ui/components.js?v=2.5.4';
 const DIRS = ['С', 'СВ', 'В', 'ЮВ', 'Ю', 'ЮЗ', 'З', 'СЗ'];
 export function computeMoon(dateStr) {
   const dt = new Date(dateStr + 'T12:00:00Z');

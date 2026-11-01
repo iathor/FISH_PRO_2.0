@@ -1,11 +1,11 @@
-/* Klev PRO v2.5.3 r190 (Protected Build) */
-import { svgIcon } from './ui/icons.js?v=2.5.3';
-import { initReleaseUpdater, checkForReleaseUpdate } from './core/updater.js?v=2.5.3';
-import { RU } from './i18n/ru.js?v=2.5.3';
-import { events } from './core/events.js?v=2.5.3';
-import { store } from './core/store.js?v=2.5.3';
-import { router } from './core/router.js?v=2.5.3';
-import { installShortcut, initPwa } from './core/pwa.js?v=2.5.3';
+/* Klev PRO v2.5.4 r191 (Protected Build) */
+import { svgIcon } from './ui/icons.js?v=2.5.4';
+import { initReleaseUpdater, checkForReleaseUpdate } from './core/updater.js?v=2.5.4';
+import { RU } from './i18n/ru.js?v=2.5.4';
+import { events } from './core/events.js?v=2.5.4';
+import { store } from './core/store.js?v=2.5.4';
+import { router } from './core/router.js?v=2.5.4';
+import { installShortcut, initPwa } from './core/pwa.js?v=2.5.4';
 import {
   initTelegramMiniApp,
   extractIncomingDeepLinkParams,
@@ -15,17 +15,17 @@ import {
   syncTelegramTheme,
   syncTelegramBackButton,
   getTelegramUser
-} from './core/telegram.js?v=2.5.3';
-import { FISH_DB } from './data/species.js?v=2.5.3';
-import { WATER_PROFILES } from './data/waters.js?v=2.5.3';
-import { showToast, openModal, closeModal } from './ui/components.js?v=2.5.3';
-import { weatherModule } from './modules/weather/weather.module.js?v=2.5.3';
-import { geoModule } from './modules/geo/geo.module.js?v=2.5.3';
-import { fishModule } from './modules/fish/fish.module.js?v=2.5.3';
-import { forecastModule } from './modules/forecast/forecast.module.js?v=2.5.3';
-import { calendarModule } from './modules/calendar/calendar.module.js?v=2.5.3';
-import { logModule } from './modules/log/log.module.js?v=2.5.3';
-import { circleModule } from './modules/circle/circle.module.js?v=2.5.3';
+} from './core/telegram.js?v=2.5.4';
+import { FISH_DB } from './data/species.js?v=2.5.4';
+import { WATER_PROFILES } from './data/waters.js?v=2.5.4';
+import { showToast, openModal, closeModal } from './ui/components.js?v=2.5.4';
+import { weatherModule } from './modules/weather/weather.module.js?v=2.5.4';
+import { geoModule } from './modules/geo/geo.module.js?v=2.5.4';
+import { fishModule } from './modules/fish/fish.module.js?v=2.5.4';
+import { forecastModule } from './modules/forecast/forecast.module.js?v=2.5.4';
+import { calendarModule } from './modules/calendar/calendar.module.js?v=2.5.4';
+import { logModule } from './modules/log/log.module.js?v=2.5.4';
+import { circleModule } from './modules/circle/circle.module.js?v=2.5.4';
 if (typeof window !== 'undefined') {
   window.__KLEV_BOOTSTRAPPED__ = true;
   window.__KLEV_STORE__ = store;

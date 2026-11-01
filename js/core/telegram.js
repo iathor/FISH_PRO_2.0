@@ -1,8 +1,8 @@
-/* Klev PRO v2.5.3 r190 (Protected Build) */
-import { showToast } from '../ui/components.js?v=2.5.3';
-import { syncInstallButtons } from './pwa.js?v=2.5.3';
-import { store } from './store.js?v=2.5.3';
-import { storage } from './storage.js?v=2.5.3';
+/* Klev PRO v2.5.4 r191 (Protected Build) */
+import { showToast } from '../ui/components.js?v=2.5.4';
+import { syncInstallButtons } from './pwa.js?v=2.5.4';
+import { store } from './store.js?v=2.5.4';
+import { storage } from './storage.js?v=2.5.4';
 export const TELEGRAM_BOT_USERNAME = 'KlevProClubBot';
 export const PUBLIC_APP_URL = 'https://klevpro.ru/';
 export const RELAY_WORKER_URL = 'https://klevprohbot.thorantony82.workers.dev';

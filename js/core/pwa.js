@@ -1,5 +1,5 @@
-/* Klev PRO v2.5.3 r190 (Protected Build) */
-import { showToast } from '../ui/components.js?v=2.5.3';
+/* Klev PRO v2.5.4 r191 (Protected Build) */
+import { showToast } from '../ui/components.js?v=2.5.4';
 export const PWA_INSTALLED_KEY = 'klev_pro_pwa_installed';
 let deferredInstallPrompt = null;
 export function generateFloatIconDataURL(size = 512) {

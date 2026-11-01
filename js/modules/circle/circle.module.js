@@ -1,14 +1,14 @@
-/* Klev PRO v2.5.3 r190 (Protected Build) */
-import { events } from '../../core/events.js?v=2.5.3';
-import { store } from '../../core/store.js?v=2.5.3';
-import { storage, calcGeoDistanceKm, safeJsonParse } from '../../core/storage.js?v=2.5.3';
-import { router } from '../../core/router.js?v=2.5.3';
-import { getSeasonalBaitsForContext, SPOT_CATEGORIES } from '../../core/config.js?v=2.5.3';
-import { detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.5.3';
-import { findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.5.3';
-import { WATER_PROFILES } from '../../data/waters.js?v=2.5.3';
-import { FISH_DB } from '../../data/species.js?v=2.5.3';
-import { escapeHtml, isAnonymousCallsignValid, createPill, showToast, openModal, closeModal, copyFisherIdToClipboard, openConfirmDeleteModal, openUserAgreementModal, isUserAgreementAccepted, downloadFileCrossPlatform, triggerSystemNotificationCrossPlatform, requestSystemNotificationsAccess } from '../../ui/components.js?v=2.5.3';
+/* Klev PRO v2.5.4 r191 (Protected Build) */
+import { events } from '../../core/events.js?v=2.5.4';
+import { store } from '../../core/store.js?v=2.5.4';
+import { storage, calcGeoDistanceKm, safeJsonParse } from '../../core/storage.js?v=2.5.4';
+import { router } from '../../core/router.js?v=2.5.4';
+import { getSeasonalBaitsForContext, SPOT_CATEGORIES } from '../../core/config.js?v=2.5.4';
+import { detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.5.4';
+import { findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.5.4';
+import { WATER_PROFILES } from '../../data/waters.js?v=2.5.4';
+import { FISH_DB } from '../../data/species.js?v=2.5.4';
+import { escapeHtml, isAnonymousCallsignValid, createPill, showToast, openModal, closeModal, copyFisherIdToClipboard, openConfirmDeleteModal, openUserAgreementModal, isUserAgreementAccepted, downloadFileCrossPlatform, triggerSystemNotificationCrossPlatform, requestSystemNotificationsAccess } from '../../ui/components.js?v=2.5.4';
 import {
   RELAY_WORKER_URL,
   buildShareUrls,
@@ -21,9 +21,9 @@ import {
   syncToTelegramCloud,
   readFromTelegramCloud,
   triggerHaptic
-} from '../../core/telegram.js?v=2.5.3';
-import { setLocation } from '../geo/geo.module.js?v=2.5.3';
-import { calcDynamicRig } from '../forecast/forecast.module.js?v=2.5.3';
+} from '../../core/telegram.js?v=2.5.4';
+import { setLocation } from '../geo/geo.module.js?v=2.5.4';
+import { calcDynamicRig } from '../forecast/forecast.module.js?v=2.5.4';
 export const CREW_TTL_MS = 72 * 60 * 60 * 1000;
 export const CIRCLE_BLUR_RADIUS_KM = 5.0;
 export const CIRCLE_OLDER_BLUR_RADIUS_KM = 10.0;
@@ -1091,7 +1091,7 @@ export async function ensureFisherIdentityInitialized(forceReallocateForRegion =
         tgId: ident.isRegistered ? (ident.tgLinkedId || '') : '',
         tgUsername: ident.isRegistered ? (ident.tgUsername || '') : '',
         platform: detectClientPlatformLabel(),
-        version: '2.5.3',
+        version: '2.5.4',
         lat: s.lat,
         lon: s.lon
       })
@@ -1165,7 +1165,7 @@ export async function publishCircleItemToServer(itemObj, packToken = '') {
         authTokenHash: s.userProfile?.authTokenHash || '',
         adminToken: _serverAdminSessionToken || s.userProfile?.adminSessionToken || '',
         platform: detectClientPlatformLabel(),
-        version: '2.5.3'
+        version: '2.5.4'
       })
     }, 4800, 2);
     if (res && res.ok) {
@@ -1280,7 +1280,7 @@ export async function syncNearbyCirclePointsFromServer(showFeedbackToast = false
       crewKeys: crewKeysParam,
       adminToken: adminTok,
       platform: detectClientPlatformLabel(),
-      version: '2.5.3',
+      version: '2.5.4',
       locLabel: s.locLabel || ''
     });
     const res = await workerFetch(`/api/circle/nearby?${qs.toString()}`, { method: 'GET' }, 4800, 1);
@@ -1574,7 +1574,7 @@ export async function authenticateAndSyncAccount(rawLogin, rawPassword, mode = '
         pinHash: creds.pinHash,
         regionCode: regCode,
         platform: detectClientPlatformLabel(),
-        version: '2.5.3',
+        version: '2.5.4',
         profileSnapshot: snapshot
       })
     });
@@ -1680,7 +1680,7 @@ export async function syncCurrentProfileToCloudIfLoggedIn() {
         pinHash: up.pinHash || '',
         regionCode: resolveRussianRegionCode(s),
         platform: detectClientPlatformLabel(),
-        version: '2.5.3',
+        version: '2.5.4',
         profileSnapshot: snapshot
       })
     });
@@ -4678,7 +4678,7 @@ export async function openFullServerWebConsoleModal() {
                 ${d1Connected ? 'Cloudflare D1 SQL: ПОДКЛЮЧЕНА (' + escapeHtml(db.d1BindingName || 'DB') + ')' : 'Автономная синхронизация (нажмите «Обновить с сервера»)'}
               </div>
               <div style="font-size:11px;color:var(--muted);margin-top:2px;">
-                Активный канал связи: <b style="color:var(--accent);">${escapeHtml(getLastActiveDbGatewayLabel())}</b> • Версия ядра: <b>v2.5.3 r190</b>
+                Активный канал связи: <b style="color:var(--accent);">${escapeHtml(getLastActiveDbGatewayLabel())}</b> • Версия ядра: <b>v2.5.4 r191</b>
               </div>
             </div>
             <div style="display:flex;gap:6px;flex-wrap:wrap;">
@@ -4731,7 +4731,7 @@ export async function openFullServerWebConsoleModal() {
                       <td style="padding:6px;font-family:monospace;font-weight:800;color:${isOwn ? 'var(--good)' : 'var(--accent)'};" data-copy-fisher-id="${escapeHtml(u.fisherId)}">${escapeHtml(u.fisherId)}</td>
                       <td style="padding:6px;"><b>${escapeHtml(u.login || u.callsign || 'Гость')}</b> ${u.tgUsername ? `<span style="color:var(--accent);">@${escapeHtml(u.tgUsername)}</span>` : ''}</td>
                       <td style="padding:6px;">[${escapeHtml(u.regionCode || '89')}] ${escapeHtml(u.locLabel || 'РФ')}</td>
-                      <td style="padding:6px;">${escapeHtml(u.platform || 'WEB')} <span style="color:var(--muted);font-size:10px;">v${escapeHtml(u.version || '2.5.3')}</span></td>
+                      <td style="padding:6px;">${escapeHtml(u.platform || 'WEB')} <span style="color:var(--muted);font-size:10px;">v${escapeHtml(u.version || '2.5.4')}</span></td>
                       <td style="padding:6px;text-align:right;">
                         ${isOwn ? '<span style="color:var(--good);font-weight:800;">Владелец</span>' : `<button type="button" class="btn btn-sm" data-wc-del-user="${escapeHtml(u.fisherId)}" style="min-height:24px;padding:1px 7px;color:var(--bad);border-color:var(--bad);">Удалить</button>`}
                       </td>
@@ -4770,7 +4770,7 @@ export async function openFullServerWebConsoleModal() {
     });
     bodyEl.querySelector('#wcModalExportJsonBtn')?.addEventListener('click', () => {
       const fname = `klev-pro-users-db-${new Date().toISOString().slice(0, 10)}.json`;
-      downloadFileCrossPlatform(fname, JSON.stringify({ exportedAt: new Date().toISOString(), version: '2.5.3', total: users.length, users, points }, null, 2), 'application/json;charset=utf-8');
+      downloadFileCrossPlatform(fname, JSON.stringify({ exportedAt: new Date().toISOString(), version: '2.5.4', total: users.length, users, points }, null, 2), 'application/json;charset=utf-8');
       showToast(`База сохранена: ${fname}`, 'good');
     });
     bodyEl.querySelector('#wcModalExportCsvBtn')?.addEventListener('click', () => {
@@ -4921,7 +4921,7 @@ export function renderAdminSection(customContainer = null) {
         <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;">
           <div>
             <div style="font-size:var(--fs-md);font-weight:900;color:var(--good);">
-              <svg class="k-ico" style="color:#fbbf24;" viewBox="0 0 24 24" fill="none"><path d="M3 18h18l-2-11-5 4-2-6-2 6-5-4-2 11z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> ПАНЕЛЬ СУПЕР-АДМИНА И СТАТИСТИКА БД «КЛЁВ ПРО V.2.5.3 r190»
+              <svg class="k-ico" style="color:#fbbf24;" viewBox="0 0 24 24" fill="none"><path d="M3 18h18l-2-11-5 4-2-6-2 6-5-4-2 11z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> ПАНЕЛЬ СУПЕР-АДМИНА И СТАТИСТИКА БД «КЛЁВ ПРО V.2.5.4 r191»
             </div>
             <div style="font-size:var(--fs-xs);color:var(--muted);margin-top:3px;">
               Владелец: <b style="color:var(--text);">Антон (${escapeHtml(ident.login)})</b> • Эксклюзивные неприкосновенные ID Владельца:
@@ -4956,7 +4956,7 @@ export function renderAdminSection(customContainer = null) {
             <div style="font-weight:900;color:var(--good);font-size:13px;"><svg class="k-ico" style="color:var(--good);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg> Cloudflare D1 База Данных: ПОДКЛЮЧЕНА (${escapeHtml(db.d1BindingName || 'DB')})</div>
             <div style="font-size:11px;color:var(--muted);margin-top:2px;">Все постоянные ID, реестр пользователей, чаты и точки Круга сохраняются в SQL-таблицах D1.</div>
           </div>
-          <span class="pill pill-good" style="font-size:11px;font-weight:800;">D1 Engine 2.5.3</span>
+          <span class="pill pill-good" style="font-size:11px;font-weight:800;">D1 Engine 2.5.4</span>
         </div>
       ` : `
         <div class="card" style="border:1.5px solid var(--warn);background:rgba(245,158,11,0.10);padding:10px 14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
@@ -5152,7 +5152,7 @@ function bindAdminSectionEvents(container, users) {
   });
   container.querySelector('#admExportUsersJsonBtn')?.addEventListener('click', () => {
     const fname = `klev-pro-users-db-${new Date().toISOString().slice(0, 10)}.json`;
-    const jsonStr = JSON.stringify({ exportedAt: new Date().toISOString(), version: '2.5.3', total: users.length, users }, null, 2);
+    const jsonStr = JSON.stringify({ exportedAt: new Date().toISOString(), version: '2.5.4', total: users.length, users }, null, 2);
     downloadFileCrossPlatform(fname, jsonStr, 'application/json;charset=utf-8');
     showToast(` База пользователей сохранена: ${fname}`, 'good');
   });

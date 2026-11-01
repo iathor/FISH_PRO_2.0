@@ -1,5 +1,5 @@
-/* Klev PRO v2.5.3 r190 (Protected Build) */
-import { svgIcon } from './icons.js?v=2.5.3';
+/* Klev PRO v2.5.4 r191 (Protected Build) */
+import { svgIcon } from './icons.js?v=2.5.4';
 export function escapeHtml(raw) {
   if (raw === null || raw === undefined) return '';
   const str = String(raw);

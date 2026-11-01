@@ -1,4 +1,4 @@
-/* Klev PRO v2.5.3 r190 (Protected Build) */
+/* Klev PRO v2.5.4 r191 (Protected Build) */
 export const BASIN_CONFIGS = {
  black_azov: { name: 'Черноморско-Азовский бассейн', hasSea: true, spawnShiftWeeks: -2 },
  baltic: { name: 'Балтийский морской бассейн', hasSea: true, spawnShiftWeeks: 0 },

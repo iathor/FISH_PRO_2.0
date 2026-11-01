@@ -1,18 +1,18 @@
-/* Klev PRO v2.5.3 r190 (Protected Build) */
-import { isSpeciesInGeoRange } from '../../data/basins.js?v=2.5.3';
-import { RU } from '../../i18n/ru.js?v=2.5.3';
-import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.5.3';
-import { events } from '../../core/events.js?v=2.5.3';
-import { storage } from '../../core/storage.js?v=2.5.3';
-import { store } from '../../core/store.js?v=2.5.3';
-import { formatLocalYYYYMMDD, fmtDeltaPress } from '../../core/format.js?v=2.5.3';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.5.3';
-import { FISH_DB } from '../../data/species.js?v=2.5.3';
-import { escapeHtml, createPill, showToast, openModal, closeModal, openConfirmDeleteModal, downloadFileCrossPlatform } from '../../ui/components.js?v=2.5.3';
+/* Klev PRO v2.5.4 r191 (Protected Build) */
+import { isSpeciesInGeoRange } from '../../data/basins.js?v=2.5.4';
+import { RU } from '../../i18n/ru.js?v=2.5.4';
+import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.5.4';
+import { events } from '../../core/events.js?v=2.5.4';
+import { storage } from '../../core/storage.js?v=2.5.4';
+import { store } from '../../core/store.js?v=2.5.4';
+import { formatLocalYYYYMMDD, fmtDeltaPress } from '../../core/format.js?v=2.5.4';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.5.4';
+import { FISH_DB } from '../../data/species.js?v=2.5.4';
+import { escapeHtml, createPill, showToast, openModal, closeModal, openConfirmDeleteModal, downloadFileCrossPlatform } from '../../ui/components.js?v=2.5.4';
 let activeLogTab = 'active'; // 'active' | 'trash'
-import { computeMoon } from '../weather/weather.module.js?v=2.5.3';
-import { calcHourly } from '../forecast/forecast.module.js?v=2.5.3';
-import { openFishPhotoScannerModal, analyzeFishPhotoHybrid } from '../fish/scanner.js?v=2.5.3';
+import { computeMoon } from '../weather/weather.module.js?v=2.5.4';
+import { calcHourly } from '../forecast/forecast.module.js?v=2.5.4';
+import { openFishPhotoScannerModal, analyzeFishPhotoHybrid, requestAppCameraAndPhotoAccess } from '../fish/scanner.js?v=2.5.4';
 let currentFilter = { fishId: 'all', cond: 'all' };
 const SPECIES_MAX_WEIGHT_KG = {
   bleak: 0.25, gudgeon: 0.30, tugun: 0.25, smelt: 0.45, vendace: 0.8, cisco: 1.2,
@@ -605,6 +605,7 @@ export function openCatchWizard(prefill = {}) {
     const fileInput = bodyEl.querySelector('#cwPhoto');
     const aiBadgeEl = bodyEl.querySelector('#cwAiPhotoBadge');
     if (fileInput) {
+      fileInput.addEventListener('click', () => requestAppCameraAndPhotoAccess());
       fileInput.addEventListener('change', (e) => {
         const file = e.target.files?.[0];
         if (!file) return;

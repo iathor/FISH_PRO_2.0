@@ -1,20 +1,20 @@
-/* Klev PRO v2.5.3 r190 (Protected Build) */
-import { getFilteredFishList, openFishDetail } from '../fish/fish.module.js?v=2.5.3';
-import { logBlankTrip } from '../log/log.module.js?v=2.5.3';
-import { getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.5.3';
-import { RU } from '../../i18n/ru.js?v=2.5.3';
-import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.5.3';
-import { events } from '../../core/events.js?v=2.5.3';
-import { storage } from '../../core/storage.js?v=2.5.3';
-import { store } from '../../core/store.js?v=2.5.3';
-import { formatLocalYYYYMMDD, fmtDeltaPress, fmtHM } from '../../core/format.js?v=2.5.3';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.5.3';
-import { FISH_DB } from '../../data/species.js?v=2.5.3';
-import { renderFiveFish } from '../../ui/svg.js?v=2.5.3';
-import { createPill, showToast, openModal } from '../../ui/components.js?v=2.5.3';
-import { computeIceSafetyIndex } from '../weather/weather.module.js?v=2.5.3';
-import { evaluateCircleFieldConfirmation, requireRegisteredFisherId } from '../circle/circle.module.js?v=2.5.3';
-import { isTelegramWebApp, getTelegramUser, shareToTelegramChat, openBotChatInTelegram, buildForecastShareUrls, TELEGRAM_BOT_USERNAME } from '../../core/telegram.js?v=2.5.3';
+/* Klev PRO v2.5.4 r191 (Protected Build) */
+import { getFilteredFishList, openFishDetail } from '../fish/fish.module.js?v=2.5.4';
+import { logBlankTrip } from '../log/log.module.js?v=2.5.4';
+import { getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.5.4';
+import { RU } from '../../i18n/ru.js?v=2.5.4';
+import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.5.4';
+import { events } from '../../core/events.js?v=2.5.4';
+import { storage } from '../../core/storage.js?v=2.5.4';
+import { store } from '../../core/store.js?v=2.5.4';
+import { formatLocalYYYYMMDD, fmtDeltaPress, fmtHM } from '../../core/format.js?v=2.5.4';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.5.4';
+import { FISH_DB } from '../../data/species.js?v=2.5.4';
+import { renderFiveFish } from '../../ui/svg.js?v=2.5.4';
+import { createPill, showToast, openModal } from '../../ui/components.js?v=2.5.4';
+import { computeIceSafetyIndex } from '../weather/weather.module.js?v=2.5.4';
+import { evaluateCircleFieldConfirmation, requireRegisteredFisherId } from '../circle/circle.module.js?v=2.5.4';
+import { isTelegramWebApp, getTelegramUser, shareToTelegramChat, openBotChatInTelegram, buildForecastShareUrls, TELEGRAM_BOT_USERNAME } from '../../core/telegram.js?v=2.5.4';
 const RIVER_ENTERING_SPECIES = {
   smelt: { runMonths: [12, 1, 2, 3, 4, 5], reason: 'весенне-зимний нерестовый и кормовой ход из заливов в устья рек' },
   navaga: { runMonths: [11, 12, 1, 2, 3], reason: 'зимний приливной и преднерестовый заход в устья северных и дальневосточных рек' },
