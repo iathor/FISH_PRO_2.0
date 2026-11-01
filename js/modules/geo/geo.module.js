@@ -1,13 +1,13 @@
-/* Klev PRO v2.5.4 r191 (Protected Build) */
-import { MAP_LAYERS, SPOT_CATEGORIES, getCompatibleMethods } from '../../core/config.js?v=2.5.4';
-import { events } from '../../core/events.js?v=2.5.4';
-import { storage, safeJsonParse } from '../../core/storage.js?v=2.5.4';
-import { store } from '../../core/store.js?v=2.5.4';
-import { fetchWithTimeout } from '../../core/http.js?v=2.5.4';
-import { installShortcut, syncInstallButtons } from '../../core/pwa.js?v=2.5.4';
-import { triggerHaptic } from '../../core/telegram.js?v=2.5.4';
-import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.5.4';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.5.4';
+/* Klev PRO v2.5.5 r192 (Protected Build) */
+import { MAP_LAYERS, SPOT_CATEGORIES, getCompatibleMethods } from '../../core/config.js?v=2.5.5';
+import { events } from '../../core/events.js?v=2.5.5';
+import { storage, safeJsonParse } from '../../core/storage.js?v=2.5.5';
+import { store } from '../../core/store.js?v=2.5.5';
+import { fetchWithTimeout } from '../../core/http.js?v=2.5.5';
+import { installShortcut, syncInstallButtons } from '../../core/pwa.js?v=2.5.5';
+import { triggerHaptic } from '../../core/telegram.js?v=2.5.5';
+import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.5.5';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.5.5';
 import {
   RUSSIA_CITIES,
   RUSSIA_WATERS,
@@ -15,12 +15,12 @@ import {
   getNearestRussianSettlements,
   getNearestRussianWaters,
   getWaterTypeShortTag
-} from '../../data/russia-waters.js?v=2.5.4';
-import { FISH_DB } from '../../data/species.js?v=2.5.4';
-import { escapeHtml, createPill, showToast, openModal, closeModal, openConfirmDeleteModal, downloadFileCrossPlatform } from '../../ui/components.js?v=2.5.4';
-import { fetchWeather } from '../weather/weather.module.js?v=2.5.4';
-import { calcDayBest } from '../forecast/forecast.module.js?v=2.5.4';
-import { computeHexPolygonForCircle, getEffectiveCircleRadiusKm, getCircleHexDecayState, canUserAccessCrewItem, getCurrentFisherIdentity, isCircleItemMine, isCircleItemHidden, openAddThematicMapPointModal } from '../circle/circle.module.js?v=2.5.4';
+} from '../../data/russia-waters.js?v=2.5.5';
+import { FISH_DB } from '../../data/species.js?v=2.5.5';
+import { escapeHtml, createPill, showToast, openModal, closeModal, openConfirmDeleteModal, downloadFileCrossPlatform } from '../../ui/components.js?v=2.5.5';
+import { fetchWeather } from '../weather/weather.module.js?v=2.5.5';
+import { calcDayBest } from '../forecast/forecast.module.js?v=2.5.5';
+import { computeHexPolygonForCircle, getEffectiveCircleRadiusKm, getCircleHexDecayState, canUserAccessCrewItem, getCurrentFisherIdentity, isCircleItemMine, isCircleItemHidden, openAddThematicMapPointModal } from '../circle/circle.module.js?v=2.5.5';
 let mapInstance = null;
 let mapMarker = null;
 let scoutMarker = null;

@@ -1,7 +1,7 @@
-/* Klev PRO v2.5.4 r191 (Protected Build) */
-import { APP_VERSION, IMG_SEARCH_DIRS } from '../core/config.js?v=2.5.4';
-import { getRatingWord } from '../core/format.js?v=2.5.4';
-import { FISH_DB } from '../data/species.js?v=2.5.4';
+/* Klev PRO v2.5.5 r192 (Protected Build) */
+import { APP_VERSION, IMG_SEARCH_DIRS } from '../core/config.js?v=2.5.5';
+import { getRatingWord } from '../core/format.js?v=2.5.5';
+import { FISH_DB } from '../data/species.js?v=2.5.5';
 let clipSeq = 0;
 const pngStatusCache = new Map();
 const PNG_CACHE_STORAGE_KEY = 'klev_pro_png_status_v2_166';

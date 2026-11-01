@@ -1,4 +1,4 @@
-/* Klev PRO v2.5.4 r191 (Protected Build) */
+/* Klev PRO v2.5.5 r192 (Protected Build) */
 export const RUSSIA_WATERS = [
   {
     "name": "р. Седе-Яха",

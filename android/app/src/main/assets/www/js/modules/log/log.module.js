@@ -1,18 +1,18 @@
-/* Klev PRO v2.5.4 r191 (Protected Build) */
-import { isSpeciesInGeoRange } from '../../data/basins.js?v=2.5.4';
-import { RU } from '../../i18n/ru.js?v=2.5.4';
-import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.5.4';
-import { events } from '../../core/events.js?v=2.5.4';
-import { storage } from '../../core/storage.js?v=2.5.4';
-import { store } from '../../core/store.js?v=2.5.4';
-import { formatLocalYYYYMMDD, fmtDeltaPress } from '../../core/format.js?v=2.5.4';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.5.4';
-import { FISH_DB } from '../../data/species.js?v=2.5.4';
-import { escapeHtml, createPill, showToast, openModal, closeModal, openConfirmDeleteModal, downloadFileCrossPlatform } from '../../ui/components.js?v=2.5.4';
+/* Klev PRO v2.5.5 r192 (Protected Build) */
+import { isSpeciesInGeoRange } from '../../data/basins.js?v=2.5.5';
+import { RU } from '../../i18n/ru.js?v=2.5.5';
+import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.5.5';
+import { events } from '../../core/events.js?v=2.5.5';
+import { storage } from '../../core/storage.js?v=2.5.5';
+import { store } from '../../core/store.js?v=2.5.5';
+import { formatLocalYYYYMMDD, fmtDeltaPress } from '../../core/format.js?v=2.5.5';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.5.5';
+import { FISH_DB } from '../../data/species.js?v=2.5.5';
+import { escapeHtml, createPill, showToast, openModal, closeModal, openConfirmDeleteModal, downloadFileCrossPlatform } from '../../ui/components.js?v=2.5.5';
 let activeLogTab = 'active'; // 'active' | 'trash'
-import { computeMoon } from '../weather/weather.module.js?v=2.5.4';
-import { calcHourly } from '../forecast/forecast.module.js?v=2.5.4';
-import { openFishPhotoScannerModal, analyzeFishPhotoHybrid, requestAppCameraAndPhotoAccess } from '../fish/scanner.js?v=2.5.4';
+import { computeMoon } from '../weather/weather.module.js?v=2.5.5';
+import { calcHourly } from '../forecast/forecast.module.js?v=2.5.5';
+import { openFishPhotoScannerModal, analyzeFishPhotoHybrid, requestAppCameraAndPhotoAccess } from '../fish/scanner.js?v=2.5.5';
 let currentFilter = { fishId: 'all', cond: 'all' };
 const SPECIES_MAX_WEIGHT_KG = {
   bleak: 0.25, gudgeon: 0.30, tugun: 0.25, smelt: 0.45, vendace: 0.8, cisco: 1.2,

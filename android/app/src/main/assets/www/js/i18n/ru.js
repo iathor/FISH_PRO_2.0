@@ -1,4 +1,4 @@
-/* Klev PRO v2.5.4 r191 (Protected Build) */
+/* Klev PRO v2.5.5 r192 (Protected Build) */
 export const RU = {
   appTitle: 'Клёв ПРО 2.0 • Атлас Ихтиофауны РФ',
   online: 'Онлайн • 10 дней + архив',

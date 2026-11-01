@@ -1,15 +1,15 @@
-/* Klev PRO v2.5.4 r191 (Protected Build) */
-import { RU } from '../../i18n/ru.js?v=2.5.4';
-import { events } from '../../core/events.js?v=2.5.4';
-import { store } from '../../core/store.js?v=2.5.4';
-import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.5.4';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.5.4';
-import { RUSSIA_CITIES, findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.5.4';
-import { FISH_DB } from '../../data/species.js?v=2.5.4';
-import { renderFishVisual, renderFiveFish } from '../../ui/svg.js?v=2.5.4';
-import { createPill, showToast, openModal, closeModal, openFishLightbox, openUserAgreementModal, isUserAgreementAccepted, requestSystemNotificationsAccess } from '../../ui/components.js?v=2.5.4';
-import { setLocation, detectUserPosition } from '../geo/geo.module.js?v=2.5.4';
-import { installShortcut, isApkOrTmaContainer, isAppInstalledOrShortcutPresent } from '../../core/pwa.js?v=2.5.4';
+/* Klev PRO v2.5.5 r192 (Protected Build) */
+import { RU } from '../../i18n/ru.js?v=2.5.5';
+import { events } from '../../core/events.js?v=2.5.5';
+import { store } from '../../core/store.js?v=2.5.5';
+import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.5.5';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.5.5';
+import { RUSSIA_CITIES, findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.5.5';
+import { FISH_DB } from '../../data/species.js?v=2.5.5';
+import { renderFishVisual, renderFiveFish } from '../../ui/svg.js?v=2.5.5';
+import { createPill, showToast, openModal, closeModal, openFishLightbox, openUserAgreementModal, isUserAgreementAccepted, requestSystemNotificationsAccess } from '../../ui/components.js?v=2.5.5';
+import { setLocation, detectUserPosition } from '../geo/geo.module.js?v=2.5.5';
+import { installShortcut, isApkOrTmaContainer, isAppInstalledOrShortcutPresent } from '../../core/pwa.js?v=2.5.5';
 import {
   openAuthAndBackupModal,
   openNotificationsModal,
@@ -19,11 +19,11 @@ import {
   syncCurrentProfileToCloudIfLoggedIn,
   renderSettingsZoneTabsHtml,
   bindSettingsZoneTabs
-} from '../circle/circle.module.js?v=2.5.4';
-import { fetchWeather } from '../weather/weather.module.js?v=2.5.4';
-import { checkForReleaseUpdate, isAndroidWebsiteVisitor, getCachedApkManifest, triggerApkFileDownload } from '../../core/updater.js?v=2.5.4';
-import { calcDayBest } from '../forecast/forecast.module.js?v=2.5.4';
-import { openFishPhotoScannerModal, analyzeFishPhotoHybrid, estimateWeightByLengthAndSpecies } from './scanner.js?v=2.5.4';
+} from '../circle/circle.module.js?v=2.5.5';
+import { fetchWeather } from '../weather/weather.module.js?v=2.5.5';
+import { checkForReleaseUpdate, isAndroidWebsiteVisitor, getCachedApkManifest, triggerApkFileDownload } from '../../core/updater.js?v=2.5.5';
+import { calcDayBest } from '../forecast/forecast.module.js?v=2.5.5';
+import { openFishPhotoScannerModal, analyzeFishPhotoHybrid, estimateWeightByLengthAndSpecies } from './scanner.js?v=2.5.5';
 const REGIONAL_SIGNATURE_SPECIES = {
   arctic_ob_taz: ['pike', 'perch', 'dace', 'peled', 'chir', 'pizhyan', 'ide', 'roach', 'crucian', 'burbot', 'grayling', 'tugun', 'cisco', 'ruffe', 'smelt'],
   yenisei_lena: ['pike', 'perch', 'grayling', 'lenok', 'dace', 'peled', 'chir', 'pizhyan', 'tugun', 'valek', 'ide', 'roach', 'crucian', 'burbot', 'char'],
@@ -537,9 +537,9 @@ export function openAppParamsModal(onBackToHub = null) {
             <div style="padding:8px 10px;background:rgba(16,185,129,0.10);border:1px solid var(--good);border-radius:var(--r-sm);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-top:2px;">
               <div style="min-width:0;flex:1;">
                 <div style="font-weight:800;font-size:11.5px;color:var(--good);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="6" y="2" width="12" height="20" rx="2.5" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="18" r="1.2" fill="#38bdf8"/></svg> Приложение для Android (.APK)</div>
-                <div style="font-size:11px;color:var(--muted);">Доступна версия: <b>v${getCachedApkManifest().version || '2.5.4'}</b> (${getCachedApkManifest().fileSize || '7.9 МБ'})</div>
+                <div style="font-size:11px;color:var(--muted);">Доступна версия: <b>v${getCachedApkManifest().version || '2.5.5'}</b> (${getCachedApkManifest().fileSize || '7.9 МБ'})</div>
               </div>
-              <button type="button" class="btn btn-sm btn-good" id="onbDownloadAndroidApkBtn" style="font-weight:800;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg> Скачать APK (v${getCachedApkManifest().version || '2.5.4'})</button>
+              <button type="button" class="btn btn-sm btn-good" id="onbDownloadAndroidApkBtn" style="font-weight:800;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg> Скачать APK (v${getCachedApkManifest().version || '2.5.5'})</button>
             </div>
           ` : ''}
         </div>

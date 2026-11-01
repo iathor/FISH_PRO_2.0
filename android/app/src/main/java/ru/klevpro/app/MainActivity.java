@@ -14,7 +14,10 @@ import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Color;
+import java.io.ByteArrayOutputStream;
 import android.media.AudioAttributes;
 import android.media.RingtoneManager;
 import android.net.Uri;
@@ -53,6 +56,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class MainActivity extends Activity {
     private static final int REQ_PERMISSIONS = 1001;
     private static final int REQ_FILE_CHOOSER = 1002;
+    private static final int REQ_CAMERA_CAPTURE = 1003;
+    private static final int REQ_CAMERA_PERM = 1004;
     private static final String VIRTUAL_HOST = "appassets.androidplatform.net";
     private static final String CHANNEL_ALERTS = "klev_pro_alerts";
     private static final String CHANNEL_FILES = "klev_pro_files";
@@ -62,6 +67,8 @@ public class MainActivity extends Activity {
 
     private WebView webView;
     private ValueCallback<Uri[]> fileUploadCallback;
+    private boolean pendingCameraLaunchAfterPerm = false;
+    private Uri pendingCameraPhotoUri = null;
     private long lastRootBackPressMs = 0L;
     private OnBackInvokedCallback backInvokedCallback;
 
@@ -89,6 +96,23 @@ public class MainActivity extends Activity {
             } catch (Exception e) {
                 return false;
             }
+        }
+
+        @JavascriptInterface
+        public void openNativeCamera() {
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                            pendingCameraLaunchAfterPerm = true;
+                            requestPermissions(new String[]{Manifest.permission.CAMERA}, REQ_CAMERA_PERM);
+                            return;
+                        }
+                    }
+                    launchNativeCameraIntent();
+                }
+            });
         }
 
         @JavascriptInterface
@@ -130,7 +154,7 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String getAppVersion() {
-            return "2.5.4-r191";
+            return "2.5.5-r192";
         }
 
         @JavascriptInterface
@@ -404,7 +428,7 @@ public class MainActivity extends Activity {
         ws.setCacheMode(WebSettings.LOAD_NO_CACHE);
         webView.clearCache(true);
         String baseUa = ws.getUserAgentString();
-        ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.5.4-r191");
+        ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.5.5-r192");
 
         webView.addJavascriptInterface(new NativeBridge(this), "AndroidBridge");
 
@@ -543,7 +567,25 @@ public class MainActivity extends Activity {
                             }
                         }
                     }
+                    boolean isCapture = (fileChooserParams != null && fileChooserParams.isCaptureEnabled());
+                    if (isCapture) {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                            pendingCameraLaunchAfterPerm = true;
+                            requestPermissions(new String[]{Manifest.permission.CAMERA}, REQ_CAMERA_PERM);
+                            return true;
+                        }
+                        launchNativeCameraIntent();
+                        return true;
+                    }
                     Intent chooser = Intent.createChooser(contentIntent, imageOnly ? "Выберите фото улова" : "Выберите файл (.GPX, .KML, .JSON, .CSV, фото)");
+                    if (imageOnly) {
+                        try {
+                            Intent camIntent = createCameraCaptureIntentWithUri();
+                            if (camIntent != null) {
+                                chooser.putExtra(Intent.EXTRA_INITIAL_INTENTS, new Intent[]{camIntent});
+                            }
+                        } catch (Exception ignored) {}
+                    }
                     startActivityForResult(chooser, REQ_FILE_CHOOSER);
                 } catch (Exception e) {
                     fileUploadCallback = null;
@@ -588,7 +630,7 @@ public class MainActivity extends Activity {
     }
 
     private void loadEntryUrlFromIntent(Intent intent) {
-        String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/index.html?v=2.5.4_r191";
+        String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/index.html?v=2.5.5_r192";
         if (intent != null && intent.getData() != null) {
             Uri data = intent.getData();
             String q = data.getEncodedQuery();
@@ -637,21 +679,167 @@ public class MainActivity extends Activity {
         }
     }
 
+    private Intent createCameraCaptureIntentWithUri() {
+        Intent camIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+        pendingCameraPhotoUri = null;
+        try {
+            ContentValues values = new ContentValues();
+            values.put(MediaStore.Images.Media.DISPLAY_NAME, "klev_scan_" + System.currentTimeMillis() + ".jpg");
+            values.put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg");
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                values.put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES);
+            }
+            pendingCameraPhotoUri = getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
+            if (pendingCameraPhotoUri != null) {
+                camIntent.putExtra(MediaStore.EXTRA_OUTPUT, pendingCameraPhotoUri);
+            }
+        } catch (Exception ignored) {
+            pendingCameraPhotoUri = null;
+        }
+        return camIntent;
+    }
+
+    private void launchNativeCameraIntent() {
+        try {
+            Intent camIntent = createCameraCaptureIntentWithUri();
+            startActivityForResult(camIntent, REQ_CAMERA_CAPTURE);
+        } catch (Exception e) {
+            try {
+                Intent simpleCam = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+                pendingCameraPhotoUri = null;
+                startActivityForResult(simpleCam, REQ_CAMERA_CAPTURE);
+            } catch (Exception ex) {
+                if (fileUploadCallback != null) {
+                    fileUploadCallback.onReceiveValue(null);
+                    fileUploadCallback = null;
+                }
+                Toast.makeText(this, "Не удалось открыть системную камеру устройства", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+
+    private String bitmapToDataUrl(Bitmap bmp) {
+        if (bmp == null) return null;
+        try {
+            int w = bmp.getWidth();
+            int h = bmp.getHeight();
+            int maxDim = 960;
+            if (w > maxDim || h > maxDim) {
+                float ratio = Math.min((float) maxDim / w, (float) maxDim / h);
+                w = Math.max(64, Math.round(w * ratio));
+                h = Math.max(64, Math.round(h * ratio));
+                bmp = Bitmap.createScaledBitmap(bmp, w, h, true);
+            }
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            bmp.compress(Bitmap.CompressFormat.JPEG, 84, baos);
+            String b64 = Base64.encodeToString(baos.toByteArray(), Base64.NO_WRAP);
+            return "data:image/jpeg;base64," + b64;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private String decodeUriToDataUrl(Uri uri) {
+        if (uri == null) return null;
+        try (InputStream is = getContentResolver().openInputStream(uri)) {
+            if (is == null) return null;
+            Bitmap bmp = BitmapFactory.decodeStream(is);
+            return bitmapToDataUrl(bmp);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQ_CAMERA_PERM || requestCode == REQ_PERMISSIONS) {
+            if (pendingCameraLaunchAfterPerm) {
+                pendingCameraLaunchAfterPerm = false;
+                boolean camGranted = true;
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    camGranted = checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED;
+                }
+                if (camGranted) {
+                    launchNativeCameraIntent();
+                } else {
+                    if (fileUploadCallback != null) {
+                        fileUploadCallback.onReceiveValue(null);
+                        fileUploadCallback = null;
+                    }
+                    Toast.makeText(this, "Разрешите доступ к Камере в настройках приложения", Toast.LENGTH_LONG).show();
+                }
+            }
+        }
+    }
+
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQ_CAMERA_CAPTURE) {
+            if (resultCode == Activity.RESULT_OK) {
+                String dataUrl = null;
+                if (pendingCameraPhotoUri != null) {
+                    dataUrl = decodeUriToDataUrl(pendingCameraPhotoUri);
+                }
+                if (dataUrl == null && data != null && data.getData() != null) {
+                    dataUrl = decodeUriToDataUrl(data.getData());
+                }
+                if (dataUrl == null && data != null && data.getExtras() != null) {
+                    Object rawBmp = data.getExtras().get("data");
+                    if (rawBmp instanceof Bitmap) {
+                        dataUrl = bitmapToDataUrl((Bitmap) rawBmp);
+                    }
+                }
+                if (fileUploadCallback != null) {
+                    if (pendingCameraPhotoUri != null) {
+                        fileUploadCallback.onReceiveValue(new Uri[]{pendingCameraPhotoUri});
+                    } else if (data != null && data.getData() != null) {
+                        fileUploadCallback.onReceiveValue(new Uri[]{data.getData()});
+                    } else {
+                        fileUploadCallback.onReceiveValue(null);
+                    }
+                    fileUploadCallback = null;
+                }
+                if (dataUrl != null && webView != null) {
+                    final String safeDataUrl = dataUrl;
+                    webView.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            webView.evaluateJavascript(
+                                "if (typeof window.__KLEV_ON_NATIVE_CAMERA_PHOTO__ === 'function') { window.__KLEV_ON_NATIVE_CAMERA_PHOTO__('" + safeDataUrl + "'); }",
+                                null
+                            );
+                        }
+                    });
+                }
+            } else {
+                if (pendingCameraPhotoUri != null) {
+                    try { getContentResolver().delete(pendingCameraPhotoUri, null, null); } catch (Exception ignored) {}
+                    pendingCameraPhotoUri = null;
+                }
+                if (fileUploadCallback != null) {
+                    fileUploadCallback.onReceiveValue(null);
+                    fileUploadCallback = null;
+                }
+            }
+            return;
+        }
+
         if (requestCode == REQ_FILE_CHOOSER && fileUploadCallback != null) {
             Uri[] results = null;
-            if (resultCode == Activity.RESULT_OK && data != null) {
-                if (data.getData() != null) {
+            if (resultCode == Activity.RESULT_OK) {
+                if (data != null && data.getData() != null) {
                     results = new Uri[]{data.getData()};
-                } else if (data.getClipData() != null) {
+                } else if (data != null && data.getClipData() != null) {
                     ClipData clip = data.getClipData();
                     int count = clip.getItemCount();
                     results = new Uri[count];
                     for (int i = 0; i < count; i++) {
                         results[i] = clip.getItemAt(i).getUri();
                     }
+                } else if (pendingCameraPhotoUri != null) {
+                    results = new Uri[]{pendingCameraPhotoUri};
                 }
             }
             if (results == null) {

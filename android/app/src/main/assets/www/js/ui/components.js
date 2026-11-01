@@ -1,5 +1,5 @@
-/* Klev PRO v2.5.4 r191 (Protected Build) */
-import { svgIcon } from './icons.js?v=2.5.4';
+/* Klev PRO v2.5.5 r192 (Protected Build) */
+import { svgIcon } from './icons.js?v=2.5.5';
 export function escapeHtml(raw) {
   if (raw === null || raw === undefined) return '';
   const str = String(raw);
@@ -160,7 +160,7 @@ export function openModal(title, contentHtml, onMount = null, canClose = true, o
   }
   const headerRightHtml = (options && options.headerRightHtml) ? String(options.headerRightHtml) : '';
   backdrop.innerHTML = `
-    <div class="modal-box ${footerHtml ? 'modal-has-sticky-footer' : ''}" role="dialog" aria-modal="true" aria-label="${title}">
+    <div class="modal-box ${footerHtml ? 'modal-has-sticky-footer' : ''}" role="dialog" aria-modal="true" aria-label="${escapeHtml(String(title || '').replace(/<[^>]+>/g, '').trim())}">
       <div class="section-head" style="margin-bottom:10px;">
         <h3 style="font-size:var(--fs-lg);font-weight:800;line-height:1.25;min-width:0;word-break:break-word;">${title}</h3>
         ${headerRightHtml}

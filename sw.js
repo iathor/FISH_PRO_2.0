@@ -5,9 +5,9 @@
  * - Автоматический пропуск локального контейнера Android APK (appassets.androidplatform.net), где файлы уже внутри APK
  */
 
-const CACHE_VERSION = 'klev-pro-v2.5.4-r191';
+const CACHE_VERSION = 'klev-pro-v2.5.5-r192';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
-const MAP_TILES_CACHE = 'klev-pro-map-tiles-v2.5.4-r191';
+const MAP_TILES_CACHE = 'klev-pro-map-tiles-v2.5.5-r192';
 const MAX_MAP_TILES = 650;
 
 const CORE_ASSETS = [
@@ -15,37 +15,37 @@ const CORE_ASSETS = [
   './index.html',
   './manifest.json',
   './version.json',
-  './css/tokens.css?v=2.5.4',
-  './css/base.css?v=2.5.4',
-  './css/components.css?v=2.5.4',
-  './css/layout.css?v=2.5.4',
-  './js/app.js?v=2.5.4',
-  './js/core/config.js?v=2.5.4',
-  './js/core/events.js?v=2.5.4',
-  './js/core/format.js?v=2.5.4',
-  './js/core/http.js?v=2.5.4',
-  './js/core/pwa.js?v=2.5.4',
-  './js/core/router.js?v=2.5.4',
-  './js/core/storage.js?v=2.5.4',
-  './js/core/store.js?v=2.5.4',
-  './js/core/telegram.js?v=2.5.4',
-  './js/core/updater.js?v=2.5.4',
-  './js/data/basins.js?v=2.5.4',
-  './js/data/russia-waters.js?v=2.5.4',
-  './js/data/species.js?v=2.5.4',
-  './js/data/waters.js?v=2.5.4',
-  './js/i18n/ru.js?v=2.5.4',
-  './js/modules/calendar/calendar.module.js?v=2.5.4',
-  './js/modules/circle/circle.module.js?v=2.5.4',
-  './js/modules/fish/fish.module.js?v=2.5.4',
-  './js/modules/fish/scanner.js?v=2.5.4',
-  './js/modules/forecast/forecast.module.js?v=2.5.4',
-  './js/modules/geo/geo.module.js?v=2.5.4',
-  './js/modules/log/log.module.js?v=2.5.4',
-  './js/modules/weather/weather.module.js?v=2.5.4',
-  './js/ui/components.js?v=2.5.4',
-  './js/ui/icons.js?v=2.5.4',
-  './js/ui/svg.js?v=2.5.4'
+  './css/tokens.css?v=2.5.5',
+  './css/base.css?v=2.5.5',
+  './css/components.css?v=2.5.5',
+  './css/layout.css?v=2.5.5',
+  './js/app.js?v=2.5.5',
+  './js/core/config.js?v=2.5.5',
+  './js/core/events.js?v=2.5.5',
+  './js/core/format.js?v=2.5.5',
+  './js/core/http.js?v=2.5.5',
+  './js/core/pwa.js?v=2.5.5',
+  './js/core/router.js?v=2.5.5',
+  './js/core/storage.js?v=2.5.5',
+  './js/core/store.js?v=2.5.5',
+  './js/core/telegram.js?v=2.5.5',
+  './js/core/updater.js?v=2.5.5',
+  './js/data/basins.js?v=2.5.5',
+  './js/data/russia-waters.js?v=2.5.5',
+  './js/data/species.js?v=2.5.5',
+  './js/data/waters.js?v=2.5.5',
+  './js/i18n/ru.js?v=2.5.5',
+  './js/modules/calendar/calendar.module.js?v=2.5.5',
+  './js/modules/circle/circle.module.js?v=2.5.5',
+  './js/modules/fish/fish.module.js?v=2.5.5',
+  './js/modules/fish/scanner.js?v=2.5.5',
+  './js/modules/forecast/forecast.module.js?v=2.5.5',
+  './js/modules/geo/geo.module.js?v=2.5.5',
+  './js/modules/log/log.module.js?v=2.5.5',
+  './js/modules/weather/weather.module.js?v=2.5.5',
+  './js/ui/components.js?v=2.5.5',
+  './js/ui/icons.js?v=2.5.5',
+  './js/ui/svg.js?v=2.5.5'
 ];
 
 function isMapTileHostname(hostname = '') {

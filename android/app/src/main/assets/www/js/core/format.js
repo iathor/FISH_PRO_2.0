@@ -1,5 +1,5 @@
-/* Klev PRO v2.5.4 r191 (Protected Build) */
-import { RU } from '../i18n/ru.js?v=2.5.4';
+/* Klev PRO v2.5.5 r192 (Protected Build) */
+import { RU } from '../i18n/ru.js?v=2.5.5';
 export function formatLocalYYYYMMDD(dt) {
   const y = dt.getFullYear();
   const m = String(dt.getMonth() + 1).padStart(2, '0');
