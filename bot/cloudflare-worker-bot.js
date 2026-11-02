@@ -373,6 +373,7 @@ function pickAllowedProfileFields(snap = null) {
  if (typeof snap.tgLinkedId === 'string' || typeof snap.tgLinkedId === 'number') out.tgLinkedId = String(snap.tgLinkedId).trim().slice(0, 32);
  if (typeof snap.tgUsername === 'string') out.tgUsername = snap.tgUsername.trim().replace(/^@/, '').slice(0, 48);
  if (typeof snap.pinHash === 'string') out.pinHash = snap.pinHash.trim().slice(0, 64);
+ if (typeof snap.geminiApiKey === 'string' && snap.geminiApiKey.trim().length >= 16) out.geminiApiKey = snap.geminiApiKey.trim().slice(0, 512);
  if (typeof snap.appMode === 'string' && ['novice', 'angler', 'pro'].includes(snap.appMode)) out.appMode = snap.appMode;
  if (typeof snap.theme === 'string' && ['auto', 'dark', 'light'].includes(snap.theme)) out.theme = snap.theme;
  if (snap.lat !== undefined) out.lat = clampLat(snap.lat, 66.0833);
@@ -770,13 +771,14 @@ const CORS_HEADERS = {
  'Referrer-Policy': 'strict-origin-when-cross-origin'
 };
 
-const MAX_REQUEST_BODY_BYTES = 65536;
+const MAX_REQUEST_BODY_BYTES = 524288;
 
-async function readWorkerRequestPayload(request, reqUrl) {
+async function readWorkerRequestPayload(request, reqUrl, maxBytes = MAX_REQUEST_BODY_BYTES) {
+ const effMax = Math.max(MAX_REQUEST_BODY_BYTES, Number(maxBytes) || MAX_REQUEST_BODY_BYTES);
  try {
   if (reqUrl && reqUrl.searchParams && reqUrl.searchParams.has('payload')) {
    const rawQ = String(reqUrl.searchParams.get('payload') || '');
-   if (rawQ.length > MAX_REQUEST_BODY_BYTES) {
+   if (rawQ.length > effMax) {
     const err = new Error('Payload Too Large');
     err.status = 413;
     throw err;
@@ -787,7 +789,7 @@ async function readWorkerRequestPayload(request, reqUrl) {
   if (e && e.status === 413) throw e;
  }
  const contentLen = Number(request?.headers?.get('content-length') || 0);
- if (contentLen > MAX_REQUEST_BODY_BYTES) {
+ if (contentLen > effMax) {
   const err = new Error('Payload Too Large');
   err.status = 413;
   throw err;
@@ -795,7 +797,7 @@ async function readWorkerRequestPayload(request, reqUrl) {
  try {
   const txt = await request.text();
   if (!txt) return {};
-  if (txt.length > MAX_REQUEST_BODY_BYTES) {
+  if (txt.length > effMax) {
    const err = new Error('Payload Too Large');
    err.status = 413;
    throw err;
@@ -4070,9 +4072,41 @@ async function ensurePersistentStateLoaded(env, forceReload = false) {
    const kvRow = await d1.prepare('SELECT v FROM klev_kv WHERE k = ?').bind('SYS_STATE_V2_1_1').first().catch(() => null);
    if (kvRow && kvRow.v) {
     const parsedKv = workerSafeJsonParse(kvRow.v, null);
-    if (parsedKv && Array.isArray(parsedKv.deletedIds)) {
-     for (const df of parsedKv.deletedIds) {
-      if (df) deletedFisherIdsSet.add(String(df).toUpperCase());
+    if (parsedKv) {
+     if (Array.isArray(parsedKv.deletedIds)) {
+      for (const df of parsedKv.deletedIds) {
+       if (df) deletedFisherIdsSet.add(String(df).toUpperCase());
+      }
+     }
+     if (parsedKv.geminiConfig && typeof parsedKv.geminiConfig === "object") {
+      if (typeof parsedKv.geminiConfig.apiKey === "string" && parsedKv.geminiConfig.apiKey.trim()) {
+       geminiConfigStore.apiKey = parsedKv.geminiConfig.apiKey.trim();
+      }
+      if (typeof parsedKv.geminiConfig.activeModel === "string" && parsedKv.geminiConfig.activeModel.trim()) {
+       geminiConfigStore.activeModel = parsedKv.geminiConfig.activeModel.trim();
+      }
+      const todayStr = new Date().toISOString().slice(0, 10);
+      if (parsedKv.geminiConfig.dateKey === todayStr && Number(parsedKv.geminiConfig.usedToday) > geminiConfigStore.usedToday) {
+       geminiConfigStore.usedToday = Number(parsedKv.geminiConfig.usedToday);
+       geminiConfigStore.dateKey = todayStr;
+      }
+     }
+    }
+   }
+   const gemRow = await d1.prepare('SELECT v FROM klev_kv WHERE k = ?').bind('GEMINI_CONFIG_V2').first().catch(() => null);
+   if (gemRow && gemRow.v) {
+    const parsedGem = workerSafeJsonParse(gemRow.v, null);
+    if (parsedGem && typeof parsedGem === "object") {
+     if (typeof parsedGem.apiKey === "string" && parsedGem.apiKey.trim()) {
+      geminiConfigStore.apiKey = parsedGem.apiKey.trim();
+     }
+     if (typeof parsedGem.activeModel === "string" && parsedGem.activeModel.trim()) {
+      geminiConfigStore.activeModel = parsedGem.activeModel.trim();
+     }
+     const todayStr = new Date().toISOString().slice(0, 10);
+     if (parsedGem.dateKey === todayStr && Number(parsedGem.usedToday) > geminiConfigStore.usedToday) {
+      geminiConfigStore.usedToday = Number(parsedGem.usedToday);
+      geminiConfigStore.dateKey = todayStr;
      }
     }
    }
@@ -4106,6 +4140,9 @@ async function ensurePersistentStateLoaded(env, forceReload = false) {
      if (p && r.auth_key) {
       const effFid = r.fisher_id || p.fisherId || '';
       if (effFid) p.fisherId = effFid;
+      if (!geminiConfigStore.apiKey && typeof p.geminiApiKey === 'string' && p.geminiApiKey.trim().length >= 16 && (isOwnerFisherId(effFid) || r.auth_key === 'OWNER_IATHOR_FP_89VIP089')) {
+       geminiConfigStore.apiKey = p.geminiApiKey.trim();
+      }
       cloudAuthProfiles.set(r.auth_key, p);
       const effLoginNorm = r.login_norm || workerNormalizeLogin(p.login || '');
       if (effLoginNorm) loginToAuthKeyMap.set(effLoginNorm, r.auth_key);
@@ -4329,12 +4366,14 @@ function getGeminiQuotaStatus(env = null, includeRawKeyForOwner = false) {
 
 const GEMINI_FALLBACK_MODELS = [
  "gemini-2.5-flash",
+ "gemini-2.5-pro",
  "gemini-2.5-flash-lite",
+ "gemini-3.1-flash-lite-preview",
+ "gemini-3-flash-preview",
  "gemini-2.0-flash",
  "gemini-2.0-flash-lite",
- "gemini-1.5-flash",
- "gemini-2.5-pro",
- "gemini-1.5-pro"
+ "gemini-1.5-pro",
+ "gemini-1.5-flash"
 ];
 
 const _workerDiscoveredModelsCache = new Map();
@@ -4365,14 +4404,16 @@ async function discoverGeminiModelsForWorker(apiKey) {
      if (!id.startsWith("gemini-")) continue;
      if (/embedding|imagen|veo|tts|audio|aqa|bisect|learnlm|robotics|computer-use|-image$|1\.0/i.test(id)) continue;
      let score = 100;
-     if (id === "gemini-2.5-flash") score += 900;
-     else if (id === "gemini-2.5-flash-lite") score += 880;
+     if (id === "gemini-2.5-flash") score += 950;
+     else if (id === "gemini-2.5-pro") score += 930;
+     else if (id === "gemini-2.5-flash-lite") score += 910;
+     else if (id === "gemini-3.1-flash-lite-preview" || id === "gemini-3-flash-preview") score += 890;
      else if (id === "gemini-2.0-flash") score += 860;
-     else if (id === "gemini-2.0-flash-lite") score += 840;
+     else if (id === "gemini-1.5-pro") score += 820;
      else if (id === "gemini-1.5-flash") score += 800;
      else if (id.includes("flash")) score += 500;
-     else if (id.includes("pro")) score += 200;
-     if (!id.includes("exp") && !id.includes("preview") && !id.includes("thinking")) score += 250;
+     else if (id.includes("pro")) score += 400;
+     if (!id.includes("exp") && !id.includes("preview") && !id.includes("thinking")) score += 200;
      scored.push({ id, score });
     }
     scored.sort((a, b) => b.score - a.score);
@@ -4390,13 +4431,58 @@ async function discoverGeminiModelsForWorker(apiKey) {
  return GEMINI_FALLBACK_MODELS;
 }
 
+let _workerUseGeoRelay = false;
+
+async function _fetchGeminiWithGeoFallback(gUrl, bodyStr, timeoutMs) {
+ const tryFetchUrl = async (targetUrl, ms) => {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  try {
+   const r = await fetch(targetUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: bodyStr,
+    signal: ctrl.signal
+   }).catch(() => null);
+   clearTimeout(timer);
+   return r;
+  } catch (e) {
+   clearTimeout(timer);
+   return null;
+  }
+ };
+
+ if (!_workerUseGeoRelay) {
+  const directRes = await tryFetchUrl(gUrl, timeoutMs);
+  if (directRes && directRes.ok) return { res: directRes, errTxt: "" };
+  if (directRes) {
+   const errTxt = await directRes.text().catch(() => "");
+   if (/location is not supported|FAILED_PRECONDITION/i.test(errTxt)) {
+    _workerUseGeoRelay = true;
+   } else {
+    return { res: directRes, errTxt };
+   }
+  }
+ }
+
+ const relayUrls = [
+  `https://corsproxy.io/?url=${encodeURIComponent(gUrl)}`,
+  `https://thingproxy.freeboard.io/fetch/${gUrl}`
+ ];
+ for (const rUrl of relayUrls) {
+  const rRes = await tryFetchUrl(rUrl, timeoutMs);
+  if (rRes && rRes.ok) return { res: rRes, errTxt: "" };
+ }
+ return { res: null, errTxt: "Geo relay failed" };
+}
+
 async function callGeminiGenerateContentSmart(apiKey, contentsPayload, genConfig = {}, timeoutMs = 12000) {
  const cleanKey = String(apiKey || "").trim().replace(/^["'\s]+|["'\s]+$/g, "");
  if (!cleanKey) return { ok: false, status: 400, errorText: "Empty key" };
 
  const discovered = await discoverGeminiModelsForWorker(cleanKey);
  const candidates = [];
- if (geminiConfigStore.activeModel && /^gemini-(2\.5|2\.0|1\.5)-/i.test(geminiConfigStore.activeModel) && !/preview|exp/i.test(geminiConfigStore.activeModel)) {
+ if (geminiConfigStore.activeModel && geminiConfigStore.activeModel.startsWith("gemini-")) {
   candidates.push(geminiConfigStore.activeModel);
  }
  for (const m of discovered) {
@@ -4425,19 +4511,12 @@ async function callGeminiGenerateContentSmart(apiKey, contentsPayload, genConfig
 
   for (let cIdx = 0; cIdx < tryConfigs.length; cIdx++) {
    try {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
     const gUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${encodeURIComponent(cleanKey)}`;
-    const res = await fetch(gUrl, {
-     method: "POST",
-     headers: { "Content-Type": "application/json" },
-     body: JSON.stringify({
-      contents: contentsPayload,
-      generationConfig: tryConfigs[cIdx]
-     }),
-     signal: ctrl.signal
-    }).catch(() => null);
-    clearTimeout(timer);
+    const bodyStr = JSON.stringify({
+     contents: contentsPayload,
+     generationConfig: tryConfigs[cIdx]
+    });
+    const { res, errTxt } = await _fetchGeminiWithGeoFallback(gUrl, bodyStr, timeoutMs);
 
     if (!res) continue;
     lastStatus = res.status;
@@ -4445,13 +4524,14 @@ async function callGeminiGenerateContentSmart(apiKey, contentsPayload, genConfig
     if (res.ok) {
      const rJson = await res.json().catch(() => null);
      const parts = rJson?.candidates?.[0]?.content?.parts || [];
-     const nonThought = parts.filter(p => !p.thought && typeof p.text === "string");
+     const nonThought = parts.filter(p => !p.thought && typeof p.text === "string" && p.text.trim());
      const rawTxt = (nonThought.length > 0 ? nonThought.map(p => p.text).join("\n") : parts.map(p => p.text || "").join("\n")).trim();
-     geminiConfigStore.activeModel = modelId;
-     return { ok: true, model: modelId, status: 200, json: rJson, text: rawTxt };
+     if (rawTxt) {
+      geminiConfigStore.activeModel = modelId;
+      return { ok: true, model: modelId, status: 200, json: rJson, text: rawTxt };
+     }
     }
 
-    const errTxt = await res.text().catch(() => "");
     lastErrorText = errTxt;
 
     if (res.status === 400 && cIdx === 0 && tryConfigs.length > 1 && /mime|schema|config/i.test(errTxt)) {
@@ -4459,7 +4539,7 @@ async function callGeminiGenerateContentSmart(apiKey, contentsPayload, genConfig
     }
 
     if (res.status === 400 || res.status === 403) {
-     if (/location is not supported|FAILED_PRECONDITION|API_KEY_INVALID|PERMISSION_DENIED/i.test(errTxt)) {
+     if (/API_KEY_INVALID|PERMISSION_DENIED/i.test(errTxt)) {
       return { ok: false, status: res.status, errorText: errTxt };
      }
     }
@@ -4652,6 +4732,7 @@ async function persistSystemMeta(env, ctx = null) {
   if (d1) {
    try {
     await d1.prepare('INSERT OR REPLACE INTO klev_kv (k, v, updated_at) VALUES (?, ?, ?)').bind('SYS_STATE_V2_1_1', payloadStr, Date.now()).run();
+    await d1.prepare('INSERT OR REPLACE INTO klev_kv (k, v, updated_at) VALUES (?, ?, ?)').bind('GEMINI_CONFIG_V2', JSON.stringify(geminiConfigStore), Date.now()).run().catch(() => {});
     for (const [rc, permVal] of regionSequenceCounters.entries()) {
      const rzVal = regionReserveCounters.get(rc) || 0;
      await d1.prepare('INSERT OR REPLACE INTO region_counters (region_code, seq_perm, seq_reserve) VALUES (?, ?, ?)').bind(rc, permVal, rzVal).run().catch(() => {});
@@ -5253,14 +5334,17 @@ export default {
   }
 
   // ── Прямой Vision ИИ-определитель рыбы (/api/ai/identify-fish) через Gemini Flash Vision без рамок и подставных заглушек ──
-  if (reqUrl.pathname.endsWith('/api/ai/identify-fish') && request.method === 'POST') {
+  if (reqUrl.pathname.endsWith('/api/ai/identify-fish') && (request.method === 'POST' || reqUrl.searchParams.has('payload'))) {
    try {
     await ensurePersistentStateLoaded(env);
-    const b = await readWorkerRequestPayload(request, reqUrl);
+    const b = await readWorkerRequestPayload(request, reqUrl, 4194304);
     const dhash = String(b?.dhash || '').toLowerCase().replace(/^dh_/, '');
     const basinCode = String(b?.basinCode || 'arctic_ob_taz');
     const rawImgB64 = String(b?.imageBase64 || b?.thumbDataUrl || '').trim();
     const clientGeminiKey = String(b?.geminiApiKey || '').trim();
+    if (clientGeminiKey && clientGeminiKey.length >= 20 && !geminiConfigStore.apiKey) {
+     geminiConfigStore.apiKey = clientGeminiKey;
+    }
 
     if (!globalThis.__klevVisionDirectCacheMap) {
      globalThis.__klevVisionDirectCacheMap = new Map();
@@ -5306,7 +5390,7 @@ export default {
          }],
          {
           temperature: 0.15,
-          maxOutputTokens: 2048
+          maxOutputTokens: 4096
          },
          12000
         );
@@ -6615,8 +6699,8 @@ function generateSyntheticWeatherJson(lat, lon) {
     appName: 'Клёв ПРО 2.0',
     packageName: 'ru.klevpro.app',
     version: WORKER_VERSION,
-    versionCode: 256195,
-    buildRevision: '2026.11.01-r195',
+    versionCode: 256196,
+    buildRevision: '2026.11.01-r196',
     releaseDate: '2026-10-30',
     apkFileName: `klev-pro-v${WORKER_VERSION}.apk`,
     apkUrl: `https://klevpro.ru/apk/klev-pro-v${WORKER_VERSION}.apk`,
