@@ -3520,13 +3520,10 @@ async function identifyFishPhotoForBot(env, ctx, botToken, fileId, city, caption
 
  const extraHint = captionText ? ` Подсказка: ${captionText.slice(0, 100)}.` : '';
  const prompt =
-  `Определи, что за рыба на фото, её примерную длину (в см) и примерный вес (в граммах, с привязкой к масштабу руки или предметов в кадре).${extraHint}\n` +
-  `Внимательно проверь морфологические признаки на снимке:\n` +
-  `1) У хариуса (Thymallus) огромный высокий спинной плавник-«парус» (17–24 луча). Если спинной плавник короткий и обычный — это НЕ хариус!\n` +
-  `2) Проверь наличие жирового плавника на хвостовом стебле, размер чешуи, форму рта и пятна/полосы пестрятки (лососёвые: ленок, кумжа/ручьевая форель/пеструшка, таймень, голец, микижа; сиговые: тугун, сиг-пыжьян, пелядь, чир, валёк, ряпушка; карповые без жирового плавника: елец, плотва, язь, голавль).\n` +
-  `Если на фото несколько РАЗНЫХ видов рыб, перечисли каждый вид отдельно в массиве species.\n` +
-  `Верни ТОЛЬКО короткий JSON без текста вокруг:\n` +
-  `{"fishNameRu":"точное название рыбы на русском","lengthCm":22,"weightGrams":140,"sizeText":"~22 см • ~140 г","species":[{"fishNameRu":"название вида 1","lengthCm":22,"weightGrams":140}]}`;
+  `Определи, что за рыба на фото, её примерную длину (в см) и примерный вес (в граммах, по масштабу ладони или предметов в кадре). Регион съёмки: ${city.name} (${city.basin}).${extraHint}\n` +
+  `Не путай сиговых (сиг-пыжьян, пелядь, тугун, чир, ряпушка, валёк — короткий спинной плавник и жировой плавник) и карповых (елец, плотва, язь — без жирового плавника) с хариусом (у хариуса высокий спинной плавник-парус). Если на фото несколько РАЗНЫХ видов рыб, перечисли их в species.\n` +
+  `Рассуждай максимально кратко (1–2 фразы) и сразу верни ТОЛЬКО короткий JSON без текста вокруг:\n` +
+  `{"fishNameRu":"название рыбы на русском","lengthCm":22,"weightGrams":140,"sizeText":"~22 см • ~140 г","species":[{"fishNameRu":"название вида 1","lengthCm":22,"weightGrams":140}]}`;
 
  let rawAiText = '';
  const geminiKeys = getEffectiveGeminiKeys(env, '');
@@ -3544,7 +3541,7 @@ async function identifyFishPhotoForBot(env, ctx, botToken, fileId, city, caption
        { inline_data: { mime_type: mimeType, data: pureB64 } }
       ]
      }],
-     { temperature: 0.1, maxOutputTokens: 8192 },
+     { temperature: 0.1, maxOutputTokens: 4096 },
      12000
     );
     if (smartRes && smartRes.ok && smartRes.text) {
@@ -4999,14 +4996,12 @@ function getGeminiQuotaStatus(env = null, includeRawKeyForOwner = false) {
 }
 
 const GEMINI_FALLBACK_MODELS = [
- "gemini-2.5-pro",
  "gemini-2.5-flash",
- "gemini-2.0-flash",
- "gemini-1.5-pro",
- "gemini-1.5-flash",
- "gemini-2.5-flash-lite",
  "gemini-3-flash-preview",
- "gemini-3.1-flash-lite-preview"
+ "gemini-2.5-pro",
+ "gemini-2.5-flash-lite",
+ "gemini-3.1-flash-lite-preview",
+ "gemini-2.0-flash"
 ];
 
 const _workerDiscoveredModelsCache = new Map();
@@ -5037,12 +5032,11 @@ async function discoverGeminiModelsForWorker(apiKey) {
      if (!id.startsWith("gemini-")) continue;
      if (/embedding|imagen|veo|tts|audio|aqa|bisect|learnlm|robotics|computer-use|-image$|1\.0/i.test(id)) continue;
      let score = 100;
-     if (id === "gemini-2.5-pro") score += 980;
-     else if (id === "gemini-2.5-flash") score += 960;
-     else if (id === "gemini-2.0-flash") score += 880;
-     else if (id === "gemini-1.5-pro") score += 850;
-     else if (id === "gemini-2.5-flash-lite") score += 720;
-     else if (id === "gemini-3.1-flash-lite-preview" || id === "gemini-3-flash-preview") score += 650;
+     if (id === "gemini-2.5-flash") score += 960;
+     else if (id === "gemini-3-flash-preview") score += 950;
+     else if (id === "gemini-2.5-pro") score += 930;
+     else if (id === "gemini-2.5-flash-lite") score += 910;
+     else if (id === "gemini-3.1-flash-lite-preview") score += 890;
      else if (id === "gemini-2.0-flash") score += 860;
      else if (id === "gemini-1.5-pro") score += 820;
      else if (id === "gemini-1.5-flash") score += 800;
@@ -5130,13 +5124,21 @@ async function callGeminiGenerateContentSmart(apiKey, contentsPayload, genConfig
 
  for (let i = 0; i < maxAttempts; i++) {
   const modelId = candidates[i];
-  const tryConfigs = [
-   {
+  const isThinkingCapable = /gemini-(2\.5|3)/i.test(modelId);
+  const tryConfigs = [];
+  if (isThinkingCapable) {
+   tryConfigs.push({
     temperature: genConfig.temperature ?? 0.1,
-    maxOutputTokens: Math.max(8192, genConfig.maxOutputTokens ?? 8192),
+    maxOutputTokens: genConfig.maxOutputTokens ?? 4096,
+    thinkingConfig: { thinkingBudget: 512 },
     ...(genConfig.responseMimeType ? { responseMimeType: genConfig.responseMimeType } : {})
-   }
-  ];
+   });
+  }
+  tryConfigs.push({
+   temperature: genConfig.temperature ?? 0.1,
+   maxOutputTokens: genConfig.maxOutputTokens ?? 4096,
+   ...(genConfig.responseMimeType ? { responseMimeType: genConfig.responseMimeType } : {})
+  });
   if (genConfig.responseMimeType) {
    tryConfigs.push({
     temperature: genConfig.temperature ?? 0.1,
@@ -5160,10 +5162,13 @@ async function callGeminiGenerateContentSmart(apiKey, contentsPayload, genConfig
      const rJson = await res.json().catch(() => null);
      const parts = rJson?.candidates?.[0]?.content?.parts || [];
      const nonThought = parts.filter(p => !p.thought && typeof p.text === "string" && p.text.trim());
-     const rawTxt = (nonThought.length > 0 ? nonThought.map(p => p.text).join("\n") : parts.map(p => p.text || "").join("\n")).trim();
+     const rawTxt = (nonThought.length > 0 ? nonThought.map(p => p.text).join("\n") : parts.filter(p => !p.thought).map(p => p.text || "").join("\n")).trim();
      if (rawTxt) {
-      if (!/preview|lite/i.test(modelId)) geminiConfigStore.activeModel = modelId;
+      geminiConfigStore.activeModel = modelId;
       return { ok: true, model: modelId, status: 200, json: rJson, text: rawTxt };
+     }
+     if (cIdx < tryConfigs.length - 1) {
+      continue;
      }
     }
 
@@ -5982,13 +5987,13 @@ export default {
      geminiConfigStore.apiKey = clientGeminiKey;
     }
 
-    if (!globalThis.__klevVisionDirectCacheMap_v260) {
-     globalThis.__klevVisionDirectCacheMap_v260 = new Map();
+    if (!globalThis.__klevVisionDirectCacheMap_v262_r201) {
+     globalThis.__klevVisionDirectCacheMap_v262_r201 = new Map();
     }
     if (typeof globalThis.__klevGeminiKeyIdx !== 'number') {
      globalThis.__klevGeminiKeyIdx = 0;
     }
-    const visionCache = globalThis.__klevVisionDirectCacheMap_v260;
+    const visionCache = globalThis.__klevVisionDirectCacheMap_v262_r201;
 
     const bypassCache = Boolean(b?.bypassCache);
     if (bypassCache && dhash) {
@@ -6005,11 +6010,12 @@ export default {
     const withinRateLimit = checkWorkerRateLimit(`vision_${clientIp}`, false, 30);
     const pureB64 = rawImgB64.includes(',') ? rawImgB64.split(',')[1] : rawImgB64;
 
+    const locHint = String(b?.locLabel || '').trim();
     const DIRECT_VISION_PROMPT = String(b?.directPrompt || '').trim() || (
-     'Определи, что за рыба на фото, её примерный размер (длину в см) и примерный вес (в граммах или кг, с привязкой к масштабу ладони или предметов в кадре).\n' +
-     'Если на фото несколько рыб, возьми за основную центральную (или самую крупную), а в поле fullText подробно распиши каждую рыбу и суммарный вес.\n' +
-     'Верни ответ в формате JSON (без обёрток):\n' +
-     '{"fishNameRu":"название рыбы на русском","fishNameLat":"латинское название","confidence":96,"lengthCm":6,"weightGrams":5,"sizeText":"Длина ~5–6.5 см • Вес ~5–7 г","traits":"диагностические признаки на фото","fullText":"подробное описание рыбы, оценка размера и массы каждой особи на фото","alternatives":[{"fishNameRu":"похожий вид","confidence":20,"reason":"чем отличается"}]}'
+     `Определи, что за рыба на фото, её примерный размер (длину в см) и примерный вес (в граммах или кг, по масштабу ладони или предметов в кадре).${locHint ? ' Регион: ' + locHint + '.' : ''}\n` +
+     'Проверь форму спинного плавника (у хариуса высокий парус, если спинной плавник короткий — это НЕ хариус), наличие жирового плавника, чешую и окраску (сиговые: сиг-пыжьян, пелядь, тугун, чир, ряпушка, валёк; лососёвые: ленок, кумжа/форель, таймень, голец; карповые: елец, плотва, язь, голавль).\n' +
+     'Верни ТОЛЬКО валидный JSON:\n' +
+     '{"fishNameRu":"точное название рыбы на русском","fishNameLat":"латинское название","confidence":96,"lengthCm":24,"weightGrams":180,"sizeText":"Длина ~24 см • Вес ~180 г","traits":"краткие признаки на фото","fullText":"описание вида, длины и веса рыбы на фото","alternatives":[{"fishNameRu":"похожий вид","confidence":15,"reason":"отличие"}]}'
     );
 
     if (withinRateLimit && pureB64 && pureB64.length > 200) {
@@ -6030,7 +6036,7 @@ export default {
          }],
          {
           temperature: 0.15,
-          maxOutputTokens: 8192
+          maxOutputTokens: 4096
          },
          12000
         );
@@ -7346,8 +7352,8 @@ function generateSyntheticWeatherJson(lat, lon) {
     appName: 'Клёв ПРО 2.0',
     packageName: 'ru.klevpro.app',
     version: WORKER_VERSION,
-    versionCode: 256200,
-    buildRevision: '2026.11.01-r196',
+    versionCode: 256201,
+    buildRevision: '2026.11.01-r201',
     releaseDate: '2026-10-30',
     apkFileName: `klev-pro-v${WORKER_VERSION}.apk`,
     apkUrl: `https://klevpro.ru/apk/klev-pro-v${WORKER_VERSION}.apk`,
@@ -7929,7 +7935,7 @@ function generateSyntheticWeatherJson(lat, lon) {
    const isMentionOrCmd = /@KlevProClubBot/i.test(captionRaw) || /^\/(ai|klev|fish)/i.test(captionRaw) || /^(клев|ии|кто|что за рыба)/i.test(captionRaw) || Boolean(msg.reply_to_message?.from?.is_bot);
    if (!isMentionOrCmd) return new Response('OK', { status: 200 });
   }
-  const bestPhoto = hasPhoto ? msg.photo[msg.photo.length - 1] : msg.document;
+  const bestPhoto = hasPhoto ? (msg.photo.filter(p => (p.width || 0) <= 960 && (p.file_size || 0) <= 120000).pop() || msg.photo[msg.photo.length - 1]) : msg.document;
   const fileId = bestPhoto?.file_id;
   if (fileId) {
    const { city } = await resolveQueryCityAndFish(captionRaw || session.cityName, session);
