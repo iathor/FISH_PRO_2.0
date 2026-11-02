@@ -3103,6 +3103,18 @@ function buildSpotContext(lat, lon, customName = '', forcedWaterObj = null, forc
  };
 }
 
+function encodeKplocToken(lat, lon, fishId = 'pike', fisherId = '') {
+ const encCoord = (v) => {
+  const num = Number(v) || 0;
+  const neg = num < 0 ? 'M' : '';
+  const scaled = Math.round(Math.abs(num) * 10000);
+  return `${neg}${scaled}`;
+ };
+ const cleanFish = String(fishId || 'pike').replace(/[^a-z0-9_]/gi, '').slice(0, 24) || 'pike';
+ const fidPart = fisherId && /^FP_[A-Z0-9]{6,8}$/i.test(fisherId) ? `_${fisherId.toUpperCase()}` : '';
+ return `KPLOC_${encCoord(lat)}_${encCoord(lon)}_${cleanFish}${fidPart}`;
+}
+
 function decodeKplocToken(rawParam = '') {
  const str = String(rawParam || '').trim();
  if (!str.startsWith('KPLOC_')) return null;
@@ -3307,24 +3319,278 @@ function saveUserSession(userId, patch = {}) {
 
 const BOT_REPLY_KEYBOARD = {
  keyboard: [
-  [{ text: '🌟 Рекомендации' }],
-  [{ text: '⚡' }, { text: '🔍' }, { text: '👤' }, { text: '❓' }]
+  [{ text: '🎣 Прогноз' }, { text: '🌟 ТОП-5 клёва' }, { text: '📷 ИИ по фото' }],
+  [{ text: '🌊 Водоёмы и Лёд' }, { text: '📡 Круг и SOS' }, { text: '🧭 Меню' }]
  ],
  resize_keyboard: true,
  is_persistent: true,
- input_field_placeholder: 'Город, водоём или рыба (напр. Ярославль судак)...'
+ input_field_placeholder: 'Город, водоём, рыба или фото улова...'
 };
 
 const BOT_COMMANDS_LIST = [
- { command: 'start', description: '🧭 Запуск и панель быстрых кнопок' },
+ { command: 'start', description: '🧭 Запуск и главное меню' },
+ { command: 'menu', description: '🎛 Все функции бота (подменю)' },
  { command: 'klev', description: '🎣 Прогноз клёва (напр. /klev Ярославль судак)' },
- { command: 'top', description: '🌟 Рекомендации и ТОП-5 клёва сегодня' },
- { command: 'waters', description: '🌊 Водоёмы рядом (радиус 50 и 120 км)' },
- { command: 'fish', description: '🐟 Полный список рыб в локации' },
- { command: 'crew', description: '⚡ Экспресс-радар на 72 часа (3 дня)' },
- { command: 'profile', description: '👤 Мой профиль и домашняя точка' },
+ { command: 'top', description: '🌟 ТОП-5 клёва сегодня в локации' },
+ { command: 'ai', description: '📷 Определить рыбу, размер и вес по фото' },
+ { command: 'waters', description: '🌊 Водоёмы и ледовая обстановка рядом' },
+ { command: 'fish', description: '🐟 Выбор рыбы в вашей локации' },
+ { command: 'crew', description: '📡 Радар Круга, Слипы, Экипажи и 72ч' },
+ { command: 'profile', description: '👤 Мой профиль и Рыболовный ID' },
  { command: 'help', description: '❓ Справка и работа в группах/каналах' }
 ];
+
+const botVisionDetailsCache = new Map();
+
+function arrayBufferToBase64Safe(buffer) {
+ const bytes = new Uint8Array(buffer);
+ let binary = '';
+ const chunkSize = 8192;
+ for (let i = 0; i < bytes.length; i += chunkSize) {
+  const sub = bytes.subarray(i, i + chunkSize);
+  binary += String.fromCharCode.apply(null, sub);
+ }
+ return btoa(binary);
+}
+
+function matchBotFishByAiName(nameRu, nameLat, spotSpeciesList) {
+ const normRu = normStr(nameRu || '');
+ const normLat = normStr(nameLat || '');
+ const pool = (Array.isArray(spotSpeciesList) && spotSpeciesList.length > 0)
+  ? [...spotSpeciesList, ...BOT_FISH_CATALOG]
+  : BOT_FISH_CATALOG;
+ if (normRu) {
+  for (const f of pool) {
+   const fNameNorm = normStr(f.name || '');
+   if (fNameNorm === normRu || fNameNorm.startsWith(normRu + ' ') || normRu.includes(fNameNorm.split(' ')[0])) {
+    return f;
+   }
+   if (Array.isArray(f.keywords)) {
+    for (const kw of f.keywords) {
+     if (normRu === kw || normRu.includes(kw)) return f;
+    }
+   }
+  }
+ }
+ if (normLat) {
+  for (const f of BOT_FISH_CATALOG) {
+   if (f.id && normLat.includes(normStr(f.id))) return f;
+  }
+ }
+ return (spotSpeciesList && spotSpeciesList[0]) || BOT_FISH_CATALOG[0];
+}
+
+function parseBotAiVisionJson(rawText) {
+ const clean = String(rawText || '').trim();
+ if (!clean) return null;
+ let jsonCandidate = clean;
+ const fenced = clean.match(/```(?:json)?\s*([\s\S]*?)```/i);
+ if (fenced && fenced[1]) {
+  jsonCandidate = fenced[1].trim();
+ } else {
+  const firstBrace = clean.indexOf('{');
+  const lastBrace = clean.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace > firstBrace) {
+   jsonCandidate = clean.slice(firstBrace, lastBrace + 1);
+  }
+ }
+ try {
+  const parsed = JSON.parse(jsonCandidate);
+  if (parsed && typeof parsed === 'object') {
+   return {
+    fishNameRu: String(parsed.fishNameRu || parsed.name || parsed.species || 'Рыба определена').trim(),
+    fishNameLat: String(parsed.fishNameLat || parsed.latinName || '').trim(),
+    confidence: Math.max(50, Math.min(99, Number(parsed.confidence) || 92)),
+    lengthCm: Number(parsed.lengthCm) || 0,
+    weightGrams: Number(parsed.weightGrams) || 0,
+    sizeText: String(parsed.sizeText || '').trim(),
+    traits: String(parsed.traits || '').trim(),
+    fullText: String(parsed.fullText || parsed.description || '').trim(),
+    alternatives: Array.isArray(parsed.alternatives) ? parsed.alternatives.slice(0, 2) : []
+   };
+  }
+ } catch (_) {}
+ const firstLine = clean.split('\n').map(l => l.replace(/^[#*\-\s]+/, '').trim()).find(Boolean) || 'Рыба на снимке';
+ return {
+  fishNameRu: firstLine.slice(0, 60),
+  fishNameLat: '',
+  confidence: 90,
+  lengthCm: 0,
+  weightGrams: 0,
+  sizeText: 'См. оценку в описании ниже',
+  traits: '',
+  fullText: clean.slice(0, 1200),
+  alternatives: []
+ };
+}
+
+async function identifyFishPhotoForBot(env, ctx, botToken, fileId, city, captionText = '') {
+ const fileMeta = await tgApi(botToken, 'getFile', { file_id: fileId });
+ const filePath = fileMeta?.result?.file_path;
+ if (!filePath) {
+  return { ok: false, error: 'Не удалось загрузить снимок с серверов Telegram.' };
+ }
+ const fileRes = await fetch(`https://api.telegram.org/file/bot${botToken}/${filePath}`);
+ if (!fileRes.ok) {
+  return { ok: false, error: 'Ошибка чтения файла изображения.' };
+ }
+ const arrBuf = await fileRes.arrayBuffer();
+ const pureB64 = arrayBufferToBase64Safe(arrBuf);
+ const mimeType = /\.png$/i.test(filePath) ? 'image/png' : (/\.webp$/i.test(filePath) ? 'image/webp' : 'image/jpeg');
+
+ const extraHint = captionText ? `\nПодсказка от рыбака: ${captionText.slice(0, 150)}.` : '';
+ const prompt =
+  `Определи, что за рыба на фото, её примерный размер (длину в см) и примерный вес (в граммах или кг, с привязкой к масштабу ладони, снасти или предметов в кадре). ` +
+  `Регион съёмки: ${city.name} (${city.basin}).${extraHint}\n` +
+  `Если на фото несколько рыб, возьми за основную центральную (или самую крупную), а в поле fullText распиши каждую рыбу и общий вес.\n` +
+  `Верни ТОЛЬКО валидный JSON без обёрток:\n` +
+  `{"fishNameRu":"название рыбы на русском","fishNameLat":"латинское название","confidence":96,"lengthCm":24,"weightGrams":180,"sizeText":"Длина ~22–25 см • Вес ~170–200 г","traits":"ключевые признаки вида на фото (плавники, чешуя, рот, окрас)","fullText":"подробный разбор вида, оценка размеров каждой рыбы на снимке и кулинарно-трофейная ценность","alternatives":[{"fishNameRu":"похожий вид","confidence":18,"reason":"отличие"}]}`;
+
+ let rawAiText = '';
+ let engineName = 'Gemini Vision ИИ';
+ const geminiKeys = getEffectiveGeminiKeys(env, '');
+
+ if (geminiKeys.length > 0) {
+  if (typeof globalThis.__klevGeminiKeyIdx !== 'number') globalThis.__klevGeminiKeyIdx = 0;
+  for (let attempt = 0; attempt < Math.min(2, geminiKeys.length); attempt++) {
+   const gKey = geminiKeys[(globalThis.__klevGeminiKeyIdx++) % geminiKeys.length];
+   try {
+    const smartRes = await callGeminiGenerateContentSmart(
+     gKey,
+     [{
+      parts: [
+       { text: prompt },
+       { inline_data: { mime_type: mimeType, data: pureB64 } }
+      ]
+     }],
+     { temperature: 0.15, maxOutputTokens: 2048 },
+     12000
+    );
+    if (smartRes && smartRes.ok && smartRes.text) {
+     rawAiText = smartRes.text;
+     engineName = `Google ${smartRes.model || 'Gemini Flash'} Vision ИИ`;
+     recordGeminiRequestUsed();
+     persistSystemMeta(env, ctx).catch(() => {});
+     break;
+    }
+   } catch (_) {}
+  }
+ }
+
+ if (!rawAiText) {
+  try {
+   const pCtrl = new AbortController();
+   const pTimer = setTimeout(() => pCtrl.abort(), 8500);
+   const dataUri = `data:${mimeType};base64,${pureB64}`;
+   const pRes = await fetch('https://text.pollinations.ai/openai', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+     model: 'openai',
+     temperature: 0.15,
+     messages: [{
+      role: 'user',
+      content: [
+       { type: 'text', text: prompt },
+       { type: 'image_url', image_url: { url: dataUri } }
+      ]
+     }]
+    }),
+    signal: pCtrl.signal
+   }).catch(() => null);
+   clearTimeout(pTimer);
+   if (pRes && pRes.ok) {
+    const pJson = await pRes.json().catch(() => null);
+    rawAiText = String(pJson?.choices?.[0]?.message?.content || '').trim();
+    engineName = 'Gemini Vision ИИ (Облачный шлюз)';
+   }
+  } catch (_) {}
+ }
+
+ if (!rawAiText) {
+  return { ok: false, error: 'Сервер ИИ временно перегружен. Отправьте фото повторно через пару секунд.' };
+ }
+
+ const parsed = parseBotAiVisionJson(rawAiText);
+ if (!parsed) {
+  return { ok: false, error: 'Не удалось разобрать ответ ИИ. Попробуйте более чёткий ракурс.' };
+ }
+
+ const matchedFish = matchBotFishByAiName(parsed.fishNameRu, parsed.fishNameLat, city.speciesList);
+ const weightFmt = parsed.weightGrams >= 1000
+  ? `~${(parsed.weightGrams / 1000).toFixed(2)} кг`
+  : (parsed.weightGrams > 0 ? `~${parsed.weightGrams} г` : '');
+ const lenFmt = parsed.lengthCm > 0 ? `~${parsed.lengthCm} см` : '';
+ const computedSizeLine = parsed.sizeText || [lenFmt && `Длина ${lenFmt}`, weightFmt && `Вес ${weightFmt}`].filter(Boolean).join(' • ') || 'Размер определён по пропорциям тела';
+
+ const tok = `ai_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+ const rec = {
+  tok,
+  parsed,
+  sizeLine: computedSizeLine,
+  engineName,
+  matchedFish,
+  city,
+  ts: Date.now()
+ };
+ if (botVisionDetailsCache.size > 300) {
+  const oldestKey = botVisionDetailsCache.keys().next().value;
+  if (oldestKey) botVisionDetailsCache.delete(oldestKey);
+ }
+ botVisionDetailsCache.set(tok, rec);
+ return { ok: true, rec };
+}
+
+function buildBotAiVisionCard(rec, mode = 'short', webappUrl = 'https://klevpro.ru', isPrivateChat = true) {
+ const { tok, parsed, sizeLine, engineName, matchedFish, city } = rec;
+ const shortCity = String(city.name || 'Точка').split('(')[0].trim().slice(0, 14);
+ const latFmt = city.lat.toFixed(3);
+ const lonFmt = city.lon.toFixed(3);
+ const deepAppUrl = `${webappUrl}?tg_lat=${city.lat.toFixed(4)}&tg_lon=${city.lon.toFixed(4)}&tg_city=${encodeURIComponent(city.name)}&tg_fish=${matchedFish.id}#/fish`;
+
+ const latPart = parsed.fishNameLat ? ` (_${parsed.fishNameLat}_)` : '';
+ const traitsShort = parsed.traits ? parsed.traits.slice(0, 140) + (parsed.traits.length > 140 ? '…' : '') : '';
+
+ let text = '';
+ if (mode === 'full') {
+  const altLine = (parsed.alternatives && parsed.alternatives.length > 0)
+   ? `\n🔎 *Сходство:* ${parsed.alternatives.map(a => `${a.fishNameRu} (${a.confidence || 15}%${a.reason ? ' — ' + a.reason : ''})`).join('; ')}`
+   : '';
+  text =
+   `🤖 *ИИ-Ихтиолог • Полный разбор снимка*\n` +
+   `🐟 *Вид:* *${parsed.fishNameRu}*${latPart} — точность *${parsed.confidence}%*\n` +
+   `📏 *Габариты:* ${sizeLine}\n` +
+   (parsed.traits ? `🧬 *Признаки:* ${parsed.traits}\n` : '') +
+   (parsed.fullText ? `\n📋 *Заключение:* ${parsed.fullText.slice(0, 750)}` : '') +
+   altLine +
+   `\n\n⚡ _${engineName}_`;
+ } else {
+  text =
+   `🤖 *ИИ-Ихтиолог • Рыба распознана (${parsed.confidence}%)*\n` +
+   `🐟 *Вид:* *${parsed.fishNameRu}*${latPart}\n` +
+   `📏 *Размер и вес:* *${sizeLine}*\n` +
+   (traitsShort ? `🧬 *Признаки:* ${traitsShort}\n` : '') +
+   `📍 *Бассейн:* ${city.name} • 🎯 *В каталоге:* ${matchedFish.name}`;
+ }
+
+ const toggleBtn = mode === 'full'
+  ? { text: '⬅️ Краткая карточка', callback_data: `aidet:${tok}:short` }
+  : { text: '📋 Подробный разбор ИИ', callback_data: `aidet:${tok}:full` };
+
+ const inline_keyboard = [
+  [
+   toggleBtn,
+   { text: `🎣 Прогноз: ${matchedFish.name.split(' ')[0]}`, callback_data: `f:${latFmt}:${lonFmt}:${matchedFish.id}:${shortCity}` }
+  ],
+  [
+   { text: '🎯 На что ловить', callback_data: `rig:${latFmt}:${lonFmt}:${matchedFish.id}:${shortCity}` },
+   { text: '📘 Паспорт вида', callback_data: `bio:${latFmt}:${lonFmt}:${matchedFish.id}:${shortCity}` }
+  ],
+  [makeAppButton('📱 Открыть ИИ-сканер в навигаторе', deepAppUrl, isPrivateChat)]
+ ];
+
+ return { text, replyMarkup: { inline_keyboard } };
+}
 
 async function tgApi(botToken, method, payload) {
  try {
@@ -3355,8 +3621,9 @@ async function configureBotMenusAndCommands(botToken, chatId = null) {
   commands: [
   { command: 'klev', description: '🎣 Прогноз клёва (напр. /klev Астрахань сазан)' },
   { command: 'top', description: '🌟 ТОП-5 активных рыб в локации' },
+  { command: 'ai', description: '📷 Распознать рыбу и вес по фото' },
   { command: 'waters', description: '🌊 Ближайшие водоёмы (50 / 120 км)' },
-  { command: 'fish', description: '🐟 Видовой состав рыб в точке' },
+  { command: 'menu', description: '🧭 Все разделы навигатора' },
   { command: 'help', description: '❓ Как пользоваться ботом в группе' }
   ],
   scope: { type: 'all_group_chats' }
@@ -3375,7 +3642,7 @@ async function configureBotMenusAndCommands(botToken, chatId = null) {
 
 async function resolveQueryCityAndFish(rawQuery, session = null) {
  const q = normStr(rawQuery)
-  .replace(/^\/(klev|top|waters|fish|crew|circle|express|search|profile|help|start)(@\S+)?\s*/i, '')
+  .replace(/^\/(klev|top|waters|fish|crew|circle|express|search|profile|help|start|menu|ai)(@\\S+)?\s*/i, '')
   .replace(/^(!клев|клев|прогноз|рыбалка)\s+/i, '')
   .trim();
 
@@ -3465,7 +3732,7 @@ async function fetchLiveSpotWeather(lat, lon) {
  try {
   const url = `https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${Number(lat).toFixed(2)}&lon=${Number(lon).toFixed(2)}`;
   const res = await fetch(url, {
-  headers: { 'User-Agent': 'KlevProClubBot/2.1.1 (https://klevpro.ru)' },
+  headers: { 'User-Agent': 'KlevProClubBot/2.5.6 (https://klevpro.ru)' },
   cf: { cacheTtl: 1200, cacheEverything: true }
   });
   if (res.ok) {
@@ -3481,8 +3748,8 @@ async function fetchLiveSpotWeather(lat, lon) {
   const wind = Math.round((first.wind_speed ?? 3) * 10) / 10;
   const waterTemp = Math.max(0.4, Math.min(24, Math.round((tAir * 0.52 + 2.4) * 10) / 10));
   const iceText = tAir <= -6 && waterTemp <= 0.8
-  ? '❄️ Устойчивый ледостав'
-  : (tAir <= 2.5 && tAir >= -3.5 ? '🌊❄️ Шуга и забереги (сплошного льда нет)' : '🌊 Открытая вода');
+  ? '❄️ Ледостав'
+  : (tAir <= 2.5 && tAir >= -3.5 ? '🌊❄️ Шуга / забереги' : '🌊 Открытая вода');
 
   const tAir24 = Math.round((d24?.air_temperature ?? tAir) * 10) / 10;
   const pMm24 = Math.round(((d24?.air_pressure_at_sea_level || 1013) * 0.750062) - elev / 11.5);
@@ -3542,91 +3809,344 @@ function makeAppButton(text, deepAppUrl, isPrivateChat = true) {
  return { text, url: deepAppUrl };
 }
 
-function getRegionalQuickFishKeyboard(city, currentFish) {
- const pool = [...(city.speciesList || [])];
- if (currentFish && !pool.some(x => x.id === currentFish.id)) {
-  pool.unshift(currentFish);
- }
- const top8 = pool.slice(0, 8);
+function getForecastSubmenuKeyboard(city, currentFish, deepAppUrl, isPrivateChat = true) {
  const shortCity = String(city.name || 'Точка').split('(')[0].trim().slice(0, 14);
- const row1 = top8.slice(0, 4).map(f => ({
-  text: `${f.id === currentFish?.id ? '✅ ' : '🐟 '}${f.name.split(/[\s(/]/)[0]}`,
-  callback_data: `f:${city.lat.toFixed(3)}:${city.lon.toFixed(3)}:${f.id}:${shortCity}`
- }));
- const row2 = top8.slice(4, 8).map(f => ({
-  text: `${f.id === currentFish?.id ? '✅ ' : '🐟 '}${f.name.split(/[\s(/]/)[0]}`,
-  callback_data: `f:${city.lat.toFixed(3)}:${city.lon.toFixed(3)}:${f.id}:${shortCity}`
- }));
- const rows = row2.length > 0 ? [row1, row2] : [row1];
+ const latFmt = city.lat.toFixed(3);
+ const lonFmt = city.lon.toFixed(3);
+ const fid = currentFish?.id || 'pike';
+ const appBtnText = `📱 В навигаторе: ${shortCity} • ${(currentFish?.name || 'Рыба').split(' ')[0]}`;
 
- if (Array.isArray(city.nearWaters) && city.nearWaters.length > 1) {
-  const waterBtns = city.nearWaters.slice(0, 3).map(nw => {
-  const isCur = nw.cleanName === city.waterName;
-  const shortW = nw.cleanName.replace(/^(озеро|река|вдхр\.?|оз\.|р\.)\s*/i, '').split('(')[0].trim().slice(0, 12);
-  return {
-  text: `${isCur ? '🌊✓ ' : '🌊 '}${shortW}`,
-  callback_data: `w:${nw.lat.toFixed(3)}:${nw.lon.toFixed(3)}:${currentFish?.id || 'pike'}:${shortW}`
-  };
-  });
-  rows.push(waterBtns);
- }
-
- rows.push([
-  { text: '🌟 ТОП-5 клёва здесь', callback_data: `top:${city.lat.toFixed(3)}:${city.lon.toFixed(3)}:${shortCity}` },
-  { text: '⚡ Радар 72ч', callback_data: `exp:${city.lat.toFixed(3)}:${city.lon.toFixed(3)}:${currentFish?.id || 'pike'}:${shortCity}` }
- ]);
-
- return rows;
+ return [
+  [makeAppButton(appBtnText, deepAppUrl, isPrivateChat)],
+  [
+   { text: '🎯 Снасти и монтаж', callback_data: `rig:${latFmt}:${lonFmt}:${fid}:${shortCity}` },
+   { text: '🌡 Погода и лёд', callback_data: `wx:${latFmt}:${lonFmt}:${fid}:${shortCity}` }
+  ],
+  [
+   { text: '⚡ Радар 72ч', callback_data: `exp:${latFmt}:${lonFmt}:${fid}:${shortCity}` },
+   { text: '📘 Паспорт и сезон', callback_data: `bio:${latFmt}:${lonFmt}:${fid}:${shortCity}` }
+  ],
+  [
+   { text: `🐟 Рыбы (${(city.speciesList || []).length})`, callback_data: `fmenu:${latFmt}:${lonFmt}:${fid}:${shortCity}` },
+   { text: '🌊 Водоёмы рядом', callback_data: `wmenu:${latFmt}:${lonFmt}:${fid}:${shortCity}` }
+  ],
+  [
+   { text: '🌟 ТОП-5 клёва', callback_data: `top:${latFmt}:${lonFmt}:${shortCity}` },
+   { text: '🧭 Все разделы', callback_data: `menu:${latFmt}:${lonFmt}:${fid}:${shortCity}` }
+  ]
+ ];
 }
 
 async function buildWorkerForecastCard(city, fish, webappUrl, isPrivateChat = true) {
  const w = await fetchLiveSpotWeather(city.lat, city.lon);
  const fishScore = computeFishScoreForWeather(fish, w);
  const verdict = fish.legal === 'redbook'
-  ? '⛔ Красная книга (Поймал — отпусти)'
+  ? '⛔ Красная книга (Отпусти)'
   : (fishScore >= 65
-  ? '🟢 Отличный клёв (Стоит ехать)'
-  : (fishScore >= 42 ? '🟡 Умеренный / Осторожный клёв' : '🔴 Капризный клёв (слом погоды)'));
+  ? '🟢 Отличный клёв'
+  : (fishScore >= 42 ? '🟡 Умеренный клёв' : '🔴 Капризный клёв'));
 
- const waterParam = city.waterName ? `&tg_water=${encodeURIComponent(city.waterName)}` : '';
- const deepAppUrl = `${webappUrl}?tg_lat=${city.lat.toFixed(4)}&tg_lon=${city.lon.toFixed(4)}&tg_city=${encodeURIComponent(city.name)}${waterParam}&tg_fish=${fish.id}#/forecast`;
+ const kplocTok = encodeKplocToken(city.lat, city.lon, fish.id, '');
+ const deepAppUrl = `${webappUrl}?start=${kplocTok}#/forecast`;
 
  const isNativeToBasin = fish.basins && fish.basins.includes(city.basinCode);
- const habitatWarning = !isNativeToBasin
-  ? `⚠️ _Примечание: ${fish.name} не является типичным массовым видом бассейна «${city.basin}» (расчёт выполнен по физическим параметрам воды)._\n\n`
-  : '';
-
- const allSpotFishNames = (city.speciesList || []).slice(0, 12).map(f => f.name.split(' (')[0]).join(', ');
- const nearbyWatersLine = (city.nearWaters && city.nearWaters.length > 1)
-  ? `\n🌊 *Водоёмы рядом:* ${city.nearWaters.slice(0, 4).map(nw => `${nw.name} (${nw.distKm} км)`).join(', ')}`
-  : '';
+ const habitatNote = !isNativeToBasin ? `\n⚠️ _Редкий вид для бассейна «${city.basin}»_` : '';
 
  const replyText =
-  `🎣 *Клёв ПРО 2.0: Круг • Оперативная сводка*\n` +
-  `📍 *Локация:* ${city.name}${city.admin1 && !city.name.includes(city.admin1) ? ' (' + city.admin1 + ')' : ''}\n` +
-  `🌊 *Водоём / биотоп:* ${city.water} (${WATER_TYPE_LABELS[city.wType] || 'Водоём'})\n` +
-  `🧭 *Бассейн:* ${city.basin}\n\n` +
-  habitatWarning +
-  `🐟 *Целевая рыба:* *${fish.name}* — активность *${fishScore}%*\n` +
-  `📊 *Вердикт:* ${verdict}\n` +
-  `⏰ *Лучшие часы выхода:* ${fish.win}\n` +
-  `🎯 *Рекомендуемая снасть:* ${fish.gear}\n\n` +
-  `🌡 *Воздух:* ${w.tAir > 0 ? '+' + w.tAir : w.tAir}°C • 💧 *Вода:* ~${w.waterTemp}°C\n` +
-  `🧭 *Давление:* ${w.press} мм рт. ст. • 💨 *Ветер:* ${w.wind} м/с\n` +
-  `🧊 *Режим водоёма:* ${w.iceText}` +
-  nearbyWatersLine +
-  `\n\n🐟 *Рыбы в этой локации (${(city.speciesList || []).length} видов):* ${allSpotFishNames}`;
+  `🎣 *Клёв ПРО 2.0 • Оперативный прогноз*\n` +
+  `📍 *${city.name}* • 🌊 ${city.water}\n` +
+  `🐟 *${fish.name}* — клёв *${fishScore}%* (${verdict})\n` +
+  `⏰ *Выход:* ${fish.win}\n` +
+  `🌡 Воздух ${w.tAir > 0 ? '+' + w.tAir : w.tAir}°C • 💧 Вода ~${w.waterTemp}°C • 🧭 ${w.press} мм • 💨 ${w.wind} м/с\n` +
+  `🧊 *Режим:* ${w.iceText}` +
+  habitatNote;
 
- const fishRows = getRegionalQuickFishKeyboard(city, fish);
- const appBtnText = `🎣 Открыть навигатор: ${city.name.split('(')[0].trim()} • ${fish.name.split(' ')[0]}`;
  const replyMarkup = {
-  inline_keyboard: [
-  [makeAppButton(appBtnText, deepAppUrl, isPrivateChat)],
-  ...fishRows
-  ]
+  inline_keyboard: getForecastSubmenuKeyboard(city, fish, deepAppUrl, isPrivateChat)
  };
 
  return { replyText, replyMarkup, fishScore, weather: w, deepAppUrl };
+}
+
+async function buildRigAndTacticsSubCard(city, fish, webappUrl, isPrivateChat = true) {
+ const w = await fetchLiveSpotWeather(city.lat, city.lon);
+ const shortCity = String(city.name || 'Точка').split('(')[0].trim().slice(0, 14);
+ const latFmt = city.lat.toFixed(3);
+ const lonFmt = city.lon.toFixed(3);
+ const seasonTip = w.waterTemp <= 4
+  ? 'Холодная вода: деликатная подача, тонкий флюорокарбон 0.10–0.14 мм, паузы до 5–8 сек.'
+  : (w.waterTemp >= 18
+   ? 'Тёплая вода: утренние и вечерние зорьки, активная игра на течении и бровках.'
+   : 'Умеренная вода: облавливайте свал и границу растительности, рабочая глубина 2–4.5 м.');
+ const windTip = w.wind >= 6
+  ? '💨 Ветер плотный — используйте утяжелённый груз/кормушку и пробивной шнур.'
+  : '💨 Ветер комфортный для точного заброса и чувствительной вершинки.';
+
+ const text =
+  `🎯 *Снасти, монтаж и тактика • ${fish.name}*\n` +
+  `📍 *${city.name}* (${city.water})\n` +
+  `🧰 *Рабочая снасть:* ${fish.gear}\n` +
+  `⏰ *Пик поклёвок:* ${fish.win}\n` +
+  `💧 *По воде (~${w.waterTemp}°C):* ${seasonTip}\n` +
+  `${windTip}`;
+
+ const inline_keyboard = [
+  [
+   { text: '⬅️ Назад к прогнозу', callback_data: `f:${latFmt}:${lonFmt}:${fish.id}:${shortCity}` },
+   { text: '📘 Паспорт рыбы', callback_data: `bio:${latFmt}:${lonFmt}:${fish.id}:${shortCity}` }
+  ],
+  [
+   { text: '🐟 Сменить рыбу', callback_data: `fmenu:${latFmt}:${lonFmt}:${fish.id}:${shortCity}` },
+   { text: '🧭 Меню', callback_data: `menu:${latFmt}:${lonFmt}:${fish.id}:${shortCity}` }
+  ]
+ ];
+ return { text, replyMarkup: { inline_keyboard } };
+}
+
+async function buildWeatherAndIceSubCard(city, fish, webappUrl, isPrivateChat = true) {
+ const w = await fetchLiveSpotWeather(city.lat, city.lon);
+ const shortCity = String(city.name || 'Точка').split('(')[0].trim().slice(0, 14);
+ const latFmt = city.lat.toFixed(3);
+ const lonFmt = city.lon.toFixed(3);
+ const pDiff = (w.day2?.press || w.press) - w.press;
+ const pTrend = Math.abs(pDiff) <= 2 ? 'ровное (отлично для клёва)' : (pDiff > 2 ? `растёт (+${pDiff} мм)` : `падает (${pDiff} мм)`);
+ const iceSafety = w.tAir <= -6 && w.waterTemp <= 0.8
+  ? 'Пеший выход при толщине монолита от 7–10 см (пешня и спасалки обязательны).'
+  : (w.tAir <= 2.5 ? 'Переходный период: забереги и тонкая корка у берега, выход на лёд опасен!' : 'Открытая акватория: ловля с берега и лодки.');
+
+ const text =
+  `🌡 *Метеосводка и Ледовая обстановка*\n` +
+  `📍 *${city.name}* • 🌊 ${city.water}\n` +
+  `🌡 *Воздух:* ${w.tAir > 0 ? '+' + w.tAir : w.tAir}°C (завтра ${w.day2.tAir > 0 ? '+' + w.day2.tAir : w.day2.tAir}°C)\n` +
+  `💧 *Вода:* ~${w.waterTemp}°C • 💨 *Ветер:* ${w.wind} м/с\n` +
+  `🧭 *Давление:* ${w.press} мм рт. ст. — ${pTrend}\n` +
+  `🧊 *Статус:* ${w.iceText}\n` +
+  `🛡 *Безопасность:* ${iceSafety}`;
+
+ const inline_keyboard = [
+  [
+   { text: '⬅️ Назад к прогнозу', callback_data: `f:${latFmt}:${lonFmt}:${fish.id}:${shortCity}` },
+   { text: '⚡ Радар 72ч', callback_data: `exp:${latFmt}:${lonFmt}:${fish.id}:${shortCity}` }
+  ],
+  [
+   { text: '🌊 Водоёмы рядом', callback_data: `wmenu:${latFmt}:${lonFmt}:${fish.id}:${shortCity}` },
+   { text: '🧭 Меню', callback_data: `menu:${latFmt}:${lonFmt}:${fish.id}:${shortCity}` }
+  ]
+ ];
+ return { text, replyMarkup: { inline_keyboard } };
+}
+
+function buildFishBioAndCalendarSubCard(city, fish) {
+ const shortCity = String(city.name || 'Точка').split('(')[0].trim().slice(0, 14);
+ const latFmt = city.lat.toFixed(3);
+ const lonFmt = city.lon.toFixed(3);
+ const [minOpt, maxOpt] = fish.optT || [8, 16];
+ const monthNames = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
+ const curM = new Date().getMonth();
+ const nextM = (curM + 1) % 12;
+ const actLabel = v => v >= 3 ? '🟢 Жор/Пик' : (v === 2 ? '🟡 Активна' : '🔴 Пассивна');
+ const mCurAct = (fish.monthActivity && fish.monthActivity[curM]) ?? 2;
+ const mNextAct = (fish.monthActivity && fish.monthActivity[nextM]) ?? 2;
+ const legalStr = fish.legal === 'redbook' ? '⛔ Красная книга (вылов запрещён)' : '✅ Разрешён любительский лов (соблюдайте норму)';
+
+ const text =
+  `📘 *Справка ихтиолога • ${fish.name}*\n` +
+  `📍 *Бассейн:* ${city.basin}\n` +
+  `🌡 *Оптимум воды:* +${minOpt}…+${maxOpt}°C (стоп при <${fish.tMinStop ?? 0.5}°C)\n` +
+  `📅 *Календарь (${monthNames[curM]}):* ${actLabel(mCurAct)} • *${monthNames[nextM]}:* ${actLabel(mNextAct)}\n` +
+  `⏰ *Суточные окна:* ${fish.win}\n` +
+  `⚖️ *Статус:* ${legalStr}`;
+
+ const inline_keyboard = [
+  [
+   { text: '⬅️ Назад к прогнозу', callback_data: `f:${latFmt}:${lonFmt}:${fish.id}:${shortCity}` },
+   { text: '🎯 Снасти и монтаж', callback_data: `rig:${latFmt}:${lonFmt}:${fish.id}:${shortCity}` }
+  ],
+  [
+   { text: '🐟 Другая рыба', callback_data: `fmenu:${latFmt}:${lonFmt}:${fish.id}:${shortCity}` },
+   { text: '🧭 Меню', callback_data: `menu:${latFmt}:${lonFmt}:${fish.id}:${shortCity}` }
+  ]
+ ];
+ return { text, replyMarkup: { inline_keyboard } };
+}
+
+function buildFishPickerSubCard(city, currentFish) {
+ const pool = [...(city.speciesList || [])];
+ if (currentFish && !pool.some(x => x.id === currentFish.id)) pool.unshift(currentFish);
+ const top12 = pool.slice(0, 12);
+ const shortCity = String(city.name || 'Точка').split('(')[0].trim().slice(0, 14);
+ const latFmt = city.lat.toFixed(3);
+ const lonFmt = city.lon.toFixed(3);
+
+ const rows = [];
+ for (let i = 0; i < top12.length; i += 3) {
+  rows.push(top12.slice(i, i + 3).map(f => ({
+   text: `${f.id === currentFish?.id ? '✅ ' : '🐟 '}${f.name.split(/[\s(/]/)[0]}`,
+   callback_data: `f:${latFmt}:${lonFmt}:${f.id}:${shortCity}`
+  })));
+ }
+ rows.push([
+  { text: '⬅️ Назад к прогнозу', callback_data: `f:${latFmt}:${lonFmt}:${currentFish?.id || 'pike'}:${shortCity}` },
+  { text: '🌟 ТОП-5 клёва', callback_data: `top:${latFmt}:${lonFmt}:${shortCity}` }
+ ]);
+
+ const text =
+  `🐟 *Видовой состав • ${city.name}*\n` +
+  `🧭 Бассейн: ${city.basin} (всего ${(city.speciesList || []).length} видов).\n` +
+  `Выберите рыбу кнопкой ниже или напишите её название в чат:`;
+
+ return { text, replyMarkup: { inline_keyboard: rows } };
+}
+
+function buildWaterPickerSubCard(city, currentFish) {
+ const shortCity = String(city.name || 'Точка').split('(')[0].trim().slice(0, 14);
+ const latFmt = city.lat.toFixed(3);
+ const lonFmt = city.lon.toFixed(3);
+ const fid = currentFish?.id || 'pike';
+ const near = findNearestWatersForSpot(city.lat, city.lon, city.basinCode, city.isCoastal, 8);
+ const wLines = near.slice(0, 6).map(w => `• *${w.name}* (${w.typeTag || WATER_TYPE_LABELS[w.wType] || 'Водоём'}) — *${w.distKm} км*`).join('\n');
+
+ const rows = [];
+ const topW = near.slice(0, 6);
+ for (let i = 0; i < topW.length; i += 2) {
+  rows.push(topW.slice(i, i + 2).map(nw => {
+   const isCur = nw.cleanName === city.waterName;
+   const shortW = nw.cleanName.replace(/^(озеро|река|вдхр\.?|оз\.|р\.)\s*/i, '').split('(')[0].trim().slice(0, 13);
+   return {
+    text: `${isCur ? '🌊✓ ' : '🌊 '}${shortW} (${nw.distKm}км)`,
+    callback_data: `w:${nw.lat.toFixed(3)}:${nw.lon.toFixed(3)}:${fid}:${shortW}`
+   };
+  }));
+ }
+ rows.push([
+  { text: '⬅️ Назад к прогнозу', callback_data: `f:${latFmt}:${lonFmt}:${fid}:${shortCity}` },
+  { text: '🌍 Другие регионы РФ', callback_data: `srch:${latFmt}:${lonFmt}:${shortCity}` }
+ ]);
+
+ const text =
+  `🌊 *Ближайшие водоёмы • ${city.name}*\n` +
+  `Активный: *${city.water}*\n\n` +
+  (wLines || '• Напишите название любой реки или озера в чат.') +
+  `\n\n👇 Нажмите на водоём для пересчёта клёва и льда:`;
+
+ return { text, replyMarkup: { inline_keyboard: rows } };
+}
+
+function buildCircleRadarSubCard(city, fish, webappUrl, isPrivateChat = true) {
+ purgeExpiredServerCirclePoints();
+ const shortCity = String(city.name || 'Точка').split('(')[0].trim().slice(0, 14);
+ const latFmt = city.lat.toFixed(3);
+ const lonFmt = city.lon.toFixed(3);
+ const fid = fish?.id || 'pike';
+ const deepCircleUrl = `${webappUrl}?tg_lat=${city.lat.toFixed(4)}&tg_lon=${city.lon.toFixed(4)}&tg_city=${encodeURIComponent(city.name)}#/circle`;
+
+ const pts = Array.from(circlePointsStore.values())
+  .map(p => ({ ...p, distKm: Math.round(haversineKm(city.lat, city.lon, Number(p.lat) || city.lat, Number(p.lon) || city.lon)) }))
+  .sort((a, b) => a.distKm - b.distKm);
+
+ const nearPts = pts.filter(p => p.distKm <= 250).slice(0, 4);
+ const shownPts = nearPts.length > 0 ? nearPts : pts.slice(0, 3);
+
+ let listBlock = '';
+ if (shownPts.length > 0) {
+  listBlock = shownPts.map(p => {
+   const ico = p.sos || p.mode === 'sos' ? '🆘 SOS' : (p.mode === 'spot' ? '📍 Слип/Точка' : (p.mode === 'crew' ? '⛺ Экипаж' : '📡 Круг'));
+   const fName = p.fn || 'Сводка';
+   const noteShort = p.nt ? ` — _${String(p.nt).slice(0, 45)}_` : '';
+   return `• *${ico}* (${p.distKm} км): ${p.lb || p.wn || 'Водоём'} • ${fName}${noteShort}`;
+  }).join('\n');
+ } else {
+  listBlock = `• В радиусе 100 км от *${city.name}* активных сигналов SOS нет, обстановка спокойная.`;
+ }
+
+ const text =
+  `📡 *Радар «Круг • Экипажи • Слипы • SOS»*\n` +
+  `📍 *Локация:* ${city.name}\n\n` +
+  `${listBlock}\n\n` +
+  `💡 Отправьте боту токен \`KP1_...\` для расшифровки точки или откройте интерактивный радар:`;
+
+ const inline_keyboard = [
+  [makeAppButton('📡 Открыть Круг, Чаты и Слипы', deepCircleUrl, isPrivateChat)],
+  [
+   { text: '🔄 Обновить радар', callback_data: `rad:${latFmt}:${lonFmt}:${shortCity}` },
+   { text: '🎣 К прогнозу', callback_data: `f:${latFmt}:${lonFmt}:${fid}:${shortCity}` }
+  ],
+  [
+   { text: '🧭 Главное меню', callback_data: `menu:${latFmt}:${lonFmt}:${fid}:${shortCity}` }
+  ]
+ ];
+
+ return { text, replyMarkup: { inline_keyboard } };
+}
+
+function buildAiPromptHelpCard(city, fish, webappUrl, isPrivateChat = true) {
+ const shortCity = String(city.name || 'Точка').split('(')[0].trim().slice(0, 14);
+ const latFmt = city.lat.toFixed(3);
+ const lonFmt = city.lon.toFixed(3);
+ const fid = fish?.id || 'pike';
+ const deepFishUrl = `${webappUrl}?tg_lat=${city.lat.toFixed(4)}&tg_lon=${city.lon.toFixed(4)}&tg_city=${encodeURIComponent(city.name)}#/fish`;
+
+ const text =
+  `📷 *ИИ-определитель рыбы по фото (Gemini Vision)*\n\n` +
+  `Просто отправьте в этот чат *фотографию вашего улова* (камерой или из галереи)!\n` +
+  `• Нейросеть определит *вид рыбы*, *длину (см)* и *примерный вес (г/кг)*.\n` +
+  `• Если на снимке несколько рыб — выделит центральную и посчитает общий улов.\n` +
+  `• Сразу предложит прогноз клёва и рабочую снасть под распознанный вид.`;
+
+ const inline_keyboard = [
+  [makeAppButton('📷 Открыть ИИ-сканер в приложении', deepFishUrl, isPrivateChat)],
+  [
+   { text: '🎣 К прогнозу', callback_data: `f:${latFmt}:${lonFmt}:${fid}:${shortCity}` },
+   { text: '🧭 Главное меню', callback_data: `menu:${latFmt}:${lonFmt}:${fid}:${shortCity}` }
+  ]
+ ];
+ return { text, replyMarkup: { inline_keyboard } };
+}
+
+function buildBotMainMenuCard(session, city, fish, webappUrl, isPrivateChat = true) {
+ const shortCity = String(city.name || 'Точка').split('(')[0].trim().slice(0, 14);
+ const latFmt = city.lat.toFixed(3);
+ const lonFmt = city.lon.toFixed(3);
+ const fid = fish?.id || 'pike';
+ const kplocTok = encodeKplocToken(city.lat, city.lon, fid, '');
+ const deepAppUrl = `${webappUrl}?start=${kplocTok}#/forecast`;
+
+ const text =
+  `🧭 *Главное меню • Клёв ПРО 2.0: Круг*\n` +
+  `📍 *Точка:* ${city.name} (${city.water})\n` +
+  `🐟 *Целевая рыба:* ${fish.name}\n` +
+  `📷 _Для ИИ-распознавания просто пришлите фото рыбы в чат._\n` +
+  `Выберите нужный раздел (откроется прямо в этом сообщении):`;
+
+ const inline_keyboard = [
+  [makeAppButton(`📱 Открыть приложение «Клёв ПРО 2.0»`, deepAppUrl, isPrivateChat)],
+  [
+   { text: '🎣 Прогноз клёва', callback_data: `f:${latFmt}:${lonFmt}:${fid}:${shortCity}` },
+   { text: '🌟 ТОП-5 сегодня', callback_data: `top:${latFmt}:${lonFmt}:${shortCity}` }
+  ],
+  [
+   { text: '⚡ Радар 72 часа', callback_data: `exp:${latFmt}:${lonFmt}:${fid}:${shortCity}` },
+   { text: '🌊 Водоёмы и Лёд', callback_data: `wmenu:${latFmt}:${lonFmt}:${fid}:${shortCity}` }
+  ],
+  [
+   { text: '🐟 Выбор рыбы', callback_data: `fmenu:${latFmt}:${lonFmt}:${fid}:${shortCity}` },
+   { text: '🎯 Снасти и монтаж', callback_data: `rig:${latFmt}:${lonFmt}:${fid}:${shortCity}` }
+  ],
+  [
+   { text: '📘 Паспорт и сезон', callback_data: `bio:${latFmt}:${lonFmt}:${fid}:${shortCity}` },
+   { text: '🌡 Метео и лёд', callback_data: `wx:${latFmt}:${lonFmt}:${fid}:${shortCity}` }
+  ],
+  [
+   { text: '📡 Круг, Слипы и SOS', callback_data: `rad:${latFmt}:${lonFmt}:${shortCity}` },
+   { text: '📷 ИИ по фото рыбы', callback_data: `ai_help:${latFmt}:${lonFmt}:${fid}:${shortCity}` }
+  ],
+  [
+   { text: '👤 Профиль и ID', callback_data: `prof:${latFmt}:${lonFmt}:${fid}:${shortCity}` },
+   { text: '🌍 Поиск региона', callback_data: `srch:${latFmt}:${lonFmt}:${shortCity}` }
+  ]
+ ];
+
+ return { text, replyMarkup: { inline_keyboard } };
 }
 
 async function buildRecommendationsCard(city, webappUrl, isPrivateChat = true) {
@@ -3639,43 +4159,41 @@ async function buildRecommendationsCard(city, webappUrl, isPrivateChat = true) {
 
  const top5 = scored.slice(0, 5);
  const bestFish = top5[0]?.fish || BOT_FISH_CATALOG[0];
- const waterParam = city.waterName ? `&tg_water=${encodeURIComponent(city.waterName)}` : '';
- const deepAppUrl = `${webappUrl}?tg_lat=${city.lat.toFixed(4)}&tg_lon=${city.lon.toFixed(4)}&tg_city=${encodeURIComponent(city.name)}${waterParam}&tg_fish=${bestFish.id}#/forecast`;
+ const kplocTok = encodeKplocToken(city.lat, city.lon, bestFish.id, '');
+ const deepAppUrl = `${webappUrl}?start=${kplocTok}#/forecast`;
 
  const topLines = top5.map((item, i) => {
   const icon = item.score >= 65 ? '🟢' : (item.score >= 45 ? '🟡' : '🔴');
   const shortGear = String(item.fish.gear || '').split(',')[0].split('.')[0];
-  return `${i + 1}. ${icon} *${item.fish.name}* — *${item.score}%*\n   ⏰ _${item.fish.win}_ • 🎯 _${shortGear}_`;
- }).join('\n\n');
-
- const watersBlock = (city.nearWaters && city.nearWaters.length > 0)
-  ? city.nearWaters.slice(0, 4).map(nw => `• *${nw.name}* (${nw.typeTag || WATER_TYPE_LABELS[nw.wType] || 'Водоём'}) — ${nw.distKm} км`).join('\n')
-  : `• ${city.water}`;
+  return `${i + 1}. ${icon} *${item.fish.name}* (*${item.score}%*) — _${item.fish.win}_ • ${shortGear}`;
+ }).join('\n');
 
  const text =
-  `🌟 *Рекомендации ихтиолога • ТОП-5 клёва сегодня*\n` +
-  `📍 *Локация:* ${city.name}${city.admin1 && !city.name.includes(city.admin1) ? ' (' + city.admin1 + ')' : ''}\n` +
-  `🧭 *Субрегион:* ${city.basin}\n` +
-  `🌡 *Погода в точке:* Воздух ${w.tAir > 0 ? '+' + w.tAir : w.tAir}°C • Вода ~${w.waterTemp}°C • 🧭 ${w.press} мм • 💨 ${w.wind} м/с\n` +
-  `🧊 *Состояние воды:* ${w.iceText}\n\n` +
-  `🏆 *На кого лучше всего идти сегодня:*\n${topLines}\n\n` +
-  `🌊 *Рекомендуемые водоёмы в радиусе 50 км:*\n${watersBlock}`;
+  `🌟 *ТОП-5 клёва сегодня • ${city.name}*\n` +
+  `🌡 Воздух ${w.tAir > 0 ? '+' + w.tAir : w.tAir}°C • 💧 Вода ~${w.waterTemp}°C • 🧭 ${w.press} мм • ${w.iceText}\n\n` +
+  `${topLines}`;
 
  const shortCity = String(city.name || 'Точка').split('(')[0].trim().slice(0, 14);
+ const latFmt = city.lat.toFixed(3);
+ const lonFmt = city.lon.toFixed(3);
  const btnRow1 = top5.slice(0, 3).map(item => ({
   text: `🐟 ${item.fish.name.split(/[\s(/]/)[0]} (${item.score}%)`,
-  callback_data: `f:${city.lat.toFixed(3)}:${city.lon.toFixed(3)}:${item.fish.id}:${shortCity}`
+  callback_data: `f:${latFmt}:${lonFmt}:${item.fish.id}:${shortCity}`
  }));
  const btnRow2 = top5.slice(3, 5).map(item => ({
   text: `🐟 ${item.fish.name.split(/[\s(/]/)[0]} (${item.score}%)`,
-  callback_data: `f:${city.lat.toFixed(3)}:${city.lon.toFixed(3)}:${item.fish.id}:${shortCity}`
+  callback_data: `f:${latFmt}:${lonFmt}:${item.fish.id}:${shortCity}`
  }));
 
  const inline_keyboard = [
-  [makeAppButton(`🎣 Открыть полный прогноз: ${shortCity}`, deepAppUrl, isPrivateChat)],
+  [makeAppButton(`📱 Открыть прогноз: ${shortCity}`, deepAppUrl, isPrivateChat)],
   btnRow1
  ];
  if (btnRow2.length > 0) inline_keyboard.push(btnRow2);
+ inline_keyboard.push([
+  { text: '🌊 Водоёмы рядом', callback_data: `wmenu:${latFmt}:${lonFmt}:${bestFish.id}:${shortCity}` },
+  { text: '🧭 Все разделы', callback_data: `menu:${latFmt}:${lonFmt}:${bestFish.id}:${shortCity}` }
+ ]);
 
  return { text, replyMarkup: { inline_keyboard } };
 }
@@ -3685,28 +4203,30 @@ async function buildExpress72hCard(city, fish, webappUrl, isPrivateChat = true) 
  const sc1 = computeFishScoreForWeather(fish, w);
  const sc2 = computeFishScoreForWeather(fish, w.day2 || w);
  const sc3 = computeFishScoreForWeather(fish, w.day3 || w);
- const iconFor = sc => sc >= 65 ? '🟢 Клюёт отлично' : (sc >= 42 ? '🟡 Умеренный клёв' : '🔴 Слом погоды');
+ const iconFor = sc => sc >= 65 ? '🟢 Отлично' : (sc >= 42 ? '🟡 Умеренно' : '🔴 Капризно');
  const shortCity = String(city.name || 'Точка').split('(')[0].trim().slice(0, 14);
- const deepAppUrl = `${webappUrl}?tg_lat=${city.lat.toFixed(4)}&tg_lon=${city.lon.toFixed(4)}&tg_city=${encodeURIComponent(city.name)}&tg_fish=${fish.id}#/forecast`;
+ const latFmt = city.lat.toFixed(3);
+ const lonFmt = city.lon.toFixed(3);
+ const kplocTok = encodeKplocToken(city.lat, city.lon, fish.id, '');
+ const deepAppUrl = `${webappUrl}?start=${kplocTok}#/forecast`;
 
  const text =
-  `⚡ *Экспресс-радар на 72 часа (Экипаж 3 дня)*\n` +
-  `📍 *Точка:* ${city.name} • 🌊 *Водоём:* ${city.water}\n` +
-  `🐟 *Объект лова:* *${fish.name}*\n\n` +
-  `📅 *СЕГОДНЯ:* *${sc1}%* — ${iconFor(sc1)}\n` +
-  `   🌡 Воздух ${w.tAir > 0 ? '+' + w.tAir : w.tAir}°C • 💧 Вода ~${w.waterTemp}°C • 🧭 ${w.press} мм • 💨 ${w.wind} м/с\n\n` +
-  `📅 *ЗАВТРА:* *${sc2}%* — ${iconFor(sc2)}\n` +
-  `   🌡 Воздух ${w.day2.tAir > 0 ? '+' + w.day2.tAir : w.day2.tAir}°C • 💧 Вода ~${w.day2.waterTemp}°C • 🧭 ${w.day2.press} мм • 💨 ${w.day2.wind} м/с\n\n` +
-  `📅 *ПОСЛЕЗАВТРА:* *${sc3}%* — ${iconFor(sc3)}\n` +
-  `   🌡 Воздух ${w.day3.tAir > 0 ? '+' + w.day3.tAir : w.day3.tAir}°C • 💧 Вода ~${w.day3.waterTemp}°C • 🧭 ${w.day3.press} мм • 💨 ${w.day3.wind} м/с\n\n` +
-  `⏰ *Лучшие окна выхода:* ${fish.win}\n` +
-  `🎯 *Рабочая снасть:* ${fish.gear}`;
+  `⚡ *Радар на 72 часа • ${city.name}*\n` +
+  `🐟 *${fish.name}* • 🌊 ${city.water}\n\n` +
+  `• *Сегодня:* *${sc1}%* (${iconFor(sc1)}) — ${w.tAir > 0 ? '+' + w.tAir : w.tAir}°C, 💧~${w.waterTemp}°C, ${w.press} мм\n` +
+  `• *Завтра:* *${sc2}%* (${iconFor(sc2)}) — ${w.day2.tAir > 0 ? '+' + w.day2.tAir : w.day2.tAir}°C, 💧~${w.day2.waterTemp}°C, ${w.day2.press} мм\n` +
+  `• *Послезавтра:* *${sc3}%* (${iconFor(sc3)}) — ${w.day3.tAir > 0 ? '+' + w.day3.tAir : w.day3.tAir}°C, 💧~${w.day3.waterTemp}°C, ${w.day3.press} мм\n\n` +
+  `⏰ *Выход:* ${fish.win}`;
 
  const inline_keyboard = [
-  [makeAppButton(`🎣 Почасовой график: ${shortCity} • ${fish.name.split(' ')[0]}`, deepAppUrl, isPrivateChat)],
+  [makeAppButton(`📱 Почасовой график: ${shortCity}`, deepAppUrl, isPrivateChat)],
   [
-  { text: '📊 Сводка по рыбе', callback_data: `f:${city.lat.toFixed(3)}:${city.lon.toFixed(3)}:${fish.id}:${shortCity}` },
-  { text: '🌟 ТОП-5 рыб', callback_data: `top:${city.lat.toFixed(3)}:${city.lon.toFixed(3)}:${shortCity}` }
+   { text: '⬅️ К прогнозу', callback_data: `f:${latFmt}:${lonFmt}:${fish.id}:${shortCity}` },
+   { text: '🌟 ТОП-5 рыб', callback_data: `top:${latFmt}:${lonFmt}:${shortCity}` }
+  ],
+  [
+   { text: '🎯 Снасти', callback_data: `rig:${latFmt}:${lonFmt}:${fish.id}:${shortCity}` },
+   { text: '🧭 Меню', callback_data: `menu:${latFmt}:${lonFmt}:${fish.id}:${shortCity}` }
   ]
  ];
 
@@ -3714,47 +4234,50 @@ async function buildExpress72hCard(city, fish, webappUrl, isPrivateChat = true) 
 }
 
 function buildSearchDirectoryCard(city) {
- const near50 = findNearestWatersForSpot(city.lat, city.lon, city.basinCode, city.isCoastal, 8)
+ const near50 = findNearestWatersForSpot(city.lat, city.lon, city.basinCode, city.isCoastal, 5)
   .filter(w => w.distKm <= 50);
- const near120 = findNearestWatersForSpot(city.lat, city.lon, city.basinCode, city.isCoastal, 10)
+ const near120 = findNearestWatersForSpot(city.lat, city.lon, city.basinCode, city.isCoastal, 5)
   .filter(w => w.distKm > 50 && w.distKm <= 120);
 
  const w50Str = near50.length
-  ? near50.map(w => `• *${w.name}* [${w.typeTag || 'Водоём'}] — ${w.distKm} км`).join('\n')
-  : '• В радиусе 50 км выберите точку на карте или укажите название реки/озера';
+  ? near50.slice(0, 4).map(w => `• *${w.name}* (${w.distKm} км)`).join('\n')
+  : '• Напишите название реки или озера в чат';
  const w120Str = near120.length
-  ? near120.map(w => `• *${w.name}* [${w.typeTag || 'Водоём'}] — ${w.distKm} км`).join('\n')
-  : '• Все основные водоёмы находятся ближе 50 км';
+  ? near120.slice(0, 3).map(w => `• *${w.name}* (${w.distKm} км)`).join('\n')
+  : '• Основные водоёмы расположены ближе 50 км';
+
+ const shortCity = String(city.name || 'Точка').split('(')[0].trim().slice(0, 14);
+ const latFmt = city.lat.toFixed(3);
+ const lonFmt = city.lon.toFixed(3);
+ const defFishId = city.speciesList?.[0]?.id || 'pike';
 
  const text =
-  `🔍 *Поиск локации, водоёма (50 / 120 км) и рыбы*\n` +
-  `📍 *Ваша текущая точка:* *${city.name}* (${city.basin})\n\n` +
-  `🌊 *Водоёмы в радиусе до 50 км:*\n${w50Str}\n\n` +
-  `🔭 *Водоёмы в радиусе 50–120 км (выезд выходного дня):*\n${w120Str}\n\n` +
-  `✍️ *Как найти любую точку или рыбу:*\n` +
-  `Просто напишите в чат название города, посёлка, реки, озера или рыбы:\n` +
-  `• \`Мишкино Курганская карась\` или \`Курган судак\`\n` +
-  `• \`Мишкино Башкортостан чехонь\` или \`Уфа жерех\`\n` +
-  `• \`Новый Уренгой елец\` или \`Озеро Негито пелядь\`\n` +
-  `• \`Ярославль судак\`, \`Астрахань сазан\`, \`Сочи барабуля\`\n\n` +
-  `👇 Или выберите один из быстрых центров ловли кнопками ниже:`;
+  `🔍 *Водоёмы (50 / 120 км) и Регионы РФ*\n` +
+  `📍 *Точка:* *${city.name}* (${city.basin})\n\n` +
+  `🌊 *До 50 км:*\n${w50Str}\n` +
+  `🔭 *50–120 км:*\n${w120Str}\n\n` +
+  `✍️ _Напишите в чат любой город, водоём или рыбу (напр. \`р. Пур щука\`, \`Лимбияха окунь\`) или выберите точку:_`;
 
  const inline_keyboard = [
   [
-  { text: '📍 Новый Уренгой', callback_data: 'f:66.083:76.680:dace:Новый Уренгой' },
-  { text: '📍 Сургут (Обь)', callback_data: 'f:61.250:73.400:pike:Сургут' }
+   { text: '🌊 Выбрать водоём рядом', callback_data: `wmenu:${latFmt}:${lonFmt}:${defFishId}:${shortCity}` },
+   { text: '🐟 Выбрать рыбу', callback_data: `fmenu:${latFmt}:${lonFmt}:${defFishId}:${shortCity}` }
   ],
   [
-  { text: '📍 Мишкино (Курган)', callback_data: 'f:55.338:63.918:crucian:Мишкино (Кург)' },
-  { text: '📍 Мишкино (Башкирия)', callback_data: 'f:55.461:55.948:zander:Мишкино (РБ)' }
+   { text: '📍 Новый Уренгой', callback_data: 'f:66.083:76.680:dace:Новый Уренгой' },
+   { text: '📍 Сургут (Обь)', callback_data: 'f:61.250:73.400:pike:Сургут' }
   ],
   [
-  { text: '📍 Москва / Ока', callback_data: 'f:55.756:37.617:zander:Москва' },
-  { text: '📍 Ярославль / Волга', callback_data: 'f:57.626:39.885:zander:Ярославль' }
+   { text: '📍 Ярославль (Волга)', callback_data: 'f:57.626:39.885:zander:Ярославль' },
+   { text: '📍 Астрахань (Дельта)', callback_data: 'f:46.350:48.041:carp:Астрахань' }
   ],
   [
-  { text: '📍 Астрахань (Дельта)', callback_data: 'f:46.350:48.041:carp:Астрахань' },
-  { text: '📍 Сочи (Чёрное море)', callback_data: 'f:43.586:39.723:red_mullet:Сочи' }
+   { text: '📍 Мишкино (Курган)', callback_data: 'f:55.338:63.918:crucian:Мишкино (Кург)' },
+   { text: '📍 Сочи (Чёрное море)', callback_data: 'f:43.586:39.723:red_mullet:Сочи' }
+  ],
+  [
+   { text: '⬅️ К прогнозу', callback_data: `f:${latFmt}:${lonFmt}:${defFishId}:${shortCity}` },
+   { text: '🧭 Меню', callback_data: `menu:${latFmt}:${lonFmt}:${defFishId}:${shortCity}` }
   ]
  ];
 
@@ -3763,78 +4286,66 @@ function buildSearchDirectoryCard(city) {
 
 function buildUserProfileCard(session, city, fish, webappUrl, isPrivateChat = true) {
  const shortCity = String(city.name || 'Точка').split('(')[0].trim().slice(0, 14);
- const deepAppUrl = `${webappUrl}?tg_lat=${city.lat.toFixed(4)}&tg_lon=${city.lon.toFixed(4)}&tg_city=${encodeURIComponent(city.name)}&tg_fish=${fish.id}#/forecast`;
+ const latFmt = city.lat.toFixed(3);
+ const lonFmt = city.lon.toFixed(3);
+ const kplocTok = encodeKplocToken(city.lat, city.lon, fish.id, '');
+ const deepAppUrl = `${webappUrl}?start=${kplocTok}#/forecast`;
  const fid = session?.fisherId || tgToFisherIdMap.get(String(session?.userId || '')) || 'FP_89AAA001';
  const regUser = usersRegistryStore.get(fid);
- const loginLabel = regUser?.login ? `\`${regUser.login}\` (🟢 синхронизирован)` : 'не задан (можно задать в Профиле приложения для синхронизации между устройствами)';
+ const loginLabel = regUser?.login ? `\`${regUser.login}\` (🟢 синхронизирован)` : 'не задан';
  const tgLabel = session?.tgUsername ? `@${session.tgUsername}` : (regUser?.tgUsername ? `@${regUser.tgUsername}` : 'привязан');
 
  const text =
-  `👤 *Ваш единый рыболовный профиль*\n\n` +
-  `🆔 *Рыболовный ID:* \`${fid}\`\n` +
-  `🔑 *Логин профиля (APK / Сайт / ТГ):* ${loginLabel}\n` +
-  `✈️ *Связка с Telegram:* 🟢 Активна (${tgLabel})\n` +
-  `📍 *Закреплённая локация:* *${city.name}* (${city.lat.toFixed(3)}°N, ${city.lon.toFixed(3)}°E)\n` +
-  `🧭 *Рыбохозяйственный субрегион:* ${city.basin}\n` +
-  `🌊 *Активный водоём:* ${city.water} (${WATER_TYPE_LABELS[city.wType] || 'Водоём'})\n` +
-  `🐟 *Текущая целевая рыба:* *${fish.name}*\n` +
-  `🐟 *Всего видов в вашей локации:* ${(city.speciesList || []).length} видов\n\n` +
-  `💡 *Как сменить домашнюю точку:*\n` +
-  `Отправьте в чат геопозицию (скрепка 📎 ➔ *Геопозиция*) или напишите название вашего города/водоёма — бот автоматически запомнит вашу новую локацию для кнопок *«🌟 Рекомендации»* и *«⚡»*!`;
+  `👤 *Ваш рыболовный профиль*\n` +
+  `🆔 *ID:* \`${fid}\` • 🔑 *Логин:* ${loginLabel}\n` +
+  `✈️ *Telegram:* 🟢 ${tgLabel}\n` +
+  `📍 *Точка:* *${city.name}* (${city.water})\n` +
+  `🐟 *Рыба:* *${fish.name}* (${(city.speciesList || []).length} видов в бассейне)\n` +
+  `💡 _Для смены домашней точки отправьте геопозицию (📎) или напишите город._`;
 
  const inline_keyboard = [
-  [makeAppButton('📱 Открыть полный навигатор «Клёв ПРО 2.0»', deepAppUrl, isPrivateChat)],
+  [makeAppButton('📱 Открыть навигатор «Клёв ПРО 2.0»', deepAppUrl, isPrivateChat)],
   [
-  { text: '🌟 ТОП-5 клёва у меня', callback_data: `top:${city.lat.toFixed(3)}:${city.lon.toFixed(3)}:${shortCity}` },
-  { text: '⚡ Прогноз на 72 часа', callback_data: `exp:${city.lat.toFixed(3)}:${city.lon.toFixed(3)}:${fish.id}:${shortCity}` }
+   { text: '🎣 Мой прогноз', callback_data: `f:${latFmt}:${lonFmt}:${fish.id}:${shortCity}` },
+   { text: '🌟 ТОП-5 у меня', callback_data: `top:${latFmt}:${lonFmt}:${shortCity}` }
   ],
   [
-  { text: '🔍 Водоёмы 50 / 120 км', callback_data: `srch:${city.lat.toFixed(3)}:${city.lon.toFixed(3)}:${shortCity}` }
+   { text: '🌊 Водоёмы рядом', callback_data: `wmenu:${latFmt}:${lonFmt}:${fish.id}:${shortCity}` },
+   { text: '🧭 Главное меню', callback_data: `menu:${latFmt}:${lonFmt}:${fish.id}:${shortCity}` }
   ]
  ];
 
  return { text, replyMarkup: { inline_keyboard } };
 }
 
-function buildHelpAndGroupsCard(webappUrl, isPrivateChat = true) {
+function buildHelpAndGroupsCard(webappUrl, isPrivateChat = true, city = null, fish = null) {
+ const c = city || buildSpotContext(66.0833, 76.6800, 'Новый Уренгой');
+ const f = fish || c.speciesList?.[0] || BOT_FISH_CATALOG[0];
+ const shortCity = String(c.name || 'Точка').split('(')[0].trim().slice(0, 14);
+ const latFmt = c.lat.toFixed(3);
+ const lonFmt = c.lon.toFixed(3);
+
  const text =
-  `❓ *Справка по боту «Клёв ПРО 2.0: Круг» (@KlevProClubBot)*\n\n` +
-  `📌 *1. Кнопки нижней панели (в личном чате с ботом):*\n` +
-  `• *🌟 Рекомендации* — ТОП-5 самых уловистых рыб прямо сейчас в вашей локации + список водоёмов рядом.\n` +
-  `• *⚡* — Экспресс-радар клёва на 72 часа (Сегодня / Завтра / Послезавтра).\n` +
-  `• *🔍* — Поиск водоёмов в радиусах *50 км* и *120 км*, быстрый выбор регионов РФ.\n` +
-  `• *👤* — Ваш профиль (сохранённая точка, водоём, целевая рыба и переход в веб-навигатор).\n` +
-  `• *❓* — Эта памятка.\n\n` +
-  `📌 *2. Как запрашивать прогноз текстом:*\n` +
-  `Напишите в любом порядке *город/посёлок*, *название реки/озера* или *рыбу*:\n` +
-  `• \`Мишкино Курганская карась\`\n` +
-  `• \`Озеро Негито пелядь\`\n` +
-  `• \`Ярославль судак\` или просто \`щука\` (для вашей текущей точки)\n\n` +
-  `👥 *3. Как использовать бота в других группах и каналах:*\n` +
-  `*Способ А — В любом чате/группе без добавления бота (Инлайн-режим):*\n` +
-  `Наберите в строке ввода любого чата:\n` +
-  `\`@KlevProClubBot Ярославль судак\`\n` +
-  `и нажмите на всплывшую карточку — прогноз сразу отправится в группу!\n\n` +
-  `*Способ Б — Добавить бота в рыболовную группу:*\n` +
-  `Добавьте \`@KlevProClubBot\` в участники группы. Участники смогут запрашивать прогноз командами:\n` +
-  `• \`/klev Город Рыба\` (например: \`/klev Астрахань сазан\`)\n` +
-  `• \`/top Город\` (ТОП-5 активных рыб в городе)\n` +
-  `• \`!клев Город Рыба\` или \`@KlevProClubBot Город Рыба\`\n\n` +
-  `*Способ В — В Telegram-канале:*\n` +
-  `Добавьте бота администратором канала (с правом публикации) и напишите в канале пост \`/klev Город Рыба\` — бот мгновенно превратит его в карточку прогноза с кнопками!`;
+  `❓ *Справка • @KlevProClubBot*\n` +
+  `• *Прогноз текстом:* напишите город, водоём или рыбу (\`р. Пур щука\`, \`Ярославль судак\`).\n` +
+  `• *ИИ по фото:* отправьте фото рыбы в чат — бот определит вид, длину и вес.\n` +
+  `• *В любом чате (инлайн):* наберите \`@KlevProClubBot Город Рыба\`.\n` +
+  `• *В группах и каналах:* команды \`/klev Город Рыба\` и \`/top Город\`.`;
 
  const inline_keyboard = [
   [makeAppButton('🌐 Открыть навигатор «Клёв ПРО 2.0»', webappUrl, isPrivateChat)],
   [
-  { text: '➕ Добавить бота в группу', url: 'https://t.me/KlevProClubBot?startgroup=klev' },
-  { text: '📢 Добавить в канал', url: 'https://t.me/KlevProClubBot?startchannel=klev' }
+   { text: '➕ Добавить в группу', url: 'https://t.me/KlevProClubBot?startgroup=klev' },
+   { text: '📢 Добавить в канал', url: 'https://t.me/KlevProClubBot?startchannel=klev' }
+  ],
+  [
+   { text: '🧭 Главное меню', callback_data: `menu:${latFmt}:${lonFmt}:${f.id}:${shortCity}` },
+   { text: '🎣 К прогнозу', callback_data: `f:${latFmt}:${lonFmt}:${f.id}:${shortCity}` }
   ]
  ];
 
  return { text, replyMarkup: { inline_keyboard } };
 }
-
-
 
 // ── Cloudflare D1 SQL Database & Storage Engine (V.2.1.2) ──
 function getD1(env) {
@@ -6699,7 +7210,7 @@ function generateSyntheticWeatherJson(lat, lon) {
     appName: 'Клёв ПРО 2.0',
     packageName: 'ru.klevpro.app',
     version: WORKER_VERSION,
-    versionCode: 256196,
+    versionCode: 256197,
     buildRevision: '2026.11.01-r196',
     releaseDate: '2026-10-30',
     apkFileName: `klev-pro-v${WORKER_VERSION}.apk`,
@@ -7029,115 +7540,202 @@ function generateSyntheticWeatherJson(lat, lon) {
   const data = String(cq.data || '');
   const cqUserId = cq.from?.id || cq.message?.chat?.id;
   const isPrivate = cq.message?.chat?.type === 'private';
+  const sess = getUserSession(cqUserId);
+
+  const editOrSendCqCard = async (cardText, cardMarkup, toastText = '') => {
+   await tgApi(BOT_TOKEN, 'answerCallbackQuery', { callback_query_id: cq.id, text: toastText || undefined });
+   if (cq.message && cq.message.chat) {
+    await tgApi(BOT_TOKEN, 'editMessageText', {
+     chat_id: cq.message.chat.id,
+     message_id: cq.message.message_id,
+     text: cardText,
+     parse_mode: 'Markdown',
+     reply_markup: cardMarkup
+    });
+   }
+  };
+
+  if (data.startsWith('aidet:')) {
+   const [, tok, mode] = data.split(':');
+   const rec = botVisionDetailsCache.get(tok);
+   if (!rec) {
+    await tgApi(BOT_TOKEN, 'answerCallbackQuery', { callback_query_id: cq.id, text: 'Снимок уже в архиве. Отправьте фото заново для разбора.' });
+    return new Response('OK', { status: 200 });
+   }
+   const aiCard = buildBotAiVisionCard(rec, mode === 'full' ? 'full' : 'short', WEBAPP_URL, isPrivate);
+   await editOrSendCqCard(aiCard.text, aiCard.replyMarkup, mode === 'full' ? '📋 Полный разбор ИИ' : '⬅️ Краткий вид');
+   return new Response('OK', { status: 200 });
+  }
 
   if (data.startsWith('top:')) {
-  const [, latStr, lonStr, customName] = data.split(':');
-  const lat = parseFloat(latStr);
-  const lon = parseFloat(lonStr);
-  const city = buildSpotContext(Number.isFinite(lat) ? lat : 66.0833, Number.isFinite(lon) ? lon : 76.6800, customName || '');
-  saveUserSession(cqUserId, { lat: city.lat, lon: city.lon, cityName: city.name, wType: city.wType, waterName: city.waterName });
-  const rec = await buildRecommendationsCard(city, WEBAPP_URL, isPrivate);
-  await tgApi(BOT_TOKEN, 'answerCallbackQuery', { callback_query_id: cq.id, text: `🌟 ТОП-5 клёва: ${city.name}` });
-  if (cq.message && cq.message.chat) {
-  await tgApi(BOT_TOKEN, 'editMessageText', {
-  chat_id: cq.message.chat.id,
-  message_id: cq.message.message_id,
-  text: rec.text,
-  parse_mode: 'Markdown',
-  reply_markup: rec.replyMarkup
-  });
-  }
-  return new Response('OK', { status: 200 });
+   const [, latStr, lonStr, customName] = data.split(':');
+   const lat = parseFloat(latStr);
+   const lon = parseFloat(lonStr);
+   const city = buildSpotContext(Number.isFinite(lat) ? lat : 66.0833, Number.isFinite(lon) ? lon : 76.6800, customName || '');
+   saveUserSession(cqUserId, { lat: city.lat, lon: city.lon, cityName: city.name, wType: city.wType, waterName: city.waterName });
+   const rec = await buildRecommendationsCard(city, WEBAPP_URL, isPrivate);
+   await editOrSendCqCard(rec.text, rec.replyMarkup, `🌟 ТОП-5 клёва: ${city.name}`);
+   return new Response('OK', { status: 200 });
   }
 
   if (data.startsWith('exp:')) {
-  const [, latStr, lonStr, fishId, customName] = data.split(':');
-  const lat = parseFloat(latStr);
-  const lon = parseFloat(lonStr);
-  const fish = BOT_FISH_CATALOG.find(f => f.id === fishId) || BOT_FISH_CATALOG[0];
-  const city = buildSpotContext(Number.isFinite(lat) ? lat : 66.0833, Number.isFinite(lon) ? lon : 76.6800, customName || '');
-  saveUserSession(cqUserId, { lat: city.lat, lon: city.lon, cityName: city.name, fishId: fish.id });
-  const exp = await buildExpress72hCard(city, fish, WEBAPP_URL, isPrivate);
-  await tgApi(BOT_TOKEN, 'answerCallbackQuery', { callback_query_id: cq.id, text: `⚡ Радар 72ч: ${city.name}` });
-  if (cq.message && cq.message.chat) {
-  await tgApi(BOT_TOKEN, 'editMessageText', {
-  chat_id: cq.message.chat.id,
-  message_id: cq.message.message_id,
-  text: exp.text,
-  parse_mode: 'Markdown',
-  reply_markup: exp.replyMarkup
-  });
+   const [, latStr, lonStr, fishId, customName] = data.split(':');
+   const lat = parseFloat(latStr);
+   const lon = parseFloat(lonStr);
+   const fish = BOT_FISH_CATALOG.find(f => f.id === fishId) || BOT_FISH_CATALOG[0];
+   const city = buildSpotContext(Number.isFinite(lat) ? lat : 66.0833, Number.isFinite(lon) ? lon : 76.6800, customName || '');
+   saveUserSession(cqUserId, { lat: city.lat, lon: city.lon, cityName: city.name, fishId: fish.id });
+   const exp = await buildExpress72hCard(city, fish, WEBAPP_URL, isPrivate);
+   await editOrSendCqCard(exp.text, exp.replyMarkup, `⚡ Радар 72ч: ${city.name}`);
+   return new Response('OK', { status: 200 });
   }
-  return new Response('OK', { status: 200 });
+
+  if (data.startsWith('rig:')) {
+   const [, latStr, lonStr, fishId, customName] = data.split(':');
+   const lat = parseFloat(latStr);
+   const lon = parseFloat(lonStr);
+   const fish = BOT_FISH_CATALOG.find(f => f.id === fishId) || BOT_FISH_CATALOG[0];
+   const city = buildSpotContext(Number.isFinite(lat) ? lat : 66.0833, Number.isFinite(lon) ? lon : 76.6800, customName || '');
+   const sub = await buildRigAndTacticsSubCard(city, fish, WEBAPP_URL, isPrivate);
+   await editOrSendCqCard(sub.text, sub.replyMarkup, `🎯 Снасти: ${fish.name}`);
+   return new Response('OK', { status: 200 });
+  }
+
+  if (data.startsWith('wx:')) {
+   const [, latStr, lonStr, fishId, customName] = data.split(':');
+   const lat = parseFloat(latStr);
+   const lon = parseFloat(lonStr);
+   const fish = BOT_FISH_CATALOG.find(f => f.id === fishId) || BOT_FISH_CATALOG[0];
+   const city = buildSpotContext(Number.isFinite(lat) ? lat : 66.0833, Number.isFinite(lon) ? lon : 76.6800, customName || '');
+   const sub = await buildWeatherAndIceSubCard(city, fish, WEBAPP_URL, isPrivate);
+   await editOrSendCqCard(sub.text, sub.replyMarkup, `🌡 Погода и лёд: ${city.name}`);
+   return new Response('OK', { status: 200 });
+  }
+
+  if (data.startsWith('bio:')) {
+   const [, latStr, lonStr, fishId, customName] = data.split(':');
+   const lat = parseFloat(latStr);
+   const lon = parseFloat(lonStr);
+   const fish = BOT_FISH_CATALOG.find(f => f.id === fishId) || BOT_FISH_CATALOG[0];
+   const city = buildSpotContext(Number.isFinite(lat) ? lat : 66.0833, Number.isFinite(lon) ? lon : 76.6800, customName || '');
+   const sub = buildFishBioAndCalendarSubCard(city, fish);
+   await editOrSendCqCard(sub.text, sub.replyMarkup, `📘 Паспорт: ${fish.name}`);
+   return new Response('OK', { status: 200 });
+  }
+
+  if (data.startsWith('fmenu:')) {
+   const [, latStr, lonStr, fishId, customName] = data.split(':');
+   const lat = parseFloat(latStr);
+   const lon = parseFloat(lonStr);
+   const fish = BOT_FISH_CATALOG.find(f => f.id === fishId) || BOT_FISH_CATALOG[0];
+   const city = buildSpotContext(Number.isFinite(lat) ? lat : 66.0833, Number.isFinite(lon) ? lon : 76.6800, customName || '');
+   const sub = buildFishPickerSubCard(city, fish);
+   await editOrSendCqCard(sub.text, sub.replyMarkup, `🐟 Выбор рыбы: ${city.name}`);
+   return new Response('OK', { status: 200 });
+  }
+
+  if (data.startsWith('wmenu:')) {
+   const [, latStr, lonStr, fishId, customName] = data.split(':');
+   const lat = parseFloat(latStr);
+   const lon = parseFloat(lonStr);
+   const fish = BOT_FISH_CATALOG.find(f => f.id === fishId) || BOT_FISH_CATALOG[0];
+   const city = buildSpotContext(Number.isFinite(lat) ? lat : 66.0833, Number.isFinite(lon) ? lon : 76.6800, customName || '');
+   const sub = buildWaterPickerSubCard(city, fish);
+   await editOrSendCqCard(sub.text, sub.replyMarkup, `🌊 Водоёмы рядом: ${city.name}`);
+   return new Response('OK', { status: 200 });
+  }
+
+  if (data.startsWith('rad:')) {
+   const [, latStr, lonStr, customName] = data.split(':');
+   const lat = parseFloat(latStr);
+   const lon = parseFloat(lonStr);
+   const city = buildSpotContext(Number.isFinite(lat) ? lat : 66.0833, Number.isFinite(lon) ? lon : 76.6800, customName || '');
+   const fish = BOT_FISH_CATALOG.find(f => f.id === sess?.fishId) || city.speciesList?.[0] || BOT_FISH_CATALOG[0];
+   const sub = buildCircleRadarSubCard(city, fish, WEBAPP_URL, isPrivate);
+   await editOrSendCqCard(sub.text, sub.replyMarkup, `📡 Радар Круга: ${city.name}`);
+   return new Response('OK', { status: 200 });
+  }
+
+  if (data.startsWith('ai_help')) {
+   const parts = data.split(':');
+   const lat = parseFloat(parts[1]);
+   const lon = parseFloat(parts[2]);
+   const fishId = parts[3] || sess?.fishId || 'pike';
+   const customName = parts[4] || sess?.cityName || '';
+   const city = buildSpotContext(Number.isFinite(lat) ? lat : (sess?.lat || 66.0833), Number.isFinite(lon) ? lon : (sess?.lon || 76.6800), customName);
+   const fish = BOT_FISH_CATALOG.find(f => f.id === fishId) || city.speciesList?.[0] || BOT_FISH_CATALOG[0];
+   const sub = buildAiPromptHelpCard(city, fish, WEBAPP_URL, isPrivate);
+   await editOrSendCqCard(sub.text, sub.replyMarkup, '📷 ИИ по фото рыбы');
+   return new Response('OK', { status: 200 });
+  }
+
+  if (data.startsWith('prof:')) {
+   const [, latStr, lonStr, fishId, customName] = data.split(':');
+   const lat = parseFloat(latStr);
+   const lon = parseFloat(lonStr);
+   const city = buildSpotContext(Number.isFinite(lat) ? lat : 66.0833, Number.isFinite(lon) ? lon : 76.6800, customName || '');
+   const fish = BOT_FISH_CATALOG.find(f => f.id === fishId) || city.speciesList?.[0] || BOT_FISH_CATALOG[0];
+   const sub = buildUserProfileCard(sess, city, fish, WEBAPP_URL, isPrivate);
+   await editOrSendCqCard(sub.text, sub.replyMarkup, '👤 Профиль рыбака');
+   return new Response('OK', { status: 200 });
+  }
+
+  if (data.startsWith('menu:')) {
+   const [, latStr, lonStr, fishId, customName] = data.split(':');
+   const lat = parseFloat(latStr);
+   const lon = parseFloat(lonStr);
+   const city = buildSpotContext(Number.isFinite(lat) ? lat : (sess?.lat || 66.0833), Number.isFinite(lon) ? lon : (sess?.lon || 76.6800), customName || sess?.cityName || '');
+   const fish = BOT_FISH_CATALOG.find(f => f.id === fishId) || city.speciesList?.[0] || BOT_FISH_CATALOG[0];
+   const sub = buildBotMainMenuCard(sess, city, fish, WEBAPP_URL, isPrivate);
+   await editOrSendCqCard(sub.text, sub.replyMarkup, '🧭 Главное меню');
+   return new Response('OK', { status: 200 });
   }
 
   if (data.startsWith('srch:')) {
-  const [, latStr, lonStr, customName] = data.split(':');
-  const lat = parseFloat(latStr);
-  const lon = parseFloat(lonStr);
-  const city = buildSpotContext(Number.isFinite(lat) ? lat : 66.0833, Number.isFinite(lon) ? lon : 76.6800, customName || '');
-  const srch = buildSearchDirectoryCard(city);
-  await tgApi(BOT_TOKEN, 'answerCallbackQuery', { callback_query_id: cq.id, text: `🔍 Водоёмы рядом: ${city.name}` });
-  if (cq.message && cq.message.chat) {
-  await tgApi(BOT_TOKEN, 'editMessageText', {
-  chat_id: cq.message.chat.id,
-  message_id: cq.message.message_id,
-  text: srch.text,
-  parse_mode: 'Markdown',
-  reply_markup: srch.replyMarkup
-  });
-  }
-  return new Response('OK', { status: 200 });
+   const [, latStr, lonStr, customName] = data.split(':');
+   const lat = parseFloat(latStr);
+   const lon = parseFloat(lonStr);
+   const city = buildSpotContext(Number.isFinite(lat) ? lat : 66.0833, Number.isFinite(lon) ? lon : 76.6800, customName || '');
+   const srch = buildSearchDirectoryCard(city);
+   await editOrSendCqCard(srch.text, srch.replyMarkup, `🔍 Водоёмы рядом: ${city.name}`);
+   return new Response('OK', { status: 200 });
   }
 
   let city = buildSpotContext(66.0833, 76.6800, 'Новый Уренгой');
   let fish = BOT_FISH_CATALOG[0];
 
   if (data.startsWith('w:')) {
-  const [, latStr, lonStr, fishId, shortWName] = data.split(':');
-  const lat = parseFloat(latStr);
-  const lon = parseFloat(lonStr);
-  fish = BOT_FISH_CATALOG.find(f => f.id === fishId) || BOT_FISH_CATALOG[0];
-  const matchedW = BOT_WATERS_DB.find(w => Math.abs(w.lat - lat) < 0.02 && Math.abs(w.lon - lon) < 0.02);
-  city = buildSpotContext(lat, lon, matchedW?.region || shortWName || '', matchedW || null, matchedW?.wType || '');
+   const [, latStr, lonStr, fishId, shortWName] = data.split(':');
+   const lat = parseFloat(latStr);
+   const lon = parseFloat(lonStr);
+   fish = BOT_FISH_CATALOG.find(f => f.id === fishId) || BOT_FISH_CATALOG[0];
+   const matchedW = BOT_WATERS_DB.find(w => Math.abs(w.lat - lat) < 0.02 && Math.abs(w.lon - lon) < 0.02);
+   city = buildSpotContext(lat, lon, matchedW?.region || shortWName || '', matchedW || null, matchedW?.wType || '');
   } else if (data.startsWith('f:')) {
-  const [, latStr, lonStr, fishId, customName] = data.split(':');
-  const lat = parseFloat(latStr);
-  const lon = parseFloat(lonStr);
-  fish = BOT_FISH_CATALOG.find(f => f.id === fishId) || BOT_FISH_CATALOG[0];
-  const wType = (fish.habitat === 'sea' && isCoastalInBasin(detectBasinByCoords(lat, lon), lat, lon)) ? 'sea_gulf' : '';
-  city = buildSpotContext(Number.isFinite(lat) ? lat : 66.0833, Number.isFinite(lon) ? lon : 76.6800, customName || '', null, wType);
+   const [, latStr, lonStr, fishId, customName] = data.split(':');
+   const lat = parseFloat(latStr);
+   const lon = parseFloat(lonStr);
+   fish = BOT_FISH_CATALOG.find(f => f.id === fishId) || BOT_FISH_CATALOG[0];
+   const wType = (fish.habitat === 'sea' && isCoastalInBasin(detectBasinByCoords(lat, lon), lat, lon)) ? 'sea_gulf' : '';
+   city = buildSpotContext(Number.isFinite(lat) ? lat : 66.0833, Number.isFinite(lon) ? lon : 76.6800, customName || '', null, wType);
   } else if (data.startsWith('fish:')) {
-  const [, cityName, fishId] = data.split(':');
-  const resolved = await resolveQueryCityAndFish(`${cityName} ${fishId}`, getUserSession(cqUserId));
-  city = resolved.city;
-  fish = BOT_FISH_CATALOG.find(f => f.id === fishId) || resolved.fish;
+   const [, cityName, fishId] = data.split(':');
+   const resolved = await resolveQueryCityAndFish(`${cityName} ${fishId}`, sess);
+   city = resolved.city;
+   fish = BOT_FISH_CATALOG.find(f => f.id === fishId) || resolved.fish;
   }
 
   saveUserSession(cqUserId, {
-  lat: city.lat,
-  lon: city.lon,
-  cityName: city.name,
-  wType: city.wType,
-  waterName: city.waterName,
-  fishId: fish.id
+   lat: city.lat,
+   lon: city.lon,
+   cityName: city.name,
+   wType: city.wType,
+   waterName: city.waterName,
+   fishId: fish.id
   });
 
   const card = await buildWorkerForecastCard(city, fish, WEBAPP_URL, isPrivate);
-  await tgApi(BOT_TOKEN, 'answerCallbackQuery', {
-  callback_query_id: cq.id,
-  text: `🎣 ${city.name}: ${fish.name} (${card.fishScore}%)`
-  });
-
-  if (cq.message && cq.message.chat) {
-  await tgApi(BOT_TOKEN, 'editMessageText', {
-  chat_id: cq.message.chat.id,
-  message_id: cq.message.message_id,
-  text: card.replyText,
-  parse_mode: 'Markdown',
-  reply_markup: card.replyMarkup
-  });
-  }
+  await editOrSendCqCard(card.replyText, card.replyMarkup, `🎣 ${city.name}: ${fish.name} (${card.fishScore}%)`);
   return new Response('OK', { status: 200 });
   }
 
@@ -7164,7 +7762,7 @@ function generateSyntheticWeatherJson(lat, lon) {
   await configureBotMenusAndCommands(BOT_TOKEN, chatId);
   await tgApi(BOT_TOKEN, 'sendMessage', {
   chat_id: chatId,
-  text: '🧭 *Панель быстрого управления активирована* (`🌟 Рекомендации`, `⚡`, `🔍`, `👤`, `❓`):',
+  text: '🧭 *Панель управления активирована* (`🎣 Прогноз`, `🌟 ТОП-5 клёва`, `📷 ИИ по фото`, `🌊 Водоёмы и Лёд`, `📡 Круг и SOS`, `🧭 Меню`):',
   parse_mode: 'Markdown',
   reply_markup: BOT_REPLY_KEYBOARD
   });
@@ -7195,11 +7793,70 @@ function generateSyntheticWeatherJson(lat, lon) {
   return new Response('OK', { status: 200 });
   }
 
+  // ── Обработка фотографий рыбы через Gemini Vision ИИ прямо в Telegram-боте ──
+  const hasPhoto = Array.isArray(msg.photo) && msg.photo.length > 0;
+  const hasImageDoc = Boolean(msg.document && /^image\//i.test(msg.document.mime_type || ''));
+  if (hasPhoto || hasImageDoc) {
+  const captionRaw = String(msg.caption || '').trim();
+  if (!isPrivateChat) {
+   const isMentionOrCmd = /@KlevProClubBot/i.test(captionRaw) || /^\/(ai|klev|fish)/i.test(captionRaw) || /^(клев|ии|кто|что за рыба)/i.test(captionRaw) || Boolean(msg.reply_to_message?.from?.is_bot);
+   if (!isMentionOrCmd) return new Response('OK', { status: 200 });
+  }
+  await ensurePrivateReplyKeyboard();
+  const bestPhoto = hasPhoto ? msg.photo[msg.photo.length - 1] : msg.document;
+  const fileId = bestPhoto?.file_id;
+  if (fileId) {
+   const { city } = await resolveQueryCityAndFish(captionRaw || session.cityName, session);
+   const waitMsg = await tgApi(BOT_TOKEN, 'sendMessage', {
+    chat_id: chatId,
+    reply_to_message_id: msg.message_id,
+    text: '🔍 *ИИ-Ихтиолог анализирует снимок...* Определяю вид рыбы, длину и вес.',
+    parse_mode: 'Markdown'
+   });
+   const waitMsgId = waitMsg?.result?.message_id;
+   const aiRes = await identifyFishPhotoForBot(env, ctx, BOT_TOKEN, fileId, city, captionRaw);
+   if (aiRes && aiRes.ok && aiRes.rec) {
+    saveUserSession(userId, {
+     lat: city.lat,
+     lon: city.lon,
+     cityName: city.name,
+     fishId: aiRes.rec.matchedFish.id
+    });
+    const aiCard = buildBotAiVisionCard(aiRes.rec, 'short', WEBAPP_URL, isPrivateChat);
+    if (waitMsgId) {
+     await tgApi(BOT_TOKEN, 'editMessageText', {
+      chat_id: chatId,
+      message_id: waitMsgId,
+      text: aiCard.text,
+      parse_mode: 'Markdown',
+      reply_markup: aiCard.replyMarkup
+     });
+    } else {
+     await tgApi(BOT_TOKEN, 'sendMessage', {
+      chat_id: chatId,
+      reply_to_message_id: msg.message_id,
+      text: aiCard.text,
+      parse_mode: 'Markdown',
+      reply_markup: aiCard.replyMarkup
+     });
+    }
+   } else {
+    const errText = `⚠️ ${aiRes?.error || 'Не удалось распознать рыбу на фото. Попробуйте более чёткий кадр.'}`;
+    if (waitMsgId) {
+     await tgApi(BOT_TOKEN, 'editMessageText', { chat_id: chatId, message_id: waitMsgId, text: errText });
+    } else {
+     await tgApi(BOT_TOKEN, 'sendMessage', { chat_id: chatId, reply_to_message_id: msg.message_id, text: errText });
+    }
+   }
+   return new Response('OK', { status: 200 });
+  }
+  }
+
   const rawText = (msg.text || '').trim();
   if (!rawText) return new Response('OK', { status: 200 });
 
   if (!isPrivateChat) {
-  const isBotCommand = /^\/(klev|top|waters|fish|crew|express|search|help|start)(@KlevProClubBot)?(\s|$)/i.test(rawText);
+  const isBotCommand = /^\/(klev|top|waters|fish|crew|express|search|help|start|menu|ai)(@KlevProClubBot)?(\s|$)/i.test(rawText);
   const isMention = /@KlevProClubBot/i.test(rawText);
   const isTriggerPrefix = /^(!клев|клев|прогноз)\s+/i.test(rawText);
   const isReplyToBot = Boolean(msg.reply_to_message?.from?.is_bot);
@@ -7218,7 +7875,6 @@ function generateSyntheticWeatherJson(lat, lon) {
   await configureBotMenusAndCommands(BOT_TOKEN, chatId);
   }
 
-  // Двухэтапная связка автономного Рыболовного ID (из APK или с сайта) с аккаунтом Telegram пользователя (/start BIND_FP_...)
   if (/^BIND_/i.test(startParam)) {
   const rawBindFid = startParam.replace(/^BIND_/i, '').trim();
   const normBindFid = workerNormalizeFisherId(rawBindFid, '89');
@@ -7231,15 +7887,14 @@ function generateSyntheticWeatherJson(lat, lon) {
    });
    await persistSystemMeta(env, ctx);
    const tgDisp = fromUsername ? `@${fromUsername}` : `ID ${userId}`;
-   const loginLine = boundRec?.login ? `🔑 *Единый логин профиля:* \`${boundRec.login}\`\n` : '';
+   const loginLine = boundRec?.login ? `🔑 *Логин:* \`${boundRec.login}\`\n` : '';
    await tgApi(BOT_TOKEN, 'sendMessage', {
    chat_id: chatId,
    text:
-    `🔗 *Связка выполнена! Ваш рыболовный ID и Telegram объединены воедино.*\n\n` +
-    `🆔 *Ваш единый Рыболовный ID:* \`${boundRec?.fisherId || normBindFid}\`\n` +
-    `✈️ *Аккаунт Telegram:* ${tgDisp}\n` +
+    `🔗 *Связка выполнена! Профиль и Telegram объединены.*\n` +
+    `🆔 *Рыболовный ID:* \`${boundRec?.fisherId || normBindFid}\` • ✈️ ${tgDisp}\n` +
     loginLine +
-    `\nТеперь в мобильном приложении (APK), на сайте \`klevpro.ru\` и в боте \`@KlevProClubBot\` у вас единый профиль, общие точки Круга, Экипажи и настройки!`,
+    `Теперь в приложении, на сайте и в боте у вас единый профиль и общие точки Круга.`,
    parse_mode: 'Markdown',
    reply_markup: BOT_REPLY_KEYBOARD
    });
@@ -7257,7 +7912,7 @@ function generateSyntheticWeatherJson(lat, lon) {
    tgFirstName: fromFullName
    });
    await persistSystemMeta(env, ctx);
-   bindNote = `\n🔗 *Ваш ID \`${bRec?.fisherId || kploc.fisherId}\` связан с вашим Telegram!*`;
+   bindNote = `\n🔗 *ID \`${bRec?.fisherId || kploc.fisherId}\` привязан к вашему Telegram!*`;
   }
   const fish = BOT_FISH_CATALOG.find(f => f.id === kploc.fishId) || BOT_FISH_CATALOG[0];
   const near = findNearestSettlement(kploc.lat, kploc.lon);
@@ -7283,19 +7938,13 @@ function generateSyntheticWeatherJson(lat, lon) {
   return new Response('OK', { status: 200 });
   }
 
-  const appLink = startParam.startsWith('KP1_') ? `${WEBAPP_URL}#p=${startParam}` : WEBAPP_URL;
+  const { city, fish } = await resolveQueryCityAndFish(`${session.cityName || 'Новый Уренгой'} ${session.fishId || 'pike'}`, session);
+  const menuCard = buildBotMainMenuCard(session, city, fish, WEBAPP_URL, isPrivateChat);
 
   if (isPrivateChat) {
   await tgApi(BOT_TOKEN, 'sendMessage', {
   chat_id: chatId,
-  text:
-  `👋 *Добро пожаловать в «Клёв ПРО 2.0: Круг» (@KlevProClubBot)!*\n` +
-  `Нижняя панель быстрых кнопок активирована:\n` +
-  `• *🌟 Рекомендации* — ТОП-5 клёва сегодня в вашей точке\n` +
-  `• *⚡* — Экспресс-радар на 72 часа (3 дня)\n` +
-  `• *🔍* — Поиск водоёмов (50 и 120 км) и регионов\n` +
-  `• *👤* — Ваш профиль и домашняя локация\n` +
-  `• *❓* — Справка и работа в группах/каналах`,
+  text: `👋 *Добро пожаловать в «Клёв ПРО 2.0: Круг»!* Нижние кнопки активированы.`,
   parse_mode: 'Markdown',
   reply_markup: BOT_REPLY_KEYBOARD
   });
@@ -7303,40 +7952,45 @@ function generateSyntheticWeatherJson(lat, lon) {
 
   await tgApi(BOT_TOKEN, 'sendMessage', {
   chat_id: chatId,
-  text:
-  `🎣 *В базе навигатора — все 115 видов рыб РФ, 609 городов/посёлков и 491 водоём.*\n\n` +
-  `Напишите мне *город/посёлок, водоём или рыбу* в любом сочетании:\n` +
-  `• \`Мишкино Курганская карась\` или \`Курган судак\`\n` +
-  `• \`Мишкино Башкортостан чехонь\`\n` +
-  `• \`Озеро Негито\` или \`Новый Уренгой елец\`\n` +
-  `• \`Ярославль судак\` или \`Сочи барабулька\`\n\n` +
-  `Или отправьте геопозицию (📎 ➔ Геопозиция), или выберите точку ниже:`,
+  text: menuCard.text,
   parse_mode: 'Markdown',
-  reply_markup: {
-  inline_keyboard: [
-  [makeAppButton('🎣 Открыть навигатор «Клёв ПРО 2.0»', appLink, isPrivateChat)],
-  [
-  { text: '📍 Мишкино (Кург) • Карась', callback_data: 'f:55.338:63.918:crucian:Мишкино (Кург)' },
-  { text: '📍 Мишкино (РБ) • Судак', callback_data: 'f:55.461:55.948:zander:Мишкино (РБ)' }
-  ],
-  [
-  { text: '📍 Озеро Негито • Пелядь', callback_data: 'f:65.410:77.120:peled:Озеро Негито' },
-  { text: '📍 Сочи • Барабулька', callback_data: 'f:43.586:39.723:red_mullet:Сочи' }
-  ],
-  [
-  { text: '📍 Ярославль • Судак', callback_data: 'f:57.626:39.885:zander:Ярославль' },
-  { text: '📍 Астрахань • Сазан', callback_data: 'f:46.350:48.041:carp:Астрахань' }
-  ]
-  ]
-  }
+  reply_markup: menuCard.replyMarkup
   });
   return new Response('OK', { status: 200 });
   }
 
   await ensurePrivateReplyKeyboard();
 
-  if (cleanText === '🌟 Рекомендации' || cleanText.toLowerCase() === 'рекомендации' || /^\/top(\s|$)/i.test(cleanText)) {
-  const arg = cleanText.replace(/^\/top\s*/i, '').replace(/^🌟\s*Рекомендации/i, '').trim();
+  if (cleanText === '🧭 Меню' || cleanText.toLowerCase() === 'меню' || /^\/menu(\s|$)/i.test(cleanText)) {
+  const { city, fish } = await resolveQueryCityAndFish(`${session.cityName} ${session.fishId}`, session);
+  const menuCard = buildBotMainMenuCard(session, city, fish, WEBAPP_URL, isPrivateChat);
+  await tgApi(BOT_TOKEN, 'sendMessage', { chat_id: chatId, text: menuCard.text, parse_mode: 'Markdown', reply_markup: menuCard.replyMarkup });
+  return new Response('OK', { status: 200 });
+  }
+
+  if (cleanText === '📷 ИИ по фото' || /^\/ai(\s|$)/i.test(cleanText)) {
+  const { city, fish } = await resolveQueryCityAndFish(`${session.cityName} ${session.fishId}`, session);
+  const aiHelp = buildAiPromptHelpCard(city, fish, WEBAPP_URL, isPrivateChat);
+  await tgApi(BOT_TOKEN, 'sendMessage', { chat_id: chatId, text: aiHelp.text, parse_mode: 'Markdown', reply_markup: aiHelp.replyMarkup });
+  return new Response('OK', { status: 200 });
+  }
+
+  if (cleanText === '🎣 Прогноз') {
+  const { city, fish } = await resolveQueryCityAndFish(`${session.cityName} ${session.fishId}`, session);
+  const card = await buildWorkerForecastCard(city, fish, WEBAPP_URL, isPrivateChat);
+  await tgApi(BOT_TOKEN, 'sendMessage', { chat_id: chatId, text: card.replyText, parse_mode: 'Markdown', reply_markup: card.replyMarkup });
+  return new Response('OK', { status: 200 });
+  }
+
+  if (cleanText === '📡 Круг и SOS' || /^\/circle(\s|$)/i.test(cleanText)) {
+  const { city, fish } = await resolveQueryCityAndFish(`${session.cityName} ${session.fishId}`, session);
+  const radCard = buildCircleRadarSubCard(city, fish, WEBAPP_URL, isPrivateChat);
+  await tgApi(BOT_TOKEN, 'sendMessage', { chat_id: chatId, text: radCard.text, parse_mode: 'Markdown', reply_markup: radCard.replyMarkup });
+  return new Response('OK', { status: 200 });
+  }
+
+  if (cleanText === '🌟 ТОП-5 клёва' || cleanText === '🌟 Рекомендации' || cleanText.toLowerCase() === 'рекомендации' || /^\/top(\s|$)/i.test(cleanText)) {
+  const arg = cleanText.replace(/^\/top\s*/i, '').replace(/^🌟\s*(ТОП-5 клёва|Рекомендации)/i, '').trim();
   const { city } = await resolveQueryCityAndFish(arg || session.cityName, session);
   saveUserSession(userId, { lat: city.lat, lon: city.lon, cityName: city.name, wType: city.wType, waterName: city.waterName });
   const rec = await buildRecommendationsCard(city, WEBAPP_URL, isPrivateChat);
@@ -7361,12 +8015,13 @@ function generateSyntheticWeatherJson(lat, lon) {
   return new Response('OK', { status: 200 });
   }
 
-  if (cleanText === '🔍' || /^\/(search|waters|fish)(\s|$)/i.test(cleanText)) {
-  const arg = cleanText.replace(/^\/(search|waters|fish)\s*/i, '').replace(/^🔍\s*/, '').trim();
-  const { city } = await resolveQueryCityAndFish(arg || session.cityName, session);
+  if (cleanText === '🌊 Водоёмы и Лёд' || cleanText === '🔍' || /^\/(search|waters|fish)(\s|$)/i.test(cleanText)) {
+  const isFishCmd = /^\/fish(\s|$)/i.test(cleanText);
+  const arg = cleanText.replace(/^\/(search|waters|fish)\s*/i, '').replace(/^(🌊 Водоёмы и Лёд|🔍)\s*/, '').trim();
+  const { city, fish } = await resolveQueryCityAndFish(arg || session.cityName, session);
   saveUserSession(userId, { lat: city.lat, lon: city.lon, cityName: city.name });
-  const srch = buildSearchDirectoryCard(city);
-  await tgApi(BOT_TOKEN, 'sendMessage', { chat_id: chatId, text: srch.text, parse_mode: 'Markdown', reply_markup: srch.replyMarkup });
+  const cardOut = isFishCmd ? buildFishPickerSubCard(city, fish) : buildWaterPickerSubCard(city, fish);
+  await tgApi(BOT_TOKEN, 'sendMessage', { chat_id: chatId, text: cardOut.text, parse_mode: 'Markdown', reply_markup: cardOut.replyMarkup });
   return new Response('OK', { status: 200 });
   }
 
@@ -7378,7 +8033,8 @@ function generateSyntheticWeatherJson(lat, lon) {
   }
 
   if (cleanText === '❓' || cleanText === '?' || /^\/help(\s|$)/i.test(cleanText)) {
-  const helpCard = buildHelpAndGroupsCard(WEBAPP_URL, isPrivateChat);
+  const { city, fish } = await resolveQueryCityAndFish(`${session.cityName} ${session.fishId}`, session);
+  const helpCard = buildHelpAndGroupsCard(WEBAPP_URL, isPrivateChat, city, fish);
   await tgApi(BOT_TOKEN, 'sendMessage', { chat_id: chatId, text: helpCard.text, parse_mode: 'Markdown', reply_markup: helpCard.replyMarkup });
   return new Response('OK', { status: 200 });
   }
@@ -7387,7 +8043,7 @@ function generateSyntheticWeatherJson(lat, lon) {
   if (kpMatch && kpMatch[1]) {
   const tok = kpMatch[1];
   const packUrl = `${WEBAPP_URL}#p=${tok}`;
-  let previewLines = `📥 *Обнаружен зашифрованный пакет «Круга / Экипажа»!*`;
+  let previewLines = `📥 *Зашифрованный пакет «Круга / Экипажа»*`;
   try {
   let b64 = tok.slice(4).replace(/-/g, '+').replace(/_/g, '/');
   while (b64.length % 4 !== 0) b64 += '=';
@@ -7426,43 +8082,15 @@ function generateSyntheticWeatherJson(lat, lon) {
    const fObj = BOT_FISH_CATALOG[fiIdx] || BOT_FISH_CATALOG[0];
    const nearC = (lat || lon) ? findNearestSettlement(lat, lon) : { name: 'Водоём' };
    const cKey = `KP-${(meta16 || 0x7a3f).toString(16).toUpperCase().padStart(4, '0')}`;
-   const mTitle = mCode === 2 ? '🆘 SOS НА ВОДЕ (ВСЕМ РЫБАКАМ)' : (mCode === 1 ? `🌊 ЭКИПАЖ (72 ч • Ключ ${cKey})` : (mCode === 3 ? '🛠️ МАСТЕРСКАЯ СНАСТЕЙ' : '👥 СВОДКА В КРУГ (±5 км)'));
-   previewLines = `*${mTitle} • Клёв ПРО*
-📍 *${nearC.name}*${fidStr ? ` • 🆔 \`${fidStr}\`` : ''}
-🐟 *${fObj.name}* • 💧 ~${tw}°C • 🧭 ${pr} мм • ~${dp} м` +
-    ((mCode === 1 || mCode === 2) && (lat || lon) ? `
-🎯 Координаты: \`${lat.toFixed(4)}°N, ${lon.toFixed(4)}°E\`` : '') +
-    (customNote ? `
-💬 ${customNote}` : '');
-  } else {
-   const parsed = JSON.parse(new TextDecoder().decode(plain));
-   if (Array.isArray(parsed) && parsed[0] === 2) {
-   const [, mCode, fiIdx, , , lat, lon, dp, tw, pr, , , lb, wn, au, bt, nt] = parsed;
-   const fObj = BOT_FISH_CATALOG[Number(fiIdx)] || BOT_FISH_CATALOG[0];
-   const mTitle = mCode === 2 ? '🆘 SOS НА ВОДЕ (ВСЕМ)' : (mCode === 1 ? '🌊 ЭКИПАЖ (72 ч)' : (mCode === 3 ? '🛠️ МАСТЕРСКАЯ СНАСТЕЙ' : '👥 СВОДКА В КРУГ (±5 км)'));
-   const locStr = (wn && wn !== lb) ? `${lb} (${wn})` : (lb || 'Точка на воде');
-   previewLines = `*${mTitle} • Клёв ПРО*
-📍 *${locStr}*${au ? ` • 👤 ${au}` : ''}
-🐟 *${fObj.name}* • 💧 ~${tw}°C • 🧭 ${pr} мм • ~${dp} м` +
-    ((mCode === 1 || mCode === 2) && lat && lon ? `
-🎯 Координаты: \`${Number(lat).toFixed(4)}°N, ${Number(lon).toFixed(4)}°E\`` : '') +
-    (bt ? `
-🪱 Приманка: ${bt}` : '') +
-    (nt ? `
-💬 ${nt}` : '');
-   } else if (parsed && parsed.t) {
-   const mTitle = parsed.sos ? '🆘 SOS НА ВОДЕ (ВСЕМ)' : (parsed.t === 'crew' ? '🌊 ЭКИПАЖ (72 ч)' : (parsed.t === 'workshop' ? '🛠️ МАСТЕРСКАЯ СНАСТЕЙ' : '👥 СВОДКА В КРУГ'));
-   previewLines = `*${mTitle} • Клёв ПРО*
-📍 *${parsed.lb || parsed.wn || 'Водоём'}*
-🐟 *${parsed.fn || 'Рыба'}* • 💧 ~${parsed.tw ?? 8}°C`;
-   }
+   const mTitle = mCode === 2 ? '🆘 SOS НА ВОДЕ' : (mCode === 1 ? `🌊 ЭКИПАЖ (Ключ ${cKey})` : (mCode === 3 ? '🛠️ МАСТЕРСКАЯ' : '👥 СВОДКА В КРУГ'));
+   previewLines = `*${mTitle} • Клёв ПРО*\n📍 *${nearC.name}*${fidStr ? ` • 🆔 \`${fidStr}\`` : ''}\n🐟 *${fObj.name}* • 💧 ~${tw}°C • 🧭 ${pr} мм • ~${dp} м` +
+    ((mCode === 1 || mCode === 2) && (lat || lon) ? `\n🎯 \`${lat.toFixed(4)}°N, ${lon.toFixed(4)}°E\`` : '') +
+    (customNote ? `\n💬 ${customNote}` : '');
   }
   } catch (_) {}
   await tgApi(BOT_TOKEN, 'sendMessage', {
   chat_id: chatId,
-  text: `${previewLines}
-
-👇 Нажмите кнопку ниже, чтобы открыть и сохранить в ваш навигатор:`,
+  text: `${previewLines}\n\n👇 Откройте точку в навигаторе в 1 клик:`,
   parse_mode: 'Markdown',
   reply_markup: {
   inline_keyboard: [
