@@ -4330,14 +4330,11 @@ function getGeminiQuotaStatus(env = null, includeRawKeyForOwner = false) {
 const GEMINI_FALLBACK_MODELS = [
  "gemini-2.5-flash",
  "gemini-2.5-flash-lite",
- "gemini-3.8-flash",
- "gemini-3.7-flash",
- "gemini-3.6-flash",
- "gemini-3.5-flash-lite",
- "gemini-3.5-flash",
- "gemini-3-flash-preview",
+ "gemini-2.0-flash",
+ "gemini-2.0-flash-lite",
+ "gemini-1.5-flash",
  "gemini-2.5-pro",
- "gemini-1.5-flash"
+ "gemini-1.5-pro"
 ];
 
 const _workerDiscoveredModelsCache = new Map();
@@ -4366,14 +4363,16 @@ async function discoverGeminiModelsForWorker(apiKey) {
      if (!methods.includes("generateContent")) continue;
      const id = String(m.name || "").replace(/^models\//, "");
      if (!id.startsWith("gemini-")) continue;
-     if (/embedding|imagen|veo|tts|audio|aqa|bisect|learnlm|robotics|computer-use|-image$|2\.0-flash|flash-latest|1\.0/i.test(id)) continue;
+     if (/embedding|imagen|veo|tts|audio|aqa|bisect|learnlm|robotics|computer-use|-image$|1\.0/i.test(id)) continue;
      let score = 100;
-     if (id.includes("flash")) score += 500;
-     if (id.includes("flash-lite")) score += 45;
-     if (id.includes("pro")) score += 200;
-     const vMatch = id.match(/gemini-(\d+(?:\.\d+)?)/);
-     if (vMatch) score += Math.round(parseFloat(vMatch[1]) * 100);
-     if (!id.includes("exp") && !id.includes("preview")) score += 35;
+     if (id === "gemini-2.5-flash") score += 900;
+     else if (id === "gemini-2.5-flash-lite") score += 880;
+     else if (id === "gemini-2.0-flash") score += 860;
+     else if (id === "gemini-2.0-flash-lite") score += 840;
+     else if (id === "gemini-1.5-flash") score += 800;
+     else if (id.includes("flash")) score += 500;
+     else if (id.includes("pro")) score += 200;
+     if (!id.includes("exp") && !id.includes("preview") && !id.includes("thinking")) score += 250;
      scored.push({ id, score });
     }
     scored.sort((a, b) => b.score - a.score);
@@ -4391,13 +4390,13 @@ async function discoverGeminiModelsForWorker(apiKey) {
  return GEMINI_FALLBACK_MODELS;
 }
 
-async function callGeminiGenerateContentSmart(apiKey, contentsPayload, genConfig = {}, timeoutMs = 6500) {
+async function callGeminiGenerateContentSmart(apiKey, contentsPayload, genConfig = {}, timeoutMs = 12000) {
  const cleanKey = String(apiKey || "").trim().replace(/^["'\s]+|["'\s]+$/g, "");
  if (!cleanKey) return { ok: false, status: 400, errorText: "Empty key" };
 
  const discovered = await discoverGeminiModelsForWorker(cleanKey);
  const candidates = [];
- if (geminiConfigStore.activeModel && !/2\.0-flash|flash-latest/i.test(geminiConfigStore.activeModel)) {
+ if (geminiConfigStore.activeModel && /^gemini-(2\.5|2\.0|1\.5)-/i.test(geminiConfigStore.activeModel) && !/preview|exp/i.test(geminiConfigStore.activeModel)) {
   candidates.push(geminiConfigStore.activeModel);
  }
  for (const m of discovered) {
@@ -4459,9 +4458,14 @@ async function callGeminiGenerateContentSmart(apiKey, contentsPayload, genConfig
      continue;
     }
 
+    if (res.status === 400 || res.status === 403) {
+     if (/location is not supported|FAILED_PRECONDITION|API_KEY_INVALID|PERMISSION_DENIED/i.test(errTxt)) {
+      return { ok: false, status: res.status, errorText: errTxt };
+     }
+    }
     if (res.status === 404) {
      const suggested = errTxt.match(/models\/(gemini-[a-z0-9.-]+)/i);
-     if (suggested && suggested[1] && !candidates.includes(suggested[1]) && !/2\.0-flash/i.test(suggested[1])) {
+     if (suggested && suggested[1] && !candidates.includes(suggested[1])) {
       candidates.splice(i + 1, 0, suggested[1]);
      }
     }
@@ -5287,7 +5291,7 @@ export default {
     if (withinRateLimit && pureB64 && pureB64.length > 200) {
      const geminiKeys = getEffectiveGeminiKeys(env, clientGeminiKey);
 
-     // Провайдер А: Google Gemini Flash Vision (gemini-3.5-flash-lite / 3.6-flash / 3.8-flash / 2.5-flash)
+     // Провайдер А: Google Gemini Flash Vision (gemini-2.5-flash / 2.5-flash-lite / 2.0-flash / 1.5-flash)
      if (geminiKeys.length > 0) {
       for (let attempt = 0; attempt < Math.min(2, geminiKeys.length); attempt++) {
        const gKey = geminiKeys[(globalThis.__klevGeminiKeyIdx++) % geminiKeys.length];
@@ -5302,9 +5306,9 @@ export default {
          }],
          {
           temperature: 0.15,
-          maxOutputTokens: 4096
+          maxOutputTokens: 2048
          },
-         8000
+         12000
         );
 
         if (smartRes && smartRes.ok && smartRes.text) {
@@ -6611,8 +6615,8 @@ function generateSyntheticWeatherJson(lat, lon) {
     appName: 'Клёв ПРО 2.0',
     packageName: 'ru.klevpro.app',
     version: WORKER_VERSION,
-    versionCode: 256193,
-    buildRevision: '2026.10.31-r193',
+    versionCode: 256194,
+    buildRevision: '2026.11.01-r194',
     releaseDate: '2026-10-30',
     apkFileName: `klev-pro-v${WORKER_VERSION}.apk`,
     apkUrl: `https://klevpro.ru/apk/klev-pro-v${WORKER_VERSION}.apk`,

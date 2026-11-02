@@ -67,9 +67,9 @@ jobs:
             python3 -c 'import struct,zlib;w=h=192;raw=b"".join(b"\x00"+b"\x0e\xa5\xe9\xff"*w for _ in range(h));chunk=lambda t,d:struct.pack("!I",len(d))+t+d+struct.pack("!I",zlib.crc32(t+d)&0xffffffff);open("'"$PROJ_DIR"'/app/src/main/res/drawable/ic_launcher.png","wb").write(b"\x89PNG\r\n\x1a\n"+chunk(b"IHDR",struct.pack("!IIBBBBB",w,h,8,6,0,0,0))+chunk(b"IDAT",zlib.compress(raw))+chunk(b"IEND",b""))'
           fi
 
-          # 4. Вычисляем строго возрастающий versionCode для релиза 2.5.5 r192 (чтобы Android всегда обновлял APK поверх старой версии)
+          # 4. Вычисляем строго возрастающий versionCode для релиза 2.5.6 r194 (чтобы Android всегда обновлял APK поверх старой версии)
           RUN_NUM=${GITHUB_RUN_NUMBER:-0}
-          VER_CODE=$((255192 + RUN_NUM))
+          VER_CODE=$((256194 + RUN_NUM))
           echo "Using versionCode=$VER_CODE"
 
           cat << 'EOF' > "$PROJ_DIR/settings.gradle"
@@ -114,7 +114,7 @@ jobs:
                   minSdk 24
                   targetSdk 34
                   versionCode ${VER_CODE}
-                  versionName "2.5.5-r192"
+                  versionName "2.5.6-r194"
               }
               signingConfigs {
                   release {
@@ -178,6 +178,7 @@ jobs:
               <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
               <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
               <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+              <uses-permission android:name="android.permission.CAMERA" />
               <uses-permission android:name="android.permission.VIBRATE" />
               <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
               <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
@@ -232,7 +233,10 @@ jobs:
           import android.content.Context;
           import android.content.Intent;
           import android.content.pm.PackageManager;
+          import android.graphics.Bitmap;
+          import android.graphics.BitmapFactory;
           import android.graphics.Color;
+          import java.io.ByteArrayOutputStream;
           import android.media.AudioAttributes;
           import android.media.RingtoneManager;
           import android.net.Uri;
@@ -245,6 +249,7 @@ jobs:
           import android.view.Window;
           import android.webkit.DownloadListener;
           import android.webkit.GeolocationPermissions;
+          import android.webkit.PermissionRequest;
           import android.webkit.JavascriptInterface;
           import android.webkit.ValueCallback;
           import android.webkit.WebChromeClient;
@@ -270,14 +275,19 @@ jobs:
           public class MainActivity extends Activity {
               private static final int REQ_PERMISSIONS = 1001;
               private static final int REQ_FILE_CHOOSER = 1002;
+              private static final int REQ_CAMERA_CAPTURE = 1003;
+              private static final int REQ_CAMERA_PERM = 1004;
               private static final String VIRTUAL_HOST = "appassets.androidplatform.net";
               private static final String CHANNEL_ALERTS = "klev_pro_alerts";
               private static final String CHANNEL_FILES = "klev_pro_files";
               private static final String PERM_POST_NOTIFICATIONS = "android.permission.POST_NOTIFICATIONS";
+              private static final String PERM_READ_MEDIA_IMAGES = "android.permission.READ_MEDIA_IMAGES";
               private static final AtomicInteger NOTIF_ID_SEQ = new AtomicInteger(2000);
 
               private WebView webView;
               private ValueCallback<Uri[]> fileUploadCallback;
+              private boolean pendingCameraLaunchAfterPerm = false;
+              private Uri pendingCameraPhotoUri = null;
               private long lastRootBackPressMs = 0L;
               private OnBackInvokedCallback backInvokedCallback;
 
@@ -286,6 +296,69 @@ jobs:
 
                   public NativeBridge(Context ctx) {
                       this.ctx = ctx;
+                  }
+
+                  @JavascriptInterface
+                  public boolean hasCameraAndPhotoPermissions() {
+                      try {
+                          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                              boolean camOk = checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED;
+                              boolean mediaOk = true;
+                              if (Build.VERSION.SDK_INT >= 33) {
+                                  mediaOk = checkSelfPermission(PERM_READ_MEDIA_IMAGES) == PackageManager.PERMISSION_GRANTED;
+                              } else {
+                                  mediaOk = checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
+                              }
+                              return camOk && mediaOk;
+                          }
+                          return true;
+                      } catch (Exception e) {
+                          return false;
+                      }
+                  }
+
+                  @JavascriptInterface
+                  public void openNativeCamera() {
+                      runOnUiThread(new Runnable() {
+                          @Override
+                          public void run() {
+                              if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                                  if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                                      pendingCameraLaunchAfterPerm = true;
+                                      requestPermissions(new String[]{Manifest.permission.CAMERA}, REQ_CAMERA_PERM);
+                                      return;
+                                  }
+                              }
+                              launchNativeCameraIntent();
+                          }
+                      });
+                  }
+
+                  @JavascriptInterface
+                  public void requestCameraAndPhotoPermissions() {
+                      runOnUiThread(new Runnable() {
+                          @Override
+                          public void run() {
+                              if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                                  List<String> needed = new ArrayList<>();
+                                  if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                                      needed.add(Manifest.permission.CAMERA);
+                                  }
+                                  if (Build.VERSION.SDK_INT >= 33) {
+                                      if (checkSelfPermission(PERM_READ_MEDIA_IMAGES) != PackageManager.PERMISSION_GRANTED) {
+                                          needed.add(PERM_READ_MEDIA_IMAGES);
+                                      }
+                                  } else {
+                                      if (checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                                          needed.add(Manifest.permission.READ_EXTERNAL_STORAGE);
+                                      }
+                                  }
+                                  if (!needed.isEmpty()) {
+                                      requestPermissions(needed.toArray(new String[0]), REQ_PERMISSIONS);
+                                  }
+                              }
+                          }
+                      });
                   }
 
                   @JavascriptInterface
@@ -300,17 +373,7 @@ jobs:
 
                   @JavascriptInterface
                   public String getAppVersion() {
-                      return "2.5.5-r192";
-                  }
-
-                  @JavascriptInterface
-                  public int getAppBuildNumber() {
-                      return 188;
-                  }
-
-                  @JavascriptInterface
-                  public String getAppRevision() {
-                      return "r192";
+                      return "2.5.6-r194";
                   }
 
                   @JavascriptInterface
@@ -408,7 +471,7 @@ jobs:
                                   .setDefaults(Notification.DEFAULT_ALL);
                           }
 
-                          builder.setSmallIcon(R.drawable.ic_launcher)
+                          builder.setSmallIcon(R.mipmap.ic_launcher)
                               .setContentTitle(title != null && !title.isEmpty() ? title : "Клёв ПРО 2.0")
                               .setContentText(body != null ? body : "")
                               .setStyle(new Notification.BigTextStyle().bigText(body != null ? body : ""))
@@ -584,7 +647,7 @@ jobs:
                   ws.setCacheMode(WebSettings.LOAD_NO_CACHE);
                   webView.clearCache(true);
                   String baseUa = ws.getUserAgentString();
-                  ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.5.5-r192");
+                  ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.5.6-r194");
 
                   webView.addJavascriptInterface(new NativeBridge(this), "AndroidBridge");
 
@@ -664,6 +727,24 @@ jobs:
 
                   webView.setWebChromeClient(new WebChromeClient() {
                       @Override
+                      public void onPermissionRequest(final PermissionRequest request) {
+                          if (request == null) return;
+                          runOnUiThread(new Runnable() {
+                              @Override
+                              public void run() {
+                                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                                      if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                                          requestPermissions(new String[]{Manifest.permission.CAMERA}, REQ_PERMISSIONS);
+                                      }
+                                  }
+                                  try {
+                                      request.grant(request.getResources());
+                                  } catch (Exception ignored) {}
+                              }
+                          });
+                      }
+
+                      @Override
                       public void onGeolocationPermissionsShowPrompt(final String origin, final GeolocationPermissions.Callback callback) {
                           if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                               if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
@@ -685,11 +766,45 @@ jobs:
                               contentIntent.setType("*/*");
                               String[] acceptTypes = (fileChooserParams != null) ? fileChooserParams.getAcceptTypes() : null;
                               boolean imageOnly = false;
-                              if (acceptTypes != null && acceptTypes.length == 1 && acceptTypes[0] != null && acceptTypes[0].startsWith("image/")) {
+                              if (acceptTypes != null && acceptTypes.length >= 1 && acceptTypes[0] != null && acceptTypes[0].startsWith("image/")) {
                                   imageOnly = true;
                                   contentIntent.setType("image/*");
+                                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                                      List<String> mediaPerms = new ArrayList<>();
+                                      if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                                          mediaPerms.add(Manifest.permission.CAMERA);
+                                      }
+                                      if (Build.VERSION.SDK_INT >= 33) {
+                                          if (checkSelfPermission(PERM_READ_MEDIA_IMAGES) != PackageManager.PERMISSION_GRANTED) {
+                                              mediaPerms.add(PERM_READ_MEDIA_IMAGES);
+                                          }
+                                      } else if (checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                                          mediaPerms.add(Manifest.permission.READ_EXTERNAL_STORAGE);
+                                      }
+                                      if (!mediaPerms.isEmpty()) {
+                                          requestPermissions(mediaPerms.toArray(new String[0]), REQ_PERMISSIONS);
+                                      }
+                                  }
+                              }
+                              boolean isCapture = (fileChooserParams != null && fileChooserParams.isCaptureEnabled());
+                              if (isCapture) {
+                                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                                      pendingCameraLaunchAfterPerm = true;
+                                      requestPermissions(new String[]{Manifest.permission.CAMERA}, REQ_CAMERA_PERM);
+                                      return true;
+                                  }
+                                  launchNativeCameraIntent();
+                                  return true;
                               }
                               Intent chooser = Intent.createChooser(contentIntent, imageOnly ? "Выберите фото улова" : "Выберите файл (.GPX, .KML, .JSON, .CSV, фото)");
+                              if (imageOnly) {
+                                  try {
+                                      Intent camIntent = createCameraCaptureIntentWithUri();
+                                      if (camIntent != null) {
+                                          chooser.putExtra(Intent.EXTRA_INITIAL_INTENTS, new Intent[]{camIntent});
+                                      }
+                                  } catch (Exception ignored) {}
+                              }
                               startActivityForResult(chooser, REQ_FILE_CHOOSER);
                           } catch (Exception e) {
                               fileUploadCallback = null;
@@ -734,7 +849,7 @@ jobs:
               }
 
               private void loadEntryUrlFromIntent(Intent intent) {
-                  String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/index.html?v=2.5.5_r192";
+                  String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/index.html?v=2.5.6_r194";
                   if (intent != null && intent.getData() != null) {
                       Uri data = intent.getData();
                       String q = data.getEncodedQuery();
@@ -759,14 +874,22 @@ jobs:
                           needed.add(Manifest.permission.ACCESS_FINE_LOCATION);
                           needed.add(Manifest.permission.ACCESS_COARSE_LOCATION);
                       }
+                      if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                          needed.add(Manifest.permission.CAMERA);
+                      }
                       if (Build.VERSION.SDK_INT >= 33) {
                           if (checkSelfPermission(PERM_POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                               needed.add(PERM_POST_NOTIFICATIONS);
                           }
-                      } else if (Build.VERSION.SDK_INT <= 29) {
-                          if (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-                              needed.add(Manifest.permission.WRITE_EXTERNAL_STORAGE);
+                          if (checkSelfPermission(PERM_READ_MEDIA_IMAGES) != PackageManager.PERMISSION_GRANTED) {
+                              needed.add(PERM_READ_MEDIA_IMAGES);
+                          }
+                      } else {
+                          if (checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
                               needed.add(Manifest.permission.READ_EXTERNAL_STORAGE);
+                          }
+                          if (Build.VERSION.SDK_INT <= 29 && checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                              needed.add(Manifest.permission.WRITE_EXTERNAL_STORAGE);
                           }
                       }
                       if (!needed.isEmpty()) {
@@ -775,21 +898,167 @@ jobs:
                   }
               }
 
+              private Intent createCameraCaptureIntentWithUri() {
+                  Intent camIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+                  pendingCameraPhotoUri = null;
+                  try {
+                      ContentValues values = new ContentValues();
+                      values.put(MediaStore.Images.Media.DISPLAY_NAME, "klev_scan_" + System.currentTimeMillis() + ".jpg");
+                      values.put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg");
+                      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                          values.put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES);
+                      }
+                      pendingCameraPhotoUri = getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
+                      if (pendingCameraPhotoUri != null) {
+                          camIntent.putExtra(MediaStore.EXTRA_OUTPUT, pendingCameraPhotoUri);
+                      }
+                  } catch (Exception ignored) {
+                      pendingCameraPhotoUri = null;
+                  }
+                  return camIntent;
+              }
+
+              private void launchNativeCameraIntent() {
+                  try {
+                      Intent camIntent = createCameraCaptureIntentWithUri();
+                      startActivityForResult(camIntent, REQ_CAMERA_CAPTURE);
+                  } catch (Exception e) {
+                      try {
+                          Intent simpleCam = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+                          pendingCameraPhotoUri = null;
+                          startActivityForResult(simpleCam, REQ_CAMERA_CAPTURE);
+                      } catch (Exception ex) {
+                          if (fileUploadCallback != null) {
+                              fileUploadCallback.onReceiveValue(null);
+                              fileUploadCallback = null;
+                          }
+                          Toast.makeText(this, "Не удалось открыть системную камеру устройства", Toast.LENGTH_SHORT).show();
+                      }
+                  }
+              }
+
+              private String bitmapToDataUrl(Bitmap bmp) {
+                  if (bmp == null) return null;
+                  try {
+                      int w = bmp.getWidth();
+                      int h = bmp.getHeight();
+                      int maxDim = 960;
+                      if (w > maxDim || h > maxDim) {
+                          float ratio = Math.min((float) maxDim / w, (float) maxDim / h);
+                          w = Math.max(64, Math.round(w * ratio));
+                          h = Math.max(64, Math.round(h * ratio));
+                          bmp = Bitmap.createScaledBitmap(bmp, w, h, true);
+                      }
+                      ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                      bmp.compress(Bitmap.CompressFormat.JPEG, 84, baos);
+                      String b64 = Base64.encodeToString(baos.toByteArray(), Base64.NO_WRAP);
+                      return "data:image/jpeg;base64," + b64;
+                  } catch (Exception e) {
+                      return null;
+                  }
+              }
+
+              private String decodeUriToDataUrl(Uri uri) {
+                  if (uri == null) return null;
+                  try (InputStream is = getContentResolver().openInputStream(uri)) {
+                      if (is == null) return null;
+                      Bitmap bmp = BitmapFactory.decodeStream(is);
+                      return bitmapToDataUrl(bmp);
+                  } catch (Exception e) {
+                      return null;
+                  }
+              }
+
+              @Override
+              public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+                  super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+                  if (requestCode == REQ_CAMERA_PERM || requestCode == REQ_PERMISSIONS) {
+                      if (pendingCameraLaunchAfterPerm) {
+                          pendingCameraLaunchAfterPerm = false;
+                          boolean camGranted = true;
+                          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                              camGranted = checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED;
+                          }
+                          if (camGranted) {
+                              launchNativeCameraIntent();
+                          } else {
+                              if (fileUploadCallback != null) {
+                                  fileUploadCallback.onReceiveValue(null);
+                                  fileUploadCallback = null;
+                              }
+                              Toast.makeText(this, "Разрешите доступ к Камере в настройках приложения", Toast.LENGTH_LONG).show();
+                          }
+                      }
+                  }
+              }
+
               @Override
               protected void onActivityResult(int requestCode, int resultCode, Intent data) {
                   super.onActivityResult(requestCode, resultCode, data);
+                  if (requestCode == REQ_CAMERA_CAPTURE) {
+                      if (resultCode == Activity.RESULT_OK) {
+                          String dataUrl = null;
+                          if (pendingCameraPhotoUri != null) {
+                              dataUrl = decodeUriToDataUrl(pendingCameraPhotoUri);
+                          }
+                          if (dataUrl == null && data != null && data.getData() != null) {
+                              dataUrl = decodeUriToDataUrl(data.getData());
+                          }
+                          if (dataUrl == null && data != null && data.getExtras() != null) {
+                              Object rawBmp = data.getExtras().get("data");
+                              if (rawBmp instanceof Bitmap) {
+                                  dataUrl = bitmapToDataUrl((Bitmap) rawBmp);
+                              }
+                          }
+                          if (fileUploadCallback != null) {
+                              if (pendingCameraPhotoUri != null) {
+                                  fileUploadCallback.onReceiveValue(new Uri[]{pendingCameraPhotoUri});
+                              } else if (data != null && data.getData() != null) {
+                                  fileUploadCallback.onReceiveValue(new Uri[]{data.getData()});
+                              } else {
+                                  fileUploadCallback.onReceiveValue(null);
+                              }
+                              fileUploadCallback = null;
+                          }
+                          if (dataUrl != null && webView != null) {
+                              final String safeDataUrl = dataUrl;
+                              webView.post(new Runnable() {
+                                  @Override
+                                  public void run() {
+                                      webView.evaluateJavascript(
+                                          "if (typeof window.__KLEV_ON_NATIVE_CAMERA_PHOTO__ === 'function') { window.__KLEV_ON_NATIVE_CAMERA_PHOTO__('" + safeDataUrl + "'); }",
+                                          null
+                                      );
+                                  }
+                              });
+                          }
+                      } else {
+                          if (pendingCameraPhotoUri != null) {
+                              try { getContentResolver().delete(pendingCameraPhotoUri, null, null); } catch (Exception ignored) {}
+                              pendingCameraPhotoUri = null;
+                          }
+                          if (fileUploadCallback != null) {
+                              fileUploadCallback.onReceiveValue(null);
+                              fileUploadCallback = null;
+                          }
+                      }
+                      return;
+                  }
+
                   if (requestCode == REQ_FILE_CHOOSER && fileUploadCallback != null) {
                       Uri[] results = null;
-                      if (resultCode == Activity.RESULT_OK && data != null) {
-                          if (data.getData() != null) {
+                      if (resultCode == Activity.RESULT_OK) {
+                          if (data != null && data.getData() != null) {
                               results = new Uri[]{data.getData()};
-                          } else if (data.getClipData() != null) {
+                          } else if (data != null && data.getClipData() != null) {
                               ClipData clip = data.getClipData();
                               int count = clip.getItemCount();
                               results = new Uri[count];
                               for (int i = 0; i < count; i++) {
                                   results[i] = clip.getItemAt(i).getUri();
                               }
+                          } else if (pendingCameraPhotoUri != null) {
+                              results = new Uri[]{pendingCameraPhotoUri};
                           }
                       }
                       if (results == null) {
@@ -867,37 +1136,37 @@ jobs:
             exit $GRADLE_EXIT
           fi
 
-      - name: Rename Signed APK to klev-pro-v2.5.5.apk
+      - name: Rename Signed APK to klev-pro-v2.5.6.apk
         run: |
           REL_DIR="${{ steps.locate.outputs.proj_dir }}/app/build/outputs/apk/release"
           SRC_APK=$(ls "$REL_DIR"/*.apk | head -n 1)
           if [ -n "$SRC_APK" ]; then
-            cp -f "$SRC_APK" "$REL_DIR/klev-pro-v2.5.5.apk"
+            cp -f "$SRC_APK" "$REL_DIR/klev-pro-v2.5.6.apk"
           fi
 
-      - name: Auto-Save Signed APK to Repository (/apk/klev-pro-v2.5.5.apk)
+      - name: Auto-Save Signed APK to Repository (/apk/klev-pro-v2.5.6.apk)
         run: |
-          REL_APK="${{ steps.locate.outputs.proj_dir }}/app/build/outputs/apk/release/klev-pro-v2.5.5.apk"
+          REL_APK="${{ steps.locate.outputs.proj_dir }}/app/build/outputs/apk/release/klev-pro-v2.5.6.apk"
           if [ -f "$REL_APK" ]; then
             mkdir -p apk
             rm -f apk/*.apk
-            cp -f "$REL_APK" apk/klev-pro-v2.5.5.apk
-            ls -lh apk/klev-pro-v2.5.5.apk
+            cp -f "$REL_APK" apk/klev-pro-v2.5.6.apk
+            ls -lh apk/klev-pro-v2.5.6.apk
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add -A apk/
             if ! git diff --cached --quiet; then
-              git commit -m "chore(apk): auto-publish klev-pro-v2.5.5.apk to /apk/ [skip ci]"
+              git commit -m "chore(apk): auto-publish klev-pro-v2.5.6.apk to /apk/ [skip ci]"
               git pull --rebase origin "${GITHUB_REF_NAME:-main}" || true
               git push origin HEAD:"${GITHUB_REF_NAME:-main}"
-              echo "✅ Файл apk/klev-pro-v2.5.5.apk автоматически сохранён в каталог /apk/ репозитория!"
+              echo "✅ Файл apk/klev-pro-v2.5.6.apk автоматически сохранён в каталог /apk/ репозитория!"
             else
-              echo "ℹ️ Файл apk/klev-pro-v2.5.5.apk уже актуален."
+              echo "ℹ️ Файл apk/klev-pro-v2.5.6.apk уже актуален."
             fi
           fi
 
       - name: Upload Signed APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: KlevPro-v2.5.5-Android-APK
-          path: ${{ steps.locate.outputs.proj_dir }}/app/build/outputs/apk/release/klev-pro-v2.5.5.apk
+          name: KlevPro-v2.5.6-Android-APK
+          path: ${{ steps.locate.outputs.proj_dir }}/app/build/outputs/apk/release/klev-pro-v2.5.6.apk
