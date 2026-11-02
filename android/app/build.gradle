@@ -10,8 +10,8 @@ android {
         applicationId "ru.klevpro.app"
         minSdk 24
         targetSdk 34
-        versionCode 256194
-        versionName "2.5.6-r194"
+        versionCode 256195
+        versionName "2.5.6-r195"
     }
 
     signingConfigs {

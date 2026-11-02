@@ -154,7 +154,17 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String getAppVersion() {
-            return "2.5.6-r194";
+            return "2.5.6-r195";
+        }
+
+        @JavascriptInterface
+        public int getAppBuildNumber() {
+            return 195;
+        }
+
+        @JavascriptInterface
+        public String getAppRevision() {
+            return "r195";
         }
 
         @JavascriptInterface
@@ -252,7 +262,7 @@ public class MainActivity extends Activity {
                         .setDefaults(Notification.DEFAULT_ALL);
                 }
 
-                builder.setSmallIcon(R.mipmap.ic_launcher)
+                builder.setSmallIcon(R.drawable.ic_launcher)
                     .setContentTitle(title != null && !title.isEmpty() ? title : "Клёв ПРО 2.0")
                     .setContentText(body != null ? body : "")
                     .setStyle(new Notification.BigTextStyle().bigText(body != null ? body : ""))
@@ -428,7 +438,7 @@ public class MainActivity extends Activity {
         ws.setCacheMode(WebSettings.LOAD_NO_CACHE);
         webView.clearCache(true);
         String baseUa = ws.getUserAgentString();
-        ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.5.6-r194");
+        ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.5.6-r195");
 
         webView.addJavascriptInterface(new NativeBridge(this), "AndroidBridge");
 
@@ -630,7 +640,7 @@ public class MainActivity extends Activity {
     }
 
     private void loadEntryUrlFromIntent(Intent intent) {
-        String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/index.html?v=2.5.6_r194";
+        String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/index.html?v=2.5.6_r195";
         if (intent != null && intent.getData() != null) {
             Uri data = intent.getData();
             String q = data.getEncodedQuery();

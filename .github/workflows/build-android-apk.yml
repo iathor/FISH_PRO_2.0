@@ -69,7 +69,7 @@ jobs:
 
           # 4. Вычисляем строго возрастающий versionCode для релиза 2.5.6 r194 (чтобы Android всегда обновлял APK поверх старой версии)
           RUN_NUM=${GITHUB_RUN_NUMBER:-0}
-          VER_CODE=$((256194 + RUN_NUM))
+          VER_CODE=$((256195 + RUN_NUM))
           echo "Using versionCode=$VER_CODE"
 
           cat << 'EOF' > "$PROJ_DIR/settings.gradle"
@@ -114,7 +114,7 @@ jobs:
                   minSdk 24
                   targetSdk 34
                   versionCode ${VER_CODE}
-                  versionName "2.5.6-r194"
+                  versionName "2.5.6-r195"
               }
               signingConfigs {
                   release {
@@ -373,7 +373,17 @@ jobs:
 
                   @JavascriptInterface
                   public String getAppVersion() {
-                      return "2.5.6-r194";
+                      return "2.5.6-r195";
+                  }
+
+                  @JavascriptInterface
+                  public int getAppBuildNumber() {
+                      return 195;
+                  }
+
+                  @JavascriptInterface
+                  public String getAppRevision() {
+                      return "r195";
                   }
 
                   @JavascriptInterface
@@ -471,7 +481,7 @@ jobs:
                                   .setDefaults(Notification.DEFAULT_ALL);
                           }
 
-                          builder.setSmallIcon(R.mipmap.ic_launcher)
+                          builder.setSmallIcon(R.drawable.ic_launcher)
                               .setContentTitle(title != null && !title.isEmpty() ? title : "Клёв ПРО 2.0")
                               .setContentText(body != null ? body : "")
                               .setStyle(new Notification.BigTextStyle().bigText(body != null ? body : ""))
@@ -647,7 +657,7 @@ jobs:
                   ws.setCacheMode(WebSettings.LOAD_NO_CACHE);
                   webView.clearCache(true);
                   String baseUa = ws.getUserAgentString();
-                  ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.5.6-r194");
+                  ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.5.6-r195");
 
                   webView.addJavascriptInterface(new NativeBridge(this), "AndroidBridge");
 
@@ -849,7 +859,7 @@ jobs:
               }
 
               private void loadEntryUrlFromIntent(Intent intent) {
-                  String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/index.html?v=2.5.6_r194";
+                  String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/index.html?v=2.5.6_r195";
                   if (intent != null && intent.getData() != null) {
                       Uri data = intent.getData();
                       String q = data.getEncodedQuery();
