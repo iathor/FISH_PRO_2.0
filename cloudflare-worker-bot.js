@@ -625,9 +625,33 @@ function resolveWorkerAccountIdentity(rawLogin = '', rawPassword = '', rawTokenH
  // Постоянный ID выдаётся ОДИН РАЗ при регистрации логина+пароля и жёстко хранится в профиле логина+пароля (НЕ привязан к железу телефона!)
  let fisherId = existingProf?.fisherId ? workerNormalizeFisherId(existingProf.fisherId, regCode) : '';
  if (!fisherId || isOwnerFisherId(fisherId) || isTemporaryReserveId(fisherId)) {
-  fisherId = allocateNextRegionalFisherId(regCode);
+  // Проверяем, есть ли уже постоянный ID для этого логина в usersRegistryStore (защита от дублирования при параллельных запросах)
+  const existingPermCandidates = [];
+  for (const u of usersRegistryStore.values()) {
+   if (u && u.fisherId && !isTemporaryReserveId(u.fisherId) && !isOwnerFisherId(u.fisherId)) {
+    if (workerNormalizeLogin(u.login) === loginNorm) {
+     existingPermCandidates.push(u.fisherId);
+    }
+   }
+  }
+  if (existingPermCandidates.length > 0) {
+   existingPermCandidates.sort();
+   fisherId = existingPermCandidates[0];
+  } else {
+   fisherId = allocateNextRegionalFisherId(regCode);
+  }
  }
  fisherIdToAuthKeyMap.set(fisherId, authKey);
+ if (!existingProf || existingProf.fisherId !== fisherId) {
+  cloudAuthProfiles.set(authKey, {
+   ...(existingProf || {}),
+   fisherId,
+   login: existingProf?.login || loginClean,
+   callsign: existingProf?.callsign || loginClean,
+   pinHash,
+   authTokenHash
+  });
+ }
 
  // Если до регистрации на этом устройстве был временный резервный ID (FP_XXRZYYYY), очищаем временный резерв
  const prevDevId = String(snap?.deviceId || '').trim();
@@ -3417,7 +3441,7 @@ function parseBotAiVisionJson(rawText) {
  try {
   const parsed = JSON.parse(jsonCandidate);
   if (parsed && typeof parsed === 'object') {
-   const rawSpecies = Array.isArray(parsed.species) ? parsed.species : [];
+   const rawSpecies = Array.isArray(parsed.detectedFish) ? parsed.detectedFish : (Array.isArray(parsed.species) ? parsed.species : []);
    const speciesList = rawSpecies
     .map(s => ({
      fishNameRu: String(s.fishNameRu || s.name || '').trim(),
@@ -3528,10 +3552,13 @@ async function identifyFishPhotoForBot(env, ctx, botToken, fileId, city, caption
  let rawAiText = '';
  const geminiKeys = getEffectiveGeminiKeys(env, '');
 
+ await syncFreshGeminiConfigFromD1(env);
  if (geminiKeys.length > 0) {
-  if (typeof globalThis.__klevGeminiKeyIdx !== 'number') globalThis.__klevGeminiKeyIdx = 0;
-  for (let attempt = 0; attempt < Math.min(2, geminiKeys.length); attempt++) {
-   const gKey = geminiKeys[(globalThis.__klevGeminiKeyIdx++) % geminiKeys.length];
+  const perKey = Array.isArray(geminiConfigStore.perKeyUsed) ? geminiConfigStore.perKeyUsed : [0, 0, 0];
+  const orderedIndices = geminiKeys.map((_, idx) => idx).sort((a, b) => (perKey[a] || 0) - (perKey[b] || 0));
+  for (let attempt = 0; attempt < orderedIndices.length; attempt++) {
+   const kSlotIdx = orderedIndices[attempt];
+   const gKey = geminiKeys[kSlotIdx];
    try {
     const smartRes = await callGeminiGenerateContentSmart(
      gKey,
@@ -3546,7 +3573,7 @@ async function identifyFishPhotoForBot(env, ctx, botToken, fileId, city, caption
     );
     if (smartRes && smartRes.ok && smartRes.text) {
      rawAiText = smartRes.text;
-     recordGeminiRequestUsed();
+     await recordGeminiRequestUsed(env, kSlotIdx);
      persistSystemMeta(env, ctx).catch(() => {});
      break;
     }
@@ -3641,48 +3668,41 @@ function buildBotAiVisionCard(rec, selectedIdx = null, webappUrl = 'https://klev
  const latFmt = city.lat.toFixed(3);
  const lonFmt = city.lon.toFixed(3);
 
- // Если на фото несколько видов рыб и конкретная рыба ещё не выбрана — просим выбрать интересующую рыбу
- if (speciesList.length > 1 && (selectedIdx === null || selectedIdx === 'list')) {
-  const listLines = speciesList.map((sp, idx) =>
-   `${idx + 1}. *${sp.fishNameRu}* (${sp.lengthStr}, ${sp.weightStr})`
-  ).join('\n');
-  const text =
-   `🐟 *На фото несколько видов рыб:*\n` +
-   `${listLines}\n\n` +
-   `👇 *Выберите интересующую рыбу:*`;
-
-  const btnRows = [];
-  for (let i = 0; i < speciesList.length; i += 2) {
-   btnRows.push(speciesList.slice(i, i + 2).map((sp, j) => ({
-    text: `🐟 ${sp.fishNameRu.split(' (')[0].slice(0, 18)}`,
-    callback_data: `aisel:${tok}:${i + j}`
-   })));
-  }
-  return { text, replyMarkup: { inline_keyboard: btnRows } };
- }
-
  const idx = (typeof selectedIdx === 'number' && speciesList[selectedIdx]) ? selectedIdx : 0;
  const chosen = speciesList[idx] || speciesList[0];
  const matchedFish = chosen.matchedFish || BOT_FISH_CATALOG[0];
  const kplocTok = encodeKplocToken(city.lat, city.lon, matchedFish.id, '');
  const deepAppUrl = `${webappUrl}?start=${kplocTok}#/forecast`;
 
- const text =
-  `🐟 *Рыба:* ${chosen.fishNameRu}\n` +
+ let text =
+  `🐟 *Рыба${speciesList.length > 1 && idx === 0 ? ' (по центру)' : ''}:* ${chosen.fishNameRu}\n` +
   `📏 *Примерная длина:* ${chosen.lengthStr}\n` +
   `⚖️ *Примерный вес:* ${chosen.weightStr}`;
 
- const inline_keyboard = [
-  [
-   { text: `🎣 Прогноз: ${matchedFish.name.split(' ')[0]}`, callback_data: `f:${latFmt}:${lonFmt}:${matchedFish.id}:${shortCity}` },
-   makeAppButton('📱 В приложении', deepAppUrl, isPrivateChat)
-  ]
- ];
+ const inline_keyboard = [];
+
  if (speciesList.length > 1) {
-  inline_keyboard.push([
-   { text: '⬅️ Выбрать другую рыбу с фото', callback_data: `aisel:${tok}:list` }
-  ]);
+  const otherLines = speciesList
+   .map((sp, i) => i === idx ? null : `• *${sp.fishNameRu}* (${sp.lengthStr}, ${sp.weightStr})`)
+   .filter(Boolean)
+   .join('\n');
+  text +=
+   `\n\n📸 *На фото несколько рыб!* Также распознаны:\n${otherLines}\n` +
+   `👇 _Выберите другую рыбу ниже, если вы спрашивали не про «${chosen.fishNameRu.split(' (')[0]}»:_`;
+
+  const switchBtns = speciesList.map((sp, i) => ({
+   text: `${i === idx ? '✅ ' : '🐟 '}${sp.fishNameRu.split(' (')[0].slice(0, 15)} (${sp.lengthStr})`,
+   callback_data: `aisel:${tok}:${i}`
+  }));
+  for (let i = 0; i < switchBtns.length; i += 2) {
+   inline_keyboard.push(switchBtns.slice(i, i + 2));
+  }
  }
+
+ inline_keyboard.push([
+  { text: `🎣 Прогноз: ${matchedFish.name.split(' ')[0]}`, callback_data: `f:${latFmt}:${lonFmt}:${matchedFish.id}:${shortCity}` },
+  makeAppButton('📱 В приложении', deepAppUrl, isPrivateChat)
+ ]);
 
  return { text, replyMarkup: { inline_keyboard } };
 }
@@ -4623,8 +4643,57 @@ async function pruneExpiredTemporaryUsers(env) {
  const cutoffTs = now - RESERVE_ID_TTL_MS;
  const expiredOrDupFids = [];
  const seenTempDeviceMap = new Map(); // deviceId -> newest temporary reserve user
+ const permDeviceSet = new Set(); // deviceIds that already own a permanent ID
+ const permByLoginMap = new Map(); // loginNorm -> canonical permanent user object
+ const updatedCanonicalPermUsers = [];
 
- // Сортируем временные резервные ID по убыванию lastSeen/firstSeen, чтобы на 1 устройство оставался строго 1 актуальный резервный ID
+ // 1. Дедупликация постоянных ID с одинаковым логином (напр., если из-за гонки выдало FP_89AAA009 и FP_89AAA010 одному логину vladimir)
+ // Сортируем по возрастанию fisherId (чтобы каноническим оставался более ранний номер, напр. FP_89AAA009)
+ const permUsersSorted = Array.from(usersRegistryStore.values())
+  .filter(u => u && u.fisherId && !isTemporaryReserveId(u.fisherId) && !isOwnerFisherId(u.fisherId))
+  .sort((a, b) => String(a.fisherId).localeCompare(String(b.fisherId)));
+
+ for (const u of permUsersSorted) {
+  if (deletedFisherIdsSet.has(u.fisherId)) {
+   usersRegistryStore.delete(u.fisherId);
+   expiredOrDupFids.push(u.fisherId);
+   continue;
+  }
+  const ln = workerNormalizeLogin(u.login || '');
+  if (ln && ln !== 'рыболов' && ln !== 'гость') {
+   if (permByLoginMap.has(ln)) {
+    const canon = permByLoginMap.get(ln);
+    canon.sessionsCount = Math.max(canon.sessionsCount || 1, u.sessionsCount || 1);
+    canon.circlePostsCount = (canon.circlePostsCount || 0) + (u.circlePostsCount || 0);
+    if ((u.lastSeen || 0) > (canon.lastSeen || 0)) canon.lastSeen = u.lastSeen;
+    if (!canon.deviceId && u.deviceId) canon.deviceId = u.deviceId;
+    if (!canon.tgId && u.tgId) canon.tgId = u.tgId;
+    if (!canon.tgUsername && u.tgUsername) canon.tgUsername = u.tgUsername;
+    usersRegistryStore.set(canon.fisherId, canon);
+    updatedCanonicalPermUsers.push(canon);
+    // Перепривязываем профиль авторизации к каноническому ID и удаляем дубль
+    const aKey = loginToAuthKeyMap.get(ln) || fisherIdToAuthKeyMap.get(u.fisherId);
+    if (aKey && cloudAuthProfiles.has(aKey)) {
+     const prof = cloudAuthProfiles.get(aKey);
+     if (prof) {
+      prof.fisherId = canon.fisherId;
+      cloudAuthProfiles.set(aKey, prof);
+     }
+     fisherIdToAuthKeyMap.set(canon.fisherId, aKey);
+    }
+    fisherIdToAuthKeyMap.delete(u.fisherId);
+    if (u.deviceId) deviceToFisherIdMap.set(u.deviceId, canon.fisherId);
+    usersRegistryStore.delete(u.fisherId);
+    deletedFisherIdsSet.add(u.fisherId);
+    expiredOrDupFids.push(u.fisherId);
+    continue;
+   }
+   permByLoginMap.set(ln, u);
+  }
+  if (u.deviceId) permDeviceSet.add(u.deviceId);
+ }
+
+ // 2. Сортируем временные резервные ID по убыванию lastSeen/firstSeen, чтобы на 1 устройство оставался строго 1 актуальный резервный ID (и 0, если устройство уже зарегистрировало постоянный ID!)
  const allUsers = Array.from(usersRegistryStore.values()).sort((a, b) => (b.lastSeen || b.firstSeen || 0) - (a.lastSeen || a.firstSeen || 0));
  for (const u of allUsers) {
   if (!u || !u.fisherId) continue;
@@ -4635,7 +4704,7 @@ async function pruneExpiredTemporaryUsers(env) {
   }
   if (isTemporaryReserveId(u.fisherId)) {
    const createdTs = Number(u.firstSeen || u.lastSeen || 0);
-   if (!createdTs || (now - createdTs) > RESERVE_ID_TTL_MS) {
+   if (!createdTs || (now - createdTs) > RESERVE_ID_TTL_MS || (u.deviceId && permDeviceSet.has(u.deviceId))) {
     usersRegistryStore.delete(u.fisherId);
     if (u.deviceId && deviceToFisherIdMap.get(u.deviceId) === u.fisherId) {
      deviceToFisherIdMap.delete(u.deviceId);
@@ -4645,7 +4714,6 @@ async function pruneExpiredTemporaryUsers(env) {
    }
    if (u.deviceId) {
     if (seenTempDeviceMap.has(u.deviceId)) {
-     // Дублирующий резервный ID от того же устройства (созданный в старых версиях при переключении точек на карте) — удаляем!
      usersRegistryStore.delete(u.fisherId);
      expiredOrDupFids.push(u.fisherId);
      continue;
@@ -4663,8 +4731,15 @@ async function pruneExpiredTemporaryUsers(env) {
  if (d1) {
   try {
    await d1.prepare('DELETE FROM users_registry WHERE is_temporary = 1 AND first_seen < ?').bind(cutoffTs).run().catch(() => {});
-   for (const fid of expiredOrDupFids.slice(0, 60)) {
+   for (const fid of expiredOrDupFids.slice(0, 80)) {
     await d1.prepare('DELETE FROM users_registry WHERE fisher_id = ?').bind(fid).run().catch(() => {});
+   }
+   for (const canon of updatedCanonicalPermUsers.slice(0, 20)) {
+    await d1SaveUser(env, canon).catch(() => {});
+    const ln = workerNormalizeLogin(canon.login || '');
+    if (ln) {
+     await d1.prepare('UPDATE auth_profiles SET fisher_id = ? WHERE login_norm = ?').bind(canon.fisherId, ln).run().catch(() => {});
+    }
    }
   } catch (e) {}
  }
@@ -4938,6 +5013,8 @@ function purgeExpiredServerCirclePoints() {
 
 const geminiConfigStore = {
  apiKey: "",
+ apiKeys: ["", "", ""],
+ perKeyUsed: [0, 0, 0],
  activeModel: "gemini-2.5-flash",
  usedToday: 0,
  dateKey: new Date().toISOString().slice(0, 10),
@@ -4946,22 +5023,71 @@ const geminiConfigStore = {
 };
 
 function getEffectiveGeminiKeys(env = null, extraClientKey = "") {
+ const slotKeys = Array.isArray(geminiConfigStore.apiKeys) ? geminiConfigStore.apiKeys.filter(Boolean) : [];
  const raw = [
-  extraClientKey || "",
+  slotKeys.join(","),
   geminiConfigStore.apiKey || "",
+  extraClientKey || "",
   (env && env.GEMINI_API_KEYS) || "",
   (env && env.GEMINI_API_KEY) || ""
  ].filter(Boolean).join(",");
  const unique = [];
  const seen = new Set();
  for (const part of raw.split(",")) {
-  const k = part.trim();
-  if (k.length >= 20 && !seen.has(k)) {
+  const k = part.trim().replace(/^["'\s]+|["'\s]+$/g, "");
+  if (k.length >= 16 && !seen.has(k)) {
    seen.add(k);
    unique.push(k);
+   if (unique.length >= 3) break;
   }
  }
  return unique;
+}
+
+async function syncFreshGeminiConfigFromD1(env) {
+ const d1 = getD1(env)?.db;
+ if (!d1) return;
+ try {
+  const row = await d1.prepare('SELECT v FROM klev_kv WHERE k = ?').bind('GEMINI_CONFIG_V2').first().catch(() => null);
+  if (row && row.v) {
+   const parsed = workerSafeJsonParse(row.v, null);
+   if (parsed && typeof parsed === 'object') {
+    if (typeof parsed.apiKey === 'string' && parsed.apiKey.trim()) {
+     geminiConfigStore.apiKey = parsed.apiKey.trim();
+    }
+    if (Array.isArray(parsed.apiKeys) && parsed.apiKeys.some(Boolean)) {
+     geminiConfigStore.apiKeys = parsed.apiKeys.slice(0, 3).map(k => String(k || '').trim());
+    }
+    if (typeof parsed.activeModel === 'string' && parsed.activeModel.trim()) {
+     geminiConfigStore.activeModel = parsed.activeModel.trim();
+    }
+    const todayStr = new Date().toISOString().slice(0, 10);
+    if (parsed.dateKey === todayStr) {
+     geminiConfigStore.dateKey = todayStr;
+     if (Number.isFinite(Number(parsed.usedToday))) {
+      geminiConfigStore.usedToday = Math.max(0, Number(parsed.usedToday));
+     }
+     if (Array.isArray(parsed.perKeyUsed)) {
+      geminiConfigStore.perKeyUsed = [
+       Number(parsed.perKeyUsed[0]) || 0,
+       Number(parsed.perKeyUsed[1]) || 0,
+       Number(parsed.perKeyUsed[2]) || 0
+      ];
+     }
+    }
+   }
+  }
+ } catch (e) {}
+}
+
+async function persistFreshGeminiConfigToD1(env) {
+ const d1 = getD1(env)?.db;
+ if (!d1) return;
+ try {
+  await d1.prepare('INSERT OR REPLACE INTO klev_kv (k, v, updated_at) VALUES (?, ?, ?)')
+   .bind('GEMINI_CONFIG_V2', JSON.stringify(geminiConfigStore), Date.now())
+   .run();
+ } catch (e) {}
 }
 
 function getGeminiQuotaStatus(env = null, includeRawKeyForOwner = false) {
@@ -4969,21 +5095,32 @@ function getGeminiQuotaStatus(env = null, includeRawKeyForOwner = false) {
  if (geminiConfigStore.dateKey !== todayStr) {
   geminiConfigStore.dateKey = todayStr;
   geminiConfigStore.usedToday = 0;
+  geminiConfigStore.perKeyUsed = [0, 0, 0];
  }
  const keys = getEffectiveGeminiKeys(env);
  const keyCount = keys.length;
  const limitPerDay = Math.max(1500, keyCount * 1500);
- const usedToday = Math.max(0, Number(geminiConfigStore.usedToday) || 0);
+ const perKeyUsed = Array.isArray(geminiConfigStore.perKeyUsed) ? geminiConfigStore.perKeyUsed.slice(0, 3) : [0, 0, 0];
+ const sumPerKey = (perKeyUsed[0] || 0) + (perKeyUsed[1] || 0) + (perKeyUsed[2] || 0);
+ const usedToday = Math.max(0, Number(geminiConfigStore.usedToday) || 0, sumPerKey);
+ geminiConfigStore.usedToday = usedToday;
  const remainingToday = Math.max(0, limitPerDay - usedToday);
  const firstKey = keys[0] || "";
  const maskedKey = firstKey.length >= 12
   ? (firstKey.slice(0, 6) + "••••" + firstKey.slice(-4))
   : "";
+ const rawSlots = [
+  (geminiConfigStore.apiKeys && geminiConfigStore.apiKeys[0]) || keys[0] || "",
+  (geminiConfigStore.apiKeys && geminiConfigStore.apiKeys[1]) || keys[1] || "",
+  (geminiConfigStore.apiKeys && geminiConfigStore.apiKeys[2]) || keys[2] || ""
+ ];
  return {
   hasKey: keyCount > 0,
   keyCount,
   maskedKey,
-  rawApiKey: includeRawKeyForOwner ? (geminiConfigStore.apiKey || firstKey) : undefined,
+  rawApiKey: includeRawKeyForOwner ? keys.join(",") : undefined,
+  rawApiKeys: includeRawKeyForOwner ? rawSlots : undefined,
+  perKeyUsed,
   limitPerDay,
   usedToday,
   remainingToday,
@@ -5211,13 +5348,29 @@ async function callGeminiGenerateContentSmart(apiKey, contentsPayload, genConfig
  return { ok: false, status: lastStatus, errorText: lastErrorText };
 }
 
-function recordGeminiRequestUsed() {
+async function recordGeminiRequestUsed(env = null, keySlotIndexOrKey = 0) {
  const todayStr = new Date().toISOString().slice(0, 10);
  if (geminiConfigStore.dateKey !== todayStr) {
   geminiConfigStore.dateKey = todayStr;
   geminiConfigStore.usedToday = 0;
+  geminiConfigStore.perKeyUsed = [0, 0, 0];
  }
+ if (!Array.isArray(geminiConfigStore.perKeyUsed)) {
+  geminiConfigStore.perKeyUsed = [0, 0, 0];
+ }
+ let slotIdx = 0;
+ if (typeof keySlotIndexOrKey === "number" && keySlotIndexOrKey >= 0 && keySlotIndexOrKey < 3) {
+  slotIdx = keySlotIndexOrKey;
+ } else if (typeof keySlotIndexOrKey === "string" && keySlotIndexOrKey.length >= 6) {
+  const keys = getEffectiveGeminiKeys(env);
+  const foundIdx = keys.findIndex(k => k.startsWith(keySlotIndexOrKey.slice(0, 10)));
+  if (foundIdx >= 0 && foundIdx < 3) slotIdx = foundIdx;
+ }
+ geminiConfigStore.perKeyUsed[slotIdx] = (Number(geminiConfigStore.perKeyUsed[slotIdx]) || 0) + 1;
  geminiConfigStore.usedToday = (Number(geminiConfigStore.usedToday) || 0) + 1;
+ if (env) {
+  await persistFreshGeminiConfigToD1(env);
+ }
 }
 
 function serializeFullServerState() {
@@ -5751,9 +5904,25 @@ export default {
    return Response.redirect(dest, 302);
   }
 
-  // ── Статус и управление ключом и лимитами Gemini Vision API (1500/сут) (/api/ai/status и /api/ai/config) ──
+  // ── Статус и управление до 3 ключей и реальным счётчиком Gemini Vision API (/api/ai/status, /api/ai/record-usage и /api/ai/config) ──
+  if (reqUrl.pathname.endsWith('/api/ai/record-usage') && (request.method === 'GET' || request.method === 'POST')) {
+   await ensurePersistentStateLoaded(env);
+   await syncFreshGeminiConfigFromD1(env);
+   const b = await readWorkerRequestPayload(request, reqUrl).catch(() => ({}));
+   if (b?.model && String(b.model).startsWith('gemini-')) {
+    geminiConfigStore.activeModel = String(b.model).trim();
+   }
+   await recordGeminiRequestUsed(env, b?.usedKey || 0);
+   await persistSystemMeta(env, ctx);
+   return new Response(JSON.stringify({
+    ok: true,
+    aiQuota: getGeminiQuotaStatus(env, false)
+   }), { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
+  }
+
   if (reqUrl.pathname.endsWith('/api/ai/status') && (request.method === 'GET' || request.method === 'POST')) {
    await ensurePersistentStateLoaded(env);
+   await syncFreshGeminiConfigFromD1(env);
    const tok = extractAdminTokenFromRequest(request, reqUrl, {});
    const isOwner = isValidOwnerAdminToken(tok, env);
    return new Response(JSON.stringify({
@@ -5770,60 +5939,77 @@ export default {
     if (!isValidOwnerAdminToken(tok, env)) {
      return new Response(JSON.stringify({ ok: false, error: 'Доступ разрешён только Супер-Админу (FP_89VIP089)' }), { status: 403, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
     }
-    if (typeof body.geminiApiKey === 'string') {
+    await syncFreshGeminiConfigFromD1(env);
+    if (Array.isArray(body.geminiApiKeys)) {
+     geminiConfigStore.apiKeys = [
+      String(body.geminiApiKeys[0] || '').trim(),
+      String(body.geminiApiKeys[1] || '').trim(),
+      String(body.geminiApiKeys[2] || '').trim()
+     ];
+     geminiConfigStore.apiKey = geminiConfigStore.apiKeys.filter(k => k.length >= 16).join(',');
+    } else if (typeof body.geminiApiKey === 'string') {
      geminiConfigStore.apiKey = body.geminiApiKey.trim();
+     const parts = geminiConfigStore.apiKey.split(',').map(s => s.trim());
+     geminiConfigStore.apiKeys = [parts[0] || '', parts[1] || '', parts[2] || ''];
     }
     if (body.resetQuota === true) {
      geminiConfigStore.usedToday = 0;
-     geminiConfigStore.dateKey = new Date().toISOString().slice(0, 10);
-    }
-    if (typeof body.setUsedToday === 'number' && Number.isFinite(body.setUsedToday)) {
-     geminiConfigStore.usedToday = Math.max(0, Math.round(body.setUsedToday));
+     geminiConfigStore.perKeyUsed = [0, 0, 0];
      geminiConfigStore.dateKey = new Date().toISOString().slice(0, 10);
     }
     let testResult = null;
     if (body.testConnection) {
      const keys = getEffectiveGeminiKeys(env, body.geminiApiKey || '');
      if (keys.length === 0) {
-      testResult = { ok: false, message: 'Ключ Gemini API не задан. Вставьте ключ из Google AI Studio.' };
+      testResult = { ok: false, message: 'Ключи Gemini API не заданы. Вставьте хотя бы 1 ключ из Google AI Studio.' };
      } else {
       try {
-       const smartRes = await callGeminiGenerateContentSmart(
-        keys[0],
-        [{ parts: [{ text: 'Ответь одним словом: ОК' }] }],
-        { temperature: 0.1, maxOutputTokens: 64 },
-        6000
-       );
-       if (smartRes.ok || smartRes.keyVerifiedByModelsList) {
-        recordGeminiRequestUsed();
+       let workingMod = '';
+       let okKeysCount = 0;
+       let realTested = false;
+       for (let ki = 0; ki < keys.length; ki++) {
+        if (!realTested) {
+         const smartRes = await callGeminiGenerateContentSmart(
+          keys[ki],
+          [{ parts: [{ text: 'Ответь одним словом: ОК' }] }],
+          { temperature: 0.1, maxOutputTokens: 64 },
+          6000
+         );
+         if (smartRes.ok || smartRes.keyVerifiedByModelsList) {
+          if (smartRes.ok) {
+           await recordGeminiRequestUsed(env, ki);
+           realTested = true;
+          }
+          okKeysCount++;
+          if (!workingMod && smartRes.model) workingMod = smartRes.model;
+          continue;
+         }
+        }
+        if (/^AQ\./i.test(keys[ki]) || /^AIza/i.test(keys[ki])) {
+         okKeysCount++;
+        }
+       }
+       if (okKeysCount > 0) {
         geminiConfigStore.lastTestedAt = Date.now();
         geminiConfigStore.lastTestOk = true;
-        const activeMod = smartRes.model || geminiConfigStore.activeModel || 'gemini-2.5-flash';
+        const activeMod = workingMod || geminiConfigStore.activeModel || 'gemini-2.5-flash';
+        geminiConfigStore.activeModel = activeMod;
         testResult = {
          ok: true,
          model: activeMod,
-         message: 'Ключ Gemini Vision проверен! Активная модель: ' + activeMod + ' • Связь и лимит (1500/сут) в норме.'
-        };
-       } else if (/^AQ\./i.test(keys[0]) || /^AIza/i.test(keys[0])) {
-        recordGeminiRequestUsed();
-        geminiConfigStore.lastTestedAt = Date.now();
-        geminiConfigStore.lastTestOk = true;
-        geminiConfigStore.activeModel = 'gemini-2.5-flash';
-        testResult = {
-         ok: true,
-         model: 'gemini-2.5-flash',
-         message: 'Ключ Google AI Studio принят и сохранён! Нейросеть Vision ИИ (1500 запросов/сут) активна.'
+         message: `Проверено ключей: ${okKeysCount} (общий лимит ${okKeysCount * 1500} запр./сут) • Модель: ${activeMod}`
         };
        } else {
         geminiConfigStore.lastTestedAt = Date.now();
         geminiConfigStore.lastTestOk = false;
-        testResult = { ok: false, message: 'Проверьте формат ключа Google AI Studio (AIzaSy... или AQ.Ab8...)' };
+        testResult = { ok: false, message: 'Проверьте формат ключей Google AI Studio (AIzaSy... или AQ.Ab8...)' };
        }
       } catch (err) {
        testResult = { ok: false, message: 'Сетевая ошибка при проверке Gemini API' };
       }
      }
     }
+    await persistFreshGeminiConfigToD1(env);
     await persistSystemMeta(env, ctx);
     return new Response(JSON.stringify({
      ok: true,
@@ -5987,13 +6173,13 @@ export default {
      geminiConfigStore.apiKey = clientGeminiKey;
     }
 
-    if (!globalThis.__klevVisionDirectCacheMap_v262_r201) {
-     globalThis.__klevVisionDirectCacheMap_v262_r201 = new Map();
+    if (!globalThis.__klevVisionDirectCacheMap_v262_r202) {
+     globalThis.__klevVisionDirectCacheMap_v262_r202 = new Map();
     }
     if (typeof globalThis.__klevGeminiKeyIdx !== 'number') {
      globalThis.__klevGeminiKeyIdx = 0;
     }
-    const visionCache = globalThis.__klevVisionDirectCacheMap_v262_r201;
+    const visionCache = globalThis.__klevVisionDirectCacheMap_v262_r202;
 
     const bypassCache = Boolean(b?.bypassCache);
     if (bypassCache && dhash) {
@@ -6009,6 +6195,19 @@ export default {
 
     const withinRateLimit = checkWorkerRateLimit(`vision_${clientIp}`, false, 30);
     const pureB64 = rawImgB64.includes(',') ? rawImgB64.split(',')[1] : rawImgB64;
+    if (!globalThis.__klevVisionInFlightMap) {
+     globalThis.__klevVisionInFlightMap = new Map();
+    }
+    const inFlightMap = globalThis.__klevVisionInFlightMap;
+    const inFlightKey = (dhash && dhash !== '0000000000000000') ? dhash : (pureB64 ? pureB64.slice(-120) : '');
+    if (inFlightKey && inFlightMap.has(inFlightKey)) {
+     const sharedPayload = await inFlightMap.get(inFlightKey).catch(() => null);
+     if (sharedPayload && sharedPayload.ok) {
+      return new Response(JSON.stringify(sharedPayload), {
+       headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
+      });
+     }
+    }
 
     const locHint = String(b?.locLabel || '').trim();
     const DIRECT_VISION_PROMPT = String(b?.directPrompt || '').trim() || (
@@ -6021,46 +6220,62 @@ export default {
     if (withinRateLimit && pureB64 && pureB64.length > 200) {
      const geminiKeys = getEffectiveGeminiKeys(env, clientGeminiKey);
 
-     // Провайдер А: Google Gemini Flash Vision (gemini-2.5-flash / 2.5-flash-lite / 2.0-flash / 1.5-flash)
+     await syncFreshGeminiConfigFromD1(env);
+     // Провайдер А: Каскад из до 3 ключей Google Gemini Vision (до 4500 запросов/сут с автопереключением)
      if (geminiKeys.length > 0) {
-      for (let attempt = 0; attempt < Math.min(2, geminiKeys.length); attempt++) {
-       const gKey = geminiKeys[(globalThis.__klevGeminiKeyIdx++) % geminiKeys.length];
-       try {
-        const smartRes = await callGeminiGenerateContentSmart(
-         gKey,
-         [{
-          parts: [
-           { text: DIRECT_VISION_PROMPT },
-           { inline_data: { mime_type: 'image/jpeg', data: pureB64 } }
-          ]
-         }],
-         {
-          temperature: 0.15,
-          maxOutputTokens: 4096
-         },
-         12000
-        );
+      const runSingleGeminiTask = (async () => {
+       const perKey = Array.isArray(geminiConfigStore.perKeyUsed) ? geminiConfigStore.perKeyUsed : [0, 0, 0];
+       const orderedIndices = geminiKeys.map((_, idx) => idx).sort((a, b) => (perKey[a] || 0) - (perKey[b] || 0));
+       for (let attempt = 0; attempt < orderedIndices.length; attempt++) {
+        const kSlotIdx = orderedIndices[attempt];
+        const gKey = geminiKeys[kSlotIdx];
+        try {
+         const smartRes = await callGeminiGenerateContentSmart(
+          gKey,
+          [{
+           parts: [
+            { text: DIRECT_VISION_PROMPT },
+            { inline_data: { mime_type: 'image/jpeg', data: pureB64 } }
+           ]
+          }],
+          {
+           temperature: 0.15,
+           maxOutputTokens: 4096
+          },
+          12000
+         );
 
-        if (smartRes && smartRes.ok && smartRes.text) {
-         recordGeminiRequestUsed();
-         persistSystemMeta(env, ctx).catch(() => {});
-         const qStat = getGeminiQuotaStatus(env, false);
-         const outPayload = {
-          ok: true,
-          engine: `Google ${smartRes.model || 'Gemini Flash'} Vision ИИ (осталось ${qStat.remainingToday} из ${qStat.limitPerDay})`,
-          basinCode,
-          rawGeminiText: smartRes.text,
-          aiQuota: qStat
-         };
-         if (dhash && dhash.length === 16 && dhash !== '0000000000000000') {
-          if (visionCache.size > 1000) visionCache.clear();
-          visionCache.set(dhash, outPayload);
+         if (smartRes && smartRes.ok && smartRes.text) {
+          await recordGeminiRequestUsed(env, kSlotIdx);
+          persistSystemMeta(env, ctx).catch(() => {});
+          const qStat = getGeminiQuotaStatus(env, false);
+          const outPayload = {
+           ok: true,
+           engine: `Google ${smartRes.model || 'Gemini Flash'} Vision ИИ`,
+           basinCode,
+           rawGeminiText: smartRes.text,
+           aiQuota: qStat
+          };
+          if (dhash && dhash.length === 16 && dhash !== '0000000000000000') {
+           if (visionCache.size > 1000) visionCache.clear();
+           visionCache.set(dhash, outPayload);
+          }
+          return outPayload;
          }
-         return new Response(JSON.stringify(outPayload), {
-          headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
-         });
-        }
-       } catch (e) {}
+        } catch (e) {}
+       }
+       return null;
+      })();
+      if (inFlightKey) {
+       inFlightMap.set(inFlightKey, runSingleGeminiTask);
+      }
+      const outPayload = await runSingleGeminiTask.finally(() => {
+       if (inFlightKey) inFlightMap.delete(inFlightKey);
+      });
+      if (outPayload && outPayload.ok) {
+       return new Response(JSON.stringify(outPayload), {
+        headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
+       });
       }
      }
 
@@ -6233,6 +6448,7 @@ export default {
     }
    }
 
+   await syncFreshGeminiConfigFromD1(env);
    return new Response(JSON.stringify({
     ok: true,
     version: WORKER_VERSION,
@@ -7352,8 +7568,8 @@ function generateSyntheticWeatherJson(lat, lon) {
     appName: 'Клёв ПРО 2.0',
     packageName: 'ru.klevpro.app',
     version: WORKER_VERSION,
-    versionCode: 256201,
-    buildRevision: '2026.11.01-r201',
+    versionCode: 256202,
+    buildRevision: '2026.11.02-r202',
     releaseDate: '2026-10-30',
     apkFileName: `klev-pro-v${WORKER_VERSION}.apk`,
     apkUrl: `https://klevpro.ru/apk/klev-pro-v${WORKER_VERSION}.apk`,
