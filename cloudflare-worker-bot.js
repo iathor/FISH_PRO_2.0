@@ -3520,10 +3520,13 @@ async function identifyFishPhotoForBot(env, ctx, botToken, fileId, city, caption
 
  const extraHint = captionText ? ` Подсказка: ${captionText.slice(0, 100)}.` : '';
  const prompt =
-  `Определи рыбу на фото, её примерную длину (в см) и примерный вес (в граммах). Регион: ${city.name} (${city.basin}).${extraHint}\n` +
+  `Определи, что за рыба на фото, её примерную длину (в см) и примерный вес (в граммах, с привязкой к масштабу руки или предметов в кадре).${extraHint}\n` +
+  `Внимательно проверь морфологические признаки на снимке:\n` +
+  `1) У хариуса (Thymallus) огромный высокий спинной плавник-«парус» (17–24 луча). Если спинной плавник короткий и обычный — это НЕ хариус!\n` +
+  `2) Проверь наличие жирового плавника на хвостовом стебле, размер чешуи, форму рта и пятна/полосы пестрятки (лососёвые: ленок, кумжа/ручьевая форель/пеструшка, таймень, голец, микижа; сиговые: тугун, сиг-пыжьян, пелядь, чир, валёк, ряпушка; карповые без жирового плавника: елец, плотва, язь, голавль).\n` +
   `Если на фото несколько РАЗНЫХ видов рыб, перечисли каждый вид отдельно в массиве species.\n` +
   `Верни ТОЛЬКО короткий JSON без текста вокруг:\n` +
-  `{"fishNameRu":"название рыбы на русском","lengthCm":25,"weightGrams":220,"sizeText":"~25 см • ~220 г","species":[{"fishNameRu":"название вида 1","lengthCm":25,"weightGrams":220}]}`;
+  `{"fishNameRu":"точное название рыбы на русском","lengthCm":22,"weightGrams":140,"sizeText":"~22 см • ~140 г","species":[{"fishNameRu":"название вида 1","lengthCm":22,"weightGrams":140}]}`;
 
  let rawAiText = '';
  const geminiKeys = getEffectiveGeminiKeys(env, '');
@@ -3541,7 +3544,7 @@ async function identifyFishPhotoForBot(env, ctx, botToken, fileId, city, caption
        { inline_data: { mime_type: mimeType, data: pureB64 } }
       ]
      }],
-     { temperature: 0.1, maxOutputTokens: 1024 },
+     { temperature: 0.1, maxOutputTokens: 8192 },
      12000
     );
     if (smartRes && smartRes.ok && smartRes.text) {
@@ -4996,15 +4999,14 @@ function getGeminiQuotaStatus(env = null, includeRawKeyForOwner = false) {
 }
 
 const GEMINI_FALLBACK_MODELS = [
- "gemini-2.5-flash",
  "gemini-2.5-pro",
- "gemini-2.5-flash-lite",
- "gemini-3.1-flash-lite-preview",
- "gemini-3-flash-preview",
+ "gemini-2.5-flash",
  "gemini-2.0-flash",
- "gemini-2.0-flash-lite",
  "gemini-1.5-pro",
- "gemini-1.5-flash"
+ "gemini-1.5-flash",
+ "gemini-2.5-flash-lite",
+ "gemini-3-flash-preview",
+ "gemini-3.1-flash-lite-preview"
 ];
 
 const _workerDiscoveredModelsCache = new Map();
@@ -5035,10 +5037,12 @@ async function discoverGeminiModelsForWorker(apiKey) {
      if (!id.startsWith("gemini-")) continue;
      if (/embedding|imagen|veo|tts|audio|aqa|bisect|learnlm|robotics|computer-use|-image$|1\.0/i.test(id)) continue;
      let score = 100;
-     if (id === "gemini-2.5-flash") score += 950;
-     else if (id === "gemini-2.5-pro") score += 930;
-     else if (id === "gemini-2.5-flash-lite") score += 910;
-     else if (id === "gemini-3.1-flash-lite-preview" || id === "gemini-3-flash-preview") score += 890;
+     if (id === "gemini-2.5-pro") score += 980;
+     else if (id === "gemini-2.5-flash") score += 960;
+     else if (id === "gemini-2.0-flash") score += 880;
+     else if (id === "gemini-1.5-pro") score += 850;
+     else if (id === "gemini-2.5-flash-lite") score += 720;
+     else if (id === "gemini-3.1-flash-lite-preview" || id === "gemini-3-flash-preview") score += 650;
      else if (id === "gemini-2.0-flash") score += 860;
      else if (id === "gemini-1.5-pro") score += 820;
      else if (id === "gemini-1.5-flash") score += 800;
@@ -5126,17 +5130,10 @@ async function callGeminiGenerateContentSmart(apiKey, contentsPayload, genConfig
 
  for (let i = 0; i < maxAttempts; i++) {
   const modelId = candidates[i];
-  const supportsZeroThinking = /^gemini-(2\.5|3)/i.test(modelId) && !/pro/i.test(modelId);
   const tryConfigs = [
-   ...(supportsZeroThinking ? [{
-    temperature: genConfig.temperature ?? 0.1,
-    maxOutputTokens: genConfig.maxOutputTokens ?? 4096,
-    thinkingConfig: { thinkingBudget: 0 },
-    ...(genConfig.responseMimeType ? { responseMimeType: genConfig.responseMimeType } : {})
-   }] : []),
    {
     temperature: genConfig.temperature ?? 0.1,
-    maxOutputTokens: genConfig.maxOutputTokens ?? 4096,
+    maxOutputTokens: Math.max(8192, genConfig.maxOutputTokens ?? 8192),
     ...(genConfig.responseMimeType ? { responseMimeType: genConfig.responseMimeType } : {})
    }
   ];
@@ -5165,7 +5162,7 @@ async function callGeminiGenerateContentSmart(apiKey, contentsPayload, genConfig
      const nonThought = parts.filter(p => !p.thought && typeof p.text === "string" && p.text.trim());
      const rawTxt = (nonThought.length > 0 ? nonThought.map(p => p.text).join("\n") : parts.map(p => p.text || "").join("\n")).trim();
      if (rawTxt) {
-      geminiConfigStore.activeModel = modelId;
+      if (!/preview|lite/i.test(modelId)) geminiConfigStore.activeModel = modelId;
       return { ok: true, model: modelId, status: 200, json: rJson, text: rawTxt };
      }
     }
@@ -5985,16 +5982,20 @@ export default {
      geminiConfigStore.apiKey = clientGeminiKey;
     }
 
-    if (!globalThis.__klevVisionDirectCacheMap) {
-     globalThis.__klevVisionDirectCacheMap = new Map();
+    if (!globalThis.__klevVisionDirectCacheMap_v260) {
+     globalThis.__klevVisionDirectCacheMap_v260 = new Map();
     }
     if (typeof globalThis.__klevGeminiKeyIdx !== 'number') {
      globalThis.__klevGeminiKeyIdx = 0;
     }
-    const visionCache = globalThis.__klevVisionDirectCacheMap;
+    const visionCache = globalThis.__klevVisionDirectCacheMap_v260;
 
-    // 1. Возврат из кэша только при 100% совпадении dHash (одно и то же фото)
-    if (dhash && dhash.length === 16 && dhash !== '0000000000000000' && visionCache.has(dhash)) {
+    const bypassCache = Boolean(b?.bypassCache);
+    if (bypassCache && dhash) {
+     visionCache.delete(dhash);
+    }
+    // 1. Возврат из кэша только при 100% совпадении dHash (и если не нажата кнопка «Повторить»)
+    if (!bypassCache && dhash && dhash.length === 16 && dhash !== '0000000000000000' && visionCache.has(dhash)) {
      const hit = visionCache.get(dhash);
      return new Response(JSON.stringify({ ...hit, cached: true, aiQuota: getGeminiQuotaStatus(env, false) }), {
       headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
@@ -6029,7 +6030,7 @@ export default {
          }],
          {
           temperature: 0.15,
-          maxOutputTokens: 4096
+          maxOutputTokens: 8192
          },
          12000
         );
@@ -7345,7 +7346,7 @@ function generateSyntheticWeatherJson(lat, lon) {
     appName: 'Клёв ПРО 2.0',
     packageName: 'ru.klevpro.app',
     version: WORKER_VERSION,
-    versionCode: 256199,
+    versionCode: 256200,
     buildRevision: '2026.11.01-r196',
     releaseDate: '2026-10-30',
     apkFileName: `klev-pro-v${WORKER_VERSION}.apk`,
