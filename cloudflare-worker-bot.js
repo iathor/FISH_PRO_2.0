@@ -5726,7 +5726,8 @@ export default {
   try {
   const BOT_TOKEN = (env && env.BOT_TOKEN) || '';
   const WEBHOOK_SECRET = (env && env.WEBHOOK_SECRET) || '';
-  const WEBAPP_URL = ((env && env.WEBAPP_URL) || 'https://ia-thor.github.io/klev-pro-2/').replace(/\/?$/, '/');
+  const _rawEnvUrl = String((env && env.WEBAPP_URL) || '').trim();
+  const WEBAPP_URL = ((_rawEnvUrl && !/github\.io|klev-pro-2/i.test(_rawEnvUrl)) ? _rawEnvUrl : 'https://klevpro.ru/').replace(/\/?$/, '/');
   const reqUrl = new URL(request.url);
 
   // Пункт 19: Принудительный HTTPS (кроме локальной отладки)
@@ -5743,7 +5744,7 @@ export default {
   // ── Универсальный редиректор коротких ссылок /go?p=KP1_... (гарантия отсутствия 404 на любых доменах) ──
   if (reqUrl.pathname.endsWith('/go') && request.method === 'GET') {
    const pTok = reqUrl.searchParams.get('p') || reqUrl.searchParams.get('pack') || '';
-   const targetBase = 'https://ia-thor.github.io/klev-pro-2/';
+   const targetBase = 'https://klevpro.ru/';
    const dest = pTok ? (targetBase + '#p=' + encodeURIComponent(pTok)) : (targetBase + (reqUrl.search || '') + '#/forecast');
    return Response.redirect(dest, 302);
   }
@@ -7344,7 +7345,7 @@ function generateSyntheticWeatherJson(lat, lon) {
     appName: 'Клёв ПРО 2.0',
     packageName: 'ru.klevpro.app',
     version: WORKER_VERSION,
-    versionCode: 256198,
+    versionCode: 256199,
     buildRevision: '2026.11.01-r196',
     releaseDate: '2026-10-30',
     apkFileName: `klev-pro-v${WORKER_VERSION}.apk`,
