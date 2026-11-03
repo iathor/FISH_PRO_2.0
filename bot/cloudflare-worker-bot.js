@@ -5936,6 +5936,45 @@ export default {
 
   const clientIp = request.headers.get('CF-Connecting-IP') || 'anon_ip';
 
+  // ── Прокси тайлов офлайн-карт (/api/tile-proxy?url=...) с заголовками CORS для Яндекс Спутник / Схема ──
+  if (reqUrl.pathname.endsWith('/api/tile-proxy') && request.method === 'GET') {
+   const rawTileUrl = reqUrl.searchParams.get('url') || '';
+   if (!rawTileUrl || !rawTileUrl.startsWith('https://')) {
+    return new Response('Missing tile url', { status: 400, headers: CORS_HEADERS });
+   }
+   try {
+    const parsedTile = new URL(rawTileUrl);
+    const th = parsedTile.hostname.toLowerCase();
+    const isAllowedTileHost = /(maps\.yandex\.net|arcgisonline\.com|openstreetmap\.org|cartocdn\.com|opentopomap\.org|maps\.mail\.ru)$/i.test(th);
+    if (!isAllowedTileHost) {
+     return new Response('Forbidden tile host', { status: 403, headers: CORS_HEADERS });
+    }
+    const tileResp = await fetch(rawTileUrl, {
+     method: 'GET',
+     headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+      'Referer': 'https://yandex.ru/maps/',
+      'Accept': 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8'
+     }
+    });
+    if (!tileResp.ok) {
+     return new Response('Upstream tile error', { status: tileResp.status, headers: CORS_HEADERS });
+    }
+    const contentType = tileResp.headers.get('Content-Type') || 'image/png';
+    const buf = await tileResp.arrayBuffer();
+    return new Response(buf, {
+     status: 200,
+     headers: {
+      ...CORS_HEADERS,
+      'Content-Type': contentType,
+      'Cache-Control': 'public, max-age=86400'
+     }
+    });
+   } catch (err) {
+    return new Response('Tile proxy error', { status: 502, headers: CORS_HEADERS });
+   }
+  }
+
   // ── Универсальный редиректор коротких ссылок /go?p=KP1_... (гарантия отсутствия 404 на любых доменах) ──
   if (reqUrl.pathname.endsWith('/go') && request.method === 'GET') {
    const pTok = reqUrl.searchParams.get('p') || reqUrl.searchParams.get('pack') || '';

@@ -69,7 +69,7 @@ jobs:
 
           # 4. Вычисляем строго возрастающий versionCode для релиза 2.5.6 r194 (чтобы Android всегда обновлял APK поверх старой версии)
           RUN_NUM=${GITHUB_RUN_NUMBER:-0}
-          VER_CODE=$((256206 + RUN_NUM))
+          VER_CODE=$((256207 + RUN_NUM))
           echo "Using versionCode=$VER_CODE"
 
           cat << 'EOF' > "$PROJ_DIR/settings.gradle"
@@ -114,7 +114,7 @@ jobs:
                   minSdk 24
                   targetSdk 34
                   versionCode ${VER_CODE}
-                  versionName "2.5.6-r206"
+                  versionName "2.5.6-r207"
               }
               signingConfigs {
                   release {
@@ -236,7 +236,10 @@ jobs:
           import android.graphics.Bitmap;
           import android.graphics.BitmapFactory;
           import android.graphics.Color;
+          import java.io.ByteArrayInputStream;
           import java.io.ByteArrayOutputStream;
+          import java.net.HttpURLConnection;
+          import java.net.URL;
           import android.media.AudioAttributes;
           import android.media.RingtoneManager;
           import android.net.Uri;
@@ -373,17 +376,17 @@ jobs:
 
                   @JavascriptInterface
                   public String getAppVersion() {
-                      return "2.5.6-r206";
+                      return "2.5.6-r207";
                   }
 
                   @JavascriptInterface
                   public int getAppBuildNumber() {
-                      return 206;
+                      return 207;
                   }
 
                   @JavascriptInterface
                   public String getAppRevision() {
-                      return "r206";
+                      return "r207";
                   }
 
                   @JavascriptInterface
@@ -654,10 +657,9 @@ jobs:
                   ws.setGeolocationEnabled(true);
                   ws.setAllowFileAccess(true);
                   ws.setAllowContentAccess(true);
-                  ws.setCacheMode(WebSettings.LOAD_NO_CACHE);
-                  webView.clearCache(true);
+                  ws.setCacheMode(WebSettings.LOAD_DEFAULT);
                   String baseUa = ws.getUserAgentString();
-                  ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.5.6-r206");
+                  ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.5.6-r207");
 
                   webView.addJavascriptInterface(new NativeBridge(this), "AndroidBridge");
 
@@ -680,6 +682,52 @@ jobs:
                           Uri uri = request.getUrl();
                           if (uri != null && VIRTUAL_HOST.equalsIgnoreCase(uri.getHost())) {
                               String path = uri.getPath();
+                              if ("/__klev_tile_proxy__".equals(path)) {
+                                  String targetUrl = uri.getQueryParameter("url");
+                                  if (targetUrl != null && targetUrl.startsWith("https://")) {
+                                      HttpURLConnection conn = null;
+                                      try {
+                                          URL u = new URL(targetUrl);
+                                          String h = u.getHost() != null ? u.getHost().toLowerCase() : "";
+                                          if (h.endsWith("maps.yandex.net") || h.endsWith("arcgisonline.com") || h.endsWith("openstreetmap.org") || h.endsWith("cartocdn.com") || h.endsWith("opentopomap.org")) {
+                                              conn = (HttpURLConnection) u.openConnection();
+                                              conn.setRequestMethod("GET");
+                                              conn.setConnectTimeout(6000);
+                                              conn.setReadTimeout(7000);
+                                              conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36");
+                                              conn.setRequestProperty("Referer", "https://yandex.ru/maps/");
+                                              conn.setRequestProperty("Accept", "image/avif,image/webp,image/apng,image/*,*/*;q=0.8");
+                                              int code = conn.getResponseCode();
+                                              if (code >= 200 && code < 300) {
+                                                  InputStream netIn = conn.getInputStream();
+                                                  ByteArrayOutputStream bos = new ByteArrayOutputStream();
+                                                  byte[] buf = new byte[8192];
+                                                  int r;
+                                                  while ((r = netIn.read(buf)) != -1) {
+                                                      bos.write(buf, 0, r);
+                                                  }
+                                                  netIn.close();
+                                                  byte[] data = bos.toByteArray();
+                                                  String cType = conn.getContentType();
+                                                  if (cType == null || cType.isEmpty()) cType = "image/png";
+                                                  if (cType.contains(";")) cType = cType.split(";")[0].trim();
+                                                  Map<String, String> corsHeaders = new HashMap<>();
+                                                  corsHeaders.put("Access-Control-Allow-Origin", "*");
+                                                  corsHeaders.put("Cache-Control", "public, max-age=86400");
+                                                  return new WebResourceResponse(cType, null, 200, "OK", corsHeaders, new ByteArrayInputStream(data));
+                                              }
+                                          }
+                                      } catch (Exception ignored) {
+                                      } finally {
+                                          if (conn != null) {
+                                              try { conn.disconnect(); } catch (Exception ignored) {}
+                                          }
+                                      }
+                                  }
+                                  Map<String, String> errHeaders = new HashMap<>();
+                                  errHeaders.put("Access-Control-Allow-Origin", "*");
+                                  return new WebResourceResponse("text/plain", "UTF-8", 502, "Tile Proxy Error", errHeaders, new ByteArrayInputStream(new byte[0]));
+                              }
                               if (path == null || path.isEmpty() || path.equals("/")) {
                                   path = "/assets/www/index.html";
                               }
@@ -854,6 +902,8 @@ jobs:
               @Override
               public void onConfigurationChanged(android.content.res.Configuration newConfig) {
                   super.onConfigurationChanged(newConfig);
+                  // При подключении/отключении Bluetooth-клавиатуры, наушников, повороте экрана или смене темы
+                  // НЕ пересоздаём Activity и НЕ перезагружаем WebView!
               }
 
               @Override
@@ -866,7 +916,7 @@ jobs:
               }
 
               private void loadEntryUrlFromIntent(Intent intent) {
-                  String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/index.html?v=2.5.6_r206";
+                  String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/index.html?v=2.5.6_r207";
                   if (intent != null && intent.getData() != null) {
                       Uri data = intent.getData();
                       String q = data.getEncodedQuery();

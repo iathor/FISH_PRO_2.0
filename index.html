@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta http-equiv="X-Content-Type-Options" content="nosniff">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: blob:; script-src 'self' 'unsafe-inline' https://telegram.org https://yastatic.net https://cdn.jsdelivr.net https://appassets.androidplatform.net; style-src 'self' 'unsafe-inline' https://yastatic.net https://cdn.jsdelivr.net https://appassets.androidplatform.net; img-src 'self' data: blob: https:; connect-src 'self' https://klevpro.ru https://www.klevpro.ru https://xn--b1apdneg0j.xn--p1ai https://api.github.com https://klevprohbot.thorantony82.workers.dev https://*.workers.dev https://generativelanguage.googleapis.com https://text.pollinations.ai https://ia-thor.github.io https://api.open-meteo.com https://archive-api.open-meteo.com https://api.met.no https://api.codetabs.com https://api.allorigins.win https://maps.mail.ru https://overpass.kumi.systems https://overpass.private.coffee https://overpass-api.de https://nominatim.openstreetmap.org https://api.bigdatacloud.net https://ipwho.is https://ipapi.co https://raw.githubusercontent.com https://github.com https://*.githubusercontent.com https://appassets.androidplatform.net;">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: blob:; script-src 'self' 'unsafe-inline' https://telegram.org https://yastatic.net https://cdn.jsdelivr.net https://appassets.androidplatform.net; style-src 'self' 'unsafe-inline' https://yastatic.net https://cdn.jsdelivr.net https://appassets.androidplatform.net; img-src 'self' data: blob: https:; connect-src 'self' https: data: blob: https://klevpro.ru https://www.klevpro.ru https://xn--b1apdneg0j.xn--p1ai https://api.github.com https://klevprohbot.thorantony82.workers.dev https://*.workers.dev https://generativelanguage.googleapis.com https://text.pollinations.ai https://ia-thor.github.io https://api.open-meteo.com https://archive-api.open-meteo.com https://api.met.no https://api.codetabs.com https://api.allorigins.win https://maps.mail.ru https://overpass.kumi.systems https://overpass.private.coffee https://overpass-api.de https://nominatim.openstreetmap.org https://api.bigdatacloud.net https://ipwho.is https://ipapi.co https://raw.githubusercontent.com https://github.com https://*.githubusercontent.com https://appassets.androidplatform.net;">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="theme-color" content="#0b1120">
   <meta name="mobile-web-app-capable" content="yes">
@@ -13,9 +13,9 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Клёв ПРО 2.0 • Прогноз клёва, Круг и Атлас Ихтиофауны РФ (12+)</title>
   <script src="https://telegram.org/js/telegram-web-app.js" async onload="window.__KLEV_ON_TG_SDK_LOAD__&&window.__KLEV_ON_TG_SDK_LOAD__()"></script>
-  <link rel="manifest" href="manifest.json?v=2.5.6-r206">
-  <link id="dynamicFavicon" rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=2.5.6-r206">
-  <link id="dynamicTouchIcon" rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=2.5.6-r206">
+  <link rel="manifest" href="manifest.json?v=2.5.6-r207">
+  <link id="dynamicFavicon" rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=2.5.6-r207">
+  <link id="dynamicTouchIcon" rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=2.5.6-r207">
   <script>
     (function() {
       try {
@@ -105,12 +105,31 @@
       } catch (e) {}
     })();
   </script>
-  <link rel="stylesheet" href="css/tokens.css?v=2.5.6-r206">
-  <link rel="stylesheet" href="css/base.css?v=2.5.6-r206">
-  <link rel="stylesheet" href="css/components.css?v=2.5.6-r206">
-  <link rel="stylesheet" href="css/layout.css?v=2.5.6-r206">
+  <link rel="stylesheet" href="css/tokens.css?v=2.5.6-r207">
+  <link rel="stylesheet" href="css/base.css?v=2.5.6-r207">
+  <link rel="stylesheet" href="css/components.css?v=2.5.6-r207">
+  <link rel="stylesheet" href="css/layout.css?v=2.5.6-r207">
+  <style id="klevCoreLeafletOfflineCss">
+    .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-map-pane,.leaflet-overlay-pane svg,.leaflet-overlay-pane canvas{position:absolute;left:0;top:0}
+    .leaflet-container{overflow:hidden;position:relative;outline:0;background:#0b1120;touch-action:none;user-select:none;-webkit-user-select:none}
+    .leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow{-webkit-user-drag:none;user-select:none}
+    .leaflet-tile{filter:inherit;visibility:hidden;opacity:0;width:256px;height:256px}
+    .leaflet-tile-loaded{visibility: inherit;opacity:1}
+    .leaflet-map-pane{z-index:200}.leaflet-tile-pane{z-index:200}.leaflet-overlay-pane{z-index:400}.leaflet-shadow-pane{z-index:500}.leaflet-marker-pane{z-index:600}.leaflet-tooltip-pane{z-index:650}.leaflet-popup-pane{z-index:700}
+    .leaflet-control{position:relative;z-index:800;pointer-events:auto}
+    .leaflet-top,.leaflet-bottom{position:absolute;z-index:800;pointer-events:none}
+    .leaflet-top{top:0}.leaflet-right{right:0}.leaflet-bottom{bottom:0}.leaflet-left{left:0}
+    .leaflet-control-zoom{margin:10px;border-radius:8px;overflow:hidden;border:1px solid rgba(148,163,184,0.35);background:rgba(15,23,42,0.88);box-shadow:0 4px 12px rgba(0,0,0,0.45)}
+    .leaflet-control-zoom a{display:flex;align-items:center;justify-content:center;width:32px;height:32px;color:#f8fafc;text-decoration:none;font-weight:900;font-size:18px;border-bottom:1px solid rgba(148,163,184,0.22);cursor:pointer}
+    .leaflet-control-zoom a:last-child{border-bottom:none}
+    .leaflet-popup{position:absolute;text-align:center;margin-bottom:20px;z-index:700}
+    .leaflet-popup-content-wrapper{padding:1px;text-align:left;border-radius:12px;background:#0f172a;color:#f8fafc;border:1px solid rgba(56,189,248,0.4);box-shadow:0 8px 24px rgba(0,0,0,0.65)}
+    .leaflet-popup-content{margin:10px 12px;line-height:1.35;font-size:12px;min-width:190px}
+    .leaflet-div-icon{background:transparent;border:none}
+  </style>
   <script>
     (function() {
+      var LEAFLET_CACHE_KEY = 'klev_cached_leaflet_194_js';
       var cssUrls = [
         { url: 'https://yastatic.net/s3/front-maps-static/leaflet/1.9.4/leaflet.css', sri: '' },
         { url: 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css', sri: 'sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=' }
@@ -119,6 +138,533 @@
         { url: 'https://yastatic.net/s3/front-maps-static/leaflet/1.9.4/leaflet.js', sri: '' },
         { url: 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js', sri: 'sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=' }
       ];
+
+      function notifyMapReady() {
+        var box = document.getElementById('mapBox');
+        if (box && typeof window.__KLEV_RENDER_MAP__ === 'function') {
+          window.__KLEV_RENDER_MAP__(box);
+        }
+      }
+
+      // Автономное встроенное ядро Leaflet 1.9.4 (EPSG:3395 + EPSG:3857) для работы в авиарежиме без сети и без CDN
+      function installOfflineLeafletEngine() {
+        if (typeof window.L !== 'undefined') return;
+        var E_WGS84 = 0.08181919084262149;
+        var R_MAJOR = 6378137;
+        function clampLat(lat) { return Math.max(-85.051128, Math.min(85.051128, Number(lat) || 0)); }
+        function project3395(latlng) {
+          var d = Math.PI / 180;
+          var lat = clampLat(latlng.lat);
+          var lon = Number(latlng.lng != null ? latlng.lng : latlng.lon) || 0;
+          var phi = lat * d;
+          var sinPhi = Math.sin(phi);
+          var con = E_WGS84 * sinPhi;
+          var ts = Math.tan(Math.PI / 4 - phi / 2) / Math.pow((1 - con) / (1 + con), E_WGS84 / 2);
+          var y = -R_MAJOR * Math.log(Math.max(ts, 1e-12));
+          return { x: R_MAJOR * lon * d, y: y };
+        }
+        function unproject3395(pt) {
+          var d = 180 / Math.PI;
+          var lon = (pt.x / R_MAJOR) * d;
+          var ts = Math.exp(-pt.y / R_MAJOR);
+          var phi = Math.PI / 2 - 2 * Math.atan(ts);
+          for (var i = 0; i < 5; i++) {
+            var sinPhi = Math.sin(phi);
+            var con = E_WGS84 * sinPhi;
+            phi = Math.PI / 2 - 2 * Math.atan(ts * Math.pow((1 - con) / (1 + con), E_WGS84 / 2));
+          }
+          return { lat: phi * d, lng: lon };
+        }
+        var scale3395 = 0.5 / (Math.PI * R_MAJOR);
+        var CRS_EPSG3395 = {
+          code: 'EPSG:3395',
+          projection: { project: project3395, unproject: unproject3395 },
+          latLngToPoint: function(latlng, zoom) {
+            var p = project3395(latlng);
+            var s = 256 * Math.pow(2, zoom);
+            return { x: s * (scale3395 * p.x + 0.5), y: s * (-scale3395 * p.y + 0.5) };
+          },
+          pointToLatLng: function(pt, zoom) {
+            var s = 256 * Math.pow(2, zoom);
+            var x = (pt.x / s - 0.5) / scale3395;
+            var y = (0.5 - pt.y / s) / scale3395;
+            return unproject3395({ x: x, y: y });
+          }
+        };
+        function makeLatLng(a, b) {
+          if (!a) return { lat: 0, lng: 0 };
+          if (Array.isArray(a)) return { lat: Number(a[0]) || 0, lng: Number(a[1]) || 0 };
+          if (typeof a === 'object') return { lat: Number(a.lat) || 0, lng: Number(a.lng != null ? a.lng : a.lon) || 0 };
+          return { lat: Number(a) || 0, lng: Number(b) || 0 };
+        }
+        function makeBounds(a, b) {
+          var pts = [];
+          function addPt(p) {
+            if (!p) return;
+            if (Array.isArray(p) && Array.isArray(p[0])) { p.forEach(addPt); return; }
+            pts.push(makeLatLng(p));
+          }
+          if (Array.isArray(a) && !b) addPt(a); else { addPt(a); addPt(b); }
+          var s = 90, n = -90, w = 180, e = -180;
+          pts.forEach(function(p) {
+            if (p.lat < s) s = p.lat;
+            if (p.lat > n) n = p.lat;
+            if (p.lng < w) w = p.lng;
+            if (p.lng > e) e = p.lng;
+          });
+          if (!pts.length) { s = 55; n = 65; w = 65; e = 80; }
+          return {
+            getSouth: function() { return s; },
+            getNorth: function() { return n; },
+            getWest: function() { return w; },
+            getEast: function() { return e; },
+            getCenter: function() { return { lat: (s + n) / 2, lng: (w + e) / 2 }; },
+            isValid: function() { return pts.length > 0; }
+          };
+        }
+        function BaseTileLayer(urlTemplate, options) {
+          this._url = urlTemplate || '';
+          this.options = Object.assign({ maxZoom: 18, minZoom: 3, subdomains: ['1','2','3','4'], className: '' }, options || {});
+          this._map = null;
+          this._container = null;
+        }
+        BaseTileLayer.prototype.getTileUrl = function(coords) {
+          var subs = this.options.subdomains || ['1'];
+          var sub = subs[Math.abs(coords.x + coords.y) % subs.length] || '1';
+          return String(this._url || '')
+            .replace('{s}', sub)
+            .replace('{z}', String(coords.z))
+            .replace('{x}', String(coords.x))
+            .replace('{y}', String(coords.y));
+        };
+        BaseTileLayer.prototype._tileOnLoad = function(done, tile) {
+          tile.classList.add('leaflet-tile-loaded');
+          if (typeof done === 'function') done(null, tile);
+        };
+        BaseTileLayer.prototype._tileOnError = function(done, tile, e) {
+          if (typeof done === 'function') done(e, tile);
+        };
+        BaseTileLayer.prototype.createTile = function(coords, done) {
+          var self = this;
+          var tile = document.createElement('img');
+          tile.className = 'leaflet-tile ' + (this.options.className || '');
+          tile.onload = function() { self._tileOnLoad(done, tile); };
+          tile.onerror = function(e) { self._tileOnError(done, tile, e); };
+          tile.src = this.getTileUrl(coords);
+          return tile;
+        };
+        BaseTileLayer.prototype.addTo = function(map) {
+          if (map && typeof map.addLayer === 'function') map.addLayer(this);
+          return this;
+        };
+        BaseTileLayer.prototype._renderTiles = function() {
+          if (!this._map || !this._container) return;
+          var map = this._map;
+          var z = Math.round(map._zoom);
+          var size = map.getSize();
+          var centerPt = map.options.crs.latLngToPoint(map._center, z);
+          var halfW = size.x / 2, halfH = size.y / 2;
+          var minPxX = centerPt.x - halfW, maxPxX = centerPt.x + halfW;
+          var minPxY = centerPt.y - halfH, maxPxY = centerPt.y + halfH;
+          var xMin = Math.floor(minPxX / 256), xMax = Math.floor(maxPxX / 256);
+          var yMin = Math.floor(minPxY / 256), yMax = Math.floor(maxPxY / 256);
+          this._container.innerHTML = '';
+          for (var tx = xMin; tx <= xMax; tx++) {
+            for (var ty = yMin; ty <= yMax; ty++) {
+              var coords = { x: tx, y: ty, z: z };
+              var tile = this.createTile(coords, function(err, t) {
+                if (t) t.classList.add('leaflet-tile-loaded');
+              });
+              tile.classList.add('leaflet-tile');
+              tile.style.left = Math.round(tx * 256 - minPxX) + 'px';
+              tile.style.top = Math.round(ty * 256 - minPxY) + 'px';
+              this._container.appendChild(tile);
+            }
+          }
+        };
+        BaseTileLayer.extend = function(proto) {
+          function SubLayer(url, opts) { BaseTileLayer.call(this, url, opts); }
+          SubLayer.prototype = Object.create(BaseTileLayer.prototype);
+          Object.assign(SubLayer.prototype, proto || {});
+          SubLayer.prototype.constructor = SubLayer;
+          return SubLayer;
+        };
+
+        function LayerGroup(layers) {
+          this._layers = Array.isArray(layers) ? layers.slice() : [];
+          this._map = null;
+        }
+        LayerGroup.prototype.addTo = function(map) { map.addLayer(this); return this; };
+        LayerGroup.prototype.addLayer = function(lyr) {
+          if (!lyr) return this;
+          this._layers.push(lyr);
+          if (this._map) lyr.addTo(this._map);
+          return this;
+        };
+        LayerGroup.prototype.clearLayers = function() {
+          var m = this._map;
+          this._layers.forEach(function(l) { if (m) m.removeLayer(l); });
+          this._layers = [];
+          return this;
+        };
+
+        function Marker(latlng, options) {
+          this._latlng = makeLatLng(latlng);
+          this.options = options || {};
+          this._el = null;
+          this._map = null;
+          this._popupHtml = '';
+          this._handlers = {};
+        }
+        Marker.prototype.addTo = function(map) { map.addLayer(this); return this; };
+        Marker.prototype.getLatLng = function() { return this._latlng; };
+        Marker.prototype.setLatLng = function(ll) { this._latlng = makeLatLng(ll); if (this._map) this._updatePos(); return this; };
+        Marker.prototype.setIcon = function(ic) { this.options.icon = ic; if (this._map) this._render(); return this; };
+        Marker.prototype.bindPopup = function(html) { this._popupHtml = html; return this; };
+        Marker.prototype.openPopup = function() { if (this._map && this._popupHtml) this._map._showPopup(this._latlng, this._popupHtml); return this; };
+        Marker.prototype.on = function(ev, fn) { (this._handlers[ev] = this._handlers[ev] || []).push(fn); return this; };
+        Marker.prototype._render = function() {
+          if (!this._map) return;
+          if (!this._el) {
+            this._el = document.createElement('div');
+            this._el.className = 'leaflet-marker-icon leaflet-div-icon';
+            var self = this;
+            this._el.addEventListener('click', function(e) {
+              e.stopPropagation();
+              if (self._popupHtml) self.openPopup();
+              (self._handlers.click || []).forEach(function(fn) { fn({ latlng: self._latlng, target: self }); });
+            });
+            this._map._markerPane.appendChild(this._el);
+          }
+          if (this.options.icon && this.options.icon.options && this.options.icon.options.html) {
+            this._el.innerHTML = this.options.icon.options.html;
+          } else {
+            this._el.innerHTML = '<div style="width:14px;height:14px;border-radius:50%;background:#38bdf8;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.5);"></div>';
+          }
+          this._updatePos();
+        };
+        Marker.prototype._updatePos = function() {
+          if (!this._map || !this._el) return;
+          var pt = this._map.latLngToContainerPoint(this._latlng);
+          var anc = (this.options.icon && this.options.icon.options && this.options.icon.options.iconAnchor) || [7, 7];
+          this._el.style.transform = 'translate3d(' + Math.round(pt.x - anc[0]) + 'px,' + Math.round(pt.y - anc[1]) + 'px,0)';
+        };
+
+        function VectorShape(type, coords, options) {
+          this._type = type;
+          this._coords = coords;
+          this.options = options || {};
+          this._map = null;
+          this._popupHtml = '';
+          this._handlers = {};
+        }
+        VectorShape.prototype.addTo = function(map) { map.addLayer(this); return this; };
+        VectorShape.prototype.bindPopup = function(html) { this._popupHtml = html; return this; };
+        VectorShape.prototype.openPopup = function() {
+          if (!this._map || !this._popupHtml) return this;
+          var b = this.getBounds();
+          this._map._showPopup(b.getCenter(), this._popupHtml);
+          return this;
+        };
+        VectorShape.prototype.on = function(ev, fn) { (this._handlers[ev] = this._handlers[ev] || []).push(fn); return this; };
+        VectorShape.prototype.getBounds = function() { return makeBounds(this._coords); };
+
+        function OfflineMap(el, options) {
+          var self = this;
+          this._container = typeof el === 'string' ? document.getElementById(el) : el;
+          this.options = Object.assign({ crs: CRS_EPSG3395, center: [61.25, 73.40], zoom: 10 }, options || {});
+          this._center = makeLatLng(this.options.center);
+          this._zoom = Number(this.options.zoom) || 10;
+          this._handlers = {};
+          this._tileLayers = [];
+          this._markers = [];
+          this._vectors = [];
+          this._customPanes = {};
+          this.attributionControl = { setPrefix: function() { return this; }, addAttribution: function() { return this; } };
+
+          this._container.classList.add('leaflet-container');
+          this._container.innerHTML = '';
+          this._tilePane = document.createElement('div');
+          this._tilePane.className = 'leaflet-pane leaflet-tile-pane';
+          this._overlayPane = document.createElement('div');
+          this._overlayPane.className = 'leaflet-pane leaflet-overlay-pane';
+          this._svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+          this._overlayPane.appendChild(this._svg);
+          this._markerPane = document.createElement('div');
+          this._markerPane.className = 'leaflet-pane leaflet-marker-pane';
+          this._popupPane = document.createElement('div');
+          this._popupPane.className = 'leaflet-pane leaflet-popup-pane';
+          this._container.appendChild(this._tilePane);
+          this._container.appendChild(this._overlayPane);
+          this._container.appendChild(this._markerPane);
+          this._container.appendChild(this._popupPane);
+
+          var zoomCtrl = document.createElement('div');
+          zoomCtrl.className = 'leaflet-top leaflet-left';
+          zoomCtrl.innerHTML = '<div class="leaflet-control leaflet-control-zoom"><a role="button" data-z="1" title="Приблизить">+</a><a role="button" data-z="-1" title="Отдалить">−</a></div>';
+          zoomCtrl.querySelectorAll('a').forEach(function(a) {
+            a.addEventListener('click', function(e) {
+              e.stopPropagation();
+              var dz = parseInt(a.getAttribute('data-z'), 10) || 0;
+              self.setZoom(Math.max(3, Math.min(18, self._zoom + dz)));
+            });
+          });
+          this._container.appendChild(zoomCtrl);
+
+          var dragging = false, startX = 0, startY = 0, moved = false;
+          function onDown(cx, cy) { dragging = true; moved = false; startX = cx; startY = cy; }
+          function onMove(cx, cy) {
+            if (!dragging) return;
+            var dx = cx - startX, dy = cy - startY;
+            if (Math.abs(dx) > 4 || Math.abs(dy) > 4) moved = true;
+            if (moved) {
+              startX = cx; startY = cy;
+              var cpt = self.options.crs.latLngToPoint(self._center, self._zoom);
+              self._center = self.options.crs.pointToLatLng({ x: cpt.x - dx, y: cpt.y - dy }, self._zoom);
+              self._redrawAll();
+            }
+          }
+          function onUp(cx, cy, ev) {
+            if (!dragging) return;
+            dragging = false;
+            if (!moved && ev) {
+              var rect = self._container.getBoundingClientRect();
+              var ll = self.containerPointToLatLng({ x: cx - rect.left, y: cy - rect.top });
+              self._popupPane.innerHTML = '';
+              (self._handlers.click || []).forEach(function(fn) { fn({ latlng: ll }); });
+            } else if (moved) {
+              (self._handlers.moveend || []).forEach(function(fn) { fn({}); });
+            }
+          }
+          this._container.addEventListener('mousedown', function(e) { onDown(e.clientX, e.clientY); });
+          window.addEventListener('mousemove', function(e) { onMove(e.clientX, e.clientY); });
+          window.addEventListener('mouseup', function(e) { onUp(e.clientX, e.clientY, e); });
+          this._container.addEventListener('touchstart', function(e) { if (e.touches[0]) onDown(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
+          this._container.addEventListener('touchmove', function(e) { if (e.touches[0]) onMove(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
+          this._container.addEventListener('touchend', function(e) { var t = e.changedTouches[0]; if (t) onUp(t.clientX, t.clientY, e); });
+        }
+        OfflineMap.prototype.getPane = function(name) {
+          if (name === 'tilePane') return this._tilePane;
+          if (name === 'markerPane') return this._markerPane;
+          if (name === 'popupPane') return this._popupPane;
+          if (this._customPanes && this._customPanes[name]) return this._customPanes[name];
+          return this._overlayPane;
+        };
+        OfflineMap.prototype.createPane = function(name) {
+          if (!this._customPanes[name]) {
+            var p = document.createElement('div');
+            p.className = 'leaflet-pane';
+            this._container.appendChild(p);
+            this._customPanes[name] = p;
+          }
+          return this._customPanes[name];
+        };
+        OfflineMap.prototype.remove = function() {
+          this._tileLayers = [];
+          this._markers = [];
+          this._vectors = [];
+          if (this._container) this._container.innerHTML = '';
+        };
+        OfflineMap.prototype.getSize = function() {
+          return { x: this._container.clientWidth || 360, y: this._container.clientHeight || 340 };
+        };
+        OfflineMap.prototype.getCenter = function() { return this._center; };
+        OfflineMap.prototype.getZoom = function() { return this._zoom; };
+        OfflineMap.prototype.setZoom = function(z) {
+          this._zoom = Math.max(3, Math.min(18, Math.round(Number(z) || 10)));
+          this._redrawAll();
+          (this._handlers.zoomend || []).forEach(function(fn) { fn({}); });
+          return this;
+        };
+        OfflineMap.prototype.setView = function(center, zoom) {
+          this._center = makeLatLng(center);
+          if (zoom != null) this._zoom = Math.max(3, Math.min(18, Math.round(Number(zoom) || this._zoom)));
+          this._redrawAll();
+          (this._handlers.zoomend || []).forEach(function(fn) { fn({}); });
+          (this._handlers.moveend || []).forEach(function(fn) { fn({}); });
+          return this;
+        };
+        OfflineMap.prototype.flyTo = function(center, zoom) { return this.setView(center, zoom); };
+        OfflineMap.prototype.fitBounds = function(bounds) {
+          var b = bounds && typeof bounds.getCenter === 'function' ? bounds : makeBounds(bounds);
+          return this.setView(b.getCenter(), this._zoom);
+        };
+        OfflineMap.prototype.invalidateSize = function() { this._redrawAll(); return this; };
+        OfflineMap.prototype.on = function(ev, fn) {
+          ev.split(/\s+/).forEach(function(k) {
+            if (k) (this._handlers[k] = this._handlers[k] || []).push(fn);
+          }, this);
+          return this;
+        };
+        OfflineMap.prototype.off = function(ev) { if (ev) delete this._handlers[ev]; return this; };
+        OfflineMap.prototype.latLngToContainerPoint = function(ll) {
+          var size = this.getSize();
+          var cPt = this.options.crs.latLngToPoint(this._center, this._zoom);
+          var pPt = this.options.crs.latLngToPoint(makeLatLng(ll), this._zoom);
+          return { x: pPt.x - cPt.x + size.x / 2, y: pPt.y - cPt.y + size.y / 2 };
+        };
+        OfflineMap.prototype.containerPointToLatLng = function(pt) {
+          var size = this.getSize();
+          var cPt = this.options.crs.latLngToPoint(this._center, this._zoom);
+          return this.options.crs.pointToLatLng({ x: cPt.x + pt.x - size.x / 2, y: cPt.y + pt.y - size.y / 2 }, this._zoom);
+        };
+        OfflineMap.prototype.getBounds = function() {
+          var size = this.getSize();
+          var nw = this.containerPointToLatLng({ x: 0, y: 0 });
+          var se = this.containerPointToLatLng({ x: size.x, y: size.y });
+          return makeBounds(nw, se);
+        };
+        OfflineMap.prototype.addLayer = function(lyr) {
+          if (!lyr) return this;
+          if (lyr instanceof LayerGroup) {
+            lyr._map = this;
+            lyr._layers.forEach(function(sub) { this.addLayer(sub); }, this);
+            return this;
+          }
+          if (lyr instanceof BaseTileLayer) {
+            lyr._map = this;
+            var tc = document.createElement('div');
+            tc.className = 'leaflet-layer';
+            this._tilePane.appendChild(tc);
+            lyr._container = tc;
+            this._tileLayers.push(lyr);
+            lyr._renderTiles();
+            return this;
+          }
+          if (lyr instanceof Marker) {
+            lyr._map = this;
+            this._markers.push(lyr);
+            lyr._render();
+            return this;
+          }
+          if (lyr instanceof VectorShape) {
+            lyr._map = this;
+            this._vectors.push(lyr);
+            this._renderVectors();
+            return this;
+          }
+          return this;
+        };
+        OfflineMap.prototype.removeLayer = function(lyr) {
+          if (!lyr) return this;
+          if (lyr instanceof LayerGroup) {
+            lyr._layers.forEach(function(sub) { this.removeLayer(sub); }, this);
+            lyr._map = null;
+            return this;
+          }
+          if (lyr instanceof BaseTileLayer) {
+            if (lyr._container && lyr._container.parentNode) lyr._container.parentNode.removeChild(lyr._container);
+            this._tileLayers = this._tileLayers.filter(function(x) { return x !== lyr; });
+            return this;
+          }
+          if (lyr instanceof Marker) {
+            if (lyr._el && lyr._el.parentNode) lyr._el.parentNode.removeChild(lyr._el);
+            this._markers = this._markers.filter(function(x) { return x !== lyr; });
+            return this;
+          }
+          if (lyr instanceof VectorShape) {
+            this._vectors = this._vectors.filter(function(x) { return x !== lyr; });
+            this._renderVectors();
+            return this;
+          }
+          return this;
+        };
+        OfflineMap.prototype._showPopup = function(ll, html) {
+          var pt = this.latLngToContainerPoint(ll);
+          this._popupPane.innerHTML = '<div class="leaflet-popup" style="left:' + Math.max(8, Math.min(this.getSize().x - 210, Math.round(pt.x - 100))) + 'px;top:' + Math.max(8, Math.round(pt.y - 90)) + 'px;"><div class="leaflet-popup-content-wrapper"><div class="leaflet-popup-content">' + html + '</div></div></div>';
+        };
+        OfflineMap.prototype._renderVectors = function() {
+          var size = this.getSize();
+          this._svg.setAttribute('width', String(size.x));
+          this._svg.setAttribute('height', String(size.y));
+          this._svg.innerHTML = '';
+          var self = this;
+          this._vectors.forEach(function(v) {
+            if (v._type === 'rect' || v._type === 'poly') {
+              var pts = [];
+              if (v._type === 'rect') {
+                var b = makeBounds(v._coords);
+                pts = [
+                  { lat: b.getNorth(), lng: b.getWest() },
+                  { lat: b.getNorth(), lng: b.getEast() },
+                  { lat: b.getSouth(), lng: b.getEast() },
+                  { lat: b.getSouth(), lng: b.getWest() }
+                ];
+              } else {
+                var raw = Array.isArray(v._coords[0]) && Array.isArray(v._coords[0][0]) ? v._coords[0] : v._coords;
+                pts = raw.map(makeLatLng);
+              }
+              var polyEl = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+              polyEl.setAttribute('points', pts.map(function(p) { var cp = self.latLngToContainerPoint(p); return Math.round(cp.x) + ',' + Math.round(cp.y); }).join(' '));
+              polyEl.setAttribute('stroke', v.options.color || '#38bdf8');
+              polyEl.setAttribute('stroke-width', String(v.options.weight || 2));
+              if (v.options.dashArray) polyEl.setAttribute('stroke-dasharray', v.options.dashArray);
+              polyEl.setAttribute('fill', v.options.fillColor || v.options.color || '#38bdf8');
+              polyEl.setAttribute('fill-opacity', String(v.options.fillOpacity != null ? v.options.fillOpacity : 0.12));
+              self._svg.appendChild(polyEl);
+            }
+          });
+        };
+        OfflineMap.prototype._redrawAll = function() {
+          this._tileLayers.forEach(function(tl) { tl._renderTiles(); });
+          this._markers.forEach(function(m) { m._updatePos(); });
+          this._renderVectors();
+        };
+
+        window.L = {
+          version: '1.9.4-offline',
+          CRS: { EPSG3395: CRS_EPSG3395, EPSG3857: CRS_EPSG3395, Earth: CRS_EPSG3395 },
+          Projection: { Mercator: CRS_EPSG3395.projection },
+          Transformation: function() {},
+          extend: function(dest) {
+            for (var i = 1; i < arguments.length; i++) Object.assign(dest, arguments[i] || {});
+            return dest;
+          },
+          bind: function(fn, obj) {
+            var slice = Array.prototype.slice;
+            var args = slice.call(arguments, 2);
+            return function() { return fn.apply(obj, args.concat(slice.call(arguments))); };
+          },
+          DomEvent: {
+            on: function(el, ev, fn) { if (el && el.addEventListener) el.addEventListener(ev, fn); },
+            off: function(el, ev, fn) { if (el && el.removeEventListener) el.removeEventListener(ev, fn); },
+            stopPropagation: function(e) { if (e && e.stopPropagation) e.stopPropagation(); }
+          },
+          DomUtil: {
+            addClass: function(el, c) { if (el && el.classList) el.classList.add(c); },
+            removeClass: function(el, c) { if (el && el.classList) el.classList.remove(c); }
+          },
+          Util: { emptyImageUrl: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7' },
+          TileLayer: BaseTileLayer,
+          tileLayer: function(url, opts) { return new BaseTileLayer(url, opts); },
+          layerGroup: function(lyrs) { return new LayerGroup(lyrs); },
+          marker: function(ll, opts) { return new Marker(ll, opts); },
+          divIcon: function(opts) { return { options: opts || {} }; },
+          rectangle: function(bounds, opts) { return new VectorShape('rect', bounds, opts); },
+          polygon: function(coords, opts) { return new VectorShape('poly', coords, opts); },
+          polyline: function(coords, opts) { return new VectorShape('poly', coords, opts); },
+          circle: function(center, opts) { return new VectorShape('rect', [center, center], opts); },
+          circleMarker: function(center, opts) { return new Marker(center, opts); },
+          latLng: makeLatLng,
+          latLngBounds: makeBounds,
+          point: function(x, y) { return { x: x, y: y }; },
+          map: function(el, opts) { return new OfflineMap(el, opts); }
+        };
+        notifyMapReady();
+      }
+
+      // 1. Если есть сохранённая в localStorage полная сборка Leaflet 1.9.4 и мы без сети — загружаем мгновенно
+      try {
+        var cachedJs = localStorage.getItem(LEAFLET_CACHE_KEY);
+        if (cachedJs && cachedJs.length > 20000 && navigator.onLine === false) {
+          var inlineScript = document.createElement('script');
+          inlineScript.textContent = cachedJs;
+          document.head.appendChild(inlineScript);
+          notifyMapReady();
+          return;
+        }
+      } catch (e) {}
+
       var link = document.createElement('link');
       link.rel = 'stylesheet';
       link.href = cssUrls[0].url;
@@ -129,8 +675,40 @@
       };
       document.head.appendChild(link);
 
+      function cacheLeafletSourceForOffline(url) {
+        try {
+          if (localStorage.getItem(LEAFLET_CACHE_KEY)) return;
+          fetch(url, { mode: 'cors', credentials: 'omit' })
+            .then(function(r) { return r.ok ? r.text() : ''; })
+            .then(function(txt) {
+              if (txt && txt.length > 20000) {
+                try { localStorage.setItem(LEAFLET_CACHE_KEY, txt); } catch (e) {}
+              }
+            }).catch(function() {});
+        } catch (e) {}
+      }
+
       function loadLeafletScript(idx) {
-        if (idx >= jsUrls.length || typeof window.L !== 'undefined') return;
+        if (typeof window.L !== 'undefined') {
+          notifyMapReady();
+          return;
+        }
+        if (idx >= jsUrls.length) {
+          try {
+            var cachedFallback = localStorage.getItem(LEAFLET_CACHE_KEY);
+            if (cachedFallback && cachedFallback.length > 20000) {
+              var cs = document.createElement('script');
+              cs.textContent = cachedFallback;
+              document.head.appendChild(cs);
+              if (typeof window.L !== 'undefined') {
+                notifyMapReady();
+                return;
+              }
+            }
+          } catch (e) {}
+          installOfflineLeafletEngine();
+          return;
+        }
         var s = document.createElement('script');
         s.src = jsUrls[idx].url;
         if (jsUrls[idx].sri) {
@@ -139,15 +717,21 @@
         }
         s.async = true;
         s.onload = function() {
-          var box = document.getElementById('mapBox');
-          if (box && box.offsetParent !== null && typeof window.__KLEV_RENDER_MAP__ === 'function') {
-            window.__KLEV_RENDER_MAP__(box);
-          }
+          cacheLeafletSourceForOffline(jsUrls[idx].url);
+          notifyMapReady();
         };
         s.onerror = function() { loadLeafletScript(idx + 1); };
         document.head.appendChild(s);
       }
-      loadLeafletScript(0);
+
+      if (navigator.onLine === false) {
+        loadLeafletScript(99);
+      } else {
+        loadLeafletScript(0);
+        setTimeout(function() {
+          if (typeof window.L === 'undefined') installOfflineLeafletEngine();
+        }, 3200);
+      }
     })();
   </script>
 </head>
@@ -191,7 +775,7 @@
           { ms: 550, pct: 38, text: 'Загрузка атласа 115 видов рыб и барической модели...' },
           { ms: 1150, pct: 68, text: 'Расчёт ледовой обстановки и температурного профиля...' },
           { ms: 1750, pct: 92, text: 'Подключение радара Круга и нейросети Vision ИИ...' },
-          { ms: 2220, pct: 100, text: 'Система Клёв ПРО 2.0 (v2.5.6 r206) готова к работе' }
+          { ms: 2220, pct: 100, text: 'Система Клёв ПРО 2.0 (v2.5.6 r207) готова к работе' }
         ];
         stages.forEach(function(st) {
           setTimeout(function() {
@@ -282,11 +866,11 @@
   <main id="app" class="app-main">
     <div id="androidApkSiteBanner" class="bento-card" style="display:none;background:rgba(16,185,129,0.12);border:1.5px solid var(--good);padding:9px 12px;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:2px;">
       <div style="min-width:0;flex:1;">
-        <div id="androidApkBannerTitle" style="font-weight:800;font-size:var(--fs-xs);color:var(--good);">Приложение «Клёв ПРО 2.0» для Android (v2.5.6 r206)</div>
+        <div id="androidApkBannerTitle" style="font-weight:800;font-size:var(--fs-xs);color:var(--good);">Приложение «Клёв ПРО 2.0» для Android (v2.5.6 r207)</div>
         <div style="font-size:11px;color:var(--muted);">Установите автономное приложение (.APK) на ваш смартфон</div>
       </div>
       <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
-        <button type="button" class="btn btn-sm btn-good" id="androidApkBannerDownloadBtn" style="min-height:32px;padding:4px 10px;font-size:11.5px;font-weight:800;">Скачать APK (v2.5.6 r206)</button>
+        <button type="button" class="btn btn-sm btn-good" id="androidApkBannerDownloadBtn" style="min-height:32px;padding:4px 10px;font-size:11.5px;font-weight:800;">Скачать APK (v2.5.6 r207)</button>
         <button type="button" class="btn btn-sm" id="androidApkBannerCloseBtn" title="Скрыть плашку" aria-label="Закрыть плашку загрузки APK" style="min-height:32px;padding:4px 8px;font-size:12px;">Закрыть</button>
       </div>
     </div>
@@ -343,6 +927,6 @@
     </div>
   </nav>
 
-  <script type="module" src="js/app.js?v=2.5.6-r206"></script>
+  <script type="module" src="js/app.js?v=2.5.6-r207"></script>
 </body>
 </html>
