@@ -5,7 +5,8 @@ const WORKER_VERSION = '2.5.6';
 const RESERVE_ID_TTL_MS = 24 * 60 * 60 * 1000; // Временный резервный ID живёт строго не более 24 часов (суток)
 const deletedFisherIdsSet = new Set(); // Удалённые вручную через Админ-панель ID (защита от повторной фоновой вставки)
 const rateBuckets = new Map();
-const transitBoxes = new Map(); // Транзитная очередь зашифрованных пакетов (Zero-Storage: удаляется при доставке/по TTL)
+const transitBoxes = new Map();
+const deadmanTimersStore = new Map(); // Контрольные таймеры возвращения (Dead Man's Switch) // Транзитная очередь зашифрованных пакетов (Zero-Storage: удаляется при доставке/по TTL)
 const weatherGridCache = new Map(); // Кэш погоды бота по гео-сетке 0.1° × 0.1° (~8-10 км) на 20 минут
 const weatherFullGridCache = new Map(); // Полный Edge-кэш Open-Meteo (past_days=14&forecast_days=10) по сетке 0.1° × 0.1° на 30 минут
 const regionSequenceCounters = new Map(); // Счётчики ПОСТОЯННЫХ номеров зарегистрированных рыбаков по регионам РФ (0 -> AAA001 .. 998 -> AAA999, 999 -> AAB001)
@@ -5937,6 +5938,43 @@ export default {
   const clientIp = request.headers.get('CF-Connecting-IP') || 'anon_ip';
 
   // ── Прокси тайлов офлайн-карт (/api/tile-proxy?url=...) с заголовками CORS для Яндекс Спутник / Схема ──
+  // ── Контрольный таймер возвращения (Dead Man's Switch / Авто-SOS): /api/sos/deadman ──
+  if (reqUrl.pathname.endsWith('/api/sos/deadman') && (request.method === 'POST' || request.method === 'GET')) {
+   if (request.method === 'GET') {
+    const fid = String(reqUrl.searchParams.get('fid') || '').trim();
+    const entry = fid ? (deadmanTimersStore.get(fid) || null) : null;
+    return jsonResponse({ ok: true, entry, totalActive: deadmanTimersStore.size });
+   }
+   try {
+    const body = await request.json();
+    const fid = String(body.fid || '').trim().slice(0, 24);
+    if (!fid || !/^FP_[A-Z0-9]{4,14}$/i.test(fid)) {
+     return jsonResponse({ ok: false, error: 'Invalid fisherId' }, 400);
+    }
+    const action = String(body.action || 'arm');
+    if (action === 'disarm') {
+     deadmanTimersStore.delete(fid);
+     return jsonResponse({ ok: true, status: 'disarmed', fid });
+    }
+    const rec = {
+     fid,
+     callsign: String(body.callsign || '').slice(0, 32),
+     active: Boolean(body.active !== false),
+     deadlineMs: Number(body.deadlineMs || (Date.now() + 12 * 3600 * 1000)),
+     lat: Number(body.lat || 0),
+     lon: Number(body.lon || 0),
+     locLabel: String(body.locLabel || '').slice(0, 64),
+     routeNote: String(body.routeNote || '').slice(0, 96),
+     crewKey: String(body.crewKey || '').slice(0, 32),
+     updatedAt: Date.now()
+    };
+    deadmanTimersStore.set(fid, rec);
+    return jsonResponse({ ok: true, status: action === 'extend' ? 'extended' : 'armed', record: rec });
+   } catch (err) {
+    return jsonResponse({ ok: false, error: 'Malformed payload' }, 400);
+   }
+  }
+
   if (reqUrl.pathname.endsWith('/api/tile-proxy') && request.method === 'GET') {
    const rawTileUrl = reqUrl.searchParams.get('url') || '';
    if (!rawTileUrl || !rawTileUrl.startsWith('https://')) {
