@@ -69,7 +69,7 @@ jobs:
 
           # 4. Вычисляем строго возрастающий versionCode для релиза 2.5.6 r194 (чтобы Android всегда обновлял APK поверх старой версии)
           RUN_NUM=${GITHUB_RUN_NUMBER:-0}
-          VER_CODE=$((256195 + RUN_NUM))
+          VER_CODE=$((256205 + RUN_NUM))
           echo "Using versionCode=$VER_CODE"
 
           cat << 'EOF' > "$PROJ_DIR/settings.gradle"
@@ -114,7 +114,7 @@ jobs:
                   minSdk 24
                   targetSdk 34
                   versionCode ${VER_CODE}
-                  versionName "2.5.6-r195"
+                  versionName "2.5.6-r205"
               }
               signingConfigs {
                   release {
@@ -198,7 +198,7 @@ jobs:
                       android:name=".MainActivity"
                       android:exported="true"
                       android:launchMode="singleTop"
-                      android:configChanges="orientation|screenSize|keyboardHidden|uiMode"
+                      android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation|uiMode|density|fontScale|touchscreen|locale|layoutDirection|colorMode|mcc|mnc"
                       android:windowSoftInputMode="adjustResize">
                       <intent-filter>
                           <action android:name="android.intent.action.MAIN" />
@@ -373,17 +373,17 @@ jobs:
 
                   @JavascriptInterface
                   public String getAppVersion() {
-                      return "2.5.6-r195";
+                      return "2.5.6-r205";
                   }
 
                   @JavascriptInterface
                   public int getAppBuildNumber() {
-                      return 195;
+                      return 205;
                   }
 
                   @JavascriptInterface
                   public String getAppRevision() {
-                      return "r195";
+                      return "r205";
                   }
 
                   @JavascriptInterface
@@ -657,7 +657,7 @@ jobs:
                   ws.setCacheMode(WebSettings.LOAD_NO_CACHE);
                   webView.clearCache(true);
                   String baseUa = ws.getUserAgentString();
-                  ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.5.6-r195");
+                  ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.5.6-r205");
 
                   webView.addJavascriptInterface(new NativeBridge(this), "AndroidBridge");
 
@@ -852,14 +852,21 @@ jobs:
               }
 
               @Override
+              public void onConfigurationChanged(android.content.res.Configuration newConfig) {
+                  super.onConfigurationChanged(newConfig);
+              }
+
+              @Override
               protected void onNewIntent(Intent intent) {
                   super.onNewIntent(intent);
                   setIntent(intent);
-                  loadEntryUrlFromIntent(intent);
+                  if (intent != null && intent.getData() != null) {
+                      loadEntryUrlFromIntent(intent);
+                  }
               }
 
               private void loadEntryUrlFromIntent(Intent intent) {
-                  String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/index.html?v=2.5.6_r195";
+                  String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/index.html?v=2.5.6_r205";
                   if (intent != null && intent.getData() != null) {
                       Uri data = intent.getData();
                       String q = data.getEncodedQuery();
