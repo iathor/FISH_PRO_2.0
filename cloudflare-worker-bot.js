@@ -388,6 +388,7 @@ function pickAllowedProfileFields(snap = null) {
  if (Array.isArray(snap.favorites)) out.favorites = snap.favorites.map(x => String(x || '').slice(0, 32)).slice(0, 40);
  if (Array.isArray(snap.unlockedCrewKeys)) out.unlockedCrewKeys = snap.unlockedCrewKeys.map(x => String(x || '').trim().toUpperCase().slice(0, 16)).slice(0, 50);
  if (Array.isArray(snap.deletedChatChannels)) out.deletedChatChannels = snap.deletedChatChannels.map(x => String(x || '').slice(0, 64)).slice(0, 60);
+ if (typeof snap.adminShowAllCrews === 'boolean') out.adminShowAllCrews = snap.adminShowAllCrews;
  if (Array.isArray(snap.hiddenCircleIds)) out.hiddenCircleIds = snap.hiddenCircleIds.map(x => String(x || '').slice(0, 64)).slice(0, 100);
  if (Array.isArray(snap.savedSpots)) {
   out.savedSpots = snap.savedSpots.slice(0, 25).map(sp => ({
@@ -3573,7 +3574,7 @@ async function identifyFishPhotoForBot(env, ctx, botToken, fileId, city, caption
     );
     if (smartRes && smartRes.ok && smartRes.text) {
      rawAiText = smartRes.text;
-     await recordGeminiRequestUsed(env, kSlotIdx);
+     await recordGeminiRequestUsed(env, kSlotIdx, 'bot');
      persistSystemMeta(env, ctx).catch(() => {});
      break;
     }
@@ -5017,6 +5018,10 @@ const geminiConfigStore = {
  perKeyUsed: [0, 0, 0],
  activeModel: "gemini-2.5-flash",
  usedToday: 0,
+ usedAppToday: 0,
+ usedBotToday: 0,
+ totalAllTime: 0,
+ lastRequestAt: 0,
  dateKey: new Date().toISOString().slice(0, 10),
  lastTestedAt: 0,
  lastTestOk: null
@@ -5061,11 +5066,23 @@ async function syncFreshGeminiConfigFromD1(env) {
     if (typeof parsed.activeModel === 'string' && parsed.activeModel.trim()) {
      geminiConfigStore.activeModel = parsed.activeModel.trim();
     }
+    if (Number.isFinite(Number(parsed.totalAllTime))) {
+     geminiConfigStore.totalAllTime = Math.max(geminiConfigStore.totalAllTime || 0, Number(parsed.totalAllTime));
+    }
+    if (Number.isFinite(Number(parsed.lastRequestAt))) {
+     geminiConfigStore.lastRequestAt = Math.max(geminiConfigStore.lastRequestAt || 0, Number(parsed.lastRequestAt));
+    }
     const todayStr = new Date().toISOString().slice(0, 10);
     if (parsed.dateKey === todayStr) {
      geminiConfigStore.dateKey = todayStr;
      if (Number.isFinite(Number(parsed.usedToday))) {
       geminiConfigStore.usedToday = Math.max(0, Number(parsed.usedToday));
+     }
+     if (Number.isFinite(Number(parsed.usedAppToday))) {
+      geminiConfigStore.usedAppToday = Math.max(0, Number(parsed.usedAppToday));
+     }
+     if (Number.isFinite(Number(parsed.usedBotToday))) {
+      geminiConfigStore.usedBotToday = Math.max(0, Number(parsed.usedBotToday));
      }
      if (Array.isArray(parsed.perKeyUsed)) {
       geminiConfigStore.perKeyUsed = [
@@ -5095,6 +5112,8 @@ function getGeminiQuotaStatus(env = null, includeRawKeyForOwner = false) {
  if (geminiConfigStore.dateKey !== todayStr) {
   geminiConfigStore.dateKey = todayStr;
   geminiConfigStore.usedToday = 0;
+  geminiConfigStore.usedAppToday = 0;
+  geminiConfigStore.usedBotToday = 0;
   geminiConfigStore.perKeyUsed = [0, 0, 0];
  }
  const keys = getEffectiveGeminiKeys(env);
@@ -5104,6 +5123,14 @@ function getGeminiQuotaStatus(env = null, includeRawKeyForOwner = false) {
  const sumPerKey = (perKeyUsed[0] || 0) + (perKeyUsed[1] || 0) + (perKeyUsed[2] || 0);
  const usedToday = Math.max(0, Number(geminiConfigStore.usedToday) || 0, sumPerKey);
  geminiConfigStore.usedToday = usedToday;
+ if (usedToday > sumPerKey) {
+  perKeyUsed[0] = (perKeyUsed[0] || 0) + (usedToday - sumPerKey);
+  geminiConfigStore.perKeyUsed = perKeyUsed;
+ }
+ const usedBotToday = Math.max(0, Number(geminiConfigStore.usedBotToday) || 0);
+ const usedAppToday = Math.max(0, usedToday - usedBotToday, Number(geminiConfigStore.usedAppToday) || 0);
+ const totalAllTime = Math.max(usedToday, Number(geminiConfigStore.totalAllTime) || 0);
+ geminiConfigStore.totalAllTime = totalAllTime;
  const remainingToday = Math.max(0, limitPerDay - usedToday);
  const firstKey = keys[0] || "";
  const maskedKey = firstKey.length >= 12
@@ -5123,6 +5150,10 @@ function getGeminiQuotaStatus(env = null, includeRawKeyForOwner = false) {
   perKeyUsed,
   limitPerDay,
   usedToday,
+  usedAppToday,
+  usedBotToday,
+  totalAllTime,
+  lastRequestAt: geminiConfigStore.lastRequestAt || 0,
   remainingToday,
   pctRemaining: Math.round((remainingToday / limitPerDay) * 100),
   dateKey: todayStr,
@@ -5348,11 +5379,13 @@ async function callGeminiGenerateContentSmart(apiKey, contentsPayload, genConfig
  return { ok: false, status: lastStatus, errorText: lastErrorText };
 }
 
-async function recordGeminiRequestUsed(env = null, keySlotIndexOrKey = 0) {
+async function recordGeminiRequestUsed(env = null, keySlotIndexOrKey = 0, source = "app") {
  const todayStr = new Date().toISOString().slice(0, 10);
  if (geminiConfigStore.dateKey !== todayStr) {
   geminiConfigStore.dateKey = todayStr;
   geminiConfigStore.usedToday = 0;
+  geminiConfigStore.usedAppToday = 0;
+  geminiConfigStore.usedBotToday = 0;
   geminiConfigStore.perKeyUsed = [0, 0, 0];
  }
  if (!Array.isArray(geminiConfigStore.perKeyUsed)) {
@@ -5368,6 +5401,13 @@ async function recordGeminiRequestUsed(env = null, keySlotIndexOrKey = 0) {
  }
  geminiConfigStore.perKeyUsed[slotIdx] = (Number(geminiConfigStore.perKeyUsed[slotIdx]) || 0) + 1;
  geminiConfigStore.usedToday = (Number(geminiConfigStore.usedToday) || 0) + 1;
+ if (source === "bot") {
+  geminiConfigStore.usedBotToday = (Number(geminiConfigStore.usedBotToday) || 0) + 1;
+ } else {
+  geminiConfigStore.usedAppToday = (Number(geminiConfigStore.usedAppToday) || 0) + 1;
+ }
+ geminiConfigStore.totalAllTime = Math.max(geminiConfigStore.usedToday, (Number(geminiConfigStore.totalAllTime) || 0) + 1);
+ geminiConfigStore.lastRequestAt = Date.now();
  if (env) {
   await persistFreshGeminiConfigToD1(env);
  }
@@ -5912,7 +5952,7 @@ export default {
    if (b?.model && String(b.model).startsWith('gemini-')) {
     geminiConfigStore.activeModel = String(b.model).trim();
    }
-   await recordGeminiRequestUsed(env, b?.usedKey || 0);
+   await recordGeminiRequestUsed(env, b?.usedKey || 0, b?.source === 'bot' ? 'bot' : 'app');
    await persistSystemMeta(env, ctx);
    return new Response(JSON.stringify({
     ok: true,
@@ -5954,8 +5994,17 @@ export default {
     }
     if (body.resetQuota === true) {
      geminiConfigStore.usedToday = 0;
+     geminiConfigStore.usedAppToday = 0;
+     geminiConfigStore.usedBotToday = 0;
      geminiConfigStore.perKeyUsed = [0, 0, 0];
      geminiConfigStore.dateKey = new Date().toISOString().slice(0, 10);
+    } else if (Number.isFinite(Number(body.setUsedToday)) && Number(body.setUsedToday) > (geminiConfigStore.usedToday || 0)) {
+     const diff = Number(body.setUsedToday) - (geminiConfigStore.usedToday || 0);
+     geminiConfigStore.usedToday = Number(body.setUsedToday);
+     geminiConfigStore.usedAppToday = (geminiConfigStore.usedAppToday || 0) + diff;
+     geminiConfigStore.perKeyUsed[0] = (geminiConfigStore.perKeyUsed[0] || 0) + diff;
+     geminiConfigStore.totalAllTime = Math.max(geminiConfigStore.usedToday, (geminiConfigStore.totalAllTime || 0) + diff);
+     geminiConfigStore.lastRequestAt = Date.now();
     }
     let testResult = null;
     if (body.testConnection) {
@@ -7158,10 +7207,11 @@ function generateSyntheticWeatherJson(lat, lon) {
      }
      continue;
     }
+    const wantAllCrews = reqUrl.searchParams.get('showAllCrews') !== '0';
     if (pt.t === 'crew' && !pt.sos) {
-     // Закрытые точки Экипажа видны только автору, участникам с ключом KP-XXXX или Супер-Админу (FP_89VIP089 / список админов)
+     // Закрытые точки Экипажа видны только автору, участникам с ключом KP-XXXX или Супер-Админу (если включён тумблер видимости)
      const hasKey = pt.crewKey && crewKeysSet.has(String(pt.crewKey).toUpperCase());
-     if (isMine || hasKey || isViewerAdmin) {
+     if (isMine || hasKey || (isViewerAdmin && wantAllCrews)) {
       results.push(pt);
      }
      continue;
@@ -7318,7 +7368,7 @@ function generateSyntheticWeatherJson(lat, lon) {
      adminSessionToken: ident.isOwner ? getAdminConsoleToken(env) : '',
      ownerUnlocked: ident.isOwner ? true : Boolean(existing?.ownerUnlocked),
      isAdmin: ident.isOwner ? true : adminWhitelistStore.has(ident.fisherId),
-     adminShowAllCrews: ident.isOwner ? (existing?.adminShowAllCrews ?? true) : Boolean(existing?.adminShowAllCrews),
+     adminShowAllCrews: typeof incomingSnap.adminShowAllCrews === 'boolean' ? incomingSnap.adminShowAllCrews : (ident.isOwner ? (existing?.adminShowAllCrews ?? true) : Boolean(existing?.adminShowAllCrews)),
      updatedAt: Date.now()
     };
     delete merged.authShadow;
@@ -7395,7 +7445,7 @@ function generateSyntheticWeatherJson(lat, lon) {
       adminSessionToken: OWNER_ADMIN_CONSOLE_TOKEN,
       ownerUnlocked: true,
       isAdmin: true,
-      adminShowAllCrews: true,
+      adminShowAllCrews: typeof reqBody?.profileSnapshot?.adminShowAllCrews === 'boolean' ? reqBody.profileSnapshot.adminShowAllCrews : true,
       appMode: 'pro',
       theme: 'auto',
       lat: 66.0833,
@@ -7568,7 +7618,7 @@ function generateSyntheticWeatherJson(lat, lon) {
     appName: 'Клёв ПРО 2.0',
     packageName: 'ru.klevpro.app',
     version: WORKER_VERSION,
-    versionCode: 256202,
+    versionCode: 256203,
     buildRevision: '2026.11.02-r202',
     releaseDate: '2026-10-30',
     apkFileName: `klev-pro-v${WORKER_VERSION}.apk`,
