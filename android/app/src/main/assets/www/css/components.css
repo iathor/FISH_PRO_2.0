@@ -1264,3 +1264,65 @@ html[data-liquid-glass="0"] .bottom-nav-inner {
   border-color: var(--accent);
   color: #ffffff;
 }
+
+/* ==========================================================================
+   БАЛУНЫ LEAFLET И ФИЛЬТРЫ ТАЙЛОВ ЯНДЕКС КАРТ (100% ЧИТАЕМОСТЬ + 60FPS PAN)
+   ========================================================================== */
+.leaflet-popup-content-wrapper {
+  background: #0f172a !important;
+  color: #f8fafc !important;
+  border: 1.5px solid rgba(56, 189, 248, 0.45) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.55) !important;
+  padding: 2px !important;
+}
+.leaflet-popup-tip {
+  background: #0f172a !important;
+}
+.leaflet-popup-content {
+  margin: 10px 12px !important;
+  color: #f8fafc !important;
+  font-weight: 600;
+}
+.klev-popup-title {
+  color: #f8fafc !important;
+  font-weight: 800 !important;
+}
+.klev-popup-detail {
+  color: #e2e8f0 !important;
+  font-weight: 700 !important;
+}
+.klev-popup-sub {
+  color: #94a3b8 !important;
+  font-weight: 600 !important;
+}
+[data-theme="light"] .leaflet-popup-content-wrapper {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 1.5px solid #94a3b8 !important;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.22) !important;
+}
+[data-theme="light"] .leaflet-popup-tip {
+  background: #ffffff !important;
+}
+[data-theme="light"] .leaflet-popup-content,
+[data-theme="light"] .klev-popup-title {
+  color: #0f172a !important;
+}
+[data-theme="light"] .klev-popup-detail {
+  color: #1e293b !important;
+  font-weight: 700 !important;
+}
+[data-theme="light"] .klev-popup-sub {
+  color: #475569 !important;
+  font-weight: 700 !important;
+}
+#mapBox[data-ymap-hydro="1"] img.klev-base-tile-layer {
+  filter: contrast(1.22) saturate(1.38);
+}
+#mapBox[data-ymap-dim="1"] img.klev-base-tile-layer {
+  filter: brightness(0.82) contrast(1.08);
+}
+#mapBox[data-ymap-hydro="1"][data-ymap-dim="1"] img.klev-base-tile-layer {
+  filter: brightness(0.84) contrast(1.25) saturate(1.35);
+}

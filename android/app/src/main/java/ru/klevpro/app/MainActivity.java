@@ -154,17 +154,17 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String getAppVersion() {
-            return "2.5.6-r196";
+            return "2.5.6-r204";
         }
 
         @JavascriptInterface
         public int getAppBuildNumber() {
-            return 196;
+            return 204;
         }
 
         @JavascriptInterface
         public String getAppRevision() {
-            return "r196";
+            return "r204";
         }
 
         @JavascriptInterface
@@ -438,7 +438,7 @@ public class MainActivity extends Activity {
         ws.setCacheMode(WebSettings.LOAD_NO_CACHE);
         webView.clearCache(true);
         String baseUa = ws.getUserAgentString();
-        ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.5.6-r196");
+        ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.5.6-r204");
 
         webView.addJavascriptInterface(new NativeBridge(this), "AndroidBridge");
 
@@ -633,14 +633,23 @@ public class MainActivity extends Activity {
     }
 
     @Override
+    public void onConfigurationChanged(android.content.res.Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        // При подключении/отключении Bluetooth-клавиатуры, наушников, повороте экрана или смене темы
+        // НЕ пересоздаём Activity и НЕ перезагружаем WebView!
+    }
+
+    @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         setIntent(intent);
-        loadEntryUrlFromIntent(intent);
+        if (intent != null && intent.getData() != null) {
+            loadEntryUrlFromIntent(intent);
+        }
     }
 
     private void loadEntryUrlFromIntent(Intent intent) {
-        String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/index.html?v=2.5.6_r196";
+        String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/index.html?v=2.5.6_r204";
         if (intent != null && intent.getData() != null) {
             Uri data = intent.getData();
             String q = data.getEncodedQuery();
