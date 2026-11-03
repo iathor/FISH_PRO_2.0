@@ -69,7 +69,7 @@ jobs:
 
           # 4. Вычисляем строго возрастающий versionCode для релиза 2.5.6 r194 (чтобы Android всегда обновлял APK поверх старой версии)
           RUN_NUM=${GITHUB_RUN_NUMBER:-0}
-          VER_CODE=$((256208 + RUN_NUM))
+          VER_CODE=$((256209 + RUN_NUM))
           echo "Using versionCode=$VER_CODE"
 
           cat << 'EOF' > "$PROJ_DIR/settings.gradle"
@@ -114,7 +114,7 @@ jobs:
                   minSdk 24
                   targetSdk 34
                   versionCode ${VER_CODE}
-                  versionName "2.5.6-r208"
+                  versionName "2.5.6-r209"
               }
               signingConfigs {
                   release {
@@ -376,17 +376,17 @@ jobs:
 
                   @JavascriptInterface
                   public String getAppVersion() {
-                      return "2.5.6-r208";
+                      return "2.5.6-r209";
                   }
 
                   @JavascriptInterface
                   public int getAppBuildNumber() {
-                      return 208;
+                      return 209;
                   }
 
                   @JavascriptInterface
                   public String getAppRevision() {
-                      return "r208";
+                      return "r209";
                   }
 
                   @JavascriptInterface
@@ -659,7 +659,7 @@ jobs:
                   ws.setAllowContentAccess(true);
                   ws.setCacheMode(WebSettings.LOAD_DEFAULT);
                   String baseUa = ws.getUserAgentString();
-                  ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.5.6-r208");
+                  ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.5.6-r209");
 
                   webView.addJavascriptInterface(new NativeBridge(this), "AndroidBridge");
 
@@ -916,7 +916,7 @@ jobs:
               }
 
               private void loadEntryUrlFromIntent(Intent intent) {
-                  String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/index.html?v=2.5.6_r208";
+                  String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/index.html?v=2.5.6_r209";
                   if (intent != null && intent.getData() != null) {
                       Uri data = intent.getData();
                       String q = data.getEncodedQuery();
