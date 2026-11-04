@@ -7,7 +7,168 @@ const deletedFisherIdsSet = new Set(); // Удалённые вручную че
 const rateBuckets = new Map();
 const transitBoxes = new Map();
 const deadmanTimersStore = new Map();
-const clientErrorTelemetryLog = []; // Кольцевой буфер последних ошибок клиентов для Супер-Админа // Контрольные таймеры возвращения (Dead Man's Switch) // Транзитная очередь зашифрованных пакетов (Zero-Storage: удаляется при доставке/по TTL)
+const clientErrorTelemetryLog = []; // Кольцевой буфер последних ошибок клиентов для Супер-Админа
+const loginFailBuckets = new Map(); // Анти-брутфорс: ключ `${ip}_${loginNorm}` -> { count, firstFailTs, lockedUntil }
+const securityAuditStore = {
+ counters: {
+  sqli: 0,
+  idor: 0,
+  mass_assign: 0,
+  deserialization: 0,
+  data_exposure: 0,
+  brute_force: 0,
+  xss: 0
+ },
+ events: [] // Кольцевой буфер последних 80 перехваченных попыток обхода 7 рубежей бэкенда
+};
+
+const SECURITY_FACTOR_META = {
+ sqli: { code: '01', key: 'sqli', title: '01 / SQL-инъекция (Поиск и параметры)' },
+ idor: { code: '02', key: 'idor', title: '02 / IDOR / BOLA (Доступ к чужим объектам по ID)' },
+ mass_assign: { code: '03', key: 'mass_assign', title: '03 / Массовое присвоение (Подмена ролей и полей формы)' },
+ deserialization: { code: '04', key: 'deserialization', title: '04 / Десериализация и схема (Prototype Pollution / JSON)' },
+ data_exposure: { code: '05', key: 'data_exposure', title: '05 / Защита от утечки данных API (Скрытие deviceId и токенов)' },
+ brute_force: { code: '06', key: 'brute_force', title: '06 / Защита входа (Анти-брутфорс: лимит 5 попыток / 15 мин)' },
+ xss: { code: '07', key: 'xss', title: '07 / Анти-XSS (Санитизация HTML/JS-скриптов в полях)' }
+};
+
+function recordSecurityIncident(factorKey, endpoint = '', detail = '', ip = 'anon', fid = '') {
+ const meta = SECURITY_FACTOR_META[factorKey] || SECURITY_FACTOR_META.xss;
+ const k = meta.key;
+ securityAuditStore.counters[k] = (Number(securityAuditStore.counters[k]) || 0) + 1;
+ const ev = {
+  id: `SEC_${Date.now()}_${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
+  ts: Date.now(),
+  factorKey: k,
+  factorCode: meta.code,
+  factorTitle: meta.title,
+  endpoint: String(endpoint || '/api').slice(0, 64),
+  detail: String(detail || 'Заблокирована подозрительная нагрузка').slice(0, 220),
+  ip: String(ip || 'anon').slice(0, 48),
+  fid: String(fid || '—').slice(0, 24),
+  blocked: true
+ };
+ securityAuditStore.events.unshift(ev);
+ if (securityAuditStore.events.length > 80) securityAuditStore.events.length = 80;
+ return ev;
+}
+
+function getSecurityAuditSnapshot() {
+ const c = securityAuditStore.counters || {};
+ const totalBlocked = Object.values(c).reduce((acc, v) => acc + (Number(v) || 0), 0);
+ return {
+  updatedAt: Date.now(),
+  totalBlocked,
+  counters: {
+   sqli: Number(c.sqli) || 0,
+   idor: Number(c.idor) || 0,
+   mass_assign: Number(c.mass_assign) || 0,
+   deserialization: Number(c.deserialization) || 0,
+   data_exposure: Number(c.data_exposure) || 0,
+   brute_force: Number(c.brute_force) || 0,
+   xss: Number(c.xss) || 0
+  },
+  events: (securityAuditStore.events || []).slice(0, 50)
+ };
+}
+
+function detectSqlInjectionAttempt(rawStr, endpoint = '', ip = 'anon', fid = '') {
+ if (!rawStr || typeof rawStr !== 'string') return false;
+ const decoded = (() => { try { return decodeURIComponent(rawStr); } catch (_e) { return rawStr; } })();
+ const sqliRegex = /(\bUNION\s+ALL\s+SELECT\b|\bUNION\s+SELECT\b|\bDROP\s+TABLE\b|\bALTER\s+TABLE\b|\bINSERT\s+INTO\b|\bDELETE\s+FROM\b|'\s*OR\s+['"0-9a-z_]+\s*=\s*['"0-9a-z_]+|"\s*OR\s+['"0-9a-z_]+\s*=\s*['"0-9a-z_]+|;\s*SELECT\b|\bSLEEP\s*\(|\bBENCHMARK\s*\()/i;
+ if (sqliRegex.test(decoded)) {
+  recordSecurityIncident('sqli', endpoint, `Перехвачена SQL-сигнатура: ${decoded.slice(0, 120)}`, ip, fid);
+  return true;
+ }
+ return false;
+}
+
+function workerCleanText(rawVal, maxLen = 120, fieldName = 'field', endpoint = '', ip = 'anon', fid = '') {
+ if (rawVal === null || rawVal === undefined) return '';
+ const str = String(rawVal).trim();
+ if (!str) return '';
+ const xssRegex = /(<\s*\/?\s*(script|iframe|object|embed|svg|img|style|link|meta|onload|onerror)\b|javascript\s*:|on(error|load|click|mouseover|focus)\s*=)/i;
+ if (xssRegex.test(str)) {
+  recordSecurityIncident('xss', endpoint, `Удалён XSS-код в поле "${fieldName}": ${str.slice(0, 110)}`, ip, fid);
+ }
+ detectSqlInjectionAttempt(str, endpoint, ip, fid);
+ return str
+  .replace(/<[^>]*>/g, '')
+  .replace(/[<>]/g, '')
+  .replace(/javascript\s*:/gi, '')
+  .replace(/on(error|load|click|mouseover|focus)\s*=/gi, '')
+  .trim()
+  .slice(0, maxLen);
+}
+
+function detectMassAssignmentAttempt(rawObj, endpoint = '', ip = 'anon', fid = '', isOwner = false) {
+ if (!rawObj || typeof rawObj !== 'object' || isOwner) return false;
+ const forbiddenKeys = ['role', 'isAdmin', 'isOwner', 'adminSessionToken', 'authShadow', 'secureTokenHash', 'permissions', 'superuser'];
+ const found = [];
+ for (const k of forbiddenKeys) {
+  if (Object.prototype.hasOwnProperty.call(rawObj, k)) {
+   if ((k === 'isAdmin' || k === 'isOwner') && rawObj[k] === false) continue;
+   if (k === 'adminSessionToken' && !rawObj[k]) continue;
+   found.push(`${k}=${JSON.stringify(rawObj[k]).slice(0, 32)}`);
+  }
+ }
+ if (found.length > 0) {
+  recordSecurityIncident('mass_assign', endpoint, `Отброшены запрещённые поля формы: ${found.join(', ')}`, ip, fid);
+  return true;
+ }
+ return false;
+}
+
+function sanitizePublicCirclePoint(pt, includeDeviceForOwner = false, canSeeCrewSecrets = false) {
+ if (!pt || typeof pt !== 'object') return null;
+ const out = { ...pt };
+ if (!includeDeviceForOwner) {
+  delete out.did;
+ }
+ if (out.t === 'crew' && !out.sos && !canSeeCrewSecrets && !includeDeviceForOwner) {
+  delete out.packToken;
+ }
+ return out;
+}
+
+const BRUTE_FORCE_WINDOW_MS = 15 * 60 * 1000;
+const BRUTE_FORCE_MAX_FAILS = 5;
+
+function checkLoginBruteForce(ip = 'anon', loginNorm = '') {
+ const key = `${String(ip || 'anon').slice(0, 40)}_${String(loginNorm || 'any').toLowerCase().slice(0, 40)}`;
+ const now = Date.now();
+ const rec = loginFailBuckets.get(key);
+ if (!rec) return { locked: false, remainingAttempts: BRUTE_FORCE_MAX_FAILS };
+ if (rec.lockedUntil && now < rec.lockedUntil) {
+  return { locked: true, waitSec: Math.ceil((rec.lockedUntil - now) / 1000), count: rec.count };
+ }
+ if (now - rec.firstFailTs > BRUTE_FORCE_WINDOW_MS) {
+  loginFailBuckets.delete(key);
+  return { locked: false, remainingAttempts: BRUTE_FORCE_MAX_FAILS };
+ }
+ return { locked: false, remainingAttempts: Math.max(0, BRUTE_FORCE_MAX_FAILS - rec.count) };
+}
+
+function recordLoginFailure(ip = 'anon', loginNorm = '', endpoint = '/auth/login') {
+ const key = `${String(ip || 'anon').slice(0, 40)}_${String(loginNorm || 'any').toLowerCase().slice(0, 40)}`;
+ const now = Date.now();
+ let rec = loginFailBuckets.get(key);
+ if (!rec || (now - rec.firstFailTs > BRUTE_FORCE_WINDOW_MS)) {
+  rec = { count: 0, firstFailTs: now, lockedUntil: 0 };
+ }
+ rec.count += 1;
+ if (rec.count >= BRUTE_FORCE_MAX_FAILS) {
+  rec.lockedUntil = now + BRUTE_FORCE_WINDOW_MS;
+  recordSecurityIncident('brute_force', endpoint, `Блокировка перебора пароля (${rec.count} неудачных попыток к логину "${loginNorm || 'admin'}")`, ip, loginNorm);
+ }
+ loginFailBuckets.set(key, rec);
+ return rec;
+}
+
+function clearLoginFailures(ip = 'anon', loginNorm = '') {
+ const key = `${String(ip || 'anon').slice(0, 40)}_${String(loginNorm || 'any').toLowerCase().slice(0, 40)}`;
+ loginFailBuckets.delete(key);
+} // Контрольные таймеры возвращения (Dead Man's Switch) // Транзитная очередь зашифрованных пакетов (Zero-Storage: удаляется при доставке/по TTL)
 const weatherGridCache = new Map(); // Кэш погоды бота по гео-сетке 0.1° × 0.1° (~8-10 км) на 20 минут
 const weatherFullGridCache = new Map(); // Полный Edge-кэш Open-Meteo (past_days=14&forecast_days=10) по сетке 0.1° × 0.1° на 30 минут
 const regionSequenceCounters = new Map(); // Счётчики ПОСТОЯННЫХ номеров зарегистрированных рыбаков по регионам РФ (0 -> AAA001 .. 998 -> AAA999, 999 -> AAB001)
@@ -798,6 +959,13 @@ const CORS_HEADERS = {
  'Referrer-Policy': 'strict-origin-when-cross-origin'
 };
 
+function jsonResponse(obj, status = 200) {
+ return new Response(JSON.stringify(obj), {
+  status,
+  headers: { ...CORS_HEADERS, "Content-Type": "application/json;charset=utf-8" }
+ });
+}
+
 const MAX_REQUEST_BODY_BYTES = 524288;
 
 async function readWorkerRequestPayload(request, reqUrl, maxBytes = MAX_REQUEST_BODY_BYTES) {
@@ -830,6 +998,11 @@ async function readWorkerRequestPayload(request, reqUrl, maxBytes = MAX_REQUEST_
    throw err;
   }
   const trimmed = txt.trim();
+  const reqPath = reqUrl ? reqUrl.pathname : '/api';
+  const reqIp = request?.headers?.get('CF-Connecting-IP') || 'anon';
+  if (/("__proto__"|"prototype"|"constructor"|\x80\x04\x95|posix\nsystem)/i.test(trimmed)) {
+   recordSecurityIncident('deserialization', reqPath, `Перехвачена попытка Prototype Pollution / десериализации в теле запроса`, reqIp);
+  }
   if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
    return workerSanitizeObject(workerSafeJsonParse(trimmed, {}));
   }
@@ -5433,7 +5606,11 @@ function serializeFullServerState() {
   points: Array.from(circlePointsStore.values()).slice(-1200),
   boxes: Object.fromEntries(Array.from(transitBoxes.entries()).map(([k, v]) => [k, (v || []).slice(-30)])),
   profiles: Object.fromEntries(Array.from(cloudAuthProfiles.entries()).slice(-3000)),
-  geminiConfig: { ...geminiConfigStore }
+  geminiConfig: { ...geminiConfigStore },
+  securityAudit: {
+   counters: { ...securityAuditStore.counters },
+   events: (securityAuditStore.events || []).slice(0, 60)
+  }
  });
 }
 
@@ -5542,6 +5719,17 @@ function applyLoadedSysMeta(parsed) {
     }
     if (prof.login) loginToAuthKeyMap.set(String(prof.login).trim().toLowerCase().replace(/^@/, ''), k);
    }
+  }
+ }
+ if (parsed.securityAudit && typeof parsed.securityAudit === "object") {
+  if (parsed.securityAudit.counters && typeof parsed.securityAudit.counters === "object") {
+   for (const k of Object.keys(securityAuditStore.counters)) {
+    const v = Number(parsed.securityAudit.counters[k]) || 0;
+    if (v > (securityAuditStore.counters[k] || 0)) securityAuditStore.counters[k] = v;
+   }
+  }
+  if (Array.isArray(parsed.securityAudit.events) && securityAuditStore.events.length === 0) {
+   securityAuditStore.events = parsed.securityAudit.events.slice(0, 60);
   }
  }
  if (parsed.geminiConfig && typeof parsed.geminiConfig === "object") {
@@ -5952,19 +6140,56 @@ export default {
     headers: { ...CORS_HEADERS, 'Content-Type': 'application/xml; charset=utf-8' }
    });
   }
+  if (reqUrl.pathname.endsWith('/api/admin/security-audit') && (request.method === 'GET' || request.method === 'POST')) {
+   await ensurePersistentStateLoaded(env);
+   let b = {};
+   if (request.method === 'POST') {
+    b = await readWorkerRequestPayload(request, reqUrl).catch(() => ({}));
+   }
+   const tok = extractAdminTokenFromRequest(request, reqUrl, b);
+   if (!isValidOwnerAdminToken(tok, env)) {
+    recordSecurityIncident('data_exposure', '/api/admin/security-audit', 'Попытка неавторизованного доступа к радару ИБ Супер-Админа', clientIp);
+    return jsonResponse({ ok: false, error: 'Forbidden' }, 403);
+   }
+   if (request.method === 'POST' && b.action === 'clear') {
+    for (const k of Object.keys(securityAuditStore.counters)) securityAuditStore.counters[k] = 0;
+    securityAuditStore.events = [];
+    await persistSystemMeta(env, ctx);
+    return jsonResponse({ ok: true, cleared: true, securityAudit: getSecurityAuditSnapshot() });
+   }
+   if (request.method === 'POST' && b.action === 'self_test') {
+    recordSecurityIncident('sqli', '/auth/resolve-peer', '[ТЕСТ ЗАЩИТЫ] Блокировка SQL-инъекции: OR 1=1 -- (параметризация D1 bind)', clientIp, OWNER_FISHER_ID);
+    recordSecurityIncident('idor', '/api/circle/delete', '[ТЕСТ ЗАЩИТЫ] Отражена попытка IDOR удаления чужой точки и чтения чужого DM', clientIp, OWNER_FISHER_ID);
+    recordSecurityIncident('mass_assign', '/auth/sync', '[ТЕСТ ЗАЩИТЫ] Отброшены запрещённые поля формы: role="admin", isOwner=true', clientIp, OWNER_FISHER_ID);
+    recordSecurityIncident('deserialization', '/api/circle/publish', '[ТЕСТ ЗАЩИТЫ] Заблокирована инъекция прототипа {"__proto__":{"admin":1}}', clientIp, OWNER_FISHER_ID);
+    recordSecurityIncident('data_exposure', '/api/circle/nearby', '[ТЕСТ ЗАЩИТЫ] Скрыты внутренние поля did (deviceId) и токены из публичного ответа API', clientIp, OWNER_FISHER_ID);
+    recordSecurityIncident('brute_force', '/auth/login', '[ТЕСТ ЗАЩИТЫ] Проверка лимита 5 неверных паролей за 15 минут (HTTP 429 Lockout)', clientIp, OWNER_FISHER_ID);
+    recordSecurityIncident('xss', '/api/circle/publish', '[ТЕСТ ЗАЩИТЫ] Вырезан вектор XSS: <script>fetch("evil")</script> в названии точки', clientIp, OWNER_FISHER_ID);
+    await persistSystemMeta(env, ctx);
+    return jsonResponse({ ok: true, tested: true, securityAudit: getSecurityAuditSnapshot() });
+   }
+   return jsonResponse({ ok: true, securityAudit: getSecurityAuditSnapshot() });
+  }
+
   if (reqUrl.pathname.endsWith('/api/telemetry/client-error') && (request.method === 'POST' || request.method === 'GET')) {
    if (request.method === 'GET') {
+    const admTok = extractAdminTokenFromRequest(request, reqUrl, {});
+    if (!isValidOwnerAdminToken(admTok, env)) {
+     recordSecurityIncident('data_exposure', '/api/telemetry/client-error', 'Попытка чтения логов ошибок клиента без токена Супер-Админа', clientIp);
+     return jsonResponse({ ok: false, error: 'Forbidden' }, 403);
+    }
     return jsonResponse({ ok: true, errors: clientErrorTelemetryLog.slice(0, 30) });
    }
    try {
-    const errBody = await request.json();
+    const errBody = await readWorkerRequestPayload(request, reqUrl);
+    const scrubSecrets = (s) => String(s || '').replace(/(KTOK_[A-Z0-9_]+|KP1_[A-Za-z0-9_-]+|token=[^&\s]+)/gi, '[СКРЫТО]');
     clientErrorTelemetryLog.unshift({
      id: String(errBody.id || `ERR_${Date.now()}`).slice(0, 32),
      ts: Number(errBody.ts || Date.now()),
-     type: String(errBody.type || 'error').slice(0, 32),
-     msg: String(errBody.msg || '').slice(0, 240),
-     src: String(errBody.src || '').slice(0, 220),
-     route: String(errBody.route || '').slice(0, 64),
+     type: workerCleanText(errBody.type || 'error', 32, 'err.type', '/api/telemetry/client-error', clientIp),
+     msg: scrubSecrets(workerCleanText(errBody.msg || '', 240, 'err.msg', '/api/telemetry/client-error', clientIp)),
+     src: scrubSecrets(workerCleanText(errBody.src || '', 220, 'err.src', '/api/telemetry/client-error', clientIp)),
+     route: scrubSecrets(String(errBody.route || '').slice(0, 64)),
      ver: String(errBody.ver || WORKER_VERSION).slice(0, 24),
      ua: String(errBody.ua || '').slice(0, 96)
     });
@@ -5977,16 +6202,43 @@ export default {
 
   // ── Контрольный таймер возвращения (Dead Man's Switch / Авто-SOS): /api/sos/deadman ──
   if (reqUrl.pathname.endsWith('/api/sos/deadman') && (request.method === 'POST' || request.method === 'GET')) {
+   await ensurePersistentStateLoaded(env);
    if (request.method === 'GET') {
-    const fid = String(reqUrl.searchParams.get('fid') || '').trim();
-    const entry = fid ? (deadmanTimersStore.get(fid) || null) : null;
-    return jsonResponse({ ok: true, entry, totalActive: deadmanTimersStore.size });
+    const fid = workerNormalizeFisherId(reqUrl.searchParams.get('fid') || '', '89');
+    const devId = String(reqUrl.searchParams.get('deviceId') || '').trim();
+    const authTok = String(reqUrl.searchParams.get('authTokenHash') || '').trim();
+    const admTok = extractAdminTokenFromRequest(request, reqUrl, {});
+    if (fid) {
+     const dmAuth = await verifyUserAuth(env, { fid, authTokenHash: authTok, deviceId: devId, adminToken: admTok, request });
+     const existingTimer = deadmanTimersStore.get(fid);
+     const deviceMatchesTimer = existingTimer && existingTimer.deviceId && devId && existingTimer.deviceId === devId;
+     if (!dmAuth.ok && !dmAuth.isAdmin && !deviceMatchesTimer) {
+      recordSecurityIncident('idor', '/api/sos/deadman', `Попытка чтения чужого таймера возвращения (${fid})`, clientIp, fid);
+      return jsonResponse({ ok: false, error: 'Forbidden: cannot read another user timer' }, 403);
+     }
+    }
+    const rawEntry = fid ? (deadmanTimersStore.get(fid) || null) : null;
+    const safeEntry = rawEntry ? { ...rawEntry, deviceId: undefined } : null;
+    return jsonResponse({ ok: true, entry: safeEntry, totalActive: deadmanTimersStore.size });
    }
    try {
-    const body = await request.json();
-    const fid = String(body.fid || '').trim().slice(0, 24);
+    const body = await readWorkerRequestPayload(request, reqUrl);
+    const fid = workerNormalizeFisherId(body.fid || '', '89') || String(body.fid || '').trim().toUpperCase().slice(0, 24);
     if (!fid || !/^FP_[A-Z0-9]{4,14}$/i.test(fid)) {
      return jsonResponse({ ok: false, error: 'Invalid fisherId' }, 400);
+    }
+    const devId = String(body.deviceId || '').trim().slice(0, 80);
+    const authTok = String(body.authTokenHash || '').trim();
+    const admTok = extractAdminTokenFromRequest(request, reqUrl, body);
+    const dmAuth = await verifyUserAuth(env, { fid, authTokenHash: authTok, deviceId: devId, adminToken: admTok, request });
+    const existingTimer = deadmanTimersStore.get(fid);
+    if (existingTimer && existingTimer.deviceId && devId && existingTimer.deviceId !== devId && !dmAuth.isAdmin && !dmAuth.ok) {
+     recordSecurityIncident('idor', '/api/sos/deadman', `Попытка изменения/отключения чужого таймера возвращения (${fid})`, clientIp, fid);
+     return jsonResponse({ ok: false, error: 'Forbidden: timer belongs to another device' }, 403);
+    }
+    if (existingTimer && !devId && !authTok && !dmAuth.isAdmin) {
+     recordSecurityIncident('idor', '/api/sos/deadman', `Бестокеновая попытка управления чужим таймером SOS (${fid})`, clientIp, fid);
+     return jsonResponse({ ok: false, error: 'Forbidden: missing authentication' }, 403);
     }
     const action = String(body.action || 'arm');
     if (action === 'disarm') {
@@ -5995,18 +6247,19 @@ export default {
     }
     const rec = {
      fid,
-     callsign: String(body.callsign || '').slice(0, 32),
+     deviceId: devId || existingTimer?.deviceId || '',
+     callsign: workerCleanText(body.callsign || '', 32, 'callsign', '/api/sos/deadman', clientIp, fid),
      active: Boolean(body.active !== false),
      deadlineMs: Number(body.deadlineMs || (Date.now() + 12 * 3600 * 1000)),
-     lat: Number(body.lat || 0),
-     lon: Number(body.lon || 0),
-     locLabel: String(body.locLabel || '').slice(0, 64),
-     routeNote: String(body.routeNote || '').slice(0, 96),
-     crewKey: String(body.crewKey || '').slice(0, 32),
+     lat: clampLat(body.lat, 66.0833),
+     lon: clampLon(body.lon, 76.6800),
+     locLabel: workerCleanText(body.locLabel || '', 64, 'locLabel', '/api/sos/deadman', clientIp, fid),
+     routeNote: workerCleanText(body.routeNote || '', 96, 'routeNote', '/api/sos/deadman', clientIp, fid),
+     crewKey: workerCleanText(body.crewKey || '', 32, 'crewKey', '/api/sos/deadman', clientIp, fid),
      updatedAt: Date.now()
     };
     deadmanTimersStore.set(fid, rec);
-    return jsonResponse({ ok: true, status: action === 'extend' ? 'extended' : 'armed', record: rec });
+    return jsonResponse({ ok: true, status: action === 'extend' ? 'extended' : 'armed', record: { ...rec, deviceId: undefined } });
    } catch (err) {
     return jsonResponse({ ok: false, error: 'Malformed payload' }, 400);
    }
@@ -6063,11 +6316,19 @@ export default {
    await ensurePersistentStateLoaded(env);
    await syncFreshGeminiConfigFromD1(env);
    const b = await readWorkerRequestPayload(request, reqUrl).catch(() => ({}));
+   const admTok = extractAdminTokenFromRequest(request, reqUrl, b);
+   const isOwnerCall = isValidOwnerAdminToken(admTok, env);
    if (b?.model && String(b.model).startsWith('gemini-')) {
-    geminiConfigStore.activeModel = String(b.model).trim();
+    if (isOwnerCall) {
+     geminiConfigStore.activeModel = String(b.model).trim().slice(0, 48);
+    } else {
+     recordSecurityIncident('mass_assign', '/api/ai/record-usage', `Попытка неавторизованной подмены ИИ-модели на "${String(b.model).slice(0, 32)}"`, clientIp);
+    }
    }
-   await recordGeminiRequestUsed(env, b?.usedKey || 0, b?.source === 'bot' ? 'bot' : 'app');
-   await persistSystemMeta(env, ctx);
+   if (checkWorkerRateLimit(`airec_${clientIp}`, false, 15)) {
+    await recordGeminiRequestUsed(env, b?.usedKey || 0, b?.source === 'bot' ? 'bot' : 'app');
+    await persistSystemMeta(env, ctx);
+   }
    return new Response(JSON.stringify({
     ok: true,
     aiQuota: getGeminiQuotaStatus(env, false)
@@ -6331,9 +6592,10 @@ export default {
     const dhash = String(b?.dhash || '').toLowerCase().replace(/^dh_/, '');
     const basinCode = String(b?.basinCode || 'arctic_ob_taz');
     const rawImgB64 = String(b?.imageBase64 || b?.thumbDataUrl || '').trim();
-    const clientGeminiKey = String(b?.geminiApiKey || '').trim();
-    if (clientGeminiKey && clientGeminiKey.length >= 20 && !geminiConfigStore.apiKey) {
-     geminiConfigStore.apiKey = clientGeminiKey;
+    const admTokVis = extractAdminTokenFromRequest(request, reqUrl, b);
+    const clientGeminiKey = isValidOwnerAdminToken(admTokVis, env) ? String(b?.geminiApiKey || '').trim() : '';
+    if (b?.geminiApiKey && !isValidOwnerAdminToken(admTokVis, env)) {
+     recordSecurityIncident('mass_assign', '/api/ai/identify-fish', 'Попытка подстановки внешнего geminiApiKey без токена Супер-Админа', clientIp);
     }
 
     if (!globalThis.__klevVisionDirectCacheMap_v262_r202) {
@@ -6510,6 +6772,9 @@ export default {
   if (reqUrl.pathname.endsWith('/auth/resolve-peer') && request.method === 'GET') {
    await ensurePersistentStateLoaded(env);
    const q = String(reqUrl.searchParams.get('query') || '').trim();
+   if (detectSqlInjectionAttempt(q, '/auth/resolve-peer', clientIp)) {
+    return new Response(JSON.stringify({ ok: false, found: false, error: 'Invalid query' }), { status: 400, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
+   }
    if (!q) {
     return new Response(JSON.stringify({ ok: false, found: false }), { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
    }
@@ -6626,7 +6891,8 @@ export default {
     whitelist: Array.from(adminWhitelistStore.values()),
     counters: Object.fromEntries(regionSequenceCounters.entries()),
     reserveCounters: Object.fromEntries(regionReserveCounters.entries()),
-    aiQuota: getGeminiQuotaStatus(env, true)
+    aiQuota: getGeminiQuotaStatus(env, true),
+    securityAudit: getSecurityAuditSnapshot()
    }), {
     headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
    });
@@ -6957,7 +7223,7 @@ function generateSyntheticWeatherJson(lat, lon) {
       tgUsername: verifiedProf.tgUsername || body.tgUsername || '',
       regionCode: verifiedPermanentId.slice(3, 5) || regCode,
       regionConfirmed: true,
-      profileBackup: body.profileBackup || null,
+      profileBackup: body.profileBackup ? pickAllowedProfileFields(workerSanitizeObject(body.profileBackup)) : null,
       locLabel: body.locLabel || verifiedProf.locLabel || 'Водоём РФ',
       platform: body.platform || 'WEB',
       version: body.version || WORKER_VERSION,
@@ -7096,7 +7362,18 @@ function generateSyntheticWeatherJson(lat, lon) {
      if (body.initData && BOT_TOKEN) {
       const validInit = await verifyTelegramWebAppInitData(body.initData, BOT_TOKEN);
       if (!validInit) {
+       recordSecurityIncident('idor', '/api/tg/bind', 'Неверная криптографическая подпись Telegram initData при привязке аккаунта', clientIp, body.fisherId || '');
        return new Response(JSON.stringify({ ok: false, error: 'Invalid Telegram initData signature' }), { status: 403, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
+      }
+     } else if (body.fisherId && !isTemporaryReserveId(body.fisherId)) {
+      const targetFid = workerNormalizeFisherId(body.fisherId, '89');
+      const existingReg = usersRegistryStore.get(targetFid);
+      if (existingReg && existingReg.deviceId && body.deviceId && existingReg.deviceId !== body.deviceId) {
+       const bindAuth = await verifyUserAuth(env, { fid: targetFid, authTokenHash: body.authTokenHash || '', deviceId: body.deviceId || '', request });
+       if (!bindAuth.ok) {
+        recordSecurityIncident('idor', '/api/tg/bind', `Попытка привязки Telegram к чужому постоянному ID (${targetFid})`, clientIp, targetFid);
+        return new Response(JSON.stringify({ ok: false, error: 'Forbidden: fisherId belongs to another user' }), { status: 403, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
+       }
       }
      }
      const rec = bindTelegramToFisherProfile({
@@ -7154,7 +7431,16 @@ function generateSyntheticWeatherJson(lat, lon) {
      request
     });
     if (!pubAuth.ok) {
+     recordSecurityIncident('idor', '/api/circle/publish', `Попытка публикации точки от чужого ID (${fid}) без валидного токена`, clientIp, fid);
      return new Response(JSON.stringify({ ok: false, error: 'Forbidden: unverified fisher identity' }), { status: 403, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
+    }
+    const incomingPtId = String(rawItem.id || '').trim();
+    if (incomingPtId && circlePointsStore.has(incomingPtId)) {
+     const existingPt = circlePointsStore.get(incomingPtId);
+     if (existingPt && existingPt.fid && existingPt.fid !== fid && !pubAuth.isAdmin) {
+      recordSecurityIncident('idor', '/api/circle/publish', `Попытка перезаписи чужой точки Круга (id=${incomingPtId}, владелец=${existingPt.fid})`, clientIp, fid);
+      return new Response(JSON.stringify({ ok: false, error: 'Forbidden: cannot overwrite another user point' }), { status: 403, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
+     }
     }
     const dedupKey = `pub_${fid}_${rawItem.t}_${rawItem.fi || ''}_${Math.round(clampLat(rawItem.lat) * 100)}_${Math.round(clampLon(rawItem.lon) * 100)}`;
     if (isDuplicateRecentAction(dedupKey, 5000) && circlePointsStore.has(String(rawItem.id || ''))) {
@@ -7162,27 +7448,27 @@ function generateSyntheticWeatherJson(lat, lon) {
      return new Response(JSON.stringify({ ok: true, id: exPt.id, item: exPt, deduplicated: true, totalActivePoints: circlePointsStore.size }), { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
     }
     const cleanItem = {
-     id: String(rawItem.id || `cir_${now.toString(36)}_${Math.random().toString(36).slice(2, 6)}`).slice(0, 64),
+     id: workerCleanText(rawItem.id || `cir_${now.toString(36)}_${Math.random().toString(36).slice(2, 6)}`, 64, 'id', '/api/circle/publish', clientIp, fid),
      t: ['circle', 'crew', 'workshop', 'spot'].includes(rawItem.t) ? rawItem.t : 'circle',
-     cat: String(rawItem.cat || '').slice(0, 24),
+     cat: workerCleanText(rawItem.cat || '', 24, 'cat', '/api/circle/publish', clientIp, fid),
      isExpedition: Boolean(rawItem.isExpedition),
-     expStart: String(rawItem.expStart || '').slice(0, 12),
-     expEnd: String(rawItem.expEnd || '').slice(0, 12),
+     expStart: workerCleanText(rawItem.expStart || '', 12, 'expStart', '/api/circle/publish', clientIp, fid),
+     expEnd: workerCleanText(rawItem.expEnd || '', 12, 'expEnd', '/api/circle/publish', clientIp, fid),
      savedForever: Boolean(rawItem.t === 'crew' && !rawItem.sos),
      sos: Boolean(rawItem.sos),
      fid,
      did: String(rawItem.did || body.deviceId || '').slice(0, 80),
-     au: String(rawItem.au || 'Рыболов').slice(0, 48),
-     rk: String(rawItem.rk || 'angler').slice(0, 20),
+     au: workerCleanText(rawItem.au || 'Рыболов', 48, 'au', '/api/circle/publish', clientIp, fid) || 'Рыболов',
+     rk: workerCleanText(rawItem.rk || 'angler', 20, 'rk', '/api/circle/publish', clientIp, fid),
      rw_w: Number(rawItem.rw_w) || 1,
-     fi: String(rawItem.fi || 'pike').slice(0, 32),
-     fn: String(rawItem.fn || 'Рыба').slice(0, 48),
-     wt: String(rawItem.wt || 'small_river').slice(0, 32),
-     wn: String(rawItem.wn || rawItem.lb || 'Водоём').slice(0, 80),
-     lb: String(rawItem.lb || rawItem.wn || 'Водоём').slice(0, 80),
-     mt: String(rawItem.mt || 'spin_light').slice(0, 32),
-     bt: String(rawItem.bt || '').slice(0, 80),
-     nt: String(rawItem.nt || '').slice(0, 240),
+     fi: workerCleanText(rawItem.fi || 'pike', 32, 'fi', '/api/circle/publish', clientIp, fid),
+     fn: workerCleanText(rawItem.fn || 'Рыба', 48, 'fn', '/api/circle/publish', clientIp, fid) || 'Рыба',
+     wt: workerCleanText(rawItem.wt || 'small_river', 32, 'wt', '/api/circle/publish', clientIp, fid),
+     wn: workerCleanText(rawItem.wn || rawItem.lb || 'Водоём', 80, 'wn', '/api/circle/publish', clientIp, fid) || 'Водоём',
+     lb: workerCleanText(rawItem.lb || rawItem.wn || 'Водоём', 80, 'lb', '/api/circle/publish', clientIp, fid) || 'Водоём',
+     mt: workerCleanText(rawItem.mt || 'spin_light', 32, 'mt', '/api/circle/publish', clientIp, fid),
+     bt: workerCleanText(rawItem.bt || '', 80, 'bt', '/api/circle/publish', clientIp, fid),
+     nt: workerCleanText(rawItem.nt || '', 240, 'nt', '/api/circle/publish', clientIp, fid),
      lat: clampLat(rawItem.lat, 66.0833),
      lon: clampLon(rawItem.lon, 76.6333),
      dp: Number.isFinite(Number(rawItem.dp)) ? Number(rawItem.dp) : 2.5,
@@ -7227,7 +7513,7 @@ function generateSyntheticWeatherJson(lat, lon) {
     return new Response(JSON.stringify({
      ok: true,
      id: cleanItem.id,
-     item: cleanItem,
+     item: sanitizePublicCirclePoint(cleanItem, false, true),
      totalActivePoints: circlePointsStore.size
     }), {
      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
@@ -7337,9 +7623,13 @@ function generateSyntheticWeatherJson(lat, lon) {
    }
 
    results.sort((a, b) => (b.ca || 0) - (a.ca || 0));
+   const safeItems = results.slice(0, 150).map(pt => {
+    const hasCrewAccess = isViewerAdmin || (viewerFid && pt.fid === viewerFid && nearbyAuth.ok) || (pt.crewKey && crewKeysSet.has(String(pt.crewKey).toUpperCase()));
+    return sanitizePublicCirclePoint(pt, isViewerAdmin, hasCrewAccess);
+   });
    return new Response(JSON.stringify({
     ok: true,
-    items: results.slice(0, 150),
+    items: safeItems,
     serverTime: Date.now()
    }), {
     headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
@@ -7366,8 +7656,9 @@ function generateSyntheticWeatherJson(lat, lon) {
      adminToken: admTok,
      request
     });
-    const isVerifiedAuthor = (target.fid === fid && delAuth.ok) || Boolean(devId && target.did && target.did === devId);
+    const isVerifiedAuthor = (target.fid === fid && delAuth.ok) || Boolean(devId && target.did && target.did === devId && (!target.fid || isTemporaryReserveId(target.fid) || target.fid === fid));
     if (!isAdm && !isVerifiedAuthor) {
+     recordSecurityIncident('idor', '/api/circle/delete', `Попытка удаления чужой точки Круга (id=${id}, автор=${target.fid}, запросил=${fid || 'гость'})`, clientIp, fid);
      return new Response(JSON.stringify({ ok: false, error: 'Forbidden' }), { status: 403, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
     }
     circlePointsStore.delete(id);
@@ -7415,8 +7706,11 @@ function generateSyntheticWeatherJson(lat, lon) {
     return new Response(JSON.stringify({ ok: false, available: false, error: 'Rate limit' }), { status: 429, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
    }
    await ensurePersistentStateLoaded(env);
-   const rawL = String(reqUrl.searchParams.get('login') || '').trim();
-   const normL = workerNormalizeLogin(rawL);
+    const rawL = String(reqUrl.searchParams.get('login') || '').trim();
+    if (detectSqlInjectionAttempt(rawL, '/auth/check-login', clientIp)) {
+     return new Response(JSON.stringify({ ok: false, available: false, reason: 'invalid_chars', error: 'Недопустимые символы в логине' }), { status: 400, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
+    }
+    const normL = workerNormalizeLogin(rawL);
    const devId = String(reqUrl.searchParams.get('deviceId') || '').trim();
    if (!normL || normL.length < 2) {
     return new Response(JSON.stringify({ ok: false, available: false, reason: 'short' }), { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
@@ -7450,19 +7744,46 @@ function generateSyntheticWeatherJson(lat, lon) {
    try {
     await ensurePersistentStateLoaded(env);
     const body = await readWorkerRequestPayload(request, reqUrl);
-    const incomingSnap = pickAllowedProfileFields(workerSanitizeObject(body.profileSnapshot));
     const rawLoginClean = String(body.login || '').trim();
     const normLoginPre = workerNormalizeLogin(rawLoginClean);
+    if (detectSqlInjectionAttempt(rawLoginClean, '/auth/login', clientIp, rawLoginClean)) {
+     return new Response(JSON.stringify({ ok: false, error: 'Недопустимые символы в поле логина' }), {
+      status: 400,
+      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
+     });
+    }
+    const bfState = checkLoginBruteForce(clientIp, normLoginPre || rawLoginClean);
+    if (bfState.locked) {
+     return new Response(JSON.stringify({
+      ok: false,
+      code: 'BRUTE_FORCE_LOCKED',
+      error: `Слишком много неверных попыток входа. Повторите через ${Math.ceil((bfState.waitSec || 900) / 60)} мин.`
+     }), {
+      status: 429,
+      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
+     });
+    }
+    const isTryingOwner = workerIsOwnerLogin(rawLoginClean);
+    detectMassAssignmentAttempt(body, '/auth/login', clientIp, rawLoginClean, isTryingOwner);
+    detectMassAssignmentAttempt(body.profileSnapshot, '/auth/login', clientIp, rawLoginClean, isTryingOwner);
+    const incomingSnap = pickAllowedProfileFields(workerSanitizeObject(body.profileSnapshot));
     const normFidPre = /^FP_/i.test(rawLoginClean) ? workerNormalizeFisherId(rawLoginClean, '89') : '';
     const preCheckKey = normLoginPre ? `AUTH_${normLoginPre}_${body.authTokenHash && String(body.authTokenHash).startsWith('KTOK_') ? body.authTokenHash : workerDeriveAuthToken(rawLoginClean, body.password)}` : '';
     await loadPersistedAuthProfile(env, preCheckKey, normLoginPre, normFidPre);
     const ident = resolveWorkerAccountIdentity(body.login, body.password, body.authTokenHash, body.regionCode, incomingSnap);
     if (!ident.ok) {
-     return new Response(JSON.stringify({ ok: false, error: ident.error || 'Укажите логин и пароль (от 3 символов)' }), {
-      status: 400,
+     const failRec = recordLoginFailure(clientIp, normLoginPre || rawLoginClean, '/auth/login');
+     const rem = Math.max(0, BRUTE_FORCE_MAX_FAILS - failRec.count);
+     return new Response(JSON.stringify({
+      ok: false,
+      remainingAttempts: rem,
+      error: ident.error || 'Неверный логин или пароль'
+     }), {
+      status: failRec.lockedUntil ? 429 : 400,
       headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
      });
     }
+    clearLoginFailures(clientIp, normLoginPre || rawLoginClean);
     const existing = (await loadPersistedAuthProfile(env, ident.authKey)) || null;
     const regUser = usersRegistryStore.get(ident.fisherId) || null;
     const mergedTgId = String(incomingSnap.tgLinkedId || existing?.tgLinkedId || regUser?.tgId || '').trim();
@@ -7524,6 +7845,12 @@ function generateSyntheticWeatherJson(lat, lon) {
     }
     await d1SaveUser(env, regRec);
     await persistSystemMeta(env, ctx);
+    const safeProfileOut = { ...merged };
+    delete safeProfileOut.secureTokenHash;
+    if (!ident.isOwner) delete safeProfileOut.adminSessionToken;
+    const safeWhitelistOut = ident.isOwner
+     ? Array.from(adminWhitelistStore.values())
+     : Array.from(adminWhitelistStore.values()).map(item => ({ id: item.id }));
     return new Response(JSON.stringify({
      ok: true,
      found: Boolean(existing),
@@ -7533,8 +7860,8 @@ function generateSyntheticWeatherJson(lat, lon) {
      pinHash: ident.pinHash,
      adminSessionToken: ident.isOwner ? OWNER_ADMIN_CONSOLE_TOKEN : '',
      serverDynamicSlotHtml: ident.isOwner ? buildOwnerServerPortalSlotHtml(reqUrl.origin) : '',
-     profile: merged,
-     whitelist: Array.from(adminWhitelistStore.values())
+     profile: safeProfileOut,
+     whitelist: safeWhitelistOut
     }), {
      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
     });
@@ -7612,6 +7939,9 @@ function generateSyntheticWeatherJson(lat, lon) {
    try {
     await ensurePersistentStateLoaded(env);
     const body = await readWorkerRequestPayload(request, reqUrl);
+    const isSyncOwner = workerIsOwnerLogin(body.login || '');
+    detectMassAssignmentAttempt(body, '/auth/sync', clientIp, body.login || '', isSyncOwner);
+    detectMassAssignmentAttempt(body.profileSnapshot, '/auth/sync', clientIp, body.login || '', isSyncOwner);
     const snap = pickAllowedProfileFields(workerSanitizeObject(body.profileSnapshot));
     const rawLoginClean = String(body.login || '').trim();
     const normLoginPre = workerNormalizeLogin(rawLoginClean);
@@ -7660,14 +7990,20 @@ function generateSyntheticWeatherJson(lat, lon) {
     });
     await d1SaveUser(env, syncRec);
     await persistSystemMeta(env, ctx);
+    const safeSyncProfile = { ...merged };
+    delete safeSyncProfile.secureTokenHash;
+    if (!ident.isOwner) delete safeSyncProfile.adminSessionToken;
+    const safeSyncWhitelist = ident.isOwner
+     ? Array.from(adminWhitelistStore.values())
+     : Array.from(adminWhitelistStore.values()).map(item => ({ id: item.id }));
     return new Response(JSON.stringify({
      ok: true,
      fisherId: ident.fisherId,
      isOwner: ident.isOwner,
      adminSessionToken: ident.isOwner ? OWNER_ADMIN_CONSOLE_TOKEN : '',
      serverDynamicSlotHtml: ident.isOwner ? buildOwnerServerPortalSlotHtml(reqUrl.origin) : '',
-     profile: merged,
-     whitelist: Array.from(adminWhitelistStore.values())
+     profile: safeSyncProfile,
+     whitelist: safeSyncWhitelist
     }), {
      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
     });
@@ -7779,9 +8115,21 @@ function generateSyntheticWeatherJson(lat, lon) {
     if (chanId.startsWith('crew:')) {
      const cKey = chanId.replace(/^crew:/i, '').toUpperCase();
      const boxKey = `CREW_${cKey}`;
-     transitBoxes.delete(boxKey);
-     if (d1) {
-      await d1.prepare('DELETE FROM transit_relay WHERE channel_id = ? OR crew_key = ?').bind(boxKey, cKey).run().catch(() => {});
+     const isCrewCreator = Array.from(circlePointsStore.values()).some(pt => pt && pt.t === 'crew' && String(pt.crewKey || '').toUpperCase() === cKey && pt.fid === viewerFid);
+     if (authRes.isAdmin || (isCrewCreator && !cKey.startsWith('REG-'))) {
+      transitBoxes.delete(boxKey);
+      if (d1) {
+       await d1.prepare('DELETE FROM transit_relay WHERE channel_id = ? OR crew_key = ?').bind(boxKey, cKey).run().catch(() => {});
+      }
+     } else {
+      if (body.wipeAll === true) {
+       recordSecurityIncident('idor', '/api/relay/delete-channel', `Попытка полного удаления общего чата ${boxKey} пользователем ${viewerFid}`, clientIp, viewerFid);
+      }
+      const existingArr = transitBoxes.get(boxKey) || [];
+      transitBoxes.set(boxKey, existingArr.filter(p => p && p.senderId !== viewerFid));
+      if (d1 && viewerFid) {
+       await d1.prepare('DELETE FROM transit_relay WHERE (channel_id = ? OR crew_key = ?) AND sender_id = ?').bind(boxKey, cKey, viewerFid).run().catch(() => {});
+      }
      }
     } else if (viewerFid) {
      const dmBoxesToClean = [`DM_${viewerFid}`];
@@ -7896,7 +8244,11 @@ function generateSyntheticWeatherJson(lat, lon) {
     if (bKey.startsWith('DM_')) {
      const dmTarget = bKey.slice(3);
      if (pullAuth.isAdmin) return true;
-     return Boolean(pullAuth.ok && viewer && dmTarget === viewer);
+     const allowedDm = Boolean(pullAuth.ok && viewer && dmTarget === viewer);
+     if (!allowedDm) {
+      recordSecurityIncident('idor', '/relay/pull', `Попытка чтения чужого личного ящика ${bKey} (запросил ${viewer || 'гость'})`, clientIp, viewer);
+     }
+     return allowedDm;
     }
     return true;
    })
