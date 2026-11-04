@@ -1,66 +1,53 @@
 /**
  * @file sw.js
- * @description Service Worker для PWA «Клёв ПРО 2.0: Круг» (Ревизия 2.1.1 r175).
- * - Офлайн-кэш тайлов карт (OpenTopoMap / OSM / Esri) в хранилище klev-pro-map-tiles-v2.1.1 (LRU до 650 тайлов)
- * - Автоматический пропуск локального контейнера Android APK (appassets.androidplatform.net), где файлы уже внутри APK
+ * @description Service Worker для PWA «Клёв ПРО 2.0: Круг» (Ревизия 2.5.6 r213).
+ * - Кэширует только статический код приложения (CORE_ASSETS)
+ * - НЕ кэширует тайлы карт в фоновом CacheStorage (все офлайн-карты управляются строго через IndexedDB KlevProOfflineMapsDB_v5 с полной очисткой при удалении)
  */
 
-const CACHE_VERSION = 'klev-pro-v2.5.6-r211';
+const CACHE_VERSION = 'klev-pro-v2.5.6-r213';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
-const MAP_TILES_CACHE = 'klev-pro-map-tiles-v2.5.6-r211';
-const MAX_MAP_TILES = 1800;
 
 const CORE_ASSETS = [
   './',
   './index.html',
   './manifest.json',
   './version.json',
-  './css/tokens.css?v=2.5.6-r211',
-  './css/base.css?v=2.5.6-r211',
-  './css/components.css?v=2.5.6-r211',
-  './css/layout.css?v=2.5.6-r211',
-  './js/app.js?v=2.5.6-r211',
-  './js/core/config.js?v=2.5.6-r211',
-  './js/core/events.js?v=2.5.6-r211',
-  './js/core/format.js?v=2.5.6-r211',
-  './js/core/http.js?v=2.5.6-r211',
-  './js/core/pwa.js?v=2.5.6-r211',
-  './js/core/router.js?v=2.5.6-r211',
-  './js/core/storage.js?v=2.5.6-r211',
-  './js/core/store.js?v=2.5.6-r211',
-  './js/core/telegram.js?v=2.5.6-r211',
-  './js/core/updater.js?v=2.5.6-r211',
-  './js/data/basins.js?v=2.5.6-r211',
-  './js/data/russia-waters.js?v=2.5.6-r211',
-  './js/data/species.js?v=2.5.6-r211',
-  './js/data/waters.js?v=2.5.6-r211',
-  './js/i18n/ru.js?v=2.5.6-r211',
-  './js/modules/calendar/calendar.module.js?v=2.5.6-r211',
-  './js/modules/circle/circle.module.js?v=2.5.6-r211',
-  './js/modules/fish/fish.module.js?v=2.5.6-r211',
-  './js/modules/fish/scanner.js?v=2.5.6-r211',
-  './js/modules/forecast/forecast.module.js?v=2.5.6-r211',
-  './js/modules/geo/geo.module.js?v=2.5.6-r211',
-  './js/modules/log/log.module.js?v=2.5.6-r211',
-  './js/modules/weather/weather.module.js?v=2.5.6-r211',
-  './js/ui/components.js?v=2.5.6-r211',
-  './js/ui/icons.js?v=2.5.6-r211',
-  './js/ui/svg.js?v=2.5.6-r211'
+  './css/tokens.css?v=2.5.6-r213',
+  './css/base.css?v=2.5.6-r213',
+  './css/components.css?v=2.5.6-r213',
+  './css/layout.css?v=2.5.6-r213',
+  './js/app.js?v=2.5.6-r213',
+  './js/core/config.js?v=2.5.6-r213',
+  './js/core/events.js?v=2.5.6-r213',
+  './js/core/format.js?v=2.5.6-r213',
+  './js/core/http.js?v=2.5.6-r213',
+  './js/core/pwa.js?v=2.5.6-r213',
+  './js/core/router.js?v=2.5.6-r213',
+  './js/core/storage.js?v=2.5.6-r213',
+  './js/core/store.js?v=2.5.6-r213',
+  './js/core/telegram.js?v=2.5.6-r213',
+  './js/core/updater.js?v=2.5.6-r213',
+  './js/data/basins.js?v=2.5.6-r213',
+  './js/data/russia-waters.js?v=2.5.6-r213',
+  './js/data/species.js?v=2.5.6-r213',
+  './js/data/waters.js?v=2.5.6-r213',
+  './js/i18n/ru.js?v=2.5.6-r213',
+  './js/modules/calendar/calendar.module.js?v=2.5.6-r213',
+  './js/modules/circle/circle.module.js?v=2.5.6-r213',
+  './js/modules/fish/fish.module.js?v=2.5.6-r213',
+  './js/modules/fish/scanner.js?v=2.5.6-r213',
+  './js/modules/forecast/forecast.module.js?v=2.5.6-r213',
+  './js/modules/geo/geo.module.js?v=2.5.6-r213',
+  './js/modules/log/log.module.js?v=2.5.6-r213',
+  './js/modules/weather/weather.module.js?v=2.5.6-r213',
+  './js/ui/components.js?v=2.5.6-r213',
+  './js/ui/icons.js?v=2.5.6-r213',
+  './js/ui/svg.js?v=2.5.6-r213'
 ];
 
 function isMapTileHostname(hostname = '') {
   return /(tile\.opentopomap\.org|tile\.openstreetmap\.org|openstreetmap\.fr|arcgisonline\.com|basemaps\.cartocdn\.com|core-renderer-tiles\.maps\.yandex\.net|core-sat\.maps\.yandex\.net|sat0[1-4]\.maps\.yandex\.net|vec0[1-4]\.maps\.yandex\.net|maps\.yandex\.net|maps\.mail\.ru)/i.test(String(hostname || ''));
-}
-
-async function trimMapTileCache() {
-  try {
-    const cache = await caches.open(MAP_TILES_CACHE);
-    const keys = await cache.keys();
-    if (keys.length > MAX_MAP_TILES) {
-      const toDelete = keys.slice(0, keys.length - MAX_MAP_TILES);
-      await Promise.all(toDelete.map(req => cache.delete(req)));
-    }
-  } catch (e) {}
 }
 
 self.addEventListener('install', event => {
@@ -86,7 +73,7 @@ self.addEventListener('activate', event => {
     caches.keys().then(keys =>
       Promise.all(
         keys
-          .filter(key => key !== STATIC_CACHE && key !== MAP_TILES_CACHE)
+          .filter(key => key !== STATIC_CACHE)
           .map(key => caches.delete(key))
       )
     ).then(() => self.clients.claim())
@@ -97,6 +84,13 @@ self.addEventListener('message', event => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
+  if (event.data && event.data.type === 'PURGE_MAP_TILE_CACHES') {
+    caches.keys().then(keys => {
+      keys.forEach(k => {
+        if (k.includes('map-tiles')) caches.delete(k);
+      });
+    }).catch(() => {});
+  }
 });
 
 self.addEventListener('fetch', event => {
@@ -105,33 +99,18 @@ self.addEventListener('fetch', event => {
 
   const url = new URL(req.url);
 
-  // Никогда не перехватываем запросы к серверу БД/погоды/ретранслятора (Cloudflare Worker)
-  if (url.hostname.includes('workers.dev') || url.pathname.startsWith('/api/') || url.pathname.startsWith('/auth/') || url.pathname.startsWith('/relay/') || url.pathname.startsWith('/weather')) {
+  // Никогда не перехватываем запросы к серверу БД/погоды/ретранслятора и к тайлам карт (все офлайн-карты работают строго через IndexedDB!)
+  if (
+    url.hostname.includes('workers.dev') ||
+    url.pathname.startsWith('/api/') ||
+    url.pathname.startsWith('/auth/') ||
+    url.pathname.startsWith('/relay/') ||
+    url.pathname.startsWith('/weather') ||
+    isMapTileHostname(url.hostname)
+  ) {
     return;
   }
 
-  if (isMapTileHostname(url.hostname)) {
-    event.respondWith(
-      caches.open(MAP_TILES_CACHE).then(async cache => {
-        const cachedTile = await cache.match(req);
-        if (cachedTile) {
-          return cachedTile;
-        }
-        try {
-          const netRes = await fetch(req);
-          if (netRes && (netRes.status === 200 || netRes.type === 'opaque')) {
-            cache.put(req, netRes.clone()).then(() => trimMapTileCache()).catch(() => {});
-          }
-          return netRes;
-        } catch (err) {
-          return cachedTile || new Response('', { status: 408, statusText: 'Offline Map Tile Unavailable' });
-        }
-      })
-    );
-    return;
-  }
-
-  // В Android APK WebView ресурсы уже локальные в assets/www, не кэшируем их повторно в CacheStorage
   if (url.hostname === 'appassets.androidplatform.net') {
     return;
   }
@@ -140,7 +119,6 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Никогда не кэшируем в Service Worker скачивание .apk файлов и манифесты версий
   if (url.pathname.includes('/apk/') || url.pathname.endsWith('.apk') || url.pathname.endsWith('version.json')) {
     return;
   }

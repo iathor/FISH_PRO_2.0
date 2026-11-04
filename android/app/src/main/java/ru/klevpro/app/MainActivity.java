@@ -553,7 +553,7 @@ public class MainActivity extends Activity {
                     view.loadUrl(sb.toString());
                     return true;
                 }
-                if (host.equals("t.me") || host.equals("telegram.me") || scheme.equals("tg") || scheme.equals("mailto")) {
+                if (host.equals("t.me") || host.equals("telegram.me") || scheme.equals("tg") || scheme.equals("mailto") || scheme.equals("sms") || scheme.equals("smsto") || scheme.equals("tel") || scheme.equals("geo")) {
                     try {
                         Intent intent = new Intent(Intent.ACTION_VIEW, uri);
                         startActivity(intent);
