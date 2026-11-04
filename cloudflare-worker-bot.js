@@ -6,7 +6,8 @@ const RESERVE_ID_TTL_MS = 24 * 60 * 60 * 1000; // Временный резер�
 const deletedFisherIdsSet = new Set(); // Удалённые вручную через Админ-панель ID (защита от повторной фоновой вставки)
 const rateBuckets = new Map();
 const transitBoxes = new Map();
-const deadmanTimersStore = new Map(); // Контрольные таймеры возвращения (Dead Man's Switch) // Транзитная очередь зашифрованных пакетов (Zero-Storage: удаляется при доставке/по TTL)
+const deadmanTimersStore = new Map();
+const clientErrorTelemetryLog = []; // Кольцевой буфер последних ошибок клиентов для Супер-Админа // Контрольные таймеры возвращения (Dead Man's Switch) // Транзитная очередь зашифрованных пакетов (Zero-Storage: удаляется при доставке/по TTL)
 const weatherGridCache = new Map(); // Кэш погоды бота по гео-сетке 0.1° × 0.1° (~8-10 км) на 20 минут
 const weatherFullGridCache = new Map(); // Полный Edge-кэш Open-Meteo (past_days=14&forecast_days=10) по сетке 0.1° × 0.1° на 30 минут
 const regionSequenceCounters = new Map(); // Счётчики ПОСТОЯННЫХ номеров зарегистрированных рыбаков по регионам РФ (0 -> AAA001 .. 998 -> AAA999, 999 -> AAB001)
@@ -5938,6 +5939,42 @@ export default {
   const clientIp = request.headers.get('CF-Connecting-IP') || 'anon_ip';
 
   // ── Прокси тайлов офлайн-карт (/api/tile-proxy?url=...) с заголовками CORS для Яндекс Спутник / Схема ──
+  // ── Мониторинг ошибок клиентов (/api/telemetry/client-error) и SEO (/robots.txt, /sitemap.xml) ──
+  if (reqUrl.pathname === '/robots.txt' && request.method === 'GET') {
+   return new Response(`User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /auth/\nDisallow: /relay/\nDisallow: /weather\nDisallow: /admin\nHost: https://klevpro.ru\nSitemap: https://klevpro.ru/sitemap.xml\n`, {
+    status: 200,
+    headers: { ...CORS_HEADERS, 'Content-Type': 'text/plain; charset=utf-8' }
+   });
+  }
+  if (reqUrl.pathname === '/sitemap.xml' && request.method === 'GET') {
+   return new Response(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://klevpro.ru/</loc><lastmod>2026-11-04</lastmod><changefreq>daily</changefreq><priority>1.0</priority></url></urlset>`, {
+    status: 200,
+    headers: { ...CORS_HEADERS, 'Content-Type': 'application/xml; charset=utf-8' }
+   });
+  }
+  if (reqUrl.pathname.endsWith('/api/telemetry/client-error') && (request.method === 'POST' || request.method === 'GET')) {
+   if (request.method === 'GET') {
+    return jsonResponse({ ok: true, errors: clientErrorTelemetryLog.slice(0, 30) });
+   }
+   try {
+    const errBody = await request.json();
+    clientErrorTelemetryLog.unshift({
+     id: String(errBody.id || `ERR_${Date.now()}`).slice(0, 32),
+     ts: Number(errBody.ts || Date.now()),
+     type: String(errBody.type || 'error').slice(0, 32),
+     msg: String(errBody.msg || '').slice(0, 240),
+     src: String(errBody.src || '').slice(0, 220),
+     route: String(errBody.route || '').slice(0, 64),
+     ver: String(errBody.ver || WORKER_VERSION).slice(0, 24),
+     ua: String(errBody.ua || '').slice(0, 96)
+    });
+    if (clientErrorTelemetryLog.length > 50) clientErrorTelemetryLog.length = 50;
+    return jsonResponse({ ok: true, count: clientErrorTelemetryLog.length });
+   } catch (_e) {
+    return jsonResponse({ ok: false }, 400);
+   }
+  }
+
   // ── Контрольный таймер возвращения (Dead Man's Switch / Авто-SOS): /api/sos/deadman ──
   if (reqUrl.pathname.endsWith('/api/sos/deadman') && (request.method === 'POST' || request.method === 'GET')) {
    if (request.method === 'GET') {

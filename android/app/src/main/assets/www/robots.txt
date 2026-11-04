@@ -1,0 +1,21 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /auth/
+Disallow: /relay/
+Disallow: /weather
+Disallow: /admin
+Disallow: /apk/apk-version.json
+Disallow: /klev-pro-2/
+
+User-agent: Yandex
+Allow: /
+Disallow: /api/
+Disallow: /auth/
+Disallow: /relay/
+Disallow: /weather
+Disallow: /admin
+Clean-param: v&tgWebAppData&tgWebAppVersion&tgWebAppPlatform /
+
+Host: https://klevpro.ru
+Sitemap: https://klevpro.ru/sitemap.xml
