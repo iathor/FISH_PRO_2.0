@@ -1759,3 +1759,99 @@ html:not([data-mobile-guest="1"]) .geo-guest-only-inline {
 html[data-mobile-guest="1"] .geo-full-only-inline {
   display: none !important;
 }
+
+/* ==========================================================================
+   10. ПОДСВЕТКА ИЗМЕНЁННЫХ БЛОКОВ С УГАСАНИЕМ И ИНТЕРАКТИВНЫЙ СКРАББИНГ ГРАФИКА
+   ========================================================================== */
+@keyframes klevFlashPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0), 0 0 0 0 rgba(56, 189, 248, 0);
+  }
+  18% {
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.92), 0 0 26px rgba(56, 189, 248, 0.65);
+    border-color: #10b981 !important;
+  }
+  55% {
+    box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.72), 0 0 16px rgba(16, 185, 129, 0.38);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0), 0 0 0 0 rgba(56, 189, 248, 0);
+  }
+}
+
+.klev-flash-highlight {
+  animation: klevFlashPulse 1.3s cubic-bezier(0.22, 1, 0.36, 1) forwards !important;
+  position: relative;
+  z-index: 4;
+}
+
+/* Интерактивное скольжение пальцем / курсором по почасовому графику клёва */
+#bentoWaveChartCard {
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: pan-y;
+}
+
+#bentoWaveChartCard.is-scrubbing .bento-chart-default-marker {
+  opacity: 0.22 !important;
+  transition: opacity 0.12s ease;
+}
+
+.bento-scrub-cursor-line {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  width: 2px;
+  background: linear-gradient(180deg, #fbbf24 0%, #10b981 55%, rgba(56, 189, 248, 0.4) 100%);
+  transform: translateX(-50%);
+  pointer-events: none;
+  z-index: 6;
+  display: none;
+  box-shadow: 0 0 10px rgba(251, 191, 36, 0.75);
+}
+
+.bento-scrub-cursor-dot {
+  position: absolute;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #fbbf24;
+  border: 2.5px solid #ffffff;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 7;
+  display: none;
+  box-shadow: 0 0 12px rgba(251, 191, 36, 0.95);
+}
+
+.bento-scrub-hud-badge {
+  position: absolute;
+  top: 4px;
+  transform: translateX(-50%);
+  padding: 4px 9px;
+  border-radius: 9px;
+  background: rgba(9, 16, 32, 0.94);
+  border: 1.5px solid #fbbf24;
+  color: #f8fafc;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.28;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 8;
+  display: none;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55);
+}
+
+#bentoWaveChartCard.is-scrubbing .bento-scrub-cursor-line,
+#bentoWaveChartCard.is-scrubbing .bento-scrub-cursor-dot,
+#bentoWaveChartCard.is-scrubbing .bento-scrub-hud-badge {
+  display: block;
+}
+
+.bento-chart-tick-cell.scrub-active-tick {
+  background: rgba(251, 191, 36, 0.18) !important;
+  border-color: #fbbf24 !important;
+  transform: translateY(-1px);
+}
+
