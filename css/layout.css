@@ -1038,17 +1038,17 @@ body {
 .quick-dock-tab-label {
   width: fit-content;
   margin: 0 auto -1px auto;
-  padding: 3px 16px 3px;
-  border-radius: 11px 11px 0 0;
-  background: linear-gradient(180deg, rgba(46, 70, 98, 0.95) 0%, rgba(24, 40, 62, 0.96) 100%);
-  border: 1.5px solid rgba(148, 210, 255, 0.35);
+  padding: 1px 12px 1px;
+  border-radius: 9px 9px 0 0;
+  background: linear-gradient(180deg, rgba(46, 70, 98, 0.88) 0%, rgba(24, 40, 62, 0.92) 100%);
+  border: 1px solid rgba(148, 210, 255, 0.28);
   border-bottom: none;
-  font-size: 10.5px;
+  font-size: 9.5px;
   font-weight: 800;
-  color: #e2e8f0;
+  color: #cbd5e1;
   letter-spacing: 0.3px;
-  pointer-events: auto;
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.35), 0 -3px 10px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.25), 0 -2px 6px rgba(0, 0, 0, 0.25);
 }
 [data-theme="light"] .quick-dock-tab-label {
   background: linear-gradient(180deg, #ffffff 0%, #dceaf7 100%);
