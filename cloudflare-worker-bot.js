@@ -6182,6 +6182,13 @@ export default {
    }
    try {
     const errBody = await readWorkerRequestPayload(request, reqUrl);
+    if (errBody && errBody.action === 'clear') {
+     const admTok = extractAdminTokenFromRequest(request, reqUrl, errBody);
+     if (isValidOwnerAdminToken(admTok, env)) {
+      clientErrorTelemetryLog.length = 0;
+      return jsonResponse({ ok: true, cleared: true, errors: [] });
+     }
+    }
     const scrubSecrets = (s) => String(s || '').replace(/(KTOK_[A-Z0-9_]+|KP1_[A-Za-z0-9_-]+|token=[^&\s]+)/gi, '[СКРЫТО]');
     clientErrorTelemetryLog.unshift({
      id: String(errBody.id || `ERR_${Date.now()}`).slice(0, 32),
@@ -6191,6 +6198,12 @@ export default {
      src: scrubSecrets(workerCleanText(errBody.src || '', 220, 'err.src', '/api/telemetry/client-error', clientIp)),
      route: scrubSecrets(String(errBody.route || '').slice(0, 64)),
      ver: String(errBody.ver || WORKER_VERSION).slice(0, 24),
+     env: String(errBody.env || 'web').slice(0, 16),
+     fisherId: workerNormalizeFisherId(errBody.fisherId || '', '89'),
+     login: workerCleanText(errBody.login || '', 32, 'err.login', '/api/telemetry/client-error', clientIp),
+     isOwner: Boolean(errBody.isOwner),
+     isRegistered: Boolean(errBody.isRegistered),
+     isTemporaryReserve: Boolean(errBody.isTemporaryReserve),
      ua: String(errBody.ua || '').slice(0, 96)
     });
     if (clientErrorTelemetryLog.length > 50) clientErrorTelemetryLog.length = 50;
@@ -6892,7 +6905,8 @@ export default {
     counters: Object.fromEntries(regionSequenceCounters.entries()),
     reserveCounters: Object.fromEntries(regionReserveCounters.entries()),
     aiQuota: getGeminiQuotaStatus(env, true),
-    securityAudit: getSecurityAuditSnapshot()
+    securityAudit: getSecurityAuditSnapshot(),
+    clientErrors: clientErrorTelemetryLog.slice(0, 40)
    }), {
     headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
    });
