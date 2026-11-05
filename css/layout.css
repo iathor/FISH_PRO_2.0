@@ -1693,3 +1693,69 @@ body {
     grid-column: 1 / -1 !important;
   }
 }
+
+/* ==========================================================================
+   9. МОБИЛЬНЫЙ ГОСТЕВОЙ РЕЖИМ ВОВЛЕЧЕНИЯ (data-mobile-guest="1")
+   Активен ТОЛЬКО на мобильных устройствах (APK, iOS, PWA, Mobile Web, TMA)
+   до момента входа/регистрации пользователя. На ПК (desktop-tablet) не применяется.
+   ========================================================================== */
+html[data-mobile-guest="1"] .top-section-nav [data-nav-tab="weather"],
+html[data-mobile-guest="1"] .top-section-nav [data-nav-tab="fish"],
+html[data-mobile-guest="1"] .top-section-nav [data-nav-tab="calendar"],
+html[data-mobile-guest="1"] .bottom-nav #navCircleChatsHubBtn,
+html[data-mobile-guest="1"] .bottom-nav #bottomQuickSosBtn,
+html[data-mobile-guest="1"] .bottom-nav [data-nav-tab="log"],
+html[data-mobile-guest="1"] [data-onb-mode],
+html[data-mobile-guest="1"] #appParamsFactorCalibCard,
+html[data-mobile-guest="1"] [data-switch-settings-zone="fishing"],
+html[data-mobile-guest="1"] [data-open-hub-zone="fishing"],
+html[data-mobile-guest="1"] .day-card[data-guest-locked-day="1"],
+html[data-mobile-guest="1"] #fcCleanArchiveBtn {
+  opacity: 0.42 !important;
+  filter: saturate(0.45);
+  
+}
+
+html[data-mobile-guest="1"] .top-section-nav #topNavSettingsBtn,
+html[data-mobile-guest="1"] .bottom-nav [data-nav-tab="geo"],
+html[data-mobile-guest="1"] .bottom-nav [data-nav-tab="forecast"] {
+  opacity: 1 !important;
+}
+
+/* На первом экране «Прогноз» у мобильного гостя остаются ТОЛЬКО 4 карточки (Фото 1–4):
+   1) Ихтиологический Прогноз Клёва (#bentoSwipeHeroCard)
+   2) Почасовой график клёва 00:00–24:00 (#bentoWaveChartCard)
+   3) Погода & Лёд / Вода (#bentoWeatherIceCard на всю ширину ряда)
+   4) Календарь клёва по дням (#fcWeekBox, активен только «Сегодня») */
+html[data-mobile-guest="1"] .bento-top-species-strip,
+html[data-mobile-guest="1"] #bentoMapRadarCard,
+html[data-mobile-guest="1"] .bento-tackle-controls-card,
+html[data-mobile-guest="1"] .bento-tactical-advice-wrap,
+html[data-mobile-guest="1"] #fcHourlyBox {
+  display: none !important;
+}
+
+html[data-mobile-guest="1"] .bento-bottom-duo {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+html[data-mobile-guest="1"] #bentoWeatherIceCard {
+  grid-column: 1 / -1 !important;
+  width: 100% !important;
+}
+
+/* На экране «Карта» у мобильного гостя остаются ТОЛЬКО (Фото 5–6):
+   1) Две кнопки «Где я» (#geoGpsBtn) и «Кто здесь клюёт» (#geoInspectModeBtn)
+   2) Интерактивная карта (#mapBox)
+   3) Блок с кнопками рыб водоёма (#geoWaterIchthyoCard) */
+html[data-mobile-guest="1"] .geo-auth-only-block {
+  display: none !important;
+}
+
+html:not([data-mobile-guest="1"]) .geo-guest-only-inline {
+  display: none !important;
+}
+
+html[data-mobile-guest="1"] .geo-full-only-inline {
+  display: none !important;
+}

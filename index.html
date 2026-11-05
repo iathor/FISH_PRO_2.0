@@ -794,6 +794,18 @@
               setTimeout(window.__KLEV_INVALIDATE_MAP_SIZE__, 80);
             }
           }
+          if (typeof window.__KLEV_SYNC_MOBILE_GUEST__ === 'function') {
+            window.__KLEV_SYNC_MOBILE_GUEST__();
+          } else {
+            var isApkNow = docEl.getAttribute('data-apk-webview') === '1' || typeof window.AndroidBridge !== 'undefined';
+            var isMobEnv = (mode !== 'desktop-tablet') || isApkNow;
+            var rawSt = localStorage.getItem('klev_pro_state_v2.0');
+            var upSt = rawSt ? (JSON.parse(rawSt).userProfile || {}) : {};
+            var fidSt = String(upSt.fisherId || '').trim().toUpperCase();
+            var isTempFid = !fidSt || /^FP_\d{2}RZ\d{4}$/i.test(fidSt);
+            var isAuthed = Boolean(upSt.ownerUnlocked || (upSt.login && upSt.login !== 'Рыболов' && (upSt.pinHash || upSt.authTokenHash) && !isTempFid));
+            docEl.setAttribute('data-mobile-guest', (isMobEnv && !isAuthed) ? '1' : '0');
+          }
         } catch (_e) {}
       }
       window.__KLEV_SYNC_DEVICE_LAYOUT__ = syncDeviceLayoutMode;
