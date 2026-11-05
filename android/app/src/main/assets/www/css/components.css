@@ -622,6 +622,52 @@ input[type="checkbox"], input[type="radio"] {
   word-break: break-word;
   padding: 6px 10px;
 }
+.modal-box .chip-scroll-row .w-chip,
+.chip-scroll-row > .w-chip,
+.chip-scroll-row > .btn {
+  white-space: nowrap !important;
+  flex-shrink: 0 !important;
+  word-break: normal !important;
+}
+.cw-date-plaques-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  width: 100%;
+}
+@media (min-width: 560px) {
+  .cw-date-plaques-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+.cw-date-plaque {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-height: 36px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--panel);
+  border: 1.5px solid var(--border);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+.cw-date-plaque:hover {
+  border-color: var(--accent);
+}
+.cw-date-plaque.active {
+  background: rgba(56, 189, 248, 0.22);
+  border-color: var(--accent);
+  color: #ffffff;
+  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.25);
+}
 .modal-chip-wrap {
   display: flex;
   flex-wrap: wrap;

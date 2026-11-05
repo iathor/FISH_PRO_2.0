@@ -5199,7 +5199,10 @@ const geminiConfigStore = {
  lastRequestAt: 0,
  dateKey: new Date().toISOString().slice(0, 10),
  lastTestedAt: 0,
- lastTestOk: null
+ lastTestOk: null,
+ lastHttpStatus: 0,
+ lastLatencyMs: 0,
+ recentCalls: []
 };
 
 function getEffectiveGeminiKeys(env = null, extraClientKey = "") {
@@ -5246,6 +5249,15 @@ async function syncFreshGeminiConfigFromD1(env) {
     }
     if (Number.isFinite(Number(parsed.lastRequestAt))) {
      geminiConfigStore.lastRequestAt = Math.max(geminiConfigStore.lastRequestAt || 0, Number(parsed.lastRequestAt));
+    }
+    if (Array.isArray(parsed.recentCalls) && parsed.recentCalls.length > 0) {
+     geminiConfigStore.recentCalls = parsed.recentCalls.slice(0, 30);
+    }
+    if (Number.isFinite(Number(parsed.lastHttpStatus))) {
+     geminiConfigStore.lastHttpStatus = Number(parsed.lastHttpStatus) || 0;
+    }
+    if (Number.isFinite(Number(parsed.lastLatencyMs))) {
+     geminiConfigStore.lastLatencyMs = Number(parsed.lastLatencyMs) || 0;
     }
     const todayStr = new Date().toISOString().slice(0, 10);
     if (parsed.dateKey === todayStr) {
@@ -5334,7 +5346,10 @@ function getGeminiQuotaStatus(env = null, includeRawKeyForOwner = false) {
   dateKey: todayStr,
   activeModel: geminiConfigStore.activeModel || "gemini-2.5-flash",
   lastTestedAt: geminiConfigStore.lastTestedAt || 0,
-  lastTestOk: geminiConfigStore.lastTestOk
+  lastTestOk: geminiConfigStore.lastTestOk,
+  lastHttpStatus: geminiConfigStore.lastHttpStatus || 200,
+  lastLatencyMs: geminiConfigStore.lastLatencyMs || 0,
+  recentCalls: Array.isArray(geminiConfigStore.recentCalls) ? geminiConfigStore.recentCalls.slice(0, 25) : []
  };
 }
 
@@ -5449,6 +5464,7 @@ async function _fetchGeminiWithGeoFallback(gUrl, bodyStr, timeoutMs) {
 }
 
 async function callGeminiGenerateContentSmart(apiKey, contentsPayload, genConfig = {}, timeoutMs = 12000) {
+ const tStart = Date.now();
  const cleanKey = String(apiKey || "").trim().replace(/^["'\s]+|["'\s]+$/g, "");
  if (!cleanKey) return { ok: false, status: 400, errorText: "Empty key" };
 
@@ -5508,7 +5524,10 @@ async function callGeminiGenerateContentSmart(apiKey, contentsPayload, genConfig
      const rawTxt = (nonThought.length > 0 ? nonThought.map(p => p.text).join("\n") : parts.filter(p => !p.thought).map(p => p.text || "").join("\n")).trim();
      if (rawTxt) {
       geminiConfigStore.activeModel = modelId;
-      return { ok: true, model: modelId, status: 200, json: rJson, text: rawTxt };
+      const latMs = Math.max(12, Date.now() - tStart);
+      geminiConfigStore.lastHttpStatus = 200;
+      geminiConfigStore.lastLatencyMs = latMs;
+      return { ok: true, model: modelId, status: 200, latencyMs: latMs, json: rJson, text: rawTxt };
      }
      if (cIdx < tryConfigs.length - 1) {
       continue;
@@ -5554,7 +5573,7 @@ async function callGeminiGenerateContentSmart(apiKey, contentsPayload, genConfig
  return { ok: false, status: lastStatus, errorText: lastErrorText };
 }
 
-async function recordGeminiRequestUsed(env = null, keySlotIndexOrKey = 0, source = "app") {
+async function recordGeminiRequestUsed(env = null, keySlotIndexOrKey = 0, source = "app", meta = {}) {
  const todayStr = new Date().toISOString().slice(0, 10);
  if (geminiConfigStore.dateKey !== todayStr) {
   geminiConfigStore.dateKey = todayStr;
@@ -5574,6 +5593,7 @@ async function recordGeminiRequestUsed(env = null, keySlotIndexOrKey = 0, source
   const foundIdx = keys.findIndex(k => k.startsWith(keySlotIndexOrKey.slice(0, 10)));
   if (foundIdx >= 0 && foundIdx < 3) slotIdx = foundIdx;
  }
+ const nowTs = Date.now();
  geminiConfigStore.perKeyUsed[slotIdx] = (Number(geminiConfigStore.perKeyUsed[slotIdx]) || 0) + 1;
  geminiConfigStore.usedToday = (Number(geminiConfigStore.usedToday) || 0) + 1;
  if (source === "bot") {
@@ -5582,7 +5602,30 @@ async function recordGeminiRequestUsed(env = null, keySlotIndexOrKey = 0, source
   geminiConfigStore.usedAppToday = (Number(geminiConfigStore.usedAppToday) || 0) + 1;
  }
  geminiConfigStore.totalAllTime = Math.max(geminiConfigStore.usedToday, (Number(geminiConfigStore.totalAllTime) || 0) + 1);
- geminiConfigStore.lastRequestAt = Date.now();
+ geminiConfigStore.lastRequestAt = nowTs;
+ const httpStat = Number(meta?.httpStatus) || geminiConfigStore.lastHttpStatus || 200;
+ const latMs = Number(meta?.latencyMs) || geminiConfigStore.lastLatencyMs || 0;
+ geminiConfigStore.lastHttpStatus = httpStat;
+ if (latMs > 0) geminiConfigStore.lastLatencyMs = latMs;
+ if (!Array.isArray(geminiConfigStore.recentCalls)) {
+  geminiConfigStore.recentCalls = [];
+ }
+ const callEntry = {
+  id: `GAPI_${nowTs.toString(36)}_${Math.random().toString(36).slice(2, 5)}`,
+  ts: nowTs,
+  source: source === "bot" ? "bot" : "app",
+  fisherId: String(meta?.fisherId || (source === "bot" ? "TG_BOT" : "FP_USER")).slice(0, 24),
+  callsign: String(meta?.callsign || (source === "bot" ? "Telegram-Бот" : "Рыболов")).slice(0, 32),
+  env: String(meta?.env || (source === "bot" ? "TG-BOT" : "WEB")).slice(0, 16),
+  keySlot: slotIdx + 1,
+  model: String(meta?.model || geminiConfigStore.activeModel || "gemini-2.5-flash").slice(0, 40),
+  httpStatus: httpStat,
+  latencyMs: latMs,
+  action: String(meta?.action || (source === "bot" ? "TG-Бот: фото рыбы" : "Ихтио-Сканер: фото рыбы")).slice(0, 90),
+  verifiedHttp200: httpStat === 200
+ };
+ geminiConfigStore.recentCalls.unshift(callEntry);
+ if (geminiConfigStore.recentCalls.length > 30) geminiConfigStore.recentCalls.length = 30;
  if (env) {
   await persistFreshGeminiConfigToD1(env);
  }
@@ -6339,7 +6382,15 @@ export default {
     }
    }
    if (checkWorkerRateLimit(`airec_${clientIp}`, false, 15)) {
-    await recordGeminiRequestUsed(env, b?.usedKey || 0, b?.source === 'bot' ? 'bot' : 'app');
+    await recordGeminiRequestUsed(env, b?.usedKey ?? b?.keySlot ?? 0, b?.source === 'bot' ? 'bot' : 'app', {
+     fisherId: b?.fisherId || '',
+     callsign: b?.callsign || '',
+     env: b?.env || 'APP',
+     model: b?.model || geminiConfigStore.activeModel,
+     httpStatus: Number(b?.httpStatus) || 200,
+     latencyMs: Number(b?.latencyMs) || 0,
+     action: b?.action || 'Ихтио-Сканер: фото рыбы'
+    });
     await persistSystemMeta(env, ctx);
    }
    return new Response(JSON.stringify({
@@ -6414,7 +6465,15 @@ export default {
          );
          if (smartRes.ok || smartRes.keyVerifiedByModelsList) {
           if (smartRes.ok) {
-           await recordGeminiRequestUsed(env, ki);
+           await recordGeminiRequestUsed(env, ki, 'app', {
+             fisherId: body.fisherId || OWNER_FISHER_ID,
+             callsign: body.callsign || 'iAthor',
+             env: body.env || 'ADMIN',
+             model: smartRes.model || 'gemini-2.5-flash',
+             httpStatus: smartRes.status || 200,
+             latencyMs: smartRes.latencyMs || 0,
+             action: 'Проверка связи с Google Gemini API (HTTP 200 OK)'
+            });
            realTested = true;
           }
           okKeysCount++;
@@ -6684,7 +6743,20 @@ export default {
          );
 
          if (smartRes && smartRes.ok && smartRes.text) {
-          await recordGeminiRequestUsed(env, kSlotIdx);
+          let fishShort = 'Фото рыбы';
+          try {
+           const mFish = smartRes.text.match(/"fishNameRu"\s*:\s*"([^"]+)"/);
+           if (mFish && mFish[1]) fishShort = `Скан фото: ${mFish[1]}`;
+          } catch (_e) {}
+          await recordGeminiRequestUsed(env, kSlotIdx, 'app', {
+           fisherId: body.fisherId || 'FP_USER',
+           callsign: body.callsign || 'Рыболов',
+           env: body.env || 'APP',
+           model: smartRes.model || 'gemini-2.5-flash',
+           httpStatus: 200,
+           latencyMs: smartRes.latencyMs || 0,
+           action: fishShort
+          });
           persistSystemMeta(env, ctx).catch(() => {});
           const qStat = getGeminiQuotaStatus(env, false);
           const outPayload = {
@@ -6746,7 +6818,7 @@ export default {
        const pJson = await pRes.json().catch(() => null);
        const pTxt = String(pJson?.choices?.[0]?.message?.content || '').trim();
        if (pTxt) {
-        if (geminiKeys.length > 0) { recordGeminiRequestUsed(); persistSystemMeta(env, ctx).catch(() => {}); }
+        // Резервный шлюз не расходует квоту Google Gemini API
         const qStatP = getGeminiQuotaStatus(env, false);
         const outPayload = {
          ok: true,
@@ -8129,6 +8201,16 @@ function generateSyntheticWeatherJson(lat, lon) {
     if (chanId.startsWith('crew:')) {
      const cKey = chanId.replace(/^crew:/i, '').toUpperCase();
      const boxKey = `CREW_${cKey}`;
+     if (cKey.startsWith('REG-')) {
+      return new Response(JSON.stringify({ ok: true, regionalEternal: true, deletedChannel: chanId, scope: 'self' }), {
+       headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
+      });
+     }
+     if (body.scope === 'self' && body.wipeAll !== true) {
+      return new Response(JSON.stringify({ ok: true, deletedChannel: chanId, scope: 'self' }), {
+       headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
+      });
+     }
      const isCrewCreator = Array.from(circlePointsStore.values()).some(pt => pt && pt.t === 'crew' && String(pt.crewKey || '').toUpperCase() === cKey && pt.fid === viewerFid);
      if (authRes.isAdmin || (isCrewCreator && !cKey.startsWith('REG-'))) {
       transitBoxes.delete(boxKey);

@@ -1727,7 +1727,6 @@ html[data-mobile-guest="1"] .bottom-nav [data-nav-tab="forecast"] {
    2) Почасовой график клёва 00:00–24:00 (#bentoWaveChartCard)
    3) Погода & Лёд / Вода (#bentoWeatherIceCard на всю ширину ряда)
    4) Календарь клёва по дням (#fcWeekBox, активен только «Сегодня») */
-html[data-mobile-guest="1"] .bento-top-species-strip,
 html[data-mobile-guest="1"] #bentoMapRadarCard,
 html[data-mobile-guest="1"] .bento-tackle-controls-card,
 html[data-mobile-guest="1"] .bento-tactical-advice-wrap,
@@ -1855,3 +1854,22 @@ html[data-mobile-guest="1"] .geo-full-only-inline {
   transform: translateY(-1px);
 }
 
+
+
+/* Закреплённая полоса быстрого переключения рыб на экране Прогноз (не прячется при скролле ленты) */
+#fcStickySpeciesBar,
+.fc-sticky-species-bar {
+  position: sticky;
+  top: var(--header-h, 108px);
+  z-index: 95;
+  background: var(--panel);
+  padding: 6px 8px;
+  margin-bottom: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.38);
+}
+#fcStickySpeciesBar .bento-top-species-strip {
+  padding-bottom: 0 !important;
+  margin-bottom: 0 !important;
+}
