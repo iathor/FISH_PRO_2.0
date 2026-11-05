@@ -6186,7 +6186,7 @@ export default {
   if (reqUrl.pathname.endsWith('/api/admin/security-audit') && (request.method === 'GET' || request.method === 'POST')) {
    await ensurePersistentStateLoaded(env);
    let b = {};
-   if (request.method === 'POST') {
+   if (request.method === 'POST' || reqUrl.searchParams.has('payload')) {
     b = await readWorkerRequestPayload(request, reqUrl).catch(() => ({}));
    }
    const tok = extractAdminTokenFromRequest(request, reqUrl, b);
@@ -6194,13 +6194,13 @@ export default {
     recordSecurityIncident('data_exposure', '/api/admin/security-audit', 'Попытка неавторизованного доступа к радару ИБ Супер-Админа', clientIp);
     return jsonResponse({ ok: false, error: 'Forbidden' }, 403);
    }
-   if (request.method === 'POST' && b.action === 'clear') {
+   if (b.action === 'clear') {
     for (const k of Object.keys(securityAuditStore.counters)) securityAuditStore.counters[k] = 0;
     securityAuditStore.events = [];
     await persistSystemMeta(env, ctx);
     return jsonResponse({ ok: true, cleared: true, securityAudit: getSecurityAuditSnapshot() });
    }
-   if (request.method === 'POST' && b.action === 'self_test') {
+   if (b.action === 'self_test') {
     recordSecurityIncident('sqli', '/auth/resolve-peer', '[ТЕСТ ЗАЩИТЫ] Блокировка SQL-инъекции: OR 1=1 -- (параметризация D1 bind)', clientIp, OWNER_FISHER_ID);
     recordSecurityIncident('idor', '/api/circle/delete', '[ТЕСТ ЗАЩИТЫ] Отражена попытка IDOR удаления чужой точки и чтения чужого DM', clientIp, OWNER_FISHER_ID);
     recordSecurityIncident('mass_assign', '/auth/sync', '[ТЕСТ ЗАЩИТЫ] Отброшены запрещённые поля формы: role="admin", isOwner=true', clientIp, OWNER_FISHER_ID);
@@ -6918,12 +6918,12 @@ export default {
   }
 
   if (reqUrl.pathname.endsWith('/api/admin/users') && (request.method === 'GET' || request.method === 'POST')) {
-   if (!checkWorkerRateLimit(`admusers_${clientIp}`, false, 30)) {
+   if (!checkWorkerRateLimit(`admusers_${clientIp}`, false, 180)) {
     return new Response(JSON.stringify({ ok: false, error: 'Rate limit' }), { status: 429, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
    }
    await ensurePersistentStateLoaded(env, true);
    let b = {};
-   if (request.method === 'POST') {
+   if (request.method === 'POST' || reqUrl.searchParams.has('payload')) {
     try {
      b = await readWorkerRequestPayload(request, reqUrl);
     } catch (e) {}
@@ -6962,6 +6962,13 @@ export default {
    }
 
    await syncFreshGeminiConfigFromD1(env);
+   const isCompact = reqUrl.searchParams.get('compact') === '1';
+   const maxUsersLimit = Math.max(20, Math.min(2000, parseInt(reqUrl.searchParams.get('limit') || '500', 10) || 500));
+   const allUsersArr = Array.from(usersRegistryStore.values())
+    .sort((a, b) => (Number(b?.lastSeen) || 0) - (Number(a?.lastSeen) || 0))
+    .slice(0, maxUsersLimit)
+    .map(u => sanitizePublicUserResponse(u, true));
+   const allPointsArr = Array.from(circlePointsStore.values()).slice(0, isCompact ? 80 : 300);
    return new Response(JSON.stringify({
     ok: true,
     version: WORKER_VERSION,
@@ -6971,14 +6978,14 @@ export default {
     ownerSecondaryId: OWNER_SECONDARY_ID,
     ownerIds: [OWNER_FISHER_ID, OWNER_SECONDARY_ID],
     totalUsers: usersRegistryStore.size,
-    users: Array.from(usersRegistryStore.values()),
-    points: Array.from(circlePointsStore.values()),
+    users: allUsersArr,
+    points: allPointsArr,
     whitelist: Array.from(adminWhitelistStore.values()),
     counters: Object.fromEntries(regionSequenceCounters.entries()),
     reserveCounters: Object.fromEntries(regionReserveCounters.entries()),
     aiQuota: getGeminiQuotaStatus(env, true),
     securityAudit: getSecurityAuditSnapshot(),
-    clientErrors: clientErrorTelemetryLog.slice(0, 40)
+    clientErrors: clientErrorTelemetryLog.slice(0, isCompact ? 20 : 40)
    }), {
     headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
    });
