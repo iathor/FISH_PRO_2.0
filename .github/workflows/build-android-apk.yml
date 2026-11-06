@@ -66,7 +66,8 @@ jobs:
           # 1. Очищаем и копируем свежие веб-ресурсы (включая все 115 PNG в assets/) в assets/www без вложения старого .apk внутрь нового .apk
           rm -rf "$PROJ_DIR/app/src/main/assets/www"
           mkdir -p "$PROJ_DIR/app/src/main/assets/www"
-          for f in index.html policy-version.json manifest.json version.json icon.svg icon-192.png icon-512.png apple-touch-icon.png sw.js css js assets; do
+          if [ -f "kp-control-89.html" ]; then cp -f "kp-control-89.html" /tmp/kp-control-89-master.html; fi
+          for f in index.html kp-control-89.html policy-version.json manifest.json version.json icon.svg icon-192.png icon-512.png apple-touch-icon.png sw.js css js assets; do
             if [ -e "$f" ]; then
               cp -r "$f" "$PROJ_DIR/app/src/main/assets/www/"
             fi
@@ -792,7 +793,8 @@ jobs:
                   ws.setGeolocationEnabled(true);
                   ws.setAllowFileAccess(true);
                   ws.setAllowContentAccess(true);
-                  ws.setCacheMode(WebSettings.LOAD_DEFAULT);
+                  ws.setCacheMode(WebSettings.LOAD_NO_CACHE);
+                  webView.clearCache(true);
                   String baseUa = ws.getUserAgentString();
                   ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.5.6-r215");
 
@@ -1051,7 +1053,8 @@ jobs:
               }
 
               private void loadEntryUrlFromIntent(Intent intent) {
-                  String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/index.html?v=2.5.6_r215";
+                  String entryHtml = getPackageName().contains("admin") ? "kp-control-89.html" : "index.html";
+                  String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/" + entryHtml + "?v=2.6.0_r222_" + System.currentTimeMillis();
                   if (intent != null && intent.getData() != null) {
                       Uri data = intent.getData();
                       String q = data.getEncodedQuery();
@@ -1335,6 +1338,18 @@ jobs:
           fi
           ls -lh klevpro-release.keystore
 
+      - name: Obfuscate & Minify Web Assets (Terser ES Module Mangle + Strip Comments)
+        working-directory: ${{ steps.locate.outputs.proj_dir }}
+        run: |
+          if command -v npx >/dev/null 2>&1; then
+            find app/src/main/assets/www/js -name "*.js" -type f | while read -r jsf; do
+              npx --yes terser "$jsf" --module --compress dead_code=true,drop_debugger=true,passes=2 --mangle --comments false -o "$jsf.obf" && mv "$jsf.obf" "$jsf"
+            done
+            if [ -f "app/src/main/assets/www/sw.js" ]; then
+              npx --yes terser "app/src/main/assets/www/sw.js" --compress --mangle --comments false -o "app/src/main/assets/www/sw.js.obf" && mv "app/src/main/assets/www/sw.js.obf" "app/src/main/assets/www/sw.js"
+            fi
+          fi
+
       - name: Build Signed User APK (klev-pro-v2.5.6.apk — Pure User Contour)
         working-directory: ${{ steps.locate.outputs.proj_dir }}
         run: |
@@ -1367,16 +1382,25 @@ jobs:
         working-directory: ${{ steps.locate.outputs.proj_dir }}
         run: |
           mkdir -p /tmp/klev-apk-dist
-          if [ -f "../kp-control-89.html" ]; then
+          if [ -f "/tmp/kp-control-89-master.html" ]; then
+            cp -f "/tmp/kp-control-89-master.html" "app/src/main/assets/www/index.html"
+            cp -f "/tmp/kp-control-89-master.html" "app/src/main/assets/www/kp-control-89.html"
+          elif [ -f "../kp-control-89.html" ]; then
             cp -f "../kp-control-89.html" "app/src/main/assets/www/index.html"
+            cp -f "../kp-control-89.html" "app/src/main/assets/www/kp-control-89.html"
           elif [ -f "kp-control-89.html" ]; then
             cp -f "kp-control-89.html" "app/src/main/assets/www/index.html"
+            cp -f "kp-control-89.html" "app/src/main/assets/www/kp-control-89.html"
           fi
+          grep -q 'id="secAdmin"' "app/src/main/assets/www/index.html"
+          grep -q 'id="adminTopTabBar"' "app/src/main/assets/www/index.html"
+          ! grep -q 'id="secForecast"' "app/src/main/assets/www/index.html"
+          ! grep -q 'id="secCircle"' "app/src/main/assets/www/index.html"
           sed -i 's/applicationId "ru.klevpro.app"/applicationId "ru.klevpro.admin"/g' app/build.gradle
           sed -i 's/<string name="app_name">Клёв ПРО 2.0<\/string>/<string name="app_name">Клёв ПРО Админ<\/string>/g' app/src/main/res/values/strings.xml
           sed -i '/android:host="klevpro.ru"/d' app/src/main/AndroidManifest.xml
           sed -i '/android:host="xn--b1apdneg0j.xn--p1ai"/d' app/src/main/AndroidManifest.xml
-          /tmp/gradle-8.7/bin/gradle assembleRelease --no-daemon --console=plain
+          /tmp/gradle-8.7/bin/gradle clean assembleRelease --no-daemon --console=plain
           REL_DIR="app/build/outputs/apk/release"
           ADMIN_SRC=$(ls -t "$REL_DIR"/*.apk | head -n 1)
           cp -f "$ADMIN_SRC" /tmp/klev-apk-dist/klev-pro-admin-v2.5.6.apk

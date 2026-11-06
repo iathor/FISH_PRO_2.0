@@ -546,7 +546,8 @@ public class MainActivity extends Activity {
         ws.setGeolocationEnabled(true);
         ws.setAllowFileAccess(true);
         ws.setAllowContentAccess(true);
-        ws.setCacheMode(WebSettings.LOAD_DEFAULT);
+        ws.setCacheMode(WebSettings.LOAD_NO_CACHE);
+                  webView.clearCache(true);
         String baseUa = ws.getUserAgentString();
         ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.5.6-r210");
 
