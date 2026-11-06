@@ -412,6 +412,14 @@ function updateHeaderUI() {
     statusBlock.className = 'header-status-block ' + stripCls;
   }
   if (seasonMain && seasonSub) {
+    if (typeof window !== 'undefined' && window.__KLEV_ADMIN_CONTOUR__ === true) {
+      seasonMain.textContent = 'КЛЁВ ПРО АДМИН';
+      seasonSub.innerHTML = '<span>Консоль D1 • Бета-тест • 152-ФЗ</span>';
+      if (statusBlock) {
+        statusBlock.classList.remove('ice-mode');
+        statusBlock.classList.add('open-water');
+      }
+    } else
     if (ice === 'ice_safe') {
       seasonMain.innerHTML = `Лёд ~${thick || 12} см`;
       seasonSub.innerHTML = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg><span>Вода ~${wTemp}°C</span>`;
@@ -483,6 +491,12 @@ function bindGlobalShellEvents() {
   if (statusBlock) {
     statusBlock.addEventListener('click', () => {
       triggerHaptic('selection');
+      if (typeof window !== 'undefined' && window.__KLEV_ADMIN_CONTOUR__ === true) {
+        if (circleModule && typeof circleModule.fetchSuperAdminDashboardData === 'function') {
+          circleModule.fetchSuperAdminDashboardData(true);
+        }
+        return;
+      }
       if (circleModule && typeof circleModule.isMobileGuestRestricted === 'function' && circleModule.isMobileGuestRestricted()) {
         circleModule.promptMobileGuestAuth('Сначала войдите в аккаунт — подробная метеосводка и радар льда доступны после авторизации');
         return;
@@ -497,6 +511,13 @@ function bindGlobalShellEvents() {
   const profileBtn = document.getElementById('headerProfileBtn');
   if (profileBtn) {
     profileBtn.addEventListener('click', () => {
+      if (typeof window !== 'undefined' && window.__KLEV_ADMIN_CONTOUR__ === true) {
+        router.navigate('admin');
+        if (circleModule && typeof circleModule.switchAdminWorkspaceTab === 'function') {
+          circleModule.switchAdminWorkspaceTab('dashboard');
+        }
+        return;
+      }
       if (circleModule && typeof circleModule.isMobileGuestRestricted === 'function' && circleModule.isMobileGuestRestricted()) {
         circleModule.openAuthAndBackupModal();
         return;
@@ -797,14 +818,17 @@ function bootstrapApp() {
     if (circleModule && typeof circleModule.renderAdminSection === 'function') {
       circleModule.renderAdminSection();
     }
-    document.querySelectorAll('[data-adm-workspace-tab]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const tabId = btn.getAttribute('data-adm-workspace-tab') || 'dashboard';
-        router.navigate('admin');
-        if (circleModule && typeof circleModule.switchAdminWorkspaceTab === 'function') {
-          circleModule.switchAdminWorkspaceTab(tabId);
-        }
-      });
+    document.addEventListener('click', (e) => {
+      const tabBtn = e.target && e.target.closest ? e.target.closest('[data-adm-workspace-tab]') : null;
+      if (!tabBtn) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const tabId = tabBtn.getAttribute('data-adm-workspace-tab') || 'dashboard';
+      triggerHaptic('selection');
+      router.navigate('admin');
+      if (circleModule && typeof circleModule.switchAdminWorkspaceTab === 'function') {
+        circleModule.switchAdminWorkspaceTab(tabId);
+      }
     });
   } else if (circleModule && typeof circleModule.checkAndEnforcePolicyVersionOnStartup === 'function') {
     circleModule.checkAndEnforcePolicyVersionOnStartup();

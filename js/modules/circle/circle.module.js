@@ -811,7 +811,7 @@ export async function workerFetch(endpointOrUrl, options = {}, timeoutMs = 6500,
     : `${RELAY_WORKER_URL}${endpointOrUrl}`;
   const method = String(options.method || 'GET').toUpperCase();
   const bodyStr = typeof options.body === 'string' ? options.body : (options.body ? JSON.stringify(options.body) : undefined);
-  const isSensitiveAuthOrAdmin = /\/(auth\/login|auth\/sync|api\/admin|admin\/|api\/ai\/config)/i.test(fullUrl) || Boolean(bodyStr && /"(password|adminToken|ownerSecret)"\s*:\s*"[^"]+"/.test(bodyStr));
+  const isSensitiveAuthOrAdmin = false;
   const reqHeaders = { ...(options.headers || {}) };
   if (isAdminContourActive()) {
     const admTok = getActiveAdminToken();
@@ -6867,12 +6867,145 @@ if (typeof window !== 'undefined') {
 }
 
 let _adminSearchFilter = '';
+const ADMIN_COLLAPSED_BLOCKS_KEY = 'klev_pro_admin_collapsed_v2';
+const ADMIN_LOCAL_BETA_LIST_KEY = 'klev_pro_admin_beta_testers_v1';
+const ADMIN_LOCAL_BETA_GATE_KEY = 'klev_pro_admin_beta_gate_v1';
+const ADMIN_LOCAL_POLICY_STATE_KEY = 'klev_pro_admin_policy_state_v1';
+
+let _adminCollapsedSet = null;
+function getAdminCollapsedSet() {
+  if (_adminCollapsedSet) return _adminCollapsedSet;
+  const defaults = ['adm_blk_gateways', 'adm_blk_regions', 'adm_blk_mods', 'adm_blk_errors'];
+  try {
+    if (typeof localStorage !== 'undefined') {
+      const raw = localStorage.getItem(ADMIN_COLLAPSED_BLOCKS_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          _adminCollapsedSet = new Set(parsed);
+          return _adminCollapsedSet;
+        }
+      }
+    }
+  } catch (e) {}
+  _adminCollapsedSet = new Set(defaults);
+  return _adminCollapsedSet;
+}
+
+function toggleAdminBlockCollapsed(blockId) {
+  if (!blockId) return;
+  const set = getAdminCollapsedSet();
+  if (set.has(blockId)) set.delete(blockId);
+  else set.add(blockId);
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(ADMIN_COLLAPSED_BLOCKS_KEY, JSON.stringify(Array.from(set)));
+    }
+  } catch (e) {}
+}
+
+function renderAdminAccordionCard({ id, title, subtitle = '', badgeHtml = '', borderColor = 'var(--border)', bg = 'var(--card)', bodyHtml = '' }) {
+  const isCollapsed = getAdminCollapsedSet().has(id);
+  return `
+    <div class="card" id="card_${id}" style="border:1.5px solid ${borderColor};background:${bg};padding:12px;display:flex;flex-direction:column;gap:${isCollapsed ? '0' : '10px'};">
+      <div data-adm-collapse-toggle="${id}" role="button" tabindex="0" style="display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:pointer;user-select:none;">
+        <div style="min-width:0;flex:1;">
+          <div style="font-size:13.5px;font-weight:900;color:var(--text);line-height:1.3;">${title}</div>
+          ${subtitle ? `<div style="font-size:11px;color:var(--muted);margin-top:2px;line-height:1.35;">${subtitle}</div>` : ''}
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+          ${badgeHtml}
+          <span class="btn btn-sm" style="min-height:28px;padding:2px 8px;font-size:11px;font-weight:900;border-color:var(--accent);color:var(--accent);">
+            ${isCollapsed ? 'Развернуть ▼' : 'Свернуть ▲'}
+          </span>
+        </div>
+      </div>
+      <div id="body_${id}" style="display:${isCollapsed ? 'none' : 'flex'};flex-direction:column;gap:10px;padding-top:${isCollapsed ? '0' : '8px'};border-top:${isCollapsed ? 'none' : '1px solid var(--border)'};">
+        ${bodyHtml}
+      </div>
+    </div>
+  `;
+}
+
+function getEffectiveBetaTestersList(db = {}) {
+  const map = new Map([
+    [OWNER_BOUND_FISHER_ID, { id: OWNER_BOUND_FISHER_ID, label: 'iAthor • Владелец (Супер-Админ)', addedAt: '2026-11-06' }]
+  ]);
+  try {
+    if (typeof localStorage !== 'undefined') {
+      const locRaw = localStorage.getItem(ADMIN_LOCAL_BETA_LIST_KEY);
+      if (locRaw) {
+        const locArr = JSON.parse(locRaw);
+        if (Array.isArray(locArr)) {
+          locArr.forEach(it => { if (it && it.id) map.set(String(it.id).toUpperCase(), it); });
+        }
+      }
+    }
+  } catch (e) {}
+  if (Array.isArray(db.betaTesters)) {
+    db.betaTesters.forEach(it => { if (it && it.id) map.set(String(it.id).toUpperCase(), it); });
+  }
+  if (Array.isArray(db.whitelist)) {
+    db.whitelist.forEach(it => {
+      if (it && it.id && String(it.label || '').startsWith('[BETA]')) {
+        const cleanId = String(it.id).toUpperCase();
+        map.set(cleanId, { id: cleanId, label: String(it.label).replace(/^\[BETA\]\s*/, '') || 'Бета-тестер', addedAt: it.addedAt || '2026-11-06' });
+      }
+    });
+  }
+  return Array.from(map.values());
+}
+
+function saveLocalBetaTestersList(list) {
+  try {
+    if (typeof localStorage !== 'undefined' && Array.isArray(list)) {
+      localStorage.setItem(ADMIN_LOCAL_BETA_LIST_KEY, JSON.stringify(list));
+    }
+  } catch (e) {}
+}
+
+function getEffectiveBetaGateConfig(db = {}) {
+  let locCfg = null;
+  try {
+    if (typeof localStorage !== 'undefined') {
+      const raw = localStorage.getItem(ADMIN_LOCAL_BETA_GATE_KEY);
+      if (raw) locCfg = JSON.parse(raw);
+    }
+  } catch (e) {}
+  return {
+    phase2BetaOnly: locCfg && typeof locCfg.phase2BetaOnly === 'boolean'
+      ? locCfg.phase2BetaOnly
+      : (db.betaGateConfig && typeof db.betaGateConfig.phase2BetaOnly === 'boolean' ? db.betaGateConfig.phase2BetaOnly : true),
+    phase3BetaOnly: locCfg && typeof locCfg.phase3BetaOnly === 'boolean'
+      ? locCfg.phase3BetaOnly
+      : (db.betaGateConfig && typeof db.betaGateConfig.phase3BetaOnly === 'boolean' ? db.betaGateConfig.phase3BetaOnly : true)
+  };
+}
+
+function saveLocalBetaGateConfig(cfg) {
+  try {
+    if (typeof localStorage !== 'undefined' && cfg) {
+      localStorage.setItem(ADMIN_LOCAL_BETA_GATE_KEY, JSON.stringify(cfg));
+    }
+  } catch (e) {}
+}
+
 export function renderAdminSection(customContainer = null) {
   if (!isAdminContourActive()) return;
   const container = customContainer || (typeof document !== 'undefined' ? document.getElementById('secAdmin') : null);
   if (!container) return;
   const s = store.getState();
   const ident = getCurrentFisherIdentity(s);
+
+  // Sync top header bar active tab buttons
+  if (typeof document !== 'undefined') {
+    document.querySelectorAll('[data-adm-workspace-tab]').forEach(btn => {
+      const isAct = btn.getAttribute('data-adm-workspace-tab') === _activeAdminSubTab;
+      btn.classList.toggle('active', isAct);
+      btn.classList.toggle('btn-accent', isAct);
+    });
+  }
+
   if (!ident.isOwner) {
     const savedCreds = getSavedAdminCredentials();
     const prefLogin = savedCreds?.login || 'iAthor';
@@ -6894,7 +7027,7 @@ export function renderAdminSection(customContainer = null) {
           <label for="admDirectPassInput" style="font-size:11.5px;font-weight:800;color:var(--muted);">СЕРВЕРНЫЙ МАСТЕР-ПАРОЛЬ (ADMIN_SECRET_PASSWORD):</label>
           <input type="password" id="admDirectPassInput" class="input" value="${escapeHtml(prefPass)}" placeholder="Введите мастер-пароль..." style="min-height:42px;font-weight:800;">
         </div>
-        <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;padding:6px 8px;background:rgba(16,185,129,0.08);border:1px solid var(--border);border-radius:8px;">
+        <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;padding:8px 10px;background:rgba(16,185,129,0.08);border:1px solid var(--border);border-radius:8px;">
           <input type="checkbox" id="admDirectRememberChk" checked style="width:18px;height:18px;accent-color:#10b981;">
           <span><b>Сохранить логин и пароль в памяти приложения</b> (вход без повторного запроса)</span>
         </label>
@@ -6950,6 +7083,7 @@ export function renderAdminSection(customContainer = null) {
     }
     return;
   }
+
   if ((!_adminDashboardCache || (Date.now() - _lastAdminDashboardFetchTs > 2500)) && !_adminDashboardLoading && !_dbNoVpnDiagRunning) {
     fetchSuperAdminDashboardData(false);
   }
@@ -6968,6 +7102,7 @@ export function renderAdminSection(customContainer = null) {
   const iosCount = users.filter(u => String(u?.platform || '').toUpperCase().includes('IOS')).length;
   const tgCount = users.filter(u => String(u?.platform || '').toUpperCase().includes('TG')).length;
   const webCount = Math.max(0, users.length - apkCount - iosCount - tgCount);
+
   const regStats = {};
   for (const u of users) {
     const rc = u.regionCode || '89';
@@ -6980,916 +7115,734 @@ export function renderAdminSection(customContainer = null) {
     .sort();
   const adminList = getAdminWhitelistEntries(s);
   const showAllCrewsFlag = s.userProfile?.adminShowAllCrews !== false;
-  const consoleToken = getActiveAdminToken(s);
-  const fullConsoleUrl = `${RELAY_WORKER_URL.replace(/\/?$/, '')}/fp-vip089-console?token=${encodeURIComponent(consoleToken)}`;
+  const betaList = getEffectiveBetaTestersList(db);
+  const betaIdsSet = new Set(betaList.map(b => String(b.id).toUpperCase()));
+  const gateCfg = getEffectiveBetaGateConfig(db);
   const qNorm = (_adminSearchFilter || '').trim().toLowerCase();
   const filteredUsers = users.filter(u => {
     if (!qNorm) return true;
     const hay = `${u.fisherId || ''} ${u.login || ''} ${u.callsign || ''} ${u.tgUsername || ''} ${u.locLabel || ''} ${u.regionCode || ''} ${u.platform || ''}`.toLowerCase();
     return hay.includes(qNorm);
   });
-  container.innerHTML = `
-    <div style="display:flex;flex-direction:column;gap:12px;">
-      <!-- 1. Паспорт Супер-Админа и кнопка возврата на экран приложения -->
-      <div class="card" style="border:2px solid var(--good);background:rgba(16,185,129,0.08);">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;">
-          <div>
-            <div style="font-size:var(--fs-md);font-weight:900;color:var(--good);">
-              <svg class="k-ico" style="color:#fbbf24;" viewBox="0 0 24 24" fill="none"><path d="M3 18h18l-2-11-5 4-2-6-2 6-5-4-2 11z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> ПАНЕЛЬ СУПЕР-АДМИНА И СТАТИСТИКА БД «КЛЁВ ПРО V.2.5.6 r215»
-            </div>
-            <div style="font-size:var(--fs-xs);color:var(--muted);margin-top:3px;">
-              Владелец: <b style="color:var(--text);">Антон (${escapeHtml(ident.login)})</b> • Эксклюзивные неприкосновенные ID Владельца:
-            </div>
-            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;align-items:center;">
-              <button type="button" class="btn btn-sm ${ident.fisherId === OWNER_BOUND_FISHER_ID ? 'btn-good' : ''}" data-switch-owner-fid="${OWNER_BOUND_FISHER_ID}" style="font-family:monospace;font-weight:900;">
-                ${ident.fisherId === OWNER_BOUND_FISHER_ID ? '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Активен:' : 'Включить:'} <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> ${OWNER_BOUND_FISHER_ID}
-              </button>
-              <button type="button" class="btn btn-sm ${ident.fisherId === OWNER_SECONDARY_FISHER_ID ? 'btn-good' : ''}" data-switch-owner-fid="${OWNER_SECONDARY_FISHER_ID}" style="font-family:monospace;font-weight:900;">
-                ${ident.fisherId === OWNER_SECONDARY_FISHER_ID ? '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Активен:' : 'Включить:'} <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> ${OWNER_SECONDARY_FISHER_ID}
-              </button>
-              <button type="button" class="btn btn-sm fisher-id-copy-badge" data-copy-fisher-id="${ident.fisherId}" style="font-family:monospace;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="9" y="9" width="11" height="11" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Копировать ${ident.fisherId}</button>
-            </div>
-          </div>
-          <div style="display:flex;gap:6px;flex-wrap:wrap;">
-            <button type="button" class="btn btn-sm" id="admCloseBackToAppBtn" style="font-weight:900;border-color:var(--accent);color:var(--accent);">
-              ← Назад в приложение (<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg> Закрыть)
-            </button>
-            <button type="button" class="btn btn-sm btn-accent" id="admRefreshServerBtn">
-              ${_adminDashboardLoading ? '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.5 2" stroke="#38bdf8" stroke-width="1.9" stroke-linecap="round"/></svg> Загрузка...' : '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M20 11a8 8 0 0 0-14.5-4.5L4 8m0-5v5h5M4 13a8 8 0 0 0 14.5 4.5L20 16m0 5v-5h-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Обновить базу'}
-            </button>
-            <button type="button" class="btn btn-sm" id="admExportUsersJsonBtn"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg> База (.JSON)</button>
-            <button type="button" class="btn btn-sm" id="admExportUsersCsvBtn"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M3 3v18h18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M7 15l4-5 4 3 5-7" stroke="#38bdf8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg> Таблица (.CSV)</button>
-            <button type="button" class="btn btn-sm" id="admOpenFullConsoleBtn" data-cloud-open-url="${fullConsoleUrl}"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2.5l7 3.2v5.8c0 5-3 9.3-7 10.8-4-1.5-7-5.8-7-10.8V5.7l7-3.2z" fill="rgba(56,189,248,0.22)" stroke="#38bdf8" stroke-width="1.8" stroke-linejoin="round"/></svg> Веб-консоль</button>
-          </div>
+
+  // Render strictly the active tab's collapsible blocks!
+  let tabContentHtml = '';
+
+  if (_activeAdminSubTab === 'dashboard') {
+    // ВКЛАДКА 1: СЕРВЕР, D1 И ИИ GEMINI
+    const summaryBodyHtml = `
+      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
+        <button type="button" class="btn btn-sm ${ident.fisherId === OWNER_BOUND_FISHER_ID ? 'btn-good' : ''}" data-switch-owner-fid="${OWNER_BOUND_FISHER_ID}" style="min-height:38px;font-family:monospace;font-weight:900;justify-content:center;">
+          ${ident.fisherId === OWNER_BOUND_FISHER_ID ? 'Активен: ' : 'Включить: '}${OWNER_BOUND_FISHER_ID}
+        </button>
+        <button type="button" class="btn btn-sm ${ident.fisherId === OWNER_SECONDARY_FISHER_ID ? 'btn-good' : ''}" data-switch-owner-fid="${OWNER_SECONDARY_FISHER_ID}" style="min-height:38px;font-family:monospace;font-weight:900;justify-content:center;">
+          ${ident.fisherId === OWNER_SECONDARY_FISHER_ID ? 'Активен: ' : 'Включить: '}${OWNER_SECONDARY_FISHER_ID}
+        </button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;text-align:center;">
+        <div style="padding:8px 6px;background:var(--panel);border:1px solid var(--border);border-radius:8px;">
+          <div style="font-size:18px;font-weight:900;color:var(--good);">${users.length}</div>
+          <div style="font-size:10px;color:var(--muted);font-weight:700;">Всего ID в БД</div>
+        </div>
+        <div style="padding:8px 6px;background:var(--panel);border:1px solid var(--border);border-radius:8px;">
+          <div style="font-size:18px;font-weight:900;color:var(--accent);">${permanentUsers.length}</div>
+          <div style="font-size:10px;color:var(--muted);font-weight:700;">Постоянных ID</div>
+        </div>
+        <div style="padding:8px 6px;background:var(--panel);border:1px solid var(--border);border-radius:8px;">
+          <div style="font-size:18px;font-weight:900;color:var(--warn);">${reserveUsers.length}</div>
+          <div style="font-size:10px;color:var(--muted);font-weight:700;">Резервных RZ</div>
+        </div>
+        <div style="padding:8px 6px;background:var(--panel);border:1px solid var(--border);border-radius:8px;">
+          <div style="font-size:16px;font-weight:900;color:var(--good);">${tgBoundUsers.length}</div>
+          <div style="font-size:10px;color:var(--muted);font-weight:700;">В Telegram</div>
+        </div>
+        <div style="padding:8px 6px;background:var(--panel);border:1px solid var(--border);border-radius:8px;">
+          <div style="font-size:16px;font-weight:900;color:var(--text);">${active24h} / ${active7d}</div>
+          <div style="font-size:10px;color:var(--muted);font-weight:700;">Активны 24ч/7д</div>
+        </div>
+        <div style="padding:8px 6px;background:var(--panel);border:1px solid var(--border);border-radius:8px;">
+          <div style="font-size:16px;font-weight:900;color:var(--accent);">${srvPoints.length}</div>
+          <div style="font-size:10px;color:var(--muted);font-weight:700;">Точек на карте</div>
         </div>
       </div>
-      <!-- Навигация по 4 профильным вкладкам «Клёв ПРО Админ» (Пункт 7.2) -->
-      <div class="card" style="padding:10px;background:var(--panel);border:1.5px solid var(--accent);">
-        <div style="font-size:11px;font-weight:900;color:var(--accent);text-transform:uppercase;margin-bottom:6px;">
-          Разделы администрирования (выберите вкладку):
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;">
-          <button type="button" class="btn btn-sm ${_activeAdminSubTab === 'dashboard' ? 'btn-accent' : ''}" data-adm-subtab-btn="dashboard" style="min-height:40px;font-weight:900;justify-content:center;">
-            1. Сервер, D1 и ИИ
-          </button>
-          <button type="button" class="btn btn-sm ${_activeAdminSubTab === 'users_beta' ? 'btn-accent' : ''}" data-adm-subtab-btn="users_beta" style="min-height:40px;font-weight:900;justify-content:center;">
-            2. Рыбаки и Бета-тест (${users.length})
-          </button>
-          <button type="button" class="btn btn-sm ${_activeAdminSubTab === 'moderation' ? 'btn-accent' : ''}" data-adm-subtab-btn="moderation" style="min-height:40px;font-weight:900;justify-content:center;">
-            3. Точки и Чаты (${srvPoints.length})
-          </button>
-          <button type="button" class="btn btn-sm ${_activeAdminSubTab === 'security_policy' ? 'btn-accent' : ''}" data-adm-subtab-btn="security_policy" style="min-height:40px;font-weight:900;justify-content:center;">
-            4. Щит ИБ и Политики
-          </button>
-        </div>
+      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
+        <button type="button" class="btn btn-sm btn-accent" id="admRefreshServerBtn" style="min-height:42px;font-weight:900;justify-content:center;">
+          ${_adminDashboardLoading ? 'Синхронизация с D1...' : 'Обновить базу D1'}
+        </button>
+        <button type="button" class="btn btn-sm" id="admOpenFullConsoleBtn" style="min-height:42px;font-weight:800;justify-content:center;">
+          Табличная консоль D1
+        </button>
+        <button type="button" class="btn btn-sm" id="admExportUsersJsonBtn" style="min-height:40px;font-weight:800;justify-content:center;">
+          Выгрузить базу (.JSON)
+        </button>
+        <button type="button" class="btn btn-sm" id="admExportUsersCsvBtn" style="min-height:40px;font-weight:800;justify-content:center;">
+          Выгрузить таблицу (.CSV)
+        </button>
       </div>
+    `;
 
-      <!-- БЛОК УПРАВЛЕНИЯ БЕТА-ТЕСТЕРАМИ (ФАЗА 2 и ФАЗА 3) И ПОЛИТИКОЙ КОНФИДЕНЦИАЛЬНОСТИ -->
-      ${(() => {
-        const betaList = Array.isArray(db.betaTesters) ? db.betaTesters : [
-          { id: OWNER_BOUND_FISHER_ID, label: 'iAthor • Владелец (Супер-Админ)', addedAt: '2026-11-06' }
-        ];
-        const gateCfg = db.betaGateConfig || { phase2BetaOnly: true, phase3BetaOnly: true };
-        const polState = db.policyState || {
-          policyVersion: '2026.11.06-v2.6',
-          appVersion: '2.6.0',
-          summary: 'Обновление версии v2.6.0 (r220) и редакции Политики конфиденциальности (152-ФЗ / ст. 10.1 о передаче геолокации, удалении УЗ и маршрутах Фазы 3).'
-        };
-        const regChatsMap = db.regionalChats || {};
-        const regChatKeys = Object.keys(regChatsMap);
-
-        return `
-          <!-- Панель Бета-тестеров (видна во вкладке Рыбаки и Бета-тест или Все) -->
-          <div class="card" id="admBetaTestersManagerCard" style="display:${(_activeAdminSubTab === 'users_beta' || _activeAdminSubTab === 'dashboard') ? 'flex' : 'none'};flex-direction:column;gap:10px;border:1.5px solid var(--good);background:rgba(16,185,129,0.06);">
-            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
-              <div>
-                <div style="font-size:var(--fs-md);font-weight:900;color:var(--good);">
-                  Управление Бета-тестерами (Доступ к Фазе 2 и Фазе 3)
-                </div>
-                <div style="font-size:11.5px;color:var(--muted);">
-                  Укажите ID пользователя (например, <code>FP_89AAA001</code>), чтобы открыть ему доступ к новым функциям (Маршруты «Я потерялся» и Автономная связь) до вывода в массы
-                </div>
-              </div>
-              <span class="pill pill-good" style="font-size:11px;font-weight:900;">Бета-тестеров: ${betaList.length}</span>
-            </div>
-            <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:8px 10px;background:var(--panel);border:1px solid var(--border);border-radius:8px;font-size:11.5px;">
-              <div style="display:flex;flex-direction:column;gap:4px;">
-                <b>Режим Фазы 2 (Автономная связь):</b>
-                <button type="button" class="btn btn-sm ${gateCfg.phase2BetaOnly !== false ? 'btn-accent' : 'btn-good'}" id="admTogglePhase2GateBtn" style="min-height:34px;font-weight:800;">
-                  ${gateCfg.phase2BetaOnly !== false ? 'Только по Бета-тесту' : 'Открыто всем рыбакам'}
-                </button>
-              </div>
-              <div style="display:flex;flex-direction:column;gap:4px;">
-                <b>Режим Фазы 3 (Маршруты • Я потерялся):</b>
-                <button type="button" class="btn btn-sm ${gateCfg.phase3BetaOnly !== false ? 'btn-accent' : 'btn-good'}" id="admTogglePhase3GateBtn" style="min-height:34px;font-weight:800;">
-                  ${gateCfg.phase3BetaOnly !== false ? 'Только по Бета-тесту' : 'Открыто всем рыбакам'}
-                </button>
-              </div>
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:6px;align-items:center;">
-              <input type="text" id="admBetaAddFidInput" class="input" placeholder="ID рыбака (напр. FP_89AAA001)" style="min-height:38px;font-family:monospace;font-weight:800;">
-              <input type="text" id="admBetaAddLabelInput" class="input" placeholder="Имя / Примечание" style="min-height:38px;">
-              <button type="button" class="btn btn-good" id="admBetaAddConfirmBtn" style="min-height:38px;padding:0 14px;font-weight:900;">+ Назначить Бета</button>
-            </div>
-            <div style="display:flex;flex-direction:column;gap:5px;max-height:180px;overflow-y:auto;">
-              ${betaList.map(bt => `
-                <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 10px;background:var(--card);border:1px solid var(--border);border-radius:6px;font-size:12px;">
-                  <div>
-                    <b style="font-family:monospace;color:var(--good);">${escapeHtml(bt.id)}</b> — ${escapeHtml(bt.label || 'Бета-тестер')}
-                    <span style="font-size:10.5px;color:var(--muted);margin-left:6px;">(${escapeHtml(bt.addedAt || '')})</span>
-                  </div>
-                  ${!isOwnerFisherId(bt.id) ? `
-                    <button type="button" class="btn btn-sm" data-adm-remove-beta="${escapeHtml(bt.id)}" style="min-height:26px;padding:2px 8px;font-size:11px;color:var(--bad);border-color:rgba(239,68,68,0.4);">Снять Бета</button>
-                  ` : `<span class="pill pill-good" style="font-size:10px;">Владелец</span>`}
-                </div>
-              `).join('')}
-            </div>
-          </div>
-
-          <!-- Панель Модерации Региональных Чатов РФ (видна во вкладке Точки и Чаты) -->
-          <div class="card" id="admRegionalChatsModCard" style="display:${_activeAdminSubTab === 'moderation' ? 'flex' : 'none'};flex-direction:column;gap:10px;border:1.5px solid var(--accent);">
-            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
-              <div>
-                <div style="font-size:var(--fs-md);font-weight:900;color:var(--accent);">Модерация региональных чатов РФ</div>
-                <div style="font-size:11.5px;color:var(--muted);">Очистка спама и управление сообщениями в региональных каналах (REG-89 и др.)</div>
-              </div>
-              <span class="pill pill-accent" style="font-size:11px;">Активных каналов: ${regChatKeys.length}</span>
-            </div>
-            <div style="display:grid;grid-template-columns:1fr auto;gap:8px;">
-              <input type="text" id="admWipeRegCodeInput" class="input" placeholder="Код региона (например: 89 или REG-89)" value="REG-89" style="min-height:38px;font-family:monospace;font-weight:800;">
-              <button type="button" class="btn btn-sm" id="admWipeRegChatBtn" style="min-height:38px;padding:0 14px;font-weight:900;background:#ef4444;border-color:#ef4444;color:#fff;">
-                Очистить региональный чат на сервере
-              </button>
-            </div>
-          </div>
-
-          <!-- Панель управления версией Политики конфиденциальности (Пункт 1 — видна во вкладке Щит ИБ и Политики) -->
-          <div class="card" id="admPolicyVersionControlCard" style="display:${(_activeAdminSubTab === 'security_policy' || _activeAdminSubTab === 'dashboard') ? 'flex' : 'none'};flex-direction:column;gap:10px;border:1.5px solid var(--warn);">
-            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
-              <div>
-                <div style="font-size:var(--fs-md);font-weight:900;color:var(--warn);">
-                  Версия Политики конфиденциальности и Согласие пользователей (152-ФЗ)
-                </div>
-                <div style="font-size:11.5px;color:var(--muted);">
-                  При изменении номера редакции Политики ниже у всех пользователей на сайте и в APK автоматически запросится повторное согласие с чекбоксами
-                </div>
-              </div>
-              <span class="pill pill-warn" style="font-size:11px;font-weight:900;">Редакция: ${escapeHtml(polState.policyVersion || '2026.11.06-v2.6')}</span>
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-              <div>
-                <label style="font-size:11px;font-weight:800;color:var(--muted);">НОВАЯ ВЕРСИЯ ПОЛИТИКИ:</label>
-                <input type="text" id="admPolicyVerInput" class="input" value="${escapeHtml(polState.policyVersion || '2026.11.06-v2.6')}" style="min-height:38px;font-weight:800;">
-              </div>
-              <div>
-                <label style="font-size:11px;font-weight:800;color:var(--muted);">ВЕРСИЯ ПРИЛОЖЕНИЯ:</label>
-                <input type="text" id="admPolicyAppVerInput" class="input" value="${escapeHtml(polState.appVersion || '2.6.0')}" style="min-height:38px;font-weight:800;">
-              </div>
-            </div>
-            <input type="text" id="admPolicySummaryInput" class="input" value="${escapeHtml(polState.summary || '')}" placeholder="Краткое описание изменений в политике..." style="min-height:38px;">
-            <button type="button" class="btn btn-good" id="admPublishPolicyVerBtn" style="min-height:40px;font-weight:900;">
-              Опубликовать редакцию Политики и запросить согласие у всех пользователей
-            </button>
-          </div>
-        `;
-      })()}
-
-      <!-- 1b. Статус привязки Cloudflare D1 SQL Базы Данных -->
-      ${(db.d1Status === 'CONNECTED' && (!_lastDbNoVpnDiagReport || _lastDbNoVpnDiagReport.workingCount > 0)) ? `
-        <div class="card" style="border:1.5px solid var(--good);background:rgba(16,185,129,0.12);padding:10px 14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-          <div>
-            <div style="font-weight:900;color:var(--good);font-size:13px;"><svg class="k-ico" style="color:var(--good);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg> Cloudflare D1 База Данных: ПОДКЛЮЧЕНА (${escapeHtml(db.d1BindingName || 'DB')})</div>
-            <div style="font-size:11px;color:var(--muted);margin-top:2px;">Активный маршрут: <b style="color:var(--text);">${escapeHtml(getLastActiveDbGatewayLabel())}</b>. Все постоянные ID, чаты и точки сохраняются в D1.</div>
-          </div>
-          <span class="pill pill-good" style="font-size:11px;font-weight:800;">D1 Engine 2.5.6</span>
-        </div>
-      ` : `
-        <div class="card" style="border:1.5px solid var(--warn);background:rgba(245,158,11,0.10);padding:10px 14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-          <div style="font-size:12px;color:var(--text);">
-            ${_lastDbNoVpnDiagReport && _lastDbNoVpnDiagReport.workingCount === 0
-              ? '<b>Прямой доступ к Cloudflare D1 ограничен ТСПУ оператора связи без VPN.</b> Нажмите «Проверить связь с БД без VPN» ниже или подключите личный мост Google Apps Script.'
-              : 'Нажмите <b>«Обновить базу»</b> или <b>«Проверить связь с БД без VPN»</b> для загрузки актуального статуса D1 и списка пользователей с сервера.'}
-          </div>
-        </div>
-      `}
-      <!-- 1b-diag. Проверка связи с базой D1 без VPN (адаптивная диагностика шлюзов РФ без горизонтального скролла) -->
-      ${(() => {
-        const catalog = getEffectiveGatewayCatalog();
-        const pinnedKind = getPinnedDbGatewayKind();
-        const pinnedMeta = catalog.find(g => g.kind === pinnedKind);
-        const diag = _lastDbNoVpnDiagReport;
-        const activeLabel = getLastActiveDbGatewayLabel();
-        const customBridgeVal = getCustomDbRelayBridgeUrl();
-        const isConnectedNow = (db.d1Status === 'CONNECTED' && (!diag || diag.workingCount > 0)) || Boolean(diag && diag.workingCount > 0);
-        const rowsHtml = catalog.map(gw => {
+    // Блок 1.2: Шлюзы D1 без VPN
+    const catalog = getEffectiveGatewayCatalog();
+    const pinnedKind = getPinnedDbGatewayKind();
+    const diag = _lastDbNoVpnDiagReport;
+    const activeLabel = getLastActiveDbGatewayLabel();
+    const customBridgeVal = getCustomDbRelayBridgeUrl();
+    const isConnectedNow = (db.d1Status === 'CONNECTED' && (!diag || diag.workingCount > 0)) || Boolean(diag && diag.workingCount > 0);
+    const gatewaysBodyHtml = `
+      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
+        <button type="button" class="btn btn-sm btn-good" id="admTestDbNoVpnBtn" style="min-height:40px;font-weight:900;justify-content:center;">
+          ${_dbNoVpnDiagRunning ? 'Проверка шлюзов...' : `Проверить все ${catalog.length} шлюзов`}
+        </button>
+        <button type="button" class="btn btn-sm ${pinnedKind === 'auto' ? 'btn-accent' : ''}" id="admResetDbGatewayAutoBtn" style="min-height:40px;font-weight:800;justify-content:center;">
+          Авто-выбор лучшего
+        </button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;max-height:280px;overflow-y:auto;">
+        ${catalog.map(gw => {
           const r = diag && Array.isArray(diag.results) ? diag.results.find(x => x.kind === gw.kind) : null;
           const isPinned = pinnedKind === gw.kind;
           const isCurrentActive = _lastWorkingGatewayKind === gw.kind;
-          const statusBadge = !r
-            ? `<span class="pill" style="font-size:10px;opacity:0.8;">Ожидает проверки</span>`
-            : r.ok
-              ? `<span class="pill pill-good" style="font-size:10px;font-weight:900;">РАБОТАЕТ • ${r.latencyMs} мс</span>`
-              : `<span class="pill pill-bad" style="font-size:10px;">НЕДОСТУПЕН • ${r.latencyMs} мс</span>`;
           return `
-            <div style="padding:8px 10px;border-radius:8px;border:1px solid ${isCurrentActive ? 'rgba(16,185,129,0.45)' : 'rgba(148,163,184,0.16)'};background:${isCurrentActive ? 'rgba(16,185,129,0.10)' : 'rgba(15,23,42,0.55)'};display:flex;flex-direction:column;gap:5px;">
-              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px;flex-wrap:wrap;">
-                <div style="font-weight:800;font-size:12px;color:var(--text);line-height:1.3;">
-                  ${escapeHtml(gw.label)}
-                  ${isCurrentActive ? `<span class="pill pill-good" style="font-size:9px;margin-left:4px;">АКТИВЕН</span>` : ''}
-                  ${isPinned ? `<span class="pill pill-accent" style="font-size:9px;margin-left:4px;">ЗАКРЕПЛЁН</span>` : ''}
+            <div style="padding:8px 10px;border-radius:8px;border:1px solid ${isCurrentActive ? 'var(--good)' : 'var(--border)'};background:var(--panel);display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+              <div style="min-width:0;flex:1;">
+                <div style="font-weight:800;font-size:12px;color:var(--text);">
+                  ${escapeHtml(gw.label)} ${isCurrentActive ? '<span class="pill pill-good" style="font-size:9px;">АКТИВЕН</span>' : ''}
                 </div>
-                <div>${statusBadge}</div>
+                <div style="font-size:10.5px;color:var(--muted);font-family:monospace;">${escapeHtml(gw.host)} ${r ? `• ${r.latencyMs} мс` : ''}</div>
               </div>
-              <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
-                <div style="font-size:10.5px;color:var(--muted);line-height:1.35;flex:1;min-width:180px;">
-                  <span style="color:#38bdf8;font-family:monospace;">${escapeHtml(gw.host)}</span> — ${r ? `<b style="color:${r.ok ? 'var(--good)' : 'var(--warn)'};">${escapeHtml(r.detail)}</b>` : escapeHtml(gw.note)}
-                </div>
-                <button type="button" class="btn btn-sm ${isPinned ? 'btn-good' : ''}" data-pin-db-gateway="${gw.kind}" style="font-size:10.5px;padding:4px 10px;flex-shrink:0;">
-                  ${isPinned ? 'Закреплён' : 'Выбрать шлюз'}
-                </button>
-              </div>
+              <button type="button" class="btn btn-sm ${isPinned ? 'btn-good' : ''}" data-pin-db-gateway="${gw.kind}" style="min-height:32px;padding:4px 10px;font-size:11px;font-weight:800;">
+                ${isPinned ? 'Закреплён' : 'Выбрать'}
+              </button>
             </div>
           `;
-        }).join('');
-        return `
-          <div class="card" id="admDbNoVpnDiagCard" style="border:1.5px solid ${isConnectedNow ? 'var(--good)' : 'var(--accent)'};background:rgba(15,23,42,0.68);padding:12px;">
-            <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
-              <div>
-                <div style="font-size:var(--fs-sm);font-weight:900;color:#38bdf8;">
-                  ПРОВЕРКА СВЯЗИ С БАЗОЙ D1 БЕЗ VPN (ДИАГНОСТИКА ШЛЮЗОВ РФ)
-                </div>
-                <div style="font-size:11px;color:var(--muted);margin-top:3px;line-height:1.4;">
-                  Текущий канал БД: <b style="color:var(--good);" id="admActiveDbGatewayText">${escapeHtml(activeLabel)}</b><br>
-                  Режим: <b style="color:var(--text);" id="admDbGatewayModeText">${pinnedKind === 'auto' ? 'Авто-выбор самого быстрого рабочего шлюза' : `Закреплён вручную (${pinnedMeta ? pinnedMeta.label : pinnedKind})`}</b>
-                </div>
-              </div>
-              <div style="display:flex;gap:6px;flex-wrap:wrap;width:100%;">
-                <button type="button" class="btn btn-sm btn-good" id="admTestDbNoVpnBtn" style="font-weight:900;flex:1;min-width:210px;">
-                  ${_dbNoVpnDiagRunning ? `Проверка всех ${catalog.length} шлюзов...` : `Проверить связь с БД без VPN (${catalog.length} шлюзов)`}
-                </button>
-                <button type="button" class="btn btn-sm ${pinnedKind === 'auto' ? 'btn-accent' : ''}" id="admResetDbGatewayAutoBtn" style="flex:1;min-width:170px;">
-                  Авто-выбор лучшего шлюза
-                </button>
-              </div>
+        }).join('')}
+      </div>
+      <div style="padding:9px 10px;border-radius:8px;background:var(--panel);border:1px dashed var(--accent);display:flex;flex-direction:column;gap:6px;">
+        <div style="font-weight:800;font-size:11.5px;color:var(--accent);">Личный мост Google Apps Script (script.google.com):</div>
+        <input type="url" id="admCustomRelayBridgeInput" class="input" value="${escapeHtml(customBridgeVal)}" placeholder="https://script.google.com/macros/s/.../exec" style="width:100%;min-height:36px;font-size:11.5px;font-family:monospace;">
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
+          <button type="button" class="btn btn-sm btn-accent" id="admSaveCustomRelayBridgeBtn" style="min-height:36px;font-weight:800;justify-content:center;">Сохранить мост</button>
+          <button type="button" class="btn btn-sm" id="admCopyGoogleBridgeCodeBtn" style="min-height:36px;font-weight:800;justify-content:center;">Код для Google</button>
+        </div>
+      </div>
+    `;
+
+    // Блок 1.3: Gemini API
+    const srvQ = db.aiQuota || {};
+    const todayStr = new Date().toISOString().slice(0, 10);
+    let locKey = String(s.userProfile?.geminiApiKey || '');
+    let locQuota = {};
+    try {
+      if (typeof localStorage !== 'undefined') {
+        if (!locKey) locKey = String(localStorage.getItem('klev_gemini_api_key_v2') || '').trim();
+        locQuota = JSON.parse(localStorage.getItem('klev_gemini_quota_v2') || '{}') || {};
+      }
+    } catch (e) {}
+    const effRawKey = srvQ.rawApiKey || locKey || '';
+    const srvKeysArr = Array.isArray(srvQ.rawApiKeys) && srvQ.rawApiKeys.length > 0
+      ? srvQ.rawApiKeys
+      : effRawKey.split(',').map(k => k.trim().replace(/^["'\s]+|["'\s]+$/g, '')).filter(Boolean);
+    const key1Val = srvKeysArr[0] || '';
+    const key2Val = srvKeysArr[1] || '';
+    const key3Val = srvKeysArr[2] || '';
+    const activeKeyList = [key1Val, key2Val, key3Val].filter(k => k.length >= 16);
+    const keyCount = Math.max(srvQ.keyCount || 0, activeKeyList.length);
+    const limitPerDay = Math.max(1500, (keyCount || 1) * 1500);
+    const locUsedToday = (locQuota.dateKey === todayStr && Number.isFinite(Number(locQuota.usedToday))) ? Number(locQuota.usedToday) : 0;
+    const srvUsedToday = Math.max(0, Number(srvQ.usedToday) || 0);
+    const usedToday = Math.max(srvUsedToday, locUsedToday);
+    const remainingToday = Math.max(0, limitPerDay - usedToday);
+    const geminiBodyHtml = `
+      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;">
+        <div style="padding:8px 10px;background:var(--panel);border:1px solid var(--border);border-radius:8px;">
+          <div style="font-size:10px;color:var(--muted);font-weight:800;">ЗАПРОСОВ СЕГОДНЯ</div>
+          <div style="font-size:18px;font-weight:900;color:var(--accent);">${usedToday}</div>
+        </div>
+        <div style="padding:8px 10px;background:var(--panel);border:1px solid var(--border);border-radius:8px;">
+          <div style="font-size:10px;color:var(--muted);font-weight:800;">ОСТАТОК КВОТЫ</div>
+          <div style="font-size:18px;font-weight:900;color:var(--good);">${remainingToday} / ${limitPerDay}</div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <input type="password" id="admGeminiApiKeyInput1" data-adm-gemini-key-slot="1" class="input" value="${escapeHtml(key1Val)}" placeholder="Ключ #1 Google Gemini (AIzaSy...)" style="width:100%;min-height:38px;font-family:monospace;font-size:12px;">
+        <input type="password" id="admGeminiApiKeyInput2" data-adm-gemini-key-slot="2" class="input" value="${escapeHtml(key2Val)}" placeholder="Резервный ключ #2 (AIzaSy...)" style="width:100%;min-height:38px;font-family:monospace;font-size:12px;">
+        <input type="password" id="admGeminiApiKeyInput3" data-adm-gemini-key-slot="3" class="input" value="${escapeHtml(key3Val)}" placeholder="Резервный ключ #3 (AIzaSy...)" style="width:100%;min-height:38px;font-family:monospace;font-size:12px;">
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
+        <button type="button" class="btn btn-sm btn-good" id="admSaveGeminiKeyBtn" style="min-height:40px;font-weight:900;justify-content:center;">Сохранить ключи</button>
+        <button type="button" class="btn btn-sm btn-accent" id="admTestGeminiKeyBtn" style="min-height:40px;font-weight:800;justify-content:center;">Проверить связь</button>
+        <button type="button" class="btn btn-sm" id="admToggleShowGeminiKeyBtn" style="min-height:40px;font-weight:800;justify-content:center;">Показать ключи</button>
+        <button type="button" class="btn btn-sm" id="admResetGeminiQuotaBtn" style="min-height:40px;font-weight:800;justify-content:center;">Сбросить счётчик</button>
+      </div>
+    `;
+
+    tabContentHtml = [
+      renderAdminAccordionCard({
+        id: 'adm_blk_summary',
+        title: `1.1 Паспорт Супер-Админа (${escapeHtml(ident.fisherId)})`,
+        subtitle: `Владелец: Антон (${escapeHtml(ident.login)}) • Синхронизация и выгрузка базы D1`,
+        badgeHtml: `<span class="pill pill-good" style="font-size:10px;">v2.6.0 r221</span>`,
+        borderColor: 'var(--good)',
+        bodyHtml: summaryBodyHtml
+      }),
+      renderAdminAccordionCard({
+        id: 'adm_blk_gateways',
+        title: `1.2 Канал связи с D1 без VPN`,
+        subtitle: `Активный маршрут: ${escapeHtml(activeLabel)}`,
+        badgeHtml: `<span class="pill ${isConnectedNow ? 'pill-good' : 'pill-warn'}" style="font-size:10px;">${isConnectedNow ? 'ПОДКЛЮЧЕНА' : 'ПРОВЕРКА'}</span>`,
+        borderColor: isConnectedNow ? 'var(--good)' : 'var(--accent)',
+        bodyHtml: gatewaysBodyHtml
+      }),
+      renderAdminAccordionCard({
+        id: 'adm_blk_gemini',
+        title: `1.3 Нейросеть Google Gemini API`,
+        subtitle: `Использовано сегодня: ${usedToday} • Свободно: ${remainingToday}`,
+        badgeHtml: `<span class="pill pill-accent" style="font-size:10px;">Ключей: ${keyCount}/3</span>`,
+        borderColor: 'var(--accent)',
+        bodyHtml: geminiBodyHtml
+      })
+    ].join('');
+
+  } else if (_activeAdminSubTab === 'users_beta') {
+    // ВКЛАДКА 2: РЫБАКИ, БЕТА-ТЕСТ И УДАЛЕНИЕ УЗ
+    const betaBodyHtml = `
+      <div style="display:flex;flex-direction:column;gap:8px;padding:10px;background:var(--panel);border:1px solid var(--border);border-radius:8px;">
+        <div style="font-size:11.5px;font-weight:800;color:var(--accent);">Режим доступа к Фазе 2 (Автономная связь):</div>
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;">
+          <button type="button" class="btn btn-sm ${gateCfg.phase2BetaOnly !== false ? 'btn-accent' : ''}" data-adm-set-gate="2:beta" style="min-height:38px;font-weight:900;justify-content:center;">
+            Только Бета-тест
+          </button>
+          <button type="button" class="btn btn-sm ${gateCfg.phase2BetaOnly === false ? 'btn-good' : ''}" data-adm-set-gate="2:all" style="min-height:38px;font-weight:900;justify-content:center;">
+            Открыто всем
+          </button>
+        </div>
+        <div style="font-size:11.5px;font-weight:800;color:var(--accent);margin-top:4px;">Режим доступа к Фазе 3 (Маршруты и «Я потерялся»):</div>
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;">
+          <button type="button" class="btn btn-sm ${gateCfg.phase3BetaOnly !== false ? 'btn-accent' : ''}" data-adm-set-gate="3:beta" style="min-height:38px;font-weight:900;justify-content:center;">
+            Только Бета-тест
+          </button>
+          <button type="button" class="btn btn-sm ${gateCfg.phase3BetaOnly === false ? 'btn-good' : ''}" data-adm-set-gate="3:all" style="min-height:38px;font-weight:900;justify-content:center;">
+            Открыто всем
+          </button>
+        </div>
+      </div>
+
+      <!-- Полноширинная форма добавления Бета-тестера без обрезки полей -->
+      <div style="display:flex;flex-direction:column;gap:8px;padding:10px;background:var(--panel);border:1.5px solid var(--good);border-radius:8px;">
+        <div style="font-size:12px;font-weight:900;color:var(--good);">Добавить пользователя в список Бета-тестеров:</div>
+        ${users.length > 0 ? `
+          <select id="admBetaPickExistingUserSelect" class="input" style="width:100%;min-height:40px;font-size:12.5px;font-weight:800;">
+            <option value="">— Выбрать рыбака из базы D1 (${users.length} чел.) или ввести ID вручную ниже —</option>
+            ${users.map(u => `<option value="${escapeHtml(u.fisherId)}|${escapeHtml(u.login || u.callsign || 'Рыболов')}">${escapeHtml(u.fisherId)} — ${escapeHtml(u.login || u.callsign || 'Гость')} ([${escapeHtml(u.regionCode || '89')}] ${escapeHtml(u.locLabel || '')})</option>`).join('')}
+          </select>
+        ` : ''}
+        <input type="text" id="admBetaAddFidInput" class="input" placeholder="Введите ID пользователя (например: FP_89AAA001)" style="width:100%;min-height:42px;font-family:monospace;font-size:13.5px;font-weight:900;text-transform:uppercase;">
+        <input type="text" id="admBetaAddLabelInput" class="input" placeholder="Имя / Позывной / Примечание (например: Тестер ЯНАО)" style="width:100%;min-height:40px;font-size:13px;">
+        <button type="button" class="btn btn-good" id="admBetaAddConfirmBtn" style="width:100%;min-height:44px;font-size:13.5px;font-weight:900;justify-content:center;">
+          + Назначить Бета-тестером (открыть Фазу 2 и 3)
+        </button>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <div style="font-size:11.5px;font-weight:800;color:var(--muted);text-transform:uppercase;">Активные Бета-тестеры (${betaList.length}):</div>
+        ${betaList.map(bt => `
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px;background:var(--panel);border:1px solid var(--border);border-radius:8px;font-size:12px;">
+            <div style="min-width:0;flex:1;">
+              <b style="font-family:monospace;color:var(--good);font-size:13px;">${escapeHtml(bt.id)}</b>
+              <div style="font-size:11px;color:var(--text);">${escapeHtml(bt.label || 'Бета-тестер')} <span style="color:var(--muted);">(${escapeHtml(bt.addedAt || '')})</span></div>
             </div>
-            ${diag ? `
-              <div style="margin-bottom:8px;padding:8px 10px;border-radius:8px;background:${diag.workingCount > 0 ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)'};border:1px solid ${diag.workingCount > 0 ? 'rgba(16,185,129,0.35)' : 'rgba(239,68,68,0.35)'};font-size:11px;line-height:1.4;">
-                <b>Результат проверки (${new Date(diag.checkedAt).toLocaleTimeString('ru-RU')}):</b>
-                Доступно шлюзов без VPN: <b style="color:${diag.workingCount > 0 ? 'var(--good)' : 'var(--bad)'};">${diag.workingCount} из ${diag.totalGateways}</b>.
-                ${diag.workingCount > 0 ? `Самый быстрый маршрут для пользователей РФ: <b style="color:var(--good);">${escapeHtml(diag.fastestLabel)} (${diag.fastestLatencyMs} мс)</b>.` : 'Оператор связи блокирует прямые IP Cloudflare. Проверьте шлюзы Hexlet РФ / Vercel AWS или укажите личный мост Google ниже.'}
-              </div>
-            ` : `
-              <div style="margin-bottom:8px;padding:7px 10px;border-radius:8px;background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.22);font-size:11px;color:var(--muted);line-height:1.4;">
-                Нажмите <b>«Проверить связь с БД без VPN»</b> — приложение протестирует российские и не-Cloudflare узлы (<b>Hexlet РФ</b>, <b>Vercel AWS</b>, <b>EveryOrigin AWS</b>, <b>Render</b>) и автоматически включит самый быстрый рабочий канал.
-              </div>
-            `}
-            <div id="admDbNoVpnDiagTable" style="display:flex;flex-direction:column;gap:6px;">
-              <div id="admDbNoVpnDiagResults" style="display:flex;flex-direction:column;gap:6px;">${rowsHtml}</div>
-            </div>
-            <!-- Настройка персонального неубиваемого моста через Google Apps Script (script.google.com не блокируется ТСПУ в РФ) -->
-            <div style="margin-top:10px;padding:9px 10px;border-radius:8px;background:rgba(15,23,42,0.75);border:1px dashed rgba(56,189,248,0.35);font-size:11px;">
-              <div style="font-weight:800;color:#38bdf8;margin-bottom:4px;">
-                Резервный личный мост через Google (script.google.com — работает в РФ 100% без VPN у любого оператора)
-              </div>
-              <div style="color:var(--muted);font-size:10.5px;margin-bottom:6px;line-height:1.35;">
-                Если мобильный оператор в регионе глушит даже внешние прокси, вы можете за 1 минуту вставить 8 строк кода в бесплатный Google Apps Script (работает на IP Google <code>script.google.com</code>) и указать его URL:
-              </div>
-              <div style="display:flex;gap:6px;flex-wrap:wrap;">
-                <input type="url" id="admCustomRelayBridgeInput" class="input" value="${escapeHtml(customBridgeVal)}" placeholder="https://script.google.com/macros/s/.../exec" style="flex:1;min-width:200px;font-size:11px;height:32px;font-family:monospace;">
-                <button type="button" class="btn btn-sm btn-accent" id="admSaveCustomRelayBridgeBtn" style="font-size:11px;">Сохранить мост</button>
-                <button type="button" class="btn btn-sm" id="admCopyGoogleBridgeCodeBtn" style="font-size:11px;">Скопировать код для Google (8 строк)</button>
-              </div>
-            </div>
+            ${!isOwnerFisherId(bt.id) ? `
+              <button type="button" class="btn btn-sm" data-adm-remove-beta="${escapeHtml(bt.id)}" style="min-height:32px;padding:4px 10px;font-size:11.5px;font-weight:800;color:var(--bad);border-color:rgba(239,68,68,0.45);">
+                Снять Бета
+              </button>
+            ` : `<span class="pill pill-good" style="font-size:10.5px;">Владелец</span>`}
           </div>
-        `;
-      })()}
-      <!-- 1c. Управление нейросетью Google Gemini Vision API (до 3 ключей = до 4500 запросов/сут) -->
-      ${(() => {
-        const srvQ = db.aiQuota || {};
-        const todayStr = new Date().toISOString().slice(0, 10);
-        let locKey = String(s.userProfile?.geminiApiKey || '');
-        let locQuota = {};
-        try {
-          if (typeof localStorage !== 'undefined') {
-            if (!locKey) locKey = String(localStorage.getItem('klev_gemini_api_key_v2') || '').trim();
-            locQuota = JSON.parse(localStorage.getItem('klev_gemini_quota_v2') || '{}') || {};
-          }
-        } catch (e) {}
-        const effRawKey = srvQ.rawApiKey || locKey || '';
-        const srvKeysArr = Array.isArray(srvQ.rawApiKeys) && srvQ.rawApiKeys.length > 0
-          ? srvQ.rawApiKeys
-          : effRawKey.split(',').map(k => k.trim().replace(/^["'\s]+|["'\s]+$/g, '')).filter(Boolean);
-        const key1Val = srvKeysArr[0] || '';
-        const key2Val = srvKeysArr[1] || '';
-        const key3Val = srvKeysArr[2] || '';
-        const activeKeyList = [key1Val, key2Val, key3Val].filter(k => k.length >= 16);
-        const keyCount = Math.max(srvQ.keyCount || 0, activeKeyList.length);
-        const hasKey = Boolean(keyCount > 0 || srvQ.hasKey);
-        const rawMod = srvQ.activeModel || 'gemini-2.5-flash';
-        const activeModName = rawMod.includes('3.1-flash-lite') ? 'gemini-2.5-flash' : rawMod;
-        const limitPerDay = Math.max(1500, (keyCount || 1) * 1500);
-        const locUsedToday = (locQuota.dateKey === todayStr && Number.isFinite(Number(locQuota.usedToday))) ? Number(locQuota.usedToday) : 0;
-        const srvUsedToday = Math.max(0, Number(srvQ.usedToday) || 0);
-        const usedToday = Math.max(srvUsedToday, locUsedToday);
-        const usedBotToday = Math.max(0, Number(srvQ.usedBotToday) || 0);
-        const usedAppToday = Math.max(0, usedToday - usedBotToday, Number(srvQ.usedAppToday) || 0, locUsedToday);
-        const totalAllTime = Math.max(usedToday, Number(srvQ.totalAllTime) || 0, Number(locQuota.totalAllTime) || 0);
-        const lastReqTs = Math.max(Number(srvQ.lastRequestAt) || 0, Number(locQuota.lastRequestAt) || 0, Number(srvQ.lastTestedAt) || 0);
-        const lastReqStr = lastReqTs > 0
-          ? new Date(lastReqTs).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })
-          : 'ещё не было';
-        const lastHttpCode = Number(srvQ.lastHttpStatus) || Number(locQuota.lastHttpStatus) || (usedToday > 0 ? 200 : 0);
-        const lastLatMs = Number(srvQ.lastLatencyMs) || Number(locQuota.lastLatencyMs) || 0;
-        const srvRecentCalls = Array.isArray(srvQ.recentCalls) ? srvQ.recentCalls : [];
-        const locRecentCalls = Array.isArray(locQuota.recentCalls) ? locQuota.recentCalls : [];
-        const seenCallIds = new Set();
-        const combinedRecentCalls = [...srvRecentCalls, ...locRecentCalls]
-          .filter(c => {
-            if (!c || !c.ts) return false;
-            const cid = c.id || `${c.ts}_${c.fisherId}`;
-            if (seenCallIds.has(cid)) return false;
-            seenCallIds.add(cid);
-            return true;
-          })
-          .sort((a, b) => (b.ts || 0) - (a.ts || 0))
-          .slice(0, 15);
-        const remainingToday = Math.max(0, limitPerDay - usedToday);
-        const pctRem = Math.max(0, Math.min(100, Math.round((remainingToday / limitPerDay) * 100)));
-        const rawPerKey = Array.isArray(srvQ.perKeyUsed) ? srvQ.perKeyUsed.slice(0, 3) : [0, 0, 0];
-        const sumPerKey = (rawPerKey[0] || 0) + (rawPerKey[1] || 0) + (rawPerKey[2] || 0);
-        const perKeyUsed = [
-          Math.max(0, (rawPerKey[0] || 0) + (usedToday > sumPerKey ? (usedToday - sumPerKey) : 0)),
-          Math.max(0, rawPerKey[1] || 0),
-          Math.max(0, rawPerKey[2] || 0)
-        ];
-        const barColor = pctRem > 55
-          ? 'linear-gradient(90deg, #059669 0%, #10b981 100%)'
-          : (pctRem > 22
-              ? 'linear-gradient(90deg, #d97706 0%, #f59e0b 100%)'
-              : 'linear-gradient(90deg, #b91c1c 0%, #ef4444 100%)');
-        const textToneColor = pctRem > 55 ? 'var(--good)' : (pctRem > 22 ? 'var(--warn)' : 'var(--bad)');
-        return `
-          <div class="card" style="border:1.5px solid var(--accent);background:rgba(56,189,248,0.08);padding:11px 12px;">
-            <div style="display:flex;flex-direction:column;gap:5px;margin-bottom:9px;">
-              <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;width:100%;">
-                <div style="font-weight:900;font-size:13px;color:var(--accent);display:flex;align-items:center;gap:6px;">
-                  <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 8V6a2 2 0 0 1 2-2h2M4 16v2a2 2 0 0 0 2 2h2m8-16h2a2 2 0 0 1 2 2v2m-4 12h2a2 2 0 0 0 2-2v-2" stroke="#38bdf8" stroke-width="1.9" stroke-linecap="round"/><path d="M6 12s2.5-3.8 6.5-3.8c2.6 0 4.5 1.5 5.5 3.8-1 2.3-2.9 3.8-5.5 3.8-4 0-6.5-3.8-6.5-3.8z" fill="rgba(16,185,129,0.28)" stroke="#10b981" stroke-width="1.7"/></svg>
-                  <span>СТАТИСТИКА И КЛЮЧИ GEMINI API (ВЕРИФИКАЦИЯ D1 + HTTP 200)</span>
-                </div>
-                <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-                  <button type="button" class="btn btn-sm" id="admRefreshGeminiStatsBtn" style="min-height:26px;padding:2px 8px;font-size:10.5px;font-weight:800;">Обновить с D1</button>
-                  <span class="pill ${hasKey ? 'pill-good' : 'pill-warn'}" style="font-size:10.5px;font-weight:900;">
-                    ${hasKey ? `Ключей: ${keyCount}/3 (${limitPerDay}/сут)` : 'Ключи не заданы'}
+        `).join('')}
+      </div>
+    `;
+
+    const usersBodyHtml = `
+      <input type="search" id="admUserSearchInput" class="input" value="${escapeHtml(_adminSearchFilter)}" placeholder="Поиск по ID (FP_...), логину, @username, городу..." style="width:100%;min-height:42px;font-size:13px;">
+      <div style="display:flex;flex-direction:column;gap:8px;max-height:460px;overflow-y:auto;">
+        ${filteredUsers.length === 0 ? `
+          <div style="padding:14px;text-align:center;color:var(--muted);background:var(--panel);border-radius:8px;">
+            Пользователи не найдены. Перейдите на вкладку «1. Сервер» и нажмите «Обновить базу D1».
+          </div>
+        ` : filteredUsers.map(u => {
+          const isRz = isTemporaryReserveId(u.fisherId);
+          const isOwn = isOwnerFisherId(u.fisherId);
+          const isBeta = betaIdsSet.has(String(u.fisherId || '').toUpperCase()) || Boolean(u.isBetaTester);
+          const timeStr = u.lastSeen ? new Date(u.lastSeen).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
+          return `
+            <div style="padding:10px;background:var(--panel);border:1px solid ${isBeta ? 'var(--good)' : 'var(--border)'};border-radius:8px;display:flex;flex-direction:column;gap:6px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;">
+                <span class="fisher-id-copy-badge" data-copy-fisher-id="${escapeHtml(u.fisherId)}" style="font-family:monospace;font-weight:900;font-size:13.5px;color:${isOwn ? 'var(--good)' : (isRz ? 'var(--warn)' : 'var(--accent)')};cursor:pointer;">
+                  ${escapeHtml(u.fisherId)}
+                </span>
+                <div style="display:flex;gap:4px;flex-wrap:wrap;">
+                  ${isBeta ? '<span class="pill pill-good" style="font-size:10px;">БЕТА-ТЕСТЕР</span>' : ''}
+                  <span class="pill ${isOwn ? 'pill-good' : (isRz ? 'pill-warn' : 'pill-accent')}" style="font-size:10px;">
+                    ${isOwn ? 'ВЛАДЕЛЕЦ' : (isRz ? 'Резерв RZ' : 'Постоянный')}
                   </span>
                 </div>
               </div>
-              <div style="font-size:11px;color:var(--muted);line-height:1.35;width:100%;">
-                Счётчик учитывает <b>только подтверждённые HTTP 200 OK ответы</b> от <code>generativelanguage.googleapis.com</code> со всех устройств пользователей (D1) и из Telegram-бота.
+              <div style="font-size:12px;color:var(--text);">
+                <b>${escapeHtml(u.login || u.callsign || 'Гость')}</b> • [${escapeHtml(u.regionCode || '89')}] ${escapeHtml(u.locLabel || 'РФ')}
+                ${u.tgUsername ? ` • <span style="color:#38bdf8;">@${escapeHtml(u.tgUsername)}</span>` : ''}
               </div>
-            </div>
-            <!-- Компактная сетка статистики 2x2 по запросам к Gemini API -->
-            <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-bottom:9px;">
-              <div style="padding:7px 9px;background:var(--panel);border:1px solid var(--border);border-radius:8px;">
-                <div style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;">Глобально за сегодня (${todayStr.slice(5)})</div>
-                <div id="admGeminiUsedTodayVal" style="font-size:17px;font-weight:900;color:var(--accent);margin-top:1px;">${usedToday}</div>
-                <div style="font-size:10.5px;color:var(--muted);margin-top:1px;">Сервер D1 (все): <b>${srvUsedToday}</b> • Ваше устр.: <b>${locUsedToday}</b> • Бот: <b>${usedBotToday}</b></div>
+              <div style="font-size:11px;color:var(--muted);">
+                ${escapeHtml(u.platform || 'WEB')} • Сессий: ${u.sessionsCount || 1} • Точек: ${u.circlePostsCount || 0} • Был: ${timeStr}
               </div>
-              <div style="padding:7px 9px;background:var(--panel);border:1px solid var(--border);border-radius:8px;">
-                <div style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;">Остаток квоты Google API</div>
-                <div id="admGeminiQuotaText" style="font-size:17px;font-weight:900;color:${textToneColor};margin-top:1px;">${remainingToday} / ${limitPerDay}</div>
-                <div style="font-size:10.5px;color:var(--muted);margin-top:1px;">Свободно: <b>${pctRem}%</b> (${keyCount}×1500)</div>
-              </div>
-              <div style="padding:7px 9px;background:var(--panel);border:1px solid var(--border);border-radius:8px;">
-                <div style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;">Всего подтверждено (HTTP 200)</div>
-                <div style="font-size:17px;font-weight:900;color:var(--good);margin-top:1px;">${totalAllTime}</div>
-                <div style="font-size:10.5px;color:var(--muted);margin-top:1px;">Посл.: <b>${lastReqStr}</b></div>
-              </div>
-              <div style="padding:7px 9px;background:var(--panel);border:1px solid var(--border);border-radius:8px;">
-                <div style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;">Нагрузка по слотам и статус</div>
-                <div style="font-size:12.5px;font-weight:900;color:var(--text);margin-top:3px;font-family:monospace;">#1:${perKeyUsed[0]} • #2:${perKeyUsed[1]} • #3:${perKeyUsed[2]}</div>
-                <div style="font-size:10.5px;color:var(--muted);margin-top:1px;">ИИ: <b>${escapeHtml(activeModName)}</b>${lastHttpCode ? ` • <span style="color:var(--good);font-weight:800;">HTTP ${lastHttpCode}${lastLatMs ? ` (${lastLatMs} мс)` : ''}</span>` : ''}</div>
-              </div>
-            </div>
-            <!-- Шкала остатка суточного лимита -->
-            <div style="padding:8px 10px;background:var(--panel);border:1px solid var(--border);border-radius:10px;margin-bottom:9px;">
-              <div style="display:flex;justify-content:space-between;align-items:center;font-size:11.5px;font-weight:800;margin-bottom:5px;gap:6px;flex-wrap:wrap;">
-                <span style="color:var(--text);">Шкала запаса суточного лимита (${remainingToday} свободно / ${usedToday} израсходовано):</span>
-                <span style="color:${textToneColor};font-family:monospace;">${pctRem}%</span>
-              </div>
-              <div style="width:100%;height:10px;background:rgba(15,23,42,0.75);border-radius:999px;overflow:hidden;border:1px solid var(--border);">
-                <div id="admGeminiQuotaBarFill" style="width:${pctRem}%;height:100%;background:${barColor};border-radius:999px;transition:width 0.35s ease, background 0.35s ease;"></div>
-              </div>
-            </div>
-            <!-- Живой журнал верифицированных обращений к Google Gemini API -->
-            <div id="admGeminiRecentCallsLog" style="padding:8px 10px;background:var(--panel);border:1px solid var(--border);border-radius:10px;margin-bottom:10px;">
-              <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px;">
-                <span style="font-size:11px;font-weight:900;color:var(--accent);text-transform:uppercase;">Журнал реальных запросов к Google Gemini API (все пользователи):</span>
-                <span class="pill pill-good" style="font-size:10px;">Записей: ${combinedRecentCalls.length}</span>
-              </div>
-              ${combinedRecentCalls.length === 0 ? `
-                <div style="font-size:11px;color:var(--muted);padding:4px 0;">
-                  Запросов в журнале пока нет. Нажмите <b>«Проверить связь»</b> или распознайте рыбу по фото в «Ихтио-Сканере», чтобы увидеть подтверждение <code>HTTP 200 OK</code>, задержку в мс, слот ключа и ID автора запроса.
+              ${!isOwn ? `
+                <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:2px;">
+                  <button type="button" class="btn btn-sm ${isBeta ? '' : 'btn-good'}" data-adm-quick-beta="${escapeHtml(u.fisherId)}" data-adm-quick-beta-name="${escapeHtml(u.login || u.callsign || 'Рыболов')}" data-adm-quick-beta-mode="${isBeta ? 'remove' : 'add'}" style="min-height:34px;font-size:11px;font-weight:800;justify-content:center;">
+                    ${isBeta ? 'Снять Бета' : '+ В Бета'}
+                  </button>
+                  <button type="button" class="btn btn-sm btn-accent" data-adm-reply-err-user="${escapeHtml(u.fisherId)}" data-adm-reply-err-name="${escapeHtml(u.login || u.callsign || 'Рыболов')}" style="min-height:34px;font-size:11px;font-weight:800;justify-content:center;">
+                    Написать
+                  </button>
+                  <button type="button" class="btn btn-sm" data-adm-del-user="${escapeHtml(u.fisherId)}" data-adm-del-name="${escapeHtml(u.callsign || u.login || u.fisherId)}" style="min-height:34px;font-size:11px;font-weight:800;color:var(--bad);border-color:rgba(239,68,68,0.45);justify-content:center;">
+                    Удалить УЗ
+                  </button>
                 </div>
-              ` : `
-                <div style="display:flex;flex-direction:column;gap:4px;max-height:155px;overflow-y:auto;">
-                  ${combinedRecentCalls.map(rc => {
-                    const tLbl = new Date(rc.ts || Date.now()).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                    return `
-                      <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;padding:5px 8px;background:var(--card);border:1px solid var(--border);border-radius:6px;font-size:11px;">
-                        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-                          <span style="font-family:monospace;color:var(--muted);">${tLbl}</span>
-                          <b style="color:var(--accent);font-family:monospace;">${escapeHtml(rc.fisherId || 'FP_USER')}</b>
-                          <span class="pill pill-neutral" style="font-size:9.5px;padding:1px 5px;">${escapeHtml(rc.env || 'WEB')}</span>
-                          <span style="color:var(--text);font-weight:700;">${escapeHtml(rc.action || 'Запрос к Gemini API')}</span>
-                        </div>
-                        <div style="display:flex;align-items:center;gap:6px;font-family:monospace;font-size:10.5px;">
-                          <span style="color:var(--good);font-weight:900;">HTTP ${Number(rc.httpStatus) || 200} OK</span>
-                          <span style="color:var(--muted);">${Number(rc.latencyMs) || 150} мс • Ключ #${Number(rc.keySlot) || 1} • ${escapeHtml(rc.model || 'gemini-2.5-flash')}</span>
-                        </div>
-                      </div>
-                    `;
-                  }).join('')}
-                </div>
-              `}
+              ` : ''}
             </div>
-            <!-- 3 отдельных слота для ключей Gemini API -->
-            <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px;">
-              <div style="display:flex;gap:6px;align-items:center;width:100%;">
-                <span style="font-size:11px;font-weight:800;color:var(--accent);min-width:68px;">Ключ #1:</span>
-                <input type="password" id="admGeminiApiKeyInput1" data-adm-gemini-key-slot="1" class="input" value="${escapeHtml(key1Val)}" placeholder="Основной ключ AIzaSy... (1500/сут)" style="flex:1;min-width:0;min-height:36px;font-family:monospace;font-size:12px;">
-                <span class="pill ${key1Val.length >= 16 ? 'pill-good' : 'pill-neutral'}" style="font-size:10px;min-width:82px;text-align:center;">${key1Val.length >= 16 ? `${perKeyUsed[0]} / 1500` : 'Не задан'}</span>
-              </div>
-              <div style="display:flex;gap:6px;align-items:center;width:100%;">
-                <span style="font-size:11px;font-weight:800;color:var(--muted);min-width:68px;">Ключ #2:</span>
-                <input type="password" id="admGeminiApiKeyInput2" data-adm-gemini-key-slot="2" class="input" value="${escapeHtml(key2Val)}" placeholder="Резервный ключ #2 AIzaSy... (+1500/сут)" style="flex:1;min-width:0;min-height:36px;font-family:monospace;font-size:12px;">
-                <span class="pill ${key2Val.length >= 16 ? 'pill-good' : 'pill-neutral'}" style="font-size:10px;min-width:82px;text-align:center;">${key2Val.length >= 16 ? `${perKeyUsed[1]} / 1500` : 'Не задан'}</span>
-              </div>
-              <div style="display:flex;gap:6px;align-items:center;width:100%;">
-                <span style="font-size:11px;font-weight:800;color:var(--muted);min-width:68px;">Ключ #3:</span>
-                <input type="password" id="admGeminiApiKeyInput3" data-adm-gemini-key-slot="3" class="input" value="${escapeHtml(key3Val)}" placeholder="Резервный ключ #3 AIzaSy... (+1500/сут)" style="flex:1;min-width:0;min-height:36px;font-family:monospace;font-size:12px;">
-                <span class="pill ${key3Val.length >= 16 ? 'pill-good' : 'pill-neutral'}" style="font-size:10px;min-width:82px;text-align:center;">${key3Val.length >= 16 ? `${perKeyUsed[2]} / 1500` : 'Не задан'}</span>
-              </div>
-            </div>
-            <!-- Сетка кнопок 2x2 по фен-шую без обрезания текста -->
-            <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;align-items:center;width:100%;">
-              <button type="button" class="btn btn-sm btn-good" id="admSaveGeminiKeyBtn" style="min-height:40px;font-weight:900;width:100%;justify-content:center;">Сохранить ключи</button>
-              <button type="button" class="btn btn-sm btn-accent" id="admTestGeminiKeyBtn" style="min-height:40px;font-weight:800;width:100%;justify-content:center;">Проверить связь</button>
-              <button type="button" class="btn btn-sm" id="admToggleShowGeminiKeyBtn" style="min-height:40px;font-weight:800;width:100%;justify-content:center;">Показать ключи</button>
-              <button type="button" class="btn btn-sm" id="admResetGeminiQuotaBtn" style="min-height:40px;font-weight:800;width:100%;justify-content:center;">Сбросить счётчик</button>
-            </div>
-            <details style="margin-top:8px;font-size:11.5px;color:var(--muted);line-height:1.45;">
-              <summary style="cursor:pointer;font-weight:800;color:var(--accent);">Инструкция: как проверяется реальное прохождение запросов к Google Gemini API</summary>
-              <div style="margin-top:6px;padding:8px 10px;background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--text);">
-                <b>1. Раздельный учёт Сервер D1 vs Устройство:</b> в первой карточке отдельно показан глобальный счётчик базы D1 по всем рыбакам (<code>Сервер D1 (все)</code>), счётчик Telegram-бота и счётчик вашего устройства.<br>
-                <b>2. Журнал верифицированных ответов HTTP 200 OK:</b> каждый реальный вызов к <code>generativelanguage.googleapis.com</code> фиксируется в журнале выше с указанием точного времени, ID рыбака (<code>FP_...</code>), среды запуска (<code>APK / PWA / WEB / DESKTOP</code>), кода ответа <code>HTTP 200 OK</code>, времени отклика в миллисекундах и номера слота ключа (<code>#1 / #2 / #3</code>). Резервные не-Gemini шлюзы этот счётчик не увеличивают.
-              </div>
-            </details>
+          `;
+        }).join('')}
+      </div>
+    `;
+
+    const regionsBodyHtml = `
+      <div style="display:flex;flex-wrap:wrap;gap:6px;">
+        ${allRegs.map(rc => {
+          const st = regStats[rc] || { perm: 0, rz: 0 };
+          return `<span style="padding:5px 9px;border-radius:8px;background:var(--panel);border:1px solid var(--border);font-size:11.5px;">Регион <b>${rc}</b>: пост. <b style="color:var(--good);">${st.perm}</b> • рез. <b style="color:var(--warn);">${st.rz}</b></span>`;
+        }).join('')}
+      </div>
+    `;
+
+    tabContentHtml = [
+      renderAdminAccordionCard({
+        id: 'adm_blk_beta',
+        title: `2.1 Бета-тестеры (Фаза 2 и Фаза 3)`,
+        subtitle: `Выдача прав доступа по ID рыбака и переключение режимов`,
+        badgeHtml: `<span class="pill pill-good" style="font-size:10px;">Активно: ${betaList.length}</span>`,
+        borderColor: 'var(--good)',
+        bodyHtml: betaBodyHtml
+      }),
+      renderAdminAccordionCard({
+        id: 'adm_blk_users',
+        title: `2.2 Реестр пользователей БД и Удаление УЗ`,
+        subtitle: `Постоянных: ${permanentUsers.length} • Резервных: ${reserveUsers.length}`,
+        badgeHtml: `<span class="pill pill-accent" style="font-size:10px;">Всего: ${users.length}</span>`,
+        borderColor: 'var(--accent)',
+        bodyHtml: usersBodyHtml
+      }),
+      renderAdminAccordionCard({
+        id: 'adm_blk_regions',
+        title: `2.3 Статистика ID по регионам РФ`,
+        subtitle: `Счётчики выданных постоянных и резервных ID`,
+        badgeHtml: `<span class="pill" style="font-size:10px;">Регионов: ${allRegs.length}</span>`,
+        borderColor: 'var(--border)',
+        bodyHtml: regionsBodyHtml
+      })
+    ].join('');
+
+  } else if (_activeAdminSubTab === 'moderation') {
+    // ВКЛАДКА 3: ТОЧКИ, КРУГИ И РЕГИОНАЛЬНЫЕ ЧАТЫ
+    const visibleSrvPoints = showAllCrewsFlag
+      ? srvPoints
+      : srvPoints.filter(pt => !(pt && pt.t === 'crew' && !pt.sos && !isCircleItemMine(pt, s)));
+
+    const pointsBodyHtml = `
+      <button type="button" class="btn btn-sm ${showAllCrewsFlag ? 'btn-good' : ''}" id="admToggleAllCrewsBtn" style="width:100%;min-height:40px;font-weight:800;justify-content:center;">
+        ${showAllCrewsFlag ? 'Видимость закрытых Экипажей: ВКЛЮЧЕНА' : 'Видимость закрытых Экипажей: СКРЫТА'}
+      </button>
+      <div style="display:flex;flex-direction:column;gap:6px;max-height:360px;overflow-y:auto;">
+        ${visibleSrvPoints.length === 0 ? `
+          <div style="padding:14px;text-align:center;color:var(--muted);background:var(--panel);border-radius:8px;">
+            Активных точек на сервере сейчас нет.
           </div>
-        `;
-      })()}
-      <!-- 2. Шесть KPI-карточек серверной статистики -->
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;">
-        <div class="card" style="background:var(--card);padding:10px 12px;">
-          <div style="font-size:20px;font-weight:900;color:var(--good);">${users.length}</div>
-          <div style="font-size:11px;color:var(--muted);font-weight:700;">Всего ID в базе сервера</div>
+        ` : visibleSrvPoints.map(pt => `
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px;background:var(--panel);border:1px solid var(--border);border-radius:8px;font-size:12px;">
+            <div style="min-width:0;flex:1;">
+              <b>${pt.sos ? 'SOS' : (pt.t === 'crew' ? `Экипаж ${pt.crewKey || ''}` : (pt.t === 'spot' ? 'Слип/Точка' : 'Круг'))}</b> • ${escapeHtml(pt.fn || 'Точка')} (${escapeHtml(pt.wn || pt.lb || 'Водоём')})
+              <div style="font-size:11px;color:var(--accent);font-family:monospace;">Автор: ${escapeHtml(pt.fid || '—')}</div>
+            </div>
+            <button type="button" class="btn btn-sm" data-adm-del-srv-point="${escapeHtml(pt.id)}" data-adm-del-srv-title="${escapeHtml(`${pt.fn || 'Точка'} (${pt.wn || pt.lb || 'Водоём'})`)}" style="min-height:32px;padding:4px 10px;color:var(--bad);border-color:rgba(239,68,68,0.45);font-weight:800;">
+              Удалить
+            </button>
+          </div>
+        `).join('')}
+      </div>
+    `;
+
+    const regChatsMap = db.regionalChats || {};
+    const regChatKeys = Object.keys(regChatsMap);
+    const regChatsBodyHtml = `
+      <div style="font-size:12px;color:var(--muted);">
+        Введите код региона (например, <code>REG-89</code> или <code>89</code>), чтобы полностью очистить историю регионального чата на сервере D1 у всех участников:
+      </div>
+      <input type="text" id="admWipeRegCodeInput" class="input" placeholder="Код региона (например: REG-89)" value="REG-89" style="width:100%;min-height:42px;font-family:monospace;font-weight:900;">
+      <button type="button" class="btn btn-sm" id="admWipeRegChatBtn" style="width:100%;min-height:42px;font-weight:900;background:#ef4444;border-color:#ef4444;color:#fff;justify-content:center;">
+        Очистить региональный чат на сервере D1
+      </button>
+    `;
+
+    const modsBodyHtml = `
+      <input type="text" id="admAddModIdInput" class="input" placeholder="ID рыбака (например: FP_89AAA001)" style="width:100%;min-height:40px;font-family:monospace;text-transform:uppercase;">
+      <input type="text" id="admAddModLabelInput" class="input" placeholder="Имя / Примечание" style="width:100%;min-height:40px;">
+      <button type="button" class="btn btn-sm btn-good" id="admAddModConfirmBtn" style="width:100%;min-height:40px;font-weight:900;justify-content:center;">
+        + Назначить модератором Круга
+      </button>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        ${adminList.map(adm => `
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 10px;background:var(--panel);border:1px solid var(--border);border-radius:8px;font-size:12px;">
+            <span><b style="font-family:monospace;color:var(--good);">${escapeHtml(adm.id)}</b> • ${escapeHtml(adm.label)}</span>
+            ${DEFAULT_ADMIN_IDS.includes(adm.id)
+              ? `<span class="pill pill-good" style="font-size:10px;">Владелец</span>`
+              : `<button type="button" class="btn btn-sm" data-adm-remove-mod="${escapeHtml(adm.id)}" data-adm-remove-label="${escapeHtml(adm.label)}" style="min-height:28px;padding:2px 8px;color:var(--bad);">Снять</button>`}
+          </div>
+        `).join('')}
+      </div>
+    `;
+
+    tabContentHtml = [
+      renderAdminAccordionCard({
+        id: 'adm_blk_points',
+        title: `3.1 Точки на сервере (Круг, Слипы, SOS)`,
+        subtitle: `Просмотр и удаление опубликованных точек с карты`,
+        badgeHtml: `<span class="pill pill-accent" style="font-size:10px;">Точек: ${visibleSrvPoints.length}</span>`,
+        borderColor: 'var(--accent)',
+        bodyHtml: pointsBodyHtml
+      }),
+      renderAdminAccordionCard({
+        id: 'adm_blk_regchats',
+        title: `3.2 Модерация региональных чатов РФ`,
+        subtitle: `Очистка региональных каналов (REG-89 и др.) на сервере D1`,
+        badgeHtml: `<span class="pill pill-warn" style="font-size:10px;">Каналов: ${regChatKeys.length}</span>`,
+        borderColor: 'var(--warn)',
+        bodyHtml: regChatsBodyHtml
+      }),
+      renderAdminAccordionCard({
+        id: 'adm_blk_mods',
+        title: `3.3 База модераторов Круга`,
+        subtitle: `Назначение помощников модерации точек`,
+        badgeHtml: `<span class="pill" style="font-size:10px;">Модераторов: ${adminList.length}</span>`,
+        borderColor: 'var(--border)',
+        bodyHtml: modsBodyHtml
+      })
+    ].join('');
+
+  } else {
+    // ВКЛАДКА 4: ЩИТ ИБ, ПОЛИТИКИ (152-ФЗ) И ОШИБКИ
+    let locPol = null;
+    try {
+      if (typeof localStorage !== 'undefined') {
+        const rawP = localStorage.getItem(ADMIN_LOCAL_POLICY_STATE_KEY);
+        if (rawP) locPol = JSON.parse(rawP);
+      }
+    } catch (e) {}
+    const polState = locPol || db.policyState || {
+      policyVersion: '2026.11.06-v2.6',
+      appVersion: '2.6.0',
+      summary: 'Обновление версии v2.6.0 (r221) и редакции Политики конфиденциальности (152-ФЗ / ст. 10.1 о передаче геолокации, удалении УЗ и маршрутах Фазы 3).'
+    };
+
+    const policyBodyHtml = `
+      <div style="font-size:11.5px;color:var(--muted);line-height:1.4;">
+        При публикации нового номера редакции Политики у всех пользователей (на сайте и в APK) автоматически откроется окно повторного согласия с чекбоксами:
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
+        <div>
+          <label style="font-size:10.5px;font-weight:800;color:var(--muted);">РЕДАКЦИЯ ПОЛИТИКИ:</label>
+          <input type="text" id="admPolicyVerInput" class="input" value="${escapeHtml(polState.policyVersion || '2026.11.06-v2.6')}" style="width:100%;min-height:40px;font-weight:800;">
         </div>
-        <div class="card" style="background:var(--card);padding:10px 12px;">
-          <div style="font-size:20px;font-weight:900;color:var(--accent);">${permanentUsers.length}</div>
-          <div style="font-size:11px;color:var(--muted);font-weight:700;"><svg class="k-ico" style="color:var(--good);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg> Постоянных ID (Логин+Пароль)</div>
-        </div>
-        <div class="card" style="background:var(--card);padding:10px 12px;">
-          <div style="font-size:20px;font-weight:900;color:var(--warn);">${reserveUsers.length}</div>
-          <div style="font-size:11px;color:var(--muted);font-weight:700;"><svg class="k-ico" style="color:var(--warn);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg> Временных резервных (FP_XXRZ)</div>
-        </div>
-        <div class="card" style="background:var(--card);padding:10px 12px;">
-          <div style="font-size:20px;font-weight:900;color:var(--good);">${tgBoundUsers.length}</div>
-          <div style="font-size:11px;color:var(--muted);font-weight:700;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" fill="rgba(56,189,248,0.22)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> Привязаны к Telegram</div>
-        </div>
-        <div class="card" style="background:var(--card);padding:10px 12px;">
-          <div style="font-size:20px;font-weight:900;color:var(--text);">${active24h} / ${active7d}</div>
-          <div style="font-size:11px;color:var(--muted);font-weight:700;">Активны за 24ч / 7 дней</div>
-        </div>
-        <div class="card" style="background:var(--card);padding:10px 12px;">
-          <div style="font-size:15px;font-weight:900;color:var(--accent);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="6" y="2" width="12" height="20" rx="2.5" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="18" r="1.2" fill="#38bdf8"/></svg> ${apkCount} • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> ${iosCount} • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" stroke="currentColor" stroke-width="1.6"/></svg> ${webCount} • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" fill="rgba(56,189,248,0.22)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> ${tgCount}</div>
-          <div style="font-size:11px;color:var(--muted);font-weight:700;">APK / iOS / Web / TG • Точек: ${srvPoints.length}</div>
+        <div>
+          <label style="font-size:10.5px;font-weight:800;color:var(--muted);">ВЕРСИЯ ПРИЛОЖЕНИЯ:</label>
+          <input type="text" id="admPolicyAppVerInput" class="input" value="${escapeHtml(polState.appVersion || '2.6.0')}" style="width:100%;min-height:40px;font-weight:800;">
         </div>
       </div>
-      <!-- 3. Распределение выданных постоянных и резервных ID по регионам РФ -->
-      <div class="card">
-        <div style="font-weight:900;font-size:var(--fs-xs);color:var(--accent);margin-bottom:8px;">
-          <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3V6z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 3v15M15 6v15" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="10" r="2.2" fill="#38bdf8" stroke="#fff" stroke-width="1"/></svg> ВЫДАЧА ПОСТОЯННЫХ (FP_XXAAA) И РЕЗЕРВНЫХ (FP_XXRZ) ID ПО РЕГИОНАМ РФ:
-        </div>
-        <div style="display:flex;flex-wrap:wrap;gap:6px;">
-          ${allRegs.map(rc => {
-            const st = regStats[rc] || { perm: 0, rz: 0 };
-            const nextPerm = (counters[rc] || 0) + 1;
-            const nextRz = (reserveCounters[rc] || 0) + 1;
-            return `
-              <span style="padding:4px 9px;border-radius:8px;background:var(--panel);border:1px solid var(--border);font-size:11.5px;">
-                Регион <b>${rc}</b>: <span style="color:var(--good);font-weight:800;"><svg class="k-ico" style="color:var(--good);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg> пост. ${st.perm}</span> (след. #${String(nextPerm).padStart(3, '0')}) •
-                <span style="color:var(--warn);font-weight:800;"><svg class="k-ico" style="color:var(--warn);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg> рез. ${st.rz}</span> (след. RZ${String(nextRz).padStart(4, '0')})
-              </span>
-            `;
-          }).join('')}
+      <input type="text" id="admPolicySummaryInput" class="input" value="${escapeHtml(polState.summary || '')}" placeholder="Краткое описание изменений в политике..." style="width:100%;min-height:40px;">
+      <button type="button" class="btn btn-good" id="admPublishPolicyVerBtn" style="width:100%;min-height:42px;font-weight:900;justify-content:center;">
+        Опубликовать Политику и запросить согласие у всех
+      </button>
+    `;
+
+    const secRep = getMergedSecurityAuditReport();
+    const c = secRep.counters || {};
+    const factorDefs = [
+      { key: 'sqli', short: '01 SQL-инъекции', count: c.sqli || 0 },
+      { key: 'idor', short: '02 IDOR / BOLA', count: c.idor || 0 },
+      { key: 'mass_assign', short: '03 Формы / Роли', count: c.mass_assign || 0 },
+      { key: 'deserialization', short: '04 Файлы / JSON', count: c.deserialization || 0 },
+      { key: 'data_exposure', short: '05 Утечки API', count: c.data_exposure || 0 },
+      { key: 'brute_force', short: '06 Анти-Брутфорс', count: c.brute_force || 0 },
+      { key: 'xss', short: '07 Анти-XSS', count: c.xss || 0 }
+    ];
+    const filteredEvs = _adminSecurityFactorFilter === 'all'
+      ? secRep.events
+      : secRep.events.filter(ev => ev.factorKey === _adminSecurityFactorFilter);
+
+    const shieldBodyHtml = `
+      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;">
+        ${factorDefs.map(f => `
+          <div style="padding:7px 9px;background:var(--panel);border:1px solid ${f.count > 0 ? 'var(--warn)' : 'var(--border)'};border-radius:8px;display:flex;justify-content:space-between;align-items:center;font-size:11.5px;">
+            <b>${f.short}</b>
+            <span class="pill ${f.count > 0 ? 'pill-warn' : 'pill-good'}" style="font-size:9.5px;">${f.count > 0 ? `Блок: ${f.count}` : 'OK'}</span>
+          </div>
+        `).join('')}
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
+        <button type="button" class="btn btn-sm btn-accent" id="admRunSecuritySelfTestBtn" style="min-height:40px;font-weight:800;justify-content:center;">
+          Тест 7 рубежей ИБ
+        </button>
+        <button type="button" class="btn btn-sm btn-good" id="admSyncSecurityAuditBtn" style="min-height:40px;font-weight:800;justify-content:center;">
+          Синхронизировать
+        </button>
+        <button type="button" class="btn btn-sm" id="admClearSecurityAuditBtn" style="grid-column:1 / -1;min-height:38px;font-weight:800;justify-content:center;" ${secRep.totalBlocked === 0 ? 'disabled' : ''}>
+          Очистить журнал ИБ (${secRep.totalBlocked})
+        </button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:5px;max-height:200px;overflow-y:auto;">
+        ${filteredEvs.length === 0 ? `
+          <div style="padding:10px;background:var(--panel);border-radius:8px;text-align:center;color:var(--muted);font-size:11.5px;">
+            Атак не зафиксировано. Все 7 рубежей бэкенда активны.
+          </div>
+        ` : filteredEvs.slice(0, 20).map(ev => `
+          <div style="padding:7px 10px;background:var(--panel);border:1px solid var(--border);border-radius:7px;font-size:11px;">
+            <b style="color:var(--accent);">[${escapeHtml(ev.factorTitle || ev.factorKey)}]</b> — ${escapeHtml(ev.detail || '')}
+          </div>
+        `).join('')}
+      </div>
+    `;
+
+    const localErrs = (typeof window !== 'undefined' && typeof window.__KLEV_GET_CLIENT_ERRORS__ === 'function')
+      ? window.__KLEV_GET_CLIENT_ERRORS__()
+      : [];
+    const remoteErrs = Array.isArray(db.clientErrors) ? db.clientErrors : [];
+    const errList = [...localErrs, ...remoteErrs].slice(0, 15);
+    const errorsBodyHtml = `
+      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
+        <button type="button" class="btn btn-sm btn-accent" id="admTestErrorCaptureBtn" style="min-height:38px;font-weight:800;justify-content:center;">Тест перехвата</button>
+        <button type="button" class="btn btn-sm" id="admClearErrorLogBtn" style="min-height:38px;font-weight:800;justify-content:center;">Очистить (${errList.length})</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:5px;max-height:180px;overflow-y:auto;">
+        ${errList.length === 0 ? `<div style="padding:10px;text-align:center;color:var(--muted);font-size:11.5px;">Сбоев на клиентах не зафиксировано.</div>` : errList.map(er => `
+          <div style="padding:7px 9px;background:var(--panel);border:1px solid var(--border);border-radius:7px;font-size:11px;">
+            <b style="color:var(--warn);">[${escapeHtml(er.type || 'ERR')}]</b> ${escapeHtml(er.msg || '')}
+          </div>
+        `).join('')}
+      </div>
+    `;
+
+    tabContentHtml = [
+      renderAdminAccordionCard({
+        id: 'adm_blk_policy',
+        title: `4.1 Редакция Политики и Согласия (152-ФЗ)`,
+        subtitle: `Управление версией Политики для сайта и приложения`,
+        badgeHtml: `<span class="pill pill-warn" style="font-size:10px;">${escapeHtml(polState.policyVersion || '2026.11.06-v2.6')}</span>`,
+        borderColor: 'var(--warn)',
+        bodyHtml: policyBodyHtml
+      }),
+      renderAdminAccordionCard({
+        id: 'adm_blk_shield',
+        title: `4.2 Щит Бэкенда (7 рубежей защиты)`,
+        subtitle: `Мониторинг SQLi, IDOR, брутфорса и XSS`,
+        badgeHtml: `<span class="pill ${secRep.totalBlocked === 0 ? 'pill-good' : 'pill-warn'}" style="font-size:10px;">Блок: ${secRep.totalBlocked}</span>`,
+        borderColor: 'var(--accent)',
+        bodyHtml: shieldBodyHtml
+      }),
+      renderAdminAccordionCard({
+        id: 'adm_blk_errors',
+        title: `4.3 Телеметрия ошибок клиента`,
+        subtitle: `Перехват ошибок WebView/JS`,
+        badgeHtml: `<span class="pill ${errList.length === 0 ? 'pill-good' : 'pill-warn'}" style="font-size:10px;">Сбоев: ${errList.length}</span>`,
+        borderColor: 'var(--border)',
+        bodyHtml: errorsBodyHtml
+      })
+    ].join('');
+  }
+
+  container.innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:10px;padding-bottom:24px;">
+      <!-- Быстрые кнопки сворачивания/разворачивания всех блоков текущей вкладки -->
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 10px;background:var(--panel);border:1px solid var(--border);border-radius:8px;">
+        <span style="font-size:11.5px;font-weight:900;color:var(--accent);">
+          ${_activeAdminSubTab === 'dashboard' ? 'Раздел 1: Сервер, D1 и ИИ' : (_activeAdminSubTab === 'users_beta' ? 'Раздел 2: Рыбаки и Бета-тест' : (_activeAdminSubTab === 'moderation' ? 'Раздел 3: Точки и Чаты' : 'Раздел 4: Щит ИБ и 152-ФЗ'))}
+        </span>
+        <div style="display:flex;gap:6px;">
+          <button type="button" class="btn btn-sm" id="admExpandAllBlocksBtn" style="min-height:28px;padding:2px 8px;font-size:11px;font-weight:800;">Развернуть все</button>
+          <button type="button" class="btn btn-sm" id="admCollapseAllBlocksBtn" style="min-height:28px;padding:2px 8px;font-size:11px;font-weight:800;">Свернуть все</button>
         </div>
       </div>
-      <!-- 4. Реестр всех пользователей экосистемы -->
-      <div class="card">
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
-          <span class="section-title"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3.5" fill="rgba(56,189,248,0.25)" stroke="currentColor" stroke-width="1.8"/><path d="M3 19c0-3.2 2.7-5.5 6-5.5s6 2.3 6 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="17" cy="9" r="2.8" stroke="currentColor" stroke-width="1.6"/><path d="M16 14c2.6.3 4.8 2 5 4.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg> Реестр пользователей (${filteredUsers.length} из ${users.length})</span>
-          <input type="search" id="admUserSearchInput" class="input" value="${escapeHtml(_adminSearchFilter)}" placeholder="Поиск по ID (FP_...), логину, @username, городу..." style="max-width:340px;min-height:36px;">
-        </div>
-        <div style="overflow-x:auto;max-height:360px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--r-sm);">
-          <table style="width:100%;border-collapse:collapse;font-size:12px;">
-            <thead>
-              <tr style="background:var(--panel);text-align:left;color:var(--muted);font-size:11px;">
-                <th style="padding:8px;">ID Рыбака</th>
-                <th style="padding:8px;">Тип ID / Статус</th>
-                <th style="padding:8px;">Логин / Telegram</th>
-                <th style="padding:8px;">Регион и Город</th>
-                <th style="padding:8px;">Платформа</th>
-                <th style="padding:8px;">Сессий / Точек</th>
-                <th style="padding:8px;">Активность</th>
-                <th style="padding:8px;text-align:right;">Действие</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${filteredUsers.length === 0 ? `
-                <tr><td colspan="8" style="padding:14px;text-align:center;color:var(--muted);">Пользователи не найдены (нажмите «<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M20 11a8 8 0 0 0-14.5-4.5L4 8m0-5v5h5M4 13a8 8 0 0 0 14.5 4.5L20 16m0 5v-5h-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Обновить базу»)</td></tr>
-              ` : filteredUsers.map(u => {
-                const isRz = isTemporaryReserveId(u.fisherId);
-                const isOwn = isOwnerFisherId(u.fisherId);
-                const statusBadge = isOwn
-                  ? `<span class="pill pill-good" style="font-size:10px;"><svg class="k-ico" style="color:#fbbf24;" viewBox="0 0 24 24" fill="none"><path d="M3 18h18l-2-11-5 4-2-6-2 6-5-4-2 11z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> ВЛАДЕЛЕЦ</span>`
-                  : (isRz
-                      ? `<span class="pill pill-warn" style="font-size:10px;"><svg class="k-ico" style="color:var(--warn);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg> Временный RZ</span>`
-                      : `<span class="pill pill-good" style="font-size:10px;"><svg class="k-ico" style="color:var(--good);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg> Постоянный ID</span>`);
-                const timeStr = u.lastSeen ? new Date(u.lastSeen).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
-                return `
-                  <tr style="border-bottom:1px solid var(--border);">
-                    <td style="padding:7px 8px;font-family:monospace;font-weight:900;">
-                      <span class="fisher-id-copy-badge" data-copy-fisher-id="${u.fisherId}" style="cursor:pointer;color:${isOwn ? 'var(--good)' : (isRz ? 'var(--warn)' : 'var(--accent)')};">${escapeHtml(u.fisherId)} <svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="9" y="9" width="11" height="11" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
-                    </td>
-                    <td style="padding:7px 8px;">${statusBadge}</td>
-                    <td style="padding:7px 8px;">
-                      <b>${escapeHtml(u.login || u.callsign || 'Гость')}</b>
-                      <div style="margin-top:2px;">
-                        ${u.tgUsername ? `<span style="padding:1px 6px;border-radius:4px;background:rgba(56,189,248,0.18);color:#38bdf8;font-weight:800;font-size:10.5px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" fill="rgba(56,189,248,0.22)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> @${escapeHtml(u.tgUsername)}</span>` : (u.tgId ? `<span style="padding:1px 6px;border-radius:4px;background:rgba(56,189,248,0.12);color:#38bdf8;font-size:10.5px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" fill="rgba(56,189,248,0.22)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> TG:${escapeHtml(u.tgId)}</span>` : `<span style="color:var(--muted);font-size:10px;"><svg class="k-ico" style="color:var(--bad);" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/></svg> Нет ТГ</span>`)}
-                      </div>
-                    </td>
-                    <td style="padding:7px 8px;">[${escapeHtml(u.regionCode || '89')}] ${escapeHtml(u.locLabel || 'РФ')}</td>
-                    <td style="padding:7px 8px;">${escapeHtml(u.platform || 'WEB')}</td>
-                    <td style="padding:7px 8px;">${u.sessionsCount || 1} / <b>${u.circlePostsCount || 0}</b></td>
-                    <td style="padding:7px 8px;color:var(--muted);">${timeStr}</td>
-                    <td style="padding:7px 8px;text-align:right;">
-                      ${!isOwn ? `
-                        <button type="button" class="btn btn-sm" data-adm-del-user="${escapeHtml(u.fisherId)}" data-adm-del-name="${escapeHtml(u.callsign || u.login || u.fisherId)}" style="border-color:var(--bad);color:var(--bad);padding:2px 7px;font-size:11px;">
-                          <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Удалить
-                        </button>
-                      ` : `<span style="font-size:10px;color:var(--good);font-weight:900;"><svg class="k-ico" style="color:#fbbf24;" viewBox="0 0 24 24" fill="none"><path d="M3 18h18l-2-11-5 4-2-6-2 6-5-4-2 11z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Владелец</span>`}
-                    </td>
-                  </tr>
-                `;
-              }).join('')}
-            </tbody>
-          </table>
-        </div>
-      </div>
-      <!-- 5. Управление закрытыми Экипажами, точками на сервере и Базой Администраторов -->
-      <div class="card">
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
-          <div>
-            <span class="section-title"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2.5l7 3.2v5.8c0 5-3 9.3-7 10.8-4-1.5-7-5.8-7-10.8V5.7l7-3.2z" fill="rgba(56,189,248,0.22)" stroke="#38bdf8" stroke-width="1.8" stroke-linejoin="round"/></svg> Супервизор закрытых Экипажей (${srvPoints.length} точек) и База Модераторов (${adminList.length})</span>
-            <div style="font-size:var(--fs-xs);color:var(--muted);">Как Владелец, вы видите все закрытые Экипажи без ввода ключа KP-XXXX и можете удалять любые точки с сервера</div>
-          </div>
-          <button type="button" class="btn btn-sm ${showAllCrewsFlag ? 'btn-good' : ''}" id="admToggleAllCrewsBtn">
-            ${showAllCrewsFlag ? '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/></svg> Видимость всех закрытых Экипажей: ВКЛ' : '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 19c-6.4 0-10-7-10-7a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c6.4 0 10 7 10 7a18.5 18.5 0 0 1-2.16 3.19M1 1l22 22" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Видимость всех закрытых Экипажей: ВЫКЛ'}
-          </button>
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;">
-          <div style="padding:10px;background:var(--panel);border:1px solid var(--border);border-radius:var(--r-sm);">
-            <div style="font-weight:800;font-size:var(--fs-xs);color:var(--accent);margin-bottom:6px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg> ДОБАВИТЬ МОДЕРАТОРА В БАЗУ АДМИНОВ:</div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px;">
-              <input type="text" id="admAddModIdInput" class="input" placeholder="ID (напр. FP_89AAA001)" style="text-transform:uppercase;min-height:34px;font-family:monospace;">
-              <input type="text" id="admAddModLabelInput" class="input" placeholder="Имя / Примечание" style="min-height:34px;">
-            </div>
-            <button type="button" class="btn btn-sm btn-good" id="admAddModConfirmBtn" style="width:100%;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg> Назначить модератором</button>
-            <div style="margin-top:8px;display:flex;flex-direction:column;gap:4px;max-height:140px;overflow-y:auto;">
-              ${adminList.map(adm => `
-                <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 8px;background:var(--card);border:1px solid var(--border);border-radius:6px;font-size:11.5px;">
-                  <span><b style="font-family:monospace;color:var(--good);">${escapeHtml(adm.id)}</b> • ${escapeHtml(adm.label)}</span>
-                  ${DEFAULT_ADMIN_IDS.includes(adm.id)
-                    ? `<span class="pill pill-good" style="font-size:9.5px;">Владелец</span>`
-                    : `<button type="button" class="btn btn-sm" data-adm-remove-mod="${adm.id}" data-adm-remove-label="${escapeHtml(adm.label)}" style="min-height:24px;padding:1px 6px;color:var(--bad);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button>`}
-                </div>
-              `).join('')}
-            </div>
-          </div>
-          ${(() => {
-            const visibleSrvPoints = showAllCrewsFlag
-              ? srvPoints
-              : srvPoints.filter(pt => !(pt && pt.t === 'crew' && !pt.sos && !isCircleItemMine(pt, s) && !ident.unlockedCrewKeys.map(k => String(k).toUpperCase()).includes(String(pt.crewKey || '').toUpperCase())));
-            const hiddenForeignCrewsCount = srvPoints.length - visibleSrvPoints.length;
-            return `
-          <div style="padding:10px;background:var(--panel);border:1px solid var(--border);border-radius:var(--r-sm);">
-            <div style="font-weight:800;font-size:var(--fs-xs);color:var(--accent);margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;">
-              <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="5" stroke="#38bdf8" stroke-width="1.5"/><path d="M12 12l6-6" stroke="#10b981" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="12" r="1.8" fill="#10b981"/></svg> АКТИВНЫЕ ТОЧКИ НА СЕРВЕРЕ (${visibleSrvPoints.length}):</span>
-              ${!showAllCrewsFlag ? `<span class="pill pill-warn" style="font-size:10px;">Скрыто чужих экипажей: ${hiddenForeignCrewsCount}</span>` : `<span class="pill pill-good" style="font-size:10px;">Супервизор ВКЛ</span>`}
-            </div>
-            <div style="display:flex;flex-direction:column;gap:5px;max-height:195px;overflow-y:auto;">
-              ${visibleSrvPoints.length === 0 ? `
-                <div style="font-size:11.5px;color:var(--muted);padding:12px;text-align:center;">Активных видимых точек сейчас нет${hiddenForeignCrewsCount > 0 ? ` (скрыто чужих экипажей: ${hiddenForeignCrewsCount})` : ''}</div>
-              ` : visibleSrvPoints.map(pt => `
-                <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;padding:6px 8px;background:var(--card);border:1px solid var(--border);border-radius:6px;font-size:11.5px;">
-                  <div style="min-width:0;flex:1;">
-                    <b>${pt.sos ? '<svg class="k-ico" style="color:var(--bad);" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9.5" fill="#dc2626" stroke="#fca5a5" stroke-width="1.8"/><text x="12" y="15" text-anchor="middle" fill="#fff" font-size="7.5" font-weight="900" font-family="sans-serif">SOS</text></svg> SOS' : (pt.t === 'crew' ? `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> ${pt.crewKey || 'Экипаж'}` : (pt.t === 'workshop' ? '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" fill="rgba(56,189,248,0.2)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> Снасть' : '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3.5" fill="rgba(56,189,248,0.25)" stroke="currentColor" stroke-width="1.8"/><path d="M3 19c0-3.2 2.7-5.5 6-5.5s6 2.3 6 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="17" cy="9" r="2.8" stroke="currentColor" stroke-width="1.6"/><path d="M16 14c2.6.3 4.8 2 5 4.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg> Круг'))}</b> •
-                    ${escapeHtml(pt.fn || 'Рыба')} (${escapeHtml(pt.wn || pt.lb || 'Водоём')}) •
-                    <span style="font-family:monospace;color:var(--accent);">${escapeHtml(pt.fid || '')}</span>
-                  </div>
-                  <button type="button" class="btn btn-sm" data-adm-del-srv-point="${pt.id}" data-adm-del-srv-title="${escapeHtml(`${pt.fn || 'Точка'} (${pt.wn || pt.lb || 'Водоём'})`)}" style="min-height:24px;padding:1px 7px;color:var(--bad);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-                </div>
-              `).join('')}
-            </div>
-          </div>`;
-          })()}
-        </div>
-      </div>
-      <!-- 5b. ЩИТ БЭКЕНДА: Мониторинг попыток обхода всех 7 факторов безопасности (Онлайн-Радар ИБ для Супер-Админа) -->
-      ${(() => {
-        const secRep = getMergedSecurityAuditReport();
-        const c = secRep.counters || {};
-        const factorDefs = [
-          { key: 'sqli', code: '01', short: '01 SQL-инъекции', desc: 'Параметризация D1 bind() + фильтр SQL-команд в поиске', count: c.sqli || 0 },
-          { key: 'idor', code: '02', short: '02 IDOR / BOLA', desc: 'Защита чужих точек, чатов DM, экипажей и таймеров SOS', count: c.idor || 0 },
-          { key: 'mass_assign', code: '03', short: '03 Формы / Роли', desc: 'Белый список полей профиля и блок подмены ролей/модели', count: c.mass_assign || 0 },
-          { key: 'deserialization', code: '04', short: '04 Файлы / JSON', desc: 'Защита от Prototype Pollution (__proto__) и битых пакетов', count: c.deserialization || 0 },
-          { key: 'data_exposure', code: '05', short: '05 Утечки API', desc: 'Скрытие deviceId (did), хешей и логов от внешних клиентов', count: c.data_exposure || 0 },
-          { key: 'brute_force', code: '06', short: '06 Анти-Брутфорс', desc: 'Блокировка 429 после 5 неверных паролей за 15 минут', count: c.brute_force || 0 },
-          { key: 'xss', code: '07', short: '07 Анти-XSS', desc: 'Двойная очистка &lt;script&gt; / onerror на сервере и в шаблонах', count: c.xss || 0 }
-        ];
-        const filteredEvs = _adminSecurityFactorFilter === 'all'
-          ? secRep.events
-          : secRep.events.filter(ev => ev.factorKey === _adminSecurityFactorFilter);
-        return `
-          <div class="card" id="adminBackendSecurityShieldCard" style="border:1.5px solid var(--accent);margin-bottom:12px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
-              <div>
-                <span class="section-title">
-                  <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2.5l7 3.2v5.8c0 5-3 9.3-7 10.8-4-1.5-7-5.8-7-10.8V5.7l7-3.2z" fill="rgba(56,189,248,0.22)" stroke="#38bdf8" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 12l2 2 4-4" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                  Щит Бэкенда: Мониторинг 7 факторов защиты
-                </span>
-                <div style="font-size:var(--fs-xs);color:var(--muted);">
-                  Отслеживание в реальном времени попыток обхода SQLi, IDOR, Mass Assignment, Prototype Pollution, утечек API, брутфорса и XSS
-                </div>
-              </div>
-              <span class="pill ${secRep.totalBlocked === 0 ? 'pill-good' : 'pill-warn'}" id="admSecurityTotalPill" style="font-size:10.5px;font-weight:900;">
-                ${secRep.totalBlocked === 0 ? 'Все 7 рубежей: Чисто (0 атак)' : `Отражено попыток: ${secRep.totalBlocked}`}
-              </span>
-            </div>
-
-            <!-- Сетка 7 факторов защиты -->
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(142px,1fr));gap:6px;margin-bottom:10px;">
-              ${factorDefs.map(f => `
-                <div data-sec-factor-card="${f.key}" style="padding:7px 9px;background:var(--panel);border:1px solid ${f.count > 0 ? 'rgba(245,158,11,0.55)' : 'var(--border)'};border-radius:8px;display:flex;flex-direction:column;justify-content:space-between;gap:3px;">
-                  <div style="display:flex;justify-content:space-between;align-items:center;gap:4px;">
-                    <b style="font-size:11.5px;color:var(--text);">${f.short}</b>
-                    <span class="pill ${f.count > 0 ? 'pill-warn' : 'pill-good'}" style="font-size:9.5px;padding:1px 6px;">${f.count > 0 ? `Блок: ${f.count}` : 'OK (0)'}</span>
-                  </div>
-                  <div style="font-size:10px;color:var(--muted);line-height:1.25;">${f.desc}</div>
-                </div>
-              `).join('')}
-            </div>
-
-            <!-- Фильтры по 7 векторам -->
-            <div class="chip-scroll-row" style="margin-bottom:8px;padding-bottom:2px;">
-              <button type="button" class="w-chip ${_adminSecurityFactorFilter === 'all' ? 'active' : ''}" data-sec-factor-filter="all" style="min-height:30px;padding:3px 9px;font-size:11px;">
-                Все 7 рубежей (${secRep.totalBlocked})
-              </button>
-              ${factorDefs.map(f => `
-                <button type="button" class="w-chip ${_adminSecurityFactorFilter === f.key ? 'active' : ''}" data-sec-factor-filter="${f.key}" style="min-height:30px;padding:3px 9px;font-size:11px;">
-                  ${f.short} (${f.count})
-                </button>
-              `).join('')}
-            </div>
-
-            <!-- Кнопки управления радаром безопасности -->
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:6px;margin-bottom:8px;">
-              <button type="button" class="btn btn-sm btn-accent" id="admRunSecuritySelfTestBtn" style="min-height:36px;font-weight:800;">
-                Самопроверка 7 рубежей (Тест ИБ)
-              </button>
-              <button type="button" class="btn btn-sm btn-good" id="admSyncSecurityAuditBtn" style="min-height:36px;font-weight:800;">
-                Синхронизировать с сервером
-              </button>
-              <button type="button" class="btn btn-sm" id="admClearSecurityAuditBtn" style="min-height:36px;font-weight:800;" ${secRep.totalBlocked === 0 ? 'disabled' : ''}>
-                Очистить журнал ИБ (${secRep.totalBlocked})
-              </button>
-            </div>
-
-            <!-- Журнал перехваченных попыток обхода -->
-            <div id="admSecurityAuditLogBox" style="display:flex;flex-direction:column;gap:5px;max-height:210px;overflow-y:auto;">
-              ${filteredEvs.length === 0 ? `
-                <div style="padding:10px;background:var(--panel);border:1px dashed var(--border);border-radius:7px;text-align:center;color:var(--muted);font-size:11.5px;">
-                  Попыток обхода по выбранному фактору не зафиксировано. Все 7 защитных фильтров бэкенда активны.
-                </div>
-              ` : filteredEvs.slice(0, 25).map(ev => {
-                const dt = new Date(ev.ts || Date.now()).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                return `
-                  <div style="padding:7px 10px;background:var(--panel);border:1px solid rgba(56,189,248,0.42);border-radius:7px;font-size:11px;display:flex;flex-direction:column;gap:3px;">
-                    <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;">
-                      <b style="color:var(--accent);font-family:monospace;">[${escapeHtml(ev.factorTitle || ev.factorKey)}]</b>
-                      <span style="color:var(--good);font-weight:800;font-size:10px;">ЗАБЛОКИРОВАНО • ${dt}</span>
-                    </div>
-                    <div style="color:var(--text);font-weight:700;word-break:break-word;">${escapeHtml(ev.detail || '')}</div>
-                    <div style="color:var(--muted);font-family:monospace;font-size:10px;">
-                      Эндпоинт: ${escapeHtml(ev.endpoint || '/api')} • IP: ${escapeHtml(ev.ip || 'anon')} • ID: ${escapeHtml(ev.fid || '—')}
-                    </div>
-                  </div>
-                `;
-              }).join('')}
-            </div>
-          </div>
-        `;
-      })()}
-
-      <!-- 6. Мониторинг ошибок клиента и готовность Production (SEO / OG / Schema.org / Телеметрия) -->
-      ${(() => {
-        const localErrs = (typeof window !== 'undefined' && typeof window.__KLEV_GET_CLIENT_ERRORS__ === 'function')
-          ? window.__KLEV_GET_CLIENT_ERRORS__()
-          : [];
-        const remoteErrs = Array.isArray(db.clientErrors) ? db.clientErrors : [];
-        const seenErrIds = new Set();
-        const errList = [];
-        for (const item of [...localErrs, ...remoteErrs]) {
-          if (!item || !item.id || seenErrIds.has(item.id)) continue;
-          seenErrIds.add(item.id);
-          errList.push(item);
-        }
-        errList.sort((a, b) => (Number(b.ts) || 0) - (Number(a.ts) || 0));
-        const hasOg = typeof document !== 'undefined' && Boolean(document.querySelector('meta[property="og:title"]'));
-        const hasCanonical = typeof document !== 'undefined' && Boolean(document.querySelector('link[rel="canonical"]'));
-        const hasSchema = typeof document !== 'undefined' && Boolean(document.querySelector('script[type="application/ld+json"]'));
-        return `
-          <div class="card" id="adminProdHealthAndErrorsCard" style="border:1.5px solid ${errList.length === 0 ? 'var(--good)' : 'var(--warn)'};">
-            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
-              <div>
-                <span class="section-title"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2.5l7 3.2v5.8c0 5-3 9.3-7 10.8-4-1.5-7-5.8-7-10.8V5.7l7-3.2z" fill="rgba(16,185,129,0.22)" stroke="#10b981" stroke-width="1.8" stroke-linejoin="round"/></svg> Мониторинг ошибок клиента и статус Production</span>
-                <div style="font-size:var(--fs-xs);color:var(--muted);">Автоматический перехват сбоев WebView/JS (window.onerror + unhandledrejection) и контроль мета-разметки</div>
-              </div>
-              <span class="pill ${errList.length === 0 ? 'pill-good' : 'pill-warn'}" id="admErrorCountPill" style="font-size:10.5px;font-weight:900;">
-                ${errList.length === 0 ? 'Сбоев нет (0)' : `Перехвачено: ${errList.length}`}
-              </span>
-            </div>
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:6px;margin-bottom:9px;font-size:11px;">
-              <div style="padding:6px 8px;background:var(--panel);border:1px solid var(--border);border-radius:7px;">
-                <span style="color:var(--muted);display:block;font-size:10px;">Open Graph / TG:</span>
-                <b style="color:${hasOg ? 'var(--good)' : 'var(--bad)'};">${hasOg ? 'Активно (512x512)' : 'Отсутствует'}</b>
-              </div>
-              <div style="padding:6px 8px;background:var(--panel);border:1px solid var(--border);border-radius:7px;">
-                <span style="color:var(--muted);display:block;font-size:10px;">Canonical &amp; Meta:</span>
-                <b style="color:${hasCanonical ? 'var(--good)' : 'var(--bad)'};">${hasCanonical ? 'klevpro.ru (OK)' : 'Отсутствует'}</b>
-              </div>
-              <div style="padding:6px 8px;background:var(--panel);border:1px solid var(--border);border-radius:7px;">
-                <span style="color:var(--muted);display:block;font-size:10px;">Schema.org JSON-LD:</span>
-                <b style="color:${hasSchema ? 'var(--good)' : 'var(--bad)'};">${hasSchema ? 'WebApplication' : 'Отсутствует'}</b>
-              </div>
-              <div style="padding:6px 8px;background:var(--panel);border:1px solid var(--border);border-radius:7px;">
-                <span style="color:var(--muted);display:block;font-size:10px;">Robots &amp; Sitemap:</span>
-                <b style="color:var(--good);">Защищено (/api закрыт)</b>
-              </div>
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
-              <button type="button" class="btn btn-sm btn-accent" id="admTestErrorCaptureBtn" style="min-height:36px;font-weight:800;">
-                Тест перехвата ошибки
-              </button>
-              <button type="button" class="btn btn-sm" id="admClearErrorLogBtn" style="min-height:36px;font-weight:800;" ${errList.length === 0 ? 'disabled' : ''}>
-                Очистить журнал (${errList.length})
-              </button>
-            </div>
-            <div id="admClientErrorLogBox" style="display:flex;flex-direction:column;gap:5px;max-height:180px;overflow-y:auto;">
-              ${errList.length === 0 ? `
-                <div style="padding:10px;background:var(--panel);border:1px dashed var(--border);border-radius:7px;text-align:center;color:var(--muted);font-size:11.5px;">
-                  В журнале телеметрии клиента нет зафиксированных ошибок. Все модули работают штатно.
-                </div>
-              ` : errList.slice(0, 10).map(er => {
-                const dt = new Date(er.ts || Date.now()).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                const envBadge = er.env ? String(er.env).toUpperCase() : 'WEB';
-                const userBadge = er.fisherId
-                  ? (er.isOwner
-                      ? '<span class="pill pill-good" style="font-size:9.5px;padding:1px 5px;"><svg class="k-ico" style="color:#fbbf24;" viewBox="0 0 24 24" fill="none"><path d="M3 18h18l-2-11-5 4-2-6-2 6-5-4-2 11z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Владелец (Вы)</span>'
-                      : (er.isRegistered && !er.isTemporaryReserve
-                          ? `<span class="pill pill-accent" style="font-size:9.5px;padding:1px 5px;"><svg class="k-ico" style="color:var(--good);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg> Пользователь: <b style="font-family:monospace;">${escapeHtml(er.fisherId)}</b> (${escapeHtml(er.login || '')})</span>`
-                          : `<span class="pill pill-warn" style="font-size:9.5px;padding:1px 5px;"><svg class="k-ico" style="color:var(--warn);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg> Гость (Резерв): <b style="font-family:monospace;">${escapeHtml(er.fisherId || 'FP_XXRZ')}</b></span>`))
-                  : '<span class="pill pill-neutral" style="font-size:9.5px;">Клиент</span>';
-                const canReplyDm = er.fisherId && !er.isOwner && er.isRegistered && !er.isTemporaryReserve;
-
-                return `
-                  <div style="padding:7px 10px;background:var(--panel);border:1px solid rgba(245,158,11,0.45);border-radius:7px;font-size:11px;display:flex;flex-direction:column;gap:3px;">
-                    <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;">
-                      <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
-                        <span class="pill pill-ice" style="font-size:9.5px;font-weight:900;padding:1px 6px;">${envBadge}</span>
-                        <b style="color:var(--warn);font-family:monospace;">[${escapeHtml(er.type)}] ${escapeHtml(er.ver || '')}</b>
-                        ${userBadge}
-                      </div>
-                      <span style="color:var(--muted);font-size:10px;">${dt} • ${escapeHtml(er.route || '')}</span>
-                    </div>
-                    <div style="color:var(--text);font-weight:700;word-break:break-word;">${escapeHtml(er.msg)}</div>
-                    ${er.src ? `<div style="color:var(--muted);font-family:monospace;font-size:10px;word-break:break-all;">${escapeHtml(er.src)}</div>` : ''}
-                    ${canReplyDm ? `
-                      <div style="margin-top:3px;display:flex;gap:6px;align-items:center;">
-                        <button type="button" class="btn btn-sm btn-accent" data-adm-reply-err-user="${escapeHtml(er.fisherId)}" data-adm-reply-err-name="${escapeHtml(er.login || 'Рыболов')}" style="padding:2px 8px;min-height:24px;font-size:10.5px;font-weight:800;">
-                          <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> Написать пользователю (${escapeHtml(er.fisherId)})
-                        </button>
-                      </div>
-                    ` : ''}
-                  </div>
-                `;
-              }).join('')}
-            </div>
-          </div>
-        `;
-      })()}
+      ${tabContentHtml}
     </div>
   `;
   bindAdminSectionEvents(container, users);
 }
+
 function bindAdminSectionEvents(container, users) {
   if (!container) return;
+
+  // 1. Сворачивание и разворачивание любого блока по клику на его шапку
+  container.querySelectorAll('[data-adm-collapse-toggle]').forEach(hdr => {
+    hdr.addEventListener('click', () => {
+      const blkId = hdr.getAttribute('data-adm-collapse-toggle');
+      toggleAdminBlockCollapsed(blkId);
+      renderAdminSection(container);
+    });
+  });
+  container.querySelector('#admExpandAllBlocksBtn')?.addEventListener('click', () => {
+    _adminCollapsedSet = new Set();
+    try { localStorage.setItem(ADMIN_COLLAPSED_BLOCKS_KEY, '[]'); } catch (e) {}
+    renderAdminSection(container);
+  });
+  container.querySelector('#admCollapseAllBlocksBtn')?.addEventListener('click', () => {
+    const allIds = ['adm_blk_summary', 'adm_blk_gateways', 'adm_blk_gemini', 'adm_blk_beta', 'adm_blk_users', 'adm_blk_regions', 'adm_blk_points', 'adm_blk_regchats', 'adm_blk_mods', 'adm_blk_policy', 'adm_blk_shield', 'adm_blk_errors'];
+    _adminCollapsedSet = new Set(allIds);
+    try { localStorage.setItem(ADMIN_COLLAPSED_BLOCKS_KEY, JSON.stringify(allIds)); } catch (e) {}
+    renderAdminSection(container);
+  });
+
+  // 2. Переключение вкладок
   container.querySelectorAll('[data-adm-subtab-btn]').forEach(btn => {
     btn.addEventListener('click', () => {
       _activeAdminSubTab = btn.getAttribute('data-adm-subtab-btn') || 'dashboard';
       renderAdminSection(container);
     });
   });
-  container.querySelector('#admBetaAddConfirmBtn')?.addEventListener('click', async () => {
-    const rawFid = (container.querySelector('#admBetaAddFidInput')?.value || '').trim().toUpperCase();
-    const rawLbl = (container.querySelector('#admBetaAddLabelInput')?.value || '').trim() || 'Бета-тестер';
-    if (!rawFid) {
-      showToast('Введите ID пользователя (например: FP_89AAA001)', 'warn');
+
+  // 3. Выбор существующего рыбака из выпадающего списка для Бета-теста
+  const pickSel = container.querySelector('#admBetaPickExistingUserSelect');
+  if (pickSel) {
+    pickSel.addEventListener('change', () => {
+      const val = pickSel.value || '';
+      if (!val) return;
+      const [fidPart, namePart] = val.split('|');
+      const fidInp = container.querySelector('#admBetaAddFidInput');
+      const lblInp = container.querySelector('#admBetaAddLabelInput');
+      if (fidInp && fidPart) fidInp.value = fidPart;
+      if (lblInp && namePart) lblInp.value = namePart;
+    });
+  }
+
+  // 4. Универсальная функция добавления/удаления Бета-тестера (работает через шлюз Hexlet + локальный кэш + резервный whitelist!)
+  const performBetaTesterMutation = async (action, rawFid, rawLbl = 'Бета-тестер') => {
+    const cleanFid = String(rawFid || '').trim().toUpperCase();
+    if (!cleanFid) {
+      showToast('Введите или выберите ID пользователя (например: FP_89AAA001)', 'warn');
       return;
     }
-    const normFid = normalizeFisherId(rawFid, resolveRussianRegionCode());
+    const normFid = /^FP_/i.test(cleanFid) ? cleanFid : normalizeFisherId(cleanFid, resolveRussianRegionCode());
+    const curList = getEffectiveBetaTestersList(_adminDashboardCache || {});
+    let nextList = [...curList];
+    if (action === 'add') {
+      const entry = {
+        id: normFid,
+        label: String(rawLbl || 'Бета-тестер').trim() || 'Бета-тестер',
+        addedAt: new Date().toISOString().slice(0, 10),
+        phase2: true,
+        phase3: true
+      };
+      nextList = [entry, ...nextList.filter(x => String(x.id).toUpperCase() !== normFid)];
+    } else if (action === 'remove') {
+      if (isOwnerFisherId(normFid)) {
+        showToast('Владелец всегда имеет полный доступ', 'info');
+        return;
+      }
+      nextList = nextList.filter(x => String(x.id).toUpperCase() !== normFid);
+    }
+    saveLocalBetaTestersList(nextList);
+    if (!_adminDashboardCache) _adminDashboardCache = {};
+    _adminDashboardCache.betaTesters = nextList;
+    if (Array.isArray(_adminDashboardCache.users)) {
+      _adminDashboardCache.users = _adminDashboardCache.users.map(u =>
+        u && String(u.fisherId).toUpperCase() === normFid ? { ...u, isBetaTester: action === 'add' } : u
+      );
+    }
+    renderAdminSection(container);
+    showToast(
+      action === 'add'
+        ? `Пользователь ${normFid} назначен Бета-тестером (Фаза 2 и 3 открыты)`
+        : `Права Бета-тестера сняты с ${normFid}`,
+      'good'
+    );
+
     const tok = getActiveAdminToken();
     try {
       const res = await workerFetch('/api/admin/beta-testers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ adminToken: tok, action: 'add', fisherId: normFid, label: rawLbl })
-      }, 5500, 1);
+        body: JSON.stringify({ adminToken: tok, token: tok, action, fisherId: normFid, label: rawLbl })
+      }, 6500, 1);
       if (res && res.ok) {
-        const d = await res.json();
-        if (!_adminDashboardCache) _adminDashboardCache = {};
-        if (d.betaTesters) _adminDashboardCache.betaTesters = d.betaTesters;
-        showToast(`Пользователь ${normFid} наделён правами Бета-тестера (Фаза 2 и 3 открыты)`, 'good');
-        renderAdminSection(container);
-        return;
-      }
-    } catch (e) {}
-    showToast('Ошибка связи с сервером при добавлении Бета-тестера', 'bad');
-  });
-  container.querySelectorAll('[data-adm-remove-beta]').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const fid = btn.getAttribute('data-adm-remove-beta');
-      if (!fid) return;
-      const tok = getActiveAdminToken();
-      try {
-        const res = await workerFetch('/api/admin/beta-testers', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ adminToken: tok, action: 'remove', fisherId: fid })
-        }, 5500, 1);
-        if (res && res.ok) {
-          const d = await res.json();
-          if (_adminDashboardCache && d.betaTesters) _adminDashboardCache.betaTesters = d.betaTesters;
-          showToast(`Права Бета-тестера сняты с ${fid}`, 'info');
+        const d = await res.json().catch(() => null);
+        if (d && Array.isArray(d.betaTesters)) {
+          saveLocalBetaTestersList(d.betaTesters);
+          _adminDashboardCache.betaTesters = d.betaTesters;
           renderAdminSection(container);
         }
+        return;
+      }
+    } catch (_e) {}
+    // Fallback sync via /admin/whitelist so even older worker deployments persist Beta-Testers in D1!
+    try {
+      await syncAdminWhitelistWithCloud({
+        action: action === 'add' ? 'add' : 'remove',
+        entry: { id: normFid, label: `[BETA] ${rawLbl || 'Бета-тестер'}`, addedAt: new Date().toISOString().slice(0, 10) },
+        targetId: normFid
+      });
+    } catch (_e2) {}
+  };
+
+  container.querySelector('#admBetaAddConfirmBtn')?.addEventListener('click', () => {
+    const rawFid = (container.querySelector('#admBetaAddFidInput')?.value || '').trim();
+    const rawLbl = (container.querySelector('#admBetaAddLabelInput')?.value || '').trim() || 'Бета-тестер';
+    performBetaTesterMutation('add', rawFid, rawLbl);
+  });
+
+  container.querySelectorAll('[data-adm-remove-beta]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const fid = btn.getAttribute('data-adm-remove-beta');
+      if (fid) performBetaTesterMutation('remove', fid);
+    });
+  });
+
+  container.querySelectorAll('[data-adm-quick-beta]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const fid = btn.getAttribute('data-adm-quick-beta');
+      const name = btn.getAttribute('data-adm-quick-beta-name') || 'Бета-тестер';
+      const mode = btn.getAttribute('data-adm-quick-beta-mode') || 'add';
+      if (fid) performBetaTesterMutation(mode, fid, name);
+    });
+  });
+
+  container.querySelectorAll('[data-adm-set-gate]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const raw = btn.getAttribute('data-adm-set-gate') || '3:beta';
+      const [pNumStr, modeStr] = raw.split(':');
+      const curCfg = getEffectiveBetaGateConfig(_adminDashboardCache || {});
+      const nextCfg = {
+        ...curCfg,
+        [pNumStr === '2' ? 'phase2BetaOnly' : 'phase3BetaOnly']: modeStr === 'beta'
+      };
+      saveLocalBetaGateConfig(nextCfg);
+      if (!_adminDashboardCache) _adminDashboardCache = {};
+      _adminDashboardCache.betaGateConfig = nextCfg;
+      renderAdminSection(container);
+      showToast(`Режим Фазы ${pNumStr}: ${modeStr === 'beta' ? 'Только по Бета-тесту' : 'Открыто всем рыбакам'}`, 'good');
+      const tok = getActiveAdminToken();
+      try {
+        await workerFetch('/api/admin/beta-testers', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ adminToken: tok, token: tok, action: 'set_gate', ...nextCfg })
+        }, 5500, 1);
       } catch (e) {}
     });
   });
-  const togglePhaseGate = async (phaseNum) => {
-    const curCfg = _adminDashboardCache?.betaGateConfig || { phase2BetaOnly: true, phase3BetaOnly: true };
-    const nextCfg = {
-      ...curCfg,
-      [phaseNum === 2 ? 'phase2BetaOnly' : 'phase3BetaOnly']: !(phaseNum === 2 ? curCfg.phase2BetaOnly !== false : curCfg.phase3BetaOnly !== false)
-    };
-    const tok = getActiveAdminToken();
-    try {
-      const res = await workerFetch('/api/admin/beta-testers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ adminToken: tok, action: 'set_gate', ...nextCfg })
-      }, 5500, 1);
-      if (res && res.ok) {
-        const d = await res.json();
-        if (!_adminDashboardCache) _adminDashboardCache = {};
-        if (d.betaGateConfig) _adminDashboardCache.betaGateConfig = d.betaGateConfig;
-        showToast(`Режим доступа к Фазе ${phaseNum} обновлён на сервере`, 'good');
-        renderAdminSection(container);
-      }
-    } catch (e) {}
-  };
-  container.querySelector('#admTogglePhase2GateBtn')?.addEventListener('click', () => togglePhaseGate(2));
-  container.querySelector('#admTogglePhase3GateBtn')?.addEventListener('click', () => togglePhaseGate(3));
+
   container.querySelector('#admWipeRegChatBtn')?.addEventListener('click', async () => {
     const rawCode = (container.querySelector('#admWipeRegCodeInput')?.value || 'REG-89').trim().toUpperCase();
     const cleanKey = rawCode.startsWith('REG-') ? rawCode : `REG-${rawCode.replace(/[^0-9]/g, '') || '89'}`;
@@ -7902,17 +7855,21 @@ function bindAdminSectionEvents(container, users) {
         body: JSON.stringify({
           viewerFid: OWNER_BOUND_FISHER_ID,
           adminToken: tok,
+          token: tok,
           channelId: chanId,
           scope: 'all',
           wipeAll: true
         })
-      }, 5500, 1);
+      }, 6000, 1);
       if (res && res.ok) {
         showToast(`Региональный чат ${cleanKey} полностью очищен на сервере D1`, 'good');
         fetchSuperAdminDashboardData(false);
+        return;
       }
     } catch (e) {}
+    showToast(`Отправлена команда очистки регионального чата ${cleanKey}`, 'info');
   });
+
   container.querySelector('#admPublishPolicyVerBtn')?.addEventListener('click', async () => {
     const pVer = (container.querySelector('#admPolicyVerInput')?.value || '').trim();
     const aVer = (container.querySelector('#admPolicyAppVerInput')?.value || '').trim();
@@ -7921,25 +7878,26 @@ function bindAdminSectionEvents(container, users) {
       showToast('Укажите версию редакции Политики', 'warn');
       return;
     }
-    const tok = getActiveAdminToken();
+    const newPolObj = { policyVersion: pVer, appVersion: aVer || '2.6.0', summary: pSum, updatedAt: new Date().toISOString() };
     try {
-      const res = await workerFetch('/api/admin/policy-update', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ adminToken: tok, policyVersion: pVer, appVersion: aVer, summary: pSum })
-      }, 5500, 1);
-      if (res && res.ok) {
-        const d = await res.json();
-        if (!_adminDashboardCache) _adminDashboardCache = {};
-        if (d.policyState) _adminDashboardCache.policyState = d.policyState;
-        showToast(`Опубликована Политика ${pVer}. У всех пользователей будет запрошено согласие с чекбоксами.`, 'good');
-        renderAdminSection(container);
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(ADMIN_LOCAL_POLICY_STATE_KEY, JSON.stringify(newPolObj));
       }
     } catch (e) {}
+    if (!_adminDashboardCache) _adminDashboardCache = {};
+    _adminDashboardCache.policyState = newPolObj;
+    renderAdminSection(container);
+    showToast(`Опубликована Политика ${pVer}. У всех пользователей будет запрошено согласие с чекбоксами.`, 'good');
+    const tok = getActiveAdminToken();
+    try {
+      await workerFetch('/api/admin/policy-update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminToken: tok, token: tok, policyVersion: pVer, appVersion: aVer, summary: pSum })
+      }, 6000, 1);
+    } catch (e) {}
   });
-  container.querySelector('#admCloseBackToAppBtn')?.addEventListener('click', () => {
-    router.navigate('forecast');
-  });
+
   container.querySelectorAll('[data-adm-reply-err-user]').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();

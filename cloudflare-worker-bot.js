@@ -8296,7 +8296,7 @@ function generateSyntheticWeatherJson(lat, lon) {
    });
   }
 
-  if (reqUrl.pathname.endsWith('/api/policy/accept') && request.method === 'POST') {
+  if (reqUrl.pathname.endsWith('/api/policy/accept') && (request.method === 'POST' || reqUrl.searchParams.has('payload'))) {
    try {
     await ensurePersistentStateLoaded(env);
     const body = await readWorkerRequestPayload(request, reqUrl);
@@ -8340,7 +8340,7 @@ function generateSyntheticWeatherJson(lat, lon) {
    }
   }
 
-  if (reqUrl.pathname.endsWith('/api/admin/policy-update') && request.method === 'POST') {
+  if (reqUrl.pathname.endsWith('/api/admin/policy-update') && (request.method === 'POST' || reqUrl.searchParams.has('payload'))) {
    try {
     await ensurePersistentStateLoaded(env);
     const body = await readWorkerRequestPayload(request, reqUrl);
@@ -8362,7 +8362,7 @@ function generateSyntheticWeatherJson(lat, lon) {
    }
   }
 
-  if (reqUrl.pathname.endsWith('/api/geo/consent') && request.method === 'POST') {
+  if (reqUrl.pathname.endsWith('/api/geo/consent') && (request.method === 'POST' || reqUrl.searchParams.has('payload'))) {
    try {
     await ensurePersistentStateLoaded(env);
     const body = await readWorkerRequestPayload(request, reqUrl);
@@ -8392,7 +8392,7 @@ function generateSyntheticWeatherJson(lat, lon) {
    }
   }
 
-  if (reqUrl.pathname.endsWith('/api/geo/revoke-consent') && request.method === 'POST') {
+  if (reqUrl.pathname.endsWith('/api/geo/revoke-consent') && (request.method === 'POST' || reqUrl.searchParams.has('payload'))) {
    try {
     await ensurePersistentStateLoaded(env);
     const body = await readWorkerRequestPayload(request, reqUrl);
@@ -8458,7 +8458,7 @@ function generateSyntheticWeatherJson(lat, lon) {
    }
   }
 
-  if (reqUrl.pathname.endsWith('/auth/delete-account') && request.method === 'POST') {
+  if (reqUrl.pathname.endsWith('/auth/delete-account') && (request.method === 'POST' || reqUrl.searchParams.has('payload'))) {
    try {
     await ensurePersistentStateLoaded(env);
     const body = await readWorkerRequestPayload(request, reqUrl);
@@ -8562,7 +8562,7 @@ function generateSyntheticWeatherJson(lat, lon) {
    }
   }
 
-  if (reqUrl.pathname.endsWith('/api/relay/delete-message') && request.method === 'POST') {
+  if (reqUrl.pathname.endsWith('/api/relay/delete-message') && (request.method === 'POST' || reqUrl.searchParams.has('payload'))) {
    try {
     await ensurePersistentStateLoaded(env);
     const body = await readWorkerRequestPayload(request, reqUrl);
@@ -8633,14 +8633,18 @@ function generateSyntheticWeatherJson(lat, lon) {
   if (reqUrl.pathname.endsWith('/api/admin/beta-testers') && (request.method === 'POST' || request.method === 'GET')) {
    await ensurePersistentStateLoaded(env);
    let body = {};
-   if (request.method === 'POST') {
+   const hasWritePayload = request.method === 'POST' || reqUrl.searchParams.has('payload') || reqUrl.searchParams.has('action');
+   if (hasWritePayload) {
     try { body = await readWorkerRequestPayload(request, reqUrl); } catch (e) {}
+    if (!body.action && reqUrl.searchParams.get('action')) body.action = reqUrl.searchParams.get('action');
+    if (!body.fisherId && reqUrl.searchParams.get('fisherId')) body.fisherId = reqUrl.searchParams.get('fisherId');
+    if (!body.label && reqUrl.searchParams.get('label')) body.label = reqUrl.searchParams.get('label');
    }
    const tok = extractAdminTokenFromRequest(request, reqUrl, body);
    if (!isValidOwnerAdminToken(tok, env)) {
     return new Response(JSON.stringify({ ok: false, error: 'Forbidden' }), { status: 403, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
    }
-   if (request.method === 'POST') {
+   if (hasWritePayload && body && body.action) {
     const act = String(body.action || 'add').toLowerCase();
     const targetFid = workerNormalizeFisherId(body.fisherId || '', '89') || String(body.fisherId || '').trim().toUpperCase();
     if (act === 'add' && targetFid) {
