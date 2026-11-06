@@ -7,7 +7,7 @@ android {
     compileSdk 34
 
     defaultConfig {
-        applicationId "ru.klevpro.app"
+        applicationId System.getenv("KLEV_APP_ID") ?: "ru.klevpro.app"
         minSdk 24
         targetSdk 34
         versionCode 256215
@@ -17,9 +17,9 @@ android {
     signingConfigs {
         release {
             storeFile file("klevpro-release.keystore")
-            storePassword "KlevPro2026!"
-            keyAlias "klevpro"
-            keyPassword "KlevPro2026!"
+            storePassword System.getenv("KLEV_KEYSTORE_PASSWORD") ?: "ChangeMeInGitHubSecrets"
+            keyAlias System.getenv("KLEV_KEY_ALIAS") ?: "klevpro"
+            keyPassword System.getenv("KLEV_KEYSTORE_PASSWORD") ?: "ChangeMeInGitHubSecrets"
             enableV1Signing true
             enableV2Signing true
             enableV3Signing true

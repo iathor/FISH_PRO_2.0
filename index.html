@@ -57,6 +57,7 @@
   <link id="dynamicFavicon" rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=2.5.6-r215">
   <link id="dynamicTouchIcon" rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=2.5.6-r215">
   <script>
+    window.__KLEV_ADMIN_CONTOUR__ = false;
     (function() {
       try {
         var raw = localStorage.getItem('klev_pro_state_v2.0');
@@ -935,12 +936,6 @@
         </span>
         <span class="top-nav-lbl">Настройки</span>
       </button>
-      <button type="button" class="top-nav-item" data-nav-tab="admin" id="topNavAdminBtn" role="tab" style="display:none;">
-        <span class="top-nav-ico">
-          <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M3 18h18l-2-11-5 4-2-6-2 6-5-4-2 11z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.7" stroke-linejoin="round"/></svg>
-        </span>
-        <span class="top-nav-lbl">Админ</span>
-      </button>
     </div>
   </header>
 
@@ -958,12 +953,17 @@
     <section id="secGeo" data-route-section="geo" aria-label="Геолокация и выбор водоёма"></section>
     <section id="secWeather" data-route-section="weather" aria-label="Погода, состояние воды и фазы Луны"></section>
     <section id="secFish" data-route-section="fish" aria-label="Рыбы в месте ловли"></section>
-    <section id="secForecast" data-route-section="forecast" aria-label="Прогноз клёва и архив"></section>
+    <section id="secForecast" data-route-section="forecast" aria-label="Прогноз клёва и архив">
+      <article class="card" style="padding:14px;line-height:1.5;">
+        <h1 style="font-size:18px;font-weight:900;margin:0 0 8px;">Клёв ПРО 2.0 — Почасовой прогноз клёва рыбы, офлайн-карты водоёмов и календарь рыболова России</h1>
+        <p style="margin:0 0 8px;font-size:13px;color:var(--muted);">Научный 8-факторный расчёт активности 115 видов пресноводных и морских рыб на 491 водоёме в 8 рыбохозяйственных бассейнах РФ: Обь-Тазовский (ЯНАО, ХМАО), Волжско-Каспийский, Северо-Западный (Карелия, Ладога, Онега), Баренцево-Беломорский, Азово-Черноморский, Байкало-Ангарский, Енисейско-Ленский и Дальневосточный.</p>
+        <p style="margin:0;font-size:12.5px;color:var(--muted);">Почасовой график клёва (щука, окунь, судак, налим, карась, плотва, лещ, карп, сазан, хариус, пелядь, чир, сиг-пыжьян, муксун, форель, таймень, корюшка, навага, треска, камбала), комбинированные офлайн-карты (обзор Z7–Z13 по радиусу 50/120 км и детализация Z14–Z18 вдоль рек и точек), подбор снастей и годовой био-календарь нереста.</p>
+      </article>
+    </section>
     <section id="secCircle" data-route-section="circle" aria-label="Круг и Экипаж 72ч"></section>
     <section id="secChats" data-route-section="chats" aria-label="Чаты рыбаков и экипажей"></section>
     <section id="secLog" data-route-section="log" aria-label="Журнал уловов"></section>
     <section id="secCalendar" data-route-section="calendar" aria-label="Годовой биоритм и нерест"></section>
-    <section id="secAdmin" data-route-section="admin" aria-label="Панель Супер-Админа и Статистика БД"></section>
     <noscript>
       <article style="max-width:960px;margin:16px auto;padding:16px;background:#0f172a;color:#e2e8f0;border-radius:12px;font-family:system-ui,sans-serif;line-height:1.5;">
         <h1>Клёв ПРО 2.0 — Почасовой прогноз клёва рыбы, офлайн-карты водоёмов и календарь рыболова России</h1>

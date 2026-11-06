@@ -395,14 +395,63 @@ function allocateNextReserveFisherId(regionCode = '89', seedDeviceId = '') {
  return candidate;
 }
 
-// Предвычисленные криптографические дайджесты Владельца (без хранения открытого пароля в исходном коде)
-const OWNER_TOKEN_HASH_IATHOR = 'KTOK_6AE3BD91_21C90CF5';
-const OWNER_TOKEN_HASH_IATHOR82 = 'KTOK_52183B6B_39DEECFC';
-const OWNER_TOKEN_HASH_IATHOR_LOWER = 'KTOK_1E665A58_64E3DB80';
-const OWNER_ADMIN_CONSOLE_TOKEN = 'VIP089_D854A7F4_38D816DA';
-const OWNER_PIN_FNV_EXACT = '5c4be2a9';
-const OWNER_PIN_FNV_LOWER = '17b24989';
 const recentActionDedupMap = new Map();
+const activeAdminSessionsMap = new Map(); // token -> expiresAtMs
+
+function generateSecureRandomTokenHex(byteLen = 32, prefix = 'STOK_') {
+ const bytes = new Uint8Array(byteLen);
+ if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+  crypto.getRandomValues(bytes);
+ } else {
+  for (let i = 0; i < byteLen; i++) bytes[i] = Math.floor(Math.random() * 256);
+ }
+ return prefix + Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
+}
+
+function issueServerAdminSessionToken(ttlMs = 7 * 86400 * 1000) {
+ const tok = generateSecureRandomTokenHex(32, 'ADM_SESS_');
+ const now = Date.now();
+ for (const [k, exp] of activeAdminSessionsMap.entries()) {
+  if (now > exp) activeAdminSessionsMap.delete(k);
+ }
+ activeAdminSessionsMap.set(tok, now + ttlMs);
+ return tok;
+}
+
+async function workerPbkdf2HashPassword(passClean = '', saltHex = '') {
+ const cleanP = String(passClean || '').trim();
+ let sHex = String(saltHex || '').trim().toUpperCase();
+ if (!sHex || sHex.length < 16) {
+  sHex = generateSecureRandomTokenHex(16, '');
+ }
+ if (typeof crypto !== 'undefined' && crypto.subtle) {
+  try {
+   const enc = new TextEncoder();
+   const keyMat = await crypto.subtle.importKey('raw', enc.encode(cleanP), 'PBKDF2', false, ['deriveBits']);
+   const saltBytes = new Uint8Array(sHex.match(/.{1,2}/g).map(b => parseInt(b, 16)));
+   const bits = await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', salt: saltBytes, iterations: 100000, hash: 'SHA-256' },
+    keyMat,
+    256
+   );
+   const hashHex = Array.from(new Uint8Array(bits), b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
+   return `PBKDF2$100000$${sHex}$${hashHex}`;
+  } catch (e) {}
+ }
+ const fbHex = await workerSha256Hex(`pbkdf2_fb::${sHex}::${cleanP}`);
+ return `PBKDF2$100000$${sHex}$${fbHex}`;
+}
+
+async function workerVerifyPasswordVerifier(passClean = '', storedVerifier = '') {
+ const cleanP = String(passClean || '').trim();
+ const ver = String(storedVerifier || '').trim();
+ if (!cleanP || !ver.startsWith('PBKDF2$')) return false;
+ const parts = ver.split('$');
+ if (parts.length !== 4) return false;
+ const saltHex = parts[2];
+ const recomputed = await workerPbkdf2HashPassword(cleanP, saltHex);
+ return constantTimeEquals(recomputed, ver);
+}
 
 function clampLat(val, fallback = 66.0833) {
  const n = Number(val);
@@ -416,42 +465,37 @@ function clampLon(val, fallback = 76.6333) {
 
 function isOwnerPasswordMatch(rawPass = '', env = null) {
  const clean = String(rawPass || '').trim();
- if (!clean) return false;
- if (env && env.ADMIN_SECRET_PASSWORD && constantTimeEquals(clean, String(env.ADMIN_SECRET_PASSWORD))) {
+ if (!clean || !env) return false;
+ const envPass = String(env.ADMIN_SECRET_PASSWORD || '').trim();
+ if (envPass.length >= 8 && constantTimeEquals(clean, envPass)) {
   return true;
  }
- const hExact = workerFnv1a32(`pin::${clean}`).toString(16);
- const hLower = workerFnv1a32(`pin::${clean.toLowerCase()}`).toString(16);
- const derived1 = workerDeriveAuthToken('iathor', clean);
- const derived2 = workerDeriveAuthToken('iathor82', clean);
- return (
-  constantTimeEquals(hExact, OWNER_PIN_FNV_EXACT) ||
-  constantTimeEquals(hLower, OWNER_PIN_FNV_LOWER) ||
-  constantTimeEquals(derived1, OWNER_TOKEN_HASH_IATHOR) ||
-  constantTimeEquals(derived1, OWNER_TOKEN_HASH_IATHOR_LOWER) ||
-  constantTimeEquals(derived2, OWNER_TOKEN_HASH_IATHOR82)
- );
+ return false;
 }
 
 function getAdminConsoleToken(env = null) {
- if (env && env.ADMIN_CONSOLE_TOKEN && String(env.ADMIN_CONSOLE_TOKEN).trim().length >= 12) {
+ if (env && env.ADMIN_CONSOLE_TOKEN && String(env.ADMIN_CONSOLE_TOKEN).trim().length >= 16) {
   return String(env.ADMIN_CONSOLE_TOKEN).trim();
  }
- return OWNER_ADMIN_CONSOLE_TOKEN;
+ return '';
 }
 
 function isValidOwnerAdminToken(tok = '', env = null) {
  const clean = String(tok || '').trim();
  if (!clean) return false;
+ if (clean.startsWith('ADM_SESS_')) {
+  const exp = activeAdminSessionsMap.get(clean) || 0;
+  if (exp > Date.now()) return true;
+  activeAdminSessionsMap.delete(clean);
+ }
  const envConsoleTok = getAdminConsoleToken(env);
- return (
-  constantTimeEquals(clean, envConsoleTok) ||
-  constantTimeEquals(clean, OWNER_ADMIN_CONSOLE_TOKEN) ||
-  constantTimeEquals(clean, OWNER_TOKEN_HASH_IATHOR) ||
-  constantTimeEquals(clean, OWNER_TOKEN_HASH_IATHOR82) ||
-  constantTimeEquals(clean, OWNER_TOKEN_HASH_IATHOR_LOWER) ||
-  isOwnerPasswordMatch(clean, env)
- );
+ if (envConsoleTok && constantTimeEquals(clean, envConsoleTok)) {
+  return true;
+ }
+ if (isOwnerPasswordMatch(clean, env)) {
+  return true;
+ }
+ return false;
 }
 
 function parseCookieValue(cookieHeader = '', cookieName = 'klev_admin_session') {
@@ -584,6 +628,8 @@ function sanitizePublicUserResponse(u, isAdminView = false) {
   delete copy.authTokenHash;
   delete copy.pinHash;
   delete copy.adminSessionToken;
+  delete copy.pbkdf2Verifier;
+  delete copy.sessionToken;
   return copy;
  }
  return {
@@ -622,6 +668,7 @@ async function verifyUserAuth(env, { fid = '', authTokenHash = '', deviceId = ''
 
  if (effToken && prof) {
   if (
+   (prof.sessionToken && constantTimeEquals(effToken, prof.sessionToken)) ||
    (prof.authTokenHash && constantTimeEquals(effToken, prof.authTokenHash)) ||
    (prof.secureTokenHash && constantTimeEquals(effToken, prof.secureTokenHash))
   ) {
@@ -630,7 +677,7 @@ async function verifyUserAuth(env, { fid = '', authTokenHash = '', deviceId = ''
  }
 
  const cleanDev = String(deviceId || '').trim();
- if (cleanDev) {
+ if (cleanDev && !effToken) {
   const mappedFid = deviceToFisherIdMap.get(cleanDev) || '';
   if (
    (mappedFid && constantTimeEquals(mappedFid, normFid)) ||
@@ -641,13 +688,6 @@ async function verifyUserAuth(env, { fid = '', authTokenHash = '', deviceId = ''
   }
  }
 
- // Для обратной совместимости с уже выданными сессиями v2.5.0 r186, если профиль ещё не связан с другим устройством
- if (!prof && !regUser) {
-  return { ok: true, isAdmin: false, isOwner: false };
- }
- if (prof && !prof.deviceId && (!regUser || !regUser.deviceId) && !effToken) {
-  return { ok: true, isAdmin: adminWhitelistStore.has(normFid), isOwner: false };
- }
  return { ok: false, isAdmin: false, isOwner: false };
 }
 
@@ -699,7 +739,7 @@ function workerIsOwnerLogin(raw = '') {
  );
 }
 
-function resolveWorkerAccountIdentity(rawLogin = '', rawPassword = '', rawTokenHash = '', rawRegionCode = '89', snap = null) {
+async function resolveWorkerAccountIdentity(rawLogin = '', rawPassword = '', rawTokenHash = '', rawRegionCode = '89', snap = null, env = null) {
  const rawInputClean = String(rawLogin || '').trim().slice(0, 48);
  let loginClean = rawInputClean;
  let loginNorm = workerNormalizeLogin(loginClean);
@@ -708,13 +748,14 @@ function resolveWorkerAccountIdentity(rawLogin = '', rawPassword = '', rawTokenH
 
  const isOwnerLogin = workerIsOwnerLogin(loginClean) || workerIsOwnerLogin(snap?.login) || isOwnerFisherId(snap?.fisherId);
  const isOwnerPass = (
-  isOwnerPasswordMatch(passClean) ||
-  (incomingTok && isValidOwnerAdminToken(incomingTok))
+  isOwnerPasswordMatch(passClean, env) ||
+  (incomingTok && isValidOwnerAdminToken(incomingTok, env))
  );
  if (isOwnerLogin && isOwnerPass) {
   const preferredOwnerFid = (loginNorm === 'fp_fmp089' || String(snap?.fisherId || '').toUpperCase() === OWNER_SECONDARY_ID)
    ? OWNER_SECONDARY_ID
    : OWNER_FISHER_ID;
+  const freshAdmSess = issueServerAdminSessionToken();
   return {
    ok: true,
    isOwner: true,
@@ -723,14 +764,15 @@ function resolveWorkerAccountIdentity(rawLogin = '', rawPassword = '', rawTokenH
    ownerIds: [OWNER_FISHER_ID, OWNER_SECONDARY_ID],
    login: loginNorm === 'iathor82' ? 'iAthor82' : 'iAthor',
    callsign: loginNorm === 'iathor82' ? 'iAthor82' : 'iAthor',
-   pinHash: 'owner_iathor_vip089',
-   authTokenHash: OWNER_TOKEN_HASH_IATHOR,
-   adminSessionToken: OWNER_ADMIN_CONSOLE_TOKEN
+   pinHash: '',
+   authTokenHash: freshAdmSess,
+   sessionToken: freshAdmSess,
+   adminSessionToken: freshAdmSess
   };
  }
 
  if (isOwnerLogin && !isOwnerPass) {
-  return { ok: false, error: 'Неверный пароль для эксклюзивного аккаунта Супер-Админа (iAthor / FP_89VIP089 / FP_FMP089)' };
+  return { ok: false, error: 'Неверный серверный мастер-пароль администратора' };
  }
 
  // Если пользователь ввёл свой постоянный Рыболовный ID (напр. FP_89AAA001) вместо логина — находим привязанный к нему профиль!
@@ -744,7 +786,7 @@ function resolveWorkerAccountIdentity(rawLogin = '', rawPassword = '', rawTokenH
   }
  }
 
- if (!loginNorm || (passClean.length < 3 && !incomingTok.startsWith('KTOK_'))) {
+ if (!loginNorm || (passClean.length < 3 && !incomingTok.startsWith('STOK_') && !incomingTok.startsWith('KTOK_'))) {
   return { ok: false, error: 'Укажите логин и пароль (от 3 символов) для получения постоянного ID рыбака' };
  }
  const anonWorkerCheck = workerIsAnonymousCallsignValid(loginClean);
@@ -752,14 +794,6 @@ function resolveWorkerAccountIdentity(rawLogin = '', rawPassword = '', rawTokenH
   return { ok: false, error: anonWorkerCheck.error };
  }
 
- const authTokenHash = incomingTok.startsWith('KTOK_')
-  ? incomingTok
-  : workerDeriveAuthToken(loginNorm, passClean);
- const pinHash = passClean
-  ? workerFnv1a32(`pin::${passClean}`).toString(16)
-  : String(snap?.pinHash || workerFnv1a32(authTokenHash).toString(16));
-
- // Проверяем глобальную уникальность логина: постоянный ID жёстко привязан ТОЛЬКО к логину и паролю!
  let existingAuthKey = loginToAuthKeyMap.get(loginNorm) || '';
  if (!existingAuthKey) {
   for (const [k, prof] of cloudAuthProfiles.entries()) {
@@ -770,16 +804,45 @@ function resolveWorkerAccountIdentity(rawLogin = '', rawPassword = '', rawTokenH
    }
   }
  }
+ const legacyDerivedTok = passClean ? workerDeriveAuthToken(loginNorm, passClean) : incomingTok;
+ let pbkdf2Verifier = '';
+ let sessionToken = '';
  if (existingAuthKey) {
   const boundProf = cloudAuthProfiles.get(existingAuthKey);
-  if (boundProf && boundProf.authTokenHash && !constantTimeEquals(authTokenHash, boundProf.authTokenHash)) {
-   return {
-    ok: false,
-    code: 'LOGIN_TAKEN',
-    error: `Логин «${loginClean}» уже зарегистрирован (или введён неверный пароль)! Проверьте пароль или выберите другой логин.`
-   };
+  if (boundProf) {
+   let validCreds = false;
+   if (passClean && boundProf.pbkdf2Verifier) {
+    validCreds = await workerVerifyPasswordVerifier(passClean, boundProf.pbkdf2Verifier);
+    if (validCreds) pbkdf2Verifier = boundProf.pbkdf2Verifier;
+   } else if (passClean && boundProf.authTokenHash) {
+    validCreds = constantTimeEquals(legacyDerivedTok, boundProf.authTokenHash);
+    if (validCreds) {
+     pbkdf2Verifier = await workerPbkdf2HashPassword(passClean);
+    }
+   } else if (!passClean && incomingTok) {
+    validCreds = (
+     (boundProf.sessionToken && constantTimeEquals(incomingTok, boundProf.sessionToken)) ||
+     (boundProf.authTokenHash && constantTimeEquals(incomingTok, boundProf.authTokenHash))
+    );
+    pbkdf2Verifier = boundProf.pbkdf2Verifier || '';
+   }
+   if (!validCreds) {
+    return {
+     ok: false,
+     code: 'LOGIN_TAKEN',
+     error: `Логин «${loginClean}» уже зарегистрирован (или введён неверный пароль)! Проверьте пароль или выберите другой логин.`
+    };
+   }
+   sessionToken = boundProf.sessionToken || generateSecureRandomTokenHex(32, 'STOK_');
   }
+ } else {
+  if (passClean) {
+   pbkdf2Verifier = await workerPbkdf2HashPassword(passClean);
+  }
+  sessionToken = generateSecureRandomTokenHex(32, 'STOK_');
  }
+ const authTokenHash = sessionToken || legacyDerivedTok;
+ const pinHash = '';
 
  const authKey = existingAuthKey || `AUTH_${loginNorm}_${authTokenHash}`;
  loginToAuthKeyMap.set(loginNorm, authKey);
@@ -812,7 +875,9 @@ function resolveWorkerAccountIdentity(rawLogin = '', rawPassword = '', rawTokenH
    fisherId,
    login: existingProf?.login || loginClean,
    callsign: existingProf?.callsign || loginClean,
-   pinHash,
+   pinHash: '',
+   pbkdf2Verifier: pbkdf2Verifier || existingProf?.pbkdf2Verifier || '',
+   sessionToken,
    authTokenHash
   });
  }
@@ -836,7 +901,9 @@ function resolveWorkerAccountIdentity(rawLogin = '', rawPassword = '', rawTokenH
   fisherId,
   login: existingProf?.login || loginClean,
   callsign: existingProf?.callsign || loginClean,
-  pinHash,
+  pinHash: '',
+  pbkdf2Verifier: pbkdf2Verifier || existingProf?.pbkdf2Verifier || '',
+  sessionToken,
   authTokenHash,
   adminSessionToken: ''
  };
@@ -847,12 +914,12 @@ const cloudAuthProfiles = new Map([
   fisherId: OWNER_FISHER_ID,
   login: 'iAthor',
   callsign: 'iAthor',
-  pinHash: 'owner_iathor_vip089',
-  authTokenHash: OWNER_TOKEN_HASH_IATHOR,
-  adminSessionToken: OWNER_ADMIN_CONSOLE_TOKEN,
+  pinHash: '',
+  authTokenHash: '',
+  adminSessionToken: '',
   ownerUnlocked: true,
   isAdmin: true,
-  adminShowAllCrews: true,
+  adminShowAllCrews: false,
   appMode: 'pro',
   theme: 'auto',
   lat: 66.0833,
@@ -5199,7 +5266,10 @@ const geminiConfigStore = {
  lastRequestAt: 0,
  dateKey: new Date().toISOString().slice(0, 10),
  lastTestedAt: 0,
- lastTestOk: null
+ lastTestOk: null,
+ lastHttpStatus: 0,
+ lastLatencyMs: 0,
+ recentCalls: []
 };
 
 function getEffectiveGeminiKeys(env = null, extraClientKey = "") {
@@ -5246,6 +5316,15 @@ async function syncFreshGeminiConfigFromD1(env) {
     }
     if (Number.isFinite(Number(parsed.lastRequestAt))) {
      geminiConfigStore.lastRequestAt = Math.max(geminiConfigStore.lastRequestAt || 0, Number(parsed.lastRequestAt));
+    }
+    if (Array.isArray(parsed.recentCalls) && parsed.recentCalls.length > 0) {
+     geminiConfigStore.recentCalls = parsed.recentCalls.slice(0, 30);
+    }
+    if (Number.isFinite(Number(parsed.lastHttpStatus))) {
+     geminiConfigStore.lastHttpStatus = Number(parsed.lastHttpStatus) || 0;
+    }
+    if (Number.isFinite(Number(parsed.lastLatencyMs))) {
+     geminiConfigStore.lastLatencyMs = Number(parsed.lastLatencyMs) || 0;
     }
     const todayStr = new Date().toISOString().slice(0, 10);
     if (parsed.dateKey === todayStr) {
@@ -5320,8 +5399,8 @@ function getGeminiQuotaStatus(env = null, includeRawKeyForOwner = false) {
   hasKey: keyCount > 0,
   keyCount,
   maskedKey,
-  rawApiKey: includeRawKeyForOwner ? keys.join(",") : undefined,
-  rawApiKeys: includeRawKeyForOwner ? rawSlots : undefined,
+  rawApiKey: undefined,
+  rawApiKeys: undefined,
   perKeyUsed,
   limitPerDay,
   usedToday,
@@ -5334,7 +5413,10 @@ function getGeminiQuotaStatus(env = null, includeRawKeyForOwner = false) {
   dateKey: todayStr,
   activeModel: geminiConfigStore.activeModel || "gemini-2.5-flash",
   lastTestedAt: geminiConfigStore.lastTestedAt || 0,
-  lastTestOk: geminiConfigStore.lastTestOk
+  lastTestOk: geminiConfigStore.lastTestOk,
+  lastHttpStatus: geminiConfigStore.lastHttpStatus || 200,
+  lastLatencyMs: geminiConfigStore.lastLatencyMs || 0,
+  recentCalls: Array.isArray(geminiConfigStore.recentCalls) ? geminiConfigStore.recentCalls.slice(0, 25) : []
  };
 }
 
@@ -5449,6 +5531,7 @@ async function _fetchGeminiWithGeoFallback(gUrl, bodyStr, timeoutMs) {
 }
 
 async function callGeminiGenerateContentSmart(apiKey, contentsPayload, genConfig = {}, timeoutMs = 12000) {
+ const tStart = Date.now();
  const cleanKey = String(apiKey || "").trim().replace(/^["'\s]+|["'\s]+$/g, "");
  if (!cleanKey) return { ok: false, status: 400, errorText: "Empty key" };
 
@@ -5508,7 +5591,10 @@ async function callGeminiGenerateContentSmart(apiKey, contentsPayload, genConfig
      const rawTxt = (nonThought.length > 0 ? nonThought.map(p => p.text).join("\n") : parts.filter(p => !p.thought).map(p => p.text || "").join("\n")).trim();
      if (rawTxt) {
       geminiConfigStore.activeModel = modelId;
-      return { ok: true, model: modelId, status: 200, json: rJson, text: rawTxt };
+      const latMs = Math.max(12, Date.now() - tStart);
+      geminiConfigStore.lastHttpStatus = 200;
+      geminiConfigStore.lastLatencyMs = latMs;
+      return { ok: true, model: modelId, status: 200, latencyMs: latMs, json: rJson, text: rawTxt };
      }
      if (cIdx < tryConfigs.length - 1) {
       continue;
@@ -5554,7 +5640,7 @@ async function callGeminiGenerateContentSmart(apiKey, contentsPayload, genConfig
  return { ok: false, status: lastStatus, errorText: lastErrorText };
 }
 
-async function recordGeminiRequestUsed(env = null, keySlotIndexOrKey = 0, source = "app") {
+async function recordGeminiRequestUsed(env = null, keySlotIndexOrKey = 0, source = "app", meta = {}) {
  const todayStr = new Date().toISOString().slice(0, 10);
  if (geminiConfigStore.dateKey !== todayStr) {
   geminiConfigStore.dateKey = todayStr;
@@ -5574,6 +5660,7 @@ async function recordGeminiRequestUsed(env = null, keySlotIndexOrKey = 0, source
   const foundIdx = keys.findIndex(k => k.startsWith(keySlotIndexOrKey.slice(0, 10)));
   if (foundIdx >= 0 && foundIdx < 3) slotIdx = foundIdx;
  }
+ const nowTs = Date.now();
  geminiConfigStore.perKeyUsed[slotIdx] = (Number(geminiConfigStore.perKeyUsed[slotIdx]) || 0) + 1;
  geminiConfigStore.usedToday = (Number(geminiConfigStore.usedToday) || 0) + 1;
  if (source === "bot") {
@@ -5582,7 +5669,30 @@ async function recordGeminiRequestUsed(env = null, keySlotIndexOrKey = 0, source
   geminiConfigStore.usedAppToday = (Number(geminiConfigStore.usedAppToday) || 0) + 1;
  }
  geminiConfigStore.totalAllTime = Math.max(geminiConfigStore.usedToday, (Number(geminiConfigStore.totalAllTime) || 0) + 1);
- geminiConfigStore.lastRequestAt = Date.now();
+ geminiConfigStore.lastRequestAt = nowTs;
+ const httpStat = Number(meta?.httpStatus) || geminiConfigStore.lastHttpStatus || 200;
+ const latMs = Number(meta?.latencyMs) || geminiConfigStore.lastLatencyMs || 0;
+ geminiConfigStore.lastHttpStatus = httpStat;
+ if (latMs > 0) geminiConfigStore.lastLatencyMs = latMs;
+ if (!Array.isArray(geminiConfigStore.recentCalls)) {
+  geminiConfigStore.recentCalls = [];
+ }
+ const callEntry = {
+  id: `GAPI_${nowTs.toString(36)}_${Math.random().toString(36).slice(2, 5)}`,
+  ts: nowTs,
+  source: source === "bot" ? "bot" : "app",
+  fisherId: String(meta?.fisherId || (source === "bot" ? "TG_BOT" : "FP_USER")).slice(0, 24),
+  callsign: String(meta?.callsign || (source === "bot" ? "Telegram-Бот" : "Рыболов")).slice(0, 32),
+  env: String(meta?.env || (source === "bot" ? "TG-BOT" : "WEB")).slice(0, 16),
+  keySlot: slotIdx + 1,
+  model: String(meta?.model || geminiConfigStore.activeModel || "gemini-2.5-flash").slice(0, 40),
+  httpStatus: httpStat,
+  latencyMs: latMs,
+  action: String(meta?.action || (source === "bot" ? "TG-Бот: фото рыбы" : "Ихтио-Сканер: фото рыбы")).slice(0, 90),
+  verifiedHttp200: httpStat === 200
+ };
+ geminiConfigStore.recentCalls.unshift(callEntry);
+ if (geminiConfigStore.recentCalls.length > 30) geminiConfigStore.recentCalls.length = 30;
  if (env) {
   await persistFreshGeminiConfigToD1(env);
  }
@@ -6032,7 +6142,7 @@ function renderSuperAdminConsoleHtml(originUrl = '', d1Info = null) {
 </div>
 <script>
  const RAW_USERS = ${JSON.stringify(users.map(u => sanitizePublicUserResponse(u, true))).replace(/</g, '\\u003c').replace(/>/g, '\\u003e').replace(/&/g, '\\u0026')};
- const ADMIN_TOKEN = ${JSON.stringify(OWNER_ADMIN_CONSOLE_TOKEN)};
+ const ADMIN_TOKEN = '';
  function filterUsers(q) {
   const norm = (q || '').trim().toLowerCase();
   document.querySelectorAll('#usersTableBody tr').forEach(tr => {
@@ -6143,7 +6253,7 @@ export default {
   if (reqUrl.pathname.endsWith('/api/admin/security-audit') && (request.method === 'GET' || request.method === 'POST')) {
    await ensurePersistentStateLoaded(env);
    let b = {};
-   if (request.method === 'POST') {
+   if (request.method === 'POST' || reqUrl.searchParams.has('payload')) {
     b = await readWorkerRequestPayload(request, reqUrl).catch(() => ({}));
    }
    const tok = extractAdminTokenFromRequest(request, reqUrl, b);
@@ -6151,13 +6261,13 @@ export default {
     recordSecurityIncident('data_exposure', '/api/admin/security-audit', 'Попытка неавторизованного доступа к радару ИБ Супер-Админа', clientIp);
     return jsonResponse({ ok: false, error: 'Forbidden' }, 403);
    }
-   if (request.method === 'POST' && b.action === 'clear') {
+   if (b.action === 'clear') {
     for (const k of Object.keys(securityAuditStore.counters)) securityAuditStore.counters[k] = 0;
     securityAuditStore.events = [];
     await persistSystemMeta(env, ctx);
     return jsonResponse({ ok: true, cleared: true, securityAudit: getSecurityAuditSnapshot() });
    }
-   if (request.method === 'POST' && b.action === 'self_test') {
+   if (b.action === 'self_test') {
     recordSecurityIncident('sqli', '/auth/resolve-peer', '[ТЕСТ ЗАЩИТЫ] Блокировка SQL-инъекции: OR 1=1 -- (параметризация D1 bind)', clientIp, OWNER_FISHER_ID);
     recordSecurityIncident('idor', '/api/circle/delete', '[ТЕСТ ЗАЩИТЫ] Отражена попытка IDOR удаления чужой точки и чтения чужого DM', clientIp, OWNER_FISHER_ID);
     recordSecurityIncident('mass_assign', '/auth/sync', '[ТЕСТ ЗАЩИТЫ] Отброшены запрещённые поля формы: role="admin", isOwner=true', clientIp, OWNER_FISHER_ID);
@@ -6339,7 +6449,15 @@ export default {
     }
    }
    if (checkWorkerRateLimit(`airec_${clientIp}`, false, 15)) {
-    await recordGeminiRequestUsed(env, b?.usedKey || 0, b?.source === 'bot' ? 'bot' : 'app');
+    await recordGeminiRequestUsed(env, b?.usedKey ?? b?.keySlot ?? 0, b?.source === 'bot' ? 'bot' : 'app', {
+     fisherId: b?.fisherId || '',
+     callsign: b?.callsign || '',
+     env: b?.env || 'APP',
+     model: b?.model || geminiConfigStore.activeModel,
+     httpStatus: Number(b?.httpStatus) || 200,
+     latencyMs: Number(b?.latencyMs) || 0,
+     action: b?.action || 'Ихтио-Сканер: фото рыбы'
+    });
     await persistSystemMeta(env, ctx);
    }
    return new Response(JSON.stringify({
@@ -6414,7 +6532,15 @@ export default {
          );
          if (smartRes.ok || smartRes.keyVerifiedByModelsList) {
           if (smartRes.ok) {
-           await recordGeminiRequestUsed(env, ki);
+           await recordGeminiRequestUsed(env, ki, 'app', {
+             fisherId: body.fisherId || OWNER_FISHER_ID,
+             callsign: body.callsign || 'iAthor',
+             env: body.env || 'ADMIN',
+             model: smartRes.model || 'gemini-2.5-flash',
+             httpStatus: smartRes.status || 200,
+             latencyMs: smartRes.latencyMs || 0,
+             action: 'Проверка связи с Google Gemini API (HTTP 200 OK)'
+            });
            realTested = true;
           }
           okKeysCount++;
@@ -6684,7 +6810,20 @@ export default {
          );
 
          if (smartRes && smartRes.ok && smartRes.text) {
-          await recordGeminiRequestUsed(env, kSlotIdx);
+          let fishShort = 'Фото рыбы';
+          try {
+           const mFish = smartRes.text.match(/"fishNameRu"\s*:\s*"([^"]+)"/);
+           if (mFish && mFish[1]) fishShort = `Скан фото: ${mFish[1]}`;
+          } catch (_e) {}
+          await recordGeminiRequestUsed(env, kSlotIdx, 'app', {
+           fisherId: body.fisherId || 'FP_USER',
+           callsign: body.callsign || 'Рыболов',
+           env: body.env || 'APP',
+           model: smartRes.model || 'gemini-2.5-flash',
+           httpStatus: 200,
+           latencyMs: smartRes.latencyMs || 0,
+           action: fishShort
+          });
           persistSystemMeta(env, ctx).catch(() => {});
           const qStat = getGeminiQuotaStatus(env, false);
           const outPayload = {
@@ -6746,7 +6885,7 @@ export default {
        const pJson = await pRes.json().catch(() => null);
        const pTxt = String(pJson?.choices?.[0]?.message?.content || '').trim();
        if (pTxt) {
-        if (geminiKeys.length > 0) { recordGeminiRequestUsed(); persistSystemMeta(env, ctx).catch(() => {}); }
+        // Резервный шлюз не расходует квоту Google Gemini API
         const qStatP = getGeminiQuotaStatus(env, false);
         const outPayload = {
          ok: true,
@@ -6846,12 +6985,12 @@ export default {
   }
 
   if (reqUrl.pathname.endsWith('/api/admin/users') && (request.method === 'GET' || request.method === 'POST')) {
-   if (!checkWorkerRateLimit(`admusers_${clientIp}`, false, 30)) {
+   if (!checkWorkerRateLimit(`admusers_${clientIp}`, false, 180)) {
     return new Response(JSON.stringify({ ok: false, error: 'Rate limit' }), { status: 429, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
    }
    await ensurePersistentStateLoaded(env, true);
    let b = {};
-   if (request.method === 'POST') {
+   if (request.method === 'POST' || reqUrl.searchParams.has('payload')) {
     try {
      b = await readWorkerRequestPayload(request, reqUrl);
     } catch (e) {}
@@ -6890,6 +7029,13 @@ export default {
    }
 
    await syncFreshGeminiConfigFromD1(env);
+   const isCompact = reqUrl.searchParams.get('compact') === '1';
+   const maxUsersLimit = Math.max(20, Math.min(2000, parseInt(reqUrl.searchParams.get('limit') || '500', 10) || 500));
+   const allUsersArr = Array.from(usersRegistryStore.values())
+    .sort((a, b) => (Number(b?.lastSeen) || 0) - (Number(a?.lastSeen) || 0))
+    .slice(0, maxUsersLimit)
+    .map(u => sanitizePublicUserResponse(u, true));
+   const allPointsArr = Array.from(circlePointsStore.values()).slice(0, isCompact ? 80 : 300);
    return new Response(JSON.stringify({
     ok: true,
     version: WORKER_VERSION,
@@ -6899,14 +7045,14 @@ export default {
     ownerSecondaryId: OWNER_SECONDARY_ID,
     ownerIds: [OWNER_FISHER_ID, OWNER_SECONDARY_ID],
     totalUsers: usersRegistryStore.size,
-    users: Array.from(usersRegistryStore.values()),
-    points: Array.from(circlePointsStore.values()),
+    users: allUsersArr,
+    points: allPointsArr,
     whitelist: Array.from(adminWhitelistStore.values()),
     counters: Object.fromEntries(regionSequenceCounters.entries()),
     reserveCounters: Object.fromEntries(regionReserveCounters.entries()),
     aiQuota: getGeminiQuotaStatus(env, true),
     securityAudit: getSecurityAuditSnapshot(),
-    clientErrors: clientErrorTelemetryLog.slice(0, 40)
+    clientErrors: clientErrorTelemetryLog.slice(0, isCompact ? 20 : 40)
    }), {
     headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
    });
@@ -7483,8 +7629,8 @@ function generateSyntheticWeatherJson(lat, lon) {
      mt: workerCleanText(rawItem.mt || 'spin_light', 32, 'mt', '/api/circle/publish', clientIp, fid),
      bt: workerCleanText(rawItem.bt || '', 80, 'bt', '/api/circle/publish', clientIp, fid),
      nt: workerCleanText(rawItem.nt || '', 240, 'nt', '/api/circle/publish', clientIp, fid),
-     lat: clampLat(rawItem.lat, 66.0833),
-     lon: clampLon(rawItem.lon, 76.6333),
+     lat: (rawItem.t === 'crew' && !rawItem.sos && rawItem.e2eeCrewCipher) ? 0 : clampLat(rawItem.lat, 66.0833),
+     lon: (rawItem.t === 'crew' && !rawItem.sos && rawItem.e2eeCrewCipher) ? 0 : clampLon(rawItem.lon, 76.6333),
      dp: Number.isFinite(Number(rawItem.dp)) ? Number(rawItem.dp) : 2.5,
      tw: Number.isFinite(Number(rawItem.tw)) ? Number(rawItem.tw) : 8,
      ta: Number.isFinite(Number(rawItem.ta)) ? Number(rawItem.ta) : 10,
@@ -7492,7 +7638,9 @@ function generateSyntheticWeatherJson(lat, lon) {
      wd: Number.isFinite(Number(rawItem.wd)) ? Number(rawItem.wd) : 3,
      sc: Number.isFinite(Number(rawItem.sc)) ? Number(rawItem.sc) : 75,
      kg: Number.isFinite(Number(rawItem.kg)) ? Number(rawItem.kg) : 0,
-     crewKey: String(rawItem.crewKey || '').toUpperCase().slice(0, 16),
+     crewKey: String(rawItem.crewKeyHash || rawItem.crewKey || '').toUpperCase().slice(0, 48),
+     crewKeyHash: String(rawItem.crewKeyHash || rawItem.crewKey || '').toUpperCase().slice(0, 48),
+     e2eeCrewCipher: String(rawItem.e2eeCrewCipher || '').slice(0, 4096),
      rw: String(rawItem.rw || '').slice(0, 140),
      rl: String(rawItem.rl || '').slice(0, 120),
      rt: String(rawItem.rt || '').slice(0, 120),
@@ -7538,6 +7686,9 @@ function generateSyntheticWeatherJson(lat, lon) {
   }
 
   if (reqUrl.pathname.endsWith('/api/circle/nearby') && request.method === 'GET') {
+   if (!checkWorkerRateLimit(`nearby_${clientIp}`, false, 35)) {
+    return new Response(JSON.stringify({ ok: false, error: 'Rate limit' }), { status: 429, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
+   }
    await ensurePersistentStateLoaded(env);
    purgeExpiredServerCirclePoints();
 
@@ -7621,11 +7772,11 @@ function generateSyntheticWeatherJson(lat, lon) {
      }
      continue;
     }
-    const wantAllCrews = reqUrl.searchParams.get('showAllCrews') !== '0';
     if (pt.t === 'crew' && !pt.sos) {
-     // Закрытые точки Экипажа видны только автору, участникам с ключом KP-XXXX или Супер-Админу (если включён тумблер видимости)
-     const hasKey = pt.crewKey && crewKeysSet.has(String(pt.crewKey).toUpperCase());
-     if (isMine || hasKey || (isViewerAdmin && wantAllCrews)) {
+     // Закрытые точки Экипажа (E2EE) видны строго автору или участникам с ключом/хэшем ключа (даже Админ не видит чужие закрытые экипажи)
+     const ptKey = String(pt.crewKeyHash || pt.crewKey || '').toUpperCase();
+     const hasKey = Boolean(ptKey && crewKeysSet.has(ptKey));
+     if (isMine || hasKey) {
       results.push(pt);
      }
      continue;
@@ -7784,7 +7935,7 @@ function generateSyntheticWeatherJson(lat, lon) {
     const normFidPre = /^FP_/i.test(rawLoginClean) ? workerNormalizeFisherId(rawLoginClean, '89') : '';
     const preCheckKey = normLoginPre ? `AUTH_${normLoginPre}_${body.authTokenHash && String(body.authTokenHash).startsWith('KTOK_') ? body.authTokenHash : workerDeriveAuthToken(rawLoginClean, body.password)}` : '';
     await loadPersistedAuthProfile(env, preCheckKey, normLoginPre, normFidPre);
-    const ident = resolveWorkerAccountIdentity(body.login, body.password, body.authTokenHash, body.regionCode, incomingSnap);
+    const ident = await resolveWorkerAccountIdentity(body.login, body.password, body.authTokenHash, body.regionCode, incomingSnap, env);
     if (!ident.ok) {
      const failRec = recordLoginFailure(clientIp, normLoginPre || rawLoginClean, '/auth/login');
      const rem = Math.max(0, BRUTE_FORCE_MAX_FAILS - failRec.count);
@@ -7861,6 +8012,7 @@ function generateSyntheticWeatherJson(lat, lon) {
     await persistSystemMeta(env, ctx);
     const safeProfileOut = { ...merged };
     delete safeProfileOut.secureTokenHash;
+    delete safeProfileOut.pbkdf2Verifier;
     if (!ident.isOwner) delete safeProfileOut.adminSessionToken;
     const safeWhitelistOut = ident.isOwner
      ? Array.from(adminWhitelistStore.values())
@@ -7872,7 +8024,8 @@ function generateSyntheticWeatherJson(lat, lon) {
      fisherId: ident.fisherId,
      login: ident.login,
      pinHash: ident.pinHash,
-     adminSessionToken: ident.isOwner ? OWNER_ADMIN_CONSOLE_TOKEN : '',
+     sessionToken: ident.sessionToken || ident.authTokenHash,
+     adminSessionToken: ident.isOwner ? (ident.adminSessionToken || issueServerAdminSessionToken()) : '',
      serverDynamicSlotHtml: ident.isOwner ? buildOwnerServerPortalSlotHtml(reqUrl.origin) : '',
      profile: safeProfileOut,
      whitelist: safeWhitelistOut
@@ -7881,63 +8034,11 @@ function generateSyntheticWeatherJson(lat, lon) {
     });
    } catch (e) {
     console.error('[Worker Auth Error Caught]', e);
-    // Защита Владельца: если вход совершает iAthor с паролем [REDACTED_OWNER_SECRET], авторизуем безоговорочно в памяти!
-    let reqBody = null;
-    try { reqBody = await readWorkerRequestPayload(request.clone(), reqUrl); } catch(err) {}
-    const rawL = reqBody ? (reqBody.login || '') : '';
-    const rawP = reqBody ? (reqBody.password || '') : '';
-    const rawT = reqBody ? (reqBody.authTokenHash || '') : '';
-    if (workerIsOwnerLogin(rawL) && (isOwnerPasswordMatch(rawP, env) || isValidOwnerAdminToken(rawT, env))) {
-     const ownerFid = OWNER_FISHER_ID;
-     adminWhitelistStore.set(ownerFid, { id: ownerFid, label: 'iAthor • Антон (Владелец / Супер-Админ)', addedAt: '2026-10-27' });
-     adminWhitelistStore.set(OWNER_SECONDARY_ID, { id: OWNER_SECONDARY_ID, label: 'iAthor82 • Антон (Владелец / Спец-ID FP_FMP089)', addedAt: '2026-10-27' });
-     const ownerProf = {
-      fisherId: ownerFid,
-      login: 'iAthor',
-      callsign: 'iAthor',
-      pinHash: 'owner_iathor_vip089',
-      authTokenHash: OWNER_TOKEN_HASH_IATHOR,
-      adminSessionToken: OWNER_ADMIN_CONSOLE_TOKEN,
-      ownerUnlocked: true,
-      isAdmin: true,
-      adminShowAllCrews: typeof reqBody?.profileSnapshot?.adminShowAllCrews === 'boolean' ? reqBody.profileSnapshot.adminShowAllCrews : true,
-      appMode: 'pro',
-      theme: 'auto',
-      lat: 66.0833,
-      lon: 76.6333,
-      locLabel: 'Новый Уренгой',
-      locAdmin1: 'Ямало-Ненецкий АО',
-      locAdmin2: 'Новый Уренгой',
-      water: 'small_river',
-      method: 'spin_micro',
-      favorites: ['pike', 'perch', 'burbot', 'peled', 'dace', 'chir', 'pizhyan', 'ide'],
-      unlockedCrewKeys: [],
-      notifSettings: { sos: true, crew: true, circle: true, workshop: true, dm: true, sound: true },
-      updatedAt: Date.now()
-     };
-     usersRegistryStore.set(ownerFid, ownerProf);
-     return new Response(JSON.stringify({
-      ok: true,
-      found: true,
-      isOwner: true,
-      fisherId: ownerFid,
-      login: 'iAthor',
-      pinHash: 'owner_iathor_vip089',
-      adminSessionToken: OWNER_ADMIN_CONSOLE_TOKEN,
-      serverDynamicSlotHtml: buildOwnerServerPortalSlotHtml(reqUrl.origin),
-      profile: ownerProf,
-      whitelist: Array.from(adminWhitelistStore.values()),
-      recovered: true
-     }), {
-      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
-     });
-    }
-
     return new Response(JSON.stringify({
      ok: false,
      error: 'Ошибка авторизации: проверьте правильность логина и пароля'
     }), {
-     status: 200,
+     status: 400,
      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
     });
    }
@@ -7962,7 +8063,7 @@ function generateSyntheticWeatherJson(lat, lon) {
     const normFidPre = /^FP_/i.test(rawLoginClean) ? workerNormalizeFisherId(rawLoginClean, '89') : '';
     const preCheckKey = normLoginPre ? `AUTH_${normLoginPre}_${body.authTokenHash && String(body.authTokenHash).startsWith('KTOK_') ? body.authTokenHash : workerDeriveAuthToken(rawLoginClean, body.password)}` : '';
     await loadPersistedAuthProfile(env, preCheckKey, normLoginPre, normFidPre);
-    const ident = resolveWorkerAccountIdentity(body.login, body.password, body.authTokenHash, body.regionCode, snap);
+    const ident = await resolveWorkerAccountIdentity(body.login, body.password, body.authTokenHash, body.regionCode, snap, env);
     if (!ident.ok) {
      return new Response(JSON.stringify({ ok: false, error: 'Invalid credentials' }), {
       status: 400,
@@ -7978,7 +8079,7 @@ function generateSyntheticWeatherJson(lat, lon) {
      callsign: ident.isOwner ? 'iAthor' : (snap.callsign || existing.callsign || ident.callsign),
      pinHash: ident.pinHash,
      authTokenHash: ident.authTokenHash,
-     adminSessionToken: ident.isOwner ? OWNER_ADMIN_CONSOLE_TOKEN : '',
+     adminSessionToken: ident.isOwner ? (ident.adminSessionToken || issueServerAdminSessionToken()) : '',
      ownerUnlocked: ident.isOwner ? true : Boolean(existing.ownerUnlocked),
      isAdmin: ident.isOwner ? true : adminWhitelistStore.has(ident.fisherId),
      updatedAt: Date.now()
@@ -8006,6 +8107,7 @@ function generateSyntheticWeatherJson(lat, lon) {
     await persistSystemMeta(env, ctx);
     const safeSyncProfile = { ...merged };
     delete safeSyncProfile.secureTokenHash;
+    delete safeSyncProfile.pbkdf2Verifier;
     if (!ident.isOwner) delete safeSyncProfile.adminSessionToken;
     const safeSyncWhitelist = ident.isOwner
      ? Array.from(adminWhitelistStore.values())
@@ -8014,7 +8116,7 @@ function generateSyntheticWeatherJson(lat, lon) {
      ok: true,
      fisherId: ident.fisherId,
      isOwner: ident.isOwner,
-     adminSessionToken: ident.isOwner ? OWNER_ADMIN_CONSOLE_TOKEN : '',
+     adminSessionToken: ident.isOwner ? (ident.adminSessionToken || issueServerAdminSessionToken()) : '',
      serverDynamicSlotHtml: ident.isOwner ? buildOwnerServerPortalSlotHtml(reqUrl.origin) : '',
      profile: safeSyncProfile,
      whitelist: safeSyncWhitelist
@@ -8129,6 +8231,16 @@ function generateSyntheticWeatherJson(lat, lon) {
     if (chanId.startsWith('crew:')) {
      const cKey = chanId.replace(/^crew:/i, '').toUpperCase();
      const boxKey = `CREW_${cKey}`;
+     if (cKey.startsWith('REG-')) {
+      return new Response(JSON.stringify({ ok: true, regionalEternal: true, deletedChannel: chanId, scope: 'self' }), {
+       headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
+      });
+     }
+     if (body.scope === 'self' && body.wipeAll !== true) {
+      return new Response(JSON.stringify({ ok: true, deletedChannel: chanId, scope: 'self' }), {
+       headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
+      });
+     }
      const isCrewCreator = Array.from(circlePointsStore.values()).some(pt => pt && pt.t === 'crew' && String(pt.crewKey || '').toUpperCase() === cKey && pt.fid === viewerFid);
      if (authRes.isAdmin || (isCrewCreator && !cKey.startsWith('REG-'))) {
       transitBoxes.delete(boxKey);

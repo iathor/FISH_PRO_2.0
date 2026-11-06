@@ -1,1 +1,843 @@
-import{svgIcon as e}from"./icons.js?v=2.5.6-r215";export function escapeHtml(e){if(null==e)return"";const t=String(e);if(!t.includes('<svg class="k-ico"')&&!t.includes("<svg class='k-ico'"))return t.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");const o=[];return t.replace(/<svg class=["']k-ico["'][^>]*>[\s\S]*?<\/svg>/g,(e=>(o.push(e.replace(/"/g,"'")),`__KLEV_SVG_TOKEN_${o.length-1}__`))).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;").replace(/__KLEV_SVG_TOKEN_(\d+)__/g,((e,t)=>o[Number(t)]||""))}export function isAnonymousCallsignValid(e=""){const t=String(e||"").trim();if(!t)return{ok:!0};if(/^FP_/i.test(t))return{ok:!0};const o=t.replace(/^@+/,"").includes("@")||/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t),n=t.replace(/\D/g,""),r=/(?:\+7|7|8)[\s\-()]?\d{3}[\s\-()]?\d{3}[\s\-()]?\d{2}/.test(t)||n.length>=9;return o||r?{ok:!1,error:"В целях конфиденциальности (152-ФЗ) запрещено указывать номер телефона или e-mail в качестве позывного. Используйте вымышленный рыболовный никнейм."}:{ok:!0}}export function createPill({text:e,tone:t="neutral",icon:o="",ariaLabel:n=""}){return`<span class="${`pill pill-${t}`}"${n?` aria-label="${n}"`:""}>${o?`<span aria-hidden="true">${o}</span>`:""}<span>${e}</span></span>`}export function createChip({label:e,active:t=!1,attrs:o=""}){return`<button type="button" class="btn btn-sm chip-interactive ${t?"btn-accent":""}" ${o}>${e}</button>`}export function createCard({title:e="",rightHtml:t="",bodyHtml:o="",extraClass:n=""}){return`<div class="card ${n}">${e||t?`<div class="section-head"><span class="section-title">${e}</span><div>${t}</div></div>`:""}${o}</div>`}export function createSkeleton(e=3){let t='<div class="card" aria-busy="true">';for(let o=0;o<e;o++)t+=`<div style="height:14px;background:var(--border);border-radius:6px;margin-bottom:8px;width:${90-15*o}%;"></div>`;return t+"</div>"}export function showToast(t,o="info"){let n=document.getElementById("toastContainer");n||(n=document.createElement("div"),n.id="toastContainer",n.className="toast-container",n.setAttribute("aria-live","polite"),document.body.appendChild(n));const r=document.createElement("div");r.className="toast","bad"===o&&(r.style.borderColor="var(--bad)"),"good"===o&&(r.style.borderColor="var(--good)"),"warn"===o&&(r.style.borderColor="var(--warn)");const i=String(t||"").replace(/<svg[\s\S]*?<\/svg>/gi,"").replace(/<[^>]+>/g,"").trim(),l="good"===o?"check":"bad"===o||"warn"===o?"warn":"info",a="good"===o?"var(--good)":"bad"===o?"var(--bad)":"warn"===o?"var(--warn)":"var(--accent)";r.innerHTML=`${e(l,a)}<span>${escapeHtml(i)}</span>`,n.appendChild(r),setTimeout((()=>{r.remove()}),3800)}export async function copyFisherIdToClipboard(e,t="ID рыбака"){const o=String(e||"").trim();if(!o)return!1;let n=!1;try{if("undefined"!=typeof navigator&&navigator.clipboard&&"function"==typeof navigator.clipboard.writeText){const e=navigator.clipboard.writeText(o),t=new Promise((e=>setTimeout((()=>e(!1)),600))),r=await Promise.race([e.then((()=>!0)).catch((()=>!1)),t]);n=Boolean(r)}}catch(e){}if(!n&&"undefined"!=typeof document)try{const e=document.createElement("textarea");e.value=o,e.setAttribute("readonly",""),e.style.cssText="position:fixed;top:-9999px;left:-9999px;opacity:0;pointer-events:none;",document.body.appendChild(e),e.select(),e.setSelectionRange(0,o.length),n=Boolean(document.execCommand("copy")),e.remove()}catch(e){}return showToast(` ${t} ${o} скопирован!`,"good"),n}"undefined"==typeof document||window.__KLEV_COPY_ID_BOUND__||(window.__KLEV_COPY_ID_BOUND__=!0,document.addEventListener("click",(e=>{const t=e.target&&e.target.closest?e.target.closest("[data-copy-fisher-id]"):null;if(!t)return;e.stopPropagation();const o=t.getAttribute("data-copy-fisher-id"),n=t.getAttribute("data-copy-label")||(String(o||"").startsWith("KP-")?"Ключ экипажа":"ID рыбака");if(o){copyFisherIdToClipboard(o,n);const e=t.getAttribute("title")||"";t.classList.add("copied-flash"),setTimeout((()=>{t.classList.remove("copied-flash"),e&&t.setAttribute("title",e)}),900)}})));export function openModal(e,t,o=null,n=!0,r={}){let i=document.getElementById("appModalBackdrop");i||(i=document.createElement("div"),i.id="appModalBackdrop",i.className="modal-backdrop",document.body.appendChild(i)),i.onclick=e=>{n&&e.target===i&&closeModal()};const l=r&&"function"==typeof r.onBack?r.onBack:null;"undefined"!=typeof window&&(window.__KLEV_MODAL_BACK_FN__=l);let a=r&&r.footerHtml?String(r.footerHtml):"";if(!a&&n){a=`\n      ${l?'<button type="button" class="btn" id="modalBackToHubBtn" style="flex:1;min-width:0;">← К разделам</button>':""}\n      <button type="button" class="btn" id="modalCloseBtn" data-modal-close style="flex:1;min-width:0;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg> Закрыть</button>\n    `}else a&&n&&!a.includes("data-modal-close")&&!a.includes("modalCloseBtn")&&(a+='<button type="button" class="btn" id="modalCloseBtn" data-modal-close style="flex:1;min-width:0;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg> Закрыть</button>');const s=r&&r.headerRightHtml?String(r.headerRightHtml):"";i.innerHTML=`\n    <div class="modal-box ${a?"modal-has-sticky-footer":""}" role="dialog" aria-modal="true" aria-label="${escapeHtml(String(e||"").replace(/<[^>]+>/g,"").trim())}">\n      <div class="section-head" style="margin-bottom:10px;">\n        <h3 style="font-size:var(--fs-lg);font-weight:800;line-height:1.25;min-width:0;word-break:break-word;">${e}</h3>\n        ${s}\n      </div>\n      <div id="modalDynamicBody" class="modal-dynamic-body">${t}</div>\n      ${a?`<div class="modal-sticky-footer" id="modalStickyFooter">${a}</div>`:""}\n    </div>\n  `,i.classList.add("open"),"undefined"!=typeof window&&"function"==typeof window.__KLEV_PUSH_BACK_GUARD__&&window.__KLEV_PUSH_BACK_GUARD__("modal");const d=i.querySelector("#modalCloseBtn");d&&d.addEventListener("click",closeModal),i.querySelectorAll("[data-modal-close]").forEach((e=>{e!==d&&e.addEventListener("click",closeModal)}));const c=i.querySelector("#modalBackToHubBtn");c&&l&&c.addEventListener("click",(e=>{e.stopPropagation();const t=l;window.__KLEV_MODAL_BACK_FN__=null,t()})),"function"==typeof o&&o(i.querySelector("#modalDynamicBody"),i.querySelector("#modalStickyFooter"))}export function closeModal(){"undefined"!=typeof window&&(window.__KLEV_MODAL_BACK_FN__=null);const e=document.getElementById("appModalBackdrop");e&&e.classList.remove("open")}export function openConfirmDeleteModal({title:e='<svg class="k-ico" style="color:var(--warn);" viewBox="0 0 24 24" fill="none"><path d="M12 3L2.5 19.5h19L12 3z" fill="rgba(245,158,11,0.24)" stroke="#f59e0b" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9v5M12 17h.01" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/></svg> Подтверждение удаления',message:t="Вы уверены, что хотите выполнить удаление?",confirmLabel:o='<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Да, удалить',cancelLabel:n="Отмена",extraCheckboxLabel:r="",extraCheckboxDefault:i=!0,onConfirm:l=null,onCancel:a=null}={}){if("undefined"==typeof document)return;let s=document.getElementById("klevConfirmDeleteBackdrop");s||(s=document.createElement("div"),s.id="klevConfirmDeleteBackdrop",s.style.cssText="position:fixed;inset:0;z-index:12500;background:rgba(4,9,20,0.78);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:16px;",document.body.appendChild(s));const d=()=>{s.style.display="none",s.innerHTML=""};s.style.display="flex",s.innerHTML=`\n    <div class="card" role="alertdialog" aria-modal="true" style="max-width:420px;width:100%;background:var(--panel);border:2px solid var(--bad);border-radius:var(--r-md);padding:16px;box-shadow:0 16px 40px rgba(0,0,0,0.65);display:flex;flex-direction:column;gap:12px;">\n      <div style="font-size:var(--fs-md);font-weight:900;color:var(--bad);line-height:1.3;">\n        ${e}\n      </div>\n      <div style="font-size:var(--fs-sm);color:var(--text);line-height:1.45;">\n        ${t}\n      </div>\n      ${r?`\n        <label style="display:flex;align-items:flex-start;gap:8px;padding:9px 10px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);font-size:var(--fs-xs);cursor:pointer;line-height:1.38;">\n          <input type="checkbox" id="klevConfirmExtraChk" ${i?"checked":""} style="margin-top:2px;flex-shrink:0;">\n          <span>${r}</span>\n        </label>\n      `:""}\n      <div style="display:flex;gap:8px;margin-top:4px;">\n        <button type="button" class="btn" id="klevConfirmCancelBtn" style="flex:1;min-height:40px;font-weight:800;">\n          ${n}\n        </button>\n        <button type="button" class="btn" id="klevConfirmOkBtn" style="flex:1.2;min-height:40px;font-weight:900;background:rgba(239,68,68,0.18);border-color:var(--bad);color:var(--bad);">\n          ${o}\n        </button>\n      </div>\n    </div>\n  `,s.onclick=e=>{e.target===s&&(d(),"function"==typeof a&&a())},s.querySelector("#klevConfirmCancelBtn")?.addEventListener("click",(()=>{d(),"function"==typeof a&&a()})),s.querySelector("#klevConfirmOkBtn")?.addEventListener("click",(async()=>{const e=Boolean(s.querySelector("#klevConfirmExtraChk")?.checked);d(),"function"==typeof l&&await l(e)}))}export const USER_AGREEMENT_STORAGE_KEY="klev_pro_ua_accepted_v213";export const USER_AGREEMENT_MIN_READ_SECONDS=15;export function isUserAgreementAccepted(){try{return Boolean("undefined"!=typeof localStorage&&localStorage.getItem(USER_AGREEMENT_STORAGE_KEY))}catch(e){return!1}}export function openUserAgreementModal({requireVerification:e=!1,onAccepted:t=null,onClose:o=null}={}){if("undefined"==typeof document)return;let n=document.getElementById("klevUserAgreementBackdrop");n||(n=document.createElement("div"),n.id="klevUserAgreementBackdrop",n.style.cssText="position:fixed;inset:0;z-index:12400;background:rgba(4,9,20,0.86);backdrop-filter:blur(5px);display:flex;align-items:center;justify-content:center;padding:12px;",document.body.appendChild(n));let r=null,i=e?USER_AGREEMENT_MIN_READ_SECONDS:0,l=!e;n.style.display="flex",n.innerHTML=`\n    <div class="card" role="dialog" aria-modal="true" aria-label="Пользовательское соглашение Клёв ПРО 2.0" style="max-width:540px;width:100%;max-height:92vh;background:var(--panel);border:1.5px solid var(--accent);border-radius:var(--r-md);padding:14px;display:flex;flex-direction:column;gap:10px;box-shadow:0 18px 48px rgba(0,0,0,0.75);">\n      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:8px;">\n        <div style="min-width:0;flex:1;">\n          <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;">\n            <div style="font-size:var(--fs-md);font-weight:900;color:var(--accent);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" fill="rgba(56,189,248,0.14)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M14 2v6h6M8 13h8M8 17h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Пользовательское соглашение и Политика (152-ФЗ)</div>\n            <span class="pill" style="font-size:10.5px;font-weight:900;padding:2px 7px;">12+</span>\n          </div>\n          <div style="font-size:11px;color:var(--muted);margin-top:2px;">\n            ${e?"Для завершения регистрации внимательно прочитайте соглашение и пролистайте его до конца":"Правовой статус (ЗоЗПП / 149-ФЗ), защита данных (152-ФЗ), авторские права (ГК РФ) и безопасность"}\n          </div>\n        </div>\n      </div>\n      ${e?`\n        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11px;">\n          <div id="uaScrollStatusBox" style="padding:6px 8px;border-radius:6px;background:rgba(245,158,11,0.12);border:1px solid var(--warn);color:var(--warn);font-weight:800;text-align:center;">\n            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" fill="rgba(56,189,248,0.14)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M14 2v6h6M8 13h8M8 17h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Пролистайте текст до конца\n          </div>\n          <div id="uaTimerStatusBox" style="padding:6px 8px;border-radius:6px;background:rgba(56,189,248,0.12);border:1px solid var(--accent);color:var(--accent);font-weight:800;text-align:center;">\n            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.5 2" stroke="#38bdf8" stroke-width="1.9" stroke-linecap="round"/></svg> Время чтения: ${i} сек.\n          </div>\n        </div>\n      `:""}\n      <div id="uaScrollTextContainer" style="flex:1;min-height:220px;max-height:54vh;overflow-y:auto;padding:12px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);font-size:12.5px;line-height:1.52;color:var(--text);display:flex;flex-direction:column;gap:10px;">\n        <div>\n          <b style="color:var(--accent);">1. Общие положения и некоммерческий статус (ст. 9 ЗоЗПП РФ, ст. 10 ФЗ № 149-ФЗ)</b><br>\n          Экосистема «Клёв ПРО 2.0: Круг» (домены <code>клевпро.рф</code> / <code>klevpro.ru</code>, веб-приложение PWA и Android-приложение, возрастная маркировка <b>12+</b> по ст. 6 ФЗ № 436-ФЗ) является бесплатным некоммерческим информационно-справочным проектом для рыболовов-любителей.<br>\n          На ресурсе не осуществляются возмездная продажа товаров, выполнение платных работ или оказание платных услуг потребителям, в связи с чем положения ст. 9 Закона РФ № 2300-1 «О защите прав потребителей» об указании коммерческих реквизитов продавца (ИНН / ОГРН / ОГРНИП) не применяются. Сведения о владельце сайта и правообладателе (ч. 2 ст. 10 ФЗ № 149-ФЗ): Тхор Антон Сергеевич, электронная почта для юридически значимых обращений: <a href="mailto:i@athor.ru" style="color:var(--accent);">i@athor.ru</a>.\n        </div>\n        <div>\n          <b style="color:var(--accent);">2. Политика конфиденциальности и режимы обработки геоданных (ФЗ № 152-ФЗ ст. 3, 12, 18.1, 22)</b><br>\n          Сервис спроектирован по принципу <b>Privacy by Design (Zero-PII)</b> и не осуществляет сбор персональных данных, позволяющих идентифицировать физическое лицо (ФИО, паспортные данные, номера телефонов, e-mail, домашние адреса не запрашиваются и не хранятся):<br>\n          • <b>Фоновый расчёт погоды и прогноза клёва:</b> координаты выбранного водоёма обрабатываются локально на устройстве пользователя и округляются до сетки района при запросе метеосводки.<br>\n          • <b>Публикация в раздел «Круг»:</b> точные GPS-координаты принудительно размываются на устройстве алгоритмом гексагональной сетки в радиусе <b>±5..10 км</b>, а метаданные фотографий (EXIF/GPS) автоматически вычищаются до отправки.<br>\n          • <b>Добровольная передача точных координат по действию пользователя:</b> точные координаты точки передаются на сервер только тогда, когда пользователь сам нажимает кнопку публикации в закрытый «Экипаж (72 ч)» по секретному ключу, добавляет общедоступную инфраструктурную метку (слип, опасная промоина, коряга), отправляет геометку в личном диалоге или активирует сигнал «SOS на воде».<br>\n          • Для синхронизации используется только вымышленный рыболовный позывной, криптографический хеш пароля и технический индекс вида <code>FP_89AAA001</code>. Рекламные и трекинговые счётчики отсутствуют.\n        </div>\n        <div>\n          <b style="color:var(--accent);">3. Интеллектуальная собственность (Часть IV ГК РФ) и условия картографических сервисов</b><br>\n          Исключительные права на исходный и объектный код приложения (ст. 1261 ГК РФ), 115 авторских графических иллюстраций рыб в каталоге <code>assets/fish/</code> (ст. 1259 ГК РФ), структурированную базу данных 115 видов рыб, 491 водоёма и 609 населённых пунктов по 8 рыбохозяйственным бассейнам РФ (ст. 1260 и ст. 1334 ГК РФ), а также математическую модель расчёта клёва (ст. 1465 ГК РФ) принадлежат правообладателю (© Тхор А. С., 2025–2026).<br>\n          Картографические слои и метеоданные предоставляются правообладателями для личного некоммерческого использования: © <a href="https://yandex.ru/maps/" target="_blank" rel="noopener" style="color:var(--accent);">Яндекс Карты</a> (<a href="https://yandex.ru/legal/maps_termsofuse/" target="_blank" rel="noopener" style="color:var(--accent);">Условия использования сервиса Яндекс.Карты</a>), © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener" style="color:var(--accent);">OpenStreetMap contributors</a> (ODbL), © <a href="https://leafletjs.com/" target="_blank" rel="noopener" style="color:var(--accent);">Leaflet</a> (BSD-2-Clause), метеорологические сводки <a href="https://open-meteo.com/" target="_blank" rel="noopener" style="color:var(--accent);">Open-Meteo.com</a> и <a href="https://api.met.no/" target="_blank" rel="noopener" style="color:var(--accent);">MET Norway</a> (CC-BY 4.0). Локальное браузерное кэширование фрагментов карты (IndexedDB) выполняется исключительно на устройстве пользователя для временной личной ориентации вне зоны связи без права коммерческого распространения или перепродажи.\n        </div>\n        <div>\n          <b style="color:var(--accent);">4. Правила применения рекомендательных технологий (ст. 10.2-2 ФЗ № 149-ФЗ)</b><br>\n          Расчёт «Индекса клёва (0–100%)» и подбор рекомендуемых видов рыб, приманок и оснасток выполняются локальным 8-факторным математическим алгоритмом на основе публичных метеорологических параметров (динамика атмосферного давления, температура воды и воздуха, растворённый кислород, скорость ветра, фаза Луны, время суток и сезон), гидрологического типа выбранного пользователем водоёма и отмеченных пользователем избранных видов рыб.\n        </div>\n        <div>\n          <b style="color:var(--accent);">5. Безопасность на водоёмах и соблюдение правил рыболовства (ГИМС МЧС РФ и ФЗ № 166-ФЗ)</b><br>\n          Все расчёты погодных условий, высоты волны, скорости ветра, температуры воды и ориентировочной толщины льда носят исключительно информационно-справочный характер и не заменяют официальные сводки МЧС России и Гидрометцентра. Решение о выходе на воду или на лёд принимается пользователем самостоятельно под личную ответственность.<br>\n          Пользователь обязуется соблюдать действующие Правила рыболовства соответствующего рыбохозяйственного бассейна РФ (ФЗ № 166-ФЗ), суточные нормы вылова, промысловую меру и нерестовые ограничения. Виды рыб, занесённые в Красную книгу РФ и регионов, подлежат немедленному выпуску в живом виде.\n        </div>\n        <div>\n          <b style="color:var(--accent);">6. Правила сообщества, чатов и сигнала «SOS на воде»</b><br>\n          В разделах «Круг», «Экипаж» и в чатах запрещены оскорбления, спам, публикация заведомо ложных координат опасных участков льда и неправомерное использование экстренного сигнала «<svg class="k-ico" style="color:var(--bad);" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9.5" fill="#dc2626" stroke="#fca5a5" stroke-width="1.8"/><text x="12" y="15" text-anchor="middle" fill="#fff" font-size="7.5" font-weight="900" font-family="sans-serif">SOS</text></svg> SOS на воде». Функции «SOS на воде» и «Контрольный таймер возвращения» являются <b>вспомогательным инструментом</b> оповещения находящихся поблизости участников сообщества, зависят от наличия связи и заряда батареи смартфона и <b>не заменяют официальный вызов экстренных служб 112</b> или сертифицированные спутниковые аварийные радиобуи. За ложные вызовы администрация вправе заблокировать учётную запись.\n        </div>\n        <div id="uaBottomSentinel" style="padding:8px 10px;background:rgba(16,185,129,0.10);border:1px dashed var(--good);border-radius:6px;font-size:11.5px;color:var(--good);font-weight:800;text-align:center;">\n          <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Конец текста Пользовательского соглашения и Политики конфиденциальности «Клёв ПРО 2.0»\n        </div>\n      </div>\n      <div style="display:grid;grid-template-columns:minmax(100px,1fr) minmax(150px,1.6fr);gap:8px;padding-top:4px;width:100%;">\n        <button type="button" class="btn btn-sm" id="uaCancelCloseBtn" style="width:100%;min-height:42px;padding:6px 10px;font-size:13px;font-weight:800;">\n          <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Закрыть\n        </button>\n        ${e?`\n          <button type="button" class="btn btn-sm" id="uaAcceptConfirmBtn" disabled style="width:100%;min-height:42px;padding:6px 10px;font-size:12.5px;font-weight:800;line-height:1.2;white-space:normal;text-align:center;opacity:0.55;cursor:not-allowed;">\n            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.5 2" stroke="#38bdf8" stroke-width="1.9" stroke-linecap="round"/></svg> Прочитайте (${i} с)\n          </button>\n        `:`\n          <button type="button" class="btn btn-sm btn-good" id="uaAcceptConfirmBtn" style="width:100%;min-height:42px;padding:6px 10px;font-size:13px;font-weight:800;line-height:1.2;white-space:normal;text-align:center;">\n            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> ${isUserAgreementAccepted()?"Понятно (Принято)":"Принять соглашение"}\n          </button>\n        `}\n      </div>\n    </div>\n  `;const a=n.querySelector("#uaScrollTextContainer"),s=n.querySelector("#uaScrollStatusBox"),d=n.querySelector("#uaTimerStatusBox"),c=n.querySelector("#uaAcceptConfirmBtn"),p=()=>{if(e&&(s&&(l?(s.style.background="rgba(16,185,129,0.15)",s.style.borderColor="var(--good)",s.style.color="var(--good)",s.innerHTML='<svg class="k-ico" style="color:var(--good);" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="rgba(16,185,129,0.24)" stroke="#10b981" stroke-width="1.9"/><path d="M8 12.5l2.7 2.7L16.5 9.5" stroke="#10b981" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg> Пролистано до конца'):s.innerHTML='<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" fill="rgba(56,189,248,0.14)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M14 2v6h6M8 13h8M8 17h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Пролистайте до конца ↓'),d&&(i<=0?(d.style.background="rgba(16,185,129,0.15)",d.style.borderColor="var(--good)",d.style.color="var(--good)",d.innerHTML='<svg class="k-ico" style="color:var(--good);" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="rgba(16,185,129,0.24)" stroke="#10b981" stroke-width="1.9"/><path d="M8 12.5l2.7 2.7L16.5 9.5" stroke="#10b981" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg> Время чтения выполнено'):d.innerHTML=`<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.5 2" stroke="#38bdf8" stroke-width="1.9" stroke-linecap="round"/></svg> Время чтения: ${i} сек.`),c)){const e=l&&i<=0;c.disabled=!e,e?(c.className="btn btn-sm btn-good",c.style.opacity="1",c.style.cursor="pointer",c.innerHTML='<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Принять и продолжить'):c.innerHTML=!l&&i>0?`<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.5 2" stroke="#38bdf8" stroke-width="1.9" stroke-linecap="round"/></svg> Листайте вниз (${i} с)`:l?`<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.5 2" stroke="#38bdf8" stroke-width="1.9" stroke-linecap="round"/></svg> Чтение (${i} с)...`:'<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" fill="rgba(56,189,248,0.14)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M14 2v6h6M8 13h8M8 17h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Пролистайте до конца ↓'}};if(e&&a){const e=()=>{a.scrollTop+a.clientHeight>=a.scrollHeight-18&&(l=!0,p())};a.addEventListener("scroll",e,{passive:!0}),setTimeout(e,150),r=setInterval((()=>{i=Math.max(0,i-1),p(),i<=0&&r&&(clearInterval(r),r=null)}),1e3)}n.querySelector("#uaCancelCloseBtn")?.addEventListener("click",(()=>{r&&clearInterval(r),n.style.display="none",n.innerHTML="","function"==typeof o&&o()})),c?.addEventListener("click",(()=>{if(!e||l&&!(i>0)){try{localStorage.setItem(USER_AGREEMENT_STORAGE_KEY,String(Date.now()))}catch(e){}r&&clearInterval(r),n.style.display="none",n.innerHTML="","function"==typeof t&&t()}}))}"undefined"!=typeof window&&(window.openLegalModal=()=>openUserAgreementModal({requireVerification:!1}));export function openFishLightbox(e,t,o){let n=document.getElementById("fishImageLightbox");n||(n=document.createElement("div"),n.id="fishImageLightbox",n.className="fish-lightbox-backdrop",document.body.appendChild(n)),n.innerHTML=`\n    <div class="fish-lightbox-box" role="dialog" aria-modal="true" aria-label="Увеличенное изображение: ${e}">\n      <div class="fish-lightbox-head">\n        <div style="min-width:0;">\n          <div style="font-weight:800;font-size:var(--fs-md);color:var(--text);">${e}</div>\n          ${t?`<div style="font-size:var(--fs-xs);color:var(--muted);font-style:italic;">${t}</div>`:""}\n        </div>\n      </div>\n      <div class="fish-lightbox-stage" id="fishLightboxStage" title="Нажмите, чтобы закрыть">\n        ${o}\n      </div>\n      <div style="font-size:var(--fs-xs);color:var(--muted);text-align:center;margin-top:8px;">\n        Нажмите на изображение или кнопку внизу для возврата к карточке\n      </div>\n      <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:flex;">\n        <button type="button" class="btn" id="fishLightboxCloseBtn" aria-label="Закрыть просмотр" style="width:100%;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg> Закрыть</button>\n      </div>\n    </div>\n  `,n.classList.add("open"),"undefined"!=typeof window&&"function"==typeof window.__KLEV_PUSH_BACK_GUARD__&&window.__KLEV_PUSH_BACK_GUARD__("lightbox");const r=()=>n.classList.remove("open");n.onclick=e=>{e.target===n&&r()},n.querySelector("#fishLightboxCloseBtn")?.addEventListener("click",r),n.querySelector("#fishLightboxStage")?.addEventListener("click",r)}export function downloadFileCrossPlatform(e,t,o="application/octet-stream"){const n=String(e||"klev-pro-export.txt").trim(),r="string"==typeof t?t:JSON.stringify(t,null,2);try{if("undefined"!=typeof window&&window.AndroidBridge&&"function"==typeof window.AndroidBridge.saveFileToDownloads){if(window.AndroidBridge.saveFileToDownloads(n,r,o,!1))return!0}}catch(e){}try{const e=new Blob([r],{type:o}),t=URL.createObjectURL(e),i=document.createElement("a");return i.href=t,i.download=n,i.style.display="none",document.body.appendChild(i),i.click(),setTimeout((()=>{i.remove(),URL.revokeObjectURL(t)}),1500),!0}catch(e){try{const e=`data:${o};charset=utf-8,`+encodeURIComponent(r);return window.open(e,"_blank"),!0}catch(e){}}return!1}export function triggerSystemNotificationCrossPlatform(e,t,o="alerts"){const n=String(e||"Клёв ПРО 2.0").trim(),r=String(t||"").trim();try{if("undefined"!=typeof window&&window.AndroidBridge&&"function"==typeof window.AndroidBridge.showSystemNotification)return window.AndroidBridge.showSystemNotification(n,r,String(o||"alerts")),!0}catch(e){}try{if("undefined"!=typeof window&&"Notification"in window&&"granted"===Notification.permission)return"serviceWorker"in navigator&&navigator.serviceWorker.ready?(navigator.serviceWorker.ready.then((e=>{e&&"function"==typeof e.showNotification&&e.showNotification(n,{body:r,icon:"icon-192.png",badge:"icon-192.png",tag:`klev_${o}_${Date.now()}`})})).catch((()=>{})),!0):(new Notification(n,{body:r,icon:"icon-192.png"}),!0)}catch(e){}return!1}export async function requestSystemNotificationsAccess(){try{if("undefined"!=typeof window&&window.AndroidBridge){if("function"==typeof window.AndroidBridge.requestNotificationPermission)return window.AndroidBridge.requestNotificationPermission(),showToast(" Запрос системных уведомлений Android выполнен! Проверьте шторку уведомлений.","good"),!0;if("function"==typeof window.AndroidBridge.openNotificationSettings)return window.AndroidBridge.openNotificationSettings(),!0}}catch(e){}if("undefined"!=typeof window&&"Notification"in window)try{return"granted"===await Notification.requestPermission()?(triggerSystemNotificationCrossPlatform("Клёв ПРО 2.0 • Уведомления включены","Системные оповещения Круга, Экипажа, Чатов и SOS активны!","alerts"),showToast(" Системные уведомления разрешены и протестированы!","good"),!0):(showToast(" Разрешение на системные уведомления отклонено браузером. Разрешите уведомления в настройках сайта.","warn"),!1)}catch(e){}return showToast(" Активны звуковые и всплывающие уведомления внутри приложения","info"),!1}export function openCustomSelectSheet(e){if(!e||"undefined"==typeof document||e.disabled)return;let t=document.getElementById("klevCustomSelectBackdrop");t||(t=document.createElement("div"),t.id="klevCustomSelectBackdrop",t.className="klev-select-backdrop",document.body.appendChild(t));let o=e.getAttribute("data-select-title")||e.getAttribute("title")||"";if(!o&&e.id){const t=document.querySelector(`label[for="${e.id}"]`);t&&(o=t.textContent.replace(/\s+/g," ").replace(/:$/,"").trim())}if(!o&&e.parentElement){const t=e.parentElement.querySelector("label");t&&(o=t.textContent.replace(/\s+/g," ").replace(/:$/,"").trim())}o||(o="Выберите из списка");const n=[],r=Array.from(e.children||[]);for(const t of r){const o=(t.tagName||"").toUpperCase();if("OPTGROUP"===o){const o=t.getAttribute("label")||"",r=Array.from(t.querySelectorAll("option")).map((t=>({value:t.value,label:(t.textContent||"").trim(),selected:t.value===e.value||t.selected,disabled:t.disabled})));r.length>0&&n.push({type:"group",label:o,options:r})}else"OPTION"===o&&n.push({type:"option",value:t.value,label:(t.textContent||"").trim(),selected:t.value===e.value||t.selected,disabled:t.disabled})}const i=n.reduce(((e,t)=>e+("group"===t.type?t.options.length:1)),0)>=7,l=(t="")=>{const o=String(t||"").trim().toLowerCase().replace(/ё/g,"е");let r="",i=0;const l=t=>{if(o&&!t.label.toLowerCase().replace(/ё/g,"е").includes(o))return"";i++;const n=String(t.value)===String(e.value);return`\n        <button type="button" class="klev-select-opt ${n?"selected":""}" data-klev-opt-val="${escapeHtml(t.value)}" ${t.disabled?"disabled":""}>\n          <span style="min-width:0;flex:1;word-break:normal;">${escapeHtml(t.label)}</span>\n          <span class="klev-select-check">${n?"✓":""}</span>\n        </button>\n      `};for(const e of n)if("group"===e.type){const t=e.options.map(l).join("");t&&(r+=`<div class="klev-select-group-lbl">${escapeHtml(e.label)}</div>${t}`)}else r+=l(e);return 0===i&&(r=`<div style="padding:18px;text-align:center;color:var(--muted);font-size:12.5px;">Ничего не найдено по запросу «${escapeHtml(t)}»</div>`),r};t.innerHTML=`\n    <div class="klev-select-sheet" role="listbox" aria-label="${escapeHtml(o)}">\n      <div class="klev-select-head">\n        <div class="klev-select-title">${escapeHtml(o)}</div>\n        <button type="button" class="btn btn-sm" id="klevSelectCloseBtn" style="min-height:30px;padding:2px 9px;font-weight:900;">✕</button>\n      </div>\n      ${i?'\n        <div class="klev-select-search-wrap">\n          <input type="search" class="input" id="klevSelectSearchInp" placeholder="Быстрый поиск по списку..." style="min-height:36px;font-size:12.5px;">\n        </div>\n      ':""}\n      <div class="klev-select-list" id="klevSelectListBox">\n        ${l("")}\n      </div>\n    </div>\n  `,t.classList.add("open");const a=()=>{t.classList.remove("open"),t.innerHTML=""};t.onclick=e=>{e.target===t&&a()},t.querySelector("#klevSelectCloseBtn")?.addEventListener("click",a);const s=t.querySelector("#klevSelectListBox"),d=()=>{s&&s.querySelectorAll("[data-klev-opt-val]").forEach((t=>{t.addEventListener("click",(()=>{const o=t.getAttribute("data-klev-opt-val");null!==o&&e.value!==o&&(e.value=o,e.dispatchEvent(new Event("input",{bubbles:!0})),e.dispatchEvent(new Event("change",{bubbles:!0}))),a()}))}))};d(),setTimeout((()=>{const e=s?.querySelector(".klev-select-opt.selected");e&&"function"==typeof e.scrollIntoView&&e.scrollIntoView({block:"nearest"})}),20);const c=t.querySelector("#klevSelectSearchInp");c&&s&&c.addEventListener("input",(e=>{s.innerHTML=l(e.target.value||""),d()}))}"undefined"==typeof document||window.__KLEV_CUSTOM_SELECT_BOUND__||(window.__KLEV_CUSTOM_SELECT_BOUND__=!0,document.addEventListener("mousedown",(e=>{const t=e.target&&e.target.closest?e.target.closest("select"):null;t&&!t.disabled&&e.preventDefault()}),!0),document.addEventListener("click",(e=>{const t=e.target&&e.target.closest?e.target.closest("select"):null;if(t&&!t.disabled){e.preventDefault(),e.stopPropagation();try{t.blur()}catch(e){}openCustomSelectSheet(t)}}),!0),document.addEventListener("keydown",(e=>{if("Enter"===e.key||" "===e.key){const t=e.target&&e.target.closest?e.target.closest("select"):null;t&&!t.disabled&&(e.preventDefault(),openCustomSelectSheet(t))}else if("Escape"===e.key){const e=document.getElementById("klevCustomSelectBackdrop");e&&e.classList.contains("open")&&(e.classList.remove("open"),e.innerHTML="")}}),!0));export function flashHighlightElement(e,t={}){if("undefined"==typeof document)return;const{scroll:o=!0,block:n="center",delayMs:r=80}=t||{},i=()=>{const t=Array.isArray(e)?e:[e],r=[];for(const e of t)e&&("string"==typeof e?document.querySelectorAll(e).forEach((e=>{e&&null!==e.offsetParent&&!r.includes(e)&&r.push(e)})):e&&1===e.nodeType&&(null===e.offsetParent||r.includes(e)||r.push(e)));if(0!==r.length){if(o){const e=r[0];try{e.scrollIntoView({behavior:"smooth",block:n})}catch(t){try{e.scrollIntoView()}catch(e){}}}r.forEach((e=>{e.classList.remove("klev-flash-highlight"),e.offsetWidth,e.classList.add("klev-flash-highlight"),e._klevFlashTimer&&clearTimeout(e._klevFlashTimer),e._klevFlashTimer=setTimeout((()=>{e.classList.remove("klev-flash-highlight"),e._klevFlashTimer=null}),1350)}))}};r>0?setTimeout(i,r):i()}"undefined"!=typeof window&&(window.__KLEV_FLASH_HIGHLIGHT__=flashHighlightElement);
+import { svgIcon } from './icons.js?v=2.5.6-r215';
+/**
+ * Экранирует пользовательские строки перед вставкой в HTML (защита от DOM XSS и инъекций тегов)
+ */
+export function escapeHtml(raw) {
+  if (raw === null || raw === undefined) return '';
+  return String(raw)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+/**
+ * Проверяет, что рыболовный позывной (логин) не содержит персональных данных (номера телефона или e-mail)
+ * для соблюдения архитектуры Zero-PII в соответствии со ст. 3 и ст. 22 ФЗ № 152-ФЗ «О персональных данных».
+ */
+export function isAnonymousCallsignValid(rawLogin = '') {
+  const s = String(rawLogin || '').trim();
+  if (!s) return { ok: true };
+  if (/^FP_/i.test(s)) return { ok: true };
+  const withoutLeadingAt = s.replace(/^@+/, '');
+  const hasEmailPattern = withoutLeadingAt.includes('@') || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
+  const digitsOnly = s.replace(/\D/g, '');
+  const hasPhonePattern = /(?:\+7|7|8)[\s\-()]?\d{3}[\s\-()]?\d{3}[\s\-()]?\d{2}/.test(s) || digitsOnly.length >= 9;
+  if (hasEmailPattern || hasPhonePattern) {
+    return {
+      ok: false,
+      error: 'В целях конфиденциальности (152-ФЗ) запрещено указывать номер телефона или e-mail в качестве позывного. Используйте вымышленный рыболовный никнейм.'
+    };
+  }
+  return { ok: true };
+}
+export function createPill({ text, tone = 'neutral', icon = '', ariaLabel = '' }) {
+  const cls = `pill pill-${tone}`;
+  const aria = ariaLabel ? ` aria-label="${ariaLabel}"` : '';
+  return `<span class="${cls}"${aria}>${icon ? `<span aria-hidden="true">${icon}</span>` : ''}<span>${text}</span></span>`;
+}
+export function createChip({ label, active = false, attrs = '' }) {
+  return `<button type="button" class="btn btn-sm chip-interactive ${active ? 'btn-accent' : ''}" ${attrs}>${label}</button>`;
+}
+export function createCard({ title = '', rightHtml = '', bodyHtml = '', extraClass = '' }) {
+  const head = (title || rightHtml)
+    ? `<div class="section-head"><span class="section-title">${title}</span><div>${rightHtml}</div></div>`
+    : '';
+  return `<div class="card ${extraClass}">${head}${bodyHtml}</div>`;
+}
+export function createSkeleton(lines = 3) {
+  let out = '<div class="card" aria-busy="true">';
+  for (let i = 0; i < lines; i++) {
+    out += `<div style="height:14px;background:var(--border);border-radius:6px;margin-bottom:8px;width:${90 - i * 15}%;"></div>`;
+  }
+  return out + '</div>';
+}
+export function showToast(message, tone = 'info') {
+  let box = document.getElementById('toastContainer');
+  if (!box) {
+    box = document.createElement('div');
+    box.id = 'toastContainer';
+    box.className = 'toast-container';
+    box.setAttribute('aria-live', 'polite');
+    document.body.appendChild(box);
+  }
+  const item = document.createElement('div');
+  item.className = 'toast';
+  if (tone === 'bad') item.style.borderColor = 'var(--bad)';
+  if (tone === 'good') item.style.borderColor = 'var(--good)';
+  if (tone === 'warn') item.style.borderColor = 'var(--warn)';
+  const cleanText = String(message || '').replace(/<svg[\s\S]*?<\/svg>/gi, '').replace(/<[^>]+>/g, '').trim();
+  const icoName = tone === 'good' ? 'check' : (tone === 'bad' || tone === 'warn' ? 'warn' : 'info');
+  const icoColor = tone === 'good' ? 'var(--good)' : (tone === 'bad' ? 'var(--bad)' : (tone === 'warn' ? 'var(--warn)' : 'var(--accent)'));
+  item.innerHTML = `${svgIcon(icoName, icoColor)}<span>${escapeHtml(cleanText)}</span>`;
+  box.appendChild(item);
+  setTimeout(() => {
+    item.remove();
+  }, 3800);
+}
+/**
+ * Автокопирование Рыболовного ID (FP_FMP089 / FP_89AAA001) или ключа Экипажа (KP-XXXX) в буфер обмена
+ * в 1 нажатие (работает в браузере, Android APK WebView, iOS Safari и Telegram Mini App)
+ */
+export async function copyFisherIdToClipboard(rawId, labelPrefix = 'ID рыбака') {
+  const cleanId = String(rawId || '').trim();
+  if (!cleanId) return false;
+  let copied = false;
+  try {
+    if (typeof navigator !== 'undefined' && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+      const clipPromise = navigator.clipboard.writeText(cleanId);
+      const timeoutPromise = new Promise(resolve => setTimeout(() => resolve(false), 600));
+      const res = await Promise.race([clipPromise.then(() => true).catch(() => false), timeoutPromise]);
+      copied = Boolean(res);
+    }
+  } catch (e) {}
+  if (!copied && typeof document !== 'undefined') {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = cleanId;
+      ta.setAttribute('readonly', '');
+      ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;pointer-events:none;';
+      document.body.appendChild(ta);
+      ta.select();
+      ta.setSelectionRange(0, cleanId.length);
+      copied = Boolean(document.execCommand('copy'));
+      ta.remove();
+    } catch (e) {}
+  }
+  showToast(` ${labelPrefix} ${cleanId} скопирован!`, 'good');
+  return copied;
+}
+if (typeof document !== 'undefined' && !window.__KLEV_COPY_ID_BOUND__) {
+  window.__KLEV_COPY_ID_BOUND__ = true;
+  document.addEventListener('click', (e) => {
+    const target = e.target && e.target.closest ? e.target.closest('[data-copy-fisher-id]') : null;
+    if (!target) return;
+    e.stopPropagation();
+    const fid = target.getAttribute('data-copy-fisher-id');
+    const lbl = target.getAttribute('data-copy-label') || (String(fid || '').startsWith('KP-') ? 'Ключ экипажа' : 'ID рыбака');
+    if (fid) {
+      copyFisherIdToClipboard(fid, lbl);
+      const origTitle = target.getAttribute('title') || '';
+      target.classList.add('copied-flash');
+      setTimeout(() => {
+        target.classList.remove('copied-flash');
+        if (origTitle) target.setAttribute('title', origTitle);
+      }, 900);
+    }
+  });
+}
+/**
+ * Открывает адаптивное модальное окно / подменю.
+ * - Все кнопки «<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Закрыть» расположены внизу в закреплённом нижнем баре (.modal-sticky-footer).
+ * - При открытии ставится защитная запись в history (Back-Guard), чтобы боковой свайп «Назад»
+ *   аккуратно закрывал подменю/модалку (или возвращал в хаб настроек), а не сворачивал приложение.
+ */
+export function openModal(title, contentHtml, onMount = null, canClose = true, options = {}) {
+  let backdrop = document.getElementById('appModalBackdrop');
+  if (!backdrop) {
+    backdrop = document.createElement('div');
+    backdrop.id = 'appModalBackdrop';
+    backdrop.className = 'modal-backdrop';
+    document.body.appendChild(backdrop);
+  }
+  backdrop.onclick = (e) => {
+    if (canClose && e.target === backdrop) closeModal();
+  };
+  const onBackFn = (options && typeof options.onBack === 'function') ? options.onBack : null;
+  if (typeof window !== 'undefined') {
+    window.__KLEV_MODAL_BACK_FN__ = onBackFn;
+  }
+  let footerHtml = (options && options.footerHtml) ? String(options.footerHtml) : '';
+  if (!footerHtml && canClose) {
+    const backBtnPart = onBackFn
+      ? `<button type="button" class="btn" id="modalBackToHubBtn" style="flex:1;min-width:0;">← К разделам</button>`
+      : '';
+    footerHtml = `
+      ${backBtnPart}
+      <button type="button" class="btn" id="modalCloseBtn" data-modal-close style="flex:1;min-width:0;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg> Закрыть</button>
+    `;
+  } else if (footerHtml && canClose && !footerHtml.includes('data-modal-close') && !footerHtml.includes('modalCloseBtn')) {
+    footerHtml += `<button type="button" class="btn" id="modalCloseBtn" data-modal-close style="flex:1;min-width:0;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg> Закрыть</button>`;
+  }
+  const headerRightHtml = (options && options.headerRightHtml) ? String(options.headerRightHtml) : '';
+  backdrop.innerHTML = `
+    <div class="modal-box ${footerHtml ? 'modal-has-sticky-footer' : ''}" role="dialog" aria-modal="true" aria-label="${escapeHtml(String(title || '').replace(/<[^>]+>/g, '').trim())}">
+      <div class="section-head" style="margin-bottom:10px;">
+        <h3 style="font-size:var(--fs-lg);font-weight:800;line-height:1.25;min-width:0;word-break:break-word;">${title}</h3>
+        ${headerRightHtml}
+      </div>
+      <div id="modalDynamicBody" class="modal-dynamic-body">${contentHtml}</div>
+      ${footerHtml ? `<div class="modal-sticky-footer" id="modalStickyFooter">${footerHtml}</div>` : ''}
+    </div>
+  `;
+  backdrop.classList.add('open');
+  if (typeof window !== 'undefined' && typeof window.__KLEV_PUSH_BACK_GUARD__ === 'function') {
+    window.__KLEV_PUSH_BACK_GUARD__('modal');
+  }
+  const closeBtn = backdrop.querySelector('#modalCloseBtn');
+  if (closeBtn) closeBtn.addEventListener('click', closeModal);
+  backdrop.querySelectorAll('[data-modal-close]').forEach(btn => {
+    if (btn !== closeBtn) btn.addEventListener('click', closeModal);
+  });
+  const backHubBtn = backdrop.querySelector('#modalBackToHubBtn');
+  if (backHubBtn && onBackFn) {
+    backHubBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const fn = onBackFn;
+      window.__KLEV_MODAL_BACK_FN__ = null;
+      fn();
+    });
+  }
+  if (typeof onMount === 'function') {
+    onMount(backdrop.querySelector('#modalDynamicBody'), backdrop.querySelector('#modalStickyFooter'));
+  }
+}
+export function closeModal() {
+  if (typeof window !== 'undefined') {
+    window.__KLEV_MODAL_BACK_FN__ = null;
+  }
+  const backdrop = document.getElementById('appModalBackdrop');
+  if (backdrop) backdrop.classList.remove('open');
+}
+/**
+ * Универсальное модальное окно подтверждения удаления (для Супер-Админа, Журнала уловов, Чатов, Карты и Круга).
+ * Отрисовывается поверх любых открытых окон (z-index: 12500), не сбрасывая текущее состояние экрана.
+ */
+export function openConfirmDeleteModal({
+  title = '<svg class="k-ico" style="color:var(--warn);" viewBox="0 0 24 24" fill="none"><path d="M12 3L2.5 19.5h19L12 3z" fill="rgba(245,158,11,0.24)" stroke="#f59e0b" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9v5M12 17h.01" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/></svg> Подтверждение удаления',
+  message = 'Вы уверены, что хотите выполнить удаление?',
+  confirmLabel = '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Да, удалить',
+  cancelLabel = 'Отмена',
+  extraCheckboxLabel = '',
+  extraCheckboxDefault = true,
+  onConfirm = null,
+  onCancel = null
+} = {}) {
+  if (typeof document === 'undefined') return;
+  let overlay = document.getElementById('klevConfirmDeleteBackdrop');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'klevConfirmDeleteBackdrop';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:12500;background:rgba(4,9,20,0.78);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:16px;';
+    document.body.appendChild(overlay);
+  }
+  const closeConfirm = () => {
+    overlay.style.display = 'none';
+    overlay.innerHTML = '';
+  };
+  overlay.style.display = 'flex';
+  overlay.innerHTML = `
+    <div class="card" role="alertdialog" aria-modal="true" style="max-width:420px;width:100%;background:var(--panel);border:2px solid var(--bad);border-radius:var(--r-md);padding:16px;box-shadow:0 16px 40px rgba(0,0,0,0.65);display:flex;flex-direction:column;gap:12px;">
+      <div style="font-size:var(--fs-md);font-weight:900;color:var(--bad);line-height:1.3;">
+        ${title}
+      </div>
+      <div style="font-size:var(--fs-sm);color:var(--text);line-height:1.45;">
+        ${message}
+      </div>
+      ${extraCheckboxLabel ? `
+        <label style="display:flex;align-items:flex-start;gap:8px;padding:9px 10px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);font-size:var(--fs-xs);cursor:pointer;line-height:1.38;">
+          <input type="checkbox" id="klevConfirmExtraChk" ${extraCheckboxDefault ? 'checked' : ''} style="margin-top:2px;flex-shrink:0;">
+          <span>${extraCheckboxLabel}</span>
+        </label>
+      ` : ''}
+      <div style="display:flex;gap:8px;margin-top:4px;">
+        <button type="button" class="btn" id="klevConfirmCancelBtn" style="flex:1;min-height:40px;font-weight:800;">
+          ${cancelLabel}
+        </button>
+        <button type="button" class="btn" id="klevConfirmOkBtn" style="flex:1.2;min-height:40px;font-weight:900;background:rgba(239,68,68,0.18);border-color:var(--bad);color:var(--bad);">
+          ${confirmLabel}
+        </button>
+      </div>
+    </div>
+  `;
+  overlay.onclick = (e) => {
+    if (e.target === overlay) {
+      closeConfirm();
+      if (typeof onCancel === 'function') onCancel();
+    }
+  };
+  overlay.querySelector('#klevConfirmCancelBtn')?.addEventListener('click', () => {
+    closeConfirm();
+    if (typeof onCancel === 'function') onCancel();
+  });
+  overlay.querySelector('#klevConfirmOkBtn')?.addEventListener('click', async () => {
+    const extraChecked = Boolean(overlay.querySelector('#klevConfirmExtraChk')?.checked);
+    closeConfirm();
+    if (typeof onConfirm === 'function') {
+      await onConfirm(extraChecked);
+    }
+  });
+}
+export const USER_AGREEMENT_STORAGE_KEY = 'klev_pro_ua_accepted_v213';
+export const USER_AGREEMENT_MIN_READ_SECONDS = 15;
+export function isUserAgreementAccepted() {
+  try {
+    return Boolean(typeof localStorage !== 'undefined' && localStorage.getItem(USER_AGREEMENT_STORAGE_KEY));
+  } catch (e) {
+    return false;
+  }
+}
+/**
+ * Отдельное окно «<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" fill="rgba(56,189,248,0.14)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M14 2v6h6M8 13h8M8 17h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Пользовательское соглашение и Политика конфиденциальности (152-ФЗ)» при регистрации и в настройках профиля.
+ * При регистрации (requireVerification === true) требует:
+ * 1) Прокрутки текста соглашения до самого конца («Пролистано до конца»)
+ * 2) Минимального времени чтения текста (таймер не менее USER_AGREEMENT_MIN_READ_SECONDS секунд)
+ */
+export function openUserAgreementModal({
+  requireVerification = false,
+  onAccepted = null,
+  onClose = null
+} = {}) {
+  if (typeof document === 'undefined') return;
+  let overlay = document.getElementById('klevUserAgreementBackdrop');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'klevUserAgreementBackdrop';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:12400;background:rgba(4,9,20,0.86);backdrop-filter:blur(5px);display:flex;align-items:center;justify-content:center;padding:12px;';
+    document.body.appendChild(overlay);
+  }
+  let timerInterval = null;
+  let secondsLeft = requireVerification ? USER_AGREEMENT_MIN_READ_SECONDS : 0;
+  let scrolledToBottom = !requireVerification;
+  const cleanupAndClose = () => {
+    if (timerInterval) clearInterval(timerInterval);
+    overlay.style.display = 'none';
+    overlay.innerHTML = '';
+    if (typeof onClose === 'function') onClose();
+  };
+  overlay.style.display = 'flex';
+  overlay.innerHTML = `
+    <div class="card" role="dialog" aria-modal="true" aria-label="Пользовательское соглашение Клёв ПРО 2.0" style="max-width:540px;width:100%;max-height:92vh;background:var(--panel);border:1.5px solid var(--accent);border-radius:var(--r-md);padding:14px;display:flex;flex-direction:column;gap:10px;box-shadow:0 18px 48px rgba(0,0,0,0.75);">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:8px;">
+        <div style="min-width:0;flex:1;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;">
+            <div style="font-size:var(--fs-md);font-weight:900;color:var(--accent);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" fill="rgba(56,189,248,0.14)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M14 2v6h6M8 13h8M8 17h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Пользовательское соглашение и Политика (152-ФЗ)</div>
+            <span class="pill" style="font-size:10.5px;font-weight:900;padding:2px 7px;">12+</span>
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px;">
+            ${requireVerification
+              ? 'Для завершения регистрации внимательно прочитайте соглашение и пролистайте его до конца'
+              : 'Правовой статус (ЗоЗПП / 149-ФЗ), защита данных (152-ФЗ), авторские права (ГК РФ) и безопасность'}
+          </div>
+        </div>
+      </div>
+      ${requireVerification ? `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11px;">
+          <div id="uaScrollStatusBox" style="padding:6px 8px;border-radius:6px;background:rgba(245,158,11,0.12);border:1px solid var(--warn);color:var(--warn);font-weight:800;text-align:center;">
+            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" fill="rgba(56,189,248,0.14)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M14 2v6h6M8 13h8M8 17h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Пролистайте текст до конца
+          </div>
+          <div id="uaTimerStatusBox" style="padding:6px 8px;border-radius:6px;background:rgba(56,189,248,0.12);border:1px solid var(--accent);color:var(--accent);font-weight:800;text-align:center;">
+            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.5 2" stroke="#38bdf8" stroke-width="1.9" stroke-linecap="round"/></svg> Время чтения: ${secondsLeft} сек.
+          </div>
+        </div>
+      ` : ''}
+      <div id="uaScrollTextContainer" style="flex:1;min-height:220px;max-height:54vh;overflow-y:auto;padding:12px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);font-size:12.5px;line-height:1.52;color:var(--text);display:flex;flex-direction:column;gap:10px;">
+        <div>
+          <b style="color:var(--accent);">1. Общие положения и некоммерческий статус (ст. 9 ЗоЗПП РФ, ст. 10 ФЗ № 149-ФЗ)</b><br>
+          Экосистема «Клёв ПРО 2.0: Круг» (домены <code>клевпро.рф</code> / <code>klevpro.ru</code>, веб-приложение PWA и Android-приложение, возрастная маркировка <b>12+</b> по ст. 6 ФЗ № 436-ФЗ) является бесплатным некоммерческим информационно-справочным проектом для рыболовов-любителей.<br>
+          На ресурсе не осуществляются возмездная продажа товаров, выполнение платных работ или оказание платных услуг потребителям, в связи с чем положения ст. 9 Закона РФ № 2300-1 «О защите прав потребителей» об указании коммерческих реквизитов продавца (ИНН / ОГРН / ОГРНИП) не применяются. Сведения о владельце сайта и правообладателе (ч. 2 ст. 10 ФЗ № 149-ФЗ): Тхор Антон Сергеевич, электронная почта для юридически значимых обращений: <a href="mailto:i@athor.ru" style="color:var(--accent);">i@athor.ru</a>.
+        </div>
+        <div>
+          <b style="color:var(--accent);">2. Политика конфиденциальности и режимы обработки геоданных (ФЗ № 152-ФЗ ст. 3, 12, 18.1, 22)</b><br>
+          Сервис спроектирован по принципу <b>Privacy by Design (Zero-PII)</b> и не осуществляет сбор персональных данных, позволяющих идентифицировать физическое лицо (ФИО, паспортные данные, номера телефонов, e-mail, домашние адреса не запрашиваются и не хранятся):<br>
+          • <b>Фоновый расчёт погоды и прогноза клёва:</b> координаты выбранного водоёма обрабатываются локально на устройстве пользователя и округляются до сетки района при запросе метеосводки.<br>
+          • <b>Публикация в раздел «Круг»:</b> точные GPS-координаты принудительно размываются на устройстве алгоритмом гексагональной сетки в радиусе <b>±5..10 км</b>, а метаданные фотографий (EXIF/GPS) автоматически вычищаются до отправки.<br>
+          • <b>Добровольная передача точных координат по действию пользователя:</b> точные координаты точки передаются на сервер только тогда, когда пользователь сам нажимает кнопку публикации в закрытый «Экипаж (72 ч)» по секретному ключу, добавляет общедоступную инфраструктурную метку (слип, опасная промоина, коряга), отправляет геометку в личном диалоге или активирует сигнал «SOS на воде».<br>
+          • Для синхронизации используется только вымышленный рыболовный позывной, криптографический хеш пароля и технический индекс вида <code>FP_89AAA001</code>. Рекламные и трекинговые счётчики отсутствуют.
+        </div>
+        <div>
+          <b style="color:var(--accent);">3. Интеллектуальная собственность (Часть IV ГК РФ) и условия картографических сервисов</b><br>
+          Исключительные права на исходный и объектный код приложения (ст. 1261 ГК РФ), 115 авторских графических иллюстраций рыб в каталоге <code>assets/fish/</code> (ст. 1259 ГК РФ), структурированную базу данных 115 видов рыб, 491 водоёма и 609 населённых пунктов по 8 рыбохозяйственным бассейнам РФ (ст. 1260 и ст. 1334 ГК РФ), а также математическую модель расчёта клёва (ст. 1465 ГК РФ) принадлежат правообладателю (© Тхор А. С., 2025–2026).<br>
+          Картографические слои и метеоданные предоставляются правообладателями для личного некоммерческого использования: © <a href="https://yandex.ru/maps/" target="_blank" rel="noopener" style="color:var(--accent);">Яндекс Карты</a> (<a href="https://yandex.ru/legal/maps_termsofuse/" target="_blank" rel="noopener" style="color:var(--accent);">Условия использования сервиса Яндекс.Карты</a>), © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener" style="color:var(--accent);">OpenStreetMap contributors</a> (ODbL), © <a href="https://leafletjs.com/" target="_blank" rel="noopener" style="color:var(--accent);">Leaflet</a> (BSD-2-Clause), метеорологические сводки <a href="https://open-meteo.com/" target="_blank" rel="noopener" style="color:var(--accent);">Open-Meteo.com</a> и <a href="https://api.met.no/" target="_blank" rel="noopener" style="color:var(--accent);">MET Norway</a> (CC-BY 4.0). Локальное браузерное кэширование фрагментов карты (IndexedDB) выполняется исключительно на устройстве пользователя для временной личной ориентации вне зоны связи без права коммерческого распространения или перепродажи.
+        </div>
+        <div>
+          <b style="color:var(--accent);">4. Правила применения рекомендательных технологий (ст. 10.2-2 ФЗ № 149-ФЗ)</b><br>
+          Расчёт «Индекса клёва (0–100%)» и подбор рекомендуемых видов рыб, приманок и оснасток выполняются локальным 8-факторным математическим алгоритмом на основе публичных метеорологических параметров (динамика атмосферного давления, температура воды и воздуха, растворённый кислород, скорость ветра, фаза Луны, время суток и сезон), гидрологического типа выбранного пользователем водоёма и отмеченных пользователем избранных видов рыб.
+        </div>
+        <div>
+          <b style="color:var(--accent);">5. Безопасность на водоёмах и соблюдение правил рыболовства (ГИМС МЧС РФ и ФЗ № 166-ФЗ)</b><br>
+          Все расчёты погодных условий, высоты волны, скорости ветра, температуры воды и ориентировочной толщины льда носят исключительно информационно-справочный характер и не заменяют официальные сводки МЧС России и Гидрометцентра. Решение о выходе на воду или на лёд принимается пользователем самостоятельно под личную ответственность.<br>
+          Пользователь обязуется соблюдать действующие Правила рыболовства соответствующего рыбохозяйственного бассейна РФ (ФЗ № 166-ФЗ), суточные нормы вылова, промысловую меру и нерестовые ограничения. Виды рыб, занесённые в Красную книгу РФ и регионов, подлежат немедленному выпуску в живом виде.
+        </div>
+        <div>
+          <b style="color:var(--accent);">6. Правила сообщества, чатов и сигнала «SOS на воде»</b><br>
+          В разделах «Круг», «Экипаж» и в чатах запрещены оскорбления, спам, публикация заведомо ложных координат опасных участков льда и неправомерное использование экстренного сигнала «<svg class="k-ico" style="color:var(--bad);" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9.5" fill="#dc2626" stroke="#fca5a5" stroke-width="1.8"/><text x="12" y="15" text-anchor="middle" fill="#fff" font-size="7.5" font-weight="900" font-family="sans-serif">SOS</text></svg> SOS на воде». Функции «SOS на воде» и «Контрольный таймер возвращения» являются <b>вспомогательным инструментом</b> оповещения находящихся поблизости участников сообщества, зависят от наличия связи и заряда батареи смартфона и <b>не заменяют официальный вызов экстренных служб 112</b> или сертифицированные спутниковые аварийные радиобуи. За ложные вызовы администрация вправе заблокировать учётную запись.
+        </div>
+        <div id="uaBottomSentinel" style="padding:8px 10px;background:rgba(16,185,129,0.10);border:1px dashed var(--good);border-radius:6px;font-size:11.5px;color:var(--good);font-weight:800;text-align:center;">
+          <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Конец текста Пользовательского соглашения и Политики конфиденциальности «Клёв ПРО 2.0»
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:minmax(100px,1fr) minmax(150px,1.6fr);gap:8px;padding-top:4px;width:100%;">
+        <button type="button" class="btn btn-sm" id="uaCancelCloseBtn" style="width:100%;min-height:42px;padding:6px 10px;font-size:13px;font-weight:800;">
+          <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Закрыть
+        </button>
+        ${requireVerification ? `
+          <button type="button" class="btn btn-sm" id="uaAcceptConfirmBtn" disabled style="width:100%;min-height:42px;padding:6px 10px;font-size:12.5px;font-weight:800;line-height:1.2;white-space:normal;text-align:center;opacity:0.55;cursor:not-allowed;">
+            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.5 2" stroke="#38bdf8" stroke-width="1.9" stroke-linecap="round"/></svg> Прочитайте (${secondsLeft} с)
+          </button>
+        ` : `
+          <button type="button" class="btn btn-sm btn-good" id="uaAcceptConfirmBtn" style="width:100%;min-height:42px;padding:6px 10px;font-size:13px;font-weight:800;line-height:1.2;white-space:normal;text-align:center;">
+            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> ${isUserAgreementAccepted() ? 'Понятно (Принято)' : 'Принять соглашение'}
+          </button>
+        `}
+      </div>
+    </div>
+  `;
+  const scrollBox = overlay.querySelector('#uaScrollTextContainer');
+  const scrollBadge = overlay.querySelector('#uaScrollStatusBox');
+  const timerBadge = overlay.querySelector('#uaTimerStatusBox');
+  const acceptBtn = overlay.querySelector('#uaAcceptConfirmBtn');
+  const updateAcceptButtonState = () => {
+    if (!requireVerification) return;
+    if (scrollBadge) {
+      if (scrolledToBottom) {
+        scrollBadge.style.background = 'rgba(16,185,129,0.15)';
+        scrollBadge.style.borderColor = 'var(--good)';
+        scrollBadge.style.color = 'var(--good)';
+        scrollBadge.innerHTML = '<svg class="k-ico" style="color:var(--good);" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="rgba(16,185,129,0.24)" stroke="#10b981" stroke-width="1.9"/><path d="M8 12.5l2.7 2.7L16.5 9.5" stroke="#10b981" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg> Пролистано до конца';
+      } else {
+        scrollBadge.innerHTML = '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" fill="rgba(56,189,248,0.14)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M14 2v6h6M8 13h8M8 17h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Пролистайте до конца ↓';
+      }
+    }
+    if (timerBadge) {
+      if (secondsLeft <= 0) {
+        timerBadge.style.background = 'rgba(16,185,129,0.15)';
+        timerBadge.style.borderColor = 'var(--good)';
+        timerBadge.style.color = 'var(--good)';
+        timerBadge.innerHTML = '<svg class="k-ico" style="color:var(--good);" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="rgba(16,185,129,0.24)" stroke="#10b981" stroke-width="1.9"/><path d="M8 12.5l2.7 2.7L16.5 9.5" stroke="#10b981" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg> Время чтения выполнено';
+      } else {
+        timerBadge.innerHTML = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.5 2" stroke="#38bdf8" stroke-width="1.9" stroke-linecap="round"/></svg> Время чтения: ${secondsLeft} сек.`;
+      }
+    }
+    if (acceptBtn) {
+      const unlocked = scrolledToBottom && secondsLeft <= 0;
+      acceptBtn.disabled = !unlocked;
+      if (unlocked) {
+        acceptBtn.className = 'btn btn-sm btn-good';
+        acceptBtn.style.opacity = '1';
+        acceptBtn.style.cursor = 'pointer';
+        acceptBtn.innerHTML = '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Принять и продолжить';
+      } else if (!scrolledToBottom && secondsLeft > 0) {
+        acceptBtn.innerHTML = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.5 2" stroke="#38bdf8" stroke-width="1.9" stroke-linecap="round"/></svg> Листайте вниз (${secondsLeft} с)`;
+      } else if (!scrolledToBottom) {
+        acceptBtn.innerHTML = '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" fill="rgba(56,189,248,0.14)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M14 2v6h6M8 13h8M8 17h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Пролистайте до конца ↓';
+      } else {
+        acceptBtn.innerHTML = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.5 2" stroke="#38bdf8" stroke-width="1.9" stroke-linecap="round"/></svg> Чтение (${secondsLeft} с)...`;
+      }
+    }
+  };
+  if (requireVerification && scrollBox) {
+    const checkScrollPos = () => {
+      if (scrollBox.scrollTop + scrollBox.clientHeight >= scrollBox.scrollHeight - 18) {
+        scrolledToBottom = true;
+        updateAcceptButtonState();
+      }
+    };
+    scrollBox.addEventListener('scroll', checkScrollPos, { passive: true });
+    setTimeout(checkScrollPos, 150);
+    timerInterval = setInterval(() => {
+      secondsLeft = Math.max(0, secondsLeft - 1);
+      updateAcceptButtonState();
+      if (secondsLeft <= 0 && timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+      }
+    }, 1000);
+  }
+  overlay.querySelector('#uaCancelCloseBtn')?.addEventListener('click', () => {
+    cleanupAndClose();
+  });
+  acceptBtn?.addEventListener('click', () => {
+    if (requireVerification && (!scrolledToBottom || secondsLeft > 0)) return;
+    try {
+      localStorage.setItem(USER_AGREEMENT_STORAGE_KEY, String(Date.now()));
+    } catch (e) {}
+    if (timerInterval) clearInterval(timerInterval);
+    overlay.style.display = 'none';
+    overlay.innerHTML = '';
+    if (typeof onAccepted === 'function') {
+      onAccepted();
+    }
+  });
+}
+if (typeof window !== 'undefined') {
+  window.openLegalModal = () => openUserAgreementModal({ requireVerification: false });
+}
+export function openFishLightbox(fishTitle, latinTitle, visualHtml) {
+  let lb = document.getElementById('fishImageLightbox');
+  if (!lb) {
+    lb = document.createElement('div');
+    lb.id = 'fishImageLightbox';
+    lb.className = 'fish-lightbox-backdrop';
+    document.body.appendChild(lb);
+  }
+  lb.innerHTML = `
+    <div class="fish-lightbox-box" role="dialog" aria-modal="true" aria-label="Увеличенное изображение: ${fishTitle}">
+      <div class="fish-lightbox-head">
+        <div style="min-width:0;">
+          <div style="font-weight:800;font-size:var(--fs-md);color:var(--text);">${fishTitle}</div>
+          ${latinTitle ? `<div style="font-size:var(--fs-xs);color:var(--muted);font-style:italic;">${latinTitle}</div>` : ''}
+        </div>
+      </div>
+      <div class="fish-lightbox-stage" id="fishLightboxStage" title="Нажмите, чтобы закрыть">
+        ${visualHtml}
+      </div>
+      <div style="font-size:var(--fs-xs);color:var(--muted);text-align:center;margin-top:8px;">
+        Нажмите на изображение или кнопку внизу для возврата к карточке
+      </div>
+      <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:flex;">
+        <button type="button" class="btn" id="fishLightboxCloseBtn" aria-label="Закрыть просмотр" style="width:100%;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg> Закрыть</button>
+      </div>
+    </div>
+  `;
+  lb.classList.add('open');
+  if (typeof window !== 'undefined' && typeof window.__KLEV_PUSH_BACK_GUARD__ === 'function') {
+    window.__KLEV_PUSH_BACK_GUARD__('lightbox');
+  }
+  const closeLb = () => lb.classList.remove('open');
+  lb.onclick = (e) => {
+    if (e.target === lb) closeLb();
+  };
+  lb.querySelector('#fishLightboxCloseBtn')?.addEventListener('click', closeLb);
+  lb.querySelector('#fishLightboxStage')?.addEventListener('click', closeLb);
+}
+/**
+ * Кроссплатформенная выгрузка файла на устройство (100% работает в Android APK, iOS Safari/PWA, Telegram Mini App и браузере ПК).
+ * В Android APK сохраняет файл напрямую в системную папку «Загрузки» (Downloads) и отправляет системное уведомление.
+ */
+export function downloadFileCrossPlatform(filename, content, mimeType = 'application/octet-stream') {
+  const cleanName = String(filename || 'klev-pro-export.txt').trim();
+  const strContent = typeof content === 'string' ? content : JSON.stringify(content, null, 2);
+  try {
+    if (typeof window !== 'undefined' && window.AndroidBridge && typeof window.AndroidBridge.saveFileToDownloads === 'function') {
+      const ok = window.AndroidBridge.saveFileToDownloads(cleanName, strContent, mimeType, false);
+      if (ok) return true;
+    }
+  } catch (e) {}
+  try {
+    const blob = new Blob([strContent], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = cleanName;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      a.remove();
+      URL.revokeObjectURL(url);
+    }, 1500);
+    return true;
+  } catch (e) {
+    try {
+      const dataUrl = `data:${mimeType};charset=utf-8,` + encodeURIComponent(strContent);
+      window.open(dataUrl, '_blank');
+      return true;
+    } catch (err) {}
+  }
+  return false;
+}
+/**
+ * Отправляет системное уведомление в шторку Android (через AndroidBridge) или через Web Notification API / Service Worker.
+ */
+export function triggerSystemNotificationCrossPlatform(title, body, category = 'alerts') {
+  const cleanTitle = String(title || 'Клёв ПРО 2.0').trim();
+  const cleanBody = String(body || '').trim();
+  try {
+    if (typeof window !== 'undefined' && window.AndroidBridge && typeof window.AndroidBridge.showSystemNotification === 'function') {
+      window.AndroidBridge.showSystemNotification(cleanTitle, cleanBody, String(category || 'alerts'));
+      return true;
+    }
+  } catch (e) {}
+  try {
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+      if ('serviceWorker' in navigator && navigator.serviceWorker.ready) {
+        navigator.serviceWorker.ready.then(reg => {
+          if (reg && typeof reg.showNotification === 'function') {
+            reg.showNotification(cleanTitle, {
+              body: cleanBody,
+              icon: 'icon-192.png',
+              badge: 'icon-192.png',
+              tag: `klev_${category}_${Date.now()}`
+            });
+          }
+        }).catch(() => {});
+        return true;
+      }
+      new Notification(cleanTitle, { body: cleanBody, icon: 'icon-192.png' });
+      return true;
+    }
+  } catch (e) {}
+  return false;
+}
+/**
+ * Запрашивает системное разрешение на показ уведомлений в шторке смартфона (Android 13+ / iOS / Web)
+ * или открывает системный экран настроек уведомлений приложения.
+ */
+export async function requestSystemNotificationsAccess() {
+  try {
+    if (typeof window !== 'undefined' && window.AndroidBridge) {
+      if (typeof window.AndroidBridge.requestNotificationPermission === 'function') {
+        window.AndroidBridge.requestNotificationPermission();
+        showToast(' Запрос системных уведомлений Android выполнен! Проверьте шторку уведомлений.', 'good');
+        return true;
+      }
+      if (typeof window.AndroidBridge.openNotificationSettings === 'function') {
+        window.AndroidBridge.openNotificationSettings();
+        return true;
+      }
+    }
+  } catch (e) {}
+  if (typeof window !== 'undefined' && 'Notification' in window) {
+    try {
+      const perm = await Notification.requestPermission();
+      if (perm === 'granted') {
+        triggerSystemNotificationCrossPlatform('Клёв ПРО 2.0 • Уведомления включены', 'Системные оповещения Круга, Экипажа, Чатов и SOS активны!', 'alerts');
+        showToast(' Системные уведомления разрешены и протестированы!', 'good');
+        return true;
+      }
+      showToast(' Разрешение на системные уведомления отклонено браузером. Разрешите уведомления в настройках сайта.', 'warn');
+      return false;
+    } catch (e) {}
+  }
+  showToast(' Активны звуковые и всплывающие уведомления внутри приложения', 'info');
+  return false;
+}
+/**
+ * Кастомный 3D Liquid Glass выпадающий список (заменяет системное тёмно-коричневое окно Android <select>)
+ */
+export function openCustomSelectSheet(selectEl) {
+  if (!selectEl || typeof document === "undefined" || selectEl.disabled) return;
+  let backdrop = document.getElementById("klevCustomSelectBackdrop");
+  if (!backdrop) {
+    backdrop = document.createElement("div");
+    backdrop.id = "klevCustomSelectBackdrop";
+    backdrop.className = "klev-select-backdrop";
+    document.body.appendChild(backdrop);
+  }
+
+  // Находим заголовок поля
+  let titleText = selectEl.getAttribute("data-select-title") || selectEl.getAttribute("title") || "";
+  if (!titleText && selectEl.id) {
+    const lbl = document.querySelector(`label[for="${selectEl.id}"]`);
+    if (lbl) titleText = lbl.textContent.replace(/\s+/g, " ").replace(/:$/, "").trim();
+  }
+  if (!titleText && selectEl.parentElement) {
+    const prevLbl = selectEl.parentElement.querySelector("label");
+    if (prevLbl) titleText = prevLbl.textContent.replace(/\s+/g, " ").replace(/:$/, "").trim();
+  }
+  if (!titleText) titleText = "Выберите из списка";
+
+  const items = [];
+  const children = Array.from(selectEl.children || []);
+  for (const child of children) {
+    const tag = (child.tagName || "").toUpperCase();
+    if (tag === "OPTGROUP") {
+      const grpLabel = child.getAttribute("label") || "";
+      const grpOpts = Array.from(child.querySelectorAll("option")).map(opt => ({
+        value: opt.value,
+        label: (opt.textContent || "").trim(),
+        selected: opt.value === selectEl.value || opt.selected,
+        disabled: opt.disabled
+      }));
+      if (grpOpts.length > 0) {
+        items.push({ type: "group", label: grpLabel, options: grpOpts });
+      }
+    } else if (tag === "OPTION") {
+      items.push({
+        type: "option",
+        value: child.value,
+        label: (child.textContent || "").trim(),
+        selected: child.value === selectEl.value || child.selected,
+        disabled: child.disabled
+      });
+    }
+  }
+
+  const totalOptions = items.reduce((acc, it) => acc + (it.type === "group" ? it.options.length : 1), 0);
+  const showSearch = totalOptions >= 7;
+
+  const renderOptionsHtml = (filterStr = "") => {
+    const q = String(filterStr || "").trim().toLowerCase().replace(/ё/g, "е");
+    let htmlOut = "";
+    let countVisible = 0;
+
+    const renderSingleOpt = (opt) => {
+      if (q && !opt.label.toLowerCase().replace(/ё/g, "е").includes(q)) return "";
+      countVisible++;
+      const isSel = String(opt.value) === String(selectEl.value);
+      return `
+        <button type="button" class="klev-select-opt ${isSel ? "selected" : ""}" data-klev-opt-val="${escapeHtml(opt.value)}" ${opt.disabled ? "disabled" : ""}>
+          <span style="min-width:0;flex:1;word-break:normal;">${escapeHtml(opt.label)}</span>
+          <span class="klev-select-check">${isSel ? "✓" : ""}</span>
+        </button>
+      `;
+    };
+
+    for (const item of items) {
+      if (item.type === "group") {
+        const subHtml = item.options.map(renderSingleOpt).join("");
+        if (subHtml) {
+          htmlOut += `<div class="klev-select-group-lbl">${escapeHtml(item.label)}</div>${subHtml}`;
+        }
+      } else {
+        htmlOut += renderSingleOpt(item);
+      }
+    }
+    if (countVisible === 0) {
+      htmlOut = `<div style="padding:18px;text-align:center;color:var(--muted);font-size:12.5px;">Ничего не найдено по запросу «${escapeHtml(filterStr)}»</div>`;
+    }
+    return htmlOut;
+  };
+
+  backdrop.innerHTML = `
+    <div class="klev-select-sheet" role="listbox" aria-label="${escapeHtml(titleText)}">
+      <div class="klev-select-head">
+        <div class="klev-select-title">${escapeHtml(titleText)}</div>
+        <button type="button" class="btn btn-sm" id="klevSelectCloseBtn" style="min-height:30px;padding:2px 9px;font-weight:900;">✕</button>
+      </div>
+      ${showSearch ? `
+        <div class="klev-select-search-wrap">
+          <input type="search" class="input" id="klevSelectSearchInp" placeholder="Быстрый поиск по списку..." style="min-height:36px;font-size:12.5px;">
+        </div>
+      ` : ""}
+      <div class="klev-select-list" id="klevSelectListBox">
+        ${renderOptionsHtml("")}
+      </div>
+    </div>
+  `;
+
+  backdrop.classList.add("open");
+
+  const closeSheet = () => {
+    backdrop.classList.remove("open");
+    backdrop.innerHTML = "";
+  };
+
+  backdrop.onclick = (e) => {
+    if (e.target === backdrop) closeSheet();
+  };
+  backdrop.querySelector("#klevSelectCloseBtn")?.addEventListener("click", closeSheet);
+
+  const listBox = backdrop.querySelector("#klevSelectListBox");
+  const bindOptionClicks = () => {
+    if (!listBox) return;
+    listBox.querySelectorAll("[data-klev-opt-val]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const val = btn.getAttribute("data-klev-opt-val");
+        if (val !== null && selectEl.value !== val) {
+          selectEl.value = val;
+          selectEl.dispatchEvent(new Event("input", { bubbles: true }));
+          selectEl.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+        closeSheet();
+      });
+    });
+  };
+  bindOptionClicks();
+
+  // Автопрокрутка к выбранному пункту
+  setTimeout(() => {
+    const selBtn = listBox?.querySelector(".klev-select-opt.selected");
+    if (selBtn && typeof selBtn.scrollIntoView === "function") {
+      selBtn.scrollIntoView({ block: "nearest" });
+    }
+  }, 20);
+
+  const searchInp = backdrop.querySelector("#klevSelectSearchInp");
+  if (searchInp && listBox) {
+    searchInp.addEventListener("input", (e) => {
+      listBox.innerHTML = renderOptionsHtml(e.target.value || "");
+      bindOptionClicks();
+    });
+  }
+}
+
+if (typeof document !== "undefined" && !window.__KLEV_CUSTOM_SELECT_BOUND__) {
+  window.__KLEV_CUSTOM_SELECT_BOUND__ = true;
+  document.addEventListener("mousedown", (e) => {
+    const sel = e.target && e.target.closest ? e.target.closest("select") : null;
+    if (sel && !sel.disabled) {
+      e.preventDefault();
+    }
+  }, true);
+  document.addEventListener("click", (e) => {
+    const sel = e.target && e.target.closest ? e.target.closest("select") : null;
+    if (sel && !sel.disabled) {
+      e.preventDefault();
+      e.stopPropagation();
+      try { sel.blur(); } catch (_) {}
+      openCustomSelectSheet(sel);
+    }
+  }, true);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      const sel = e.target && e.target.closest ? e.target.closest("select") : null;
+      if (sel && !sel.disabled) {
+        e.preventDefault();
+        openCustomSelectSheet(sel);
+      }
+    } else if (e.key === "Escape") {
+      const bd = document.getElementById("klevCustomSelectBackdrop");
+      if (bd && bd.classList.contains("open")) {
+        bd.classList.remove("open");
+        bd.innerHTML = "";
+      }
+    }
+  }, true);
+}
+
+/**
+ * Плавно прокручивает экран к целевому блоку, в котором произошли изменения,
+ * и подсвечивает его заметным световым импульсом с плавным угасанием (~1.3 сек).
+ */
+export function flashHighlightElement(targetOrTargets, options = {}) {
+  if (typeof document === 'undefined') return;
+  const { scroll = true, block = 'center', delayMs = 80 } = options || {};
+  const runHighlight = () => {
+    const rawList = Array.isArray(targetOrTargets) ? targetOrTargets : [targetOrTargets];
+    const resolvedEls = [];
+    for (const item of rawList) {
+      if (!item) continue;
+      if (typeof item === 'string') {
+        document.querySelectorAll(item).forEach(el => {
+          if (el && el.offsetParent !== null && !resolvedEls.includes(el)) {
+            resolvedEls.push(el);
+          }
+        });
+      } else if (item && item.nodeType === 1) {
+        if (item.offsetParent !== null && !resolvedEls.includes(item)) {
+          resolvedEls.push(item);
+        }
+      }
+    }
+    if (resolvedEls.length === 0) return;
+    if (scroll) {
+      const primaryEl = resolvedEls[0];
+      try {
+        primaryEl.scrollIntoView({ behavior: 'smooth', block });
+      } catch (_e) {
+        try { primaryEl.scrollIntoView(); } catch (_e2) {}
+      }
+    }
+    resolvedEls.forEach(el => {
+      el.classList.remove('klev-flash-highlight');
+      void el.offsetWidth;
+      el.classList.add('klev-flash-highlight');
+      if (el._klevFlashTimer) clearTimeout(el._klevFlashTimer);
+      el._klevFlashTimer = setTimeout(() => {
+        el.classList.remove('klev-flash-highlight');
+        el._klevFlashTimer = null;
+      }, 1350);
+    });
+  };
+  if (delayMs > 0) {
+    setTimeout(runHighlight, delayMs);
+  } else {
+    runHighlight();
+  }
+}
+if (typeof window !== 'undefined') {
+  window.__KLEV_FLASH_HIGHLIGHT__ = flashHighlightElement;
+}
+

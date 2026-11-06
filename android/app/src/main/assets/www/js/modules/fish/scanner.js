@@ -1,1 +1,1766 @@
-import{store as e}from"../../core/store.js?v=2.5.6-r215";import{router as t}from"../../core/router.js?v=2.5.6-r215";import{RELAY_WORKER_URL as i,triggerHaptic as n}from"../../core/telegram.js?v=2.5.6-r215";import{BASIN_CONFIGS as a}from"../../data/basins.js?v=2.5.6-r215";import{FISH_DB as r}from"../../data/species.js?v=2.5.6-r215";import{escapeHtml as s,openModal as o,closeModal as l,showToast as c,flashHighlightElement as d}from"../../ui/components.js?v=2.5.6-r215";const p={pike:.85,amur_pike:.86,taimen:.96,lenok:1.12,salmon:1.15,trout:1.18,char:1.05,nelma:.98,muksun:1.35,chir:1.42,peled:1.38,pizhyan:1.25,whitefish:1.25,tugun:1.02,grayling:1.08,baikal_grayling:1.1,perch:1.45,zander:.98,burbot:.78,dace:1.18,roach:1.42,ide:1.52,chub:1.38,bream:1.75,crucian:1.95,carp:1.88,tench:1.78,catfish:.76,sterlet:.68,siberian_sturgeon:.72,flounder:1.45,plaice:1.45,halibut:1.35};export function estimateWeightByLengthAndSpecies(e,t){const i=Math.max(2,Math.min(220,Number(t)||25)),n=(p[e]||1.25)*Math.pow(i,3)/1e5;return n<.05?Math.max(.001,Math.round(1e3*n)/1e3):Math.max(.01,Math.round(100*n)/100)}export function formatWeightHuman(e){const t=Number(e)||0;if(t<=0)return"~100 г";if(t<.1){return`~${Math.max(1,Math.round(1e3*t))} г (${t} кг)`}if(t<1){return`~${10*Math.round(100*t)} г (${t.toFixed(2)} кг)`}return`~${t.toFixed(2)} кг`}export function getDefaultTypicalLengthCm(e){return{pike:52,taimen:85,lenok:45,dace:19,roach:21,perch:24,zander:48,burbot:50,peled:32,chir:44,pizhyan:36,muksun:46,nelma:65,grayling:30,ide:36,bream:38,crucian:22,carp:52,catfish:85,trout:38,salmon:68,tugun:15,smelt:18,ruffe:13,flounder:28,plaice:30,halibut:65}[e]||28}export function requestAppCameraAndPhotoAccess(){try{if("undefined"!=typeof window&&window.AndroidBridge&&"function"==typeof window.AndroidBridge.requestCameraAndPhotoPermissions)return window.AndroidBridge.requestCameraAndPhotoPermissions(),!0}catch(e){}return!1}export function hammingDistanceHex64(e,t){const i=String(e||"").replace(/^dh_/,"").padStart(16,"0"),n=String(t||"").replace(/^dh_/,"").padStart(16,"0");let a=0;for(let e=0;e<16;e++){let t=15&(parseInt(i[e],16)^parseInt(n[e],16));for(;t>0;)a+=1&t,t>>=1}return a}export async function extractPhotoVisualFeatures(e){const t=e=>{const t=String(e||"");return t.includes(",")?t.split(",")[1]:t};if("undefined"==typeof document||"undefined"==typeof Image){const i=t(e);return{dhash:"0000000000000000",roiDhash:"0000000000000000",thumbDataUrl:e,roiDataUrl:e,apiDataUrl:e,pureB64:i}}return new Promise((i=>{try{const n=new Image;n.crossOrigin="anonymous",n.onload=()=>{try{const a=n.naturalWidth||n.width||640,r=n.naturalHeight||n.height||480;let s="0000000000000000";const o=document.createElement("canvas");o.width=9,o.height=8;const l=o.getContext("2d");if(l){l.drawImage(n,0,0,a,r,0,0,9,8);const e=l.getImageData(0,0,9,8).data;let t="";for(let i=0;i<8;i++)for(let n=0;n<8;n++){const a=4*(9*i+n),r=4*(9*i+n+1),s=.299*e[a]+.587*e[a+1]+.114*e[a+2];t+=s<.299*e[r]+.587*e[r+1]+.114*e[r+2]?"1":"0"}const i=parseInt(t.slice(0,32),2).toString(16).padStart(8,"0");s=i+parseInt(t.slice(32,64),2).toString(16).padStart(8,"0")}const c=960,d=Math.min(1,c/Math.max(a,r)),p=document.createElement("canvas");p.width=Math.max(80,Math.round(a*d)),p.height=Math.max(80,Math.round(r*d));const h=p.getContext("2d");let m=e;h&&(h.drawImage(n,0,0,p.width,p.height),m=p.toDataURL("image/jpeg",.85));let u=m,g=t(u);const f=[{maxSide:680,quality:.72},{maxSide:580,quality:.64},{maxSide:500,quality:.56},{maxSide:420,quality:.5}];for(const e of f){if(g.length<=42e3)break;const i=Math.min(1,e.maxSide/Math.max(a,r)),s=document.createElement("canvas");s.width=Math.max(64,Math.round(a*i)),s.height=Math.max(64,Math.round(r*i));const o=s.getContext("2d");o&&(o.drawImage(n,0,0,s.width,s.height),u=s.toDataURL("image/jpeg",e.quality),g=t(u))}i({dhash:s,roiDhash:s,thumbDataUrl:m,roiDataUrl:m,apiDataUrl:u,pureB64:g})}catch(n){const a=t(e);i({dhash:"0000000000000000",roiDhash:"0000000000000000",thumbDataUrl:e,roiDataUrl:e,apiDataUrl:e,pureB64:a})}},n.onerror=()=>{const n=t(e);i({dhash:"0000000000000000",roiDhash:"0000000000000000",thumbDataUrl:e,roiDataUrl:e,apiDataUrl:e,pureB64:n})},n.src=e}catch(n){const a=t(e);i({dhash:"0000000000000000",roiDhash:"0000000000000000",thumbDataUrl:e,roiDataUrl:e,apiDataUrl:e,pureB64:a})}}))}const h="klev_vision_ai_cache_v263_r202",m="klev_gemini_api_key_v2",u="klev_gemini_quota_v2",g="VIP089_D854A7F4_38D816DA";export function getStoredGeminiApiKey(){try{const t=e.getState(),i=String(t?.userProfile?.geminiApiKey||"").trim();if(i&&i.length>=16)return i;if("undefined"!=typeof localStorage){const e=String(localStorage.getItem(m)||"").trim();if(e&&e.length>=16)return e}}catch(e){}return""}export function saveStoredGeminiApiKey(t=""){const n=String(t||"").trim();try{if("undefined"!=typeof localStorage&&(n?localStorage.setItem(m,n):localStorage.removeItem(m)),e.dispatch({type:"UPDATE_USER_PROFILE",payload:{geminiApiKey:n}}),n&&n.length>=16&&"function"==typeof fetch){const e=JSON.stringify({adminToken:g,geminiApiKey:n}),t=`${i}/api/ai/config?payload=${encodeURIComponent(e)}&_t=${Date.now()}`;fetch(`https://allorigins.hexlet.app/raw?disableCache=true&url=${encodeURIComponent(t)}`,{method:"GET",mode:"cors",credentials:"omit"}).catch((()=>{})),fetch(`https://corsproxy-seven.vercel.app/api?url=${encodeURIComponent(t)}`,{method:"GET",mode:"cors",credentials:"omit"}).catch((()=>{})),fetch(t,{method:"GET",mode:"cors",credentials:"omit"}).catch((()=>{}))}}catch(e){}return n}let f=null;export async function ensureGeminiKeySyncedFromServer(){const t=getStoredGeminiApiKey();return t&&t.length>=16?t:"function"!=typeof fetch?"":f||(f=(async()=>{const t=`${i}/api/ai/status?token=${encodeURIComponent(g)}&_t=${Date.now()}`,n=[`https://allorigins.hexlet.app/raw?disableCache=true&url=${encodeURIComponent(t)}`,`https://corsproxy-seven.vercel.app/api?url=${encodeURIComponent(t)}`,`https://every-origin.vercel.app/api/get?url=${encodeURIComponent(t)}`,t,`https://api.allorigins.win/raw?url=${encodeURIComponent(t)}`],a=async e=>{const t="undefined"!=typeof AbortController?new AbortController:null,i=t?setTimeout((()=>t.abort()),3600):null;try{const n=await fetch(e,{method:"GET",mode:"cors",credentials:"omit",signal:t?.signal});if(i&&clearTimeout(i),!n||!n.ok)throw new Error("status not ok");const a=await n.json(),r=String(a?.aiQuota?.rawApiKey||"").trim();if(r&&r.length>=16)return{key:r,model:a?.aiQuota?.activeModel||""};throw new Error("no key")}catch(e){throw i&&clearTimeout(i),e}};try{const t=await Promise.any(n.map(a));if(t&&t.key){try{"undefined"!=typeof localStorage&&(localStorage.setItem(m,t.key),t.model&&t.model.startsWith("gemini-")&&localStorage.setItem("klev_gemini_active_model_v2",t.model)),e.dispatch({type:"UPDATE_USER_PROFILE",payload:{geminiApiKey:t.key}})}catch(e){}return t.key}}catch(e){}return getStoredGeminiApiKey()})().finally((()=>{f=null})),f)}export function getLocalGeminiQuotaState(e=null){const t=(new Date).toISOString().slice(0,10),i=String(null!==e?e:getStoredGeminiApiKey()).split(",").map((e=>e.trim().replace(/^["'\s]+|["'\s]+$/g,""))).filter((e=>e.length>=16)),n=i.length,a=Math.max(1500,1500*n);let r=0,s=0,o=0,l=0,c=0,d=[0,0,0];try{if("undefined"!=typeof localStorage){const e=JSON.parse(localStorage.getItem(u)||"{}");e&&"object"==typeof e&&(Number.isFinite(Number(e.totalAllTime))&&(l=Math.max(0,Number(e.totalAllTime))),Number.isFinite(Number(e.lastRequestAt))&&(c=Math.max(0,Number(e.lastRequestAt))),e.dateKey===t&&(Number.isFinite(Number(e.usedToday))&&(r=Math.max(0,Number(e.usedToday))),Number.isFinite(Number(e.usedAppToday))&&(s=Math.max(0,Number(e.usedAppToday))),Number.isFinite(Number(e.usedBotToday))&&(o=Math.max(0,Number(e.usedBotToday))),Array.isArray(e.perKeyUsed)&&(d=[Number(e.perKeyUsed[0])||0,Number(e.perKeyUsed[1])||0,Number(e.perKeyUsed[2])||0])))}}catch(e){}l=Math.max(l,r);const p=Math.max(0,a-r);return{hasKey:n>0,keyCount:n,keys:i,limitPerDay:a,usedToday:r,usedAppToday:s,usedBotToday:o,totalAllTime:l,lastRequestAt:c,perKeyUsed:d,remainingToday:p,pctRemaining:Math.round(p/a*100),dateKey:t}}export function notifyServerGeminiUsage(t="",n="",a={}){try{const r=e.getState(),s=r?.userProfile||{},o=String(a?.fisherId||s.fisherId||"FP_89RZ0001").trim().toUpperCase(),l=String(a?.callsign||s.login||s.callsign||"Рыболов").trim(),c="undefined"!=typeof window&&"function"==typeof window.__KLEV_GET_ERROR_AUTHOR_META__&&window.__KLEV_GET_ERROR_AUTHOR_META__().env||"WEB",d=Date.now(),p={id:`GAPI_${d.toString(36)}_${Math.random().toString(36).slice(2,5)}`,ts:d,source:"app",fisherId:o,callsign:l,env:c,keySlot:Number(a?.keySlot)||1,model:n||"gemini-2.5-flash",httpStatus:Number(a?.httpStatus)||200,latencyMs:Number(a?.latencyMs)||180,action:String(a?.action||"Ихтио-Сканер: фото рыбы").slice(0,90),verifiedHttp200:!0};if("undefined"!=typeof localStorage){const e=JSON.parse(localStorage.getItem(u)||"{}")||{},t=Array.isArray(e.recentCalls)?e.recentCalls:[];t.unshift(p),e.recentCalls=t.slice(0,25),e.lastHttpStatus=p.httpStatus,e.lastLatencyMs=p.latencyMs,localStorage.setItem(u,JSON.stringify(e))}if("function"!=typeof fetch)return;const h=JSON.stringify({usedKey:String(t||"").slice(0,12),keySlot:(Number(a?.keySlot)||1)-1,model:p.model,source:"app",fisherId:o,callsign:l,env:c,httpStatus:p.httpStatus,latencyMs:p.latencyMs,action:p.action,ts:d}),m=`${i}/api/ai/record-usage?payload=${encodeURIComponent(h)}&_t=${d}`;fetch(`https://allorigins.hexlet.app/raw?disableCache=true&url=${encodeURIComponent(m)}`,{method:"GET",mode:"cors",credentials:"omit"}).catch((()=>{})),fetch(`https://corsproxy-seven.vercel.app/api?url=${encodeURIComponent(m)}`,{method:"GET",mode:"cors",credentials:"omit"}).catch((()=>{})),fetch(m,{method:"GET",mode:"cors",credentials:"omit"}).catch((()=>{}))}catch(e){}}export function incrementLocalGeminiQuotaUsed(e=null){const t=(new Date).toISOString().slice(0,10),i=getLocalGeminiQuotaState(),n=e&&Number.isFinite(Number(e.usedToday))?Math.max(i.usedToday+1,Number(e.usedToday)):i.usedToday+1,a=e&&Number.isFinite(Number(e.usedAppToday))?Math.max(i.usedAppToday+1,Number(e.usedAppToday)):i.usedAppToday+1,r=e&&Number.isFinite(Number(e.usedBotToday))?Math.max(i.usedBotToday,Number(e.usedBotToday)):i.usedBotToday,s=Math.max(n,i.totalAllTime+1,Number(e?.totalAllTime)||0),o=Array.isArray(e?.perKeyUsed)?e.perKeyUsed.slice(0,3):[(i.perKeyUsed[0]||0)+1,i.perKeyUsed[1]||0,i.perKeyUsed[2]||0];try{"undefined"!=typeof localStorage&&localStorage.setItem(u,JSON.stringify({dateKey:t,usedToday:n,usedAppToday:a,usedBotToday:r,totalAllTime:s,lastRequestAt:Date.now(),perKeyUsed:o,limitPerDay:i.limitPerDay}))}catch(e){}return getLocalGeminiQuotaState()}const y=["gemini-2.5-flash","gemini-3-flash-preview","gemini-2.5-pro","gemini-2.5-flash-lite","gemini-3.1-flash-lite-preview","gemini-2.0-flash"];let x=!1;async function b(e,t,i){const n=async(e,i,n)=>{const a="undefined"!=typeof AbortController?new AbortController:null,r=a?setTimeout((()=>a.abort()),n):null;try{const n=await fetch(e,{method:"POST",headers:{"Content-Type":i},body:t,signal:a?.signal}).catch((()=>null));return r&&clearTimeout(r),n}catch(e){return r&&clearTimeout(r),null}};if(!x){const t=await n(e,"application/json",Math.min(i,6500));if(t&&t.ok)return{res:t,errTxt:""};if(t){const e=await t.text().catch((()=>""));if(!/location is not supported|FAILED_PRECONDITION/i.test(e))return{res:t,errTxt:e};x=!0}else x=!0}const a=[`https://corsproxy.io/?url=${encodeURIComponent(e)}`,`https://thingproxy.freeboard.io/fetch/${e}`];for(const e of a){const t=await n(e,"application/json",i);if(t&&t.ok)return{res:t,errTxt:""};if(t&&(400===t.status||403===t.status||404===t.status)){const e=await t.text().catch((()=>""));if(!/corsproxy|cloudflare|html/i.test(e))return{res:t,errTxt:e}}}return{res:null,errTxt:"Network/Geo relay unreachable"}}export async function callGeminiClientSmart(e,t,i={},n=12e3){const a=(Array.isArray(e)?e:String(e||"").split(",")).map((e=>String(e||"").trim().replace(/^["'\s]+|["'\s]+$/g,""))).filter((e=>e.length>=16)).slice(0,3);if(0===a.length)return{ok:!1,status:400,errorText:"Empty key"};let r={ok:!1,status:400,errorText:"No keys succeeded"};for(let e=0;e<a.length;e++){const s=await v(a[e],t,i,n);if(s&&s.ok)return{...s,usedKeyIndex:e,usedKey:a[e]};r=s||r}return r}async function v(e,t,i={},n=12e3){const a=Date.now(),r=String(e||"").trim().replace(/^["'\s]+|["'\s]+$/g,"");if(!r)return{ok:!1,status:400,errorText:"Empty key"};const s=[];try{if("undefined"!=typeof localStorage){const e=String(localStorage.getItem("klev_gemini_active_model_v2")||"").trim();e&&e.startsWith("gemini-")&&s.push(e)}}catch(e){}for(const e of y)s.includes(e)||s.push(e);let o=!1;const l=async()=>{if(!o){o=!0;try{const e="undefined"!=typeof AbortController?new AbortController:null,t=e?setTimeout((()=>e.abort()),3500):null,i="https://generativelanguage.googleapis.com/v1beta/models?key="+encodeURIComponent(r);let n=await fetch(i,{method:"GET",signal:e?.signal}).catch((()=>null));if(t&&clearTimeout(t),n&&n.ok||(n=await fetch("https://corsproxy.io/?url="+encodeURIComponent(i),{method:"GET"}).catch((()=>null))),n&&n.ok){const e=await n.json().catch((()=>null));if(e&&Array.isArray(e.models))for(const t of e.models){if(!(Array.isArray(t.supportedGenerationMethods)?t.supportedGenerationMethods:[]).includes("generateContent"))continue;const e=String(t.name||"").replace(/^models\//,"");e.startsWith("gemini-")&&(/embedding|imagen|veo|tts|audio|aqa|bisect|learnlm|robotics|computer-use|-image$|1\.0/i.test(e)||s.includes(e)||s.push(e))}}}catch(e){}}};let c=0,d="";const p=Math.min(6,s.length);for(let e=0;e<p;e++){const o=s[e],p=/^gemini-(2\.5|3)/i.test(o)&&!/pro/i.test(o)?[{temperature:i.temperature??.15,maxOutputTokens:i.maxOutputTokens??4096,thinkingConfig:{thinkingBudget:512}},{temperature:i.temperature??.15,maxOutputTokens:i.maxOutputTokens??4096}]:[{temperature:i.temperature??.15,maxOutputTokens:i.maxOutputTokens??4096}];for(let i=0;i<p.length;i++)try{const h="https://generativelanguage.googleapis.com/v1beta/models/"+o+":generateContent?key="+encodeURIComponent(r),m=JSON.stringify({contents:t,generationConfig:p[i]}),{res:u,errTxt:g}=await b(h,m,n);if(!u)break;if(c=u.status,u.ok){const e=await u.json().catch((()=>null)),t=e?.candidates?.[0]?.content?.parts||[],n=t.filter((e=>!e.thought&&"string"==typeof e.text&&e.text.trim())),r=(n.length>0?n.map((e=>e.text)).join("\n"):t.map((e=>e.text||"")).join("\n")).trim();if(r){try{"undefined"!=typeof localStorage&&localStorage.setItem("klev_gemini_active_model_v2",o)}catch(e){}return{ok:!0,model:o,status:200,latencyMs:Math.max(15,Date.now()-a),json:e,text:r}}if(i<p.length-1)continue}if(d=g,400===u.status&&i<p.length-1)continue;if((400===u.status||403===u.status)&&/API_KEY_INVALID|PERMISSION_DENIED/i.test(g))break;if(404===u.status){await l();const t=g.match(/models\/(gemini-[a-z0-9.-]+)/i);t&&t[1]&&!s.includes(t[1])&&s.splice(e+1,0,t[1])}break}catch(e){break}if(/API_KEY_INVALID|PERMISSION_DENIED/i.test(d))break}return{ok:!1,model:s[0]||"gemini-2.5-flash",status:c,errorText:d}}function w(){try{return"undefined"==typeof localStorage?{}:JSON.parse(localStorage.getItem(h)||"{}")||{}}catch(e){return{}}}function S(e,t){try{if("undefined"==typeof localStorage||!e||"0000000000000000"===e)return;const i=w(),n=Object.keys(i);n.length>80&&delete i[n[0]],i[e]=t,localStorage.setItem(h,JSON.stringify(i))}catch(e){}}const k=[{id:"crucian",rx:/карас|carassius/i},{id:"flounder",rx:/речная камбал|камбал.*flesus|platichthys|камбал/i},{id:"plaice",rx:/морская камбал|pleuronectes/i},{id:"starry_flounder",rx:/звездчатая камбал|звёздчатая камбал/i},{id:"halibut",rx:/палтус|hippoglossus/i},{id:"turbot",rx:/калкан|тюрбо|scophthalmus/i},{id:"amur_pike",rx:/амурская щук|reichertii/i},{id:"pike",rx:/щук|щурён|щурен|esox/i},{id:"chinese_perch",rx:/ауха|китайский окун|siniperca/i},{id:"sea_bass",rx:/сибас|лаврак|морской окун|dicentrarchus|sebastes/i},{id:"perch",rx:/окун|окушок|матросик|perca/i},{id:"volga_zander",rx:/берш|volgensis/i},{id:"zander",rx:/судак|клыкач|sander lucioperca/i},{id:"ruffe",rx:/ёрш|ерш|gymnocephalus/i},{id:"rotan",rx:/ротан|головешк|perccottus/i},{id:"goby",rx:/бычок|бычки|neogobius|ponticola/i},{id:"taran",rx:/тарань|heckeli/i},{id:"vobla",rx:/вобла|caspicus/i},{id:"kutum",rx:/кутум|вырезуб|frisii/i},{id:"roach",rx:/плотв|сорог|сорожк|чебак|rutilus/i},{id:"dace",rx:/елец|ельчик|мохтик|leuciscus/i},{id:"ide",rx:/язь|подъязок|leuciscus idus/i},{id:"chub",rx:/голавл|squalius|cephalus/i},{id:"rudd",rx:/красноперк|краснопёрк|scardinius/i},{id:"asp",rx:/жерех|шереспер|aspius/i},{id:"white_bream",rx:/густер|bjoerkna/i},{id:"blue_bream",rx:/синец|balliche|ballerus/i},{id:"sopa",rx:/белоглазк|сопа|sapa/i},{id:"parabramis",rx:/белый амурский лещ|черный лещ|parabramis/i},{id:"bream",rx:/лещ|подлещик|abramis brama/i},{id:"grass_carp",rx:/белый амур|ctenopharyngodon/i},{id:"black_carp",rx:/черный амур|чёрный амур|mylopharyngodon/i},{id:"silver_carp",rx:/толстолоб|hypophthalmichthys/i},{id:"buffalo",rx:/буффало|ictiobus/i},{id:"carp",rx:/карп|сазан|cyprinus/i},{id:"tench",rx:/линь|линёк|tinca/i},{id:"gudgeon",rx:/пескар|gobio/i},{id:"shemaya",rx:/шемая|chalcoides/i},{id:"bleak",rx:/уклейк|уклея|alburnus/i},{id:"chekhon",rx:/чехон|pelecus/i},{id:"undermouth",rx:/подуст|chondrostoma/i},{id:"vimba",rx:/рыбец|сырть|vimba/i},{id:"barbel",rx:/усач|мирон|barbus/i},{id:"sky_gazer",rx:/верхогляд|chanodichthys/i},{id:"yellowcheek",rx:/желтощек|желтощёк|elopichthys/i},{id:"tarpon_carp",rx:/монгольский краснопер|краснопёр|остролучк/i},{id:"loach",rx:/вьюн|щиповк|голец усат|misgurnus|cobitis/i},{id:"burbot",rx:/налим|lota lota/i},{id:"amur_catfish",rx:/амурский сом|parasilurus/i},{id:"channel_catfish",rx:/канальный сом|ictalurus/i},{id:"catfish",rx:/сом обыкновен|европейский сом|\bсом\b|сомён|silurus/i},{id:"taimen",rx:/таймен|hucho/i},{id:"lenok",rx:/ленок|ускуч|brachymystax/i},{id:"baikal_grayling",rx:/байкальский хариус|baicalensis/i},{id:"grayling",rx:/хариус|thymallus/i},{id:"rainbow_trout",rx:/радужная форел|микиж|mykiss|parasalmo/i},{id:"brown_trout",rx:/кумж|ручьевая форел|пеструшк|salmo trutta/i},{id:"trout",rx:/форел|озерная форел/i},{id:"salmon",rx:/сёмг|семг|атлантический лосос|salmo salar/i},{id:"dolly_varden",rx:/мальм| кундж|malma/i},{id:"char",rx:/голец|арктический голец|палия|salvelinus/i},{id:"pink_salmon",rx:/горбуш|gorbuscha/i},{id:"chum_salmon",rx:/кета|кеты|oncorhynchus keta/i},{id:"sockeye_salmon",rx:/нерк|nerka/i},{id:"coho_salmon",rx:/кижуч|kisutch/i},{id:"chinook_salmon",rx:/чавыч|tshawytscha/i},{id:"cherry_salmon",rx:/сима|masou/i},{id:"white_salmon",rx:/белорыбиц|leucichthys/i},{id:"nelma",rx:/нельма|stenodus/i},{id:"muksun",rx:/муксун|muksun/i},{id:"chir",rx:/чир|щокур|щекур|nasus/i},{id:"peled",rx:/пеляд|сырок|peled/i},{id:"pizhyan",rx:/пыжьян|сибирский сиг|pidschian/i},{id:"whitefish",rx:/сиг обыкновен|\bсиг\b|валаамк|lavaretus/i},{id:"broad_whitefish",rx:/чир|широколобик/i},{id:"omul_arctic",rx:/арктический омул|autumnalis/i},{id:"omul",rx:/омул|байкальский омул|migratorius/i},{id:"vendace",rx:/ряпушк|рипус|albula/i},{id:"cisco",rx:/сибирская ряпушк|зельдь|sardinella/i},{id:"tugun",rx:/тугун|сосьвинская сельд|манерк|tugun/i},{id:"valek",rx:/валёк|валек|cylindraceus|prosopium/i},{id:"smelt",rx:/корюшк|зубар|снеток|osmerus|hypomesus/i},{id:"capelin",rx:/мойв|уёк|mallotus/i},{id:"saffron_cod",rx:/дальневосточная наваг|вахня|gracilis/i},{id:"navaga",rx:/наваг|eleginus/i},{id:"cod",rx:/треск|gadus morhua/i},{id:"haddock",rx:/пикш|melanogrammus/i},{id:"saithe",rx:/сайд|pollachius/i},{id:"walleye_pollock",rx:/минтай|chalcogrammus|theragra/i},{id:"wolffish",rx:/зубатк|anarhichas/i},{id:"greenling",rx:/терпуг|зайчик морской|pleurogrammus/i},{id:"herring",rx:/сельдь|селедк|селёдк|clupea/i},{id:"mackerel",rx:/скумбр|scomber/i},{id:"horse_mackerel",rx:/ставрид|trachurus/i},{id:"bluefish",rx:/луфар|pomatomus/i},{id:"mullet",rx:/кефал|лобан|сингил|остронос|пеленгас|mugil|planiza|liza/i},{id:"red_mullet",rx:/барабул|султанк|mullus/i},{id:"garfish",rx:/сарган|belone/i},{id:"scorpionfish",rx:/скорпен|морской ёрш|морской ерш|scorpaena/i},{id:"sea_bream",rx:/дорад|зубарик|ласкир|морской карас|sparus|diplodus/i},{id:"wrasse",rx:/зеленушк|губан|symphodus/i},{id:"sand_eel",rx:/песчанк|ammodytes/i},{id:"anglerfish",rx:/удильщик|морской чёрт|морской черт|lophius/i},{id:"eel",rx:/угор|речной угор|anguilla/i},{id:"sterlet",rx:/стерляд|ruthenus/i},{id:"stellate_sturgeon",rx:/севрюг|stellatus/i},{id:"beluga",rx:/белуг|huso huso/i},{id:"kaluga",rx:/калуг|dauricus/i},{id:"siberian_sturgeon",rx:/сибирский осётр|сибирский осетр|baerii/i},{id:"russian_sturgeon",rx:/русский осётр|русский осетр|\bосётр\b|\bосетр\b|gueldenstaedtii/i},{id:"paddlefish",rx:/веслонос|polyodon/i},{id:"snakehead",rx:/змееголов|channa/i},{id:"tilapia",rx:/тиляп|тилап|oreochromis/i},{id:"king_crab",rx:/камчатский краб|paralithodes/i},{id:"crab",rx:/краб|стригун|волосатик|chionoecetes|cancer/i},{id:"crayfish",rx:/речной рак|узкопалый рак|широкопалый рак|\bрак\b|astacus|pontastacus/i}];export function matchSpeciesInAtlas(e="",t="",i=""){const n=r.find((t=>t.id===String(e||"").trim().toLowerCase()));if(n)return n;const a=`${e||""} ${t||""}`.toLowerCase().replace(/ё/g,"е").trim(),s=String(i||"").toLowerCase().replace(/ё/g,"е");for(const e of r){const t=e.name.toLowerCase().replace(/ё/g,"е").split("(")[0].trim(),i=(e.latin||"").toLowerCase();if(a&&(t.length>=3&&a.includes(t)||i.length>=5&&a.includes(i)))return e}if(a)for(const e of k)if(e.rx.test(a)){const t=r.find((t=>t.id===e.id));if(t)return t}if(s){const e=s.replace(/(?:исключает|не\s+является|отличается\s+от|против)[^.,;\n]*/g,"");for(const t of k)if(t.rx.test(e)){const e=r.find((e=>e.id===t.id));if(e)return e}}return null}export function parseGeminiFishResponse(e=""){const t=String(e||"").trim();if(!t)return null;const i=t.replace(/```json/gi,"").replace(/```/g,"").trim(),n=i.indexOf("{"),a=i.lastIndexOf("}");let s=null;if(-1!==n&&a>n)try{s=JSON.parse(i.slice(n,a+1))}catch(e){}if(!s&&-1!==n){const e=i.slice(n),t=t=>{const i=e.match(new RegExp(`"${t}"\\s*:\\s*"([^"]*)"`,"i"));return i?i[1]:""},a=t=>{const i=e.match(new RegExp(`"${t}"\\s*:\\s*([0-9]+(?:\\.[0-9]+)?)`,"i"));return i?parseFloat(i[1]):0},r=t("fishNameRu")||t("species")||t("sceneTitle");r&&(s={fishNameRu:r,fishNameLat:t("fishNameLat")||t("latin"),confidence:a("confidence")||95,lengthCm:a("lengthCm")||a("estimatedLengthCm"),weightGrams:a("weightGrams"),weightKg:a("weightKg"),sizeText:t("sizeText"),traits:t("traits")||t("reason"),fullText:t("fullText")||t("details")||t("traits")})}if(s&&"object"==typeof s){const e=Array.isArray(s.matches)&&s.matches.length>0?s.matches[0]:null,t=String(s.fishNameRu||s.species||s.fishName||e?.fishNameRu||e?.fishId||s.sceneTitle||"").trim(),i=String(s.fishNameLat||s.latin||e?.fishNameLat||"").trim(),n=String(s.traits||e?.reason||s.morphNote||"").trim(),a=String(s.fullText||s.details||s.description||s.sceneTitle||n||"").trim(),o=matchSpeciesInAtlas(t,i,`${n} ${a}`)||(e?.fishId?r.find((t=>t.id===e.fishId)):null);if(o||t){const l=o||{id:"crucian",name:t||"Рыба распознана ИИ",latin:i||"",legal:"allowed",idTraits:n,sizeInfo:s.sizeText||""};let c=Number(s.lengthCm||s.estimatedLengthCm||e?.estimatedLengthCm)||0;if(c<=0){const e=`${s.lengthCm||""} ${s.sizeText||""} ${a}`.match(/(\d+(?:[.,]\d+)?)\s*(?:[–-]\s*(\d+(?:[.,]\d+)?))?\s*см/i);if(e){const t=parseFloat(e[1].replace(",",".")),i=e[2]?parseFloat(e[2].replace(",",".")):t;c=Math.round((t+i)/2*10)/10}}c<=0&&(c=getDefaultTypicalLengthCm(l.id));let d=0;if(Number(s.weightKg)>0)d=Number(s.weightKg);else if(Number(s.weightGrams)>0)d=Number(s.weightGrams)/1e3;else if(Number(e?.estimatedWeightKg)>0)d=Number(e.estimatedWeightKg);else{const e=`${s.weightGrams||""} ${s.weightKg||""} ${s.sizeText||""} ${a}`,t=e.match(/(\d+(?:[.,]\d+)?)\s*(?:[–-]\s*(\d+(?:[.,]\d+)?))?\s*(?:г|гр|грамм[а-я]*)(?![а-я])/i),i=e.match(/(\d+(?:[.,]\d+)?)\s*(?:[–-]\s*(\d+(?:[.,]\d+)?))?\s*кг/i);if(t){const e=parseFloat(t[1].replace(",",".")),i=t[2]?parseFloat(t[2].replace(",",".")):e;d=Math.round((e+i)/2)/1e3}else if(i){const e=parseFloat(i[1].replace(",",".")),t=i[2]?parseFloat(i[2].replace(",",".")):e;d=Math.round((e+t)/2*100)/100}else d=estimateWeightByLengthAndSpecies(l.id,c)}const p=Math.max(50,Math.min(99,Math.round(Number(s.confidence||e?.confidence)||95))),h=t&&!r.some((e=>e.id===t))?t:l.name,m=i||l.latin||"",u=String(s.sizeText||`Длина: ~${c} см • Вес: ${formatWeightHuman(d)}`).trim(),g=Array.isArray(s.detectedFish)?s.detectedFish:Array.isArray(s.otherFish)?s.otherFish:Array.isArray(s.species)?s.species:[],f=Boolean(s.isMultipleFish||Number(s.fishCount)>1||g.length>1||/несколько\s+рыб|на\s+фото\s+\d+\s+рыб|соседн[иея]\s+рыб|рядом\s+леж/i.test(`${a} ${n}`)),y={fishId:l.id,fish:l,displayTitle:h,displayLatin:m,positionLabel:String(s.positionLabel||(f?"по центру (основная)":"")).trim(),isRedBook:"redbook"===l.legal,confidence:p,reason:n||a||l.idTraits||"Определено нейросетью по внешним морфологическим признакам",fullAnalysisText:a||n,sizeSummaryText:u,estimatedLengthCm:c,estimatedWeightKg:d,isFromMultiFishPhoto:!0},x=[y];for(const e of g.slice(0,6)){if(!e||"object"!=typeof e)continue;const t=String(e.fishNameRu||e.name||e.species||"").trim(),i=String(e.fishNameLat||e.latin||"").trim(),n=String(e.traits||e.reason||e.description||"").trim(),a=String(e.positionLabel||e.position||"соседняя на фото").trim();if(!t)continue;const s=matchSpeciesInAtlas(t,i,n)||l;let o=Number(e.lengthCm||e.estimatedLengthCm)||0;if(o<=0&&e.sizeText){const t=String(e.sizeText).match(/(\d+(?:[.,]\d+)?)\s*см/i);t&&(o=parseFloat(t[1].replace(",",".")))}o<=0&&(o=getDefaultTypicalLengthCm(s.id));let c=0;c=Number(e.weightKg)>0?Number(e.weightKg):Number(e.weightGrams)>0?Number(e.weightGrams)/1e3:estimateWeightByLengthAndSpecies(s.id,o);const d=t&&!r.some((e=>e.id===t))?t:s.name;if(1===x.length&&(s.id===y.fishId||d.toLowerCase()===y.displayTitle.toLowerCase())&&Math.abs(o-y.estimatedLengthCm)<=3){a&&!y.positionLabel&&(y.positionLabel=a);continue}const p=String(e.sizeText||`Длина: ~${o} см • Вес: ${formatWeightHuman(c)}`).trim();x.push({fishId:s.id,fish:s,displayTitle:d,displayLatin:i||s.latin||"",positionLabel:a,isRedBook:"redbook"===s.legal,confidence:Math.max(70,Math.min(98,Math.round(Number(e.confidence)||92))),reason:n||s.idTraits||`Распознана на этом же снимке (${a})`,fullAnalysisText:n?`${d} (${a}): ${n}. Средний размер ~${o} см, вес ${formatWeightHuman(c)}.`:`${d} (${a}): средний размер ~${o} см, примерный вес ${formatWeightHuman(c)}.`,sizeSummaryText:p,estimatedLengthCm:o,estimatedWeightKg:c,isFromMultiFishPhoto:!0})}const b=f||x.length>1,v=[...x],w=Array.isArray(s.alternatives)?s.alternatives:Array.isArray(s.matches)?s.matches.slice(1):[];for(const e of w.slice(0,2)){const t=matchSpeciesInAtlas(String(e.fishNameRu||e.fishId||"").trim(),e.fishNameLat||"",e.reason||"");if(t&&!v.some((e=>e.fishId===t.id))){const i=getDefaultTypicalLengthCm(t.id);v.push({fishId:t.id,fish:t,displayTitle:t.name,displayLatin:t.latin||"",positionLabel:"похожий вид",isRedBook:"redbook"===t.legal,confidence:Math.max(10,Math.min(85,Math.round(Number(e.confidence)||25))),reason:e.reason||t.idTraits||"Сходный по форме тела вид",fullAnalysisText:e.reason||t.idTraits||"",sizeSummaryText:`Обычно ~${i} см`,estimatedLengthCm:i,estimatedWeightKg:estimateWeightByLengthAndSpecies(t.id,i),isFromMultiFishPhoto:!1})}}return{sceneTitle:h,sizeText:u,fullText:a||n,estimatedLengthCm:c,estimatedWeightKg:d,isMultipleFish:b,fishCount:Math.max(x.length,Number(s.fishCount)||1),detectedFish:x,topMatches:v}}}const o=matchSpeciesInAtlas("","",t);if(o){let e=getDefaultTypicalLengthCm(o.id);const i=t.replace(/(?:ширин|размер|длин)[^\n.;:]*?(?:ладон|рук|пальц|ступн|коробк)[^\n.;:]*?\d+(?:[.,]\d+)?\s*(?:[–-]\s*\d+(?:[.,]\d+)?)?\s*см/gi,""),n=i.match(/(?:средн[а-я]*|центральн[а-я]*)[^:\n]{0,30}:?[^\d\n]{0,20}(\d+(?:[.,]\d+)?)\s*(?:[–-]\s*(\d+(?:[.,]\d+)?))?\s*см/i),a=i.match(/(?:длина|размер|tl)[^\d\n]{0,30}?(\d+(?:[.,]\d+)?)\s*(?:[–-]\s*(\d+(?:[.,]\d+)?))?\s*см/i),r=n||a||i.match(/(\d+(?:[.,]\d+)?)\s*(?:[–-]\s*(\d+(?:[.,]\d+)?))?\s*см/i);if(r){const t=parseFloat(r[1].replace(",",".")),i=r[2]?parseFloat(r[2].replace(",",".")):t;e=Math.round((t+i)/2*10)/10}let s=estimateWeightByLengthAndSpecies(o.id,e);const l=i.match(/(?:средн[а-я]*|центральн[а-я]*)[^:\n]{0,30}:?[^\d\n]{0,20}(\d+(?:[.,]\d+)?)\s*(?:[–-]\s*(\d+(?:[.,]\d+)?))?\s*(?:г|гр|грамм[а-я]*)(?![а-я])/i)||i.match(/(\d+(?:[.,]\d+)?)\s*(?:[–-]\s*(\d+(?:[.,]\d+)?))?\s*(?:г|гр|грамм[а-я]*)(?![а-я])/i),c=i.match(/(\d+(?:[.,]\d+)?)\s*(?:[–-]\s*(\d+(?:[.,]\d+)?))?\s*кг/i);if(l){const e=parseFloat(l[1].replace(",",".")),t=l[2]?parseFloat(l[2].replace(",",".")):e;s=Math.round((e+t)/2)/1e3}else if(c){const e=parseFloat(c[1].replace(",",".")),t=c[2]?parseFloat(c[2].replace(",",".")):e;s=Math.round((e+t)/2*100)/100}const d=t.replace(/[*#`]/g,"").trim(),p=d.split(/\n+/)[0]||o.name,h=`Длина: ~${e} см • Вес: ${formatWeightHuman(s)}`,m={fishId:o.id,fish:o,displayTitle:o.name,displayLatin:o.latin||"",isRedBook:"redbook"===o.legal,confidence:95,reason:p,fullAnalysisText:d,sizeSummaryText:h,estimatedLengthCm:e,estimatedWeightKg:s};return{sceneTitle:o.name,sizeText:h,fullText:d,estimatedLengthCm:e,estimatedWeightKg:s,topMatches:[m]}}return null}export async function analyzeFishPhotoHybrid(t,n=!1){const s=e.getState(),o=s.basinCode||"arctic_ob_taz",l=a[o]?.name||"Водоёмы РФ",c=s.locLabel||s.locAdmin2||s.locAdmin1||"Новый Уренгой",d=await extractPhotoVisualFeatures(t),p=d.dhash;if(!n&&p&&16===p.length&&"0000000000000000"!==p){const e=w()[p];if(e&&e.parsedResult&&Array.isArray(e.parsedResult.topMatches)&&e.parsedResult.topMatches.length>0){const i=e.parsedResult,n=i.topMatches.map((e=>({...e,fish:r.find((t=>t.id===e.fishId))||e.fish||r[0]})));return{ok:!0,engine:e.engine||"Google Gemini Vision ИИ (кэш)",sourceMode:e.engine||"Google Gemini Vision ИИ",basinCode:o,basinName:l,sceneTitle:i.sceneTitle,sizeText:i.sizeText,fullText:i.fullText,morphNote:n[0].reason,primaryMatch:n[0],topMatch:n[0],isMultipleFish:Boolean(i.isMultipleFish||i.detectedFish&&i.detectedFish.length>1),detectedFish:i.detectedFish?i.detectedFish.map((e=>({...e,fish:r.find((t=>t.id===e.fishId))||e.fish||r[0]}))):n.filter((e=>e.isFromMultiFishPhoto)),topMatches:n,matches:n,estimatedLengthCm:n[0].estimatedLengthCm,estimatedWeightKg:n[0].estimatedWeightKg,thumbDataUrl:d.thumbDataUrl||t,roiDataUrl:d.thumbDataUrl||t}}}await ensureGeminiKeySyncedFromServer().catch((()=>{}));const h=d.apiDataUrl||d.thumbDataUrl||t||"",m=d.pureB64||(h.includes(",")?h.split(",")[1]:h),u=`Определи рыбу на фото, её среднюю длину (в см) и средний вес (в граммах, по масштабу ладони или предметов в кадре). ${c?`Регион съёмки: ${c} (${l}).`:`Регион съёмки: ${l}.`}\nНе путай сиговых рыб (сиг-пыжьян, пелядь, чир, тугун, ряпушка, валёк — короткий спинной плавник и жировой плавник) и карповых (елец, плотва, язь — без жирового плавника) с хариусом (у хариуса огромный высокий спинной плавник-парус).\nВАЖНО: Если на фото несколько рыб (например, одна по центру и другие рыбы/виды рядом), укажи isMultipleFish: true, за основную возьми центральную рыбу (определи её средний размер и вес), а в массив detectedFish обязательно добавь центральную и все соседние рыбы/виды на фото с их средним размером и весом!\nРассуждай максимально кратко (1–2 фразы) и сразу верни ТОЛЬКО валидный JSON:\n{"fishNameRu":"название центральной рыбы","fishNameLat":"латинское название","confidence":95,"lengthCm":25,"weightGrams":220,"sizeText":"Длина ~25 см • Вес ~220 г","isMultipleFish":false,"fishCount":1,"traits":"краткие признаки на фото","fullText":"описание центральной рыбы (и соседних рыб, если их несколько)","detectedFish":[{"fishNameRu":"центральная рыба","positionLabel":"по центру","lengthCm":25,"weightGrams":220,"traits":"признаки"},{"fishNameRu":"соседняя рыба (если есть)","positionLabel":"рядом","lengthCm":18,"weightGrams":95,"traits":"признаки"}]}`;if("function"==typeof fetch&&m&&m.length>100){const e=getLocalGeminiQuotaState(),n=getStoredGeminiApiKey(),a=JSON.stringify({basinCode:o,locLabel:c,dhash:d.dhash,roiDhash:d.roiDhash,imageBase64:m,geminiApiKey:n,bypassCache:!0,directPrompt:u}),r=async(e,t)=>{const i="undefined"!=typeof AbortController?new AbortController:null,n=i?setTimeout((()=>i.abort()),t):null;try{const t=await fetch(e,{method:"POST",headers:{"Content-Type":"text/plain;charset=UTF-8"},body:a,mode:"cors",credentials:"omit",signal:i?.signal});if(n&&clearTimeout(n),!t||!t.ok)throw new Error("Worker HTTP "+(t?.status||0));const r=await t.json(),s=String(r?.engine||""),o=s.includes("v2.5.3")||s.includes("Морфометрическое ядро")||s.includes("Гибридный");if(!r||!r.ok||o)throw new Error("Worker not ok");const l=r.rawGeminiText?parseGeminiFishResponse(r.rawGeminiText):parseGeminiFishResponse(JSON.stringify(r));if(!l||!l.topMatches||0===l.topMatches.length)throw new Error("Empty parse");return{data:r,parsed:l}}catch(e){throw n&&clearTimeout(n),e}};try{const e=`${i}/api/ai/identify-fish`;let n=null;const a=new Promise(((t,i)=>{n=setTimeout((()=>{Promise.any([r(`https://corsproxy.io/?url=${encodeURIComponent(e)}`,11500),r(`https://thingproxy.freeboard.io/fetch/${e}`,11500)]).then(t).catch(i)}),1800)})),s=await Promise.any([r(e,11500).then((e=>(n&&clearTimeout(n),e))),a]);if(s&&s.parsed){const{data:e,parsed:i}=s;e.aiQuota&&incrementLocalGeminiQuotaUsed(e.aiQuota);const n=e.engine||"Google Gemini Vision ИИ";return p&&S(p,{engine:n,parsedResult:i}),{ok:!0,engine:n,sourceMode:n,basinCode:o,basinName:l,sceneTitle:i.sceneTitle,sizeText:i.sizeText,fullText:i.fullText,morphNote:i.topMatches[0].reason,primaryMatch:i.topMatches[0],topMatch:i.topMatches[0],isMultipleFish:Boolean(i.isMultipleFish),detectedFish:i.detectedFish||i.topMatches.filter((e=>e.isFromMultiFishPhoto)),topMatches:i.topMatches,matches:i.topMatches,estimatedLengthCm:i.estimatedLengthCm,estimatedWeightKg:i.estimatedWeightKg,thumbDataUrl:d.thumbDataUrl||t,roiDataUrl:d.thumbDataUrl||t}}}catch(e){}if(e.hasKey&&e.remainingToday>0){const i=e.keys[0];try{const e=await callGeminiClientSmart(i,[{parts:[{text:u},{inline_data:{mime_type:"image/jpeg",data:m}}]}],{temperature:.15,maxOutputTokens:4096},13e3);if(e&&e.ok&&e.text){const n=parseGeminiFishResponse(e.text);if(n&&n.topMatches.length>0){incrementLocalGeminiQuotaUsed(),notifyServerGeminiUsage(e.usedKey||i,e.model,{keySlot:(Number(e.usedKeyIndex)||0)+1,httpStatus:200,latencyMs:e.latencyMs||210,action:`Скан фото: ${n.topMatches[0]?.fish?.name||"Рыба"}`});const a=`Google ${e.model||"Gemini Vision"} ИИ`;return p&&S(p,{engine:a,parsedResult:n}),{ok:!0,engine:a,sourceMode:a,basinCode:o,basinName:l,sceneTitle:n.sceneTitle,sizeText:n.sizeText,fullText:n.fullText,morphNote:n.topMatches[0].reason,primaryMatch:n.topMatches[0],topMatch:n.topMatches[0],isMultipleFish:Boolean(n.isMultipleFish),detectedFish:n.detectedFish||n.topMatches.filter((e=>e.isFromMultiFishPhoto)),topMatches:n.topMatches,matches:n.topMatches,estimatedLengthCm:n.estimatedLengthCm,estimatedWeightKg:n.estimatedWeightKg,thumbDataUrl:d.thumbDataUrl||t,roiDataUrl:d.thumbDataUrl||t}}}}catch(e){}}const s=JSON.stringify({model:"openai",temperature:.15,messages:[{role:"user",content:[{type:"text",text:u},{type:"image_url",image_url:{url:`data:image/jpeg;base64,${m}`}}]}]}),h=async(e,t)=>{const i="undefined"!=typeof AbortController?new AbortController:null,n=i?setTimeout((()=>i.abort()),t):null;try{const t=await fetch(e,{method:"POST",headers:{"Content-Type":"application/json"},body:s,signal:i?.signal});if(n&&clearTimeout(n),!t||!t.ok)throw new Error("poll failed");const a=await t.json(),r=parseGeminiFishResponse(String(a?.choices?.[0]?.message?.content||"").trim());if(!r||!r.topMatches?.length)throw new Error("poll parse empty");return r}catch(e){throw n&&clearTimeout(n),e}};try{const e=await Promise.any([h("https://text.pollinations.ai/openai",9500),h("https://corsproxy.io/?url="+encodeURIComponent("https://text.pollinations.ai/openai"),10500)]);if(e&&e.topMatches.length>0){const i="Мультимодальная нейросеть Vision ИИ (резервный канал)";return p&&S(p,{engine:i,parsedResult:e}),{ok:!0,engine:i,sourceMode:i,basinCode:o,basinName:l,sceneTitle:e.sceneTitle,sizeText:e.sizeText,fullText:e.fullText,morphNote:e.topMatches[0].reason,primaryMatch:e.topMatches[0],topMatch:e.topMatches[0],topMatches:e.topMatches,matches:e.topMatches,estimatedLengthCm:e.estimatedLengthCm,estimatedWeightKg:e.estimatedWeightKg,thumbDataUrl:d.thumbDataUrl||t,roiDataUrl:d.thumbDataUrl||t}}}catch(e){}}return{ok:!1,error:"Не удалось получить ответ от нейросети Vision ИИ. Проверьте подключение к интернету или нажмите «Повторить».",thumbDataUrl:d.thumbDataUrl||t,roiDataUrl:d.thumbDataUrl||t}}export function openFishPhotoScannerModal(i={}){requestAppCameraAndPhotoAccess(),ensureGeminiKeySyncedFromServer().catch((()=>{}));let a=null,p=0,m=i.initialImageSrc||"",u=null;const g=()=>{if(u){try{u.getTracks().forEach((e=>e.stop()))}catch(e){}u=null}};o('<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" fill="rgba(56,189,248,0.22)" stroke="#38bdf8" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="13" r="4" stroke="#10b981" stroke-width="2"/></svg> ИИ-определитель рыбы по фото','\n    <div id="fishScannerModalRoot" style="display:flex;flex-direction:column;gap:10px;font-size:var(--fs-sm);">\n      <div style="padding:12px;text-align:center;color:var(--muted);">Запуск ИИ-определителя...</div>\n    </div>\n  ',(async o=>{const u=o.querySelector("#fishScannerModalRoot")||o,f=async(t,i=!1)=>{if(g(),m=t,m){if(u.innerHTML=`\n          <div class="card" style="padding:16px 12px;text-align:center;background:var(--panel);border:1.5px solid var(--accent);">\n            <div style="margin-bottom:10px;border-radius:10px;overflow:hidden;max-height:220px;display:flex;justify-content:center;background:#090f1d;">\n              <img src="${m}" alt="Фото" style="max-width:100%;max-height:220px;object-fit:contain;">\n            </div>\n            <div style="font-weight:900;font-size:14.5px;color:var(--accent);margin-bottom:4px;">\n              Gemini Vision ИИ определяет вид рыбы, длину и вес...\n            </div>\n            <div style="font-size:11.5px;color:var(--muted);">\n              Анализ морфологических признаков и масштаба снимка\n            </div>\n          </div>\n        `,a=await analyzeFishPhotoHybrid(m,i),p=0,a&&a.ok&&a.topMatches?.length>0){const t=a.topMatches[0].fish;t&&t.id&&e.dispatch({type:"SET_FISH",payload:t.id})}y()}else y()};"undefined"!=typeof window&&(window.__KLEV_ON_NATIVE_CAMERA_PHOTO__=e=>{e&&"string"==typeof e&&e.startsWith("data:image/")&&f(e)});const y=()=>{const o=Boolean(m),x=Boolean(o&&a&&a.ok&&a.topMatches?.length),b=x?a.topMatches[p]||a.topMatches[0]:null,v=b?b.fish:r[0],w="redbook"===v.legal,S="license"===v.legal,k=b?b.estimatedLengthCm||getDefaultTypicalLengthCm(v.id):25,T=b?b.estimatedWeightKg||estimateWeightByLengthAndSpecies(v.id,k):.25,M=b?.displayTitle||v.name,_=b?.displayLatin||v.latin||"",C=b?.sizeSummaryText||a?.sizeText||`Длина: ~${k} см • Вес: ${formatWeightHuman(T)}`,A=b?.fullAnalysisText||a?.fullText||b?.reason||"";getLocalGeminiQuotaState();u.innerHTML=`\n          <input type="file" id="scannerFileInput" accept="image/*" style="display:none;">\n          <input type="file" id="scannerCameraCaptureInput" accept="image/*" capture="environment" style="display:none;">\n\n          ${o?`\n            \x3c!-- Компактная карточка загруженного снимка + кнопки управления в одну строку --\x3e\n            <div class="card" style="padding:10px 12px;background:var(--panel);border:1.5px solid ${x?"var(--accent)":"var(--warn)"};display:flex;flex-direction:column;gap:8px;">\n              <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">\n                <span style="font-size:11.5px;font-weight:800;color:${x?"var(--accent)":"var(--warn)"};">\n                  ${x?s(a.sourceMode||"Google Gemini Vision ИИ"):"Повторный запрос к Vision ИИ"}\n                </span>\n                <div style="display:flex;gap:5px;flex-wrap:wrap;">\n                  <button type="button" class="btn btn-sm btn-good" id="scannerOpenLiveCamBtn" style="min-height:30px;padding:2px 8px;font-size:11px;font-weight:800;">Камера</button>\n                  <button type="button" class="btn btn-sm btn-accent" id="scannerHeroGalleryBtn" style="min-height:30px;padding:2px 8px;font-size:11px;font-weight:800;">Галерея</button>\n                  <button type="button" class="btn btn-sm" id="scannerRetryBtn" style="min-height:30px;padding:2px 8px;font-size:11px;font-weight:800;">Повторить</button>\n                </div>\n              </div>\n              <div style="width:100%;border-radius:10px;overflow:hidden;background:#090f1d;border:1px solid var(--border);display:flex;justify-content:center;align-items:center;max-height:230px;">\n                <img src="${m}" alt="Фото улова" style="max-width:100%;max-height:230px;object-fit:contain;display:block;">\n              </div>\n\n              ${x?"":`\n                <div style="padding:8px 10px;border-radius:8px;background:rgba(245,158,11,0.12);border:1px solid var(--warn);text-align:center;">\n                  <div style="font-weight:800;font-size:12.5px;color:var(--warn);margin-bottom:6px;">\n                    ${s(a?.error||"Не удалось получить ответ от нейросети Vision ИИ")}\n                  </div>\n                  <button type="button" class="btn btn-accent" id="scannerRetryMainBtn" style="min-height:36px;font-weight:900;width:100%;">\n                    Повторить анализ снимка\n                  </button>\n                </div>\n              `}\n            </div>\n          `:'\n            \x3c!-- Единая стартовая карточка без дублирования --\x3e\n            <div class="card" style="padding:16px 14px;text-align:center;background:var(--card);border:1.5px solid var(--accent);display:flex;flex-direction:column;gap:10px;">\n              <div style="display:flex;justify-content:center;">\n                <span class="pill pill-good" style="font-size:10.5px;font-weight:800;">\n                  🟢 Нейросеть Gemini Vision ИИ готова к распознаванию\n                </span>\n              </div>\n              <div style="font-weight:900;font-size:15px;color:var(--text);">\n                Сфотографируйте улов или выберите фото\n              </div>\n              <div style="font-size:12px;color:var(--muted);max-width:420px;margin:0 auto;line-height:1.45;">\n                Gemini Vision ИИ автоматически определит вид рыбы, оценит длину и вес по масштабу кадра и заполнит карточку.\n              </div>\n              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:2px;">\n                <button type="button" class="btn btn-good" id="scannerOpenLiveCamBtn" style="min-height:42px;font-weight:900;">\n                  <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" fill="rgba(16,185,129,0.22)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="13" r="4" stroke="currentColor" stroke-width="1.8"/></svg> Камера\n                </button>\n                <button type="button" class="btn btn-accent" id="scannerHeroGalleryBtn" style="min-height:42px;font-weight:900;">\n                  <svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="3" stroke="currentColor" stroke-width="1.8"/><circle cx="8.5" cy="8.5" r="1.8" fill="currentColor"/><path d="M21 15l-5-5L5 21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Из галереи\n                </button>\n              </div>\n\n            </div>\n          '}\n\n          ${x?`\n            \x3c!-- Результат распознавания нейросетью и карточка вида --\x3e\n            <div class="card" style="padding:12px 14px;background:var(--panel);border:1.5px solid ${w?"var(--bad)":"var(--good)"};display:flex;flex-direction:column;gap:10px;">\n              <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;">\n                <span style="font-size:11px;font-weight:900;color:var(--muted);">РЕЗУЛЬТАТ РАСПОЗНАВАНИЯ:</span>\n                <div style="display:flex;gap:6px;align-items:center;">\n                  <span class="pill pill-good" style="font-size:10.5px;">Точность: ${b.confidence}%</span>\n                  ${w?'<span class="pill pill-bad" style="font-size:10.5px;">Красная книга • Отпусти!</span>':S?'<span class="pill pill-warn" style="font-size:10.5px;">По путёвке / Лицензия</span>':'<span class="pill pill-good" style="font-size:10.5px;">Разрешённый вид</span>'}\n                </div>\n              </div>\n              <div style="display:grid;grid-template-columns:110px 1fr;gap:10px;align-items:center;">\n                <div style="width:110px;height:78px;border-radius:10px;background:var(--card);display:flex;align-items:center;justify-content:center;padding:6px;border:1px solid var(--border);">\n                  <img src="assets/fish/${v.id}.png" alt="${s(v.name)}" style="max-width:100%;max-height:100%;object-fit:contain;" onerror="this.style.display='none'">\n                </div>\n                <div>\n                  <div style="font-size:16px;font-weight:900;color:var(--text);">${s(M)}</div>\n                  <div style="font-size:11.5px;color:var(--muted);font-style:italic;">${s(_)}</div>\n                  <div style="margin-top:5px;padding:5px 8px;border-radius:7px;background:rgba(16,185,129,0.14);border:1px solid var(--good);font-weight:900;font-size:12px;color:var(--good);" id="scannerCalcSummaryBadge">\n                    ${s(C)}\n                  </div>\n                </div>\n              </div>\n              <div style="padding:9px 11px;border-radius:8px;background:var(--card);border:1px solid var(--border);font-size:12px;line-height:1.45;color:var(--text);white-space:pre-line;">\n                <b style="color:var(--accent);">Заключение ИИ по фото:</b>\n${s(A||b.reason||v.idTraits||"")}\n              </div>\n              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;padding-top:4px;border-top:1px dashed var(--border);">\n                <div>\n                  <label style="display:block;font-size:10.5px;color:var(--muted);font-weight:700;margin-bottom:2px;">ДЛИНА ОСНОВНОЙ РЫБЫ (СМ):</label>\n                  <input type="number" id="scannerLenInput" class="input" min="1" max="220" step="0.5" value="${k}" style="width:100%;min-height:36px;padding:4px 8px;font-weight:800;">\n                </div>\n                <div>\n                  <label style="display:block;font-size:10.5px;color:var(--muted);font-weight:700;margin-bottom:2px;">ВЕС (КГ, напр. 0.005 = 5 г):</label>\n                  <input type="number" id="scannerWeightInput" class="input" min="0.001" max="100" step="0.005" value="${T}" style="width:100%;min-height:36px;padding:4px 8px;font-weight:800;color:var(--good);">\n                </div>\n              </div>\n              <div style="padding:8px 10px;border-radius:8px;background:${w?"rgba(239,68,68,0.14)":"rgba(16,185,129,0.09)"};border:1px solid ${w?"var(--bad)":"var(--good)"};font-size:11.5px;line-height:1.4;">\n                <b style="color:${w?"var(--bad)":"var(--good)"};">\n                  ${w?"ВНИМАНИЕ: КРАСНАЯ КНИГА! ВЫЛОВ ЗАПРЕЩЁН!":"Справка из Атласа РФ ("+s(v.name)+"):"}\n                </b>\n                ${s(w?v.handlingAdvice||"Немедленно освободите рыбу от крючка прямо в воде и бережно отпустите.":v.sizeInfo||"Разрешён к любительскому лову с соблюдением суточной нормы.")}\n              </div>\n            </div>\n            ${(()=>{const e=Array.isArray(a.detectedFish)&&a.detectedFish.length>1?a.detectedFish:a.isMultipleFish&&a.topMatches.length>1?a.topMatches:[];return e.length>1?`\n                  <div class="card" style="padding:11px 13px;background:rgba(56,189,248,0.10);border:1.5px solid var(--accent);display:flex;flex-direction:column;gap:8px;">\n                    <div style="font-weight:900;font-size:12.5px;color:var(--accent);line-height:1.35;">\n                      На фото несколько рыб! Сейчас показан расчёт для: «${s(M)}»${b?.positionLabel?` (${s(b.positionLabel)})`:""}.\n                    </div>\n                    <div style="font-size:11.5px;color:var(--text);line-height:1.35;">\n                      Если вы спрашивали не про «${s(M)}», выберите другую рыбу с этого фото кнопкой ниже:\n                    </div>\n                    <div style="display:flex;flex-direction:column;gap:6px;">\n                      ${e.map(((e,t)=>{const i=t===p,n=formatWeightHuman(e.estimatedWeightKg||estimateWeightByLengthAndSpecies(e.fish.id,e.estimatedLengthCm||25)),a=e.positionLabel?` • ${e.positionLabel}`:"";return`\n                          <button type="button" class="btn ${i?"btn-accent":""}" data-pick-scanner-match="${t}" style="width:100%;justify-content:space-between;text-align:left;padding:8px 10px;min-height:42px;display:flex;align-items:center;gap:8px;border:${i?"2px solid var(--accent)":"1px solid var(--border)"};">\n                            <span style="display:flex;align-items:center;gap:8px;min-width:0;flex:1;">\n                              <img src="assets/fish/${e.fish.id}.png" alt="" style="width:36px;height:22px;object-fit:contain;flex-shrink:0;" onerror="this.style.display='none'">\n                              <span style="font-weight:800;font-size:12.5px;white-space:normal;line-height:1.25;">\n                                ${i?"✓ ":""}${t+1}. ${s(e.displayTitle||e.fish.name)}${s(a)}\n                              </span>\n                            </span>\n                            <span class="pill ${i?"pill-good":"pill-neutral"}" style="font-weight:900;font-size:11px;flex-shrink:0;">\n                              ~${e.estimatedLengthCm||25} см • ${n}\n                            </span>\n                          </button>\n                        `})).join("")}\n                    </div>\n                  </div>\n                `:a.topMatches.length>1?`\n                  <div class="card" style="padding:10px 12px;background:var(--card);">\n                    <div style="font-weight:900;font-size:11px;color:var(--accent);text-transform:uppercase;margin-bottom:6px;">\n                      ДРУГИЕ ВАРИАНТЫ / СХОДНЫЕ ВИДЫ (НАЖМИТЕ, ЕСЛИ СРАВНИВАЕТЕ):\n                    </div>\n                    <div style="display:flex;flex-direction:column;gap:6px;">\n                      ${a.topMatches.map(((e,t)=>`\n                        <button type="button" class="btn ${t===p?"btn-accent":""}" data-pick-scanner-match="${t}" style="width:100%;padding:7px 10px;border-radius:8px;display:flex;justify-content:space-between;align-items:center;gap:8px;text-align:left;">\n                          <div style="display:flex;align-items:center;gap:8px;min-width:0;flex:1;">\n                            <img src="assets/fish/${e.fish.id}.png" alt="" style="width:40px;height:24px;object-fit:contain;flex-shrink:0;" onerror="this.style.display='none'">\n                            <div style="min-width:0;flex:1;">\n                              <div style="font-weight:800;font-size:12.5px;color:var(--text);">\n                                ${t+1}. ${s(e.displayTitle||e.fish.name)}\n                              </div>\n                              <div style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">\n                                ${s(e.reason)}\n                              </div>\n                            </div>\n                          </div>\n                          <span class="pill ${e.confidence>=80?"pill-good":"pill-neutral"}" style="font-weight:900;font-size:11px;">${e.confidence}%</span>\n                        </button>\n                      `)).join("")}\n                    </div>\n                  </div>\n                `:""})()}\n            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;">\n              ${w?"":'\n                <button type="button" class="btn btn-good" id="scannerApplyToLogBtn" style="min-height:42px;font-weight:900;">\n                  <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg> + Записать в Журнал\n                </button>\n              '}\n              <button type="button" class="btn btn-accent" id="scannerSelectForForecastBtn" style="min-height:42px;font-weight:800;">\n                <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="4.5" stroke="#38bdf8" stroke-width="1.6"/><circle cx="12" cy="12" r="1.8" fill="#10b981"/></svg> Прогноз и снасти\n              </button>\n              <button type="button" class="btn" id="scannerOpenPassportBtn" style="min-height:42px;font-weight:800;">\n                <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="2"/><path d="M16 16l4.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg> Паспорт вида\n              </button>\n            </div>\n          `:""}\n        `;const $=e=>{if(!e)return;const t=new FileReader;t.onload=()=>{f(String(t.result||""))},t.readAsDataURL(e)},L=u.querySelector("#scannerFileInput");L&&L.addEventListener("change",(e=>$(e.target.files?.[0])));const I=u.querySelector("#scannerCameraCaptureInput");I&&I.addEventListener("change",(e=>$(e.target.files?.[0]))),u.querySelector("#scannerOpenLiveCamBtn")?.addEventListener("click",(()=>(()=>{if(g(),"undefined"!=typeof window&&window.AndroidBridge&&"function"==typeof window.AndroidBridge.openNativeCamera)return void window.AndroidBridge.openNativeCamera();const e=u.querySelector("#scannerCameraCaptureInput");e&&(e.value="",e.click())})())),u.querySelector("#scannerHeroGalleryBtn")?.addEventListener("click",(()=>{requestAppCameraAndPhotoAccess(),L?.click()}));const N=()=>{try{"undefined"!=typeof localStorage&&(localStorage.removeItem(h),localStorage.removeItem("klev_gemini_active_model_v2"))}catch(e){}m&&f(m,!0)};if(u.querySelector("#scannerRetryBtn")?.addEventListener("click",N),u.querySelector("#scannerRetryMainBtn")?.addEventListener("click",N),u.querySelector("#scannerInlineSaveKeyBtn")?.addEventListener("click",(()=>{const e=(u.querySelector("#scannerInlineGeminiKeyInp")?.value||"").trim();!e||e.length<16?c("Вставьте корректный ключ Google AI Studio (AIzaSy...)","warn"):(saveStoredGeminiApiKey(e),c("Ключ Gemini API сохранён и синхронизирован!","good"),m?f(m):y())})),!x)return;const F=u.querySelector("#scannerLenInput"),D=u.querySelector("#scannerWeightInput"),U=u.querySelector("#scannerCalcSummaryBadge");F?.addEventListener("input",(e=>{const t=Math.max(1,Math.min(220,parseFloat(e.target.value)||k)),i=estimateWeightByLengthAndSpecies(v.id,t);b.estimatedLengthCm=t,b.estimatedWeightKg=i,D&&(D.value=String(i)),U&&(U.textContent=`Длина: ~${t} см • Вес: ${formatWeightHuman(i)}`)})),D?.addEventListener("input",(e=>{const t=Math.max(.001,parseFloat(e.target.value)||T);b.estimatedWeightKg=t,U&&(U.textContent=`Длина: ~${b.estimatedLengthCm||k} см • Вес: ${formatWeightHuman(t)}`)})),u.querySelectorAll("[data-pick-scanner-match]").forEach((t=>{t.addEventListener("click",(()=>{p=parseInt(t.getAttribute("data-pick-scanner-match"),10)||0;const i=a?.topMatches?.[p]?.fish;i&&i.id&&e.dispatch({type:"SET_FISH",payload:i.id}),n("selection"),y()}))})),u.querySelector("#scannerApplyToLogBtn")?.addEventListener("click",(()=>{g();const t=parseFloat(F?.value)||k,n=parseFloat(D?.value)||T;"function"!=typeof i.onSelectResult?(l(),e.dispatch({type:"SET_FISH",payload:v.id}),"undefined"!=typeof window&&"function"==typeof window.__KLEV_OPEN_CATCH_WIZARD__&&window.__KLEV_OPEN_CATCH_WIZARD__({fishId:v.id,lengthCm:t,weightKg:n,photoDataUrl:a.thumbDataUrl}),c(`Вид «${M}» (${formatWeightHuman(n)}, ${t} см) передан в Журнал уловов!`,"good")):i.onSelectResult({fishId:v.id,fishName:M,lengthCm:t,weightKg:n,photoDataUrl:a.thumbDataUrl})})),u.querySelector("#scannerSelectForForecastBtn")?.addEventListener("click",(()=>{g(),e.dispatch({type:"SET_FISH",payload:v.id}),l(),t.navigate("forecast"),c(`Выбрана рыба: ${v.name}`,"good"),d(["#bentoSwipeHeroCard","#bentoWaveChartCard"],{scroll:!0,block:"center",delayMs:110})})),u.querySelector("#scannerOpenPassportBtn")?.addEventListener("click",(()=>{g(),"function"==typeof i.onOpenDetail?i.onOpenDetail(v.id):"undefined"!=typeof window&&"function"==typeof window.__KLEV_OPEN_FISH_DETAIL__&&window.__KLEV_OPEN_FISH_DETAIL__(v.id)}))};m?await f(m):y()}))}
+/**
+ * @file scanner.js
+ * @description Мультимодальный нейро-определитель рыбы по фото («Ихтио-Сканер» v2.5.6):
+ * - Прямое распознавание полного снимка через Gemini Flash Vision ИИ (gemini-2.5-flash / 2.5-flash-lite / 2.0-flash / 1.5-flash)
+ * - Единый прямой промпт без рамок/точек/квадратов на фото: «Определи, что за рыба на фото, примерный размер и вес»
+ * - Автоматическая подстановка ответа нейросети (вид, размер, вес в г/кг, диагностические признаки и разбор нескольких рыб в кадре) в карточку Атласа РФ
+ */
+import { store } from '../../core/store.js?v=2.5.6-r215';
+import { router } from '../../core/router.js?v=2.5.6-r215';
+import { RELAY_WORKER_URL, triggerHaptic } from '../../core/telegram.js?v=2.5.6-r215';
+import { BASIN_CONFIGS } from '../../data/basins.js?v=2.5.6-r215';
+import { FISH_DB } from '../../data/species.js?v=2.5.6-r215';
+import { escapeHtml, openModal, closeModal, showToast, flashHighlightElement } from '../../ui/components.js?v=2.5.6-r215';
+/**
+ * Коэффициент упитанности Фултона (k) по видам рыб для расчёта веса по длине:
+ * W (кг) = (k * L_см^3) / 100000
+ */
+const FULTON_CONDITION_K = {
+  pike: 0.85,
+  amur_pike: 0.86,
+  taimen: 0.96,
+  lenok: 1.12,
+  salmon: 1.15,
+  trout: 1.18,
+  char: 1.05,
+  nelma: 0.98,
+  muksun: 1.35,
+  chir: 1.42,
+  peled: 1.38,
+  pizhyan: 1.25,
+  whitefish: 1.25,
+  tugun: 1.02,
+  grayling: 1.08,
+  baikal_grayling: 1.10,
+  perch: 1.45,
+  zander: 0.98,
+  burbot: 0.78,
+  dace: 1.18,
+  roach: 1.42,
+  ide: 1.52,
+  chub: 1.38,
+  bream: 1.75,
+  crucian: 1.95,
+  carp: 1.88,
+  tench: 1.78,
+  catfish: 0.76,
+  sterlet: 0.68,
+  siberian_sturgeon: 0.72,
+  flounder: 1.45,
+  plaice: 1.45,
+  halibut: 1.35
+};
+export function estimateWeightByLengthAndSpecies(fishId, lengthCm) {
+  const L = Math.max(2, Math.min(220, Number(lengthCm) || 25));
+  const k = FULTON_CONDITION_K[fishId] || 1.25;
+  const rawKg = (k * Math.pow(L, 3)) / 100000;
+  if (rawKg < 0.05) {
+    return Math.max(0.001, Math.round(rawKg * 1000) / 1000);
+  }
+  return Math.max(0.01, Math.round(rawKg * 100) / 100);
+}
+export function formatWeightHuman(weightKg) {
+  const w = Number(weightKg) || 0;
+  if (w <= 0) return '~100 г';
+  if (w < 0.1) {
+    const grams = Math.max(1, Math.round(w * 1000));
+    return `~${grams} г (${w} кг)`;
+  }
+  if (w < 1.0) {
+    const grams = Math.round(w * 100) * 10;
+    return `~${grams} г (${w.toFixed(2)} кг)`;
+  }
+  return `~${w.toFixed(2)} кг`;
+}
+export function getDefaultTypicalLengthCm(fishId) {
+  const map = {
+    pike: 52, taimen: 85, lenok: 45, dace: 19, roach: 21, perch: 24,
+    zander: 48, burbot: 50, peled: 32, chir: 44, pizhyan: 36, muksun: 46,
+    nelma: 65, grayling: 30, ide: 36, bream: 38, crucian: 22, carp: 52,
+    catfish: 85, trout: 38, salmon: 68, tugun: 15, smelt: 18, ruffe: 13,
+    flounder: 28, plaice: 30, halibut: 65
+  };
+  return map[fishId] || 28;
+}
+/**
+ * Явно запрашивает разрешения на Камеру и Фото у Android-контейнера (APK) или браузера
+ */
+export function requestAppCameraAndPhotoAccess() {
+  try {
+    if (typeof window !== 'undefined' && window.AndroidBridge && typeof window.AndroidBridge.requestCameraAndPhotoPermissions === 'function') {
+      window.AndroidBridge.requestCameraAndPhotoPermissions();
+      return true;
+    }
+  } catch (e) {}
+  return false;
+}
+/**
+ * Вычисляет расстояние Хэмминга между двумя 16-символьными hex-строками (64 бита)
+ */
+export function hammingDistanceHex64(h1, h2) {
+  const a = String(h1 || '').replace(/^dh_/, '').padStart(16, '0');
+  const b = String(h2 || '').replace(/^dh_/, '').padStart(16, '0');
+  let dist = 0;
+  for (let i = 0; i < 16; i++) {
+    let xor = (parseInt(a[i], 16) ^ parseInt(b[i], 16)) & 0xf;
+    while (xor > 0) {
+      dist += xor & 1;
+      xor >>= 1;
+    }
+  }
+  return dist;
+}
+/**
+ * Подготавливает полный снимок (без обрезки рамками) в чёткий JPEG до 960px и считает dHash для кэша одинаковых фото
+ */
+export async function extractPhotoVisualFeatures(imgSrc) {
+  const stripB64Prefix = (str) => {
+    const s = String(str || "");
+    return s.includes(",") ? s.split(",")[1] : s;
+  };
+  if (typeof document === "undefined" || typeof Image === "undefined") {
+    const pure = stripB64Prefix(imgSrc);
+    return {
+      dhash: "0000000000000000",
+      roiDhash: "0000000000000000",
+      thumbDataUrl: imgSrc,
+      roiDataUrl: imgSrc,
+      apiDataUrl: imgSrc,
+      pureB64: pure
+    };
+  }
+  return new Promise((resolve) => {
+    try {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        try {
+          const w = img.naturalWidth || img.width || 640;
+          const h = img.naturalHeight || img.height || 480;
+          let dhash = "0000000000000000";
+          const c98 = document.createElement("canvas");
+          c98.width = 9;
+          c98.height = 8;
+          const ctx98 = c98.getContext("2d");
+          if (ctx98) {
+            ctx98.drawImage(img, 0, 0, w, h, 0, 0, 9, 8);
+            const p98 = ctx98.getImageData(0, 0, 9, 8).data;
+            let bits = "";
+            for (let y = 0; y < 8; y++) {
+              for (let x = 0; x < 8; x++) {
+                const i1 = (y * 9 + x) * 4;
+                const i2 = (y * 9 + x + 1) * 4;
+                const g1 = p98[i1] * 0.299 + p98[i1 + 1] * 0.587 + p98[i1 + 2] * 0.114;
+                const g2 = p98[i2] * 0.299 + p98[i2 + 1] * 0.587 + p98[i2 + 2] * 0.114;
+                bits += g1 < g2 ? "1" : "0";
+              }
+            }
+            const h1 = parseInt(bits.slice(0, 32), 2).toString(16).padStart(8, "0");
+            const h2 = parseInt(bits.slice(32, 64), 2).toString(16).padStart(8, "0");
+            dhash = h1 + h2;
+          }
+          // 1. Чёткое превью для отображения на экране (до 960px, качество 0.85)
+          const maxSidePreview = 960;
+          const scalePreview = Math.min(1, maxSidePreview / Math.max(w, h));
+          const cThumb = document.createElement("canvas");
+          cThumb.width = Math.max(80, Math.round(w * scalePreview));
+          cThumb.height = Math.max(80, Math.round(h * scalePreview));
+          const ctxT = cThumb.getContext("2d");
+          let thumbDataUrl = imgSrc;
+          if (ctxT) {
+            ctxT.drawImage(img, 0, 0, cThumb.width, cThumb.height);
+            thumbDataUrl = cThumb.toDataURL("image/jpeg", 0.85);
+          }
+          // 2. Компактный пакет для передачи через Cloudflare Worker и прокси (строго < 44 КБ в Base64, чтобы весь POST-запрос был < 64 КБ и гарантированно проходил через все прокси и 4G)
+          let apiDataUrl = thumbDataUrl;
+          let pureB64 = stripB64Prefix(apiDataUrl);
+          const compressionSteps = [
+            { maxSide: 680, quality: 0.72 },
+            { maxSide: 580, quality: 0.64 },
+            { maxSide: 500, quality: 0.56 },
+            { maxSide: 420, quality: 0.50 }
+          ];
+          for (const step of compressionSteps) {
+            if (pureB64.length <= 42000) break;
+            const sc = Math.min(1, step.maxSide / Math.max(w, h));
+            const cApi = document.createElement("canvas");
+            cApi.width = Math.max(64, Math.round(w * sc));
+            cApi.height = Math.max(64, Math.round(h * sc));
+            const ctxA = cApi.getContext("2d");
+            if (ctxA) {
+              ctxA.drawImage(img, 0, 0, cApi.width, cApi.height);
+              apiDataUrl = cApi.toDataURL("image/jpeg", step.quality);
+              pureB64 = stripB64Prefix(apiDataUrl);
+            }
+          }
+          resolve({
+            dhash,
+            roiDhash: dhash,
+            thumbDataUrl,
+            roiDataUrl: thumbDataUrl,
+            apiDataUrl,
+            pureB64
+          });
+        } catch (e) {
+          const pure = stripB64Prefix(imgSrc);
+          resolve({
+            dhash: "0000000000000000",
+            roiDhash: "0000000000000000",
+            thumbDataUrl: imgSrc,
+            roiDataUrl: imgSrc,
+            apiDataUrl: imgSrc,
+            pureB64: pure
+          });
+        }
+      };
+      img.onerror = () => {
+        const pure = stripB64Prefix(imgSrc);
+        resolve({
+          dhash: "0000000000000000",
+          roiDhash: "0000000000000000",
+          thumbDataUrl: imgSrc,
+          roiDataUrl: imgSrc,
+          apiDataUrl: imgSrc,
+          pureB64: pure
+        });
+      };
+      img.src = imgSrc;
+    } catch (err) {
+      const pure = stripB64Prefix(imgSrc);
+      resolve({
+        dhash: "0000000000000000",
+        roiDhash: "0000000000000000",
+        thumbDataUrl: imgSrc,
+        roiDataUrl: imgSrc,
+        apiDataUrl: imgSrc,
+        pureB64: pure
+      });
+    }
+  });
+}
+
+const LOCAL_VISION_CACHE_KEY = "klev_vision_ai_cache_v263_r202";
+const LOCAL_GEMINI_KEY_STORAGE = "klev_gemini_api_key_v2";
+const LOCAL_GEMINI_QUOTA_STORAGE = "klev_gemini_quota_v2";
+
+export function getStoredGeminiApiKey() {
+  try {
+    if (typeof window !== "undefined" && !window.__KLEV_ADMIN_CONTOUR__) return "";
+    const s = store.getState();
+    const fromProfile = String(s?.userProfile?.geminiApiKey || "").trim();
+    if (fromProfile && fromProfile.length >= 16) return fromProfile;
+    if (typeof localStorage !== "undefined") {
+      const fromLs = String(localStorage.getItem(LOCAL_GEMINI_KEY_STORAGE) || "").trim();
+      if (fromLs && fromLs.length >= 16) return fromLs;
+    }
+  } catch (e) {}
+  return "";
+}
+
+export function saveStoredGeminiApiKey(rawKey = "") {
+  const clean = String(rawKey || "").trim();
+  try {
+    if (typeof window !== "undefined" && !window.__KLEV_ADMIN_CONTOUR__) return "";
+    if (typeof localStorage !== "undefined") {
+      if (clean) localStorage.setItem(LOCAL_GEMINI_KEY_STORAGE, clean);
+      else localStorage.removeItem(LOCAL_GEMINI_KEY_STORAGE);
+    }
+    store.dispatch({ type: "UPDATE_USER_PROFILE", payload: { geminiApiKey: clean } });
+    const s = store.getState();
+    const admTok = String(s?.userProfile?.adminSessionToken || "").trim();
+    if (clean && clean.length >= 16 && admTok && typeof fetch === "function") {
+      const cfgPayload = JSON.stringify({
+        adminToken: admTok,
+        geminiApiKey: clean
+      });
+      fetch(`${RELAY_WORKER_URL}/api/ai/config`, {
+        method: "POST",
+        mode: "cors",
+        credentials: "omit",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Admin-Token": admTok
+        },
+        body: cfgPayload
+      }).catch(() => {});
+    }
+  } catch (e) {}
+  return clean;
+}
+
+export async function ensureGeminiKeySyncedFromServer() {
+  return getStoredGeminiApiKey();
+}
+
+export function getLocalGeminiQuotaState(customKeyStr = null) {
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const rawKeys = String(customKeyStr !== null ? customKeyStr : getStoredGeminiApiKey())
+    .split(",")
+    .map(k => k.trim().replace(/^["'\s]+|["'\s]+$/g, ""))
+    .filter(k => k.length >= 16);
+  const keyCount = rawKeys.length;
+  const limitPerDay = Math.max(1500, keyCount * 1500);
+  let usedToday = 0;
+  let usedAppToday = 0;
+  let usedBotToday = 0;
+  let totalAllTime = 0;
+  let lastRequestAt = 0;
+  let perKeyUsed = [0, 0, 0];
+  try {
+    if (typeof localStorage !== "undefined") {
+      const raw = JSON.parse(localStorage.getItem(LOCAL_GEMINI_QUOTA_STORAGE) || "{}");
+      if (raw && typeof raw === "object") {
+        if (Number.isFinite(Number(raw.totalAllTime))) totalAllTime = Math.max(0, Number(raw.totalAllTime));
+        if (Number.isFinite(Number(raw.lastRequestAt))) lastRequestAt = Math.max(0, Number(raw.lastRequestAt));
+        if (raw.dateKey === todayStr) {
+          if (Number.isFinite(Number(raw.usedToday))) usedToday = Math.max(0, Number(raw.usedToday));
+          if (Number.isFinite(Number(raw.usedAppToday))) usedAppToday = Math.max(0, Number(raw.usedAppToday));
+          if (Number.isFinite(Number(raw.usedBotToday))) usedBotToday = Math.max(0, Number(raw.usedBotToday));
+          if (Array.isArray(raw.perKeyUsed)) {
+            perKeyUsed = [Number(raw.perKeyUsed[0]) || 0, Number(raw.perKeyUsed[1]) || 0, Number(raw.perKeyUsed[2]) || 0];
+          }
+        }
+      }
+    }
+  } catch (e) {}
+  totalAllTime = Math.max(totalAllTime, usedToday);
+  const remainingToday = Math.max(0, limitPerDay - usedToday);
+  const pctRemaining = Math.round((remainingToday / limitPerDay) * 100);
+  return {
+    hasKey: keyCount > 0,
+    keyCount,
+    keys: rawKeys,
+    limitPerDay,
+    usedToday,
+    usedAppToday,
+    usedBotToday,
+    totalAllTime,
+    lastRequestAt,
+    perKeyUsed,
+    remainingToday,
+    pctRemaining,
+    dateKey: todayStr
+  };
+}
+
+export function notifyServerGeminiUsage(usedKey = "", modelId = "", meta = {}) {
+  try {
+    const st = store.getState();
+    const up = st?.userProfile || {};
+    const fid = String(meta?.fisherId || up.fisherId || "FP_89RZ0001").trim().toUpperCase();
+    const callsign = String(meta?.callsign || up.login || up.callsign || "Рыболов").trim();
+    const envName = typeof window !== "undefined" && typeof window.__KLEV_GET_ERROR_AUTHOR_META__ === "function"
+      ? (window.__KLEV_GET_ERROR_AUTHOR_META__().env || "WEB")
+      : "WEB";
+    const nowTs = Date.now();
+    const entry = {
+      id: `GAPI_${nowTs.toString(36)}_${Math.random().toString(36).slice(2, 5)}`,
+      ts: nowTs,
+      source: "app",
+      fisherId: fid,
+      callsign,
+      env: envName,
+      keySlot: Number(meta?.keySlot) || 1,
+      model: modelId || "gemini-2.5-flash",
+      httpStatus: Number(meta?.httpStatus) || 200,
+      latencyMs: Number(meta?.latencyMs) || 180,
+      action: String(meta?.action || "Ихтио-Сканер: фото рыбы").slice(0, 90),
+      verifiedHttp200: true
+    };
+    if (typeof localStorage !== "undefined") {
+      const qRaw = JSON.parse(localStorage.getItem(LOCAL_GEMINI_QUOTA_STORAGE) || "{}") || {};
+      const recArr = Array.isArray(qRaw.recentCalls) ? qRaw.recentCalls : [];
+      recArr.unshift(entry);
+      qRaw.recentCalls = recArr.slice(0, 25);
+      qRaw.lastHttpStatus = entry.httpStatus;
+      qRaw.lastLatencyMs = entry.latencyMs;
+      localStorage.setItem(LOCAL_GEMINI_QUOTA_STORAGE, JSON.stringify(qRaw));
+    }
+    if (typeof fetch !== "function") return;
+    const payloadStr = JSON.stringify({
+      usedKey: String(usedKey || "").slice(0, 12),
+      keySlot: (Number(meta?.keySlot) || 1) - 1,
+      model: entry.model,
+      source: "app",
+      fisherId: fid,
+      callsign,
+      env: envName,
+      httpStatus: entry.httpStatus,
+      latencyMs: entry.latencyMs,
+      action: entry.action,
+      ts: nowTs
+    });
+    const u = `${RELAY_WORKER_URL}/api/ai/record-usage?payload=${encodeURIComponent(payloadStr)}&_t=${nowTs}`;
+    fetch(`https://allorigins.hexlet.app/raw?disableCache=true&url=${encodeURIComponent(u)}`, { method: "GET", mode: "cors", credentials: "omit" }).catch(() => {});
+    fetch(`https://corsproxy-seven.vercel.app/api?url=${encodeURIComponent(u)}`, { method: "GET", mode: "cors", credentials: "omit" }).catch(() => {});
+    fetch(u, { method: "GET", mode: "cors", credentials: "omit" }).catch(() => {});
+  } catch (e) {}
+}
+
+export function incrementLocalGeminiQuotaUsed(serverQuotaObj = null) {
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const cur = getLocalGeminiQuotaState();
+  const nextUsed = (serverQuotaObj && Number.isFinite(Number(serverQuotaObj.usedToday)))
+    ? Math.max(cur.usedToday + 1, Number(serverQuotaObj.usedToday))
+    : (cur.usedToday + 1);
+  const nextApp = (serverQuotaObj && Number.isFinite(Number(serverQuotaObj.usedAppToday)))
+    ? Math.max(cur.usedAppToday + 1, Number(serverQuotaObj.usedAppToday))
+    : (cur.usedAppToday + 1);
+  const nextBot = (serverQuotaObj && Number.isFinite(Number(serverQuotaObj.usedBotToday)))
+    ? Math.max(cur.usedBotToday, Number(serverQuotaObj.usedBotToday))
+    : cur.usedBotToday;
+  const nextTotal = Math.max(nextUsed, cur.totalAllTime + 1, Number(serverQuotaObj?.totalAllTime) || 0);
+  const nextPerKey = Array.isArray(serverQuotaObj?.perKeyUsed)
+    ? serverQuotaObj.perKeyUsed.slice(0, 3)
+    : [(cur.perKeyUsed[0] || 0) + 1, cur.perKeyUsed[1] || 0, cur.perKeyUsed[2] || 0];
+  try {
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem(LOCAL_GEMINI_QUOTA_STORAGE, JSON.stringify({
+        dateKey: todayStr,
+        usedToday: nextUsed,
+        usedAppToday: nextApp,
+        usedBotToday: nextBot,
+        totalAllTime: nextTotal,
+        lastRequestAt: Date.now(),
+        perKeyUsed: nextPerKey,
+        limitPerDay: cur.limitPerDay
+      }));
+    }
+  } catch (e) {}
+  return getLocalGeminiQuotaState();
+}
+
+const CLIENT_GEMINI_MODELS_CASCADE = [
+  "gemini-2.5-flash",
+  "gemini-3-flash-preview",
+  "gemini-2.5-pro",
+  "gemini-2.5-flash-lite",
+  "gemini-3.1-flash-lite-preview",
+  "gemini-2.0-flash"
+];
+
+let _clientNeedsGeoRelay = false;
+
+async function _postGeminiWithGeoRelay(rawUrl, bodyStr, timeoutMs) {
+  const execPost = async (targetUrl, contentType, ms) => {
+    const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
+    const timer = ctrl ? setTimeout(() => ctrl.abort(), ms) : null;
+    try {
+      const res = await fetch(targetUrl, {
+        method: "POST",
+        headers: { "Content-Type": contentType },
+        body: bodyStr,
+        signal: ctrl?.signal
+      }).catch(() => null);
+      if (timer) clearTimeout(timer);
+      return res;
+    } catch (e) {
+      if (timer) clearTimeout(timer);
+      return null;
+    }
+  };
+
+  if (!_clientNeedsGeoRelay) {
+    const directRes = await execPost(rawUrl, "application/json", Math.min(timeoutMs, 6500));
+    if (directRes && directRes.ok) {
+      return { res: directRes, errTxt: "" };
+    }
+    if (directRes) {
+      const errTxt = await directRes.text().catch(() => "");
+      if (/location is not supported|FAILED_PRECONDITION/i.test(errTxt)) {
+        _clientNeedsGeoRelay = true;
+      } else {
+        return { res: directRes, errTxt };
+      }
+    } else {
+      _clientNeedsGeoRelay = true;
+    }
+  }
+
+  // Маршрутизация через зарубежные US/EU HTTPS-ретрансляторы (обход блокировки IP РФ со стороны Google AI Studio без VPN)
+  const relayTargets = [
+    `https://corsproxy.io/?url=${encodeURIComponent(rawUrl)}`,
+    `https://thingproxy.freeboard.io/fetch/${rawUrl}`
+  ];
+  for (const rUrl of relayTargets) {
+    const rRes = await execPost(rUrl, "application/json", timeoutMs);
+    if (rRes && rRes.ok) {
+      return { res: rRes, errTxt: "" };
+    }
+    if (rRes && (rRes.status === 400 || rRes.status === 403 || rRes.status === 404)) {
+      const rErr = await rRes.text().catch(() => "");
+      if (!/corsproxy|cloudflare|html/i.test(rErr)) {
+        return { res: rRes, errTxt: rErr };
+      }
+    }
+  }
+  return { res: null, errTxt: "Network/Geo relay unreachable" };
+}
+
+export async function callGeminiClientSmart(apiKeyOrKeys, contentsPayload, genConfig = {}, timeoutMs = 12000) {
+  const keyList = (Array.isArray(apiKeyOrKeys) ? apiKeyOrKeys : String(apiKeyOrKeys || "").split(","))
+    .map(k => String(k || "").trim().replace(/^["'\s]+|["'\s]+$/g, ""))
+    .filter(k => k.length >= 16)
+    .slice(0, 3);
+  if (keyList.length === 0) return { ok: false, status: 400, errorText: "Empty key" };
+  let lastRes = { ok: false, status: 400, errorText: "No keys succeeded" };
+  for (let kIdx = 0; kIdx < keyList.length; kIdx++) {
+    const singleRes = await _callGeminiClientSingleKey(keyList[kIdx], contentsPayload, genConfig, timeoutMs);
+    if (singleRes && singleRes.ok) {
+      return { ...singleRes, usedKeyIndex: kIdx, usedKey: keyList[kIdx] };
+    }
+    lastRes = singleRes || lastRes;
+  }
+  return lastRes;
+}
+
+async function _callGeminiClientSingleKey(apiKey, contentsPayload, genConfig = {}, timeoutMs = 12000) {
+  const tStart = Date.now();
+  const cleanKey = String(apiKey || "").trim().replace(/^["'\s]+|["'\s]+$/g, "");
+  if (!cleanKey) return { ok: false, status: 400, errorText: "Empty key" };
+  const candidates = [];
+  try {
+    if (typeof localStorage !== "undefined") {
+      const savedMod = String(localStorage.getItem("klev_gemini_active_model_v2") || "").trim();
+      if (savedMod && savedMod.startsWith("gemini-")) {
+        candidates.push(savedMod);
+      }
+    }
+  } catch (e) {}
+  for (const fb of CLIENT_GEMINI_MODELS_CASCADE) {
+    if (!candidates.includes(fb)) candidates.push(fb);
+  }
+  let listModelsChecked = false;
+  const discoverModels = async () => {
+    if (listModelsChecked) return;
+    listModelsChecked = true;
+    try {
+      const lCtrl = typeof AbortController !== "undefined" ? new AbortController() : null;
+      const lTimer = lCtrl ? setTimeout(() => lCtrl.abort(), 3500) : null;
+      const listUrl = "https://generativelanguage.googleapis.com/v1beta/models?key=" + encodeURIComponent(cleanKey);
+      let lRes = await fetch(listUrl, { method: "GET", signal: lCtrl?.signal }).catch(() => null);
+      if (lTimer) clearTimeout(lTimer);
+      if (!lRes || !lRes.ok) {
+        lRes = await fetch("https://corsproxy.io/?url=" + encodeURIComponent(listUrl), { method: "GET" }).catch(() => null);
+      }
+      if (lRes && lRes.ok) {
+        const lData = await lRes.json().catch(() => null);
+        if (lData && Array.isArray(lData.models)) {
+          for (const m of lData.models) {
+            const methods = Array.isArray(m.supportedGenerationMethods) ? m.supportedGenerationMethods : [];
+            if (!methods.includes("generateContent")) continue;
+            const id = String(m.name || "").replace(/^models\//, "");
+            if (!id.startsWith("gemini-")) continue;
+            if (/embedding|imagen|veo|tts|audio|aqa|bisect|learnlm|robotics|computer-use|-image$|1\.0/i.test(id)) continue;
+            if (!candidates.includes(id)) candidates.push(id);
+          }
+        }
+      }
+    } catch (e) {}
+  };
+  let lastStatus = 0;
+  let lastErrorText = "";
+  const maxAttempts = Math.min(6, candidates.length);
+  for (let i = 0; i < maxAttempts; i++) {
+    const modelId = candidates[i];
+    const supportsThinkingCap = /^gemini-(2\.5|3)/i.test(modelId) && !/pro/i.test(modelId);
+    const cfgVariants = supportsThinkingCap
+      ? [
+          { temperature: genConfig.temperature ?? 0.15, maxOutputTokens: genConfig.maxOutputTokens ?? 4096, thinkingConfig: { thinkingBudget: 512 } },
+          { temperature: genConfig.temperature ?? 0.15, maxOutputTokens: genConfig.maxOutputTokens ?? 4096 }
+        ]
+      : [
+          { temperature: genConfig.temperature ?? 0.15, maxOutputTokens: genConfig.maxOutputTokens ?? 4096 }
+        ];
+    for (let cIdx = 0; cIdx < cfgVariants.length; cIdx++) {
+      try {
+        const gUrl = "https://generativelanguage.googleapis.com/v1beta/models/" + modelId + ":generateContent?key=" + encodeURIComponent(cleanKey);
+        const bodyStr = JSON.stringify({
+          contents: contentsPayload,
+          generationConfig: cfgVariants[cIdx]
+        });
+        const { res: gRes, errTxt } = await _postGeminiWithGeoRelay(gUrl, bodyStr, timeoutMs);
+        if (!gRes) break;
+        lastStatus = gRes.status;
+        if (gRes.ok) {
+          const gJson = await gRes.json().catch(() => null);
+          const parts = gJson?.candidates?.[0]?.content?.parts || [];
+          const nonThought = parts.filter(p => !p.thought && typeof p.text === "string" && p.text.trim());
+          const rawTxt = (nonThought.length > 0 ? nonThought.map(p => p.text).join("\n") : parts.map(p => p.text || "").join("\n")).trim();
+          if (rawTxt) {
+            try {
+              if (typeof localStorage !== "undefined") localStorage.setItem("klev_gemini_active_model_v2", modelId);
+            } catch (e) {}
+            return { ok: true, model: modelId, status: 200, latencyMs: Math.max(15, Date.now() - tStart), json: gJson, text: rawTxt };
+          }
+          if (cIdx < cfgVariants.length - 1) continue;
+        }
+        lastErrorText = errTxt;
+        if (gRes.status === 400 && cIdx < cfgVariants.length - 1) {
+          continue;
+        }
+        if (gRes.status === 400 || gRes.status === 403) {
+          if (/API_KEY_INVALID|PERMISSION_DENIED/i.test(errTxt)) {
+            break;
+          }
+        }
+        if (gRes.status === 404) {
+          await discoverModels();
+          const suggested = errTxt.match(/models\/(gemini-[a-z0-9.-]+)/i);
+          if (suggested && suggested[1] && !candidates.includes(suggested[1])) {
+            candidates.splice(i + 1, 0, suggested[1]);
+          }
+        }
+        break;
+      } catch (e) {
+        break;
+      }
+    }
+    if (/API_KEY_INVALID|PERMISSION_DENIED/i.test(lastErrorText)) break;
+  }
+  return {
+    ok: false,
+    model: candidates[0] || "gemini-2.5-flash",
+    status: lastStatus,
+    errorText: lastErrorText
+  };
+}
+
+function loadLocalVisionCache() {
+  try {
+    if (typeof localStorage === "undefined") return {};
+    return JSON.parse(localStorage.getItem(LOCAL_VISION_CACHE_KEY) || "{}") || {};
+  } catch (e) {
+    return {};
+  }
+}
+
+function saveLocalVisionCache(hashKey, resultObj) {
+  try {
+    if (typeof localStorage === "undefined" || !hashKey || hashKey === "0000000000000000") return;
+    const cache = loadLocalVisionCache();
+    const keys = Object.keys(cache);
+    if (keys.length > 80) delete cache[keys[0]];
+    cache[hashKey] = resultObj;
+    localStorage.setItem(LOCAL_VISION_CACHE_KEY, JSON.stringify(cache));
+  } catch (e) {}
+}
+
+/**
+ * Словарь синонимов, народных названий и корней для 100% сопоставления ответа Gemini с карточками FISH_DB
+ */
+const SPECIES_KEYWORD_RULES = [
+  { id: "crucian", rx: /карас|carassius/i },
+  { id: "flounder", rx: /речная камбал|камбал.*flesus|platichthys|камбал/i },
+  { id: "plaice", rx: /морская камбал|pleuronectes/i },
+  { id: "starry_flounder", rx: /звездчатая камбал|звёздчатая камбал/i },
+  { id: "halibut", rx: /палтус|hippoglossus/i },
+  { id: "turbot", rx: /калкан|тюрбо|scophthalmus/i },
+  { id: "amur_pike", rx: /амурская щук|reichertii/i },
+  { id: "pike", rx: /щук|щурён|щурен|esox/i },
+  { id: "chinese_perch", rx: /ауха|китайский окун|siniperca/i },
+  { id: "sea_bass", rx: /сибас|лаврак|морской окун|dicentrarchus|sebastes/i },
+  { id: "perch", rx: /окун|окушок|матросик|perca/i },
+  { id: "volga_zander", rx: /берш|volgensis/i },
+  { id: "zander", rx: /судак|клыкач|sander lucioperca/i },
+  { id: "ruffe", rx: /ёрш|ерш|gymnocephalus/i },
+  { id: "rotan", rx: /ротан|головешк|perccottus/i },
+  { id: "goby", rx: /бычок|бычки|neogobius|ponticola/i },
+  { id: "taran", rx: /тарань|heckeli/i },
+  { id: "vobla", rx: /вобла|caspicus/i },
+  { id: "kutum", rx: /кутум|вырезуб|frisii/i },
+  { id: "roach", rx: /плотв|сорог|сорожк|чебак|rutilus/i },
+  { id: "dace", rx: /елец|ельчик|мохтик|leuciscus/i },
+  { id: "ide", rx: /язь|подъязок|leuciscus idus/i },
+  { id: "chub", rx: /голавл|squalius|cephalus/i },
+  { id: "rudd", rx: /красноперк|краснопёрк|scardinius/i },
+  { id: "asp", rx: /жерех|шереспер|aspius/i },
+  { id: "white_bream", rx: /густер|bjoerkna/i },
+  { id: "blue_bream", rx: /синец|balliche|ballerus/i },
+  { id: "sopa", rx: /белоглазк|сопа|sapa/i },
+  { id: "parabramis", rx: /белый амурский лещ|черный лещ|parabramis/i },
+  { id: "bream", rx: /лещ|подлещик|abramis brama/i },
+  { id: "grass_carp", rx: /белый амур|ctenopharyngodon/i },
+  { id: "black_carp", rx: /черный амур|чёрный амур|mylopharyngodon/i },
+  { id: "silver_carp", rx: /толстолоб|hypophthalmichthys/i },
+  { id: "buffalo", rx: /буффало|ictiobus/i },
+  { id: "carp", rx: /карп|сазан|cyprinus/i },
+  { id: "tench", rx: /линь|линёк|tinca/i },
+  { id: "gudgeon", rx: /пескар|gobio/i },
+  { id: "shemaya", rx: /шемая|chalcoides/i },
+  { id: "bleak", rx: /уклейк|уклея|alburnus/i },
+  { id: "chekhon", rx: /чехон|pelecus/i },
+  { id: "undermouth", rx: /подуст|chondrostoma/i },
+  { id: "vimba", rx: /рыбец|сырть|vimba/i },
+  { id: "barbel", rx: /усач|мирон|barbus/i },
+  { id: "sky_gazer", rx: /верхогляд|chanodichthys/i },
+  { id: "yellowcheek", rx: /желтощек|желтощёк|elopichthys/i },
+  { id: "tarpon_carp", rx: /монгольский краснопер|краснопёр|остролучк/i },
+  { id: "loach", rx: /вьюн|щиповк|голец усат|misgurnus|cobitis/i },
+  { id: "burbot", rx: /налим|lota lota/i },
+  { id: "amur_catfish", rx: /амурский сом|parasilurus/i },
+  { id: "channel_catfish", rx: /канальный сом|ictalurus/i },
+  { id: "catfish", rx: /сом обыкновен|европейский сом|\bсом\b|сомён|silurus/i },
+  { id: "taimen", rx: /таймен|hucho/i },
+  { id: "lenok", rx: /ленок|ускуч|brachymystax/i },
+  { id: "baikal_grayling", rx: /байкальский хариус|baicalensis/i },
+  { id: "grayling", rx: /хариус|thymallus/i },
+  { id: "rainbow_trout", rx: /радужная форел|микиж|mykiss|parasalmo/i },
+  { id: "brown_trout", rx: /кумж|ручьевая форел|пеструшк|salmo trutta/i },
+  { id: "trout", rx: /форел|озерная форел/i },
+  { id: "salmon", rx: /сёмг|семг|атлантический лосос|salmo salar/i },
+  { id: "dolly_varden", rx: /мальм| кундж|malma/i },
+  { id: "char", rx: /голец|арктический голец|палия|salvelinus/i },
+  { id: "pink_salmon", rx: /горбуш|gorbuscha/i },
+  { id: "chum_salmon", rx: /кета|кеты|oncorhynchus keta/i },
+  { id: "sockeye_salmon", rx: /нерк|nerka/i },
+  { id: "coho_salmon", rx: /кижуч|kisutch/i },
+  { id: "chinook_salmon", rx: /чавыч|tshawytscha/i },
+  { id: "cherry_salmon", rx: /сима|masou/i },
+  { id: "white_salmon", rx: /белорыбиц|leucichthys/i },
+  { id: "nelma", rx: /нельма|stenodus/i },
+  { id: "muksun", rx: /муксун|muksun/i },
+  { id: "chir", rx: /чир|щокур|щекур|nasus/i },
+  { id: "peled", rx: /пеляд|сырок|peled/i },
+  { id: "pizhyan", rx: /пыжьян|сибирский сиг|pidschian/i },
+  { id: "whitefish", rx: /сиг обыкновен|\bсиг\b|валаамк|lavaretus/i },
+  { id: "broad_whitefish", rx: /чир|широколобик/i },
+  { id: "omul_arctic", rx: /арктический омул|autumnalis/i },
+  { id: "omul", rx: /омул|байкальский омул|migratorius/i },
+  { id: "vendace", rx: /ряпушк|рипус|albula/i },
+  { id: "cisco", rx: /сибирская ряпушк|зельдь|sardinella/i },
+  { id: "tugun", rx: /тугун|сосьвинская сельд|манерк|tugun/i },
+  { id: "valek", rx: /валёк|валек|cylindraceus|prosopium/i },
+  { id: "smelt", rx: /корюшк|зубар|снеток|osmerus|hypomesus/i },
+  { id: "capelin", rx: /мойв|уёк|mallotus/i },
+  { id: "saffron_cod", rx: /дальневосточная наваг|вахня|gracilis/i },
+  { id: "navaga", rx: /наваг|eleginus/i },
+  { id: "cod", rx: /треск|gadus morhua/i },
+  { id: "haddock", rx: /пикш|melanogrammus/i },
+  { id: "saithe", rx: /сайд|pollachius/i },
+  { id: "walleye_pollock", rx: /минтай|chalcogrammus|theragra/i },
+  { id: "wolffish", rx: /зубатк|anarhichas/i },
+  { id: "greenling", rx: /терпуг|зайчик морской|pleurogrammus/i },
+  { id: "herring", rx: /сельдь|селедк|селёдк|clupea/i },
+  { id: "mackerel", rx: /скумбр|scomber/i },
+  { id: "horse_mackerel", rx: /ставрид|trachurus/i },
+  { id: "bluefish", rx: /луфар|pomatomus/i },
+  { id: "mullet", rx: /кефал|лобан|сингил|остронос|пеленгас|mugil|planiza|liza/i },
+  { id: "red_mullet", rx: /барабул|султанк|mullus/i },
+  { id: "garfish", rx: /сарган|belone/i },
+  { id: "scorpionfish", rx: /скорпен|морской ёрш|морской ерш|scorpaena/i },
+  { id: "sea_bream", rx: /дорад|зубарик|ласкир|морской карас|sparus|diplodus/i },
+  { id: "wrasse", rx: /зеленушк|губан|symphodus/i },
+  { id: "sand_eel", rx: /песчанк|ammodytes/i },
+  { id: "anglerfish", rx: /удильщик|морской чёрт|морской черт|lophius/i },
+  { id: "eel", rx: /угор|речной угор|anguilla/i },
+  { id: "sterlet", rx: /стерляд|ruthenus/i },
+  { id: "stellate_sturgeon", rx: /севрюг|stellatus/i },
+  { id: "beluga", rx: /белуг|huso huso/i },
+  { id: "kaluga", rx: /калуг|dauricus/i },
+  { id: "siberian_sturgeon", rx: /сибирский осётр|сибирский осетр|baerii/i },
+  { id: "russian_sturgeon", rx: /русский осётр|русский осетр|\bосётр\b|\bосетр\b|gueldenstaedtii/i },
+  { id: "paddlefish", rx: /веслонос|polyodon/i },
+  { id: "snakehead", rx: /змееголов|channa/i },
+  { id: "tilapia", rx: /тиляп|тилап|oreochromis/i },
+  { id: "king_crab", rx: /камчатский краб|paralithodes/i },
+  { id: "crab", rx: /краб|стригун|волосатик|chionoecetes|cancer/i },
+  { id: "crayfish", rx: /речной рак|узкопалый рак|широкопалый рак|\bрак\b|astacus|pontastacus/i }
+];
+
+export function matchSpeciesInAtlas(fishNameRu = "", fishNameLat = "", fullText = "") {
+  const directById = FISH_DB.find(f => f.id === String(fishNameRu || "").trim().toLowerCase());
+  if (directById) return directById;
+  const primaryStr = `${fishNameRu || ""} ${fishNameLat || ""}`.toLowerCase().replace(/ё/g, "е").trim();
+  const secondaryStr = String(fullText || "").toLowerCase().replace(/ё/g, "е");
+  for (const f of FISH_DB) {
+    const fn = f.name.toLowerCase().replace(/ё/g, "е");
+    const fnShort = fn.split("(")[0].trim();
+    const fl = (f.latin || "").toLowerCase();
+    if (primaryStr && ((fnShort.length >= 3 && primaryStr.includes(fnShort)) || (fl.length >= 5 && primaryStr.includes(fl)))) {
+      return f;
+    }
+  }
+  if (primaryStr) {
+    for (const rule of SPECIES_KEYWORD_RULES) {
+      if (rule.rx.test(primaryStr)) {
+        const found = FISH_DB.find(f => f.id === rule.id);
+        if (found) return found;
+      }
+    }
+  }
+  if (secondaryStr) {
+    const cleanedSecondary = secondaryStr.replace(/(?:исключает|не\s+является|отличается\s+от|против)[^.,;\n]*/g, "");
+    for (const rule of SPECIES_KEYWORD_RULES) {
+      if (rule.rx.test(cleanedSecondary)) {
+        const found = FISH_DB.find(f => f.id === rule.id);
+        if (found) return found;
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Разбирает ответ Gemini (как JSON, так и свободный текст)
+ */
+export function parseGeminiFishResponse(rawText = "") {
+  const txt = String(rawText || "").trim();
+  if (!txt) return null;
+  const cleanJsonCandidate = txt.replace(/```json/gi, "").replace(/```/g, "").trim();
+  const b0 = cleanJsonCandidate.indexOf("{");
+  const b1 = cleanJsonCandidate.lastIndexOf("}");
+  let obj = null;
+  if (b0 !== -1 && b1 > b0) {
+    try {
+      obj = JSON.parse(cleanJsonCandidate.slice(b0, b1 + 1));
+    } catch (e) {}
+  }
+  if (!obj && b0 !== -1) {
+    const sub = cleanJsonCandidate.slice(b0);
+    const exStr = (k) => {
+      const m = sub.match(new RegExp(`"${k}"\\s*:\\s*"([^"]*)"`, "i"));
+      return m ? m[1] : "";
+    };
+    const exNum = (k) => {
+      const m = sub.match(new RegExp(`"${k}"\\s*:\\s*([0-9]+(?:\\.[0-9]+)?)`, "i"));
+      return m ? parseFloat(m[1]) : 0;
+    };
+    const fRu = exStr("fishNameRu") || exStr("species") || exStr("sceneTitle");
+    if (fRu) {
+      obj = {
+        fishNameRu: fRu,
+        fishNameLat: exStr("fishNameLat") || exStr("latin"),
+        confidence: exNum("confidence") || 95,
+        lengthCm: exNum("lengthCm") || exNum("estimatedLengthCm"),
+        weightGrams: exNum("weightGrams"),
+        weightKg: exNum("weightKg"),
+        sizeText: exStr("sizeText"),
+        traits: exStr("traits") || exStr("reason"),
+        fullText: exStr("fullText") || exStr("details") || exStr("traits")
+      };
+    }
+  }
+  if (obj && typeof obj === "object") {
+    const topFromMatches = Array.isArray(obj.matches) && obj.matches.length > 0 ? obj.matches[0] : null;
+    const rawNameRu = String(obj.fishNameRu || obj.species || obj.fishName || topFromMatches?.fishNameRu || topFromMatches?.fishId || obj.sceneTitle || "").trim();
+    const rawNameLat = String(obj.fishNameLat || obj.latin || topFromMatches?.fishNameLat || "").trim();
+    const traits = String(obj.traits || topFromMatches?.reason || obj.morphNote || "").trim();
+    const fullText = String(obj.fullText || obj.details || obj.description || obj.sceneTitle || traits || "").trim();
+    const matchedFish = matchSpeciesInAtlas(rawNameRu, rawNameLat, `${traits} ${fullText}`)
+      || (topFromMatches?.fishId ? FISH_DB.find(f => f.id === topFromMatches.fishId) : null);
+    if (matchedFish || rawNameRu) {
+      const fish = matchedFish || {
+        id: "crucian",
+        name: rawNameRu || "Рыба распознана ИИ",
+        latin: rawNameLat || "",
+        legal: "allowed",
+        idTraits: traits,
+        sizeInfo: obj.sizeText || ""
+      };
+      let lenCm = Number(obj.lengthCm || obj.estimatedLengthCm || topFromMatches?.estimatedLengthCm) || 0;
+      if (lenCm <= 0) {
+        const mLen = `${obj.lengthCm || ""} ${obj.sizeText || ""} ${fullText}`.match(/(\d+(?:[.,]\d+)?)\s*(?:[–-]\s*(\d+(?:[.,]\d+)?))?\s*см/i);
+        if (mLen) {
+          const v1 = parseFloat(mLen[1].replace(",", "."));
+          const v2 = mLen[2] ? parseFloat(mLen[2].replace(",", ".")) : v1;
+          lenCm = Math.round(((v1 + v2) / 2) * 10) / 10;
+        }
+      }
+      if (lenCm <= 0) lenCm = getDefaultTypicalLengthCm(fish.id);
+      let weightKg = 0;
+      if (Number(obj.weightKg) > 0) {
+        weightKg = Number(obj.weightKg);
+      } else if (Number(obj.weightGrams) > 0) {
+        weightKg = Number(obj.weightGrams) / 1000;
+      } else if (Number(topFromMatches?.estimatedWeightKg) > 0) {
+        weightKg = Number(topFromMatches.estimatedWeightKg);
+      } else {
+        const searchStr = `${obj.weightGrams || ""} ${obj.weightKg || ""} ${obj.sizeText || ""} ${fullText}`;
+        const mGrams = searchStr.match(/(\d+(?:[.,]\d+)?)\s*(?:[–-]\s*(\d+(?:[.,]\d+)?))?\s*(?:г|гр|грамм[а-я]*)(?![а-я])/i);
+        const mKg = searchStr.match(/(\d+(?:[.,]\d+)?)\s*(?:[–-]\s*(\d+(?:[.,]\d+)?))?\s*кг/i);
+        if (mGrams) {
+          const g1 = parseFloat(mGrams[1].replace(",", "."));
+          const g2 = mGrams[2] ? parseFloat(mGrams[2].replace(",", ".")) : g1;
+          weightKg = Math.round(((g1 + g2) / 2)) / 1000;
+        } else if (mKg) {
+          const k1 = parseFloat(mKg[1].replace(",", "."));
+          const k2 = mKg[2] ? parseFloat(mKg[2].replace(",", ".")) : k1;
+          weightKg = Math.round(((k1 + k2) / 2) * 100) / 100;
+        } else {
+          weightKg = estimateWeightByLengthAndSpecies(fish.id, lenCm);
+        }
+      }
+      const conf = Math.max(50, Math.min(99, Math.round(Number(obj.confidence || topFromMatches?.confidence) || 95)));
+      const displayTitle = rawNameRu && !FISH_DB.some(f => f.id === rawNameRu) ? rawNameRu : fish.name;
+      const displayLatin = rawNameLat || fish.latin || "";
+      const sizeText = String(obj.sizeText || `Длина: ~${lenCm} см • Вес: ${formatWeightHuman(weightKg)}`).trim();
+      const rawDetected = Array.isArray(obj.detectedFish)
+        ? obj.detectedFish
+        : (Array.isArray(obj.otherFish) ? obj.otherFish : (Array.isArray(obj.species) ? obj.species : []));
+      const isMultipleFish = Boolean(
+        obj.isMultipleFish ||
+        Number(obj.fishCount) > 1 ||
+        rawDetected.length > 1 ||
+        /несколько\s+рыб|на\s+фото\s+\d+\s+рыб|соседн[иея]\s+рыб|рядом\s+леж/i.test(`${fullText} ${traits}`)
+      );
+
+      const primaryItem = {
+        fishId: fish.id,
+        fish,
+        displayTitle,
+        displayLatin,
+        positionLabel: String(obj.positionLabel || (isMultipleFish ? "по центру (основная)" : "")).trim(),
+        isRedBook: fish.legal === "redbook",
+        confidence: conf,
+        reason: traits || fullText || fish.idTraits || "Определено нейросетью по внешним морфологическим признакам",
+        fullAnalysisText: fullText || traits,
+        sizeSummaryText: sizeText,
+        estimatedLengthCm: lenCm,
+        estimatedWeightKg: weightKg,
+        isFromMultiFishPhoto: true
+      };
+
+      const detectedFishItems = [primaryItem];
+      for (const det of rawDetected.slice(0, 6)) {
+        if (!det || typeof det !== "object") continue;
+        const detNameRu = String(det.fishNameRu || det.name || det.species || "").trim();
+        const detNameLat = String(det.fishNameLat || det.latin || "").trim();
+        const detTraits = String(det.traits || det.reason || det.description || "").trim();
+        const detPos = String(det.positionLabel || det.position || "соседняя на фото").trim();
+        if (!detNameRu) continue;
+        const detMatched = matchSpeciesInAtlas(detNameRu, detNameLat, detTraits) || fish;
+        let detLen = Number(det.lengthCm || det.estimatedLengthCm) || 0;
+        if (detLen <= 0 && det.sizeText) {
+          const mL = String(det.sizeText).match(/(\d+(?:[.,]\d+)?)\s*см/i);
+          if (mL) detLen = parseFloat(mL[1].replace(",", "."));
+        }
+        if (detLen <= 0) detLen = getDefaultTypicalLengthCm(detMatched.id);
+        let detWKg = 0;
+        if (Number(det.weightKg) > 0) detWKg = Number(det.weightKg);
+        else if (Number(det.weightGrams) > 0) detWKg = Number(det.weightGrams) / 1000;
+        else detWKg = estimateWeightByLengthAndSpecies(detMatched.id, detLen);
+        const detTitle = detNameRu && !FISH_DB.some(f => f.id === detNameRu) ? detNameRu : detMatched.name;
+        const isDuplicateOfPrimary = (
+          detectedFishItems.length === 1 &&
+          (detMatched.id === primaryItem.fishId || detTitle.toLowerCase() === primaryItem.displayTitle.toLowerCase()) &&
+          Math.abs(detLen - primaryItem.estimatedLengthCm) <= 3
+        );
+        if (isDuplicateOfPrimary) {
+          if (detPos && !primaryItem.positionLabel) primaryItem.positionLabel = detPos;
+          continue;
+        }
+        const detSizeText = String(det.sizeText || `Длина: ~${detLen} см • Вес: ${formatWeightHuman(detWKg)}`).trim();
+        detectedFishItems.push({
+          fishId: detMatched.id,
+          fish: detMatched,
+          displayTitle: detTitle,
+          displayLatin: detNameLat || detMatched.latin || "",
+          positionLabel: detPos,
+          isRedBook: detMatched.legal === "redbook",
+          confidence: Math.max(70, Math.min(98, Math.round(Number(det.confidence) || 92))),
+          reason: detTraits || detMatched.idTraits || `Распознана на этом же снимке (${detPos})`,
+          fullAnalysisText: detTraits
+            ? `${detTitle} (${detPos}): ${detTraits}. Средний размер ~${detLen} см, вес ${formatWeightHuman(detWKg)}.`
+            : `${detTitle} (${detPos}): средний размер ~${detLen} см, примерный вес ${formatWeightHuman(detWKg)}.`,
+          sizeSummaryText: detSizeText,
+          estimatedLengthCm: detLen,
+          estimatedWeightKg: detWKg,
+          isFromMultiFishPhoto: true
+        });
+      }
+
+      const finalIsMulti = isMultipleFish || detectedFishItems.length > 1;
+      const topMatches = [...detectedFishItems];
+      const altList = Array.isArray(obj.alternatives) ? obj.alternatives : (Array.isArray(obj.matches) ? obj.matches.slice(1) : []);
+      for (const alt of altList.slice(0, 2)) {
+        const altName = String(alt.fishNameRu || alt.fishId || "").trim();
+        const altFish = matchSpeciesInAtlas(altName, alt.fishNameLat || "", alt.reason || "");
+        if (altFish && !topMatches.some(m => m.fishId === altFish.id)) {
+          const altLen = getDefaultTypicalLengthCm(altFish.id);
+          topMatches.push({
+            fishId: altFish.id,
+            fish: altFish,
+            displayTitle: altFish.name,
+            displayLatin: altFish.latin || "",
+            positionLabel: "похожий вид",
+            isRedBook: altFish.legal === "redbook",
+            confidence: Math.max(10, Math.min(85, Math.round(Number(alt.confidence) || 25))),
+            reason: alt.reason || altFish.idTraits || "Сходный по форме тела вид",
+            fullAnalysisText: alt.reason || altFish.idTraits || "",
+            sizeSummaryText: `Обычно ~${altLen} см`,
+            estimatedLengthCm: altLen,
+            estimatedWeightKg: estimateWeightByLengthAndSpecies(altFish.id, altLen),
+            isFromMultiFishPhoto: false
+          });
+        }
+      }
+      return {
+        sceneTitle: displayTitle,
+        sizeText,
+        fullText: fullText || traits,
+        estimatedLengthCm: lenCm,
+        estimatedWeightKg: weightKg,
+        isMultipleFish: finalIsMulti,
+        fishCount: Math.max(detectedFishItems.length, Number(obj.fishCount) || 1),
+        detectedFish: detectedFishItems,
+        topMatches
+      };
+    }
+  }
+  const matchedFromText = matchSpeciesInAtlas("", "", txt);
+  if (matchedFromText) {
+    let lenCm = getDefaultTypicalLengthCm(matchedFromText.id);
+    const txtWithoutHandScale = txt.replace(/(?:ширин|размер|длин)[^\n.;:]*?(?:ладон|рук|пальц|ступн|коробк)[^\n.;:]*?\d+(?:[.,]\d+)?\s*(?:[–-]\s*\d+(?:[.,]\d+)?)?\s*см/gi, "");
+    const mLenCentral = txtWithoutHandScale.match(/(?:средн[а-я]*|центральн[а-я]*)[^:\n]{0,30}:?[^\d\n]{0,20}(\d+(?:[.,]\d+)?)\s*(?:[–-]\s*(\d+(?:[.,]\d+)?))?\s*см/i);
+    const mLenExplicit = txtWithoutHandScale.match(/(?:длина|размер|tl)[^\d\n]{0,30}?(\d+(?:[.,]\d+)?)\s*(?:[–-]\s*(\d+(?:[.,]\d+)?))?\s*см/i);
+    const mLen = mLenCentral || mLenExplicit || txtWithoutHandScale.match(/(\d+(?:[.,]\d+)?)\s*(?:[–-]\s*(\d+(?:[.,]\d+)?))?\s*см/i);
+    if (mLen) {
+      const v1 = parseFloat(mLen[1].replace(",", "."));
+      const v2 = mLen[2] ? parseFloat(mLen[2].replace(",", ".")) : v1;
+      lenCm = Math.round(((v1 + v2) / 2) * 10) / 10;
+    }
+    let weightKg = estimateWeightByLengthAndSpecies(matchedFromText.id, lenCm);
+    const mGramsCentral = txtWithoutHandScale.match(/(?:средн[а-я]*|центральн[а-я]*)[^:\n]{0,30}:?[^\d\n]{0,20}(\d+(?:[.,]\d+)?)\s*(?:[–-]\s*(\d+(?:[.,]\d+)?))?\s*(?:г|гр|грамм[а-я]*)(?![а-я])/i);
+    const mGrams = mGramsCentral || txtWithoutHandScale.match(/(\d+(?:[.,]\d+)?)\s*(?:[–-]\s*(\d+(?:[.,]\d+)?))?\s*(?:г|гр|грамм[а-я]*)(?![а-я])/i);
+    const mKg = txtWithoutHandScale.match(/(\d+(?:[.,]\d+)?)\s*(?:[–-]\s*(\d+(?:[.,]\d+)?))?\s*кг/i);
+    if (mGrams) {
+      const g1 = parseFloat(mGrams[1].replace(",", "."));
+      const g2 = mGrams[2] ? parseFloat(mGrams[2].replace(",", ".")) : g1;
+      weightKg = Math.round(((g1 + g2) / 2)) / 1000;
+    } else if (mKg) {
+      const k1 = parseFloat(mKg[1].replace(",", "."));
+      const k2 = mKg[2] ? parseFloat(mKg[2].replace(",", ".")) : k1;
+      weightKg = Math.round(((k1 + k2) / 2) * 100) / 100;
+    }
+    const cleanTxt = txt.replace(/[*#`]/g, "").trim();
+    const firstSentence = cleanTxt.split(/\n+/)[0] || matchedFromText.name;
+    const sizeText = `Длина: ~${lenCm} см • Вес: ${formatWeightHuman(weightKg)}`;
+    const matchItem = {
+      fishId: matchedFromText.id,
+      fish: matchedFromText,
+      displayTitle: matchedFromText.name,
+      displayLatin: matchedFromText.latin || "",
+      isRedBook: matchedFromText.legal === "redbook",
+      confidence: 95,
+      reason: firstSentence,
+      fullAnalysisText: cleanTxt,
+      sizeSummaryText: sizeText,
+      estimatedLengthCm: lenCm,
+      estimatedWeightKg: weightKg
+    };
+    return {
+      sceneTitle: matchedFromText.name,
+      sizeText,
+      fullText: cleanTxt,
+      estimatedLengthCm: lenCm,
+      estimatedWeightKg: weightKg,
+      topMatches: [matchItem]
+    };
+  }
+  return null;
+}
+
+/**
+ * Прямое распознавание рыбы по фото через Gemini Vision (и многоканальный Cloudflare Worker шлюз)
+ * без рамок, квадратов и без подставных заглушек
+ */
+export async function analyzeFishPhotoHybrid(imgSrc, bypassCache = false) {
+  const s = store.getState();
+  const basinCode = s.basinCode || "arctic_ob_taz";
+  const basinName = BASIN_CONFIGS[basinCode]?.name || "Водоёмы РФ";
+  const locLabel = s.locLabel || s.locAdmin2 || s.locAdmin1 || "Новый Уренгой";
+
+  const feat = await extractPhotoVisualFeatures(imgSrc);
+  const cacheHashKey = feat.dhash;
+
+  // 1. Проверяем локальный кэш по dHash фотографии (если не нажата кнопка «Повторить»)
+  if (!bypassCache && cacheHashKey && cacheHashKey.length === 16 && cacheHashKey !== "0000000000000000") {
+    const localCache = loadLocalVisionCache();
+    const cachedEntry = localCache[cacheHashKey];
+    if (cachedEntry && cachedEntry.parsedResult && Array.isArray(cachedEntry.parsedResult.topMatches) && cachedEntry.parsedResult.topMatches.length > 0) {
+      const pr = cachedEntry.parsedResult;
+      const hydratedMatches = pr.topMatches.map(m => ({
+        ...m,
+        fish: FISH_DB.find(f => f.id === m.fishId) || m.fish || FISH_DB[0]
+      }));
+      return {
+        ok: true,
+        engine: cachedEntry.engine || "Google Gemini Vision ИИ (кэш)",
+        sourceMode: cachedEntry.engine || "Google Gemini Vision ИИ",
+        basinCode,
+        basinName,
+        sceneTitle: pr.sceneTitle,
+        sizeText: pr.sizeText,
+        fullText: pr.fullText,
+        morphNote: hydratedMatches[0].reason,
+        primaryMatch: hydratedMatches[0],
+        topMatch: hydratedMatches[0],
+        isMultipleFish: Boolean(pr.isMultipleFish || (pr.detectedFish && pr.detectedFish.length > 1)),
+        detectedFish: pr.detectedFish ? pr.detectedFish.map(m => ({ ...m, fish: FISH_DB.find(f => f.id === m.fishId) || m.fish || FISH_DB[0] })) : hydratedMatches.filter(m => m.isFromMultiFishPhoto),
+        topMatches: hydratedMatches,
+        matches: hydratedMatches,
+        estimatedLengthCm: hydratedMatches[0].estimatedLengthCm,
+        estimatedWeightKg: hydratedMatches[0].estimatedWeightKg,
+        thumbDataUrl: feat.thumbDataUrl || imgSrc,
+        roiDataUrl: feat.thumbDataUrl || imgSrc
+      };
+    }
+  }
+
+  // Если локально ключ ещё не синхронизирован с сервера — подтягиваем его перед запросом
+  await ensureGeminiKeySyncedFromServer().catch(() => {});
+
+  const apiDataUrl = feat.apiDataUrl || feat.thumbDataUrl || imgSrc || "";
+  const pureB64 = feat.pureB64 || (apiDataUrl.includes(",") ? apiDataUrl.split(",")[1] : apiDataUrl);
+
+  const regionHint = locLabel ? `Регион съёмки: ${locLabel} (${basinName}).` : `Регион съёмки: ${basinName}.`;
+  const DIRECT_FISH_PROMPT =
+    `Определи рыбу на фото, её среднюю длину (в см) и средний вес (в граммах, по масштабу ладони или предметов в кадре). ${regionHint}\n` +
+    "Не путай сиговых рыб (сиг-пыжьян, пелядь, чир, тугун, ряпушка, валёк — короткий спинной плавник и жировой плавник) и карповых (елец, плотва, язь — без жирового плавника) с хариусом (у хариуса огромный высокий спинной плавник-парус).\n" +
+    "ВАЖНО: Если на фото несколько рыб (например, одна по центру и другие рыбы/виды рядом), укажи isMultipleFish: true, за основную возьми центральную рыбу (определи её средний размер и вес), а в массив detectedFish обязательно добавь центральную и все соседние рыбы/виды на фото с их средним размером и весом!\n" +
+    "Рассуждай максимально кратко (1–2 фразы) и сразу верни ТОЛЬКО валидный JSON:\n" +
+    '{"fishNameRu":"название центральной рыбы","fishNameLat":"латинское название","confidence":95,"lengthCm":25,"weightGrams":220,"sizeText":"Длина ~25 см • Вес ~220 г","isMultipleFish":false,"fishCount":1,"traits":"краткие признаки на фото","fullText":"описание центральной рыбы (и соседних рыб, если их несколько)","detectedFish":[{"fishNameRu":"центральная рыба","positionLabel":"по центру","lengthCm":25,"weightGrams":220,"traits":"признаки"},{"fishNameRu":"соседняя рыба (если есть)","positionLabel":"рядом","lengthCm":18,"weightGrams":95,"traits":"признаки"}]}';
+
+  if (typeof fetch === "function" && pureB64 && pureB64.length > 100) {
+    const geminiQuota = getLocalGeminiQuotaState();
+    const activeClientKey = getStoredGeminiApiKey();
+
+    // 2А. Многоканальный запрос через Cloudflare Worker /api/ai/identify-fish (передаём bypassCache: true при промахе локального кэша v262_r202, чтобы сбросить старый кэш воркера)
+    const workerBodyStr = JSON.stringify({
+      basinCode,
+      locLabel,
+      dhash: feat.dhash,
+      roiDhash: feat.roiDhash,
+      imageBase64: pureB64,
+      geminiApiKey: activeClientKey,
+      bypassCache: true,
+      directPrompt: DIRECT_FISH_PROMPT
+    });
+
+    const callWorkerGateway = async (targetUrl, timeoutMs) => {
+      const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
+      const timer = ctrl ? setTimeout(() => ctrl.abort(), timeoutMs) : null;
+      try {
+        const res = await fetch(targetUrl, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=UTF-8" },
+          body: workerBodyStr,
+          mode: "cors",
+          credentials: "omit",
+          signal: ctrl?.signal
+        });
+        if (timer) clearTimeout(timer);
+        if (!res || !res.ok) throw new Error("Worker HTTP " + (res?.status || 0));
+        const data = await res.json();
+        const eng = String(data?.engine || "");
+        const isOldFallback = eng.includes("v2.5.3") || eng.includes("Морфометрическое ядро") || eng.includes("Гибридный");
+        if (!data || !data.ok || isOldFallback) throw new Error("Worker not ok");
+        const parsed = data.rawGeminiText
+          ? parseGeminiFishResponse(data.rawGeminiText)
+          : parseGeminiFishResponse(JSON.stringify(data));
+        if (!parsed || !parsed.topMatches || parsed.topMatches.length === 0) throw new Error("Empty parse");
+        return { data, parsed };
+      } catch (err) {
+        if (timer) clearTimeout(timer);
+        throw err;
+      }
+    };
+
+    try {
+      const workerEndpoint = `${RELAY_WORKER_URL}/api/ai/identify-fish`;
+      let proxyFallbackTimer = null;
+      const delayedProxyRace = new Promise((resolve, reject) => {
+        proxyFallbackTimer = setTimeout(() => {
+          Promise.any([
+            callWorkerGateway(`https://corsproxy.io/?url=${encodeURIComponent(workerEndpoint)}`, 11500),
+            callWorkerGateway(`https://thingproxy.freeboard.io/fetch/${workerEndpoint}`, 11500)
+          ]).then(resolve).catch(reject);
+        }, 1800);
+      });
+      const workerWinner = await Promise.any([
+        callWorkerGateway(workerEndpoint, 11500).then(res => {
+          if (proxyFallbackTimer) clearTimeout(proxyFallbackTimer);
+          return res;
+        }),
+        delayedProxyRace
+      ]);
+      if (workerWinner && workerWinner.parsed) {
+        const { data: cloudData, parsed: parsedFromRaw } = workerWinner;
+        if (cloudData.aiQuota) incrementLocalGeminiQuotaUsed(cloudData.aiQuota);
+        const engLabel = cloudData.engine || "Google Gemini Vision ИИ";
+        if (cacheHashKey) {
+          saveLocalVisionCache(cacheHashKey, { engine: engLabel, parsedResult: parsedFromRaw });
+        }
+        return {
+          ok: true,
+          engine: engLabel,
+          sourceMode: engLabel,
+          basinCode,
+          basinName,
+          sceneTitle: parsedFromRaw.sceneTitle,
+          sizeText: parsedFromRaw.sizeText,
+          fullText: parsedFromRaw.fullText,
+          morphNote: parsedFromRaw.topMatches[0].reason,
+          primaryMatch: parsedFromRaw.topMatches[0],
+          topMatch: parsedFromRaw.topMatches[0],
+          isMultipleFish: Boolean(parsedFromRaw.isMultipleFish),
+          detectedFish: parsedFromRaw.detectedFish || parsedFromRaw.topMatches.filter(m => m.isFromMultiFishPhoto),
+          topMatches: parsedFromRaw.topMatches,
+          matches: parsedFromRaw.topMatches,
+          estimatedLengthCm: parsedFromRaw.estimatedLengthCm,
+          estimatedWeightKg: parsedFromRaw.estimatedWeightKg,
+          thumbDataUrl: feat.thumbDataUrl || imgSrc,
+          roiDataUrl: feat.thumbDataUrl || imgSrc
+        };
+      }
+    } catch (e) {}
+
+    // 2Б. Вызов Google Gemini Pro/Flash Vision API с ключом пользователя (с автоматическим US/EU проксированием для РФ)
+    if (geminiQuota.hasKey && geminiQuota.remainingToday > 0) {
+      const gKey = geminiQuota.keys[0];
+      try {
+        const smartRes = await callGeminiClientSmart(
+          gKey,
+          [{
+            parts: [
+              { text: DIRECT_FISH_PROMPT },
+              { inline_data: { mime_type: "image/jpeg", data: pureB64 } }
+            ]
+          }],
+          { temperature: 0.15, maxOutputTokens: 4096 },
+          13000
+        );
+        if (smartRes && smartRes.ok && smartRes.text) {
+          const parsed = parseGeminiFishResponse(smartRes.text);
+          if (parsed && parsed.topMatches.length > 0) {
+            incrementLocalGeminiQuotaUsed();
+            notifyServerGeminiUsage(smartRes.usedKey || gKey, smartRes.model, {
+              keySlot: (Number(smartRes.usedKeyIndex) || 0) + 1,
+              httpStatus: 200,
+              latencyMs: smartRes.latencyMs || 210,
+              action: `Скан фото: ${parsed.topMatches[0]?.fish?.name || 'Рыба'}`
+            });
+            const engLabel = `Google ${smartRes.model || "Gemini Vision"} ИИ`;
+            if (cacheHashKey) {
+              saveLocalVisionCache(cacheHashKey, { engine: engLabel, parsedResult: parsed });
+            }
+            return {
+              ok: true,
+              engine: engLabel,
+              sourceMode: engLabel,
+              basinCode,
+              basinName,
+              sceneTitle: parsed.sceneTitle,
+              sizeText: parsed.sizeText,
+              fullText: parsed.fullText,
+              morphNote: parsed.topMatches[0].reason,
+              primaryMatch: parsed.topMatches[0],
+              topMatch: parsed.topMatches[0],
+              isMultipleFish: Boolean(parsed.isMultipleFish),
+              detectedFish: parsed.detectedFish || parsed.topMatches.filter(m => m.isFromMultiFishPhoto),
+              topMatches: parsed.topMatches,
+              matches: parsed.topMatches,
+              estimatedLengthCm: parsed.estimatedLengthCm,
+              estimatedWeightKg: parsed.estimatedWeightKg,
+              thumbDataUrl: feat.thumbDataUrl || imgSrc,
+              roiDataUrl: feat.thumbDataUrl || imgSrc
+            };
+          }
+        }
+      } catch (e) {}
+    }
+
+    // 2В. Резервный мультимодальный облачный Vision-шлюз (Direct + US/EU Relay)
+    const pollBodyStr = JSON.stringify({
+      model: "openai",
+      temperature: 0.15,
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: DIRECT_FISH_PROMPT },
+            { type: "image_url", image_url: { url: `data:image/jpeg;base64,${pureB64}` } }
+          ]
+        }
+      ]
+    });
+    const tryPollinations = async (pUrl, ms) => {
+      const pCtrl = typeof AbortController !== "undefined" ? new AbortController() : null;
+      const pTimer = pCtrl ? setTimeout(() => pCtrl.abort(), ms) : null;
+      try {
+        const pRes = await fetch(pUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: pollBodyStr,
+          signal: pCtrl?.signal
+        });
+        if (pTimer) clearTimeout(pTimer);
+        if (!pRes || !pRes.ok) throw new Error("poll failed");
+        const pJson = await pRes.json();
+        const rawTxt = String(pJson?.choices?.[0]?.message?.content || "").trim();
+        const parsed = parseGeminiFishResponse(rawTxt);
+        if (!parsed || !parsed.topMatches?.length) throw new Error("poll parse empty");
+        return parsed;
+      } catch (err) {
+        if (pTimer) clearTimeout(pTimer);
+        throw err;
+      }
+    };
+    try {
+      const pollParsed = await Promise.any([
+        tryPollinations("https://text.pollinations.ai/openai", 9500),
+        tryPollinations("https://corsproxy.io/?url=" + encodeURIComponent("https://text.pollinations.ai/openai"), 10500)
+      ]);
+      if (pollParsed && pollParsed.topMatches.length > 0) {
+        const engTitle = "Мультимодальная нейросеть Vision ИИ (резервный канал)";
+        if (cacheHashKey) {
+          saveLocalVisionCache(cacheHashKey, { engine: engTitle, parsedResult: pollParsed });
+        }
+        return {
+          ok: true,
+          engine: engTitle,
+          sourceMode: engTitle,
+          basinCode,
+          basinName,
+          sceneTitle: pollParsed.sceneTitle,
+          sizeText: pollParsed.sizeText,
+          fullText: pollParsed.fullText,
+          morphNote: pollParsed.topMatches[0].reason,
+          primaryMatch: pollParsed.topMatches[0],
+          topMatch: pollParsed.topMatches[0],
+          topMatches: pollParsed.topMatches,
+          matches: pollParsed.topMatches,
+          estimatedLengthCm: pollParsed.estimatedLengthCm,
+          estimatedWeightKg: pollParsed.estimatedWeightKg,
+          thumbDataUrl: feat.thumbDataUrl || imgSrc,
+          roiDataUrl: feat.thumbDataUrl || imgSrc
+        };
+      }
+    } catch (e) {}
+  }
+
+  return {
+    ok: false,
+    error: "Не удалось получить ответ от нейросети Vision ИИ. Проверьте подключение к интернету или нажмите «Повторить».",
+    thumbDataUrl: feat.thumbDataUrl || imgSrc,
+    roiDataUrl: feat.thumbDataUrl || imgSrc
+  };
+}
+
+/**
+ * Открывает модальное окно «ИИ-определитель рыбы по фото»
+ * без дублирования карточек и без рамок/точек на фотографии
+ */
+export function openFishPhotoScannerModal(options = {}) {
+  requestAppCameraAndPhotoAccess();
+  ensureGeminiKeySyncedFromServer().catch(() => {});
+  let activeResult = null;
+  let selectedMatchIdx = 0;
+  let currentImgSrc = options.initialImageSrc || "";
+  let activeVideoStream = null;
+  let cameraFacingMode = "environment";
+
+  const stopCameraStream = () => {
+    if (activeVideoStream) {
+      try {
+        activeVideoStream.getTracks().forEach(t => t.stop());
+      } catch (e) {}
+      activeVideoStream = null;
+    }
+  };
+
+  const html = `
+    <div id="fishScannerModalRoot" style="display:flex;flex-direction:column;gap:10px;font-size:var(--fs-sm);">
+      <div style="padding:12px;text-align:center;color:var(--muted);">Запуск ИИ-определителя...</div>
+    </div>
+  `;
+
+  openModal(
+    '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" fill="rgba(56,189,248,0.22)" stroke="#38bdf8" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="13" r="4" stroke="#10b981" stroke-width="2"/></svg> ИИ-определитель рыбы по фото',
+    html,
+    async (bodyEl) => {
+      const root = bodyEl.querySelector("#fishScannerModalRoot") || bodyEl;
+
+      const runAnalysisAndRender = async (imgSrc, forceFresh = false) => {
+        stopCameraStream();
+        currentImgSrc = imgSrc;
+        if (!currentImgSrc) {
+          renderScannerView();
+          return;
+        }
+        root.innerHTML = `
+          <div class="card" style="padding:16px 12px;text-align:center;background:var(--panel);border:1.5px solid var(--accent);">
+            <div style="margin-bottom:10px;border-radius:10px;overflow:hidden;max-height:220px;display:flex;justify-content:center;background:#090f1d;">
+              <img src="${currentImgSrc}" alt="Фото" style="max-width:100%;max-height:220px;object-fit:contain;">
+            </div>
+            <div style="font-weight:900;font-size:14.5px;color:var(--accent);margin-bottom:4px;">
+              Gemini Vision ИИ определяет вид рыбы, длину и вес...
+            </div>
+            <div style="font-size:11.5px;color:var(--muted);">
+              Анализ морфологических признаков и масштаба снимка
+            </div>
+          </div>
+        `;
+        activeResult = await analyzeFishPhotoHybrid(currentImgSrc, forceFresh);
+        selectedMatchIdx = 0;
+        if (activeResult && activeResult.ok && activeResult.topMatches?.length > 0) {
+          const topFish = activeResult.topMatches[0].fish;
+          if (topFish && topFish.id) {
+            store.dispatch({ type: "SET_FISH", payload: topFish.id });
+          }
+        }
+        renderScannerView();
+      };
+
+      if (typeof window !== "undefined") {
+        window.__KLEV_ON_NATIVE_CAMERA_PHOTO__ = (nativeDataUrl) => {
+          if (nativeDataUrl && typeof nativeDataUrl === "string" && nativeDataUrl.startsWith("data:image/")) {
+            runAnalysisAndRender(nativeDataUrl);
+          }
+        };
+      }
+
+      const startLiveCameraViewfinder = () => {
+        stopCameraStream();
+        if (typeof window !== "undefined" && window.AndroidBridge && typeof window.AndroidBridge.openNativeCamera === "function") {
+          window.AndroidBridge.openNativeCamera();
+          return;
+        }
+        const camInp = root.querySelector("#scannerCameraCaptureInput");
+        if (camInp) {
+          camInp.value = "";
+          camInp.click();
+        }
+      };
+
+      const renderScannerView = () => {
+        const hasPhoto = Boolean(currentImgSrc);
+        const hasValidResult = Boolean(hasPhoto && activeResult && activeResult.ok && activeResult.topMatches?.length);
+        const activeMatch = hasValidResult ? (activeResult.topMatches[selectedMatchIdx] || activeResult.topMatches[0]) : null;
+        const fish = activeMatch ? activeMatch.fish : FISH_DB[0];
+        const isRedBook = fish.legal === "redbook";
+        const isLicense = fish.legal === "license";
+        const curLen = activeMatch ? (activeMatch.estimatedLengthCm || getDefaultTypicalLengthCm(fish.id)) : 25;
+        const curWeight = activeMatch ? (activeMatch.estimatedWeightKg || estimateWeightByLengthAndSpecies(fish.id, curLen)) : 0.25;
+        const displayTitle = activeMatch?.displayTitle || fish.name;
+        const displayLatin = activeMatch?.displayLatin || fish.latin || "";
+        const sizeSummaryText = activeMatch?.sizeSummaryText || activeResult?.sizeText || `Длина: ~${curLen} см • Вес: ${formatWeightHuman(curWeight)}`;
+        const fullAnalysisText = activeMatch?.fullAnalysisText || activeResult?.fullText || activeMatch?.reason || "";
+        const qState = getLocalGeminiQuotaState();
+
+        root.innerHTML = `
+          <input type="file" id="scannerFileInput" accept="image/*" style="display:none;">
+          <input type="file" id="scannerCameraCaptureInput" accept="image/*" capture="environment" style="display:none;">
+
+          ${!hasPhoto ? `
+            <!-- Единая стартовая карточка без дублирования -->
+            <div class="card" style="padding:16px 14px;text-align:center;background:var(--card);border:1.5px solid var(--accent);display:flex;flex-direction:column;gap:10px;">
+              <div style="display:flex;justify-content:center;">
+                <span class="pill pill-good" style="font-size:10.5px;font-weight:800;">
+                  🟢 Нейросеть Gemini Vision ИИ готова к распознаванию
+                </span>
+              </div>
+              <div style="font-weight:900;font-size:15px;color:var(--text);">
+                Сфотографируйте улов или выберите фото
+              </div>
+              <div style="font-size:12px;color:var(--muted);max-width:420px;margin:0 auto;line-height:1.45;">
+                Gemini Vision ИИ автоматически определит вид рыбы, оценит длину и вес по масштабу кадра и заполнит карточку.
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:2px;">
+                <button type="button" class="btn btn-good" id="scannerOpenLiveCamBtn" style="min-height:42px;font-weight:900;">
+                  <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" fill="rgba(16,185,129,0.22)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="13" r="4" stroke="currentColor" stroke-width="1.8"/></svg> Камера
+                </button>
+                <button type="button" class="btn btn-accent" id="scannerHeroGalleryBtn" style="min-height:42px;font-weight:900;">
+                  <svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="3" stroke="currentColor" stroke-width="1.8"/><circle cx="8.5" cy="8.5" r="1.8" fill="currentColor"/><path d="M21 15l-5-5L5 21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Из галереи
+                </button>
+              </div>
+
+            </div>
+          ` : `
+            <!-- Компактная карточка загруженного снимка + кнопки управления в одну строку -->
+            <div class="card" style="padding:10px 12px;background:var(--panel);border:1.5px solid ${hasValidResult ? "var(--accent)" : "var(--warn)"};display:flex;flex-direction:column;gap:8px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+                <span style="font-size:11.5px;font-weight:800;color:${hasValidResult ? "var(--accent)" : "var(--warn)"};">
+                  ${hasValidResult ? escapeHtml(activeResult.sourceMode || "Google Gemini Vision ИИ") : "Повторный запрос к Vision ИИ"}
+                </span>
+                <div style="display:flex;gap:5px;flex-wrap:wrap;">
+                  <button type="button" class="btn btn-sm btn-good" id="scannerOpenLiveCamBtn" style="min-height:30px;padding:2px 8px;font-size:11px;font-weight:800;">Камера</button>
+                  <button type="button" class="btn btn-sm btn-accent" id="scannerHeroGalleryBtn" style="min-height:30px;padding:2px 8px;font-size:11px;font-weight:800;">Галерея</button>
+                  <button type="button" class="btn btn-sm" id="scannerRetryBtn" style="min-height:30px;padding:2px 8px;font-size:11px;font-weight:800;">Повторить</button>
+                </div>
+              </div>
+              <div style="width:100%;border-radius:10px;overflow:hidden;background:#090f1d;border:1px solid var(--border);display:flex;justify-content:center;align-items:center;max-height:230px;">
+                <img src="${currentImgSrc}" alt="Фото улова" style="max-width:100%;max-height:230px;object-fit:contain;display:block;">
+              </div>
+
+              ${!hasValidResult ? `
+                <div style="padding:8px 10px;border-radius:8px;background:rgba(245,158,11,0.12);border:1px solid var(--warn);text-align:center;">
+                  <div style="font-weight:800;font-size:12.5px;color:var(--warn);margin-bottom:6px;">
+                    ${escapeHtml(activeResult?.error || "Не удалось получить ответ от нейросети Vision ИИ")}
+                  </div>
+                  <button type="button" class="btn btn-accent" id="scannerRetryMainBtn" style="min-height:36px;font-weight:900;width:100%;">
+                    Повторить анализ снимка
+                  </button>
+                </div>
+              ` : ""}
+            </div>
+          `}
+
+          ${hasValidResult ? `
+            <!-- Результат распознавания нейросетью и карточка вида -->
+            <div class="card" style="padding:12px 14px;background:var(--panel);border:1.5px solid ${isRedBook ? "var(--bad)" : "var(--good)"};display:flex;flex-direction:column;gap:10px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;">
+                <span style="font-size:11px;font-weight:900;color:var(--muted);">РЕЗУЛЬТАТ РАСПОЗНАВАНИЯ:</span>
+                <div style="display:flex;gap:6px;align-items:center;">
+                  <span class="pill pill-good" style="font-size:10.5px;">Точность: ${activeMatch.confidence}%</span>
+                  ${isRedBook
+                    ? `<span class="pill pill-bad" style="font-size:10.5px;">Красная книга • Отпусти!</span>`
+                    : (isLicense
+                        ? `<span class="pill pill-warn" style="font-size:10.5px;">По путёвке / Лицензия</span>`
+                        : `<span class="pill pill-good" style="font-size:10.5px;">Разрешённый вид</span>`)}
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:110px 1fr;gap:10px;align-items:center;">
+                <div style="width:110px;height:78px;border-radius:10px;background:var(--card);display:flex;align-items:center;justify-content:center;padding:6px;border:1px solid var(--border);">
+                  <img src="assets/fish/${fish.id}.png" alt="${escapeHtml(fish.name)}" style="max-width:100%;max-height:100%;object-fit:contain;" onerror="this.style.display='none'">
+                </div>
+                <div>
+                  <div style="font-size:16px;font-weight:900;color:var(--text);">${escapeHtml(displayTitle)}</div>
+                  <div style="font-size:11.5px;color:var(--muted);font-style:italic;">${escapeHtml(displayLatin)}</div>
+                  <div style="margin-top:5px;padding:5px 8px;border-radius:7px;background:rgba(16,185,129,0.14);border:1px solid var(--good);font-weight:900;font-size:12px;color:var(--good);" id="scannerCalcSummaryBadge">
+                    ${escapeHtml(sizeSummaryText)}
+                  </div>
+                </div>
+              </div>
+              <div style="padding:9px 11px;border-radius:8px;background:var(--card);border:1px solid var(--border);font-size:12px;line-height:1.45;color:var(--text);white-space:pre-line;">
+                <b style="color:var(--accent);">Заключение ИИ по фото:</b>
+${escapeHtml(fullAnalysisText || activeMatch.reason || fish.idTraits || "")}
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;padding-top:4px;border-top:1px dashed var(--border);">
+                <div>
+                  <label style="display:block;font-size:10.5px;color:var(--muted);font-weight:700;margin-bottom:2px;">ДЛИНА ОСНОВНОЙ РЫБЫ (СМ):</label>
+                  <input type="number" id="scannerLenInput" class="input" min="1" max="220" step="0.5" value="${curLen}" style="width:100%;min-height:36px;padding:4px 8px;font-weight:800;">
+                </div>
+                <div>
+                  <label style="display:block;font-size:10.5px;color:var(--muted);font-weight:700;margin-bottom:2px;">ВЕС (КГ, напр. 0.005 = 5 г):</label>
+                  <input type="number" id="scannerWeightInput" class="input" min="0.001" max="100" step="0.005" value="${curWeight}" style="width:100%;min-height:36px;padding:4px 8px;font-weight:800;color:var(--good);">
+                </div>
+              </div>
+              <div style="padding:8px 10px;border-radius:8px;background:${isRedBook ? "rgba(239,68,68,0.14)" : "rgba(16,185,129,0.09)"};border:1px solid ${isRedBook ? "var(--bad)" : "var(--good)"};font-size:11.5px;line-height:1.4;">
+                <b style="color:${isRedBook ? "var(--bad)" : "var(--good)"};">
+                  ${isRedBook ? "ВНИМАНИЕ: КРАСНАЯ КНИГА! ВЫЛОВ ЗАПРЕЩЁН!" : "Справка из Атласа РФ (" + escapeHtml(fish.name) + "):"}
+                </b>
+                ${isRedBook
+                  ? escapeHtml(fish.handlingAdvice || "Немедленно освободите рыбу от крючка прямо в воде и бережно отпустите.")
+                  : escapeHtml(fish.sizeInfo || "Разрешён к любительскому лову с соблюдением суточной нормы.")}
+              </div>
+            </div>
+            ${(() => {
+              const detectedList = Array.isArray(activeResult.detectedFish) && activeResult.detectedFish.length > 1
+                ? activeResult.detectedFish
+                : (activeResult.isMultipleFish && activeResult.topMatches.length > 1 ? activeResult.topMatches : []);
+              if (detectedList.length > 1) {
+                return `
+                  <div class="card" style="padding:11px 13px;background:rgba(56,189,248,0.10);border:1.5px solid var(--accent);display:flex;flex-direction:column;gap:8px;">
+                    <div style="font-weight:900;font-size:12.5px;color:var(--accent);line-height:1.35;">
+                      На фото несколько рыб! Сейчас показан расчёт для: «${escapeHtml(displayTitle)}»${activeMatch?.positionLabel ? ` (${escapeHtml(activeMatch.positionLabel)})` : ""}.
+                    </div>
+                    <div style="font-size:11.5px;color:var(--text);line-height:1.35;">
+                      Если вы спрашивали не про «${escapeHtml(displayTitle)}», выберите другую рыбу с этого фото кнопкой ниже:
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:6px;">
+                      ${detectedList.map((m, idx) => {
+                        const isSel = idx === selectedMatchIdx;
+                        const wStr = formatWeightHuman(m.estimatedWeightKg || estimateWeightByLengthAndSpecies(m.fish.id, m.estimatedLengthCm || 25));
+                        const posTag = m.positionLabel ? ` • ${m.positionLabel}` : "";
+                        return `
+                          <button type="button" class="btn ${isSel ? "btn-accent" : ""}" data-pick-scanner-match="${idx}" style="width:100%;justify-content:space-between;text-align:left;padding:8px 10px;min-height:42px;display:flex;align-items:center;gap:8px;border:${isSel ? "2px solid var(--accent)" : "1px solid var(--border)"};">
+                            <span style="display:flex;align-items:center;gap:8px;min-width:0;flex:1;">
+                              <img src="assets/fish/${m.fish.id}.png" alt="" style="width:36px;height:22px;object-fit:contain;flex-shrink:0;" onerror="this.style.display='none'">
+                              <span style="font-weight:800;font-size:12.5px;white-space:normal;line-height:1.25;">
+                                ${isSel ? "✓ " : ""}${idx + 1}. ${escapeHtml(m.displayTitle || m.fish.name)}${escapeHtml(posTag)}
+                              </span>
+                            </span>
+                            <span class="pill ${isSel ? "pill-good" : "pill-neutral"}" style="font-weight:900;font-size:11px;flex-shrink:0;">
+                              ~${m.estimatedLengthCm || 25} см • ${wStr}
+                            </span>
+                          </button>
+                        `;
+                      }).join("")}
+                    </div>
+                  </div>
+                `;
+              }
+              if (activeResult.topMatches.length > 1) {
+                return `
+                  <div class="card" style="padding:10px 12px;background:var(--card);">
+                    <div style="font-weight:900;font-size:11px;color:var(--accent);text-transform:uppercase;margin-bottom:6px;">
+                      ДРУГИЕ ВАРИАНТЫ / СХОДНЫЕ ВИДЫ (НАЖМИТЕ, ЕСЛИ СРАВНИВАЕТЕ):
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:6px;">
+                      ${activeResult.topMatches.map((m, idx) => `
+                        <button type="button" class="btn ${idx === selectedMatchIdx ? "btn-accent" : ""}" data-pick-scanner-match="${idx}" style="width:100%;padding:7px 10px;border-radius:8px;display:flex;justify-content:space-between;align-items:center;gap:8px;text-align:left;">
+                          <div style="display:flex;align-items:center;gap:8px;min-width:0;flex:1;">
+                            <img src="assets/fish/${m.fish.id}.png" alt="" style="width:40px;height:24px;object-fit:contain;flex-shrink:0;" onerror="this.style.display='none'">
+                            <div style="min-width:0;flex:1;">
+                              <div style="font-weight:800;font-size:12.5px;color:var(--text);">
+                                ${idx + 1}. ${escapeHtml(m.displayTitle || m.fish.name)}
+                              </div>
+                              <div style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                                ${escapeHtml(m.reason)}
+                              </div>
+                            </div>
+                          </div>
+                          <span class="pill ${m.confidence >= 80 ? "pill-good" : "pill-neutral"}" style="font-weight:900;font-size:11px;">${m.confidence}%</span>
+                        </button>
+                      `).join("")}
+                    </div>
+                  </div>
+                `;
+              }
+              return "";
+            })()}
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;">
+              ${!isRedBook ? `
+                <button type="button" class="btn btn-good" id="scannerApplyToLogBtn" style="min-height:42px;font-weight:900;">
+                  <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg> + Записать в Журнал
+                </button>
+              ` : ""}
+              <button type="button" class="btn btn-accent" id="scannerSelectForForecastBtn" style="min-height:42px;font-weight:800;">
+                <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="4.5" stroke="#38bdf8" stroke-width="1.6"/><circle cx="12" cy="12" r="1.8" fill="#10b981"/></svg> Прогноз и снасти
+              </button>
+              <button type="button" class="btn" id="scannerOpenPassportBtn" style="min-height:42px;font-weight:800;">
+                <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="2"/><path d="M16 16l4.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg> Паспорт вида
+              </button>
+            </div>
+          ` : ""}
+        `;
+
+        const handleFileSelected = (file) => {
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = () => {
+            runAnalysisAndRender(String(reader.result || ""));
+          };
+          reader.readAsDataURL(file);
+        };
+        const fileInp = root.querySelector("#scannerFileInput");
+        if (fileInp) {
+          fileInp.addEventListener("change", (e) => handleFileSelected(e.target.files?.[0]));
+        }
+        const camCapInp = root.querySelector("#scannerCameraCaptureInput");
+        if (camCapInp) {
+          camCapInp.addEventListener("change", (e) => handleFileSelected(e.target.files?.[0]));
+        }
+        root.querySelector("#scannerOpenLiveCamBtn")?.addEventListener("click", () => startLiveCameraViewfinder());
+        root.querySelector("#scannerHeroGalleryBtn")?.addEventListener("click", () => {
+          requestAppCameraAndPhotoAccess();
+          fileInp?.click();
+        });
+        const retryHandler = () => {
+          try {
+            if (typeof localStorage !== "undefined") {
+              localStorage.removeItem(LOCAL_VISION_CACHE_KEY);
+              localStorage.removeItem("klev_gemini_active_model_v2");
+            }
+          } catch (e) {}
+          if (currentImgSrc) runAnalysisAndRender(currentImgSrc, true);
+        };
+        root.querySelector("#scannerRetryBtn")?.addEventListener("click", retryHandler);
+        root.querySelector("#scannerRetryMainBtn")?.addEventListener("click", retryHandler);
+        root.querySelector("#scannerInlineSaveKeyBtn")?.addEventListener("click", () => {
+          const val = (root.querySelector("#scannerInlineGeminiKeyInp")?.value || "").trim();
+          if (!val || val.length < 16) {
+            showToast("Вставьте корректный ключ Google AI Studio (AIzaSy...)", "warn");
+            return;
+          }
+          saveStoredGeminiApiKey(val);
+          showToast("Ключ Gemini API сохранён и синхронизирован!", "good");
+          if (currentImgSrc) runAnalysisAndRender(currentImgSrc);
+          else renderScannerView();
+        });
+
+
+
+        if (!hasValidResult) return;
+
+        const lenInp = root.querySelector("#scannerLenInput");
+        const weightInp = root.querySelector("#scannerWeightInput");
+        const badge = root.querySelector("#scannerCalcSummaryBadge");
+        lenInp?.addEventListener("input", (e) => {
+          const L = Math.max(1, Math.min(220, parseFloat(e.target.value) || curLen));
+          const W = estimateWeightByLengthAndSpecies(fish.id, L);
+          activeMatch.estimatedLengthCm = L;
+          activeMatch.estimatedWeightKg = W;
+          if (weightInp) weightInp.value = String(W);
+          if (badge) badge.textContent = `Длина: ~${L} см • Вес: ${formatWeightHuman(W)}`;
+        });
+        weightInp?.addEventListener("input", (e) => {
+          const W = Math.max(0.001, parseFloat(e.target.value) || curWeight);
+          activeMatch.estimatedWeightKg = W;
+          if (badge) badge.textContent = `Длина: ~${activeMatch.estimatedLengthCm || curLen} см • Вес: ${formatWeightHuman(W)}`;
+        });
+        root.querySelectorAll("[data-pick-scanner-match]").forEach(el => {
+          el.addEventListener("click", () => {
+            selectedMatchIdx = parseInt(el.getAttribute("data-pick-scanner-match"), 10) || 0;
+            const picked = activeResult?.topMatches?.[selectedMatchIdx]?.fish;
+            if (picked && picked.id) {
+              store.dispatch({ type: "SET_FISH", payload: picked.id });
+            }
+            triggerHaptic("selection");
+            renderScannerView();
+          });
+        });
+        root.querySelector("#scannerApplyToLogBtn")?.addEventListener("click", () => {
+          stopCameraStream();
+          const finalLen = parseFloat(lenInp?.value) || curLen;
+          const finalWeight = parseFloat(weightInp?.value) || curWeight;
+          if (typeof options.onSelectResult === "function") {
+            options.onSelectResult({
+              fishId: fish.id,
+              fishName: displayTitle,
+              lengthCm: finalLen,
+              weightKg: finalWeight,
+              photoDataUrl: activeResult.thumbDataUrl
+            });
+            return;
+          }
+          closeModal();
+          store.dispatch({ type: "SET_FISH", payload: fish.id });
+          if (typeof window !== "undefined" && typeof window.__KLEV_OPEN_CATCH_WIZARD__ === "function") {
+            window.__KLEV_OPEN_CATCH_WIZARD__({
+              fishId: fish.id,
+              lengthCm: finalLen,
+              weightKg: finalWeight,
+              photoDataUrl: activeResult.thumbDataUrl
+            });
+          }
+          showToast(`Вид «${displayTitle}» (${formatWeightHuman(finalWeight)}, ${finalLen} см) передан в Журнал уловов!`, "good");
+        });
+        root.querySelector("#scannerSelectForForecastBtn")?.addEventListener("click", () => {
+          stopCameraStream();
+          store.dispatch({ type: "SET_FISH", payload: fish.id });
+          closeModal();
+          router.navigate("forecast");
+          showToast(`Выбрана рыба: ${fish.name}`, "good");
+          flashHighlightElement(["#bentoSwipeHeroCard", "#bentoWaveChartCard"], { scroll: true, block: "center", delayMs: 110 });
+        });
+        root.querySelector("#scannerOpenPassportBtn")?.addEventListener("click", () => {
+          stopCameraStream();
+          if (typeof options.onOpenDetail === "function") {
+            options.onOpenDetail(fish.id);
+          } else if (typeof window !== "undefined" && typeof window.__KLEV_OPEN_FISH_DETAIL__ === "function") {
+            window.__KLEV_OPEN_FISH_DETAIL__(fish.id);
+          }
+        });
+      };
+
+      if (currentImgSrc) {
+        await runAnalysisAndRender(currentImgSrc);
+      } else {
+        renderScannerView();
+      }
+    }
+  );
+}

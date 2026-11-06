@@ -1,21 +1,17 @@
 User-agent: *
 Allow: /
-Disallow: /api/
-Disallow: /auth/
-Disallow: /relay/
-Disallow: /weather
-Disallow: /admin
-Disallow: /apk/apk-version.json
-Disallow: /klev-pro-2/
+Disallow: /kp-control-89.html
+Disallow: /apk/klev-pro-admin-v2.5.6.apk
 
 User-agent: Yandex
 Allow: /
-Disallow: /api/
-Disallow: /auth/
-Disallow: /relay/
-Disallow: /weather
-Disallow: /admin
-Clean-param: v&tgWebAppData&tgWebAppVersion&tgWebAppPlatform /
+Disallow: /kp-control-89.html
+Disallow: /apk/klev-pro-admin-v2.5.6.apk
+
+User-agent: Googlebot
+Allow: /
+Disallow: /kp-control-89.html
+Disallow: /apk/klev-pro-admin-v2.5.6.apk
 
 Host: https://klevpro.ru
 Sitemap: https://klevpro.ru/sitemap.xml

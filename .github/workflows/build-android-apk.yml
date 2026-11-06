@@ -20,6 +20,29 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Auto-Unpack Release ZIP (Mobile Upload Support)
+        run: |
+          UNPACKED=0
+          for ZFILE in FISH_PRO_2.0_SOURCE.zip FISH_PRO_2.0.zip; do
+            if [ -f "$ZFILE" ]; then
+              echo "Detected uploaded archive $ZFILE — unpacking into repository root..."
+              unzip -q -o "$ZFILE" -d .
+              rm -f "$ZFILE"
+              UNPACKED=1
+            fi
+          done
+          rm -rf klev-pro-2 standalone android/app/release-key.jks
+          if [ "$UNPACKED" -eq 1 ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add -A
+            if ! git diff --cached --quiet; then
+              git commit -m "chore(release): auto-unpack release archive from mobile upload"
+              git pull --rebase origin "${GITHUB_REF_NAME:-main}" || true
+              git push origin HEAD:"${GITHUB_REF_NAME:-main}"
+            fi
+          fi
+
       - name: Locate & Self-Heal Android Project (Permanent Keystore & Clean Resources)
         id: locate
         run: |
@@ -119,9 +142,9 @@ jobs:
               signingConfigs {
                   release {
                       storeFile file("klevpro-release.keystore")
-                      storePassword "KlevPro2026!"
-                      keyAlias "klevpro"
-                      keyPassword "KlevPro2026!"
+                      storePassword System.getenv("KLEV_KEYSTORE_PASSWORD") ?: "KlevProSecretKeystore"
+                      keyAlias System.getenv("KLEV_KEY_ALIAS") ?: "klevpro"
+                      keyPassword System.getenv("KLEV_KEYSTORE_PASSWORD") ?: "KlevProSecretKeystore"
                       enableV1Signing true
                       enableV2Signing true
                       enableV3Signing true
@@ -185,7 +208,7 @@ jobs:
               <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
 
               <application
-                  android:allowBackup="true"
+                  android:allowBackup="false"
                   android:icon="@drawable/ic_launcher"
                   android:roundIcon="@drawable/ic_launcher"
                   android:label="@string/app_name"
@@ -1180,38 +1203,57 @@ jobs:
             yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null 2>&1 || true
           fi
 
-      - name: Restore Permanent Release Signing Keystore (Identical Signature Across All Updates)
+      - name: Restore Release Signing Keystore from GitHub Secrets
         working-directory: ${{ steps.locate.outputs.proj_dir }}/app
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
         run: |
-          echo "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" | base64 -d > klevpro-release.keystore
-          ls -la klevpro-release.keystore
+          EFF_PASS="${KEYSTORE_PASS:-KlevProSecretKeystore}"
+          EFF_ALIAS="${KEY_ALIAS:-klevpro}"
+          echo "KLEV_KEYSTORE_PASSWORD=$EFF_PASS" >> $GITHUB_ENV
+          echo "KLEV_KEY_ALIAS=$EFF_ALIAS" >> $GITHUB_ENV
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | tr -d '\n\r ' | base64 -d > klevpro-release.keystore
+            echo "Restored klevpro-release.keystore from GitHub Secrets."
+          else
+            echo "ANDROID_KEYSTORE_BASE64 secret not set; generating signing keystore via keytool..."
+            keytool -genkeypair -v -keystore klevpro-release.keystore -alias "$EFF_ALIAS" -keyalg RSA -keysize 2048 -validity 10000 -storepass "$EFF_PASS" -keypass "$EFF_PASS" -dname "CN=KlevPro, OU=Mobile, O=KlevPro, L=NovyUrengoy, ST=YANAO, C=RU"
+          fi
+          ls -lh klevpro-release.keystore
 
-      - name: Build Signed Obfuscated Release APK with Gradle 8.7
+      - name: Build Signed User APK (klev-pro-v2.5.6.apk — Pure User Contour)
         working-directory: ${{ steps.locate.outputs.proj_dir }}
         run: |
+          rm -f app/src/main/assets/www/kp-control-89.html
           curl -fsSL https://services.gradle.org/distributions/gradle-8.7-bin.zip -o /tmp/gradle-8.7.zip
           unzip -q -o /tmp/gradle-8.7.zip -d /tmp
-          set +e
-          /tmp/gradle-8.7/bin/gradle assembleRelease --no-daemon --console=plain > /tmp/gradle_build.log 2>&1
-          GRADLE_EXIT=$?
-          set -e
-          cat /tmp/gradle_build.log
-          if [ $GRADLE_EXIT -ne 0 ]; then
-            echo "=========================================="
-            echo "❌ ТОЧНАЯ ПРИЧИНА ОШИБКИ GRADLE:"
-            grep -E "(FAILURE:|What went wrong|^\* |Exception|Error:|error:)" -A 6 /tmp/gradle_build.log || tail -n 50 /tmp/gradle_build.log
-            exit $GRADLE_EXIT
-          fi
-
-      - name: Rename Signed APK to klev-pro-v2.5.6.apk
-        run: |
-          REL_DIR="${{ steps.locate.outputs.proj_dir }}/app/build/outputs/apk/release"
+          /tmp/gradle-8.7/bin/gradle assembleRelease --no-daemon --console=plain
+          REL_DIR="app/build/outputs/apk/release"
           SRC_APK=$(ls "$REL_DIR"/*.apk | head -n 1)
-          if [ -n "$SRC_APK" ]; then
-            cp -f "$SRC_APK" "$REL_DIR/klev-pro-v2.5.6.apk"
-          fi
+          cp -f "$SRC_APK" "$REL_DIR/klev-pro-v2.5.6.apk"
+          ls -lh "$REL_DIR/klev-pro-v2.5.6.apk"
 
-      - name: Auto-Save Signed APK to Repository (/apk/klev-pro-v2.5.6.apk)
+      - name: Build Signed Owner Admin APK (klev-pro-admin-v2.5.6.apk — Separate Admin Contour)
+        working-directory: ${{ steps.locate.outputs.proj_dir }}
+        run: |
+          if [ -f "../kp-control-89.html" ]; then
+            cp -f "../kp-control-89.html" "app/src/main/assets/www/index.html"
+          elif [ -f "kp-control-89.html" ]; then
+            cp -f "kp-control-89.html" "app/src/main/assets/www/index.html"
+          fi
+          sed -i 's/applicationId "ru.klevpro.app"/applicationId "ru.klevpro.admin"/g' app/build.gradle
+          sed -i 's/<string name="app_name">Клёв ПРО 2.0<\/string>/<string name="app_name">Клёв ПРО Админ<\/string>/g' app/src/main/res/values/strings.xml
+          sed -i '/android:host="klevpro.ru"/d' app/src/main/AndroidManifest.xml
+          sed -i '/android:host="xn--b1apdneg0j.xn--p1ai"/d' app/src/main/AndroidManifest.xml
+          /tmp/gradle-8.7/bin/gradle assembleRelease --no-daemon --console=plain
+          REL_DIR="app/build/outputs/apk/release"
+          ADMIN_SRC=$(ls -t "$REL_DIR"/*release*.apk | head -n 1)
+          cp -f "$ADMIN_SRC" "$REL_DIR/klev-pro-admin-v2.5.6.apk"
+          ls -lh "$REL_DIR/klev-pro-admin-v2.5.6.apk"
+
+      - name: Auto-Save User APK to Repository (/apk/klev-pro-v2.5.6.apk)
         run: |
           REL_APK="${{ steps.locate.outputs.proj_dir }}/app/build/outputs/apk/release/klev-pro-v2.5.6.apk"
           if [ -f "$REL_APK" ]; then
@@ -1223,17 +1265,20 @@ jobs:
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add -A apk/
             if ! git diff --cached --quiet; then
-              git commit -m "chore(apk): auto-publish klev-pro-v2.5.6.apk to /apk/ [skip ci]"
+              git commit -m "chore(apk): auto-publish user apk/klev-pro-v2.5.6.apk [skip ci]"
               git pull --rebase origin "${GITHUB_REF_NAME:-main}" || true
               git push origin HEAD:"${GITHUB_REF_NAME:-main}"
-              echo "✅ Файл apk/klev-pro-v2.5.6.apk автоматически сохранён в каталог /apk/ репозитория!"
-            else
-              echo "ℹ️ Файл apk/klev-pro-v2.5.6.apk уже актуален."
             fi
           fi
 
-      - name: Upload Signed APK Artifact
+      - name: Upload Signed User APK Artifact (klev-pro-v2.5.6.apk)
         uses: actions/upload-artifact@v4
         with:
-          name: KlevPro-v2.5.6-Android-APK
+          name: KlevPro-User-v2.5.6-Android-APK
           path: ${{ steps.locate.outputs.proj_dir }}/app/build/outputs/apk/release/klev-pro-v2.5.6.apk
+
+      - name: Upload Signed Owner Admin APK Artifact (klev-pro-admin-v2.5.6.apk)
+        uses: actions/upload-artifact@v4
+        with:
+          name: KlevPro-Admin-v2.5.6-Android-APK
+          path: ${{ steps.locate.outputs.proj_dir }}/app/build/outputs/apk/release/klev-pro-admin-v2.5.6.apk
