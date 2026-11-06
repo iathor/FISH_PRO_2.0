@@ -20,6 +20,13 @@ jobs:
     if: github.event_name == 'workflow_dispatch' || (!startsWith(github.event.head_commit.message, 'chore(apk):') && !startsWith(github.event.head_commit.message, 'chore(release):'))
     runs-on: ubuntu-24.04
     steps:
+      - name: Purge Old Workflow Artifacts (Free 0.5 GB GitHub Storage Quota)
+        run: |
+          ART_IDS=$(curl -fsSL -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?per_page=100" | python3 -c "import sys,json; data=json.load(sys.stdin); print(' '.join(str(a['id']) for a in data.get('artifacts',[])))" 2>/dev/null || true)
+          for AID in $ART_IDS; do
+            curl -fsSL -X DELETE -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/$AID" || true
+          done
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -1438,9 +1445,11 @@ jobs:
         with:
           name: KlevPro-User-v2.5.6-Android-APK
           path: /tmp/klev-apk-dist/klev-pro-v2.5.6.apk
+          retention-days: 1
 
       - name: Upload Signed Owner Admin APK Artifact (klev-pro-admin-v2.5.6.apk)
         uses: actions/upload-artifact@v4
         with:
           name: KlevPro-Admin-v2.5.6-Android-APK
           path: /tmp/klev-apk-dist/klev-pro-admin-v2.5.6.apk
+          retention-days: 1
