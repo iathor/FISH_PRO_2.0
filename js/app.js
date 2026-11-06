@@ -793,17 +793,21 @@ function bootstrapApp() {
   updateHeaderUI();
   syncFishDockState();
   if (typeof window !== 'undefined' && window.__KLEV_ADMIN_CONTOUR__ === true) {
-    setTimeout(() => {
-      router.navigate('admin');
-      if (circleModule && typeof circleModule.renderAdminSection === 'function') {
-        circleModule.renderAdminSection();
-      }
-      if (circleModule && typeof circleModule.isOwnerAdmin === 'function' && !circleModule.isOwnerAdmin()) {
-        if (typeof circleModule.openAuthAndBackupModal === 'function') {
-          circleModule.openAuthAndBackupModal();
+    router.navigate('admin');
+    if (circleModule && typeof circleModule.renderAdminSection === 'function') {
+      circleModule.renderAdminSection();
+    }
+    document.querySelectorAll('[data-adm-workspace-tab]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const tabId = btn.getAttribute('data-adm-workspace-tab') || 'dashboard';
+        router.navigate('admin');
+        if (circleModule && typeof circleModule.switchAdminWorkspaceTab === 'function') {
+          circleModule.switchAdminWorkspaceTab(tabId);
         }
-      }
-    }, 250);
+      });
+    });
+  } else if (circleModule && typeof circleModule.checkAndEnforcePolicyVersionOnStartup === 'function') {
+    circleModule.checkAndEnforcePolicyVersionOnStartup();
   }
   window.addEventListener('scroll', () => {
     if (!scrollRafPending) {
@@ -829,7 +833,8 @@ function bootstrapApp() {
   }
   const curProfile = store.getState().userProfile;
   const isMobGuestStartup = circleModule && typeof circleModule.isMobileGuestRestricted === 'function' && circleModule.isMobileGuestRestricted();
-  if ((!curProfile || !curProfile.onboarded) && !earlyDeepLink && !earlyShareToken && !isMobGuestStartup) {
+  const isAdmContour = Boolean(typeof window !== 'undefined' && window.__KLEV_ADMIN_CONTOUR__ === true);
+  if (!isAdmContour && (!curProfile || !curProfile.onboarded) && !earlyDeepLink && !earlyShareToken && !isMobGuestStartup) {
     setTimeout(() => {
       if (circleModule && typeof circleModule.isMobileGuestRestricted === 'function' && circleModule.isMobileGuestRestricted()) return;
       fishModule.openOnboardingModal(false);

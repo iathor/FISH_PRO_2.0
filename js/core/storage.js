@@ -414,11 +414,34 @@ export const storage = {
     } catch (e) {}
   },
   exportFullProfileBackup(state) {
+    const catchesList = Array.isArray(state?.catches) && state.catches.length > 0
+      ? state.catches
+      : readLocalBackup('catches');
+    const savedSpotsList = Array.isArray(state?.savedSpots) && state.savedSpots.length > 0
+      ? state.savedSpots
+      : readLocalBackup('spots');
+    const circleList = Array.isArray(state?.circleItems) && state.circleItems.length > 0
+      ? state.circleItems
+      : this.loadCircleItems();
+    const personalSpotItems = (circleList || []).filter(x => x && x.t === 'spot');
+    let savedRoutes = [];
+    try {
+      const rawRoutes = typeof localStorage !== 'undefined' ? localStorage.getItem('klev_pro_phase3_routes_v1') : null;
+      if (rawRoutes) savedRoutes = JSON.parse(rawRoutes) || [];
+    } catch (e) {}
     return {
-      schema: 'KlevProProfileBackup_v2',
-      version: '2.1.1',
+      schema: 'KlevProFullBackup_v3',
+      version: '2.6.0',
+      revision: 'r220',
       exportedAt: new Date().toISOString(),
       deviceId: this.getDeviceId(),
+      summary: {
+        catchesCount: (catchesList || []).length,
+        catchesWithPhotoCount: (catchesList || []).filter(c => c && (c.photoDataUrl || c.photoUrl)).length,
+        savedSpotsCount: (savedSpotsList || []).length,
+        personalMapPointsCount: personalSpotItems.length,
+        savedRoutesCount: (savedRoutes || []).length
+      },
       userProfile: (() => {
         const up = { ...(state?.userProfile || {}) };
         delete up.authShadow;
@@ -439,30 +462,59 @@ export const storage = {
         selectedWaterName: state?.selectedWaterName,
         depth: state?.depth
       },
-      savedSpots: state?.savedSpots || readLocalBackup('spots'),
-      catches: state?.catches || readLocalBackup('catches'),
-      circleItems: state?.circleItems || this.loadCircleItems(),
+      savedSpots: savedSpotsList || [],
+      personalMapPoints: personalSpotItems,
+      savedRoutes: savedRoutes || [],
+      catches: catchesList || [],
+      circleItems: circleList || [],
       chatMessages: state?.chatMessages || this.loadChatMessages(),
       notifications: state?.notifications || this.loadNotifications()
     };
   },
-  async importFullProfileBackup(backupObj) {
+  async importFullProfileBackup(backupObj, mergeExisting = true) {
     if (!backupObj || typeof backupObj !== 'object') return false;
     try {
+      if (Array.isArray(backupObj.savedRoutes) && typeof localStorage !== 'undefined') {
+        try {
+          const existingRoutes = mergeExisting ? (JSON.parse(localStorage.getItem('klev_pro_phase3_routes_v1') || '[]') || []) : [];
+          const routeMap = new Map();
+          existingRoutes.forEach(r => { if (r && r.id) routeMap.set(r.id, r); });
+          backupObj.savedRoutes.forEach(r => { if (r && r.id) routeMap.set(r.id, r); });
+          localStorage.setItem('klev_pro_phase3_routes_v1', JSON.stringify(Array.from(routeMap.values())));
+        } catch (e) {}
+      }
       if (Array.isArray(backupObj.savedSpots)) {
-        writeLocalBackup('spots', backupObj.savedSpots);
-        for (const sp of backupObj.savedSpots) {
+        const curSpots = mergeExisting ? (readLocalBackup('spots') || []) : [];
+        const spMap = new Map();
+        curSpots.forEach(s => { if (s && s.id) spMap.set(s.id, s); });
+        backupObj.savedSpots.forEach(s => { if (s && s.id) spMap.set(s.id, s); });
+        const mergedSpots = Array.from(spMap.values());
+        writeLocalBackup('spots', mergedSpots);
+        for (const sp of mergedSpots) {
           if (sp && sp.id) await this.putToStore('spots', sp);
         }
       }
       if (Array.isArray(backupObj.catches)) {
-        writeLocalBackup('catches', backupObj.catches);
-        for (const c of backupObj.catches) {
+        const curCatches = mergeExisting ? (readLocalBackup('catches') || []) : [];
+        const cMap = new Map();
+        curCatches.forEach(c => { if (c && c.id) cMap.set(c.id, c); });
+        backupObj.catches.forEach(c => { if (c && c.id) cMap.set(c.id, c); });
+        const mergedCatches = Array.from(cMap.values());
+        writeLocalBackup('catches', mergedCatches);
+        for (const c of mergedCatches) {
           if (c && c.id) await this.putToStore('catches', c);
         }
       }
-      if (Array.isArray(backupObj.circleItems)) {
-        this.saveCircleItems(backupObj.circleItems);
+      const incomingCircle = [
+        ...(Array.isArray(backupObj.circleItems) ? backupObj.circleItems : []),
+        ...(Array.isArray(backupObj.personalMapPoints) ? backupObj.personalMapPoints : [])
+      ];
+      if (incomingCircle.length > 0) {
+        const curCir = mergeExisting ? (this.loadCircleItems() || []) : [];
+        const cirMap = new Map();
+        curCir.forEach(it => { if (it && it.id) cirMap.set(it.id, it); });
+        incomingCircle.forEach(it => { if (it && it.id) cirMap.set(it.id, it); });
+        this.saveCircleItems(Array.from(cirMap.values()));
       }
       if (Array.isArray(backupObj.chatMessages)) {
         this.saveChatMessages(backupObj.chatMessages);

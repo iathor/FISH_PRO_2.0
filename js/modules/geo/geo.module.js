@@ -17,7 +17,7 @@ import {
   getWaterTypeShortTag
 } from '../../data/russia-waters.js?v=2.5.6-r215';
 import { FISH_DB } from '../../data/species.js?v=2.5.6-r215';
-import { escapeHtml, createPill, showToast, openModal, closeModal, openConfirmDeleteModal, downloadFileCrossPlatform, flashHighlightElement } from '../../ui/components.js?v=2.5.6-r215';
+import { escapeHtml, createPill, showToast, openModal, closeModal, openConfirmDeleteModal, downloadFileCrossPlatform, flashHighlightElement, isGeoDistributionConsentActive, ensureGeoDistributionConsent, setGeoDistributionConsentState } from '../../ui/components.js?v=2.5.6-r215';
 import { fetchWeather } from '../weather/weather.module.js?v=2.5.6-r215';
 import { calcDayBest } from '../forecast/forecast.module.js?v=2.5.6-r215';
 import { computeHexPolygonForCircle, getEffectiveCircleRadiusKm, getCircleHexDecayState, canUserAccessCrewItem, getCurrentFisherIdentity, isUserAdmin, isCircleItemMine, isCircleItemHidden, openAddThematicMapPointModal } from '../circle/circle.module.js?v=2.5.6-r215';
@@ -3842,7 +3842,525 @@ export async function importSpotsFromFileText(fileText) {
  * - <svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0\" stroke=\"#38bdf8\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg> Точные точки «Экипажа (72ч)»
  * - <svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"11\" cy=\"11\" r=\"6.5\" stroke=\"currentColor\" stroke-width=\"2\"/><path d=\"M16 16l4.5 4.5\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg> Маркер разведки «Что здесь клюёт?»
  */
+
+// ============================================================================
+// ФАЗА 3: ЗАПИСЬ МАРШРУТА В ФОНЕ, ВОЗВРАТ ПО МАРШРУТУ И РЕЖИМ «Я ПОТЕРЯЛСЯ»
+// ============================================================================
+const PHASE3_SAVED_ROUTES_KEY = 'klev_pro_phase3_routes_v1';
+const PHASE3_ACTIVE_TRACK_KEY = 'klev_pro_phase3_active_track_v1';
+let _phase3WatchId = null;
+let _phase3WakeLock = null;
+let _phase3RouteLayerGroup = null;
+let _phase3ActiveTrack = null;
+
+try {
+  if (typeof localStorage !== 'undefined') {
+    const rawAct = localStorage.getItem(PHASE3_ACTIVE_TRACK_KEY);
+    if (rawAct) _phase3ActiveTrack = JSON.parse(rawAct);
+  }
+} catch (e) {}
+
+export function canAccessPhase3Routes(stateObj = null) {
+  const s = stateObj || store.getState();
+  if (isUserAdmin(s)) return true;
+  if (s?.userProfile?.isBetaTester === true) return true;
+  try {
+    if (typeof localStorage !== 'undefined') {
+      if (localStorage.getItem('klev_pro_beta_tester_granted_v1') === '1') return true;
+      if (localStorage.getItem('klev_pro_phase3_public_unlocked_v1') === '1') return true;
+    }
+  } catch (e) {}
+  return false;
+}
+
+export function getSavedPhase3Routes() {
+  try {
+    if (typeof localStorage === 'undefined') return [];
+    const raw = localStorage.getItem(PHASE3_SAVED_ROUTES_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function savePhase3RoutesList(list) {
+  try {
+    if (typeof localStorage !== 'undefined' && Array.isArray(list)) {
+      localStorage.setItem(PHASE3_SAVED_ROUTES_KEY, JSON.stringify(list.slice(0, 50)));
+    }
+  } catch (e) {}
+}
+
+function persistActivePhase3Track() {
+  try {
+    if (typeof localStorage === 'undefined') return;
+    if (_phase3ActiveTrack) {
+      localStorage.setItem(PHASE3_ACTIVE_TRACK_KEY, JSON.stringify(_phase3ActiveTrack));
+    } else {
+      localStorage.removeItem(PHASE3_ACTIVE_TRACK_KEY);
+    }
+  } catch (e) {}
+}
+
+function calcBearingDeg(lat1, lon1, lat2, lon2) {
+  const toRad = Math.PI / 180;
+  const toDeg = 180 / Math.PI;
+  const p1 = lat1 * toRad;
+  const p2 = lat2 * toRad;
+  const dLon = (lon2 - lon1) * toRad;
+  const y = Math.sin(dLon) * Math.cos(p2);
+  const x = Math.cos(p1) * Math.sin(p2) - Math.sin(p1) * Math.cos(p2) * Math.cos(dLon);
+  return (Math.atan2(y, x) * toDeg + 360) % 360;
+}
+
+function bearingToCompassRu(deg) {
+  const dirs = ['С (Север)', 'СВ (Северо-Восток)', 'В (Восток)', 'ЮВ (Юго-Восток)', 'Ю (Юг)', 'ЮЗ (Юго-Запад)', 'З (Запад)', 'СЗ (Северо-Запад)'];
+  return dirs[Math.round(((Number(deg) || 0) % 360) / 45) % 8];
+}
+
+async function acquireBackgroundWakeLock(enable = true) {
+  try {
+    if (typeof window !== 'undefined' && window.AndroidBridge && typeof window.AndroidBridge.setKeepScreenAndCpuAwake === 'function') {
+      window.AndroidBridge.setKeepScreenAndCpuAwake(Boolean(enable));
+    }
+  } catch (e) {}
+  try {
+    if (enable && typeof navigator !== 'undefined' && navigator.wakeLock && typeof navigator.wakeLock.request === 'function') {
+      _phase3WakeLock = await navigator.wakeLock.request('screen');
+    } else if (!enable && _phase3WakeLock) {
+      await _phase3WakeLock.release();
+      _phase3WakeLock = null;
+    }
+  } catch (e) {}
+}
+
+export function getDeviceBackgroundPermissionsStatus() {
+  let sysGpsEnabled = true;
+  let batteryUnrestricted = false;
+  let bgLocGranted = false;
+  const isAndroidApk = Boolean(typeof window !== 'undefined' && window.AndroidBridge);
+  try {
+    if (isAndroidApk) {
+      if (typeof window.AndroidBridge.isSystemLocationEnabled === 'function') {
+        sysGpsEnabled = Boolean(window.AndroidBridge.isSystemLocationEnabled());
+      }
+      if (typeof window.AndroidBridge.isIgnoringBatteryOptimizations === 'function') {
+        batteryUnrestricted = Boolean(window.AndroidBridge.isIgnoringBatteryOptimizations());
+      }
+      if (typeof window.AndroidBridge.hasBackgroundLocationPermission === 'function') {
+        bgLocGranted = Boolean(window.AndroidBridge.hasBackgroundLocationPermission());
+      }
+    } else if (typeof localStorage !== 'undefined') {
+      batteryUnrestricted = localStorage.getItem('klev_pro_bg_battery_ack_v1') === '1';
+      bgLocGranted = localStorage.getItem('klev_pro_bg_loc_ack_v1') === '1';
+    }
+  } catch (e) {}
+  return { isAndroidApk, sysGpsEnabled, batteryUnrestricted, bgLocGranted };
+}
+
+export function startPhase3RouteRecording(customTitle = '', emergencyLost = false) {
+  const s = store.getState();
+  const savedSpots = Array.isArray(s.savedSpots) ? s.savedSpots : [];
+  const startSpot = savedSpots.find(sp => sp && (sp.category === 'slip' || sp.category === 'camp')) || savedSpots[0] || null;
+  const startLat = (emergencyLost && startSpot && Number.isFinite(Number(startSpot.lat))) ? Number(startSpot.lat) : Number(s.lat || 66.0833);
+  const startLon = (emergencyLost && startSpot && Number.isFinite(Number(startSpot.lon))) ? Number(startSpot.lon) : Number(s.lon || 76.6333);
+  const now = Date.now();
+  if (!_phase3ActiveTrack || !emergencyLost) {
+    _phase3ActiveTrack = {
+      id: `route_${now}`,
+      title: customTitle || `Маршрут ${s.selectedWaterName || s.locLabel || 'на водоёме'} (${new Date(now).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })})`,
+      startedAt: now,
+      startLat,
+      startLon,
+      startLabel: (emergencyLost && startSpot?.name) ? startSpot.name : (s.selectedWaterName || s.locLabel || 'Точка старта / Лагерь'),
+      status: emergencyLost ? 'returning' : 'recording',
+      returnMode: emergencyLost ? 'lost_emergency' : 'normal',
+      totalDistKm: 0,
+      points: [
+        { lat: startLat, lon: startLon, ts: now, acc: 5 },
+        ...(emergencyLost && (Math.abs(startLat - Number(s.lat)) > 0.0001 || Math.abs(startLon - Number(s.lon)) > 0.0001)
+          ? [{ lat: Number(s.lat), lon: Number(s.lon), ts: now + 1, acc: 5 }]
+          : [])
+      ]
+    };
+  } else if (emergencyLost && _phase3ActiveTrack) {
+    _phase3ActiveTrack.status = 'returning';
+    _phase3ActiveTrack.returnMode = 'lost_emergency';
+  }
+  persistActivePhase3Track();
+  acquireBackgroundWakeLock(true);
+  bindPhase3GeolocationWatcher();
+  renderPhase3TrackOnMap();
+  if (emergencyLost && typeof window !== 'undefined' && typeof window.__KLEV_PLAY_SONAR_PING__ === 'function') {
+    try { window.__KLEV_PLAY_SONAR_PING__('sos'); } catch (e) {}
+  }
+  return _phase3ActiveTrack;
+}
+
+export function switchPhase3ToReturnMode(emergencyLost = false) {
+  if (!_phase3ActiveTrack) {
+    return startPhase3RouteRecording('Аварийный возврат к старту', true);
+  }
+  _phase3ActiveTrack.status = 'returning';
+  _phase3ActiveTrack.returnMode = emergencyLost ? 'lost_emergency' : 'normal';
+  persistActivePhase3Track();
+  acquireBackgroundWakeLock(true);
+  bindPhase3GeolocationWatcher();
+  renderPhase3TrackOnMap();
+  if (typeof window !== 'undefined' && typeof window.__KLEV_PLAY_SONAR_PING__ === 'function') {
+    try { window.__KLEV_PLAY_SONAR_PING__(emergencyLost ? 'sos' : 'normal'); } catch (e) {}
+  }
+  return _phase3ActiveTrack;
+}
+
+export function stopAndSavePhase3Route() {
+  if (_phase3WatchId !== null && typeof navigator !== 'undefined' && navigator.geolocation) {
+    try { navigator.geolocation.clearWatch(_phase3WatchId); } catch (e) {}
+    _phase3WatchId = null;
+  }
+  acquireBackgroundWakeLock(false);
+  if (_phase3ActiveTrack && Array.isArray(_phase3ActiveTrack.points) && _phase3ActiveTrack.points.length >= 1) {
+    const finished = {
+      ..._phase3ActiveTrack,
+      status: 'completed',
+      finishedAt: Date.now()
+    };
+    const list = getSavedPhase3Routes();
+    list.unshift(finished);
+    savePhase3RoutesList(list);
+  }
+  _phase3ActiveTrack = null;
+  persistActivePhase3Track();
+  renderPhase3TrackOnMap();
+}
+
+function bindPhase3GeolocationWatcher() {
+  if (_phase3WatchId !== null || typeof navigator === 'undefined' || !navigator.geolocation) return;
+  try {
+    _phase3WatchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        if (!_phase3ActiveTrack || !pos || !pos.coords) return;
+        const lat = Number(pos.coords.latitude);
+        const lon = Number(pos.coords.longitude);
+        const acc = Number(pos.coords.accuracy) || 10;
+        if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+        const pts = _phase3ActiveTrack.points || [];
+        const lastPt = pts[pts.length - 1];
+        const stepKm = lastPt ? calcHaversineKm(lastPt.lat, lastPt.lon, lat, lon) : 0;
+        if (!lastPt || stepKm >= 0.008) {
+          pts.push({ lat, lon, ts: Date.now(), acc: Math.round(acc) });
+          _phase3ActiveTrack.totalDistKm = Number(((_phase3ActiveTrack.totalDistKm || 0) + stepKm).toFixed(3));
+          _phase3ActiveTrack.points = pts.slice(-2000);
+          persistActivePhase3Track();
+        }
+        if (_phase3ActiveTrack.status === 'returning' && pts.length >= 2) {
+          // Check off-course distance from recorded breadcrumb trail
+          let minTrailDistKm = Infinity;
+          for (const p of pts) {
+            const d = calcHaversineKm(lat, lon, p.lat, p.lon);
+            if (d < minTrailDistKm) minTrailDistKm = d;
+          }
+          if (minTrailDistKm > 0.045) {
+            if (typeof window !== 'undefined' && typeof window.__KLEV_PLAY_SONAR_PING__ === 'function') {
+              try { window.__KLEV_PLAY_SONAR_PING__('warn'); } catch (e) {}
+            }
+          }
+        }
+        renderPhase3TrackOnMap();
+      },
+      () => {},
+      { enableHighAccuracy: true, maximumAge: 2500, timeout: 15000 }
+    );
+  } catch (e) {}
+}
+
+function renderPhase3TrackOnMap() {
+  if (!mapInstance || typeof window === 'undefined' || !window.L) return;
+  const L = window.L;
+  if (!_phase3RouteLayerGroup) {
+    _phase3RouteLayerGroup = L.layerGroup().addTo(mapInstance);
+  }
+  _phase3RouteLayerGroup.clearLayers();
+  if (!_phase3ActiveTrack || !Array.isArray(_phase3ActiveTrack.points) || _phase3ActiveTrack.points.length === 0) return;
+  const pts = _phase3ActiveTrack.points;
+  const isReturning = _phase3ActiveTrack.status === 'returning';
+  const isEmergency = _phase3ActiveTrack.returnMode === 'lost_emergency';
+  const latlngs = pts.map(p => [p.lat, p.lon]);
+  if (latlngs.length >= 2) {
+    L.polyline(latlngs, {
+      color: isEmergency ? '#ef4444' : (isReturning ? '#f59e0b' : '#38bdf8'),
+      weight: isEmergency ? 5 : 4,
+      opacity: 0.92,
+      dashArray: isReturning ? '8, 6' : null
+    }).addTo(_phase3RouteLayerGroup);
+  }
+  const startPt = pts[0];
+  if (startPt) {
+    L.circleMarker([startPt.lat, startPt.lon], {
+      radius: 8,
+      color: '#10b981',
+      fillColor: '#10b981',
+      fillOpacity: 0.9,
+      weight: 2
+    }).bindPopup(`<b>Точка старта / Лагерь:</b> ${escapeHtml(_phase3ActiveTrack.startLabel || 'Старт')}`).addTo(_phase3RouteLayerGroup);
+  }
+}
+
+export function openPhase3RoutesModal(container = null) {
+  const s = store.getState();
+  if (!canAccessPhase3Routes(s)) {
+    const fid = s.userProfile?.fisherId || 'FP_89RZ0001';
+    const betaHtml = `
+      <div style="display:flex;flex-direction:column;gap:12px;font-size:var(--fs-sm);line-height:1.48;">
+        <div style="padding:12px;background:rgba(245,158,11,0.12);border:1.5px solid var(--warn);border-radius:var(--r-sm);">
+          <div style="font-weight:900;color:var(--warn);font-size:14px;margin-bottom:6px;">
+            Доступ к Фазе 3 («Маршруты и Я потерялся») по списку Бета-тестеров
+          </div>
+          <div style="font-size:12px;color:var(--text);">
+            Функции фоновой записи маршрута, обратного ведения по точкам и экстренного режима <b>«Я потерялся»</b> сейчас проходят закрытое бета-тестирование перед общим выпуском.
+          </div>
+          <div style="margin-top:8px;padding:8px 10px;background:var(--card);border:1px solid var(--border);border-radius:6px;font-size:12px;">
+            Ваш рыболовный ID для подключения к бета-тесту: <b style="color:var(--accent);font-family:monospace;">${escapeHtml(fid)}</b>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <button type="button" class="btn btn-accent" id="phase3CheckBetaStatusBtn" style="min-height:40px;font-weight:800;">Проверить доступ</button>
+          <button type="button" class="btn" id="phase3BetaCloseBtn" style="min-height:40px;font-weight:800;">Закрыть</button>
+        </div>
+      </div>
+    `;
+    openModal('Фаза 3: Маршруты и «Я потерялся» (Бета-тест)', betaHtml, (bEl) => {
+      bEl.querySelector('#phase3BetaCloseBtn')?.addEventListener('click', () => closeModal());
+      bEl.querySelector('#phase3CheckBetaStatusBtn')?.addEventListener('click', async () => {
+        try {
+          const res = await fetch(`https://klevprohbot.thorantony82.workers.dev/api/beta/status?fid=${encodeURIComponent(fid)}`);
+          if (res.ok) {
+            const d = await res.json();
+            if (d && (d.isBetaTester || d.betaGateConfig?.phase3BetaOnly === false)) {
+              localStorage.setItem('klev_pro_beta_tester_granted_v1', '1');
+              store.dispatch({ type: 'UPDATE_USER_PROFILE', payload: { isBetaTester: true } });
+              closeModal();
+              showToast('Статус Бета-тестера подтверждён! Фаза 3 разблокирована.', 'good');
+              openPhase3RoutesModal(container);
+              return;
+            }
+          }
+        } catch (e) {}
+        showToast('Ваш ID пока не включён в список Бета-тестеров. Передайте ваш ID администратору.', 'warn');
+      });
+    });
+    return;
+  }
+
+  const renderModalContent = (bodyEl) => {
+    if (!bodyEl) return;
+    const stNow = store.getState();
+    const perms = getDeviceBackgroundPermissionsStatus();
+    const savedRoutes = getSavedPhase3Routes();
+    const trk = _phase3ActiveTrack;
+    const curLat = Number(stNow.lat || 66.0833);
+    const curLon = Number(stNow.lon || 76.6333);
+    const distToStartKm = trk ? calcHaversineKm(curLat, curLon, trk.startLat, trk.startLon) : 0;
+    const bearingToStart = trk ? Math.round(calcBearingDeg(curLat, curLon, trk.startLat, trk.startLon)) : 0;
+    const compassToStart = trk ? bearingToCompassRu(bearingToStart) : '—';
+
+    bodyEl.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:12px;font-size:var(--fs-sm);">
+        <!-- Экстренная панель «Я ПОТЕРЯЛСЯ» -->
+        <div style="padding:12px;background:${trk?.returnMode === 'lost_emergency' ? 'rgba(239,68,68,0.18)' : 'rgba(245,158,11,0.10)'};border:1.5px solid ${trk?.returnMode === 'lost_emergency' ? 'var(--bad)' : 'var(--warn)'};border-radius:var(--r-sm);">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+            <span style="font-weight:900;font-size:14px;color:${trk?.returnMode === 'lost_emergency' ? 'var(--bad)' : 'var(--warn)'};">
+              ${trk?.returnMode === 'lost_emergency' ? 'АКТИВЕН РЕЖИМ «Я ПОТЕРЯЛСЯ — ВОЗВРАТ К СТАРТУ»' : 'Фаза 3: Запись пути в фоне и возврат по следу'}
+            </span>
+            <span class="pill ${trk ? 'pill-good' : 'pill-neutral'}" style="font-size:10.5px;">
+              ${trk ? (trk.status === 'returning' ? 'Ведение назад' : 'Идёт запись в фоне') : 'Ожидание'}
+            </span>
+          </div>
+          ${trk ? `
+            <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:8px 0;padding:8px;background:var(--card);border:1px solid var(--border);border-radius:8px;text-align:center;">
+              <div>
+                <div style="font-size:10px;color:var(--muted);">ПРОЙДЕНО</div>
+                <div style="font-weight:900;font-size:14px;color:var(--accent);">${(trk.totalDistKm || 0).toFixed(2)} км</div>
+              </div>
+              <div>
+                <div style="font-size:10px;color:var(--muted);">ДО СТАРТА</div>
+                <div style="font-weight:900;font-size:14px;color:var(--good);">${distToStartKm < 1 ? Math.round(distToStartKm * 1000) + ' м' : distToStartKm.toFixed(2) + ' км'}</div>
+              </div>
+              <div>
+                <div style="font-size:10px;color:var(--muted);">КУРС НАЗАД</div>
+                <div style="font-weight:900;font-size:13px;color:var(--warn);">${bearingToStart}° (${compassToStart.split(' ')[0]})</div>
+              </div>
+            </div>
+            <div style="font-size:11.5px;color:var(--text);margin-bottom:8px;">
+              Точка возврата: <b>${escapeHtml(trk.startLabel)}</b> (${trk.startLat.toFixed(4)}°N, ${trk.startLon.toFixed(4)}°E) • Записано точек следа: <b>${trk.points.length}</b>
+            </div>
+          ` : `
+            <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">
+              Включите запись маршрута перед выходом на воду или в лес — приложение будет записывать путевые точки в фоне и при потере ориентиров выведет вас обратно по вашим следам.
+            </div>
+          `}
+          <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
+            ${!trk ? `
+              <button type="button" class="btn btn-good" id="p3StartTrackBtn" style="min-height:42px;font-weight:900;">Начать запись пути</button>
+              <button type="button" class="btn" id="p3LostEmergencyBtn" style="min-height:42px;font-weight:900;background:#ef4444;border-color:#ef4444;color:#fff;">Я ПОТЕРЯЛСЯ (Назад)</button>
+            ` : `
+              <button type="button" class="btn ${trk.status === 'returning' ? 'btn-good' : 'btn-accent'}" id="p3ReturnByTrackBtn" style="min-height:42px;font-weight:900;">
+                ${trk.status === 'returning' ? 'Обновить курс возврата' : 'Возврат по маршруту'}
+              </button>
+              <button type="button" class="btn" id="p3LostEmergencyBtn" style="min-height:42px;font-weight:900;background:#ef4444;border-color:#ef4444;color:#fff;">
+                Я ПОТЕРЯЛСЯ (Сигнал + Курс)
+              </button>
+              <button type="button" class="btn btn-sm" id="p3StopSaveTrackBtn" style="grid-column:1 / -1;min-height:38px;font-weight:800;">
+                Завершить и сохранить маршрут в память (${(trk.totalDistKm || 0).toFixed(2)} км)
+              </button>
+            `}
+          </div>
+        </div>
+
+        <!-- Системные разрешения: Работа в фоне, Батарея и Геолокация -->
+        <div style="padding:10px 12px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);display:flex;flex-direction:column;gap:8px;">
+          <div style="font-weight:900;font-size:12.5px;color:var(--accent);">
+            Разрешения для безотказной записи маршрута в фоне:
+          </div>
+          <div style="display:grid;grid-template-columns:1fr;gap:6px;font-size:11.5px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 9px;background:var(--panel);border-radius:6px;border:1px solid var(--border);">
+              <div>
+                <b>1. Системная геолокация (GPS/ГЛОНАСС)</b>
+                <div style="font-size:10.5px;color:${perms.sysGpsEnabled ? 'var(--good)' : 'var(--warn)'};">${perms.sysGpsEnabled ? 'Геолокация включена в системе' : 'Проверьте включение GPS в настройках'}</div>
+              </div>
+              <button type="button" class="btn btn-sm" id="p3OpenSysLocationBtn" style="min-height:32px;font-weight:800;flex-shrink:0;">Настройки GPS</button>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 9px;background:var(--panel);border-radius:6px;border:1px solid var(--border);">
+              <div>
+                <b>2. Работа геолокации в фоновом режиме</b>
+                <div style="font-size:10.5px;color:${perms.bgLocGranted ? 'var(--good)' : 'var(--muted)'};">${perms.bgLocGranted ? 'Фоновая запись активна (Разрешено)' : 'Необходимо для записи пути при выключенном экране'}</div>
+              </div>
+              <button type="button" class="btn btn-sm btn-accent" id="p3ReqBgLocBtn" style="min-height:32px;font-weight:800;flex-shrink:0;">Разрешить фон</button>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 9px;background:var(--panel);border-radius:6px;border:1px solid var(--border);">
+              <div>
+                <b>3. Отключение экономии заряда батареи</b>
+                <div style="font-size:10.5px;color:${perms.batteryUnrestricted ? 'var(--good)' : 'var(--warn)'};">${perms.batteryUnrestricted ? 'Без ограничений батареи (Активно)' : 'Отключите экономию, чтобы система не гасила трекер'}</div>
+              </div>
+              <button type="button" class="btn btn-sm btn-good" id="p3ReqBatteryOptBtn" style="min-height:32px;font-weight:800;flex-shrink:0;">Настроить батарею</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Сохранённые маршруты -->
+        <div style="padding:10px 12px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);">
+          <div style="font-weight:900;font-size:12px;color:var(--muted);text-transform:uppercase;margin-bottom:6px;">
+            Сохранённые маршруты в памяти устройства (${savedRoutes.length}):
+          </div>
+          ${savedRoutes.length === 0 ? `
+            <div style="font-size:11.5px;color:var(--muted);">У вас пока нет сохранённых маршрутов.</div>
+          ` : `
+            <div style="display:flex;flex-direction:column;gap:6px;max-height:180px;overflow-y:auto;">
+              ${savedRoutes.map(rt => `
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 9px;background:var(--panel);border:1px solid var(--border);border-radius:6px;font-size:11.5px;">
+                  <div style="min-width:0;flex:1;">
+                    <div style="font-weight:800;color:var(--text);">${escapeHtml(rt.title || 'Маршрут')}</div>
+                    <div style="font-size:10.5px;color:var(--muted);">${Number(rt.totalDistKm || 0).toFixed(2)} км • Точек: ${(rt.points || []).length}</div>
+                  </div>
+                  <div style="display:flex;gap:5px;">
+                    <button type="button" class="btn btn-sm btn-accent" data-load-saved-route="${escapeHtml(rt.id)}" style="min-height:28px;padding:2px 8px;font-size:11px;">Вести назад</button>
+                    <button type="button" class="btn btn-sm" data-del-saved-route="${escapeHtml(rt.id)}" style="min-height:28px;padding:2px 7px;font-size:11px;color:var(--bad);">✕</button>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          `}
+        </div>
+      </div>
+    `;
+
+    bodyEl.querySelector('#p3StartTrackBtn')?.addEventListener('click', () => {
+      startPhase3RouteRecording('', false);
+      showToast('Запись маршрута в фоне запущена. Точка старта зафиксирована.', 'good');
+      renderModalContent(bodyEl);
+      if (container) render(container);
+    });
+    bodyEl.querySelector('#p3ReturnByTrackBtn')?.addEventListener('click', () => {
+      switchPhase3ToReturnMode(false);
+      showToast('Включён режим возврата по записанному маршруту к точке старта', 'good');
+      renderModalContent(bodyEl);
+      if (container) render(container);
+    });
+    bodyEl.querySelector('#p3LostEmergencyBtn')?.addEventListener('click', () => {
+      startPhase3RouteRecording('Экстренный возврат (Я потерялся)', true);
+      showToast('Активирован режим «Я ПОТЕРЯЛСЯ»: построен обратный курс к точке старта!', 'warn');
+      renderModalContent(bodyEl);
+      if (container) render(container);
+    });
+    bodyEl.querySelector('#p3StopSaveTrackBtn')?.addEventListener('click', () => {
+      stopAndSavePhase3Route();
+      showToast('Маршрут сохранён в память устройства', 'good');
+      renderModalContent(bodyEl);
+      if (container) render(container);
+    });
+    bodyEl.querySelector('#p3OpenSysLocationBtn')?.addEventListener('click', () => {
+      if (typeof window !== 'undefined' && window.AndroidBridge && typeof window.AndroidBridge.openLocationSourceSettings === 'function') {
+        window.AndroidBridge.openLocationSourceSettings();
+      } else {
+        requestGPS(container);
+        showToast('Запрошен доступ к системной геолокации GPS/ГЛОНАСС', 'info');
+      }
+    });
+    bodyEl.querySelector('#p3ReqBgLocBtn')?.addEventListener('click', async () => {
+      if (typeof window !== 'undefined' && window.AndroidBridge && typeof window.AndroidBridge.requestBackgroundLocationPermission === 'function') {
+        window.AndroidBridge.requestBackgroundLocationPermission();
+      }
+      await acquireBackgroundWakeLock(true);
+      try { localStorage.setItem('klev_pro_bg_loc_ack_v1', '1'); } catch (e) {}
+      showToast('Фоновый режим геолокации и защита от засыпания активированы', 'good');
+      renderModalContent(bodyEl);
+    });
+    bodyEl.querySelector('#p3ReqBatteryOptBtn')?.addEventListener('click', () => {
+      if (typeof window !== 'undefined' && window.AndroidBridge && typeof window.AndroidBridge.requestIgnoreBatteryOptimizations === 'function') {
+        window.AndroidBridge.requestIgnoreBatteryOptimizations();
+      }
+      try { localStorage.setItem('klev_pro_bg_battery_ack_v1', '1'); } catch (e) {}
+      showToast('Запрошено отключение экономии заряда батареи для непрерывной записи трека', 'good');
+      renderModalContent(bodyEl);
+    });
+    bodyEl.querySelectorAll('[data-load-saved-route]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const rid = btn.getAttribute('data-load-saved-route');
+        const found = getSavedPhase3Routes().find(r => r && r.id === rid);
+        if (found) {
+          _phase3ActiveTrack = { ...found, status: 'returning', returnMode: 'normal' };
+          persistActivePhase3Track();
+          acquireBackgroundWakeLock(true);
+          bindPhase3GeolocationWatcher();
+          renderPhase3TrackOnMap();
+          closeModal();
+          showToast('Маршрут загружен на карту в режиме обратного следования', 'good');
+          if (container) render(container);
+        }
+      });
+    });
+    bodyEl.querySelectorAll('[data-del-saved-route]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const rid = btn.getAttribute('data-del-saved-route');
+        const next = getSavedPhase3Routes().filter(r => r && r.id !== rid);
+        savePhase3RoutesList(next);
+        renderModalContent(bodyEl);
+      });
+    });
+  };
+
+  openModal('Фаза 3: Маршруты, Возврат по следу и «Я потерялся»', '<div id="p3ModalMount"></div>', (bEl) => {
+    renderModalContent(bEl);
+  });
+}
+
+if (typeof window !== 'undefined') {
+  window.__KLEV_OPEN_PHASE3_ROUTES__ = openPhase3RoutesModal;
+}
+
 function renderMapOverlays() {
+  try { renderPhase3TrackOnMap(); } catch (e) {}
   if (!mapInstance || typeof L === 'undefined') return;
   const s = store.getState();
   if (mapInstance && typeof mapInstance.getPane === "function" && typeof mapInstance.createPane === "function") {
@@ -4298,19 +4816,43 @@ export function render(container) {
             ${s.lat.toFixed(2)}°N, ${s.lon.toFixed(2)}°E
           </span>
         </div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">
-          <button type="button" class="btn btn-sm" id="geoGpsBtn" style="flex:1 1 110px;min-height:38px;padding:6px 10px;font-size:12px;font-weight:800;"><svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"12\" cy=\"12\" r=\"8.5\" stroke=\"currentColor\" stroke-width=\"1.8\"/><circle cx=\"12\" cy=\"12\" r=\"4.5\" stroke=\"#38bdf8\" stroke-width=\"1.6\"/><circle cx=\"12\" cy=\"12\" r=\"1.8\" fill=\"#10b981\"/></svg> <span class="geo-full-only-inline">Мой GPS</span><span class="geo-guest-only-inline">Где я</span></button>
-          <button type="button" class="btn btn-sm ${inspectMode ? 'btn-good' : 'btn-accent'}" id="geoInspectModeBtn" style="flex:1.2 1 135px;min-height:38px;padding:6px 10px;font-size:12px;font-weight:800;" title="Показать рыб, которые клюют в выбранной точке водоёма">
+        <!-- Симметричная сетка управления картой 2x2 («по фен-шую») -->
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:8px;">
+          <button type="button" class="btn btn-sm" id="geoGpsBtn" style="width:100%;min-height:40px;padding:6px 10px;font-size:12px;font-weight:800;justify-content:center;"><svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"12\" cy=\"12\" r=\"8.5\" stroke=\"currentColor\" stroke-width=\"1.8\"/><circle cx=\"12\" cy=\"12\" r=\"4.5\" stroke=\"#38bdf8\" stroke-width=\"1.6\"/><circle cx=\"12\" cy=\"12\" r=\"1.8\" fill=\"#10b981\"/></svg> <span class="geo-full-only-inline">Мой GPS</span><span class="geo-guest-only-inline">Где я</span></button>
+          <button type="button" class="btn btn-sm ${inspectMode ? 'btn-good' : 'btn-accent'}" id="geoInspectModeBtn" style="width:100%;min-height:40px;padding:6px 10px;font-size:12px;font-weight:800;justify-content:center;" title="Показать рыб, которые клюют в выбранной точке водоёма">
             <svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"11\" cy=\"11\" r=\"6.5\" stroke=\"currentColor\" stroke-width=\"2\"/><path d=\"M16 16l4.5 4.5\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg>
             <span class="geo-full-only-inline">${inspectMode ? 'Разведка ВКЛ' : 'Что здесь клюёт?'}</span>
             <span class="geo-guest-only-inline">Кто здесь клюёт</span>
           </button>
-          <button type="button" class="btn btn-sm geo-auth-only-block" id="geoSaveSpotBtn" style="flex:1 1 90px;padding:5px 6px;font-size:11.5px;"><svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M12 2.5l2.9 6 6.6.9-4.8 4.6 1.1 6.5L12 17.4l-5.8 3.1 1.1-6.5-4.8-4.6 6.6-.9L12 2.5z\" fill=\"#fbbf24\" stroke=\"#f59e0b\" stroke-width=\"1.6\" stroke-linejoin=\"round\"/></svg> В закладки</button>
-          <button type="button" class="btn btn-sm btn-good geo-auth-only-block" id="geoQuickLogCatchBtn" style="flex:1 1 110px;padding:5px 6px;font-size:11.5px;font-weight:800;"><svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M4 20C5 11 11 5 20 4\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/><path d=\"M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3\" stroke=\"#38bdf8\" stroke-width=\"1.8\" stroke-linecap=\"round\"/><circle cx=\"14\" cy=\"16\" r=\"2.2\" fill=\"#10b981\"/></svg> + В журнал</button>
-          <button type="button" class="btn btn-sm btn-accent geo-auth-only-block" id="geoOpenOfflineMapsBtn" style="flex:1 1 100%;min-height:36px;padding:6px 10px;font-size:12px;font-weight:900;justify-content:center;" title="Скачать карту выбранной локации (50 км или 120 км) для безотказной работы в тайге, тундре и море без сети">
+          <button type="button" class="btn btn-sm geo-auth-only-block" id="geoSaveSpotBtn" style="width:100%;min-height:40px;padding:6px 10px;font-size:12px;font-weight:800;justify-content:center;"><svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M12 2.5l2.9 6 6.6.9-4.8 4.6 1.1 6.5L12 17.4l-5.8 3.1 1.1-6.5-4.8-4.6 6.6-.9L12 2.5z\" fill=\"#fbbf24\" stroke=\"#f59e0b\" stroke-width=\"1.6\" stroke-linejoin=\"round\"/></svg> + Точка в закладки</button>
+          <button type="button" class="btn btn-sm btn-good geo-auth-only-block" id="geoQuickLogCatchBtn" style="width:100%;min-height:40px;padding:6px 10px;font-size:12px;font-weight:800;justify-content:center;"><svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M4 20C5 11 11 5 20 4\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/><path d=\"M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3\" stroke=\"#38bdf8\" stroke-width=\"1.8\" stroke-linecap=\"round\"/><circle cx=\"14\" cy=\"16\" r=\"2.2\" fill=\"#10b981\"/></svg> + Записать в журнал</button>
+          <button type="button" class="btn btn-sm btn-accent geo-auth-only-block" id="geoOpenOfflineMapsBtn" style="width:100%;min-height:40px;padding:6px 10px;font-size:11.5px;font-weight:900;justify-content:center;" title="Скачать карту выбранной локации (50 км или 120 км) для работы без сети">
             <svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>
-            <span>Офлайн-карты: Тайга • Тундра • Море (50 / 120 км)${getCachedOfflineMapPacksSync().length > 0 ? ` • Скачано: ${getCachedOfflineMapPacksSync().length}` : ''}</span>
+            <span>Офлайн-карты 50/120 км${getCachedOfflineMapPacksSync().length > 0 ? ` (${getCachedOfflineMapPacksSync().length})` : ''}</span>
           </button>
+          <button type="button" class="btn btn-sm geo-auth-only-block" id="geoOpenPhase3RoutesBtn" style="width:100%;min-height:40px;padding:6px 10px;font-size:11.5px;font-weight:900;justify-content:center;border-color:${_phase3ActiveTrack ? 'var(--bad)' : 'var(--warn)'};color:${_phase3ActiveTrack ? 'var(--bad)' : 'var(--warn)'};background:${_phase3ActiveTrack ? 'rgba(239,68,68,0.14)' : 'rgba(245,158,11,0.10)'};" title="Фаза 3: Запись маршрута в фоне, возврат по маршруту и аварийный режим Я потерялся">
+            <svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"12\" cy=\"12\" r=\"9\" stroke=\"currentColor\" stroke-width=\"1.8\"/><polygon points=\"16,8 13.5,13.5 8,16 10.5,10.5\" fill=\"currentColor\"/></svg>
+            <span>${_phase3ActiveTrack ? (_phase3ActiveTrack.status === 'returning' ? 'Возврат по следу ВКЛ' : `Маршрут: ${(_phase3ActiveTrack.totalDistKm || 0).toFixed(1)} км`) : 'Маршруты • Я потерялся'}</span>
+          </button>
+        </div>
+        <!-- Статус согласия на передачу геоданных в сеть Интернет (ст. 10.1 152-ФЗ) с кнопкой отзыва -->
+        <div class="geo-auth-only-block" style="margin-top:8px;padding:7px 10px;background:var(--card);border:1px solid var(--border);border-radius:8px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;font-size:11px;">
+          <div style="display:flex;align-items:center;gap:6px;">
+            <span style="font-weight:800;color:${isGeoDistributionConsentActive() ? 'var(--good)' : 'var(--muted)'};">
+              ${isGeoDistributionConsentActive() ? '[✓] Согласие на передачу геоданных в сеть активно' : '[ ] Передача геоданных в сеть не активирована (100% локально)'}
+            </span>
+          </div>
+          <div style="display:flex;gap:6px;">
+            ${isGeoDistributionConsentActive() ? `
+              <button type="button" class="btn btn-sm" id="geoRevokeConsentQuickBtn" style="min-height:26px;padding:2px 8px;font-size:10.5px;color:var(--bad);border-color:rgba(239,68,68,0.45);">
+                Отозвать и удалить геоданные
+              </button>
+            ` : `
+              <button type="button" class="btn btn-sm btn-accent" id="geoGrantConsentQuickBtn" style="min-height:26px;padding:2px 8px;font-size:10.5px;">
+                Дать согласие на отправку
+              </button>
+            `}
+          </div>
         </div>
       </div>
       ${inlineGpsHint ? `<div style="margin-bottom:8px;padding:7px 11px;border-radius:var(--r-sm);background:var(--pill-warn-bg);color:var(--pill-warn-text);font-size:var(--fs-xs);font-weight:700;line-height:1.4;"><svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"12\" cy=\"12\" r=\"9\" fill=\"rgba(56,189,248,0.18)\" stroke=\"#38bdf8\" stroke-width=\"1.8\"/><path d=\"M12 11v5M12 8h.01\" stroke=\"#38bdf8\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg> ${inlineGpsHint}</div>` : ''}
@@ -4702,6 +5244,23 @@ function bindGeoEvents(container, showDrawer) {
  });
  const saveSpotBtn = container.querySelector('#geoSaveSpotBtn');
  if (saveSpotBtn) saveSpotBtn.addEventListener('click', () => openSaveSpotModal());
+  container.querySelector('#geoOpenPhase3RoutesBtn')?.addEventListener('click', () => {
+    openPhase3RoutesModal(container);
+  });
+  container.querySelector('#geoGrantConsentQuickBtn')?.addEventListener('click', () => {
+    ensureGeoDistributionConsent('публикации точек в Круг, Экипаж и Чаты', () => {
+      render(container);
+    });
+  });
+  container.querySelector('#geoRevokeConsentQuickBtn')?.addEventListener('click', () => {
+    if (typeof window !== 'undefined' && typeof window.__KLEV_REVOKE_GEO_CONSENT__ === 'function') {
+      window.__KLEV_REVOKE_GEO_CONSENT__(() => render(container));
+    } else {
+      setGeoDistributionConsentState(false);
+      showToast('Согласие на передачу геоданных отозвано', 'info');
+      render(container);
+    }
+  });
   const offlineMapsBtn = container.querySelector('#geoOpenOfflineMapsBtn');
   if (offlineMapsBtn) {
     offlineMapsBtn.addEventListener('click', () => {

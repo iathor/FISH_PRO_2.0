@@ -18,7 +18,7 @@ import { detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.
 import { findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.5.6-r215';
 import { WATER_PROFILES } from '../../data/waters.js?v=2.5.6-r215';
 import { FISH_DB } from '../../data/species.js?v=2.5.6-r215';
-import { escapeHtml, isAnonymousCallsignValid, createPill, showToast, openModal, closeModal, copyFisherIdToClipboard, openConfirmDeleteModal, openUserAgreementModal, isUserAgreementAccepted, downloadFileCrossPlatform, triggerSystemNotificationCrossPlatform, requestSystemNotificationsAccess, flashHighlightElement } from '../../ui/components.js?v=2.5.6-r215';
+import { escapeHtml, isAnonymousCallsignValid, createPill, showToast, openModal, closeModal, copyFisherIdToClipboard, openConfirmDeleteModal, openUserAgreementModal, isUserAgreementAccepted, downloadFileCrossPlatform, triggerSystemNotificationCrossPlatform, requestSystemNotificationsAccess, flashHighlightElement, isPolicyVersionAccepted, getSavedPolicyConsentMeta, POLICY_CONSENT_META_KEY, ACTIVE_POLICY_VERSION_DEFAULT, ACTIVE_APP_VERSION_DEFAULT, isGeoDistributionConsentActive, ensureGeoDistributionConsent, setGeoDistributionConsentState } from '../../ui/components.js?v=2.5.6-r215';
 import {
   RELAY_WORKER_URL,
   buildShareUrls,
@@ -70,7 +70,46 @@ const DEFAULT_ADMIN_IDS = [OWNER_BOUND_FISHER_ID, OWNER_SECONDARY_FISHER_ID];
 let _adminDashboardCache = null;
 let _adminDashboardLoading = false;
 let _serverDynamicAdminSlotHtml = '';
+const ADMIN_SAVED_CREDS_KEY = 'klev_pro_admin_saved_creds_v2';
 let _serverAdminSessionToken = '';
+let _activeAdminSubTab = 'dashboard';
+
+try {
+  if (typeof localStorage !== 'undefined') {
+    const rawSavedAdm = localStorage.getItem(ADMIN_SAVED_CREDS_KEY);
+    if (rawSavedAdm) {
+      const parsedAdm = JSON.parse(rawSavedAdm);
+      if (parsedAdm && parsedAdm.adminSessionToken) {
+        _serverAdminSessionToken = String(parsedAdm.adminSessionToken).trim();
+      }
+    }
+  }
+} catch (e) {}
+
+export function getSavedAdminCredentials() {
+  try {
+    if (typeof localStorage === 'undefined') return null;
+    const raw = localStorage.getItem(ADMIN_SAVED_CREDS_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+export function saveAdminCredentialsToStorage({ login = 'iAthor', password = '', adminSessionToken = '' } = {}) {
+  try {
+    if (typeof localStorage === 'undefined') return;
+    const prev = getSavedAdminCredentials() || {};
+    const rec = {
+      login: login || prev.login || 'iAthor',
+      password: password !== undefined ? password : (prev.password || ''),
+      adminSessionToken: adminSessionToken || prev.adminSessionToken || _serverAdminSessionToken || '',
+      savedAt: Date.now()
+    };
+    if (rec.adminSessionToken) _serverAdminSessionToken = rec.adminSessionToken;
+    localStorage.setItem(ADMIN_SAVED_CREDS_KEY, JSON.stringify(rec));
+  } catch (e) {}
+}
 
 export function isAdminContourActive() {
   return Boolean(typeof window !== 'undefined' && window.__KLEV_ADMIN_CONTOUR__ === true);
@@ -79,7 +118,24 @@ export function isAdminContourActive() {
 export function getActiveAdminToken(stateObj = null) {
   if (!isAdminContourActive()) return '';
   const s = stateObj || store.getState();
-  return String(_serverAdminSessionToken || s?.userProfile?.adminSessionToken || '').trim();
+  const saved = getSavedAdminCredentials();
+  return String(_serverAdminSessionToken || s?.userProfile?.adminSessionToken || saved?.adminSessionToken || '').trim();
+}
+
+export function switchAdminWorkspaceTab(tabId = 'dashboard') {
+  _activeAdminSubTab = tabId || 'dashboard';
+  if (typeof document !== 'undefined') {
+    document.querySelectorAll('[data-adm-workspace-tab]').forEach(btn => {
+      const isAct = btn.getAttribute('data-adm-workspace-tab') === _activeAdminSubTab;
+      btn.classList.toggle('active', isAct);
+      btn.classList.toggle('btn-accent', isAct);
+    });
+  }
+  renderAdminSection();
+}
+
+if (typeof window !== 'undefined') {
+  window.__KLEV_SWITCH_ADMIN_TAB__ = switchAdminWorkspaceTab;
 }
 let _idAllocationInFlight = false;
 let _lastNearbyCircleSyncTs = 0;
@@ -1388,8 +1444,9 @@ export function isOwnerAdmin(stateObj = null) {
   if (!isAdminContourActive()) return false;
   const s = stateObj || store.getState();
   const up = s?.userProfile || {};
-  const hasServerAdminTok = Boolean(_serverAdminSessionToken || up.adminSessionToken);
-  return Boolean(up.ownerUnlocked === true && hasServerAdminTok);
+  const saved = getSavedAdminCredentials();
+  const hasServerAdminTok = Boolean(_serverAdminSessionToken || up.adminSessionToken || saved?.adminSessionToken);
+  return Boolean((up.ownerUnlocked === true || saved?.adminSessionToken) && hasServerAdminTok);
 }
 /**
  * Возвращает полный список администраторов из базы (Владелец FP_89VIP089 + FP_FMP089 + добавленные им в базу рыбаки)
@@ -2284,6 +2341,8 @@ export function applyCloudProfileToDevice(cloudProf, whitelist = null) {
       pinHash: cloudProf.pinHash || prevUp.pinHash,
       geminiApiKey: cloudProf.geminiApiKey || prevUp.geminiApiKey || '',
       authTokenHash: cloudProf.authTokenHash || prevUp.authTokenHash,
+      adminSessionToken: isCloudOwner ? (cloudProf.adminSessionToken || _serverAdminSessionToken || prevUp.adminSessionToken || '') : '',
+      isBetaTester: Boolean(isCloudOwner || cloudProf.isBetaTester || prevUp.isBetaTester),
       ownerUnlocked: isCloudOwner,
       adminShowAllCrews: (() => {
         try {
@@ -2444,6 +2503,11 @@ export async function authenticateAndSyncAccount(rawLogin, rawPassword, mode = '
         data.profile.ownerUnlocked = true;
         _serverAdminSessionToken = data.adminSessionToken;
         data.profile.adminSessionToken = data.adminSessionToken;
+        saveAdminCredentialsToStorage({
+          login: creds.login,
+          password: rawPassword,
+          adminSessionToken: data.adminSessionToken
+        });
       } else if (data.fisherId) {
         finalFisherId = normalizeFisherId(data.fisherId, regCode);
         data.profile.fisherId = finalFisherId;
@@ -2567,24 +2631,39 @@ export async function syncCurrentProfileToCloudIfLoggedIn() {
  * Генерирует компактную шапку-переключатель между 4 раздельными подменю настроек:
  * 1) Вход и ID | 2) Рыбалка | 3) Параметры | 4) Уведомления
  */
+export function isCurrentUserBetaTester(stateObj = null) {
+  const s = stateObj || store.getState();
+  if (isUserAdmin(s)) return true;
+  if (s?.userProfile?.isBetaTester === true) return true;
+  try {
+    if (typeof localStorage !== 'undefined' && localStorage.getItem('klev_pro_beta_tester_granted_v1') === '1') return true;
+  } catch (e) {}
+  return false;
+}
+
 export function renderSettingsZoneTabsHtml(activeZone = 'auth') {
   const effZone = activeZone === 'notif' ? 'app' : activeZone;
-  const adminAccess = isUserAdmin(store.getState());
+  const betaOrAdmin = isCurrentUserBetaTester(store.getState());
   const zones = [
-    { id: 'hub', icon: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="1.5" fill="rgba(56,189,248,0.22)" stroke="currentColor" stroke-width="1.8"/><rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="14" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/></svg>', label: 'Все разделы', locked: false },
-    { id: 'fishing', icon: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg>', label: 'Рыбалка', locked: false },
-    { id: 'app', icon: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3.2" stroke="currentColor" stroke-width="1.9"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.6.77 1.05 1.41 1.19H21a2 2 0 1 1 0 4h-.09c-.64.14-1.15.59-1.51 1.21z" stroke="currentColor" stroke-width="1.6"/></svg>', label: 'Настройки', locked: false },
-    { id: 'auth', icon: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="5" y="11" width="14" height="10" rx="2.5" fill="rgba(251,191,36,0.22)" stroke="#fbbf24" stroke-width="1.8"/><path d="M8 11V7a4 4 0 0 1 8 0v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>', label: 'Вход и ID', locked: false },
-    { id: 'offgrid', icon: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5M19.1 4.9C23 8.8 23 15.2 19.1 19.1" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="#ef4444"/></svg>', label: adminAccess ? 'Авто-связь' : 'Авто-связь (Скоро)', locked: !adminAccess }
+    { id: 'auth', icon: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="5" y="11" width="14" height="10" rx="2.5" fill="rgba(251,191,36,0.22)" stroke="#fbbf24" stroke-width="1.8"/><path d="M8 11V7a4 4 0 0 1 8 0v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>', label: '1. Профиль и ID', locked: false },
+    { id: 'fishing', icon: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg>', label: '2. Рыбалка и Калибровка', locked: false },
+    { id: 'app', icon: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3.2" stroke="currentColor" stroke-width="1.9"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.6.77 1.05 1.41 1.19H21a2 2 0 1 1 0 4h-.09c-.64.14-1.15.59-1.51 1.21z" stroke="currentColor" stroke-width="1.6"/></svg>', label: '3. Приложение и Звук', locked: false },
+    { id: 'offgrid', icon: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5M19.1 4.9C23 8.8 23 15.2 19.1 19.1" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="#ef4444"/></svg>', label: betaOrAdmin ? '4. Фаза 2 и 3 (Бета ВКЛ)' : '4. Фаза 2 и 3 (Бета-тест)', locked: !betaOrAdmin }
   ];
   return `
-    <div class="settings-zone-bar" role="tablist" aria-label="Зоны настроек">
-      ${zones.map(z => `
-        <button type="button" class="btn btn-sm settings-zone-tab ${effZone === z.id ? 'btn-accent' : ''}" data-switch-settings-zone="${z.id}" ${z.locked ? 'disabled aria-disabled="true" style="opacity:0.55;cursor:not-allowed;" title="Раздел скоро станет доступен"' : ''} role="tab" aria-selected="${effZone === z.id ? 'true' : 'false'}">
-          <span>${z.icon}</span>
-          <span>${z.label}</span>
-        </button>
-      `).join('')}
+    <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:4px;" role="tablist" aria-label="Зоны настроек">
+      <button type="button" class="btn btn-sm ${effZone === 'hub' ? 'btn-accent' : ''}" data-switch-settings-zone="hub" style="width:100%;min-height:36px;font-weight:800;justify-content:center;">
+        <svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="1.5" fill="rgba(56,189,248,0.22)" stroke="currentColor" stroke-width="1.8"/><rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="14" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/></svg>
+        <span>Все разделы настроек (Главное меню)</span>
+      </button>
+      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;">
+        ${zones.map(z => `
+          <button type="button" class="btn btn-sm settings-zone-tab ${effZone === z.id ? 'btn-accent' : ''}" data-switch-settings-zone="${z.id}" ${z.locked ? 'disabled aria-disabled="true" style="min-height:38px;opacity:0.55;cursor:not-allowed;justify-content:center;" title="Доступно участникам бета-тестирования"' : 'style="min-height:38px;font-weight:800;justify-content:center;"'} role="tab" aria-selected="${effZone === z.id ? 'true' : 'false'}">
+            <span>${z.icon}</span>
+            <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${z.label}</span>
+          </button>
+        `).join('')}
+      </div>
     </div>
   `;
 }
@@ -2652,10 +2731,35 @@ export function decryptChatPayload(cipherStr, channelKey = 'default') {
     return null;
   }
 }
-export function playNotificationPing(kind = 'normal') {
+let _cachedSonarAudioEl = null;
+export function playNotificationPing(kind = 'normal', forceModeOverride = '') {
   try {
     const st = store.getState();
-    if (st?.userProfile?.notifSettings?.sound === false) return;
+    const prefs = st?.userProfile?.notifSettings || {};
+    if (prefs.sound === false && !forceModeOverride) return;
+    const soundMode = forceModeOverride || prefs.soundMode || 'sonar_wav';
+    if (soundMode === 'silent') return;
+    if (soundMode === 'sonar_wav' && typeof Audio !== 'undefined') {
+      try {
+        if (!_cachedSonarAudioEl) {
+          _cachedSonarAudioEl = new Audio('assets/audio/sonar-ping.wav');
+          _cachedSonarAudioEl.preload = 'auto';
+        }
+        _cachedSonarAudioEl.currentTime = 0;
+        _cachedSonarAudioEl.volume = kind === 'sos' ? 1.0 : 0.85;
+        const playPromise = _cachedSonarAudioEl.play();
+        if (playPromise && typeof playPromise.catch === 'function') {
+          playPromise.catch(() => playWebAudioFallbackPing(kind, 'sonar_wav'));
+        }
+        return;
+      } catch (_e) {}
+    }
+    playWebAudioFallbackPing(kind, soundMode);
+  } catch (e) {}
+}
+
+function playWebAudioFallbackPing(kind = 'normal', soundMode = 'sonar_wav') {
+  try {
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
     if (!AudioCtx) return;
     const ctx = new AudioCtx();
@@ -2669,20 +2773,34 @@ export function playNotificationPing(kind = 'normal') {
       osc.frequency.setValueAtTime(880, now);
       osc.frequency.setValueAtTime(660, now + 0.14);
       osc.frequency.setValueAtTime(880, now + 0.28);
-      gain.gain.setValueAtTime(0.18, now);
+      gain.gain.setValueAtTime(0.22, now);
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
       osc.start(now);
       osc.stop(now + 0.46);
+    } else if (soundMode === 'sonar_wav') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(1850, now);
+      osc.frequency.setValueAtTime(1880, now + 0.24);
+      gain.gain.setValueAtTime(0.20, now);
+      gain.gain.exponentialRampToValueAtTime(0.02, now + 0.22);
+      gain.gain.setValueAtTime(0.11, now + 0.24);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.58);
+      osc.start(now);
+      osc.stop(now + 0.60);
     } else {
       osc.type = 'sine';
       osc.frequency.setValueAtTime(587.33, now);
       osc.frequency.exponentialRampToValueAtTime(880, now + 0.18);
-      gain.gain.setValueAtTime(0.12, now);
+      gain.gain.setValueAtTime(0.14, now);
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
       osc.start(now);
       osc.stop(now + 0.25);
     }
   } catch (e) {}
+}
+
+if (typeof window !== 'undefined') {
+  window.__KLEV_PLAY_SONAR_PING__ = playNotificationPing;
 }
 /**
  * Обновляет бейджи непрочитанных событий на нижней вкладке « Круг» и непрочитанных сообщений на вкладке « Чаты»
@@ -3583,11 +3701,12 @@ function saveOwnSharePackLocally(finalPack, showFeedbackToast = false) {
   }
   return item;
 }
-export async function pushEncryptedRelayPacket({ channelId, cipherPayload, kind = 'chat', regionGrid = '', crewKey = '', peerId = '' }, fromOutbox = false) {
+export async function pushEncryptedRelayPacket({ id = '', msgId = '', channelId, cipherPayload, kind = 'chat', regionGrid = '', crewKey = '', peerId = '' }, fromOutbox = false) {
   const ident = getCurrentFisherIdentity();
   if (!ident.isRegistered || ident.isTemporaryReserve) return false;
   const sNow = store.getState();
   const pktPayload = {
+    msgId: String(msgId || id || '').trim(),
     channelId: String(channelId || '').toUpperCase(),
     senderId: ident.fisherId,
     deviceId: ident.deviceId,
@@ -3711,6 +3830,16 @@ export async function pollEncryptedRelayPackets(manual = false) {
         if (msgObj && msgObj.kind === 'chat_msg_edit' && msgObj.targetMsgId && typeof msgObj.newText === 'string') {
           const curMsgs = store.getState().chatMessages || [];
           const nextMsgs = curMsgs.map(m => (m && m.id === msgObj.targetMsgId) ? { ...m, text: msgObj.newText, editedAt: msgObj.editedAt || Date.now() } : m);
+          storage.saveChatMessages(nextMsgs);
+          store.dispatch({ type: 'SET_CHAT_MESSAGES', payload: nextMsgs });
+          stateChanged = true;
+          const secChats = document.getElementById('secChats');
+          if (secChats && secChats.classList.contains('active')) renderChatsSection(secChats);
+          continue;
+        }
+        if (msgObj && msgObj.kind === 'chat_user_messages_purge' && msgObj.targetChannelId && msgObj.senderId) {
+          const curMsgs = store.getState().chatMessages || [];
+          const nextMsgs = curMsgs.filter(m => !(m && m.channelId === msgObj.targetChannelId && m.senderId === msgObj.senderId));
           storage.saveChatMessages(nextMsgs);
           store.dispatch({ type: 'SET_CHAT_MESSAGES', payload: nextMsgs });
           stateChanged = true;
@@ -3848,6 +3977,7 @@ export async function sendFishermanChatMessage({ channelId, text, crewKey = '', 
   const cipherPayload = encryptChatPayload(msgObj, encryptionKey);
   const relayBox = isCrew ? `CREW_${encryptionKey}` : `DM_${String(peerId || '').toUpperCase()}`;
   await pushEncryptedRelayPacket({
+    msgId: msgObj.id,
     channelId: relayBox,
     cipherPayload,
     kind: isCrew ? 'crew_chat' : 'dm_chat',
@@ -4565,6 +4695,12 @@ export function openShareModalForCurrentContext(initialMode = 'circle', override
     return;
   }
   if (!requireRegisteredFisherId('публикации точки в Круг / Экипаж / SOS')) return;
+  if (!isGeoDistributionConsentActive()) {
+    ensureGeoDistributionConsent('публикации точки и координат в сеть (Круг / Экипаж / SOS)', () => {
+      openShareModalForCurrentContext(initialMode, overrideCatch);
+    });
+    return;
+  }
   let currentMode = initialMode;
   let customNote = '';
   let isExpeditionMode = false;
@@ -4873,9 +5009,17 @@ export function openNotificationsModal(onBackToHub = null) {
             <input type="checkbox" data-notif-toggle="dm" ${prefs.dm !== false ? 'checked' : ''} style="flex-shrink:0;">
           </label>
           <label style="display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:pointer;padding-top:6px;border-top:1px dashed var(--border);">
-            <span style="min-width:0;line-height:1.3;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><polygon points="11,5 6,9 2,9 2,15 6,15 11,19" fill="rgba(56,189,248,0.24)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07M19.07 4.93a10 10 0 0 1 0 14.14" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/></svg> <b>Звуковой сигнал сонара и вибрация</b></span>
+            <span style="min-width:0;line-height:1.3;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><polygon points="11,5 6,9 2,9 2,15 6,15 11,19" fill="rgba(56,189,248,0.24)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07M19.07 4.93a10 10 0 0 1 0 14.14" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/></svg> <b>Звуковые оповещения и вибрация</b></span>
             <input type="checkbox" data-notif-toggle="sound" ${prefs.sound !== false ? 'checked' : ''} style="flex-shrink:0;">
           </label>
+          <div style="padding-top:6px;border-top:1px dashed var(--border);display:flex;flex-direction:column;gap:6px;">
+            <div style="font-size:11.5px;font-weight:800;color:var(--accent);">Тип звукового сигнала уведомлений:</div>
+            <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;">
+              <button type="button" class="btn btn-sm ${(prefs.soundMode || 'sonar_wav') === 'sonar_wav' ? 'btn-accent' : ''}" data-notif-sound-mode="sonar_wav" style="min-height:36px;font-weight:800;">Звук сонара (.WAV)</button>
+              <button type="button" class="btn btn-sm ${prefs.soundMode === 'system_beep' ? 'btn-accent' : ''}" data-notif-sound-mode="system_beep" style="min-height:36px;font-weight:800;">Системный сигнал</button>
+            </div>
+            <button type="button" class="btn btn-sm btn-good" id="notifTestSonarWavBtn" style="min-height:34px;font-weight:800;">Прослушать импульс сонара (sonar-ping.wav)</button>
+          </div>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
           <span style="font-weight:800;font-size:var(--fs-xs);color:var(--muted);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="9" y="9" width="11" height="11" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> ПОСЛЕДНИЕ СОБЫТИЯ И СИГНАЛЫ (${notifs.length}):</span>
@@ -4911,6 +5055,23 @@ export function openNotificationsModal(onBackToHub = null) {
         const targetUrl = btn.getAttribute('data-cloud-open-url');
         if (targetUrl) window.open(targetUrl, '_blank', 'noopener');
       });
+    });
+    bodyEl.querySelectorAll('[data-notif-sound-mode]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const mode = btn.getAttribute('data-notif-sound-mode') || 'sonar_wav';
+        store.dispatch({
+          type: 'UPDATE_USER_PROFILE',
+          payload: { notifSettings: { soundMode: mode, sound: true } }
+        });
+        storage.saveSettings(store.getState());
+        playNotificationPing('normal', mode);
+        showToast(mode === 'sonar_wav' ? 'Выбран звук сонара эхолота (sonar-ping.wav)' : 'Выбран стандартный системный сигнал', 'good');
+        renderNotifBody(bodyEl);
+      });
+    });
+    bodyEl.querySelector('#notifTestSonarWavBtn')?.addEventListener('click', () => {
+      playNotificationPing('normal', 'sonar_wav');
+      showToast('Воспроизведён акустический сигнал сонара (assets/audio/sonar-ping.wav)', 'info');
     });
     bodyEl.querySelectorAll('[data-notif-toggle]').forEach(chk => {
       chk.addEventListener('change', () => {
@@ -4963,6 +5124,149 @@ export function openNotificationsModal(onBackToHub = null) {
  * - Автокопирование ID рыбака (FP_89AAA001) в 1 касание
  * - Управление Базой Администраторов и резервное копирование (.json)
  */
+
+export async function checkAndEnforcePolicyVersionOnStartup() {
+  if (typeof window === 'undefined' || isAdminContourActive()) return;
+  let expectedPolicyVer = ACTIVE_POLICY_VERSION_DEFAULT;
+  let expectedAppVer = ACTIVE_APP_VERSION_DEFAULT;
+  try {
+    const r = await fetch('./policy-version.json?t=' + Date.now(), { cache: 'no-store' }).catch(() => null);
+    if (r && r.ok) {
+      const d = await r.json().catch(() => null);
+      if (d && d.policyVersion) expectedPolicyVer = String(d.policyVersion);
+      if (d && d.appVersion) expectedAppVer = String(d.appVersion);
+    }
+  } catch (e) {}
+  try {
+    const s = store.getState();
+    const fid = s?.userProfile?.fisherId || '';
+    const srvRes = await workerFetch(`/api/policy/status?fid=${encodeURIComponent(fid)}`, { method: 'GET' }, 3500, 0).catch(() => null);
+    if (srvRes && srvRes.ok) {
+      const srvData = await srvRes.json().catch(() => null);
+      if (srvData && srvData.policyVersion) expectedPolicyVer = String(srvData.policyVersion);
+      if (srvData && srvData.appVersion) expectedAppVer = String(srvData.appVersion);
+    }
+  } catch (e) {}
+  window.__KLEV_ACTIVE_POLICY_VERSION__ = expectedPolicyVer;
+  window.__KLEV_ACTIVE_APP_VERSION__ = expectedAppVer;
+  window.__KLEV_ON_POLICY_ACCEPTED__ = async ({ policyVersion, appVersion }) => {
+    try {
+      const sNow = store.getState();
+      const ident = getCurrentFisherIdentity(sNow);
+      await workerFetch('/api/policy/accept', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fisherId: ident.fisherId,
+          deviceId: ident.deviceId,
+          policyVersion: policyVersion || expectedPolicyVer,
+          appVersion: appVersion || expectedAppVer,
+          chkPrivacy: true,
+          chkTerms: true
+        })
+      }, 4000, 0);
+    } catch (e) {}
+  };
+  window.__KLEV_ON_GEO_CONSENT_CHANGED__ = async (granted) => {
+    if (granted) {
+      try {
+        const ident = getCurrentFisherIdentity(store.getState());
+        await workerFetch('/api/geo/consent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fisherId: ident.fisherId, deviceId: ident.deviceId })
+        }, 3500, 0);
+      } catch (e) {}
+    }
+  };
+  if (!isPolicyVersionAccepted(expectedPolicyVer, expectedAppVer)) {
+    setTimeout(() => {
+      openUserAgreementModal({ requireVerification: false });
+    }, 650);
+  }
+}
+
+export async function revokeGeoDistributionConsentAndPurge(onDone = null) {
+  const s = store.getState();
+  const ident = getCurrentFisherIdentity(s);
+  openConfirmDeleteModal({
+    title: 'Отозвать согласие и удалить все геоданные?',
+    message: 'Ваше согласие на распространение геолокации в сети Интернет будет отозвано. Все ранее опубликованные вами точки в «Круге», «Экипаже», «Слипах» и сообщения с координатами в чатах будут немедленно удалены с сервера и с карты.',
+    confirmLabel: 'Отозвать и удалить геоданные',
+    onConfirm: async () => {
+      setGeoDistributionConsentState(false);
+      const curItems = store.getState().circleItems || [];
+      const remainingItems = curItems.filter(it => !(it && (it.fid === ident.fisherId || it.did === ident.deviceId)));
+      storage.saveCircleItems(remainingItems);
+      store.dispatch({ type: 'SET_CIRCLE_ITEMS', payload: remainingItems });
+      const curMsgs = store.getState().chatMessages || [];
+      const remainingMsgs = curMsgs.filter(m => !(m && m.senderId === ident.fisherId && /Координаты:|МОЁ МЕСТОПОЛОЖЕНИЕ:|KP1_/i.test(String(m.text || ''))));
+      storage.saveChatMessages(remainingMsgs);
+      store.dispatch({ type: 'SET_CHAT_MESSAGES', payload: remainingMsgs });
+      try {
+        await workerFetch('/api/geo/revoke-consent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fisherId: ident.fisherId,
+            deviceId: ident.deviceId,
+            authTokenHash: s.userProfile?.authTokenHash || '',
+            adminToken: getActiveAdminToken(s)
+          })
+        }, 5000, 1);
+      } catch (e) {}
+      showToast('Согласие отозвано. Все ваши переданные геоданные и точки удалены из Круга и чатов.', 'good');
+      if (typeof onDone === 'function') onDone();
+    }
+  });
+}
+
+export function openDeleteUserAccountConfirmModal(onDone = null) {
+  const s = store.getState();
+  const ident = getCurrentFisherIdentity(s);
+  if (ident.isOwner) {
+    showToast('Учётная запись Владельца защищена от удаления', 'warn');
+    return;
+  }
+  openConfirmDeleteModal({
+    title: 'Удалить учётную запись (УЗ) и всю историю?',
+    message: `Вы действительно хотите полностью удалить учётную запись «${escapeHtml(ident.login || ident.fisherId)}» (${escapeHtml(ident.fisherId)})? Будут безвозвратно удалены: ваш постоянный ID, все точки Круга и Экипажей, все опубликованные уловы, все сообщения во всех региональных и личных чатах, а также привязка к Telegram.`,
+    confirmLabel: 'Удалить УЗ и очистить всё',
+    extraCheckboxLabel: 'Подтверждаю полное и безвозвратное удаление всех моих данных с сервера и устройства',
+    extraCheckboxDefault: true,
+    onConfirm: async () => {
+      try {
+        await workerFetch('/auth/delete-account', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fisherId: ident.fisherId,
+            deviceId: ident.deviceId,
+            authTokenHash: s.userProfile?.authTokenHash || ''
+          })
+        }, 6000, 1);
+      } catch (e) {}
+      setGeoDistributionConsentState(false);
+      const remCircle = (store.getState().circleItems || []).filter(it => !(it && (it.fid === ident.fisherId || it.did === ident.deviceId)));
+      storage.saveCircleItems(remCircle);
+      store.dispatch({ type: 'SET_CIRCLE_ITEMS', payload: remCircle });
+      const remChats = (store.getState().chatMessages || []).filter(m => !(m && (m.senderId === ident.fisherId || m.peerId === ident.fisherId)));
+      storage.saveChatMessages(remChats);
+      store.dispatch({ type: 'SET_CHAT_MESSAGES', payload: remChats });
+      storage.saveNotifications([]);
+      store.dispatch({ type: 'SET_NOTIFICATIONS', payload: [] });
+      const newTempId = logoutCurrentFisherAccount();
+      showToast(`Учётная запись ${ident.fisherId} и вся история (точки, чаты, Telegram) полностью удалены. Назначен гостевой ID ${newTempId}.`, 'good');
+      if (typeof onDone === 'function') onDone();
+    }
+  });
+}
+
+if (typeof window !== 'undefined') {
+  window.__KLEV_REVOKE_GEO_CONSENT__ = revokeGeoDistributionConsentAndPurge;
+  window.__KLEV_DELETE_ACCOUNT__ = openDeleteUserAccountConfirmModal;
+}
+
 export function openAuthAndBackupModal(onBackToHub = null) {
   const backFn = typeof onBackToHub === 'function'
     ? onBackToHub
@@ -5104,17 +5408,53 @@ export function openAuthAndBackupModal(onBackToHub = null) {
           </div>
           <button type="button" class="btn btn-sm" id="authOpenUserAgreementBtn"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" fill="rgba(56,189,248,0.14)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M14 2v6h6M8 13h8M8 17h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Прочитать</button>
         </div>
-        <!-- Резервное копирование файла профиля -->
-        <div class="card" style="background:var(--card);padding:10px 12px;border:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-          <span style="font-size:var(--fs-xs);font-weight:700;color:var(--muted);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" fill="rgba(16,185,129,0.2)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M17 21v-8H7v8M7 3v5h8" stroke="currentColor" stroke-width="1.7"/></svg> Локальная резервная копия (.JSON):</span>
-          <div style="display:flex;gap:6px;flex-wrap:wrap;">
-            <button type="button" class="btn btn-sm" id="backupExportBtn"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 15V3m0 0L8 7m4-4l4 4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg> Скачать бэкап</button>
-            <label class="btn btn-sm" style="cursor:pointer;margin:0;">
-              <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg> Восстановить
-              <input type="file" id="backupImportFileInput" accept=".json,application/json" style="display:none;">
+        <!-- Управление согласием на передачу геолокации в сеть (ст. 10.1 152-ФЗ) -->
+        <div class="card" style="background:var(--card);padding:10px 12px;border:1px solid ${isGeoDistributionConsentActive() ? 'var(--good)' : 'var(--border)'};display:flex;flex-direction:column;gap:8px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+            <div style="font-size:var(--fs-xs);font-weight:800;color:${isGeoDistributionConsentActive() ? 'var(--good)' : 'var(--accent)'};">
+              ${isGeoDistributionConsentActive() ? '[✓] Согласие на передачу геолокации в сеть активно' : '[ ] Согласие на передачу геолокации в сеть не выдано'}
+            </div>
+            <span class="pill ${isGeoDistributionConsentActive() ? 'pill-good' : 'pill-neutral'}" style="font-size:10px;">152-ФЗ ст. 10.1</span>
+          </div>
+          <div style="font-size:11px;color:var(--muted);line-height:1.38;">
+            Отзыв согласия немедленно удаляет все ранее переданные вами геоданные из «Круга», «Экипажей», «Слипов» и всех чатов.
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
+            <button type="button" class="btn btn-sm ${isGeoDistributionConsentActive() ? '' : 'btn-good'}" id="authGrantGeoConsentBtn" style="min-height:36px;font-weight:800;">
+              ${isGeoDistributionConsentActive() ? 'Согласие подтверждено' : 'Дать согласие'}
+            </button>
+            <button type="button" class="btn btn-sm" id="authRevokeGeoConsentBtn" style="min-height:36px;font-weight:800;color:var(--bad);border-color:rgba(239,68,68,0.45);">
+              Отозвать и удалить геоданные
+            </button>
+          </div>
+        </div>
+        <!-- Резервное копирование файла профиля (с фото уловов, слипами и маршрутами) -->
+        <div class="card" style="background:var(--card);padding:10px 12px;border:1px solid var(--border);display:flex;flex-direction:column;gap:8px;">
+          <div style="font-size:var(--fs-xs);font-weight:800;color:var(--accent);">
+            Полный архив данных (Журнал с фото + Слипы/Точки карты + Маршруты):
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
+            <button type="button" class="btn btn-sm btn-good" id="backupExportBtn" style="min-height:38px;font-weight:800;">Сохранить на устройство</button>
+            <label class="btn btn-sm btn-accent" style="cursor:pointer;margin:0;min-height:38px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;">
+              Загрузить с устройства
+              <input type="file" id="backupImportFileInput" accept=".json,application/json,*/*" style="display:none;">
             </label>
           </div>
         </div>
+        <!-- Полное удаление учётной записи («Удалить УЗ») -->
+        ${!ident.isOwner ? `
+          <div class="card" style="background:rgba(239,68,68,0.08);padding:10px 12px;border:1.5px solid rgba(239,68,68,0.45);display:flex;flex-direction:column;gap:6px;">
+            <div style="font-size:var(--fs-xs);font-weight:900;color:var(--bad);">
+              Удаление учётной записи («Удалить УЗ» — полная очистка истории):
+            </div>
+            <div style="font-size:11px;color:var(--muted);line-height:1.36;">
+              При удалении УЗ с сервера и устройства безвозвратно удаляются ваш ID, все точки Круга, уловы, сообщения во всех региональных и личных чатах и привязка к Telegram.
+            </div>
+            <button type="button" class="btn btn-sm" id="authDeleteAccountFullBtn" style="width:100%;min-height:38px;font-weight:900;background:#ef4444;border-color:#ef4444;color:#fff;">
+              Удалить УЗ (Очистить все точки, чаты и Telegram)
+            </button>
+          </div>
+        ` : ''}
       </div>
     `;
     bindSettingsZoneTabs(bodyEl);
@@ -5203,6 +5543,17 @@ export function openAuthAndBackupModal(onBackToHub = null) {
     bodyEl.querySelector('#authOpenUserAgreementBtn')?.addEventListener('click', () => {
       openUserAgreementModal({ requireVerification: false });
     });
+    bodyEl.querySelector('#authGrantGeoConsentBtn')?.addEventListener('click', () => {
+      ensureGeoDistributionConsent('передачи геоданных в Круг, Экипаж и Чаты', () => {
+        renderAuthBody(bodyEl);
+      });
+    });
+    bodyEl.querySelector('#authRevokeGeoConsentBtn')?.addEventListener('click', () => {
+      revokeGeoDistributionConsentAndPurge(() => renderAuthBody(bodyEl));
+    });
+    bodyEl.querySelector('#authDeleteAccountFullBtn')?.addEventListener('click', () => {
+      openDeleteUserAccountConfirmModal(() => renderAuthBody(bodyEl));
+    });
     bodyEl.querySelector('#authPickMapPointBtn')?.addEventListener('click', () => {
       _explicitMapPointChosenForReg = true;
       closeModal();
@@ -5228,13 +5579,18 @@ export function openAuthAndBackupModal(onBackToHub = null) {
       await copyFisherIdToClipboard(res.fisherId, res.isOwner ? 'Ваш ID Владельца' : 'Ваш постоянный ID рыбака');
       syncMobileGuestDomState(store.getState());
       if (res.isOwner) {
-        showToast(` Добро пожаловать, ${res.login}! Активированы ваши эксклюзивные ID (FP_89VIP089 & FP_FMP089) и вкладка «<svg class="k-ico" style="color:#fbbf24;" viewBox="0 0 24 24" fill="none"><path d="M3 18h18l-2-11-5 4-2-6-2 6-5-4-2 11z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Админ»!`, 'good');
+        showToast(`Добро пожаловать, ${res.login}! Консоль Супер-Админа активирована и сохранена.`, 'good');
+        closeModal();
+        router.navigate('admin');
+        renderAdminSection();
+        fetchSuperAdminDashboardData(true);
+        return;
       } else {
-        showToast(` Постоянный ID ${res.fisherId} закреплён за логином «${res.login}» на всех устройствах!`, 'good');
+        showToast(`Постоянный ID ${res.fisherId} закреплён за логином «${res.login}» на всех устройствах!`, 'good');
       }
       renderAuthBody(bodyEl);
       const guideAlreadySeen = typeof localStorage !== 'undefined' && localStorage.getItem(ONBOARDING_GUIDE_SEEN_KEY) === '1';
-      if (!guideAlreadySeen) {
+      if (!guideAlreadySeen && !isAdminContourActive()) {
         setTimeout(() => {
           openWelcomeOnboardingGuideModal(false);
         }, 220);
@@ -6518,18 +6874,80 @@ export function renderAdminSection(customContainer = null) {
   const s = store.getState();
   const ident = getCurrentFisherIdentity(s);
   if (!ident.isOwner) {
+    const savedCreds = getSavedAdminCredentials();
+    const prefLogin = savedCreds?.login || 'iAthor';
+    const prefPass = savedCreds?.password || '';
     container.innerHTML = `
-      <div class="card" style="border-color:var(--warn);text-align:center;padding:20px;">
-        <div style="font-size:var(--fs-md);font-weight:900;color:var(--warn);margin-bottom:6px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="5" y="11" width="14" height="10" rx="2.5" fill="rgba(251,191,36,0.22)" stroke="#fbbf24" stroke-width="1.8"/><path d="M8 11V7a4 4 0 0 1 8 0v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Раздел только для Супер-Админа (Владельца)</div>
-        <p style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:12px;">Войдите под эксклюзивным логином Владельца (iAthor / iAthor82) для доступа к серверной статистике и базе пользователей.</p>
-        <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
-          <button type="button" class="btn btn-accent" id="adminLockedSignInBtn"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="8" cy="15" r="4.5" fill="rgba(251,191,36,0.22)" stroke="#fbbf24" stroke-width="1.8"/><path d="M11.5 11.5L20 3m-3 3l2.5 2.5M14.5 8.5L17 11" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> Войти как Супер-Админ</button>
-          <button type="button" class="btn" id="adminLockedBackBtn">← Назад в приложение</button>
+      <div class="card" style="max-width:480px;margin:16px auto;border:2px solid var(--accent);padding:18px;display:flex;flex-direction:column;gap:12px;">
+        <div style="display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);padding-bottom:10px;">
+          <svg class="k-ico" style="color:#fbbf24;width:26px;height:26px;flex-shrink:0;" viewBox="0 0 24 24" fill="none"><path d="M3 18h18l-2-11-5 4-2-6-2 6-5-4-2 11z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg>
+          <div>
+            <div style="font-size:var(--fs-md);font-weight:900;color:var(--accent);">Вход в «Клёв ПРО Админ»</div>
+            <div style="font-size:11.5px;color:var(--muted);">Введите логин и мастер-пароль Владельца (сохраняются на устройстве)</div>
+          </div>
         </div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <label for="admDirectLoginInput" style="font-size:11.5px;font-weight:800;color:var(--muted);">ЛОГИН ВЛАДЕЛЬЦА:</label>
+          <input type="text" id="admDirectLoginInput" class="input" value="${escapeHtml(prefLogin)}" placeholder="iAthor" style="min-height:42px;font-weight:800;">
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <label for="admDirectPassInput" style="font-size:11.5px;font-weight:800;color:var(--muted);">СЕРВЕРНЫЙ МАСТЕР-ПАРОЛЬ (ADMIN_SECRET_PASSWORD):</label>
+          <input type="password" id="admDirectPassInput" class="input" value="${escapeHtml(prefPass)}" placeholder="Введите мастер-пароль..." style="min-height:42px;font-weight:800;">
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;padding:6px 8px;background:rgba(16,185,129,0.08);border:1px solid var(--border);border-radius:8px;">
+          <input type="checkbox" id="admDirectRememberChk" checked style="width:18px;height:18px;accent-color:#10b981;">
+          <span><b>Сохранить логин и пароль в памяти приложения</b> (вход без повторного запроса)</span>
+        </label>
+        <button type="button" class="btn btn-good" id="admDirectSignInSubmitBtn" style="width:100%;min-height:44px;font-size:14px;font-weight:900;justify-content:center;">
+          Войти в консоль Супер-Админа
+        </button>
       </div>
     `;
-    container.querySelector('#adminLockedSignInBtn')?.addEventListener('click', () => openAuthAndBackupModal());
-    container.querySelector('#adminLockedBackBtn')?.addEventListener('click', () => router.navigate('forecast'));
+    const doDirectSignIn = async () => {
+      const lVal = (container.querySelector('#admDirectLoginInput')?.value || 'iAthor').trim();
+      const pVal = (container.querySelector('#admDirectPassInput')?.value || '').trim();
+      const remChk = Boolean(container.querySelector('#admDirectRememberChk')?.checked);
+      const btn = container.querySelector('#admDirectSignInSubmitBtn');
+      if (!pVal || pVal.length < 4) {
+        showToast('Введите серверный мастер-пароль Владельца', 'warn');
+        return;
+      }
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Проверка на сервере...';
+      }
+      const res = await authenticateAndSyncAccount(lVal, pVal, 'login', '89');
+      if (!res.ok) {
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = 'Войти в консоль Супер-Админа';
+        }
+        showToast(res.error || 'Неверный мастер-пароль', 'bad');
+        return;
+      }
+      if (remChk) {
+        saveAdminCredentialsToStorage({
+          login: lVal,
+          password: pVal,
+          adminSessionToken: _serverAdminSessionToken || store.getState()?.userProfile?.adminSessionToken || ''
+        });
+      }
+      showToast('Вход выполнен! Данные входа сохранены.', 'good');
+      renderAdminSection(container);
+      fetchSuperAdminDashboardData(true);
+    };
+    container.querySelector('#admDirectSignInSubmitBtn')?.addEventListener('click', doDirectSignIn);
+    container.querySelector('#admDirectPassInput')?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        doDirectSignIn();
+      }
+    });
+    if (prefPass && prefPass.length >= 6 && !_authRequestInFlight) {
+      setTimeout(() => {
+        if (!isOwnerAdmin()) doDirectSignIn();
+      }, 150);
+    }
     return;
   }
   if ((!_adminDashboardCache || (Date.now() - _lastAdminDashboardFetchTs > 2500)) && !_adminDashboardLoading && !_dbNoVpnDiagRunning) {
@@ -6605,6 +7023,137 @@ export function renderAdminSection(customContainer = null) {
           </div>
         </div>
       </div>
+      <!-- Навигация по 4 профильным вкладкам «Клёв ПРО Админ» (Пункт 7.2) -->
+      <div class="card" style="padding:10px;background:var(--panel);border:1.5px solid var(--accent);">
+        <div style="font-size:11px;font-weight:900;color:var(--accent);text-transform:uppercase;margin-bottom:6px;">
+          Разделы администрирования (выберите вкладку):
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;">
+          <button type="button" class="btn btn-sm ${_activeAdminSubTab === 'dashboard' ? 'btn-accent' : ''}" data-adm-subtab-btn="dashboard" style="min-height:40px;font-weight:900;justify-content:center;">
+            1. Сервер, D1 и ИИ
+          </button>
+          <button type="button" class="btn btn-sm ${_activeAdminSubTab === 'users_beta' ? 'btn-accent' : ''}" data-adm-subtab-btn="users_beta" style="min-height:40px;font-weight:900;justify-content:center;">
+            2. Рыбаки и Бета-тест (${users.length})
+          </button>
+          <button type="button" class="btn btn-sm ${_activeAdminSubTab === 'moderation' ? 'btn-accent' : ''}" data-adm-subtab-btn="moderation" style="min-height:40px;font-weight:900;justify-content:center;">
+            3. Точки и Чаты (${srvPoints.length})
+          </button>
+          <button type="button" class="btn btn-sm ${_activeAdminSubTab === 'security_policy' ? 'btn-accent' : ''}" data-adm-subtab-btn="security_policy" style="min-height:40px;font-weight:900;justify-content:center;">
+            4. Щит ИБ и Политики
+          </button>
+        </div>
+      </div>
+
+      <!-- БЛОК УПРАВЛЕНИЯ БЕТА-ТЕСТЕРАМИ (ФАЗА 2 и ФАЗА 3) И ПОЛИТИКОЙ КОНФИДЕНЦИАЛЬНОСТИ -->
+      ${(() => {
+        const betaList = Array.isArray(db.betaTesters) ? db.betaTesters : [
+          { id: OWNER_BOUND_FISHER_ID, label: 'iAthor • Владелец (Супер-Админ)', addedAt: '2026-11-06' }
+        ];
+        const gateCfg = db.betaGateConfig || { phase2BetaOnly: true, phase3BetaOnly: true };
+        const polState = db.policyState || {
+          policyVersion: '2026.11.06-v2.6',
+          appVersion: '2.6.0',
+          summary: 'Обновление версии v2.6.0 (r220) и редакции Политики конфиденциальности (152-ФЗ / ст. 10.1 о передаче геолокации, удалении УЗ и маршрутах Фазы 3).'
+        };
+        const regChatsMap = db.regionalChats || {};
+        const regChatKeys = Object.keys(regChatsMap);
+
+        return `
+          <!-- Панель Бета-тестеров (видна во вкладке Рыбаки и Бета-тест или Все) -->
+          <div class="card" id="admBetaTestersManagerCard" style="display:${(_activeAdminSubTab === 'users_beta' || _activeAdminSubTab === 'dashboard') ? 'flex' : 'none'};flex-direction:column;gap:10px;border:1.5px solid var(--good);background:rgba(16,185,129,0.06);">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+              <div>
+                <div style="font-size:var(--fs-md);font-weight:900;color:var(--good);">
+                  Управление Бета-тестерами (Доступ к Фазе 2 и Фазе 3)
+                </div>
+                <div style="font-size:11.5px;color:var(--muted);">
+                  Укажите ID пользователя (например, <code>FP_89AAA001</code>), чтобы открыть ему доступ к новым функциям (Маршруты «Я потерялся» и Автономная связь) до вывода в массы
+                </div>
+              </div>
+              <span class="pill pill-good" style="font-size:11px;font-weight:900;">Бета-тестеров: ${betaList.length}</span>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:8px 10px;background:var(--panel);border:1px solid var(--border);border-radius:8px;font-size:11.5px;">
+              <div style="display:flex;flex-direction:column;gap:4px;">
+                <b>Режим Фазы 2 (Автономная связь):</b>
+                <button type="button" class="btn btn-sm ${gateCfg.phase2BetaOnly !== false ? 'btn-accent' : 'btn-good'}" id="admTogglePhase2GateBtn" style="min-height:34px;font-weight:800;">
+                  ${gateCfg.phase2BetaOnly !== false ? 'Только по Бета-тесту' : 'Открыто всем рыбакам'}
+                </button>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:4px;">
+                <b>Режим Фазы 3 (Маршруты • Я потерялся):</b>
+                <button type="button" class="btn btn-sm ${gateCfg.phase3BetaOnly !== false ? 'btn-accent' : 'btn-good'}" id="admTogglePhase3GateBtn" style="min-height:34px;font-weight:800;">
+                  ${gateCfg.phase3BetaOnly !== false ? 'Только по Бета-тесту' : 'Открыто всем рыбакам'}
+                </button>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:6px;align-items:center;">
+              <input type="text" id="admBetaAddFidInput" class="input" placeholder="ID рыбака (напр. FP_89AAA001)" style="min-height:38px;font-family:monospace;font-weight:800;">
+              <input type="text" id="admBetaAddLabelInput" class="input" placeholder="Имя / Примечание" style="min-height:38px;">
+              <button type="button" class="btn btn-good" id="admBetaAddConfirmBtn" style="min-height:38px;padding:0 14px;font-weight:900;">+ Назначить Бета</button>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:5px;max-height:180px;overflow-y:auto;">
+              ${betaList.map(bt => `
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 10px;background:var(--card);border:1px solid var(--border);border-radius:6px;font-size:12px;">
+                  <div>
+                    <b style="font-family:monospace;color:var(--good);">${escapeHtml(bt.id)}</b> — ${escapeHtml(bt.label || 'Бета-тестер')}
+                    <span style="font-size:10.5px;color:var(--muted);margin-left:6px;">(${escapeHtml(bt.addedAt || '')})</span>
+                  </div>
+                  ${!isOwnerFisherId(bt.id) ? `
+                    <button type="button" class="btn btn-sm" data-adm-remove-beta="${escapeHtml(bt.id)}" style="min-height:26px;padding:2px 8px;font-size:11px;color:var(--bad);border-color:rgba(239,68,68,0.4);">Снять Бета</button>
+                  ` : `<span class="pill pill-good" style="font-size:10px;">Владелец</span>`}
+                </div>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- Панель Модерации Региональных Чатов РФ (видна во вкладке Точки и Чаты) -->
+          <div class="card" id="admRegionalChatsModCard" style="display:${_activeAdminSubTab === 'moderation' ? 'flex' : 'none'};flex-direction:column;gap:10px;border:1.5px solid var(--accent);">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+              <div>
+                <div style="font-size:var(--fs-md);font-weight:900;color:var(--accent);">Модерация региональных чатов РФ</div>
+                <div style="font-size:11.5px;color:var(--muted);">Очистка спама и управление сообщениями в региональных каналах (REG-89 и др.)</div>
+              </div>
+              <span class="pill pill-accent" style="font-size:11px;">Активных каналов: ${regChatKeys.length}</span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr auto;gap:8px;">
+              <input type="text" id="admWipeRegCodeInput" class="input" placeholder="Код региона (например: 89 или REG-89)" value="REG-89" style="min-height:38px;font-family:monospace;font-weight:800;">
+              <button type="button" class="btn btn-sm" id="admWipeRegChatBtn" style="min-height:38px;padding:0 14px;font-weight:900;background:#ef4444;border-color:#ef4444;color:#fff;">
+                Очистить региональный чат на сервере
+              </button>
+            </div>
+          </div>
+
+          <!-- Панель управления версией Политики конфиденциальности (Пункт 1 — видна во вкладке Щит ИБ и Политики) -->
+          <div class="card" id="admPolicyVersionControlCard" style="display:${(_activeAdminSubTab === 'security_policy' || _activeAdminSubTab === 'dashboard') ? 'flex' : 'none'};flex-direction:column;gap:10px;border:1.5px solid var(--warn);">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+              <div>
+                <div style="font-size:var(--fs-md);font-weight:900;color:var(--warn);">
+                  Версия Политики конфиденциальности и Согласие пользователей (152-ФЗ)
+                </div>
+                <div style="font-size:11.5px;color:var(--muted);">
+                  При изменении номера редакции Политики ниже у всех пользователей на сайте и в APK автоматически запросится повторное согласие с чекбоксами
+                </div>
+              </div>
+              <span class="pill pill-warn" style="font-size:11px;font-weight:900;">Редакция: ${escapeHtml(polState.policyVersion || '2026.11.06-v2.6')}</span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+              <div>
+                <label style="font-size:11px;font-weight:800;color:var(--muted);">НОВАЯ ВЕРСИЯ ПОЛИТИКИ:</label>
+                <input type="text" id="admPolicyVerInput" class="input" value="${escapeHtml(polState.policyVersion || '2026.11.06-v2.6')}" style="min-height:38px;font-weight:800;">
+              </div>
+              <div>
+                <label style="font-size:11px;font-weight:800;color:var(--muted);">ВЕРСИЯ ПРИЛОЖЕНИЯ:</label>
+                <input type="text" id="admPolicyAppVerInput" class="input" value="${escapeHtml(polState.appVersion || '2.6.0')}" style="min-height:38px;font-weight:800;">
+              </div>
+            </div>
+            <input type="text" id="admPolicySummaryInput" class="input" value="${escapeHtml(polState.summary || '')}" placeholder="Краткое описание изменений в политике..." style="min-height:38px;">
+            <button type="button" class="btn btn-good" id="admPublishPolicyVerBtn" style="min-height:40px;font-weight:900;">
+              Опубликовать редакцию Политики и запросить согласие у всех пользователей
+            </button>
+          </div>
+        `;
+      })()}
+
       <!-- 1b. Статус привязки Cloudflare D1 SQL Базы Данных -->
       ${(db.d1Status === 'CONNECTED' && (!_lastDbNoVpnDiagReport || _lastDbNoVpnDiagReport.workingCount > 0)) ? `
         <div class="card" style="border:1.5px solid var(--good);background:rgba(16,185,129,0.12);padding:10px 14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
@@ -7265,6 +7814,129 @@ export function renderAdminSection(customContainer = null) {
 }
 function bindAdminSectionEvents(container, users) {
   if (!container) return;
+  container.querySelectorAll('[data-adm-subtab-btn]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      _activeAdminSubTab = btn.getAttribute('data-adm-subtab-btn') || 'dashboard';
+      renderAdminSection(container);
+    });
+  });
+  container.querySelector('#admBetaAddConfirmBtn')?.addEventListener('click', async () => {
+    const rawFid = (container.querySelector('#admBetaAddFidInput')?.value || '').trim().toUpperCase();
+    const rawLbl = (container.querySelector('#admBetaAddLabelInput')?.value || '').trim() || 'Бета-тестер';
+    if (!rawFid) {
+      showToast('Введите ID пользователя (например: FP_89AAA001)', 'warn');
+      return;
+    }
+    const normFid = normalizeFisherId(rawFid, resolveRussianRegionCode());
+    const tok = getActiveAdminToken();
+    try {
+      const res = await workerFetch('/api/admin/beta-testers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminToken: tok, action: 'add', fisherId: normFid, label: rawLbl })
+      }, 5500, 1);
+      if (res && res.ok) {
+        const d = await res.json();
+        if (!_adminDashboardCache) _adminDashboardCache = {};
+        if (d.betaTesters) _adminDashboardCache.betaTesters = d.betaTesters;
+        showToast(`Пользователь ${normFid} наделён правами Бета-тестера (Фаза 2 и 3 открыты)`, 'good');
+        renderAdminSection(container);
+        return;
+      }
+    } catch (e) {}
+    showToast('Ошибка связи с сервером при добавлении Бета-тестера', 'bad');
+  });
+  container.querySelectorAll('[data-adm-remove-beta]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const fid = btn.getAttribute('data-adm-remove-beta');
+      if (!fid) return;
+      const tok = getActiveAdminToken();
+      try {
+        const res = await workerFetch('/api/admin/beta-testers', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ adminToken: tok, action: 'remove', fisherId: fid })
+        }, 5500, 1);
+        if (res && res.ok) {
+          const d = await res.json();
+          if (_adminDashboardCache && d.betaTesters) _adminDashboardCache.betaTesters = d.betaTesters;
+          showToast(`Права Бета-тестера сняты с ${fid}`, 'info');
+          renderAdminSection(container);
+        }
+      } catch (e) {}
+    });
+  });
+  const togglePhaseGate = async (phaseNum) => {
+    const curCfg = _adminDashboardCache?.betaGateConfig || { phase2BetaOnly: true, phase3BetaOnly: true };
+    const nextCfg = {
+      ...curCfg,
+      [phaseNum === 2 ? 'phase2BetaOnly' : 'phase3BetaOnly']: !(phaseNum === 2 ? curCfg.phase2BetaOnly !== false : curCfg.phase3BetaOnly !== false)
+    };
+    const tok = getActiveAdminToken();
+    try {
+      const res = await workerFetch('/api/admin/beta-testers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminToken: tok, action: 'set_gate', ...nextCfg })
+      }, 5500, 1);
+      if (res && res.ok) {
+        const d = await res.json();
+        if (!_adminDashboardCache) _adminDashboardCache = {};
+        if (d.betaGateConfig) _adminDashboardCache.betaGateConfig = d.betaGateConfig;
+        showToast(`Режим доступа к Фазе ${phaseNum} обновлён на сервере`, 'good');
+        renderAdminSection(container);
+      }
+    } catch (e) {}
+  };
+  container.querySelector('#admTogglePhase2GateBtn')?.addEventListener('click', () => togglePhaseGate(2));
+  container.querySelector('#admTogglePhase3GateBtn')?.addEventListener('click', () => togglePhaseGate(3));
+  container.querySelector('#admWipeRegChatBtn')?.addEventListener('click', async () => {
+    const rawCode = (container.querySelector('#admWipeRegCodeInput')?.value || 'REG-89').trim().toUpperCase();
+    const cleanKey = rawCode.startsWith('REG-') ? rawCode : `REG-${rawCode.replace(/[^0-9]/g, '') || '89'}`;
+    const chanId = `crew:${cleanKey}`;
+    const tok = getActiveAdminToken();
+    try {
+      const res = await workerFetch('/api/relay/delete-channel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          viewerFid: OWNER_BOUND_FISHER_ID,
+          adminToken: tok,
+          channelId: chanId,
+          scope: 'all',
+          wipeAll: true
+        })
+      }, 5500, 1);
+      if (res && res.ok) {
+        showToast(`Региональный чат ${cleanKey} полностью очищен на сервере D1`, 'good');
+        fetchSuperAdminDashboardData(false);
+      }
+    } catch (e) {}
+  });
+  container.querySelector('#admPublishPolicyVerBtn')?.addEventListener('click', async () => {
+    const pVer = (container.querySelector('#admPolicyVerInput')?.value || '').trim();
+    const aVer = (container.querySelector('#admPolicyAppVerInput')?.value || '').trim();
+    const pSum = (container.querySelector('#admPolicySummaryInput')?.value || '').trim();
+    if (!pVer) {
+      showToast('Укажите версию редакции Политики', 'warn');
+      return;
+    }
+    const tok = getActiveAdminToken();
+    try {
+      const res = await workerFetch('/api/admin/policy-update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminToken: tok, policyVersion: pVer, appVersion: aVer, summary: pSum })
+      }, 5500, 1);
+      if (res && res.ok) {
+        const d = await res.json();
+        if (!_adminDashboardCache) _adminDashboardCache = {};
+        if (d.policyState) _adminDashboardCache.policyState = d.policyState;
+        showToast(`Опубликована Политика ${pVer}. У всех пользователей будет запрошено согласие с чекбоксами.`, 'good');
+        renderAdminSection(container);
+      }
+    } catch (e) {}
+  });
   container.querySelector('#admCloseBackToAppBtn')?.addEventListener('click', () => {
     router.navigate('forecast');
   });
@@ -7782,7 +8454,49 @@ function bindAdminSectionEvents(container, users) {
 function executeChatChannelDeletion(targetChanId, targetTitle, scope, container) {
   const now = Date.now();
   const isRegional = /^crew:REG-/i.test(targetChanId);
-  const effectiveScope = isRegional ? 'self' : (scope === 'all' ? 'all' : 'self');
+  const identNow = getCurrentFisherIdentity();
+  const effectiveScope = scope;
+  if (isRegional && (scope === 'mine_exit' || scope === 'mine_stay' || (scope === 'all' && identNow.isOwner))) {
+    const cKey = targetChanId.replace(/^crew:/i, '').toUpperCase();
+    const sNow = store.getState();
+    const wipeAllAdmin = Boolean(scope === 'all' && identNow.isOwner);
+    const ctrlPurge = {
+      id: `ctrl_reg_purge_${now.toString(36)}`,
+      kind: wipeAllAdmin ? 'chat_chan_wipe' : 'chat_user_messages_purge',
+      targetChannelId: targetChanId,
+      senderId: identNow.fisherId,
+      ts: now
+    };
+    pushEncryptedRelayPacket({
+      channelId: `CREW_${cKey}`,
+      cipherPayload: encryptChatPayload(ctrlPurge, cKey),
+      kind: 'crew_chat',
+      crewKey: cKey
+    }).catch(() => {});
+    workerFetch('/api/relay/delete-channel', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        viewerFid: identNow.fisherId,
+        deviceId: identNow.deviceId,
+        authTokenHash: sNow?.userProfile?.authTokenHash || '',
+        adminToken: getActiveAdminToken(sNow),
+        channelId: targetChanId,
+        scope: wipeAllAdmin ? 'all' : 'mine',
+        deleteMyMessages: true,
+        wipeAll: wipeAllAdmin
+      })
+    }, 5000, 1).catch(() => {});
+    if (scope === 'mine_stay') {
+      const curMsgs = store.getState().chatMessages || [];
+      const kept = curMsgs.filter(m => !(m && m.channelId === targetChanId && m.senderId === identNow.fisherId));
+      storage.saveChatMessages(kept);
+      store.dispatch({ type: 'SET_CHAT_MESSAGES', payload: kept });
+      showToast('Все ваши сообщения удалены из регионального чата у всех участников', 'good');
+      renderChatsSection(container);
+      return;
+    }
+  }
   const allMsgs = store.getState().chatMessages || [];
   const ident = getCurrentFisherIdentity();
   const peerIdsToPurge = new Set();
@@ -7876,15 +8590,29 @@ function deleteChatChannelWithConfirm(targetChanId, targetTitle, container) {
   if (!targetChanId) return;
   const isRegional = /^crew:REG-/i.test(targetChanId);
   const cleanTitle = escapeHtml(String(targetTitle || targetChanId).replace(/<[^>]+>/g, '').trim());
+  const identConfirm = getCurrentFisherIdentity();
   const html = isRegional ? `
-    <div style="display:flex;flex-direction:column;gap:12px;font-size:var(--fs-sm);line-height:1.45;">
-      <div style="padding:10px 12px;background:rgba(245,158,11,0.12);border:1px solid var(--warn);border-radius:var(--r-sm);color:var(--text);">
-        <b>Региональный чат «${cleanTitle}»</b> является общим каналом региона РФ.<br>
-        Его можно удалить (скрыть) <b>только для себя</b> на этом устройстве. Вся история переписки в региональном чате остаётся на сервере навечно.
+    <div style="display:flex;flex-direction:column;gap:10px;font-size:var(--fs-sm);line-height:1.45;">
+      <div style="padding:10px 12px;background:rgba(56,189,248,0.10);border:1px solid var(--accent);border-radius:var(--r-sm);color:var(--text);">
+        <b>Управление региональным чатом «${cleanTitle}»</b>:<br>
+        Вы можете удалить все свои сообщения из этого регионального чата (как при выходе из чата, так и оставаясь в нём) либо просто скрыть чат на своём устройстве.
       </div>
-      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
-        <button type="button" class="btn btn-sm" id="confirmDeleteChatSelfBtn" style="min-height:40px;font-weight:900;background:#ef4444;border-color:#ef4444;color:#fff;">Удалить только у меня</button>
-        <button type="button" class="btn btn-sm" id="cancelDeleteChatScopeBtn" style="min-height:40px;font-weight:800;">Отмена</button>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <button type="button" class="btn btn-sm" id="confirmRegExitAndPurgeMineBtn" style="min-height:40px;font-weight:900;background:#ef4444;border-color:#ef4444;color:#fff;">
+          Выйти из чата и удалить все мои сообщения (у всех)
+        </button>
+        <button type="button" class="btn btn-sm btn-accent" id="confirmRegPurgeMineStayBtn" style="min-height:40px;font-weight:800;">
+          Удалить все мои сообщения (остаться в чате)
+        </button>
+        <button type="button" class="btn btn-sm" id="confirmDeleteChatSelfBtn" style="min-height:38px;font-weight:800;">
+          Выйти (скрыть чат только на моём устройстве)
+        </button>
+        ${identConfirm.isOwner ? `
+          <button type="button" class="btn btn-sm" id="confirmDeleteChatAllBtn" style="min-height:38px;font-weight:900;border-color:var(--warn);color:var(--warn);">
+            Очистить весь региональный чат у всех (Супер-Админ)
+          </button>
+        ` : ''}
+        <button type="button" class="btn btn-sm" id="cancelDeleteChatScopeBtn" style="min-height:38px;font-weight:800;">Отмена</button>
       </div>
     </div>
   ` : `
@@ -7900,6 +8628,14 @@ function deleteChatChannelWithConfirm(targetChanId, targetTitle, container) {
     </div>
   `;
   openModal(isRegional ? 'Удаление регионального чата (только у себя)' : 'Удалить чат: у меня или у всех?', html, (bodyEl) => {
+    bodyEl.querySelector('#confirmRegExitAndPurgeMineBtn')?.addEventListener('click', () => {
+      closeModal();
+      executeChatChannelDeletion(targetChanId, targetTitle, 'mine_exit', container);
+    });
+    bodyEl.querySelector('#confirmRegPurgeMineStayBtn')?.addEventListener('click', () => {
+      closeModal();
+      executeChatChannelDeletion(targetChanId, targetTitle, 'mine_stay', container);
+    });
     bodyEl.querySelector('#confirmDeleteChatSelfBtn')?.addEventListener('click', () => {
       closeModal();
       executeChatChannelDeletion(targetChanId, targetTitle, 'self', container);
@@ -7920,7 +8656,7 @@ function openDeleteChatMessageModal(msgId, container) {
   const allMsgs = Array.isArray(s.chatMessages) ? s.chatMessages : [];
   const targetMsg = allMsgs.find(m => m && m.id === msgId);
   if (!targetMsg) return;
-  const isMe = targetMsg.senderId === ident.fisherId;
+  const isMe = targetMsg.senderId === ident.fisherId || ident.isOwner;
   const snippet = escapeHtml(String(targetMsg.text || '').replace(/<[^>]+>/g, '').trim().slice(0, 90));
   const html = isMe ? `
     <div style="display:flex;flex-direction:column;gap:12px;font-size:var(--fs-sm);line-height:1.45;">
@@ -7976,6 +8712,19 @@ function openDeleteChatMessageModal(msgId, container) {
           crewKey: isCrew ? encKey : '',
           peerId: !isCrew ? String(targetMsg.peerId || '').toUpperCase() : ''
         }).catch(() => {});
+        const sNow = store.getState();
+        workerFetch('/api/relay/delete-message', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            viewerFid: ident.fisherId,
+            deviceId: ident.deviceId,
+            authTokenHash: sNow?.userProfile?.authTokenHash || '',
+            adminToken: getActiveAdminToken(sNow),
+            channelId: chanId,
+            targetMsgId: msgId
+          })
+        }, 4500, 1).catch(() => {});
       }
       closeModal();
       showToast(scopeAll && isMe ? 'Сообщение удалено у всех участников' : 'Сообщение удалено у вас', 'info');
@@ -8070,6 +8819,12 @@ function bindChatViewEvents(container) {
   container.querySelector('#chatShareLocationBtn')?.addEventListener('click', async () => {
     if (!requireRegisteredFisherId('отправки местоположения в чат')) return;
     if (!activeChatChannelId) return;
+    if (!isGeoDistributionConsentActive()) {
+      ensureGeoDistributionConsent('отправки вашей геопозиции в чат', () => {
+        container.querySelector('#chatShareLocationBtn')?.click();
+      });
+      return;
+    }
     const s = store.getState();
     const isCrew = activeChatChannelId.startsWith('crew:');
     const sharePack = createSharePackFromContext(isCrew ? 'crew' : 'circle', 'Моя текущая точка на водоёме');

@@ -11,9 +11,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Клёв ПРО 2.0">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>Клёв ПРО Админ — Закрытая консоль управления</title>
+  <title>Клёв ПРО 2.0 — Прогноз клёва рыбы по часам, Офлайн-карты и Календарь рыболова РФ</title>
   <meta name="description" content="Почасовой прогноз клёва 115 видов рыб на 491 водоёме России. Офлайн-карты рек и глубин без интернета, подбор снастей, календарь нереста и журнал уловов.">
-  <meta name="robots" content="noindex, nofollow, noarchive">
+  <meta name="robots" content="index, follow, max-image-preview:large">
   <link rel="canonical" href="https://klevpro.ru/">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Клёв ПРО 2.0">
@@ -57,7 +57,7 @@
   <link id="dynamicFavicon" rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=2.5.6-r215">
   <link id="dynamicTouchIcon" rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=2.5.6-r215">
   <script>
-    window.__KLEV_ADMIN_CONTOUR__ = true;
+    window.__KLEV_ADMIN_CONTOUR__ = true; window.__KLEV_ADMIN_APK__ = true;
     (function() {
       try {
         var raw = localStorage.getItem('klev_pro_state_v2.0');
@@ -820,13 +820,28 @@
 <body>
   <div id="appSplashScreen" class="app-splash-screen" role="status" aria-label="Загрузка Клёв ПРО 2.0">
     <div class="app-splash-inner">
-      <div class="app-splash-art-wrap" id="appSplashArtWrap">
-        <img id="appSplashImg" src="assets/splash.jpg" alt="Клёв ПРО 2.0 • FISH PRO 2.0" class="app-splash-img">
+      <div class="app-splash-art-wrap" id="appSplashArtWrap" style="position:relative;">
+        <img id="appSplashImg" src="assets/splash.jpg" alt="Клёв ПРО 2.0 • FISH PRO 2.0" class="app-splash-img" onerror="this.style.opacity='0'">
+        <!-- Интерактивный гидролокационный радар-оверлей сонара -->
+        <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;background:radial-gradient(circle at 50% 45%, rgba(14,165,233,0.16) 0%, rgba(4,9,20,0.68) 78%);padding:20px;text-align:center;">
+          <div style="width:136px;height:136px;border-radius:50%;border:1.5px solid rgba(56,189,248,0.45);display:flex;align-items:center;justify-content:center;position:relative;box-shadow:0 0 36px rgba(14,165,233,0.28), inset 0 0 24px rgba(16,185,129,0.22);margin-bottom:14px;">
+            <div style="position:absolute;inset:16px;border-radius:50%;border:1px dashed rgba(16,185,129,0.45);"></div>
+            <div style="position:absolute;inset:36px;border-radius:50%;border:1px solid rgba(56,189,248,0.35);"></div>
+            <svg viewBox="0 0 64 64" style="width:62px;height:62px;" fill="none">
+              <path d="M10 34c8-11 22-11 35-2 5-4 9-5 11-5-2 5-2 9 0 14-2 0-6-1-11-5-13 9-27 9-35-2z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="2.4" stroke-linejoin="round"/>
+              <circle cx="38" cy="31" r="2.2" fill="#10b981"/>
+              <path d="M18 48c6-3 12-3 18 0s12 3 18 0" stroke="#10b981" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div style="font-size:22px;font-weight:900;letter-spacing:0.6px;color:#f8fafc;text-shadow:0 2px 12px rgba(0,0,0,0.85);">КЛЁВ ПРО АДМИН</div>
+          <div style="font-size:11.5px;font-weight:800;color:#38bdf8;letter-spacing:0.4px;margin-top:3px;">КОНСОЛЬ СУПЕР-АДМИНА • СЕРВЕР D1 • БЕТА-ТЕСТ • ИБ</div>
+          <div style="margin-top:6px;padding:2px 10px;border-radius:999px;background:rgba(16,185,129,0.18);border:1px solid rgba(16,185,129,0.5);color:#10b981;font-size:10.5px;font-weight:900;">Версия 2.6.0 (r220)</div>
+        </div>
       </div>
       <div class="app-splash-loader" id="appSplashLoader">
         <div class="app-splash-hud-row">
           <span class="app-splash-stage" id="appSplashSubText">Инициализация гео-ядра и карт водоёмов РФ...</span>
-          <span class="app-splash-pct" id="appSplashPctText">8%</span>
+          <span class="app-splash-pct" id="appSplashPctText">12%</span>
         </div>
         <div class="app-splash-bar"><div class="app-splash-bar-fill" id="appSplashBarFill"></div></div>
       </div>
@@ -911,36 +926,30 @@
     </div>
 
     <!-- Полноценные 3D-кнопки верхней панели с векторными SVG-значками и необрезаемыми подписями -->
-    <div class="top-section-nav" id="topSectionNavBar" role="tablist" aria-label="Разделы аналитики и настроек">
-      <button type="button" class="top-nav-item" data-nav-tab="weather" id="topNavWeatherBtn" role="tab">
-        <span class="top-nav-ico" id="topNavWeatherIco">
-          <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 16c2-1.8 4-1.8 6 0s4 1.8 6 0 4-1.8 6 0M2 20c2-1.8 4-1.8 6 0s4 1.8 6 0 4-1.8 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/><path d="M12 3v9M8 7h8M9.2 4.5l5.6 5M14.8 4.5l-5.6 5" stroke="#7dd3fc" stroke-width="1.8" stroke-linecap="round"/></svg>
-        </span>
-        <span class="top-nav-lbl" id="topNavWeatherLbl">Погода</span>
-      </button>
-      <button type="button" class="top-nav-item" data-nav-tab="fish" role="tab">
-        <span class="top-nav-ico">
-          <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 12s4-6 11-6c4.2 0 7 2.5 9 6-2 3.5-4.8 6-9 6-7 0-11-6-11-6z" fill="rgba(56,189,248,0.35)" stroke="#38bdf8" stroke-width="1.8" stroke-linejoin="round"/><path d="M2 12l-1.5-3.5L5 10.5M2 12l-1.5 3.5L5 13.5" stroke="#38bdf8" stroke-width="1.6" stroke-linecap="round"/><circle cx="16.5" cy="10.8" r="1.3" fill="#fff"/></svg>
-        </span>
-        <span class="top-nav-lbl">Рыбы</span>
-      </button>
-      <button type="button" class="top-nav-item" data-nav-tab="calendar" role="tab">
-        <span class="top-nav-ico">
-          <svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="3" fill="rgba(239,68,68,0.22)" stroke="#f87171" stroke-width="1.8"/><path d="M3 10h18M8 3v4M16 3v4" stroke="#f87171" stroke-width="1.8" stroke-linecap="round"/><text x="12" y="18" text-anchor="middle" fill="currentColor" font-size="8.5" font-weight="900">17</text></svg>
-        </span>
-        <span class="top-nav-lbl">Календарь</span>
-      </button>
-      <button type="button" class="top-nav-item" id="topNavSettingsBtn" data-settings-zone="app" aria-label="Настройки приложения, калибровка и APK">
-        <span class="top-nav-ico">
-          <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3.2" stroke="#94a3b8" stroke-width="2"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.6.77 1.05 1.41 1.19H21a2 2 0 1 1 0 4h-.09c-.64.14-1.15.59-1.51 1.21z" fill="rgba(148,163,184,0.22)" stroke="#cbd5e1" stroke-width="1.6"/></svg>
-        </span>
-        <span class="top-nav-lbl">Настройки</span>
-      </button>
-      <button type="button" class="top-nav-item" data-nav-tab="admin" id="topNavAdminBtn" role="tab">
+    <div class="top-section-nav" id="topSectionNavBar" data-has-admin="1" role="tablist" aria-label="Разделы администрирования">
+      <button type="button" class="top-nav-item active" data-adm-workspace-tab="dashboard" id="topNavAdminBtn" role="tab">
         <span class="top-nav-ico">
           <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M3 18h18l-2-11-5 4-2-6-2 6-5-4-2 11z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.7" stroke-linejoin="round"/></svg>
         </span>
-        <span class="top-nav-lbl">Админ</span>
+        <span class="top-nav-lbl">1. Сервер</span>
+      </button>
+      <button type="button" class="top-nav-item" data-adm-workspace-tab="users_beta" role="tab">
+        <span class="top-nav-ico">
+          <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3.5" fill="rgba(16,185,129,0.25)" stroke="#10b981" stroke-width="1.8"/><path d="M3 19c0-3.2 2.7-5.5 6-5.5s6 2.3 6 5.5" stroke="#10b981" stroke-width="1.8" stroke-linecap="round"/><path d="M16 11l2 2 4-4" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/></svg>
+        </span>
+        <span class="top-nav-lbl">2. Бета·УЗ</span>
+      </button>
+      <button type="button" class="top-nav-item" data-adm-workspace-tab="moderation" role="tab">
+        <span class="top-nav-ico">
+          <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.22)" stroke="#38bdf8" stroke-width="1.8" stroke-linejoin="round"/></svg>
+        </span>
+        <span class="top-nav-lbl">3. Чаты·Круг</span>
+      </button>
+      <button type="button" class="top-nav-item" data-adm-workspace-tab="security_policy" role="tab">
+        <span class="top-nav-ico">
+          <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2.5l7 3.2v5.8c0 5-3 9.3-7 10.8-4-1.5-7-5.8-7-10.8V5.7l7-3.2z" fill="rgba(56,189,248,0.22)" stroke="#38bdf8" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 12l2 2 4-4" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+        <span class="top-nav-lbl">4. Щит·152ФЗ</span>
       </button>
     </div>
   </header>
@@ -959,12 +968,18 @@
     <section id="secGeo" data-route-section="geo" aria-label="Геолокация и выбор водоёма"></section>
     <section id="secWeather" data-route-section="weather" aria-label="Погода, состояние воды и фазы Луны"></section>
     <section id="secFish" data-route-section="fish" aria-label="Рыбы в месте ловли"></section>
-    <section id="secForecast" data-route-section="forecast" aria-label="Прогноз клёва и архив"></section>
+    <section id="secForecast" data-route-section="forecast" aria-label="Прогноз клёва и архив">
+      <article class="card" style="padding:14px;line-height:1.5;">
+        <h1 style="font-size:18px;font-weight:900;margin:0 0 8px;">Клёв ПРО 2.0 — Почасовой прогноз клёва рыбы, офлайн-карты водоёмов и календарь рыболова России</h1>
+        <p style="margin:0 0 8px;font-size:13px;color:var(--muted);">Научный 8-факторный расчёт активности 115 видов пресноводных и морских рыб на 491 водоёме в 8 рыбохозяйственных бассейнах РФ: Обь-Тазовский (ЯНАО, ХМАО), Волжско-Каспийский, Северо-Западный (Карелия, Ладога, Онега), Баренцево-Беломорский, Азово-Черноморский, Байкало-Ангарский, Енисейско-Ленский и Дальневосточный.</p>
+        <p style="margin:0;font-size:12.5px;color:var(--muted);">Почасовой график клёва (щука, окунь, судак, налим, карась, плотва, лещ, карп, сазан, хариус, пелядь, чир, сиг-пыжьян, муксун, форель, таймень, корюшка, навага, треска, камбала), комбинированные офлайн-карты (обзор Z7–Z13 по радиусу 50/120 км и детализация Z14–Z18 вдоль рек и точек), подбор снастей и годовой био-календарь нереста.</p>
+      </article>
+    </section>
     <section id="secCircle" data-route-section="circle" aria-label="Круг и Экипаж 72ч"></section>
     <section id="secChats" data-route-section="chats" aria-label="Чаты рыбаков и экипажей"></section>
     <section id="secLog" data-route-section="log" aria-label="Журнал уловов"></section>
     <section id="secCalendar" data-route-section="calendar" aria-label="Годовой биоритм и нерест"></section>
-    <section id="secAdmin" data-route-section="admin" aria-label="Панель Супер-Админа и Статистика БД"></section>
+    <section id="secAdmin" data-route-section="admin" aria-label="Консоль Супер-Админа"></section>
     <noscript>
       <article style="max-width:960px;margin:16px auto;padding:16px;background:#0f172a;color:#e2e8f0;border-radius:12px;font-family:system-ui,sans-serif;line-height:1.5;">
         <h1>Клёв ПРО 2.0 — Почасовой прогноз клёва рыбы, офлайн-карты водоёмов и календарь рыболова России</h1>
@@ -988,36 +1003,32 @@
   </main>
 
   <!-- Нижний стеклянный 3D-док «Быстрый доступ» (по Фото 2, с векторными SVG-значками без эмодзи) -->
-  <nav class="bottom-nav" aria-label="Быстрый доступ">
-    <div class="quick-dock-tab-label">Быстрый доступ</div>
+  <nav class="bottom-nav" aria-label="Панель администратора">
+    <div class="quick-dock-tab-label">Консоль управления «Клёв ПРО Админ»</div>
     <div class="bottom-nav-inner">
-      <button type="button" class="nav-tab" data-nav-tab="geo" aria-label="Карта водоёмов">
+      <button type="button" class="nav-tab active" data-adm-workspace-tab="dashboard" aria-label="Сервер и D1">
         <span class="dock-ico">
-          <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3V6z" fill="rgba(56,189,248,0.28)" stroke="#38bdf8" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 3v15M15 6v15" stroke="#38bdf8" stroke-width="1.5"/></svg>
+          <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M3 18h18l-2-11-5 4-2-6-2 6-5-4-2 11z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.7" stroke-linejoin="round"/></svg>
         </span>
-        <span>Карта</span>
+        <span>Сервер·D1</span>
       </button>
-      <button type="button" class="nav-tab" data-nav-tab="chats" id="navCircleChatsHubBtn" aria-label="Чаты, Круг и Экипажи">
+      <button type="button" class="nav-tab" data-adm-workspace-tab="users_beta" aria-label="Рыбаки и Бета-тест">
         <span class="dock-ico">
-          <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M13 7L9 3 5 7l4 4M17 11l4 4-4 4-4-4" fill="rgba(56,189,248,0.25)" stroke="#94a3b8" stroke-width="1.8" stroke-linejoin="round"/><rect x="8.5" y="8.5" width="7" height="7" rx="1.5" transform="rotate(-45 12 12)" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.5"/><path d="M4 20a6 6 0 0 1 6-6" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/></svg>
+          <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3.5" fill="rgba(16,185,129,0.25)" stroke="#10b981" stroke-width="1.8"/><path d="M3 19c0-3.2 2.7-5.5 6-5.5s6 2.3 6 5.5" stroke="#10b981" stroke-width="1.8" stroke-linecap="round"/><path d="M16 11l2 2 4-4" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/></svg>
         </span>
-        <span>Чаты·Круг</span>
+        <span>Бета·УЗ</span>
       </button>
-      <button type="button" class="nav-tab active" data-nav-tab="forecast" id="navForecastMainBtn" aria-label="Главный экран Прогноз клёва">
+      <button type="button" class="nav-tab" data-adm-workspace-tab="moderation" aria-label="Точки и Чаты">
         <span class="dock-ico">
-          <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="#38bdf8" stroke-width="2.1" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#94a3b8" stroke-width="1.7" stroke-linecap="round"/><circle cx="14" cy="16" r="2.4" fill="#10b981"/></svg>
+          <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.22)" stroke="#38bdf8" stroke-width="1.8" stroke-linejoin="round"/></svg>
         </span>
-        <span>Прогноз</span>
+        <span>Точки·Чаты</span>
       </button>
-      <button type="button" class="nav-tab nav-sos-btn" id="bottomQuickSosBtn" aria-label="Экстренный сигнал SOS на воде">
-        <span class="sos-red-circle">SOS</span>
-        <span class="sos-lbl-text">SOS</span>
-      </button>
-      <button type="button" class="nav-tab" data-nav-tab="log" aria-label="Журнал уловов">
+      <button type="button" class="nav-tab" data-adm-workspace-tab="security_policy" aria-label="Щит ИБ и Политики">
         <span class="dock-ico">
-          <svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="5" y="3" width="14" height="18" rx="2.5" fill="rgba(148,163,184,0.24)" stroke="#cbd5e1" stroke-width="1.8"/><path d="M9 7h6M9 11h6M9 15h4M3 7h2M3 12h2M3 17h2" stroke="#cbd5e1" stroke-width="1.8" stroke-linecap="round"/></svg>
+          <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2.5l7 3.2v5.8c0 5-3 9.3-7 10.8-4-1.5-7-5.8-7-10.8V5.7l7-3.2z" fill="rgba(56,189,248,0.22)" stroke="#38bdf8" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 12l2 2 4-4" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </span>
-        <span>Журнал</span>
+        <span>Щит·152ФЗ</span>
       </button>
     </div>
   </nav>

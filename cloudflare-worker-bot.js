@@ -1,7 +1,7 @@
 // @file bot/cloudflare-worker-bot.js — @KlevProClubBot (V.2.1.1)
 // Компактная сборка для Cloudflare Workers (115 рыб, 491 водоём, 609 городов РФ + Triple-Engine $0 DB + E2EE Relay + Обмен точками Круга/Экипажа/SOS + Уникальные Региональные ID FP_89AAA001 & Эксклюзивный VIP ID владельца FP_89VIP089 + Секретная Серверная Консоль Супер-Админа)
 
-const WORKER_VERSION = '2.5.6';
+const WORKER_VERSION = '2.6.0';
 const RESERVE_ID_TTL_MS = 24 * 60 * 60 * 1000; // Временный резервный ID живёт строго не более 24 часов (суток)
 const deletedFisherIdsSet = new Set(); // Удалённые вручную через Админ-панель ID (защита от повторной фоновой вставки)
 const rateBuckets = new Map();
@@ -5698,10 +5698,41 @@ async function recordGeminiRequestUsed(env = null, keySlotIndexOrKey = 0, source
  }
 }
 
+
+const betaTestersStore = new Map([
+ [OWNER_FISHER_ID, { id: OWNER_FISHER_ID, label: 'iAthor • Владелец (Супер-Админ)', addedAt: '2026-11-06', phase2: true, phase3: true }],
+ [OWNER_SECONDARY_ID, { id: OWNER_SECONDARY_ID, label: 'iAthor • Резервный ID Владельца', addedAt: '2026-11-06', phase2: true, phase3: true }]
+]);
+const betaGateConfig = {
+ phase2BetaOnly: true,
+ phase3BetaOnly: true
+};
+const policyStateStore = {
+ policyVersion: '2026.11.06-v2.6',
+ appVersion: '2.6.0',
+ appRevision: 'r220',
+ updatedAt: '2026-11-06T12:00:00Z',
+ summary: 'Обновление версии v2.6.0 (r220) и редакции Политики конфиденциальности (152-ФЗ / ст. 10.1 о передаче геолокации, удалении УЗ и маршрутах Фазы 3).'
+};
+const userConsentsStore = new Map();
+
+function isUserBetaTesterOnServer(fid = '') {
+ const norm = String(fid || '').trim().toUpperCase();
+ if (!norm) return false;
+ if (isOwnerFisherId(norm)) return true;
+ if (betaTestersStore.has(norm)) return true;
+ const u = usersRegistryStore.get(norm);
+ return Boolean(u && u.isBetaTester);
+}
+
 function serializeFullServerState() {
  purgeExpiredServerCirclePoints();
  return JSON.stringify({
   v: WORKER_VERSION,
+  betaTesters: Array.from(betaTestersStore.values()),
+  betaGateConfig: { ...betaGateConfig },
+  policyState: { ...policyStateStore },
+  userConsents: Object.fromEntries(Array.from(userConsentsStore.entries()).slice(-5000)),
   ts: Date.now(),
   counters: Object.fromEntries(regionSequenceCounters.entries()),
   reserveCounters: Object.fromEntries(regionReserveCounters.entries()),
@@ -5853,6 +5884,34 @@ function applyLoadedSysMeta(parsed) {
   }
  }
  adminWhitelistStore.set(OWNER_FISHER_ID, { id: OWNER_FISHER_ID, label: "iAthor • Антон (Владелец / Супер-Админ)", addedAt: "2026-10-27" });
+ if (Array.isArray(parsed.betaTesters)) {
+  for (const bt of parsed.betaTesters) {
+   if (bt && bt.id) {
+    const bid = String(bt.id).trim().toUpperCase();
+    betaTestersStore.set(bid, { ...bt, id: bid });
+    const exU = usersRegistryStore.get(bid);
+    if (exU) usersRegistryStore.set(bid, { ...exU, isBetaTester: true });
+   }
+  }
+ }
+ if (parsed.betaGateConfig && typeof parsed.betaGateConfig === 'object') {
+  if (typeof parsed.betaGateConfig.phase2BetaOnly === 'boolean') betaGateConfig.phase2BetaOnly = parsed.betaGateConfig.phase2BetaOnly;
+  if (typeof parsed.betaGateConfig.phase3BetaOnly === 'boolean') betaGateConfig.phase3BetaOnly = parsed.betaGateConfig.phase3BetaOnly;
+ }
+ if (parsed.policyState && typeof parsed.policyState === 'object') {
+  if (parsed.policyState.policyVersion) policyStateStore.policyVersion = String(parsed.policyState.policyVersion);
+  if (parsed.policyState.appVersion) policyStateStore.appVersion = String(parsed.policyState.appVersion);
+  if (parsed.policyState.appRevision) policyStateStore.appRevision = String(parsed.policyState.appRevision);
+  if (parsed.policyState.updatedAt) policyStateStore.updatedAt = String(parsed.policyState.updatedAt);
+  if (parsed.policyState.summary) policyStateStore.summary = String(parsed.policyState.summary);
+ }
+ if (parsed.userConsents && typeof parsed.userConsents === 'object') {
+  for (const [cfid, cobj] of Object.entries(parsed.userConsents)) {
+   if (cfid && cobj && typeof cobj === 'object') {
+    userConsentsStore.set(String(cfid).toUpperCase(), cobj);
+   }
+  }
+ }
 }
 
 
@@ -7048,6 +7107,15 @@ export default {
     users: allUsersArr,
     points: allPointsArr,
     whitelist: Array.from(adminWhitelistStore.values()),
+    betaTesters: Array.from(betaTestersStore.values()),
+    betaGateConfig: { ...betaGateConfig },
+    policyState: { ...policyStateStore },
+    userConsents: Object.fromEntries(Array.from(userConsentsStore.entries()).slice(-500)),
+    regionalChats: Object.fromEntries(
+     Array.from(transitBoxes.entries())
+      .filter(([k]) => k.startsWith('CREW_REG-'))
+      .map(([k, arr]) => [k.replace(/^CREW_/, ''), (arr || []).slice(-60)])
+    ),
     counters: Object.fromEntries(regionSequenceCounters.entries()),
     reserveCounters: Object.fromEntries(regionReserveCounters.entries()),
     aiQuota: getGeminiQuotaStatus(env, true),
@@ -8206,6 +8274,405 @@ function generateSyntheticWeatherJson(lat, lon) {
    });
   }
 
+
+  if ((reqUrl.pathname.endsWith('/policy-version.json') || reqUrl.pathname.endsWith('/api/policy/status')) && request.method === 'GET') {
+   await ensurePersistentStateLoaded(env);
+   const qFid = workerNormalizeFisherId(reqUrl.searchParams.get('fid') || '', '89');
+   const uConsent = qFid ? (userConsentsStore.get(qFid) || null) : null;
+   const isCurrentAccepted = Boolean(
+    uConsent &&
+    uConsent.policyVersion === policyStateStore.policyVersion &&
+    uConsent.appVersion === policyStateStore.appVersion &&
+    uConsent.chkPrivacy &&
+    uConsent.chkTerms
+   );
+   return new Response(JSON.stringify({
+    ok: true,
+    ...policyStateStore,
+    userConsent: uConsent,
+    isCurrentAccepted
+   }), {
+    headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
+   });
+  }
+
+  if (reqUrl.pathname.endsWith('/api/policy/accept') && request.method === 'POST') {
+   try {
+    await ensurePersistentStateLoaded(env);
+    const body = await readWorkerRequestPayload(request, reqUrl);
+    const fid = workerNormalizeFisherId(body.fisherId || '', '89') || String(body.fisherId || '').trim().toUpperCase();
+    const chkPrivacy = Boolean(body.chkPrivacy);
+    const chkTerms = Boolean(body.chkTerms);
+    if (!chkPrivacy || !chkTerms) {
+     return new Response(JSON.stringify({ ok: false, error: 'Необходимо отметить все обязательные чекбоксы согласия' }), {
+      status: 400,
+      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
+     });
+    }
+    const prev = fid ? (userConsentsStore.get(fid) || {}) : {};
+    const record = {
+     ...prev,
+     fisherId: fid || 'GUEST',
+     deviceId: String(body.deviceId || '').trim(),
+     policyVersion: String(body.policyVersion || policyStateStore.policyVersion),
+     appVersion: String(body.appVersion || policyStateStore.appVersion),
+     chkPrivacy: true,
+     chkTerms: true,
+     acceptedAt: Date.now()
+    };
+    if (fid) {
+     userConsentsStore.set(fid, record);
+     const exU = usersRegistryStore.get(fid);
+     if (exU) {
+      usersRegistryStore.set(fid, {
+       ...exU,
+       policyVersion: record.policyVersion,
+       policyAcceptedAt: record.acceptedAt
+      });
+     }
+    }
+    await persistSystemMeta(env, ctx);
+    return new Response(JSON.stringify({ ok: true, consent: record, policyState: policyStateStore }), {
+     headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
+    });
+   } catch (e) {
+    return new Response(JSON.stringify({ ok: false, error: 'Invalid payload' }), { status: 400, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
+   }
+  }
+
+  if (reqUrl.pathname.endsWith('/api/admin/policy-update') && request.method === 'POST') {
+   try {
+    await ensurePersistentStateLoaded(env);
+    const body = await readWorkerRequestPayload(request, reqUrl);
+    const tok = extractAdminTokenFromRequest(request, reqUrl, body);
+    if (!isValidOwnerAdminToken(tok, env)) {
+     return new Response(JSON.stringify({ ok: false, error: 'Forbidden' }), { status: 403, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
+    }
+    if (body.policyVersion) policyStateStore.policyVersion = String(body.policyVersion).trim().slice(0, 64);
+    if (body.appVersion) policyStateStore.appVersion = String(body.appVersion).trim().slice(0, 32);
+    if (body.appRevision) policyStateStore.appRevision = String(body.appRevision).trim().slice(0, 32);
+    if (body.summary) policyStateStore.summary = String(body.summary).trim().slice(0, 500);
+    policyStateStore.updatedAt = new Date().toISOString();
+    await persistSystemMeta(env, ctx);
+    return new Response(JSON.stringify({ ok: true, policyState: policyStateStore }), {
+     headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
+    });
+   } catch (e) {
+    return new Response(JSON.stringify({ ok: false, error: 'Bad request' }), { status: 400, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
+   }
+  }
+
+  if (reqUrl.pathname.endsWith('/api/geo/consent') && request.method === 'POST') {
+   try {
+    await ensurePersistentStateLoaded(env);
+    const body = await readWorkerRequestPayload(request, reqUrl);
+    const fid = workerNormalizeFisherId(body.fisherId || '', '89') || String(body.fisherId || '').trim().toUpperCase();
+    if (!fid) {
+     return new Response(JSON.stringify({ ok: false, error: 'Missing fisherId' }), { status: 400, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
+    }
+    const prev = userConsentsStore.get(fid) || {};
+    const next = {
+     ...prev,
+     fisherId: fid,
+     geoConsent: true,
+     geoConsentAt: Date.now(),
+     geoRevokedAt: null
+    };
+    userConsentsStore.set(fid, next);
+    const exU = usersRegistryStore.get(fid);
+    if (exU) {
+     usersRegistryStore.set(fid, { ...exU, geoConsent: true, geoConsentAt: next.geoConsentAt });
+    }
+    await persistSystemMeta(env, ctx);
+    return new Response(JSON.stringify({ ok: true, geoConsent: true, geoConsentAt: next.geoConsentAt }), {
+     headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
+    });
+   } catch (e) {
+    return new Response(JSON.stringify({ ok: false, error: 'Bad request' }), { status: 400, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
+   }
+  }
+
+  if (reqUrl.pathname.endsWith('/api/geo/revoke-consent') && request.method === 'POST') {
+   try {
+    await ensurePersistentStateLoaded(env);
+    const body = await readWorkerRequestPayload(request, reqUrl);
+    const viewerFid = workerNormalizeFisherId(body.fisherId || body.viewerFid || '', '89');
+    const devId = String(body.deviceId || '').trim();
+    const authTok = String(body.authTokenHash || '').trim();
+    const admTok = extractAdminTokenFromRequest(request, reqUrl, body);
+    const authRes = await verifyUserAuth(env, {
+     fid: viewerFid,
+     authTokenHash: authTok,
+     deviceId: devId,
+     adminToken: admTok,
+     request
+    });
+    if (!authRes.ok && !authRes.isAdmin) {
+     return new Response(JSON.stringify({ ok: false, error: 'Forbidden' }), { status: 403, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
+    }
+    const prev = userConsentsStore.get(viewerFid) || {};
+    userConsentsStore.set(viewerFid, {
+     ...prev,
+     fisherId: viewerFid,
+     geoConsent: false,
+     geoRevokedAt: Date.now()
+    });
+    const exU = usersRegistryStore.get(viewerFid);
+    if (exU) {
+     usersRegistryStore.set(viewerFid, { ...exU, geoConsent: false, geoRevokedAt: Date.now(), lat: null, lon: null });
+    }
+    let purgedPoints = 0;
+    for (const [ptId, ptObj] of circlePointsStore.entries()) {
+     if (ptObj && (ptObj.fid === viewerFid || (devId && ptObj.did === devId))) {
+      circlePointsStore.delete(ptId);
+      purgedPoints++;
+     }
+    }
+    let purgedMsgs = 0;
+    for (const [bKey, bArr] of transitBoxes.entries()) {
+     if (Array.isArray(bArr)) {
+      const before = bArr.length;
+      const filtered = bArr.filter(p => !(p && p.senderId === viewerFid));
+      purgedMsgs += Math.max(0, before - filtered.length);
+      if (filtered.length === 0) transitBoxes.delete(bKey);
+      else transitBoxes.set(bKey, filtered);
+     }
+    }
+    const d1 = getD1(env)?.db;
+    if (d1) {
+     await d1.prepare('DELETE FROM circle_points WHERE fid = ?').bind(viewerFid).run().catch(() => {});
+     await d1.prepare('DELETE FROM transit_relay WHERE sender_id = ?').bind(viewerFid).run().catch(() => {});
+    }
+    await persistSystemMeta(env, ctx);
+    return new Response(JSON.stringify({
+     ok: true,
+     geoConsent: false,
+     revokedFisherId: viewerFid,
+     purgedPoints,
+     purgedMsgs
+    }), {
+     headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
+    });
+   } catch (e) {
+    return new Response(JSON.stringify({ ok: false, error: 'Bad request' }), { status: 400, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
+   }
+  }
+
+  if (reqUrl.pathname.endsWith('/auth/delete-account') && request.method === 'POST') {
+   try {
+    await ensurePersistentStateLoaded(env);
+    const body = await readWorkerRequestPayload(request, reqUrl);
+    const targetFid = workerNormalizeFisherId(body.fisherId || body.viewerFid || '', '89') || String(body.fisherId || '').trim().toUpperCase();
+    const devId = String(body.deviceId || '').trim();
+    const authTok = String(body.authTokenHash || '').trim();
+    const admTok = extractAdminTokenFromRequest(request, reqUrl, body);
+    if (!targetFid || isOwnerFisherId(targetFid)) {
+     return new Response(JSON.stringify({ ok: false, error: 'Учётная запись Владельца защищена от удаления' }), { status: 400, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
+    }
+    const authRes = await verifyUserAuth(env, {
+     fid: targetFid,
+     authTokenHash: authTok,
+     deviceId: devId,
+     adminToken: admTok,
+     request
+    });
+    if (!authRes.ok && !authRes.isAdmin) {
+     return new Response(JSON.stringify({ ok: false, error: 'Недостаточно прав для удаления учётной записи' }), { status: 403, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
+    }
+    deletedFisherIdsSet.add(targetFid);
+    userConsentsStore.delete(targetFid);
+    betaTestersStore.delete(targetFid);
+    const exUser = usersRegistryStore.get(targetFid);
+    const exLoginNorm = exUser?.login ? workerNormalizeLogin(exUser.login) : '';
+    usersRegistryStore.delete(targetFid);
+    reservedVanityIds.delete(targetFid);
+    if (exUser) {
+     if (exUser.deviceId) deviceToFisherIdMap.delete(exUser.deviceId);
+     if (exUser.tgId) tgToFisherIdMap.delete(String(exUser.tgId));
+    }
+    for (const [devK, devFid] of deviceToFisherIdMap.entries()) {
+     if (devFid === targetFid) deviceToFisherIdMap.delete(devK);
+    }
+    for (const [tgK, tgFid] of tgToFisherIdMap.entries()) {
+     if (tgFid === targetFid) tgToFisherIdMap.delete(tgK);
+    }
+    const mappedAuthKey = fisherIdToAuthKeyMap.get(targetFid);
+    if (mappedAuthKey) cloudAuthProfiles.delete(mappedAuthKey);
+    fisherIdToAuthKeyMap.delete(targetFid);
+    const loginsToDelete = new Set();
+    if (exLoginNorm) loginsToDelete.add(exLoginNorm);
+    for (const [aKey, prof] of cloudAuthProfiles.entries()) {
+     if (!prof) continue;
+     const pFid = workerNormalizeFisherId(prof.fisherId || '', '89');
+     const pLogin = workerNormalizeLogin(prof.login || '');
+     if (pFid === targetFid || (exLoginNorm && pLogin === exLoginNorm)) {
+      cloudAuthProfiles.delete(aKey);
+      if (pLogin) loginsToDelete.add(pLogin);
+     }
+    }
+    for (const ln of loginsToDelete) {
+     const ak = loginToAuthKeyMap.get(ln);
+     if (ak) cloudAuthProfiles.delete(ak);
+     loginToAuthKeyMap.delete(ln);
+    }
+    let purgedMessagesCount = 0;
+    for (const [bKey, bArr] of transitBoxes.entries()) {
+     if (bKey === `DM_${targetFid}`) {
+      purgedMessagesCount += Array.isArray(bArr) ? bArr.length : 0;
+      transitBoxes.delete(bKey);
+      continue;
+     }
+     if (Array.isArray(bArr)) {
+      const before = bArr.length;
+      const filtered = bArr.filter(p => p && p.senderId !== targetFid && p.peerId !== targetFid);
+      purgedMessagesCount += Math.max(0, before - filtered.length);
+      if (filtered.length === 0) transitBoxes.delete(bKey);
+      else transitBoxes.set(bKey, filtered);
+     }
+    }
+    let purgedPointsCount = 0;
+    for (const [ptId, ptObj] of circlePointsStore.entries()) {
+     if (ptObj && (ptObj.fid === targetFid || (devId && ptObj.did === devId))) {
+      circlePointsStore.delete(ptId);
+      purgedPointsCount++;
+     }
+    }
+    const d1 = getD1(env)?.db;
+    if (d1) {
+     await d1.prepare('DELETE FROM users_registry WHERE fisher_id = ?').bind(targetFid).run().catch(() => {});
+     await d1.prepare('DELETE FROM auth_profiles WHERE fisher_id = ?').bind(targetFid).run().catch(() => {});
+     for (const ln of loginsToDelete) {
+      await d1.prepare('DELETE FROM auth_profiles WHERE login_norm = ?').bind(ln).run().catch(() => {});
+     }
+     await d1.prepare('DELETE FROM circle_points WHERE fid = ?').bind(targetFid).run().catch(() => {});
+     await d1.prepare('DELETE FROM transit_relay WHERE sender_id = ? OR peer_id = ? OR channel_id = ?').bind(targetFid, targetFid, `DM_${targetFid}`).run().catch(() => {});
+    }
+    await persistSystemMeta(env, ctx);
+    return new Response(JSON.stringify({
+     ok: true,
+     deletedFisherId: targetFid,
+     purgedPointsCount,
+     purgedMessagesCount,
+     purgedTgBindings: true
+    }), {
+     headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
+    });
+   } catch (e) {
+    return new Response(JSON.stringify({ ok: false, error: 'Bad request' }), { status: 400, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
+   }
+  }
+
+  if (reqUrl.pathname.endsWith('/api/relay/delete-message') && request.method === 'POST') {
+   try {
+    await ensurePersistentStateLoaded(env);
+    const body = await readWorkerRequestPayload(request, reqUrl);
+    const viewerFid = workerNormalizeFisherId(body.viewerFid || '', '89');
+    const devId = String(body.deviceId || '').trim();
+    const authTok = String(body.authTokenHash || '').trim();
+    const admTok = extractAdminTokenFromRequest(request, reqUrl, body);
+    const targetMsgId = String(body.targetMsgId || '').trim();
+    const chanId = String(body.channelId || '').trim();
+    const authRes = await verifyUserAuth(env, {
+     fid: viewerFid,
+     authTokenHash: authTok,
+     deviceId: devId,
+     adminToken: admTok,
+     request
+    });
+    if (!authRes.ok && !authRes.isAdmin) {
+     return new Response(JSON.stringify({ ok: false, error: 'Forbidden' }), { status: 403, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
+    }
+    let deletedCount = 0;
+    for (const [bKey, bArr] of transitBoxes.entries()) {
+     if (!Array.isArray(bArr)) continue;
+     const before = bArr.length;
+     const filtered = bArr.filter(p => {
+      if (!p) return false;
+      if (p.id === targetMsgId || p.targetMsgId === targetMsgId) {
+       if (authRes.isAdmin || p.senderId === viewerFid) return false;
+      }
+      return true;
+     });
+     if (filtered.length !== before) {
+      deletedCount += (before - filtered.length);
+      transitBoxes.set(bKey, filtered);
+     }
+    }
+    const d1 = getD1(env)?.db;
+    if (d1 && targetMsgId) {
+     if (authRes.isAdmin) {
+      await d1.prepare('DELETE FROM transit_relay WHERE id = ?').bind(targetMsgId).run().catch(() => {});
+     } else {
+      await d1.prepare('DELETE FROM transit_relay WHERE id = ? AND sender_id = ?').bind(targetMsgId, viewerFid).run().catch(() => {});
+     }
+    }
+    await persistSystemMeta(env, ctx);
+    return new Response(JSON.stringify({ ok: true, targetMsgId, deletedCount, channelId: chanId }), {
+     headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
+    });
+   } catch (e) {
+    return new Response(JSON.stringify({ ok: false, error: 'Bad request' }), { status: 400, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
+   }
+  }
+
+  if (reqUrl.pathname.endsWith('/api/beta/status') && request.method === 'GET') {
+   await ensurePersistentStateLoaded(env);
+   const qFid = workerNormalizeFisherId(reqUrl.searchParams.get('fid') || '', '89') || String(reqUrl.searchParams.get('fid') || '').trim().toUpperCase();
+   const isBeta = isUserBetaTesterOnServer(qFid);
+   return new Response(JSON.stringify({
+    ok: true,
+    fisherId: qFid,
+    isBetaTester: isBeta,
+    betaGateConfig: { ...betaGateConfig },
+    betaTestersCount: betaTestersStore.size
+   }), {
+    headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
+   });
+  }
+
+  if (reqUrl.pathname.endsWith('/api/admin/beta-testers') && (request.method === 'POST' || request.method === 'GET')) {
+   await ensurePersistentStateLoaded(env);
+   let body = {};
+   if (request.method === 'POST') {
+    try { body = await readWorkerRequestPayload(request, reqUrl); } catch (e) {}
+   }
+   const tok = extractAdminTokenFromRequest(request, reqUrl, body);
+   if (!isValidOwnerAdminToken(tok, env)) {
+    return new Response(JSON.stringify({ ok: false, error: 'Forbidden' }), { status: 403, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
+   }
+   if (request.method === 'POST') {
+    const act = String(body.action || 'add').toLowerCase();
+    const targetFid = workerNormalizeFisherId(body.fisherId || '', '89') || String(body.fisherId || '').trim().toUpperCase();
+    if (act === 'add' && targetFid) {
+     const exU = usersRegistryStore.get(targetFid);
+     const label = String(body.label || exU?.callsign || exU?.login || 'Бета-тестер').trim();
+     betaTestersStore.set(targetFid, {
+      id: targetFid,
+      label,
+      addedAt: new Date().toISOString().slice(0, 10),
+      phase2: body.phase2 !== false,
+      phase3: body.phase3 !== false
+     });
+     if (exU) usersRegistryStore.set(targetFid, { ...exU, isBetaTester: true });
+    } else if (act === 'remove' && targetFid && !isOwnerFisherId(targetFid)) {
+     betaTestersStore.delete(targetFid);
+     const exU = usersRegistryStore.get(targetFid);
+     if (exU) usersRegistryStore.set(targetFid, { ...exU, isBetaTester: false });
+    } else if (act === 'set_gate') {
+     if (typeof body.phase2BetaOnly === 'boolean') betaGateConfig.phase2BetaOnly = body.phase2BetaOnly;
+     if (typeof body.phase3BetaOnly === 'boolean') betaGateConfig.phase3BetaOnly = body.phase3BetaOnly;
+    }
+    await persistSystemMeta(env, ctx);
+   }
+   return new Response(JSON.stringify({
+    ok: true,
+    betaTesters: Array.from(betaTestersStore.values()),
+    betaGateConfig: { ...betaGateConfig }
+   }), {
+    headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
+   });
+  }
+
   if (reqUrl.pathname.endsWith('/api/relay/delete-channel') && (request.method === 'POST' || reqUrl.searchParams.has('payload'))) {
    try {
     await ensurePersistentStateLoaded(env);
@@ -8232,7 +8699,35 @@ function generateSyntheticWeatherJson(lat, lon) {
      const cKey = chanId.replace(/^crew:/i, '').toUpperCase();
      const boxKey = `CREW_${cKey}`;
      if (cKey.startsWith('REG-')) {
-      return new Response(JSON.stringify({ ok: true, regionalEternal: true, deletedChannel: chanId, scope: 'self' }), {
+      if (authRes.isAdmin && body.wipeAll === true) {
+       transitBoxes.delete(boxKey);
+       if (d1) {
+        await d1.prepare('DELETE FROM transit_relay WHERE channel_id = ? OR crew_key = ?').bind(boxKey, cKey).run().catch(() => {});
+       }
+       await persistSystemMeta(env, ctx);
+       return new Response(JSON.stringify({ ok: true, deletedChannel: chanId, scope: 'all_admin' }), {
+        headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
+       });
+      }
+      if (body.scope === 'mine' || body.deleteMyMessages === true || body.wipeAll === true) {
+       const existingArr = transitBoxes.get(boxKey) || [];
+       const beforeLen = existingArr.length;
+       const filtered = existingArr.filter(p => p && p.senderId !== viewerFid);
+       transitBoxes.set(boxKey, filtered);
+       if (d1 && viewerFid) {
+        await d1.prepare('DELETE FROM transit_relay WHERE (channel_id = ? OR crew_key = ?) AND sender_id = ?').bind(boxKey, cKey, viewerFid).run().catch(() => {});
+       }
+       await persistSystemMeta(env, ctx);
+       return new Response(JSON.stringify({
+        ok: true,
+        deletedChannel: chanId,
+        scope: 'mine',
+        purgedCount: Math.max(0, beforeLen - filtered.length)
+       }), {
+        headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
+       });
+      }
+      return new Response(JSON.stringify({ ok: true, deletedChannel: chanId, scope: 'self' }), {
        headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
       });
      }
@@ -8300,9 +8795,10 @@ function generateSyntheticWeatherJson(lat, lon) {
    await ensurePersistentStateLoaded(env);
    cleanupTransitBoxes();
    const body = await readWorkerRequestPayload(request, reqUrl);
-   const channelId = String(body.channelId || '').trim().toUpperCase().replace(/[^A-Z0-9_:-]/g, '').slice(0, 64);
-   const cipherPayload = String(body.cipherPayload || '').trim().slice(0, 8192);
-   const senderFid = workerNormalizeFisherId(body.senderId || '', '89');
+   const pktIn = (body.packet && typeof body.packet === 'object') ? body.packet : body;
+   const channelId = String(body.channelId || pktIn.channelId || '').trim().toUpperCase().replace(/[^A-Z0-9_:-]/g, '').slice(0, 64);
+   const cipherPayload = String(body.cipherPayload || pktIn.cipherPayload || pktIn.cipher || '').trim().slice(0, 8192);
+   const senderFid = workerNormalizeFisherId(body.senderId || pktIn.senderId || '', '89');
    if (!channelId || !cipherPayload || !senderFid || isTemporaryReserveId(senderFid)) {
     return new Response(JSON.stringify({ ok: false, code: 'REGISTRATION_REQUIRED', error: 'Сначала зарегистрируйтесь для отправки сообщений' }), { status: 403, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
    }
@@ -8320,8 +8816,9 @@ function generateSyntheticWeatherJson(lat, lon) {
    if (isDuplicateRecentAction(dedupRelayKey, 4000)) {
     return new Response(JSON.stringify({ ok: true, relayed: true, deduplicated: true }), { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
    }
+   const customPktId = String(body.msgId || body.id || pktIn.id || '').trim().replace(/[^A-Za-z0-9_:-]/g, '').slice(0, 64);
    const pkt = {
-    id: `rel_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    id: customPktId || `rel_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
     channelId,
     senderId: senderFid,
     cipherPayload,

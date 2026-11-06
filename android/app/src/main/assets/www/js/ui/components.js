@@ -268,7 +268,139 @@ export function openConfirmDeleteModal({
     }
   });
 }
-export const USER_AGREEMENT_STORAGE_KEY = 'klev_pro_ua_accepted_v213';
+export const USER_AGREEMENT_STORAGE_KEY = 'klev_pro_ua_accepted_v260_r220';
+export const POLICY_CONSENT_META_KEY = 'klev_pro_policy_consent_meta_v260';
+export const ACTIVE_POLICY_VERSION_DEFAULT = '2026.11.06-v2.6';
+export const ACTIVE_APP_VERSION_DEFAULT = '2.6.0';
+export const GEO_DISTRIBUTION_CONSENT_KEY = 'klev_pro_geo_internet_consent_v1';
+
+export function getSavedPolicyConsentMeta() {
+  try {
+    if (typeof localStorage === 'undefined') return null;
+    const raw = localStorage.getItem(POLICY_CONSENT_META_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch (e) {
+    return null;
+  }
+}
+
+export function isPolicyVersionAccepted(expectedPolicyVer = ACTIVE_POLICY_VERSION_DEFAULT, expectedAppVer = ACTIVE_APP_VERSION_DEFAULT) {
+  const meta = getSavedPolicyConsentMeta();
+  if (!meta || !meta.chkPrivacy || !meta.chkTerms) return false;
+  return meta.policyVersion === expectedPolicyVer && meta.appVersion === expectedAppVer;
+}
+
+export function isGeoDistributionConsentActive() {
+  try {
+    if (typeof localStorage === 'undefined') return false;
+    const raw = localStorage.getItem(GEO_DISTRIBUTION_CONSENT_KEY);
+    if (!raw) return false;
+    const parsed = JSON.parse(raw);
+    return Boolean(parsed && parsed.granted === true && parsed.chkInternetSpread === true);
+  } catch (e) {
+    return false;
+  }
+}
+
+export function getGeoDistributionConsentMeta() {
+  try {
+    if (typeof localStorage === 'undefined') return null;
+    const raw = localStorage.getItem(GEO_DISTRIBUTION_CONSENT_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+export function setGeoDistributionConsentState(granted = true) {
+  try {
+    if (typeof localStorage === 'undefined') return;
+    if (granted) {
+      const rec = {
+        granted: true,
+        chkLocationAccess: true,
+        chkInternetSpread: true,
+        grantedAt: Date.now(),
+        policyVersion: ACTIVE_POLICY_VERSION_DEFAULT
+      };
+      localStorage.setItem(GEO_DISTRIBUTION_CONSENT_KEY, JSON.stringify(rec));
+    } else {
+      localStorage.removeItem(GEO_DISTRIBUTION_CONSENT_KEY);
+    }
+  } catch (e) {}
+}
+
+export function ensureGeoDistributionConsent(actionLabel = 'отправки геопозиции в сеть', onGranted = null) {
+  if (isGeoDistributionConsentActive()) {
+    if (typeof onGranted === 'function') onGranted();
+    return true;
+  }
+  if (typeof document === 'undefined') return false;
+  let overlay = document.getElementById('klevGeoConsentBackdrop');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'klevGeoConsentBackdrop';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:12650;background:rgba(4,9,20,0.88);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:12px;';
+    document.body.appendChild(overlay);
+  }
+  overlay.style.display = 'flex';
+  overlay.innerHTML = `
+    <div class="card" role="dialog" aria-modal="true" style="max-width:500px;width:100%;background:var(--panel);border:1.5px solid var(--accent);border-radius:var(--r-md);padding:15px;display:flex;flex-direction:column;gap:11px;box-shadow:0 20px 50px rgba(0,0,0,0.82);">
+      <div style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:8px;">
+        <svg class="k-ico" style="color:var(--accent);width:22px;height:22px;flex-shrink:0;" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(56,189,248,0.22)" stroke="#38bdf8" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#38bdf8"/></svg>
+        <div>
+          <div style="font-size:var(--fs-md);font-weight:900;color:var(--accent);">Согласие на передачу геоданных в сеть Интернет</div>
+          <div style="font-size:11px;color:var(--muted);">Требуется для действия: ${escapeHtml(actionLabel)} (ст. 10.1 ФЗ № 152-ФЗ)</div>
+        </div>
+      </div>
+      <div style="padding:10px 12px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);font-size:12px;line-height:1.48;color:var(--text);">
+        Вы собираетесь передать данные о своём местоположении (координаты точки или водоёма) на сервер «Клёв ПРО 2.0» для отображения другим пользователям в выбранном разделе («Круг», «Экипаж», «Слипы/Точки», «Чаты» или «SOS»).<br><br>
+        Вы можете в любой момент <b>отозвать это согласие</b> в профиле или на карте — при отзыве все ранее переданные вами геоданные и точки будут автоматически удалены из чатов, кругов и базы данных.
+      </div>
+      <label style="display:flex;align-items:flex-start;gap:9px;padding:9px 10px;background:rgba(56,189,248,0.08);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:12px;line-height:1.4;">
+        <input type="checkbox" id="geoConsentChk1" style="margin-top:2px;width:18px;height:18px;accent-color:#10b981;flex-shrink:0;">
+        <span>Разрешаю приложению определить и использовать мои координаты GPS/ГЛОНАСС для выполнения операции.</span>
+      </label>
+      <label style="display:flex;align-items:flex-start;gap:9px;padding:9px 10px;background:rgba(16,185,129,0.08);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:12px;line-height:1.4;">
+        <input type="checkbox" id="geoConsentChk2" style="margin-top:2px;width:18px;height:18px;accent-color:#10b981;flex-shrink:0;">
+        <span><b>Даю согласие на распространение моих геоданных в сети Интернет</b> в рамках выбранного мною раздела приложения (ст. 10.1 ФЗ № 152-ФЗ).</span>
+      </label>
+      <div style="display:grid;grid-template-columns:1fr 1.3fr;gap:8px;margin-top:2px;">
+        <button type="button" class="btn" id="geoConsentCancelBtn" style="min-height:40px;font-weight:800;">Отмена</button>
+        <button type="button" class="btn btn-good" id="geoConsentConfirmBtn" disabled style="min-height:40px;font-weight:900;opacity:0.5;">Подтвердить согласие</button>
+      </div>
+    </div>
+  `;
+  const chk1 = overlay.querySelector('#geoConsentChk1');
+  const chk2 = overlay.querySelector('#geoConsentChk2');
+  const confirmBtn = overlay.querySelector('#geoConsentConfirmBtn');
+  const syncBtn = () => {
+    const ok = Boolean(chk1?.checked && chk2?.checked);
+    if (confirmBtn) {
+      confirmBtn.disabled = !ok;
+      confirmBtn.style.opacity = ok ? '1' : '0.5';
+    }
+  };
+  chk1?.addEventListener('change', syncBtn);
+  chk2?.addEventListener('change', syncBtn);
+  overlay.querySelector('#geoConsentCancelBtn')?.addEventListener('click', () => {
+    overlay.style.display = 'none';
+    overlay.innerHTML = '';
+  });
+  confirmBtn?.addEventListener('click', () => {
+    if (!chk1?.checked || !chk2?.checked) return;
+    setGeoDistributionConsentState(true);
+    overlay.style.display = 'none';
+    overlay.innerHTML = '';
+    showToast('Согласие на передачу геоданных подтверждено', 'good');
+    if (typeof window !== 'undefined' && typeof window.__KLEV_ON_GEO_CONSENT_CHANGED__ === 'function') {
+      try { window.__KLEV_ON_GEO_CONSENT_CHANGED__(true); } catch (e) {}
+    }
+    if (typeof onGranted === 'function') onGranted();
+  });
+  return false;
+}
 export const USER_AGREEMENT_MIN_READ_SECONDS = 15;
 export function isUserAgreementAccepted() {
   try {
@@ -450,7 +582,25 @@ export function openUserAgreementModal({
   acceptBtn?.addEventListener('click', () => {
     if (requireVerification && (!scrolledToBottom || secondsLeft > 0)) return;
     try {
+      const cPriv = overlay.querySelector('#uaChkPrivacy');
+      const cTerms = overlay.querySelector('#uaChkTerms');
+      if ((cPriv && !cPriv.checked) || (cTerms && !cTerms.checked)) {
+        showToast('Отметьте оба чекбокса согласия с Политикой и Пользовательским соглашением', 'warn');
+        return;
+      }
       localStorage.setItem(USER_AGREEMENT_STORAGE_KEY, String(Date.now()));
+      const curPolVer = (typeof window !== 'undefined' && window.__KLEV_ACTIVE_POLICY_VERSION__) || ACTIVE_POLICY_VERSION_DEFAULT;
+      const curAppVer = (typeof window !== 'undefined' && window.__KLEV_ACTIVE_APP_VERSION__) || ACTIVE_APP_VERSION_DEFAULT;
+      localStorage.setItem(POLICY_CONSENT_META_KEY, JSON.stringify({
+        policyVersion: curPolVer,
+        appVersion: curAppVer,
+        chkPrivacy: true,
+        chkTerms: true,
+        acceptedAt: Date.now()
+      }));
+      if (typeof window !== 'undefined' && typeof window.__KLEV_ON_POLICY_ACCEPTED__ === 'function') {
+        try { window.__KLEV_ON_POLICY_ACCEPTED__({ policyVersion: curPolVer, appVersion: curAppVer }); } catch (_e) {}
+      }
     } catch (e) {}
     if (timerInterval) clearInterval(timerInterval);
     overlay.style.display = 'none';

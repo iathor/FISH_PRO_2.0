@@ -1054,10 +1054,10 @@ export function renderLog(container) {
           <button type="button" class="btn btn-sm btn-good" id="logOpenWizardBtn"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg> + Записать улов</button>
           <button type="button" class="btn btn-sm btn-accent" id="logOpenAiScannerBtn" title="Определить вид рыбы и вес по фотографии"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 8V6a2 2 0 0 1 2-2h2M4 16v2a2 2 0 0 0 2 2h2m8-16h2a2 2 0 0 1 2 2v2m-4 12h2a2 2 0 0 0 2-2v-2" stroke="#38bdf8" stroke-width="1.9" stroke-linecap="round"/><path d="M6 12s2.5-3.8 6.5-3.8c2.6 0 4.5 1.5 5.5 3.8-1 2.3-2.9 3.8-5.5 3.8-4 0-6.5-3.8-6.5-3.8z" fill="rgba(16,185,129,0.28)" stroke="#10b981" stroke-width="1.7"/></svg> По фото (ИИ)</button>
           <button type="button" class="btn btn-sm" id="logBlankTripBtn" style="border-color:var(--warn);color:var(--warn);" title="Если рыбалка прошла без поклёвок — нажмите, чтобы алгоритм учёл бесклёвье при этой погоде"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="4.5" stroke="#38bdf8" stroke-width="1.6"/><circle cx="12" cy="12" r="1.8" fill="#10b981"/></svg> Выезд без улова (0 поклёвок)</button>
-          <button type="button" class="btn btn-sm" id="logExportJsonBtn" title="Выгрузить журнал уловов в .JSON"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 15V3m0 0L8 7m4-4l4 4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg> .JSON</button>
+          <button type="button" class="btn btn-sm" id="logExportJsonBtn" title="Сохранить полный архив Журнала (с фотографиями) и всех личных точек карты в .JSON"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 15V3m0 0L8 7m4-4l4 4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg> Сохранить архив (.JSON с фото и точками)</button>
           <button type="button" class="btn btn-sm" id="logExportCsvBtn" title="Выгрузить таблицу уловов в .CSV (для Excel)"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M3 3v18h18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M7 15l4-5 4 3 5-7" stroke="#38bdf8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg> .CSV</button>
           <label class="btn btn-sm btn-accent" style="cursor:pointer;margin:0;" title="Загрузить записи уловов из файла .JSON или .CSV">
-            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg> Импорт
+            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg> Загрузить с устройства
             <input type="file" id="logImportFileInput" accept=".json,.csv,application/json,text/csv,*/*" style="display:none;">
           </label>
         </div>
@@ -1234,10 +1234,14 @@ function bindLogEvents(container) {
   const expBtn = container.querySelector('#logExportJsonBtn');
   if (expBtn) {
     expBtn.addEventListener('click', () => {
-      const sanitized = (store.getState().catches || []).filter(c => c && !c.markedForDeletion).map(({ photoDataUrl, ...rest }) => rest);
-      const fname = `klev-pro-catches-${new Date().toISOString().slice(0, 10)}.json`;
-      downloadFileCrossPlatform(fname, JSON.stringify(sanitized, null, 2), 'application/json;charset=utf-8');
-      showToast(` Журнал уловов (${sanitized.length} зап.) сохранён в файл ${fname}`, 'good');
+      const sNow = store.getState();
+      const fullBackup = storage.exportFullProfileBackup(sNow);
+      const cCount = fullBackup.summary?.catchesCount || 0;
+      const pCount = fullBackup.summary?.catchesWithPhotoCount || 0;
+      const spCount = (fullBackup.summary?.savedSpotsCount || 0) + (fullBackup.summary?.personalMapPointsCount || 0);
+      const fname = `klev-pro-backup-full-${new Date().toISOString().slice(0, 10)}.json`;
+      downloadFileCrossPlatform(fname, JSON.stringify(fullBackup, null, 2), 'application/json;charset=utf-8');
+      showToast(`Сохранён полный архив: уловов ${cCount} (с фото: ${pCount}), личных точек/слипов: ${spCount}`, 'good');
     });
   }
   const expCsvBtn = container.querySelector('#logExportCsvBtn');
@@ -1262,8 +1266,29 @@ function bindLogEvents(container) {
         try {
           const text = String(reader.result || '').trim();
           let incoming = [];
+          let restoredSpotsCount = 0;
+          let restoredRoutesCount = 0;
           if (text.startsWith('[') || text.startsWith('{')) {
             const parsed = JSON.parse(text);
+            if (parsed && !Array.isArray(parsed) && (parsed.schema === 'KlevProFullBackup_v3' || parsed.schema === 'KlevProProfileBackup_v2' || Array.isArray(parsed.savedSpots) || Array.isArray(parsed.personalMapPoints))) {
+              await storage.importFullProfileBackup(parsed, true);
+              const allSpots = await storage.getAllFromStore('spots');
+              if (Array.isArray(allSpots) && allSpots.length > 0) {
+                store.dispatch({ type: 'SET_SAVED_SPOTS', payload: allSpots });
+                restoredSpotsCount += allSpots.length;
+              }
+              const allCir = storage.loadCircleItems();
+              if (Array.isArray(allCir) && allCir.length > 0) {
+                store.dispatch({ type: 'SET_CIRCLE_ITEMS', payload: allCir });
+                restoredSpotsCount += allCir.filter(x => x && x.t === 'spot').length;
+              }
+              if (Array.isArray(parsed.savedRoutes)) {
+                restoredRoutesCount = parsed.savedRoutes.length;
+              }
+              if (Array.isArray(parsed.favorites) && parsed.favorites.length > 0) {
+                store.dispatch({ type: 'SET_FAVORITES', payload: parsed.favorites });
+              }
+            }
             incoming = Array.isArray(parsed) ? parsed : (Array.isArray(parsed?.catches) ? parsed.catches : (Array.isArray(parsed?.data?.catches) ? parsed.data.catches : []));
           } else {
             const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/).filter(Boolean);
@@ -1312,13 +1337,14 @@ function bindLogEvents(container) {
               addedCount++;
             }
           }
-          if (addedCount > 0) {
+          if (addedCount > 0 || restoredSpotsCount > 0 || restoredRoutesCount > 0) {
             const all = await storage.getAllFromStore('catches');
             store.dispatch({ type: 'SET_CATCHES', payload: all });
+            const photosRestored = (all || []).filter(c => c && c.photoDataUrl).length;
             renderLog(container);
-            showToast(` Импортировано записей в Журнал уловов: ${addedCount} шт.`, 'good');
+            showToast(`Загружено с устройства: уловов ${addedCount} шт. (с фото: ${photosRestored}), точек/слипов: ${restoredSpotsCount}, маршрутов: ${restoredRoutesCount}`, 'good');
           } else {
-            showToast('Не найдено записей уловов в выбранном файле (.JSON / .CSV)', 'warn');
+            showToast('Не найдено записей уловов или точек в выбранном файле (.JSON / .CSV)', 'warn');
           }
         } catch (err) {
           showToast('Ошибка чтения файла журнала уловов', 'bad');

@@ -2,9 +2,9 @@
  * @file config.js
  * @description Конфигурация приложения (Релиз 2.5.6 r215), слои карт без VPN и адаптивные справочники снастей и сезонных наживок
  */
-export const APP_VERSION = '2.5.6';
+export const APP_VERSION = '2.6.0';
 export const APP_BUILD_NUMBER = 215;
-export const APP_REVISION = 'r215';
+export const APP_REVISION = 'r220';
 export const APP_DISPLAY_VERSION = 'v2.5.6 r215';
 export const STATE_CACHE_KEY = 'klev_pro_state_v2.0';
 export const WEATHER_CACHE_KEY = 'klev_pro_weather_v2.0';

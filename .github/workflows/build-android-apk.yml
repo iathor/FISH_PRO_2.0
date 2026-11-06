@@ -63,10 +63,10 @@ jobs:
           echo "proj_dir=$PROJ_DIR" >> $GITHUB_ENV
           echo "proj_dir=$PROJ_DIR" >> $GITHUB_OUTPUT
 
-          # 1. Очищаем и копируем свежие веб-ресурсы из общего корня репозитория в assets/www (без вложения старого .apk внутрь нового .apk)
+          # 1. Очищаем и копируем свежие веб-ресурсы (включая все 115 PNG в assets/) в assets/www без вложения старого .apk внутрь нового .apk
           rm -rf "$PROJ_DIR/app/src/main/assets/www"
           mkdir -p "$PROJ_DIR/app/src/main/assets/www"
-          for f in index.html manifest.json version.json icon.svg icon-192.png icon-512.png apple-touch-icon.png sw.js css js assets; do
+          for f in index.html policy-version.json manifest.json version.json icon.svg icon-192.png icon-512.png apple-touch-icon.png sw.js css js assets; do
             if [ -e "$f" ]; then
               cp -r "$f" "$PROJ_DIR/app/src/main/assets/www/"
             fi
@@ -92,7 +92,7 @@ jobs:
 
           # 4. Вычисляем строго возрастающий versionCode для релиза 2.5.6 r194 (чтобы Android всегда обновлял APK поверх старой версии)
           RUN_NUM=${GITHUB_RUN_NUMBER:-0}
-          VER_CODE=$((256215 + RUN_NUM))
+          VER_CODE=$((260220 + RUN_NUM))
           echo "Using versionCode=$VER_CODE"
 
           cat << 'EOF' > "$PROJ_DIR/settings.gradle"
@@ -137,7 +137,7 @@ jobs:
                   minSdk 24
                   targetSdk 34
                   versionCode ${VER_CODE}
-                  versionName "2.5.6-r215"
+                  versionName "2.6.0-r220"
               }
               signingConfigs {
                   release {
@@ -200,6 +200,11 @@ jobs:
               <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
               <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
               <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+              <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+              <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+              <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+              <uses-permission android:name="android.permission.WAKE_LOCK" />
+              <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
               <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
               <uses-permission android:name="android.permission.CAMERA" />
               <uses-permission android:name="android.permission.VIBRATE" />
@@ -387,6 +392,113 @@ jobs:
                       });
                   }
 
+                  @JavascriptInterface
+                  public boolean isSystemLocationEnabled() {
+                      try {
+                          android.location.LocationManager lm = (android.location.LocationManager) ctx.getSystemService(Context.LOCATION_SERVICE);
+                          if (lm == null) return true;
+                          return lm.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER)
+                              || lm.isProviderEnabled(android.location.LocationManager.NETWORK_PROVIDER);
+                      } catch (Exception e) {
+                          return true;
+                      }
+                  }
+
+                  @JavascriptInterface
+                  public void openLocationSourceSettings() {
+                      try {
+                          Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
+                          intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                          ctx.startActivity(intent);
+                      } catch (Exception ignored) {}
+                  }
+
+                  @JavascriptInterface
+                  public boolean isIgnoringBatteryOptimizations() {
+                      try {
+                          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                              android.os.PowerManager pm = (android.os.PowerManager) ctx.getSystemService(Context.POWER_SERVICE);
+                              if (pm != null) {
+                                  return pm.isIgnoringBatteryOptimizations(ctx.getPackageName());
+                              }
+                          }
+                          return true;
+                      } catch (Exception e) {
+                          return false;
+                      }
+                  }
+
+                  @JavascriptInterface
+                  public void requestIgnoreBatteryOptimizations() {
+                      runOnUiThread(new Runnable() {
+                          @Override
+                          public void run() {
+                              try {
+                                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                                      Intent intent = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+                                      intent.setData(Uri.parse("package:" + ctx.getPackageName()));
+                                      startActivity(intent);
+                                  }
+                              } catch (Exception e) {
+                                  try {
+                                      Intent fallback = new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS);
+                                      startActivity(fallback);
+                                  } catch (Exception ignored) {}
+                              }
+                          }
+                      });
+                  }
+
+                  @JavascriptInterface
+                  public boolean hasBackgroundLocationPermission() {
+                      try {
+                          if (Build.VERSION.SDK_INT >= 29) {
+                              return checkSelfPermission("android.permission.ACCESS_BACKGROUND_LOCATION") == PackageManager.PERMISSION_GRANTED;
+                          }
+                          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                              return checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+                          }
+                          return true;
+                      } catch (Exception e) {
+                          return false;
+                      }
+                  }
+
+                  @JavascriptInterface
+                  public void requestBackgroundLocationPermission() {
+                      runOnUiThread(new Runnable() {
+                          @Override
+                          public void run() {
+                              try {
+                                  if (Build.VERSION.SDK_INT >= 29) {
+                                      if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                                          requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION, "android.permission.ACCESS_BACKGROUND_LOCATION"}, REQ_PERMISSIONS);
+                                      } else {
+                                          requestPermissions(new String[]{"android.permission.ACCESS_BACKGROUND_LOCATION"}, REQ_PERMISSIONS);
+                                      }
+                                  } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                                      requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION}, REQ_PERMISSIONS);
+                                  }
+                              } catch (Exception ignored) {}
+                          }
+                      });
+                  }
+
+                  @JavascriptInterface
+                  public void setKeepScreenAndCpuAwake(final boolean enabled) {
+                      runOnUiThread(new Runnable() {
+                          @Override
+                          public void run() {
+                              try {
+                                  if (enabled) {
+                                      getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+                                  } else {
+                                      getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+                                  }
+                              } catch (Exception ignored) {}
+                          }
+                      });
+                  }
                   @JavascriptInterface
                   public String getDeviceId() {
                       try {

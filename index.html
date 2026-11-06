@@ -820,13 +820,28 @@
 <body>
   <div id="appSplashScreen" class="app-splash-screen" role="status" aria-label="Загрузка Клёв ПРО 2.0">
     <div class="app-splash-inner">
-      <div class="app-splash-art-wrap" id="appSplashArtWrap">
-        <img id="appSplashImg" src="assets/splash.jpg" alt="Клёв ПРО 2.0 • FISH PRO 2.0" class="app-splash-img">
+      <div class="app-splash-art-wrap" id="appSplashArtWrap" style="position:relative;">
+        <img id="appSplashImg" src="assets/splash.jpg" alt="Клёв ПРО 2.0 • FISH PRO 2.0" class="app-splash-img" onerror="this.style.opacity='0'">
+        <!-- Интерактивный гидролокационный радар-оверлей сонара -->
+        <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;background:radial-gradient(circle at 50% 45%, rgba(14,165,233,0.16) 0%, rgba(4,9,20,0.68) 78%);padding:20px;text-align:center;">
+          <div style="width:136px;height:136px;border-radius:50%;border:1.5px solid rgba(56,189,248,0.45);display:flex;align-items:center;justify-content:center;position:relative;box-shadow:0 0 36px rgba(14,165,233,0.28), inset 0 0 24px rgba(16,185,129,0.22);margin-bottom:14px;">
+            <div style="position:absolute;inset:16px;border-radius:50%;border:1px dashed rgba(16,185,129,0.45);"></div>
+            <div style="position:absolute;inset:36px;border-radius:50%;border:1px solid rgba(56,189,248,0.35);"></div>
+            <svg viewBox="0 0 64 64" style="width:62px;height:62px;" fill="none">
+              <path d="M10 34c8-11 22-11 35-2 5-4 9-5 11-5-2 5-2 9 0 14-2 0-6-1-11-5-13 9-27 9-35-2z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="2.4" stroke-linejoin="round"/>
+              <circle cx="38" cy="31" r="2.2" fill="#10b981"/>
+              <path d="M18 48c6-3 12-3 18 0s12 3 18 0" stroke="#10b981" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div style="font-size:22px;font-weight:900;letter-spacing:0.6px;color:#f8fafc;text-shadow:0 2px 12px rgba(0,0,0,0.85);">КЛЁВ ПРО 2.0</div>
+          <div style="font-size:11.5px;font-weight:800;color:#38bdf8;letter-spacing:0.4px;margin-top:3px;">ГИДРОЛОКАТОР • КАРТЫ Z18 • МАРШРУТЫ • КРУГ</div>
+          <div style="margin-top:6px;padding:2px 10px;border-radius:999px;background:rgba(16,185,129,0.18);border:1px solid rgba(16,185,129,0.5);color:#10b981;font-size:10.5px;font-weight:900;">Версия 2.6.0 (r220)</div>
+        </div>
       </div>
       <div class="app-splash-loader" id="appSplashLoader">
         <div class="app-splash-hud-row">
           <span class="app-splash-stage" id="appSplashSubText">Инициализация гео-ядра и карт водоёмов РФ...</span>
-          <span class="app-splash-pct" id="appSplashPctText">8%</span>
+          <span class="app-splash-pct" id="appSplashPctText">12%</span>
         </div>
         <div class="app-splash-bar"><div class="app-splash-bar-fill" id="appSplashBarFill"></div></div>
       </div>
