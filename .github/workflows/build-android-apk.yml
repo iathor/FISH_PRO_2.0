@@ -9,12 +9,15 @@ on:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 jobs:
   build-apk:
+    if: github.event_name == 'workflow_dispatch' || (!startsWith(github.event.head_commit.message, 'chore(apk):') && !startsWith(github.event.head_commit.message, 'chore(release):'))
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository
@@ -40,6 +43,7 @@ jobs:
               git commit -m "chore(release): auto-unpack release archive from mobile upload"
               git pull --rebase origin "${GITHUB_REF_NAME:-main}" || true
               git push origin HEAD:"${GITHUB_REF_NAME:-main}"
+              curl -fsSL -X POST -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/${GITHUB_REPOSITORY}/pages/builds" || true
             fi
           fi
 
@@ -138,7 +142,7 @@ jobs:
                   minSdk 24
                   targetSdk 34
                   versionCode ${VER_CODE}
-                  versionName "2.6.0-r220"
+                  versionName "2.5.6-r215"
               }
               signingConfigs {
                   release {
@@ -1054,7 +1058,7 @@ jobs:
 
               private void loadEntryUrlFromIntent(Intent intent) {
                   String entryHtml = getPackageName().contains("admin") ? "kp-control-89.html" : "index.html";
-                  String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/" + entryHtml + "?v=2.6.0_r222_" + System.currentTimeMillis();
+                  String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/" + entryHtml + "?v=2.5.6_r215_" + System.currentTimeMillis();
                   if (intent != null && intent.getData() != null) {
                       Uri data = intent.getData();
                       String q = data.getEncodedQuery();
@@ -1423,9 +1427,10 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A apk/
           if ! git diff --cached --quiet; then
-            git commit -m "chore(apk): auto-publish user & admin apks v2.5.6 [skip ci]"
+            git commit -m "chore(apk): auto-publish user & admin apks v2.5.6"
             git pull --rebase origin "${GITHUB_REF_NAME:-main}" || true
             git push origin HEAD:"${GITHUB_REF_NAME:-main}"
+          curl -fsSL -X POST -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/${GITHUB_REPOSITORY}/pages/builds" || true
           fi
 
       - name: Upload Signed User APK Artifact (klev-pro-v2.5.6.apk)

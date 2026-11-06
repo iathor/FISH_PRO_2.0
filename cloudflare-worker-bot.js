@@ -6946,9 +6946,9 @@ export default {
            if (mFish && mFish[1]) fishShort = `Скан фото: ${mFish[1]}`;
           } catch (_e) {}
           await recordGeminiRequestUsed(env, kSlotIdx, 'app', {
-           fisherId: body.fisherId || 'FP_USER',
-           callsign: body.callsign || 'Рыболов',
-           env: body.env || 'APP',
+           fisherId: b?.fisherId || 'FP_USER',
+           callsign: b?.callsign || 'Рыболов',
+           env: b?.env || 'APP',
            model: smartRes.model || 'gemini-2.5-flash',
            httpStatus: 200,
            latencyMs: smartRes.latencyMs || 0,
