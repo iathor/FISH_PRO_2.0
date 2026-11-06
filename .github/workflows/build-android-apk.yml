@@ -1242,7 +1242,6 @@ jobs:
               with open(p, 'w', encoding='utf-8') as f:
                   f.write(h)
           EOF_PY
-          sed -i 's/^          //' /tmp/patch_user_apk.py
           python3 /tmp/patch_user_apk.py
           curl -fsSL https://services.gradle.org/distributions/gradle-8.7-bin.zip -o /tmp/gradle-8.7.zip
           unzip -q -o /tmp/gradle-8.7.zip -d /tmp
@@ -1271,12 +1270,7 @@ jobs:
               if 'window.__KLEV_ADMIN_CONTOUR__' not in h:
                   h = h.replace('<head>', '<head>\n  <script>window.__KLEV_ADMIN_CONTOUR__ = true; window.__KLEV_ADMIN_APK__ = true;</script>', 1)
               if 'id="topNavAdminBtn"' not in h:
-                  adm_btn = '''      <button type="button" class="top-nav-item" data-nav-tab="admin" id="topNavAdminBtn" role="tab">
-        <span class="top-nav-ico">
-          <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M3 18h18l-2-11-5 4-2-6-2 6-5-4-2 11z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.7" stroke-linejoin="round"/></svg>
-        </span>
-        <span class="top-nav-lbl">Админ</span>
-      </button>'''
+                  adm_btn = '<button type="button" class="top-nav-item" data-nav-tab="admin" id="topNavAdminBtn" role="tab"><span class="top-nav-ico"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M3 18h18l-2-11-5 4-2-6-2 6-5-4-2 11z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.7" stroke-linejoin="round"/></svg></span><span class="top-nav-lbl">Админ</span></button>'
                   if 'id="topNavSettingsBtn"' in h:
                       pos = h.find('id="topNavSettingsBtn"')
                       end_btn = h.find('</button>', pos)
@@ -1300,7 +1294,6 @@ jobs:
               with open(app_p, 'w', encoding='utf-8') as f:
                   f.write(aj)
           EOF_PY
-          sed -i 's/^          //' /tmp/patch_admin_apk.py
           python3 /tmp/patch_admin_apk.py
           sed -i 's/applicationId "ru.klevpro.app"/applicationId "ru.klevpro.admin"/g' app/build.gradle
           sed -i 's/<string name="app_name">Клёв ПРО 2.0<\/string>/<string name="app_name">Клёв ПРО Админ<\/string>/g' app/src/main/res/values/strings.xml
