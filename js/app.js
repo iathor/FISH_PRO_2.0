@@ -459,7 +459,7 @@ function updateHeaderUI() {
         if (profBtn) profBtn.style.borderColor = 'var(--border)';
       }
     }
-    const showAdm = Boolean(typeof window !== 'undefined' && window.__KLEV_ADMIN_CONTOUR__ === true && ident.isOwner);
+    const showAdm = Boolean(typeof window !== 'undefined' && window.__KLEV_ADMIN_CONTOUR__ === true);
     if (topAdminBtn) {
       topAdminBtn.style.display = showAdm ? '' : 'none';
     }
@@ -548,7 +548,7 @@ function bindGlobalShellEvents() {
       const tab = btn.getAttribute('data-nav-tab');
       triggerHaptic('selection');
       if (circleModule && typeof circleModule.isMobileGuestRestricted === 'function' && circleModule.isMobileGuestRestricted()) {
-        if (tab !== 'forecast' && tab !== 'geo' && tab !== 'profile') {
+        if (tab !== 'forecast' && tab !== 'geo' && tab !== 'profile' && tab !== 'admin') {
           circleModule.promptMobileGuestAuth('Сначала войдите в аккаунт — после авторизации откроются все разделы приложения');
           return;
         }
@@ -794,13 +794,16 @@ function bootstrapApp() {
   syncFishDockState();
   if (typeof window !== 'undefined' && window.__KLEV_ADMIN_CONTOUR__ === true) {
     setTimeout(() => {
-      if (circleModule && typeof circleModule.isOwnerAdmin === 'function' && circleModule.isOwnerAdmin()) {
-        router.navigate('admin');
-        if (typeof circleModule.renderAdminSection === 'function') circleModule.renderAdminSection();
-      } else if (circleModule && typeof circleModule.openAuthAndBackupModal === 'function') {
-        circleModule.openAuthAndBackupModal();
+      router.navigate('admin');
+      if (circleModule && typeof circleModule.renderAdminSection === 'function') {
+        circleModule.renderAdminSection();
       }
-    }, 350);
+      if (circleModule && typeof circleModule.isOwnerAdmin === 'function' && !circleModule.isOwnerAdmin()) {
+        if (typeof circleModule.openAuthAndBackupModal === 'function') {
+          circleModule.openAuthAndBackupModal();
+        }
+      }
+    }, 250);
   }
   window.addEventListener('scroll', () => {
     if (!scrollRafPending) {

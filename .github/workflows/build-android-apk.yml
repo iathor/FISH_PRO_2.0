@@ -1226,59 +1226,122 @@ jobs:
       - name: Build Signed User APK (klev-pro-v2.5.6.apk — Pure User Contour)
         working-directory: ${{ steps.locate.outputs.proj_dir }}
         run: |
+          mkdir -p /tmp/klev-apk-dist
           rm -f app/src/main/assets/www/kp-control-89.html
+          cat << 'EOF_PY' > /tmp/patch_user_apk.py
+          import os, re
+          p = 'app/src/main/assets/www/index.html'
+          if os.path.exists(p):
+              with open(p, 'r', encoding='utf-8') as f:
+                  h = f.read()
+              h = h.replace('window.__KLEV_ADMIN_CONTOUR__ = true;', 'window.__KLEV_ADMIN_CONTOUR__ = false;')
+              if 'window.__KLEV_ADMIN_CONTOUR__' not in h:
+                  h = h.replace('<head>', '<head>\n  <script>window.__KLEV_ADMIN_CONTOUR__ = false;</script>', 1)
+              h = re.sub(r'<button[^>]*id="topNavAdminBtn"[^>]*>.*?</button>', '', h, flags=re.S)
+              h = re.sub(r'<section[^>]*id="secAdmin"[^>]*>.*?</section>', '', h, flags=re.S)
+              with open(p, 'w', encoding='utf-8') as f:
+                  f.write(h)
+          EOF_PY
+          sed -i 's/^          //' /tmp/patch_user_apk.py
+          python3 /tmp/patch_user_apk.py
           curl -fsSL https://services.gradle.org/distributions/gradle-8.7-bin.zip -o /tmp/gradle-8.7.zip
           unzip -q -o /tmp/gradle-8.7.zip -d /tmp
           /tmp/gradle-8.7/bin/gradle assembleRelease --no-daemon --console=plain
           REL_DIR="app/build/outputs/apk/release"
-          SRC_APK=$(ls "$REL_DIR"/*.apk | head -n 1)
-          cp -f "$SRC_APK" "$REL_DIR/klev-pro-v2.5.6.apk"
-          ls -lh "$REL_DIR/klev-pro-v2.5.6.apk"
+          SRC_APK=$(ls -t "$REL_DIR"/*.apk | head -n 1)
+          cp -f "$SRC_APK" /tmp/klev-apk-dist/klev-pro-v2.5.6.apk
+          ls -lh /tmp/klev-apk-dist/klev-pro-v2.5.6.apk
 
       - name: Build Signed Owner Admin APK (klev-pro-admin-v2.5.6.apk — Separate Admin Contour)
         working-directory: ${{ steps.locate.outputs.proj_dir }}
         run: |
+          mkdir -p /tmp/klev-apk-dist
           if [ -f "../kp-control-89.html" ]; then
             cp -f "../kp-control-89.html" "app/src/main/assets/www/index.html"
           elif [ -f "kp-control-89.html" ]; then
             cp -f "kp-control-89.html" "app/src/main/assets/www/index.html"
           fi
+          cat << 'EOF_PY' > /tmp/patch_admin_apk.py
+          import os
+          idx_p = 'app/src/main/assets/www/index.html'
+          if os.path.exists(idx_p):
+              with open(idx_p, 'r', encoding='utf-8') as f:
+                  h = f.read()
+              h = h.replace('window.__KLEV_ADMIN_CONTOUR__ = false;', 'window.__KLEV_ADMIN_CONTOUR__ = true; window.__KLEV_ADMIN_APK__ = true;')
+              if 'window.__KLEV_ADMIN_CONTOUR__' not in h:
+                  h = h.replace('<head>', '<head>\n  <script>window.__KLEV_ADMIN_CONTOUR__ = true; window.__KLEV_ADMIN_APK__ = true;</script>', 1)
+              if 'id="topNavAdminBtn"' not in h:
+                  adm_btn = '''      <button type="button" class="top-nav-item" data-nav-tab="admin" id="topNavAdminBtn" role="tab">
+        <span class="top-nav-ico">
+          <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M3 18h18l-2-11-5 4-2-6-2 6-5-4-2 11z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.7" stroke-linejoin="round"/></svg>
+        </span>
+        <span class="top-nav-lbl">Админ</span>
+      </button>'''
+                  if 'id="topNavSettingsBtn"' in h:
+                      pos = h.find('id="topNavSettingsBtn"')
+                      end_btn = h.find('</button>', pos)
+                      if end_btn != -1:
+                          h = h[:end_btn + 9] + '\n' + adm_btn + h[end_btn + 9:]
+              else:
+                  h = h.replace('id="topNavAdminBtn" role="tab" style="display:none;"', 'id="topNavAdminBtn" role="tab"')
+              if 'id="secAdmin"' not in h:
+                  h = h.replace('</main>', '  <section class="route-sec" id="secAdmin" aria-label="Консоль Супер-Админа"></section>\n  </main>', 1)
+              with open(idx_p, 'w', encoding='utf-8') as f:
+                  f.write(h)
+
+          app_p = 'app/src/main/assets/www/js/app.js'
+          if os.path.exists(app_p):
+              with open(app_p, 'r', encoding='utf-8') as f:
+                  aj = f.read()
+              aj = aj.replace("topAdminBtn.style.display = ident.isOwner ? '' : 'none';", "topAdminBtn.style.display = '';")
+              aj = aj.replace("const showAdm = Boolean(typeof window !== 'undefined' && window.__KLEV_ADMIN_CONTOUR__ === true && ident.isOwner);", "const showAdm = Boolean(typeof window !== 'undefined' && window.__KLEV_ADMIN_CONTOUR__ === true);")
+              aj = aj.replace("if (tab !== 'forecast' && tab !== 'geo' && tab !== 'profile') {", "if (tab !== 'forecast' && tab !== 'geo' && tab !== 'profile' && tab !== 'admin') {")
+              aj += "\n;if (typeof window !== 'undefined' && window.__KLEV_ADMIN_CONTOUR__ === true) { setTimeout(() => { try { const b = document.getElementById('topNavAdminBtn'); if (b) b.style.display = ''; if (typeof window.__KLEV_NAVIGATE_SECTION__ === 'function') window.__KLEV_NAVIGATE_SECTION__('admin'); } catch(e){} }, 350); }\n"
+              with open(app_p, 'w', encoding='utf-8') as f:
+                  f.write(aj)
+          EOF_PY
+          sed -i 's/^          //' /tmp/patch_admin_apk.py
+          python3 /tmp/patch_admin_apk.py
           sed -i 's/applicationId "ru.klevpro.app"/applicationId "ru.klevpro.admin"/g' app/build.gradle
           sed -i 's/<string name="app_name">Клёв ПРО 2.0<\/string>/<string name="app_name">Клёв ПРО Админ<\/string>/g' app/src/main/res/values/strings.xml
           sed -i '/android:host="klevpro.ru"/d' app/src/main/AndroidManifest.xml
           sed -i '/android:host="xn--b1apdneg0j.xn--p1ai"/d' app/src/main/AndroidManifest.xml
           /tmp/gradle-8.7/bin/gradle assembleRelease --no-daemon --console=plain
           REL_DIR="app/build/outputs/apk/release"
-          ADMIN_SRC=$(ls -t "$REL_DIR"/*release*.apk | head -n 1)
-          cp -f "$ADMIN_SRC" "$REL_DIR/klev-pro-admin-v2.5.6.apk"
-          ls -lh "$REL_DIR/klev-pro-admin-v2.5.6.apk"
+          ADMIN_SRC=$(ls -t "$REL_DIR"/*.apk | head -n 1)
+          cp -f "$ADMIN_SRC" /tmp/klev-apk-dist/klev-pro-admin-v2.5.6.apk
+          cp -f /tmp/klev-apk-dist/klev-pro-v2.5.6.apk "$REL_DIR/klev-pro-v2.5.6.apk"
+          cp -f /tmp/klev-apk-dist/klev-pro-admin-v2.5.6.apk "$REL_DIR/klev-pro-admin-v2.5.6.apk"
+          ls -lh /tmp/klev-apk-dist/
 
-      - name: Auto-Save User APK to Repository (/apk/klev-pro-v2.5.6.apk)
+      - name: Auto-Save User & Admin APKs to Repository (/apk/)
         run: |
-          REL_APK="${{ steps.locate.outputs.proj_dir }}/app/build/outputs/apk/release/klev-pro-v2.5.6.apk"
-          if [ -f "$REL_APK" ]; then
-            mkdir -p apk
-            rm -f apk/*.apk
-            cp -f "$REL_APK" apk/klev-pro-v2.5.6.apk
-            ls -lh apk/klev-pro-v2.5.6.apk
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add -A apk/
-            if ! git diff --cached --quiet; then
-              git commit -m "chore(apk): auto-publish user apk/klev-pro-v2.5.6.apk [skip ci]"
-              git pull --rebase origin "${GITHUB_REF_NAME:-main}" || true
-              git push origin HEAD:"${GITHUB_REF_NAME:-main}"
-            fi
+          mkdir -p apk
+          rm -f apk/*.apk
+          if [ -f "/tmp/klev-apk-dist/klev-pro-v2.5.6.apk" ]; then
+            cp -f "/tmp/klev-apk-dist/klev-pro-v2.5.6.apk" apk/klev-pro-v2.5.6.apk
+          fi
+          if [ -f "/tmp/klev-apk-dist/klev-pro-admin-v2.5.6.apk" ]; then
+            cp -f "/tmp/klev-apk-dist/klev-pro-admin-v2.5.6.apk" apk/klev-pro-admin-v2.5.6.apk
+          fi
+          ls -lh apk/
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A apk/
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(apk): auto-publish user & admin apks v2.5.6 [skip ci]"
+            git pull --rebase origin "${GITHUB_REF_NAME:-main}" || true
+            git push origin HEAD:"${GITHUB_REF_NAME:-main}"
           fi
 
       - name: Upload Signed User APK Artifact (klev-pro-v2.5.6.apk)
         uses: actions/upload-artifact@v4
         with:
           name: KlevPro-User-v2.5.6-Android-APK
-          path: ${{ steps.locate.outputs.proj_dir }}/app/build/outputs/apk/release/klev-pro-v2.5.6.apk
+          path: /tmp/klev-apk-dist/klev-pro-v2.5.6.apk
 
       - name: Upload Signed Owner Admin APK Artifact (klev-pro-admin-v2.5.6.apk)
         uses: actions/upload-artifact@v4
         with:
           name: KlevPro-Admin-v2.5.6-Android-APK
-          path: ${{ steps.locate.outputs.proj_dir }}/app/build/outputs/apk/release/klev-pro-admin-v2.5.6.apk
+          path: /tmp/klev-apk-dist/klev-pro-admin-v2.5.6.apk

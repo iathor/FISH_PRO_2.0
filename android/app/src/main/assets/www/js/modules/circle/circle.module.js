@@ -1512,6 +1512,7 @@ export function isMobileClientEnvironment() {
 }
 
 export function isMobileGuestRestricted(stateObj = null) {
+  if (isAdminContourActive()) return false;
   if (!isMobileClientEnvironment()) return false;
   const s = stateObj || store.getState();
   const ident = getCurrentFisherIdentity(s);
@@ -4977,7 +4978,7 @@ export function openAuthAndBackupModal(onBackToHub = null) {
     const ident = getCurrentFisherIdentity(s);
     const tgUser = getTelegramUser();
     const ownerMode = ident.isOwner;
-    const savedLogin = ident.isRegistered ? (ident.login || ident.callsign) : '';
+    const savedLogin = ident.isRegistered ? (ident.login || ident.callsign) : (isAdminContourActive() ? 'iAthor' : '');
     bodyEl.innerHTML = `
       <div style="display:flex;flex-direction:column;gap:12px;font-size:var(--fs-sm);">
         ${renderSettingsZoneTabsHtml('auth')}
