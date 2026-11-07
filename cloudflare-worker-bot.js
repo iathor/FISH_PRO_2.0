@@ -1051,6 +1051,7 @@ function upsertUserInRegistry(params = {}, env = null) {
   version: params.version || existing.version || WORKER_VERSION,
   isOwner: Boolean(isOwner),
   isAdmin: Boolean(isAdmin),
+  isBetaTester: Boolean(isOwner || isAdmin || params.isBetaTester || existing.isBetaTester || isUserBetaTesterOnServer(fid)),
   isTemporaryReserve: Boolean(isTemp),
   firstSeen: existing.firstSeen || now,
   lastSeen: now,
@@ -5076,24 +5077,30 @@ async function ensurePersistentStateLoaded(env, forceReload = false) {
    if (kvRow && kvRow.v) {
     const parsedKv = workerSafeJsonParse(kvRow.v, null);
     if (parsedKv) {
-     if (Array.isArray(parsedKv.deletedIds)) {
-      for (const df of parsedKv.deletedIds) {
-       if (df) deletedFisherIdsSet.add(String(df).toUpperCase());
+     applyLoadedSysMeta(parsedKv);
+    }
+   }
+   const betaKvRow = await d1.prepare('SELECT v FROM klev_kv WHERE k = ?').bind('BETA_STATE_V2').first().catch(() => null);
+   if (betaKvRow && betaKvRow.v) {
+    const parsedBeta = workerSafeJsonParse(betaKvRow.v, null);
+    if (parsedBeta) {
+     applyLoadedSysMeta(parsedBeta);
+    }
+   }
+   const relBetaRow = await d1.prepare('SELECT cipher_payload FROM transit_relay WHERE channel_id = ? ORDER BY ts DESC LIMIT 1').bind('SYS_BETA_REGISTRY_V1').first().catch(() => null);
+   if (relBetaRow && relBetaRow.cipher_payload) {
+    const parsedRelBeta = workerSafeJsonParse(relBetaRow.cipher_payload, null);
+    if (parsedRelBeta) {
+     if (Array.isArray(parsedRelBeta.removedIds)) {
+      for (const rbid of parsedRelBeta.removedIds) {
+       const cleanR = String(rbid || '').trim().toUpperCase();
+       if (cleanR && !isOwnerFisherId(cleanR)) {
+        removedBetaTestersSet.add(cleanR);
+        betaTestersStore.delete(cleanR);
+       }
       }
      }
-     if (parsedKv.geminiConfig && typeof parsedKv.geminiConfig === "object") {
-      if (typeof parsedKv.geminiConfig.apiKey === "string" && parsedKv.geminiConfig.apiKey.trim()) {
-       geminiConfigStore.apiKey = parsedKv.geminiConfig.apiKey.trim();
-      }
-      if (typeof parsedKv.geminiConfig.activeModel === "string" && parsedKv.geminiConfig.activeModel.trim()) {
-       geminiConfigStore.activeModel = parsedKv.geminiConfig.activeModel.trim();
-      }
-      const todayStr = new Date().toISOString().slice(0, 10);
-      if (parsedKv.geminiConfig.dateKey === todayStr && Number(parsedKv.geminiConfig.usedToday) > geminiConfigStore.usedToday) {
-       geminiConfigStore.usedToday = Number(parsedKv.geminiConfig.usedToday);
-       geminiConfigStore.dateKey = todayStr;
-      }
-     }
+     applyLoadedSysMeta(parsedRelBeta);
     }
    }
    const gemRow = await d1.prepare('SELECT v FROM klev_kv WHERE k = ?').bind('GEMINI_CONFIG_V2').first().catch(() => null);
@@ -5125,6 +5132,14 @@ async function ensurePersistentStateLoaded(env, forceReload = false) {
      if (u && u.fisherId) {
       if (deletedFisherIdsSet.has(u.fisherId) && !isOwnerFisherId(u.fisherId)) continue;
       if (isTemporaryReserveId(u.fisherId) && (nowTs - Number(u.firstSeen || u.lastSeen || 0)) > RESERVE_ID_TTL_MS) continue;
+      if (u.isBetaTester && !removedBetaTestersSet.has(u.fisherId) && !betaTestersStore.has(u.fisherId)) {
+       betaTestersStore.set(u.fisherId, { id: u.fisherId, label: u.login || u.callsign || 'Бета-тестер', addedAt: '2026-11-06', phase2: true, phase3: true });
+      }
+      if (isUserBetaTesterOnServer(u.fisherId)) {
+       u.isBetaTester = true;
+      } else if (removedBetaTestersSet.has(u.fisherId)) {
+       u.isBetaTester = false;
+      }
       usersRegistryStore.set(u.fisherId, u);
       if (!isTemporaryReserveId(u.fisherId)) reservedVanityIds.add(u.fisherId);
       if (u.deviceId && (!deviceToFisherIdMap.has(u.deviceId) || !isTemporaryReserveId(u.fisherId))) {
@@ -5772,8 +5787,10 @@ async function recordGeminiRequestUsed(env = null, keySlotIndexOrKey = 0, source
 
 const betaTestersStore = new Map([
  [OWNER_FISHER_ID, { id: OWNER_FISHER_ID, label: 'iAthor • Владелец (Супер-Админ)', addedAt: '2026-11-06', phase2: true, phase3: true }],
- [OWNER_SECONDARY_ID, { id: OWNER_SECONDARY_ID, label: 'iAthor • Резервный ID Владельца', addedAt: '2026-11-06', phase2: true, phase3: true }]
+ [OWNER_SECONDARY_ID, { id: OWNER_SECONDARY_ID, label: 'iAthor • Резервный ID Владельца', addedAt: '2026-11-06', phase2: true, phase3: true }],
+ ['FP_89AAA014', { id: 'FP_89AAA014', label: 'test89test • Бета-тестер', addedAt: '2026-11-06', phase2: true, phase3: true }]
 ]);
+const removedBetaTestersSet = new Set();
 const betaGateConfig = {
  phase2BetaOnly: true,
  phase3BetaOnly: true
@@ -5791,9 +5808,14 @@ function isUserBetaTesterOnServer(fid = '') {
  const norm = String(fid || '').trim().toUpperCase();
  if (!norm) return false;
  if (isOwnerFisherId(norm)) return true;
+ if (removedBetaTestersSet.has(norm)) return false;
  if (betaTestersStore.has(norm)) return true;
+ if (adminWhitelistStore.has(norm)) return true;
  const u = usersRegistryStore.get(norm);
- return Boolean(u && u.isBetaTester);
+ if (u && u.isBetaTester) return true;
+ const aKey = fisherIdToAuthKeyMap.get(norm);
+ if (aKey && cloudAuthProfiles.get(aKey)?.isBetaTester) return true;
+ return false;
 }
 
 function serializeFullServerState() {
@@ -5801,6 +5823,7 @@ function serializeFullServerState() {
  return JSON.stringify({
   v: WORKER_VERSION,
   betaTesters: Array.from(betaTestersStore.values()),
+  removedBetaTesters: Array.from(removedBetaTestersSet),
   betaGateConfig: { ...betaGateConfig },
   policyState: { ...policyStateStore },
   userConsents: Object.fromEntries(Array.from(userConsentsStore.entries()).slice(-5000)),
@@ -5955,14 +5978,35 @@ function applyLoadedSysMeta(parsed) {
   }
  }
  adminWhitelistStore.set(OWNER_FISHER_ID, { id: OWNER_FISHER_ID, label: "iAthor • Антон (Владелец / Супер-Админ)", addedAt: "2026-10-27" });
+ if (Array.isArray(parsed.removedBetaTesters)) {
+  for (const rbid of parsed.removedBetaTesters) {
+   const cleanR = String(rbid || '').trim().toUpperCase();
+   if (cleanR && !isOwnerFisherId(cleanR)) {
+    removedBetaTestersSet.add(cleanR);
+    betaTestersStore.delete(cleanR);
+   }
+  }
+ }
  if (Array.isArray(parsed.betaTesters)) {
   for (const bt of parsed.betaTesters) {
    if (bt && bt.id) {
     const bid = String(bt.id).trim().toUpperCase();
+    if (removedBetaTestersSet.has(bid) && !isOwnerFisherId(bid)) continue;
     betaTestersStore.set(bid, { ...bt, id: bid });
     const exU = usersRegistryStore.get(bid);
     if (exU) usersRegistryStore.set(bid, { ...exU, isBetaTester: true });
    }
+  }
+ }
+ for (const [wid, witem] of adminWhitelistStore.entries()) {
+  if (wid && String(witem?.label || '').includes('[BETA]') && !removedBetaTestersSet.has(wid)) {
+   betaTestersStore.set(wid, {
+    id: wid,
+    label: String(witem.label).replace(/^\[BETA\]\s*/, '') || 'Бета-тестер',
+    addedAt: witem.addedAt || '2026-11-06',
+    phase2: true,
+    phase3: true
+   });
   }
  }
  if (parsed.betaGateConfig && typeof parsed.betaGateConfig === 'object') {
@@ -5995,6 +6039,12 @@ async function persistSystemMeta(env, ctx = null) {
   if (d1) {
    try {
     await d1.prepare('INSERT OR REPLACE INTO klev_kv (k, v, updated_at) VALUES (?, ?, ?)').bind('SYS_STATE_V2_1_1', payloadStr, Date.now()).run();
+    await d1.prepare('INSERT OR REPLACE INTO klev_kv (k, v, updated_at) VALUES (?, ?, ?)').bind('BETA_STATE_V2', JSON.stringify({
+     betaTesters: Array.from(betaTestersStore.values()),
+     removedBetaTesters: Array.from(removedBetaTestersSet),
+     betaGateConfig: { ...betaGateConfig },
+     whitelist: Array.from(adminWhitelistStore.values())
+    }), Date.now()).run().catch(() => {});
     await d1.prepare('INSERT OR REPLACE INTO klev_kv (k, v, updated_at) VALUES (?, ?, ?)').bind('GEMINI_CONFIG_V2', JSON.stringify(geminiConfigStore), Date.now()).run().catch(() => {});
     for (const [rc, permVal] of regionSequenceCounters.entries()) {
      const rzVal = regionReserveCounters.get(rc) || 0;
@@ -8140,6 +8190,7 @@ function generateSyntheticWeatherJson(lat, lon) {
      adminSessionToken: ident.isOwner ? (ident.adminSessionToken || getAdminConsoleToken(env) || issueServerAdminSessionToken(30 * 86400 * 1000, env)) : '',
      ownerUnlocked: ident.isOwner ? true : Boolean(existing?.ownerUnlocked),
      isAdmin: ident.isOwner ? true : adminWhitelistStore.has(ident.fisherId),
+     isBetaTester: ident.isOwner ? true : isUserBetaTesterOnServer(ident.fisherId),
      adminShowAllCrews: typeof incomingSnap.adminShowAllCrews === 'boolean' ? incomingSnap.adminShowAllCrews : (ident.isOwner ? (existing?.adminShowAllCrews ?? true) : Boolean(existing?.adminShowAllCrews)),
      updatedAt: Date.now()
     };
@@ -8199,6 +8250,9 @@ function generateSyntheticWeatherJson(lat, lon) {
      sessionToken: ident.sessionToken || ident.authTokenHash,
      adminSessionToken: ident.isOwner ? (ident.adminSessionToken || issueServerAdminSessionToken()) : '',
      serverDynamicSlotHtml: ident.isOwner ? buildOwnerServerPortalSlotHtml(reqUrl.origin) : '',
+     isBetaTester: Boolean(safeProfileOut.isBetaTester),
+     betaGateConfig: { ...betaGateConfig },
+     betaTesters: Array.from(betaTestersStore.values()).map(x => ({ id: x.id })),
      profile: safeProfileOut,
      whitelist: safeWhitelistOut
     }), {
@@ -8256,6 +8310,7 @@ function generateSyntheticWeatherJson(lat, lon) {
      adminSessionToken: ident.isOwner ? (ident.adminSessionToken || getAdminConsoleToken(env) || issueServerAdminSessionToken(30 * 86400 * 1000, env)) : '',
      ownerUnlocked: ident.isOwner ? true : Boolean(existing.ownerUnlocked),
      isAdmin: ident.isOwner ? true : adminWhitelistStore.has(ident.fisherId),
+     isBetaTester: ident.isOwner ? true : isUserBetaTesterOnServer(ident.fisherId),
      updatedAt: Date.now()
     };
     delete merged.authShadow;
@@ -8292,6 +8347,9 @@ function generateSyntheticWeatherJson(lat, lon) {
      isOwner: ident.isOwner,
      adminSessionToken: ident.isOwner ? (ident.adminSessionToken || issueServerAdminSessionToken()) : '',
      serverDynamicSlotHtml: ident.isOwner ? buildOwnerServerPortalSlotHtml(reqUrl.origin) : '',
+     isBetaTester: Boolean(safeSyncProfile.isBetaTester),
+     betaGateConfig: { ...betaGateConfig },
+     betaTesters: Array.from(betaTestersStore.values()).map(x => ({ id: x.id })),
      profile: safeSyncProfile,
      whitelist: safeSyncWhitelist
     }), {
@@ -8721,15 +8779,24 @@ function generateSyntheticWeatherJson(lat, lon) {
    }
   }
 
-  if (reqUrl.pathname.endsWith('/api/beta/status') && request.method === 'GET') {
-   await ensurePersistentStateLoaded(env);
-   const qFid = workerNormalizeFisherId(reqUrl.searchParams.get('fid') || '', '89') || String(reqUrl.searchParams.get('fid') || '').trim().toUpperCase();
+  if (reqUrl.pathname.endsWith('/api/beta/status') && (request.method === 'GET' || request.method === 'POST')) {
+   await ensurePersistentStateLoaded(env, true);
+   let rawFidParam = reqUrl.searchParams.get('fid') || '';
+   if (!rawFidParam && (request.method === 'POST' || reqUrl.searchParams.has('payload'))) {
+    try {
+     const bStat = await readWorkerRequestPayload(request, reqUrl);
+     if (bStat && bStat.fid) rawFidParam = String(bStat.fid);
+    } catch (e) {}
+   }
+   const qFid = workerNormalizeFisherId(rawFidParam, '89') || String(rawFidParam || '').trim().toUpperCase();
    const isBeta = isUserBetaTesterOnServer(qFid);
    return new Response(JSON.stringify({
     ok: true,
     fisherId: qFid,
     isBetaTester: isBeta,
     betaGateConfig: { ...betaGateConfig },
+    betaTesters: Array.from(betaTestersStore.values()),
+    removedBetaTesters: Array.from(removedBetaTestersSet),
     betaTestersCount: betaTestersStore.size
    }), {
     headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
@@ -8737,7 +8804,7 @@ function generateSyntheticWeatherJson(lat, lon) {
   }
 
   if (reqUrl.pathname.endsWith('/api/admin/beta-testers') && (request.method === 'POST' || request.method === 'GET')) {
-   await ensurePersistentStateLoaded(env);
+   await ensurePersistentStateLoaded(env, true);
    let body = {};
    const hasWritePayload = request.method === 'POST' || reqUrl.searchParams.has('payload') || reqUrl.searchParams.has('action');
    if (hasWritePayload) {
@@ -8754,6 +8821,7 @@ function generateSyntheticWeatherJson(lat, lon) {
     const act = String(body.action || 'add').toLowerCase();
     const targetFid = workerNormalizeFisherId(body.fisherId || '', '89') || String(body.fisherId || '').trim().toUpperCase();
     if (act === 'add' && targetFid) {
+     removedBetaTestersSet.delete(targetFid);
      const exU = usersRegistryStore.get(targetFid);
      const label = String(body.label || exU?.callsign || exU?.login || 'Бета-тестер').trim();
      betaTestersStore.set(targetFid, {
@@ -8763,11 +8831,36 @@ function generateSyntheticWeatherJson(lat, lon) {
       phase2: body.phase2 !== false,
       phase3: body.phase3 !== false
      });
-     if (exU) usersRegistryStore.set(targetFid, { ...exU, isBetaTester: true });
+     if (exU) {
+      const updatedU = { ...exU, isBetaTester: true };
+      usersRegistryStore.set(targetFid, updatedU);
+      await d1SaveUser(env, updatedU).catch(() => {});
+     }
+     const aKey = fisherIdToAuthKeyMap.get(targetFid);
+     if (aKey && cloudAuthProfiles.has(aKey)) {
+      const prof = { ...cloudAuthProfiles.get(aKey), isBetaTester: true };
+      cloudAuthProfiles.set(aKey, prof);
+      await d1SaveAuthProfile(env, aKey, workerNormalizeLogin(prof.login || ''), targetFid, prof).catch(() => {});
+     }
     } else if (act === 'remove' && targetFid && !isOwnerFisherId(targetFid)) {
+     removedBetaTestersSet.add(targetFid);
      betaTestersStore.delete(targetFid);
+     const wlItem = adminWhitelistStore.get(targetFid);
+     if (wlItem && String(wlItem.label || '').includes('[BETA]')) {
+      adminWhitelistStore.delete(targetFid);
+     }
      const exU = usersRegistryStore.get(targetFid);
-     if (exU) usersRegistryStore.set(targetFid, { ...exU, isBetaTester: false });
+     if (exU) {
+      const updatedU = { ...exU, isBetaTester: false };
+      usersRegistryStore.set(targetFid, updatedU);
+      await d1SaveUser(env, updatedU).catch(() => {});
+     }
+     const aKey = fisherIdToAuthKeyMap.get(targetFid);
+     if (aKey && cloudAuthProfiles.has(aKey)) {
+      const prof = { ...cloudAuthProfiles.get(aKey), isBetaTester: false };
+      cloudAuthProfiles.set(aKey, prof);
+      await d1SaveAuthProfile(env, aKey, workerNormalizeLogin(prof.login || ''), targetFid, prof).catch(() => {});
+     }
     } else if (act === 'set_gate') {
      if (typeof body.phase2BetaOnly === 'boolean') betaGateConfig.phase2BetaOnly = body.phase2BetaOnly;
      if (typeof body.phase3BetaOnly === 'boolean') betaGateConfig.phase3BetaOnly = body.phase3BetaOnly;
@@ -8777,6 +8870,7 @@ function generateSyntheticWeatherJson(lat, lon) {
    return new Response(JSON.stringify({
     ok: true,
     betaTesters: Array.from(betaTestersStore.values()),
+    removedBetaTesters: Array.from(removedBetaTestersSet),
     betaGateConfig: { ...betaGateConfig }
    }), {
     headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
