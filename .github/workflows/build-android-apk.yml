@@ -154,9 +154,9 @@ jobs:
               signingConfigs {
                   release {
                       storeFile file("klevpro-release.keystore")
-                      storePassword System.getenv("KLEV_KEYSTORE_PASSWORD") ?: "KlevProSecretKeystore"
+                      storePassword System.getenv("KLEV_KEYSTORE_PASSWORD") ?: ""
                       keyAlias System.getenv("KLEV_KEY_ALIAS") ?: "klevpro"
-                      keyPassword System.getenv("KLEV_KEYSTORE_PASSWORD") ?: "KlevProSecretKeystore"
+                      keyPassword System.getenv("KLEV_KEYSTORE_PASSWORD") ?: ""
                       enableV1Signing true
                       enableV2Signing true
                       enableV3Signing true
@@ -1336,17 +1336,16 @@ jobs:
           KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
         run: |
-          EFF_PASS="${KEYSTORE_PASS:-KlevProSecretKeystore}"
-          EFF_ALIAS="${KEY_ALIAS:-klevpro}"
+          if [ -z "$KEYSTORE_B64" ] || [ -z "$KEYSTORE_PASS" ]; then
+            echo "ERROR: ANDROID_KEYSTORE_BASE64 and ANDROID_KEYSTORE_PASSWORD must be configured in GitHub Secrets (fallback keystore generation disabled for security)."
+            exit 1
+          fi
+          EFF_PASS="$KEYSTORE_PASS"
+          EFF_ALIAS="${KEY_ALIAS:-klevpro_v3}"
           echo "KLEV_KEYSTORE_PASSWORD=$EFF_PASS" >> $GITHUB_ENV
           echo "KLEV_KEY_ALIAS=$EFF_ALIAS" >> $GITHUB_ENV
-          if [ -n "$KEYSTORE_B64" ]; then
-            echo "$KEYSTORE_B64" | tr -d '\n\r ' | base64 -d > klevpro-release.keystore
-            echo "Restored klevpro-release.keystore from GitHub Secrets."
-          else
-            echo "ANDROID_KEYSTORE_BASE64 secret not set; generating signing keystore via keytool..."
-            keytool -genkeypair -v -keystore klevpro-release.keystore -alias "$EFF_ALIAS" -keyalg RSA -keysize 2048 -validity 10000 -storepass "$EFF_PASS" -keypass "$EFF_PASS" -dname "CN=KlevPro, OU=Mobile, O=KlevPro, L=NovyUrengoy, ST=YANAO, C=RU"
-          fi
+          echo "$KEYSTORE_B64" | tr -d '\n\r ' | base64 -d > klevpro-release.keystore
+          echo "Restored klevpro-release.keystore from GitHub Secrets." 
           ls -lh klevpro-release.keystore
 
       - name: Obfuscate & Minify Web Assets (Terser ES Module Mangle + Strip Comments)

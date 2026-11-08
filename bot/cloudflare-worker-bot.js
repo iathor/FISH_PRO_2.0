@@ -132,7 +132,7 @@ function sanitizePublicCirclePoint(pt, includeDeviceForOwner = false, canSeeCrew
 }
 
 const BRUTE_FORCE_WINDOW_MS = 5 * 60 * 1000;
-const BRUTE_FORCE_MAX_FAILS = 10;
+const BRUTE_FORCE_MAX_FAILS = 5;
 
 function checkLoginBruteForce(ip = 'anon', loginNorm = '') {
  const normL = String(loginNorm || 'any').toLowerCase().slice(0, 40);
@@ -975,15 +975,20 @@ async function resolveWorkerAccountIdentity(rawLogin = '', rawPassword = '', raw
      error: `Логин «${loginClean}» уже зарегистрирован (или введён неверный пароль)! Проверьте пароль или выберите другой логин.`
     };
    }
-   sessionToken = boundProf.sessionToken || legacyDerivedTok;
+   sessionToken = (boundProf.sessionToken && String(boundProf.sessionToken).startsWith('STOK_'))
+    ? boundProf.sessionToken
+    : generateSecureRandomTokenHex(32, 'STOK_');
   }
  } else {
   if (passClean) {
    pbkdf2Verifier = await workerPbkdf2HashPassword(passClean);
   }
-  sessionToken = legacyDerivedTok;
+  sessionToken = generateSecureRandomTokenHex(32, 'STOK_');
  }
- const authTokenHash = legacyDerivedTok;
+ if (!sessionToken || !String(sessionToken).startsWith('STOK_')) {
+  sessionToken = generateSecureRandomTokenHex(32, 'STOK_');
+ }
+ const authTokenHash = sessionToken;
  const pinHash = passClean
   ? workerFnv1a32(`pin::${passClean}`).toString(16)
   : String(snap?.pinHash || workerFnv1a32(authTokenHash).toString(16));
@@ -1156,20 +1161,224 @@ function upsertUserInRegistry(params = {}, env = null) {
 
 
 
-const CORS_HEADERS = {
- 'Access-Control-Allow-Origin': '*',
- 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
- 'Access-Control-Allow-Headers': 'Content-Type, Accept, Authorization, X-Requested-With, X-Auth-Token, X-Admin-Token',
- 'Access-Control-Max-Age': '86400',
- 'Cache-Control': 'no-store, no-cache, must-revalidate',
- 'Pragma': 'no-cache',
- 'Alt-Svc': 'clear',
- 'X-Content-Type-Options': 'nosniff',
- 'X-Frame-Options': 'SAMEORIGIN',
- 'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
- 'X-XSS-Protection': '1; mode=block',
- 'Referrer-Policy': 'strict-origin-when-cross-origin'
-};
+const ALLOWED_CORS_ORIGINS = new Set([
+ 'https://klevpro.ru',
+ 'https://www.klevpro.ru',
+ 'https://iathor.github.io',
+ 'https://ia-thor.github.io',
+ 'https://appassets.androidplatform.net',
+ 'https://web.telegram.org',
+ 'null'
+]);
+
+function isAllowedCorsOrigin(origin = '') {
+ const clean = String(origin || '').trim();
+ if (!clean) return true;
+ if (ALLOWED_CORS_ORIGINS.has(clean)) return true;
+ if (/^https?:\/\/(localhost|127\.0\.0\.\d+)(:\d+)?$/i.test(clean)) return true;
+ if (/^(capacitor|file):\/\//i.test(clean)) return true;
+ return false;
+}
+
+function getCorsHeadersForRequest(request = null) {
+ const origin = request?.headers?.get('Origin') || '';
+ const allowOrigin = (!origin || isAllowedCorsOrigin(origin))
+  ? (origin || 'https://klevpro.ru')
+  : 'https://klevpro.ru';
+ return {
+  'Access-Control-Allow-Origin': allowOrigin,
+  'Vary': 'Origin',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Accept, Authorization, X-Requested-With, X-Auth-Token, X-Admin-Token, X-Klev-E2E',
+  'Access-Control-Max-Age': '86400',
+  'Cache-Control': 'no-store, no-cache, must-revalidate',
+  'Pragma': 'no-cache',
+  'Alt-Svc': 'clear',
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'SAMEORIGIN',
+  'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+  'X-XSS-Protection': '1; mode=block',
+  'Referrer-Policy': 'strict-origin-when-cross-origin'
+ };
+}
+
+const CORS_HEADERS = getCorsHeadersForRequest(null);
+
+// ── Этап 2: Серверное E2E-шифрование транспортных конвертов (?e2e=...) для анти-DPI шлюзов РФ ──
+const WORKER_DEFAULT_ENVELOPE_PRIV_JWK = {"key_ops":["decrypt"],"ext":true,"kty":"RSA","n":"tLqIvyZO8p_qT0zDChD0QfWFXQ2BPhJX8k1-JKnafxxTUoK_SMYS3ggSGP-e84EW4JpNIHUqFliTfs49PrisvwzqXOGFQ1OflUf1j98MjO3ETnEnA1LYmjUuomR9HFoslj7nGgkeVRtV9oWxGvRDdDko4nHybIOZ8BvvyhWvtS58qG1JO-wVjrT8IGx8TLMr4hOUxLzqyKqXvX5jtb0ct_wgLZsE8FL1Vl6jZBzMn2pC3hD6F-peHkzWm3ON_ooiyFghelGoQewT8ZC5Np3eD6_Ci5eHkVsbyfsA95k9lf6_Wx2i37cLRn5bhziASGTc898NRpb_OS5QpYP9kNk1YQ","e":"AQAB","d":"FJ4dIJVpt0MoE2Dh9UGG5Aly6_Ew99hW4SUXCW65Jvwfw094LACwwVSxX9m1k_j7l6byuouzP_Zd6T70_LVLu8Xo7Kyrq8kb8QdTC9U51NABL6O3_CiU3k7H4a3OGhBterx1V-KHa9UhAu0wja8lDNrCf8bZDakbxCkju22q7GPOlKq-ijGrzs0Oh9YWK25LSz1IVWXrGsY4MjEIgHKjJ-jyy2qlciEnSN5k8zlPn4vy-YRZxyradFm0xhUR4s4IQV8UiAaogBCNO7EhJQ_AvNvkbKFVWm6c_ddSwAG1EQERw9xr38uMZGzyObzbeJxgkOk2Lz5yHYWf519r740cmw","p":"5cOhaxZZ5v8XCXhqWtIFKmeoCIj6nGzlEOAvwISbRASqnkCyIODvjjWWpqfGVUKng1mJdFHFNCPKANcwGT6q6IeMFbylrzZZmqx9dotS6GTEtYg7V7lLiFp3kGzLthjLXLGYerjPC6goHjJp36mIzXlWaCYNSfrbsBrQ6wfzR5s","q":"yV2EhTV39BiZ6cqn47EA8ivnW__UTKgvgKchc0o5z7XvKVUbIGZWxV_lzMcUk068mefQ6D_ZVX3NHaUcIbzGqGiSuvsTabBwYIFpcxzw4SL2GdF_NzJWXvsEHN0rjS7RvTJfnv5m-TMD4r3NnDRgYJW2GJ9K0BJzyqzKwaAGrLM","dp":"JwxiaJK54LpFrgRa_uhmnFhVhG3TObaAD6gqNWvT_3FTleWk4FWaIO8WlWg6Gs9jLL2Q0MX83-mdMRthP0kZPr-anS8ccXSpMdJS2EzBYGGP1NI8U6JYJepKG6-Bx4bbOPut0F2MQoznlIo42Bw19cXDW5vr8kDCCWHlU6xcOjU","dq":"c1DN4mdDYZNxGRUIXnlwPD9uSB5S2u95_Kg5nMeGIfBjnPzzAvP4fyGy_TmJC-8MTOsXlNlzweTAQVjbqmpsLedtGA1PCbiUMoAJ_nU1cQjPfOufeeGm2s_PhCQYm8qTLFEbt3ajS9SuRfxCMlFAXC-AT8txUYUvsIKRvp7BE8c","qi":"k4UESCA73V59Cq99SBitr0H1B7xr_bm7IkLdX3w6rk660JCBPIh6d5SLSg1wmmoEhfgrndkoktO6p5peIw83_P8duwP6v8gKh2okvN6j7Fqvw6x3MiK7Ke9lHNydS0SBpLyUK0mQaEuTzn76cwOQTlxSCwnfCQkCLXH2E91T_5c","alg":"RSA-OAEP-256"};
+const WORKER_E2E_FALLBACK_SEED = 'KLEV_E2E_V2_FALLBACK_796B06F969B53B94D769D114273739BF';
+const seenWorkerE2ENonces = new Map(); // nonce -> ts
+let _cachedWorkerEnvelopePrivKey = null;
+let _cachedWorkerEnvelopePrivKeyRaw = '';
+
+function workerB64UrlToBytes(b64url = '') {
+ const b64 = String(b64url || '').replace(/-/g, '+').replace(/_/g, '/');
+ const pad = b64.length % 4 === 0 ? '' : '='.repeat(4 - (b64.length % 4));
+ const bin = atob(b64 + pad);
+ const out = new Uint8Array(bin.length);
+ for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+ return out;
+}
+
+function workerBytesToB64Url(bytes) {
+ const u8 = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+ let bin = '';
+ for (let i = 0; i < u8.length; i++) bin += String.fromCharCode(u8[i]);
+ return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function workerHexToBytes(hex = '') {
+ const clean = String(hex || '').trim();
+ if (!clean || clean.length % 2 !== 0) return new Uint8Array(0);
+ const out = new Uint8Array(clean.length / 2);
+ for (let i = 0; i < out.length; i++) {
+  out[i] = parseInt(clean.slice(i * 2, i * 2 + 2), 16) || 0;
+ }
+ return out;
+}
+
+async function getWorkerEnvelopePrivateKey(env = null) {
+ const rawJwkStr = (env && env.WORKER_ENVELOPE_PRIVKEY) ? String(env.WORKER_ENVELOPE_PRIVKEY).trim() : JSON.stringify(WORKER_DEFAULT_ENVELOPE_PRIV_JWK);
+ if (_cachedWorkerEnvelopePrivKey && _cachedWorkerEnvelopePrivKeyRaw === rawJwkStr) {
+  return _cachedWorkerEnvelopePrivKey;
+ }
+ const jwkObj = JSON.parse(rawJwkStr);
+ const key = await crypto.subtle.importKey(
+  'jwk',
+  jwkObj,
+  { name: 'RSA-OAEP', hash: 'SHA-256' },
+  false,
+  ['decrypt']
+ );
+ _cachedWorkerEnvelopePrivKey = key;
+ _cachedWorkerEnvelopePrivKeyRaw = rawJwkStr;
+ return key;
+}
+
+function workerXorStreamCipher(dataBytes, keyHex, ivHex) {
+ const out = new Uint8Array(dataBytes.length);
+ const enc = new TextEncoder();
+ let blockIdx = 0;
+ let offset = 0;
+ while (offset < dataBytes.length) {
+  const seedBytes = enc.encode(`${keyHex}:${ivHex}:${blockIdx++}`);
+  const keystream = sha256BytesSync(seedBytes);
+  const chunkLen = Math.min(32, dataBytes.length - offset);
+  for (let i = 0; i < chunkLen; i++) {
+   out[offset + i] = dataBytes[offset + i] ^ keystream[i];
+  }
+  offset += chunkLen;
+ }
+ return out;
+}
+
+async function unwrapWorkerE2ERequest(outerRequest, outerUrl, env = null) {
+ const rawE2E = String(outerUrl.searchParams.get('e2e') || '').trim();
+ if (!rawE2E) return { ok: false, error: 'Empty E2E envelope' };
+ try {
+  let plainJsonStr = '';
+  let e2eVersion = 'E2E1';
+  if (rawE2E.startsWith('E2E1.')) {
+   const parts = rawE2E.split('.');
+   if (parts.length !== 4) return { ok: false, error: 'Malformed E2E1 envelope' };
+   const wrappedKeyBytes = workerB64UrlToBytes(parts[1]);
+   const ivBytes = workerB64UrlToBytes(parts[2]);
+   const cipherBytes = workerB64UrlToBytes(parts[3]);
+   const privKey = await getWorkerEnvelopePrivateKey(env);
+   const aesRawBuf = await crypto.subtle.decrypt({ name: 'RSA-OAEP' }, privKey, wrappedKeyBytes);
+   const aesKey = await crypto.subtle.importKey('raw', aesRawBuf, { name: 'AES-GCM' }, false, ['decrypt']);
+   const plainBuf = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: ivBytes }, aesKey, cipherBytes);
+   plainJsonStr = new TextDecoder().decode(plainBuf);
+   e2eVersion = 'E2E1';
+  } else if (rawE2E.startsWith('E2E0.')) {
+   const parts = rawE2E.split('.');
+   if (parts.length !== 4) return { ok: false, error: 'Malformed E2E0 envelope' };
+   const ivHex = parts[1];
+   const cipherB64 = parts[2];
+   const macHex = parts[3].toUpperCase();
+   const expectedMac = hmacSha256HexSync(WORKER_E2E_FALLBACK_SEED, `E2E0:${ivHex}:${cipherB64}`);
+   if (!constantTimeEquals(macHex, expectedMac)) return { ok: false, error: 'Invalid E2E0 HMAC' };
+   const cipherBytes = workerB64UrlToBytes(cipherB64);
+   const plainBytes = workerXorStreamCipher(cipherBytes, WORKER_E2E_FALLBACK_SEED, ivHex);
+   plainJsonStr = new TextDecoder().decode(plainBytes);
+   e2eVersion = 'E2E0';
+  } else {
+   return { ok: false, error: 'Unsupported E2E version' };
+  }
+  const envObj = JSON.parse(plainJsonStr);
+  if (!envObj || typeof envObj !== 'object') return { ok: false, error: 'Invalid E2E payload' };
+  const now = Date.now();
+  const ts = Number(envObj.ts || 0);
+  if (!ts || Math.abs(now - ts) > 15 * 60 * 1000) {
+   return { ok: false, error: 'Expired E2E envelope timestamp' };
+  }
+  const nonce = String(envObj.n || '').trim();
+  if (nonce) {
+   if (seenWorkerE2ENonces.size > 4000) {
+    for (const [k, v] of seenWorkerE2ENonces.entries()) {
+     if (now - v > 15 * 60 * 1000) seenWorkerE2ENonces.delete(k);
+    }
+   }
+   if (seenWorkerE2ENonces.has(nonce)) {
+    return { ok: false, error: 'Replayed E2E envelope nonce' };
+   }
+   seenWorkerE2ENonces.set(nonce, now);
+  }
+  const method = String(envObj.m || 'GET').toUpperCase();
+  const cleanUrl = new URL(outerUrl.toString());
+  cleanUrl.search = '';
+  if (envObj.q && typeof envObj.q === 'string') {
+   const qStr = envObj.q.startsWith('?') ? envObj.q.slice(1) : envObj.q;
+   const sp = new URLSearchParams(qStr);
+   for (const [k, v] of sp.entries()) cleanUrl.searchParams.set(k, v);
+  }
+  const headers = new Headers(outerRequest.headers);
+  if (envObj.h && typeof envObj.h === 'object') {
+   for (const [hk, hv] of Object.entries(envObj.h)) {
+    if (hv) headers.set(hk, String(hv));
+   }
+  }
+  if (method === 'POST' && !headers.has('Content-Type')) {
+   headers.set('Content-Type', 'application/json;charset=UTF-8');
+  }
+  const bodyStr = typeof envObj.b === 'string' ? envObj.b : (envObj.b ? JSON.stringify(envObj.b) : '');
+  const syntheticRequest = new Request(cleanUrl.toString(), {
+   method,
+   headers,
+   body: method === 'POST' ? bodyStr : undefined
+  });
+  return {
+   ok: true,
+   syntheticRequest,
+   respKeyHex: String(envObj.rk || '').trim(),
+   version: e2eVersion
+  };
+ } catch (err) {
+  return { ok: false, error: 'E2E unwrap failed: ' + String(err?.message || err) };
+ }
+}
+
+async function encryptWorkerE2EResponse(bodyText, httpStatus, respKeyHex, version = 'E2E1') {
+ const payloadStr = JSON.stringify({
+  status: Number(httpStatus || 200),
+  body: String(bodyText ?? ''),
+  ts: Date.now()
+ });
+ const plainBytes = new TextEncoder().encode(payloadStr);
+ if (version === 'E2E1' && respKeyHex && respKeyHex.length === 64 && typeof crypto !== 'undefined' && crypto.subtle) {
+  const iv = new Uint8Array(12);
+  crypto.getRandomValues(iv);
+  const keyBytes = workerHexToBytes(respKeyHex);
+  const aesKey = await crypto.subtle.importKey('raw', keyBytes, { name: 'AES-GCM' }, false, ['encrypt']);
+  const cipherBuf = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, aesKey, plainBytes);
+  return `E2E1.${workerBytesToB64Url(iv)}.${workerBytesToB64Url(new Uint8Array(cipherBuf))}`;
+ }
+ const ivHex = generateSecureRandomTokenHex(8, '');
+ const cipherBytes = workerXorStreamCipher(plainBytes, respKeyHex || WORKER_E2E_FALLBACK_SEED, ivHex);
+ const cipherB64 = workerBytesToB64Url(cipherBytes);
+ const macHex = hmacSha256HexSync(respKeyHex || WORKER_E2E_FALLBACK_SEED, `E2ER0:${ivHex}:${cipherB64}`);
+ return `E2E0.${ivHex}.${cipherB64}.${macHex}`;
+}
 
 function jsonResponse(obj, status = 200) {
  return new Response(JSON.stringify(obj), {
@@ -4905,6 +5114,7 @@ async function ensureD1Tables(d1) {
     d1.prepare(`CREATE TABLE IF NOT EXISTS circle_points (id TEXT PRIMARY KEY, t TEXT, sos INTEGER, fid TEXT, crew_key TEXT, lat REAL, lon REAL, ca INTEGER, ea INTEGER, payload TEXT)`),
     d1.prepare(`CREATE TABLE IF NOT EXISTS transit_relay (id TEXT PRIMARY KEY, channel_id TEXT, sender_id TEXT, cipher_payload TEXT, kind TEXT, crew_key TEXT, peer_id TEXT, ts INTEGER)`),
     d1.prepare(`CREATE TABLE IF NOT EXISTS klev_kv (k TEXT PRIMARY KEY, v TEXT, updated_at INTEGER)`),
+    d1.prepare(`CREATE TABLE IF NOT EXISTS rate_limits (k TEXT PRIMARY KEY, cnt INTEGER DEFAULT 0, reset_at INTEGER DEFAULT 0, locked_until INTEGER DEFAULT 0)`),
     d1.prepare(`CREATE INDEX IF NOT EXISTS idx_users_lastseen ON users_registry(last_seen)`),
     d1.prepare(`CREATE INDEX IF NOT EXISTS idx_relay_ch_ts ON transit_relay(channel_id, ts)`),
     d1.prepare(`CREATE INDEX IF NOT EXISTS idx_circle_ea ON circle_points(ea)`)
@@ -4918,6 +5128,118 @@ async function ensureD1Tables(d1) {
   }
  })();
  return _d1InitPromise;
+}
+
+// ── Этап 3.2: Межизолятный Rate Limiting и защита от перебора в таблице D1 rate_limits ──
+async function checkD1RateLimit(env, bucketKey, maxHits = 60, windowMs = 60000, lockMs = 0) {
+ const cleanK = `rl_${String(bucketKey || 'anon').slice(0, 96)}`;
+ const now = Date.now();
+ const d1Info = getD1(env);
+ const d1 = d1Info?.db;
+ if (d1) {
+  try {
+   await ensureD1Tables(d1);
+   const row = await d1.prepare('SELECT cnt, reset_at, locked_until FROM rate_limits WHERE k = ?').bind(cleanK).first();
+   if (row) {
+    const lockedUntil = Number(row.locked_until || 0);
+    if (lockedUntil > now) {
+     return { allowed: false, locked: true, remaining: 0, retryAfterSec: Math.ceil((lockedUntil - now) / 1000) };
+    }
+    const resetAt = Number(row.reset_at || 0);
+    let cnt = Number(row.cnt || 0);
+    if (resetAt <= now) {
+     cnt = 1;
+     const nextReset = now + windowMs;
+     await d1.prepare('INSERT OR REPLACE INTO rate_limits (k, cnt, reset_at, locked_until) VALUES (?, ?, ?, 0)').bind(cleanK, cnt, nextReset).run();
+     return { allowed: true, locked: false, remaining: Math.max(0, maxHits - cnt) };
+    }
+    cnt += 1;
+    const nextLock = cnt > maxHits && lockMs > 0 ? (now + lockMs) : 0;
+    await d1.prepare('UPDATE rate_limits SET cnt = ?, locked_until = ? WHERE k = ?').bind(cnt, nextLock, cleanK).run();
+    if (cnt > maxHits) {
+     return { allowed: false, locked: nextLock > 0, remaining: 0, retryAfterSec: Math.ceil(((nextLock || resetAt) - now) / 1000) };
+    }
+    return { allowed: true, locked: false, remaining: Math.max(0, maxHits - cnt) };
+   } else {
+    await d1.prepare('INSERT OR REPLACE INTO rate_limits (k, cnt, reset_at, locked_until) VALUES (?, 1, ?, 0)').bind(cleanK, now + windowMs).run();
+    return { allowed: true, locked: false, remaining: Math.max(0, maxHits - 1) };
+   }
+  } catch (e) {}
+ }
+ const okMem = checkWorkerRateLimit(cleanK, false, maxHits);
+ return { allowed: okMem, locked: !okMem, remaining: okMem ? 1 : 0 };
+}
+
+async function checkD1LoginBruteForce(env, ip = 'anon', loginNorm = '') {
+ const memCheck = checkLoginBruteForce(ip, loginNorm);
+ if (memCheck.locked) return memCheck;
+ const normL = String(loginNorm || 'any').toLowerCase().slice(0, 40);
+ const key = `bf_d1_${normL}`;
+ const now = Date.now();
+ const d1Info = getD1(env);
+ const d1 = d1Info?.db;
+ if (d1) {
+  try {
+   await ensureD1Tables(d1);
+   const row = await d1.prepare('SELECT cnt, reset_at, locked_until FROM rate_limits WHERE k = ?').bind(key).first();
+   if (row) {
+    const lockedUntil = Number(row.locked_until || 0);
+    if (lockedUntil > now) {
+     return { locked: true, waitSec: Math.ceil((lockedUntil - now) / 1000), remainingAttempts: 0 };
+    }
+    const resetAt = Number(row.reset_at || 0);
+    if (resetAt > now) {
+     const cnt = Number(row.cnt || 0);
+     if (cnt >= BRUTE_FORCE_MAX_FAILS) {
+      return { locked: true, waitSec: Math.ceil((resetAt - now) / 1000), remainingAttempts: 0 };
+     }
+     return { locked: false, remainingAttempts: Math.max(0, BRUTE_FORCE_MAX_FAILS - cnt) };
+    }
+   }
+  } catch (e) {}
+ }
+ return memCheck;
+}
+
+async function recordD1LoginFailure(env, ip = 'anon', loginNorm = '', endpoint = '/auth/login') {
+ const memRec = recordLoginFailure(ip, loginNorm, endpoint);
+ const normL = String(loginNorm || 'any').toLowerCase().slice(0, 40);
+ const key = `bf_d1_${normL}`;
+ const now = Date.now();
+ const d1Info = getD1(env);
+ const d1 = d1Info?.db;
+ if (d1) {
+  try {
+   await ensureD1Tables(d1);
+   const row = await d1.prepare('SELECT cnt, reset_at, locked_until FROM rate_limits WHERE k = ?').bind(key).first();
+   let cnt = 1;
+   let resetAt = now + BRUTE_FORCE_WINDOW_MS;
+   let lockedUntil = 0;
+   if (row && Number(row.reset_at || 0) > now) {
+    cnt = Number(row.cnt || 0) + 1;
+    resetAt = Number(row.reset_at);
+   }
+   if (cnt >= BRUTE_FORCE_MAX_FAILS) {
+    lockedUntil = now + BRUTE_FORCE_WINDOW_MS;
+   }
+   await d1.prepare('INSERT OR REPLACE INTO rate_limits (k, cnt, reset_at, locked_until) VALUES (?, ?, ?, ?)').bind(key, cnt, resetAt, lockedUntil).run();
+   return { count: cnt, lockedUntil };
+  } catch (e) {}
+ }
+ return memRec;
+}
+
+async function clearD1LoginFailures(env, ip = 'anon', loginNorm = '') {
+ clearLoginFailures(ip, loginNorm);
+ const normL = String(loginNorm || 'any').toLowerCase().slice(0, 40);
+ const key = `bf_d1_${normL}`;
+ const d1Info = getD1(env);
+ const d1 = d1Info?.db;
+ if (d1) {
+  try {
+   await d1.prepare('DELETE FROM rate_limits WHERE k = ?').bind(key).run();
+  } catch (e) {}
+ }
 }
 
 async function d1SaveUser(env, u) {
@@ -5678,10 +6000,7 @@ async function _fetchGeminiWithGeoFallback(gUrl, bodyStr, timeoutMs) {
   }
  }
 
- const relayUrls = [
-  `https://corsproxy.io/?url=${encodeURIComponent(gUrl)}`,
-  `https://thingproxy.freeboard.io/fetch/${gUrl}`
- ];
+ const relayUrls = (env && env.GEMINI_CUSTOM_RELAY_URL) ? [`${env.GEMINI_CUSTOM_RELAY_URL}${encodeURIComponent(gUrl)}`] : [];
  for (const rUrl of relayUrls) {
   const rRes = await tryFetchUrl(rUrl, timeoutMs);
   if (rRes && rRes.ok) return { res: rRes, errTxt: "" };
@@ -6480,7 +6799,47 @@ function renderSuperAdminConsoleHtml(originUrl = '', d1Info = null) {
 
 
 export default {
- async fetch(request, env, ctx) {
+ async fetch(outerRequest, env, ctx) {
+  const dynamicCors = getCorsHeadersForRequest(outerRequest);
+  if (outerRequest.method === 'OPTIONS') {
+   return new Response(null, { status: 204, headers: dynamicCors });
+  }
+  const outerUrl = new URL(outerRequest.url);
+  let e2eContext = null;
+  let request = outerRequest;
+  if (outerUrl.searchParams.has('e2e')) {
+   const unwrapped = await unwrapWorkerE2ERequest(outerRequest, outerUrl, env);
+   if (!unwrapped.ok) {
+    return new Response(JSON.stringify({ ok: false, error: unwrapped.error || 'Invalid E2E envelope' }), {
+     status: 400,
+     headers: { ...dynamicCors, 'Content-Type': 'application/json;charset=utf-8' }
+    });
+   }
+   request = unwrapped.syntheticRequest;
+   e2eContext = unwrapped;
+  }
+  const rawResponse = await this._handleCoreFetch(request, env, ctx);
+  const outHeaders = new Headers(rawResponse.headers);
+  outHeaders.set('Access-Control-Allow-Origin', dynamicCors['Access-Control-Allow-Origin']);
+  outHeaders.set('Vary', 'Origin');
+  if (e2eContext && e2eContext.respKeyHex) {
+   const cType = String(outHeaders.get('Content-Type') || '').toLowerCase();
+   if (cType.includes('application/json')) {
+    const plainBodyText = await rawResponse.text();
+    const e2eRespCipher = await encryptWorkerE2EResponse(plainBodyText, rawResponse.status, e2eContext.respKeyHex, e2eContext.version);
+    return new Response(JSON.stringify({ ok: true, e2eResp: e2eRespCipher }), {
+     status: 200,
+     headers: { ...dynamicCors, 'Content-Type': 'application/json;charset=utf-8' }
+    });
+   }
+  }
+  return new Response(rawResponse.body, {
+   status: rawResponse.status,
+   statusText: rawResponse.statusText,
+   headers: outHeaders
+  });
+ },
+ async _handleCoreFetch(request, env, ctx) {
   try {
   const BOT_TOKEN = (env && env.BOT_TOKEN) || '';
   const WEBHOOK_SECRET = (env && env.WEBHOOK_SECRET) || '';
@@ -6502,7 +6861,7 @@ export default {
   // ── Прокси тайлов офлайн-карт (/api/tile-proxy?url=...) с заголовками CORS для Яндекс Спутник / Схема ──
   // ── Мониторинг ошибок клиентов (/api/telemetry/client-error) и SEO (/robots.txt, /sitemap.xml) ──
   if (reqUrl.pathname === '/robots.txt' && request.method === 'GET') {
-   return new Response(`User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /auth/\nDisallow: /relay/\nDisallow: /weather\nDisallow: /admin\nHost: https://klevpro.ru\nSitemap: https://klevpro.ru/sitemap.xml\n`, {
+   return new Response(`User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /auth/\nDisallow: /relay/\nDisallow: /weather\nHost: https://klevpro.ru\nSitemap: https://klevpro.ru/sitemap.xml\n`, {
     status: 200,
     headers: { ...CORS_HEADERS, 'Content-Type': 'text/plain; charset=utf-8' }
    });
@@ -8221,7 +8580,7 @@ function generateSyntheticWeatherJson(lat, lon) {
       headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
      });
     }
-    const bfState = checkLoginBruteForce(clientIp, normLoginPre || rawLoginClean);
+    const bfState = await checkD1LoginBruteForce(env, clientIp, normLoginPre || rawLoginClean);
     if (bfState.locked) {
      return new Response(JSON.stringify({
       ok: false,
@@ -8241,7 +8600,7 @@ function generateSyntheticWeatherJson(lat, lon) {
     await loadPersistedAuthProfile(env, preCheckKey, normLoginPre, normFidPre);
     const ident = await resolveWorkerAccountIdentity(body.login, body.password, body.authTokenHash, body.regionCode, incomingSnap, env);
     if (!ident.ok) {
-     const failRec = recordLoginFailure(clientIp, normLoginPre || rawLoginClean, '/auth/login');
+     const failRec = await recordD1LoginFailure(env, clientIp, normLoginPre || rawLoginClean, '/auth/login');
      const rem = Math.max(0, BRUTE_FORCE_MAX_FAILS - failRec.count);
      return new Response(JSON.stringify({
       ok: false,
@@ -8253,7 +8612,7 @@ function generateSyntheticWeatherJson(lat, lon) {
       headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
      });
     }
-    clearLoginFailures(clientIp, normLoginPre || rawLoginClean);
+    await clearD1LoginFailures(env, clientIp, normLoginPre || rawLoginClean);
     const existing = (await loadPersistedAuthProfile(env, ident.authKey)) || null;
     const regUser = usersRegistryStore.get(ident.fisherId) || null;
     const mergedTgId = String(incomingSnap.tgLinkedId || existing?.tgLinkedId || regUser?.tgId || '').trim();
