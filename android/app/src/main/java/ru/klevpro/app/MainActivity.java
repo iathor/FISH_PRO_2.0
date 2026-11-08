@@ -265,7 +265,7 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String getAppVersion() {
-            return "2.5.6-r215";
+            return "2.5.6-r216";
         }
 
         @JavascriptInterface
@@ -549,7 +549,7 @@ public class MainActivity extends Activity {
         ws.setCacheMode(WebSettings.LOAD_NO_CACHE);
                   webView.clearCache(true);
         String baseUa = ws.getUserAgentString();
-        ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.5.6-r215");
+        ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.5.6-r216");
 
         webView.addJavascriptInterface(new NativeBridge(this), "AndroidBridge");
 
@@ -806,7 +806,7 @@ public class MainActivity extends Activity {
     }
 
     private void loadEntryUrlFromIntent(Intent intent) {
-        String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/index.html?v=2.5.6_r215";
+        String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/index.html?v=2.5.6_r216";
         if (intent != null && intent.getData() != null) {
             Uri data = intent.getData();
             String q = data.getEncodedQuery();
@@ -825,28 +825,18 @@ public class MainActivity extends Activity {
     }
 
     private void requestStartupPermissionsIfNeeded() {
+        // Этап 5 (Just-in-Time): при старте запрашиваем только базовую геолокацию и уведомления.
+        // Камера (CAMERA) и Галерея (READ_MEDIA_IMAGES) запрашиваются только при вызове Ихтио-Сканера или прикреплении фото в Журнал,
+        // а фоновая геолокация (ACCESS_BACKGROUND_LOCATION) — только при запуске записи маршрута Фазы 3.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             List<String> needed = new ArrayList<>();
             if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
                 needed.add(Manifest.permission.ACCESS_FINE_LOCATION);
                 needed.add(Manifest.permission.ACCESS_COARSE_LOCATION);
             }
-            if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-                needed.add(Manifest.permission.CAMERA);
-            }
             if (Build.VERSION.SDK_INT >= 33) {
                 if (checkSelfPermission(PERM_POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                     needed.add(PERM_POST_NOTIFICATIONS);
-                }
-                if (checkSelfPermission(PERM_READ_MEDIA_IMAGES) != PackageManager.PERMISSION_GRANTED) {
-                    needed.add(PERM_READ_MEDIA_IMAGES);
-                }
-            } else {
-                if (checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-                    needed.add(Manifest.permission.READ_EXTERNAL_STORAGE);
-                }
-                if (Build.VERSION.SDK_INT <= 29 && checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-                    needed.add(Manifest.permission.WRITE_EXTERNAL_STORAGE);
                 }
             }
             if (!needed.isEmpty()) {
