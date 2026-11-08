@@ -6014,9 +6014,9 @@ async function callGeminiGenerateContentSmart(apiKey, contentsPayload, genConfig
  if (!cleanKey) return { ok: false, status: 400, errorText: "Empty key" };
 
  const discovered = await discoverGeminiModelsForWorker(cleanKey);
- const candidates = [];
- if (geminiConfigStore.activeModel && geminiConfigStore.activeModel.startsWith("gemini-")) {
-  candidates.push(geminiConfigStore.activeModel);
+ const candidates = ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-3-flash-preview"];
+ if (geminiConfigStore.activeModel && geminiConfigStore.activeModel.startsWith("gemini-") && !/lite/i.test(geminiConfigStore.activeModel)) {
+  if (!candidates.includes(geminiConfigStore.activeModel)) candidates.unshift(geminiConfigStore.activeModel);
  }
  for (const m of discovered) {
   if (!candidates.includes(m)) candidates.push(m);
@@ -7347,14 +7347,62 @@ export default {
    }
   }
 
-  // ── Прямой Vision ИИ-определитель рыбы (/api/ai/identify-fish) через Gemini Flash Vision без рамок и подставных заглушек ──
-  if (reqUrl.pathname.endsWith('/api/ai/identify-fish') && (request.method === 'POST' || reqUrl.searchParams.has('payload'))) {
+  // ── Прямой Vision ИИ-определитель рыбы (/api/ai/identify-fish) + Пакетная сборка чанков для работы в РФ без VPN ──
+  if (reqUrl.pathname.endsWith('/api/ai/identify-fish') && (request.method === 'POST' || request.method === 'GET' || reqUrl.searchParams.has('payload'))) {
    try {
     await ensurePersistentStateLoaded(env);
     const b = await readWorkerRequestPayload(request, reqUrl, 4194304);
+    if (!globalThis.__klevVisionChunkStore) {
+     globalThis.__klevVisionChunkStore = new Map();
+    }
+    const chunkMode = String(b?.chunkMode || '').trim();
+    if (chunkMode === 'put') {
+     const scanId = String(b?.scanId || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 48);
+     const idx = Number(b?.idx ?? -1);
+     const total = Number(b?.total ?? 0);
+     const chunkData = String(b?.data || '').trim();
+     if (!scanId || idx < 0 || total <= 0 || total > 40 || !chunkData || chunkData.length > 16000) {
+      return new Response(JSON.stringify({ ok: false, error: 'Invalid chunk parameters' }), { status: 400, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
+     }
+     const chunkKey = `AI_CHK_${scanId}_${idx}`;
+     globalThis.__klevVisionChunkStore.set(chunkKey, { data: chunkData, ts: Date.now() });
+     const d1Chunk = getD1(env)?.db;
+     if (d1Chunk) {
+      await ensureD1Tables(d1Chunk);
+      await d1Chunk.prepare('INSERT OR REPLACE INTO klev_kv (k, v, updated_at) VALUES (?, ?, ?)').bind(chunkKey, chunkData, Date.now()).run().catch(() => {});
+     }
+     return new Response(JSON.stringify({ ok: true, scanId, savedIdx: idx, total }), { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
+    }
+    let rawImgB64 = String(b?.imageBase64 || b?.thumbDataUrl || '').trim();
+    if (chunkMode === 'exec' && !rawImgB64) {
+     const scanId = String(b?.scanId || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 48);
+     const total = Math.min(40, Math.max(1, Number(b?.total || 0)));
+     const d1Chunk = getD1(env)?.db;
+     const parts = [];
+     for (let i = 0; i < total; i++) {
+      const chunkKey = `AI_CHK_${scanId}_${i}`;
+      let partStr = globalThis.__klevVisionChunkStore.get(chunkKey)?.data || '';
+      if (!partStr && d1Chunk) {
+       const row = await d1Chunk.prepare('SELECT v FROM klev_kv WHERE k = ?').bind(chunkKey).first().catch(() => null);
+       if (row && row.v) partStr = String(row.v);
+      }
+      if (!partStr) {
+       return new Response(JSON.stringify({ ok: false, error: `Missing image chunk ${i + 1}/${total}` }), { status: 400, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
+      }
+      parts.push(partStr);
+     }
+     rawImgB64 = parts.join('');
+     const cleanupTask = (async () => {
+      for (let i = 0; i < total; i++) {
+       const chunkKey = `AI_CHK_${scanId}_${i}`;
+       globalThis.__klevVisionChunkStore.delete(chunkKey);
+       if (d1Chunk) await d1Chunk.prepare('DELETE FROM klev_kv WHERE k = ?').bind(chunkKey).run().catch(() => {});
+      }
+     })();
+     if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(cleanupTask);
+    }
     const dhash = String(b?.dhash || '').toLowerCase().replace(/^dh_/, '');
     const basinCode = String(b?.basinCode || 'arctic_ob_taz');
-    const rawImgB64 = String(b?.imageBase64 || b?.thumbDataUrl || '').trim();
     const admTokVis = extractAdminTokenFromRequest(request, reqUrl, b);
     const clientGeminiKey = isValidOwnerAdminToken(admTokVis, env) ? String(b?.geminiApiKey || '').trim() : '';
     if (b?.geminiApiKey && !isValidOwnerAdminToken(admTokVis, env)) {

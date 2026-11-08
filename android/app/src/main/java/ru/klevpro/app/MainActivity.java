@@ -70,6 +70,9 @@ public class MainActivity extends Activity {
 
     private WebView webView;
     private ValueCallback<Uri[]> fileUploadCallback;
+    private volatile int gnssSatellitesUsedCount = 0;
+    private volatile int gnssSatellitesVisibleCount = 0;
+    private volatile float lastGpsAccuracyMeters = 0f;
     private boolean pendingCameraLaunchAfterPerm = false;
     private Uri pendingCameraPhotoUri = null;
     private long lastRootBackPressMs = 0L;
@@ -261,6 +264,21 @@ public class MainActivity extends Activity {
             } catch (Exception e) {
                 return "";
             }
+        }
+
+        @JavascriptInterface
+        public int getGnssSatellitesUsed() {
+            return gnssSatellitesUsedCount;
+        }
+
+        @JavascriptInterface
+        public int getGnssSatellitesVisible() {
+            return gnssSatellitesVisibleCount;
+        }
+
+        @JavascriptInterface
+        public float getLastLocationAccuracyMeters() {
+            return lastGpsAccuracyMeters;
         }
 
         @JavascriptInterface
