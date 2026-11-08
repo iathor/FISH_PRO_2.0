@@ -778,36 +778,40 @@ async function verifyUserAuth(env, { fid = '', authTokenHash = '', deviceId = ''
  }
  const normFid = workerNormalizeFisherId(fid || '', '89');
  if (!normFid) return { ok: false, isAdmin: false, isOwner: false };
- if (isOwnerFisherId(normFid)) {
-  return { ok: false, isAdmin: false, isOwner: false };
- }
  if (isTemporaryReserveId(normFid)) {
   return { ok: true, isAdmin: false, isOwner: false, isReserve: true };
  }
 
+ const isOwnerId = isOwnerFisherId(normFid);
  const aKey = fisherIdToAuthKeyMap.get(normFid) || '';
  const prof = (aKey ? cloudAuthProfiles.get(aKey) : null) || (await loadPersistedAuthProfile(env, aKey, '', normFid));
  const regUser = usersRegistryStore.get(normFid) || null;
 
- if (effToken && prof) {
-  if (
+ if (effToken) {
+  const matchProf = prof && (
    (prof.sessionToken && constantTimeEquals(effToken, prof.sessionToken)) ||
    (prof.authTokenHash && constantTimeEquals(effToken, prof.authTokenHash)) ||
    (prof.secureTokenHash && constantTimeEquals(effToken, prof.secureTokenHash))
-  ) {
-   return { ok: true, isAdmin: adminWhitelistStore.has(normFid), isOwner: false };
+  );
+  const matchReg = regUser && (
+   (regUser.sessionToken && constantTimeEquals(effToken, regUser.sessionToken)) ||
+   (regUser.authTokenHash && constantTimeEquals(effToken, regUser.authTokenHash)) ||
+   (regUser.secureTokenHash && constantTimeEquals(effToken, regUser.secureTokenHash))
+  );
+  if (matchProf || matchReg) {
+   return { ok: true, isAdmin: Boolean(isOwnerId || adminWhitelistStore.has(normFid)), isOwner: isOwnerId };
   }
  }
 
  const cleanDev = String(deviceId || '').trim();
- if (cleanDev && !effToken) {
+ if (cleanDev) {
   const mappedFid = deviceToFisherIdMap.get(cleanDev) || '';
   if (
    (mappedFid && constantTimeEquals(mappedFid, normFid)) ||
    (prof?.deviceId && constantTimeEquals(cleanDev, prof.deviceId)) ||
    (regUser?.deviceId && constantTimeEquals(cleanDev, regUser.deviceId))
   ) {
-   return { ok: true, isAdmin: adminWhitelistStore.has(normFid), isOwner: false };
+   return { ok: true, isAdmin: Boolean(isOwnerId || adminWhitelistStore.has(normFid)), isOwner: isOwnerId };
   }
  }
 
@@ -6000,7 +6004,10 @@ async function _fetchGeminiWithGeoFallback(gUrl, bodyStr, timeoutMs) {
   }
  }
 
- const relayUrls = (env && env.GEMINI_CUSTOM_RELAY_URL) ? [`${env.GEMINI_CUSTOM_RELAY_URL}${encodeURIComponent(gUrl)}`] : [];
+ const relayUrls = [
+  ...(typeof env !== "undefined" && env && env.GEMINI_CUSTOM_RELAY_URL ? [`${env.GEMINI_CUSTOM_RELAY_URL}${encodeURIComponent(gUrl)}`] : []),
+  `https://corsproxy.io/?url=${encodeURIComponent(gUrl)}`
+ ];
  for (const rUrl of relayUrls) {
   const rRes = await tryFetchUrl(rUrl, timeoutMs);
   if (rRes && rRes.ok) return { res: rRes, errTxt: "" };
@@ -6014,7 +6021,7 @@ async function callGeminiGenerateContentSmart(apiKey, contentsPayload, genConfig
  if (!cleanKey) return { ok: false, status: 400, errorText: "Empty key" };
 
  const discovered = await discoverGeminiModelsForWorker(cleanKey);
- const candidates = ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-3-flash-preview"];
+ const candidates = ["gemini-2.5-flash", "gemini-3-flash-preview", "gemini-2.5-flash-lite", "gemini-3.1-flash-lite-preview", "gemini-2.0-flash"];
  if (geminiConfigStore.activeModel && geminiConfigStore.activeModel.startsWith("gemini-") && !/lite/i.test(geminiConfigStore.activeModel)) {
   if (!candidates.includes(geminiConfigStore.activeModel)) candidates.unshift(geminiConfigStore.activeModel);
  }
@@ -7355,32 +7362,38 @@ export default {
     if (!globalThis.__klevVisionChunkStore) {
      globalThis.__klevVisionChunkStore = new Map();
     }
+    if (!globalThis.__klevVisionScanResultCache) {
+     globalThis.__klevVisionScanResultCache = new Map();
+    }
     const chunkMode = String(b?.chunkMode || '').trim();
+    const reqScanId = String(b?.scanId || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 48);
     if (chunkMode === 'put') {
-     const scanId = String(b?.scanId || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 48);
      const idx = Number(b?.idx ?? -1);
      const total = Number(b?.total ?? 0);
      const chunkData = String(b?.data || '').trim();
-     if (!scanId || idx < 0 || total <= 0 || total > 40 || !chunkData || chunkData.length > 16000) {
+     if (!reqScanId || idx < 0 || total <= 0 || total > 60 || !chunkData || chunkData.length > 16000) {
       return new Response(JSON.stringify({ ok: false, error: 'Invalid chunk parameters' }), { status: 400, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
      }
-     const chunkKey = `AI_CHK_${scanId}_${idx}`;
+     const chunkKey = `AI_CHK_${reqScanId}_${idx}`;
      globalThis.__klevVisionChunkStore.set(chunkKey, { data: chunkData, ts: Date.now() });
      const d1Chunk = getD1(env)?.db;
      if (d1Chunk) {
       await ensureD1Tables(d1Chunk);
       await d1Chunk.prepare('INSERT OR REPLACE INTO klev_kv (k, v, updated_at) VALUES (?, ?, ?)').bind(chunkKey, chunkData, Date.now()).run().catch(() => {});
      }
-     return new Response(JSON.stringify({ ok: true, scanId, savedIdx: idx, total }), { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
+     return new Response(JSON.stringify({ ok: true, scanId: reqScanId, savedIdx: idx, total }), { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
+    }
+    if (reqScanId && globalThis.__klevVisionScanResultCache.has(reqScanId)) {
+     const cachedScanOut = globalThis.__klevVisionScanResultCache.get(reqScanId);
+     return new Response(JSON.stringify(cachedScanOut), { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
     }
     let rawImgB64 = String(b?.imageBase64 || b?.thumbDataUrl || '').trim();
     if (chunkMode === 'exec' && !rawImgB64) {
-     const scanId = String(b?.scanId || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 48);
-     const total = Math.min(40, Math.max(1, Number(b?.total || 0)));
+     const total = Math.min(60, Math.max(1, Number(b?.total || 0)));
      const d1Chunk = getD1(env)?.db;
      const parts = [];
      for (let i = 0; i < total; i++) {
-      const chunkKey = `AI_CHK_${scanId}_${i}`;
+      const chunkKey = `AI_CHK_${reqScanId}_${i}`;
       let partStr = globalThis.__klevVisionChunkStore.get(chunkKey)?.data || '';
       if (!partStr && d1Chunk) {
        const row = await d1Chunk.prepare('SELECT v FROM klev_kv WHERE k = ?').bind(chunkKey).first().catch(() => null);
@@ -7392,14 +7405,15 @@ export default {
       parts.push(partStr);
      }
      rawImgB64 = parts.join('');
-     const cleanupTask = (async () => {
-      for (let i = 0; i < total; i++) {
-       const chunkKey = `AI_CHK_${scanId}_${i}`;
-       globalThis.__klevVisionChunkStore.delete(chunkKey);
-       if (d1Chunk) await d1Chunk.prepare('DELETE FROM klev_kv WHERE k = ?').bind(chunkKey).run().catch(() => {});
-      }
-     })();
-     if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(cleanupTask);
+     // Не удаляем чанки мгновенно до завершения Vision (чтобы параллельные/повторные ретраи ретранслятора не падали с Missing chunk)!
+     // Очищаем только старые чанки старше 10 минут в фоне.
+     const oldCutoff = Date.now() - 10 * 60 * 1000;
+     for (const [ck, cv] of globalThis.__klevVisionChunkStore.entries()) {
+      if (cv && cv.ts < oldCutoff) globalThis.__klevVisionChunkStore.delete(ck);
+     }
+     if (d1Chunk && ctx && typeof ctx.waitUntil === 'function') {
+      ctx.waitUntil(d1Chunk.prepare("DELETE FROM klev_kv WHERE k LIKE 'AI_CHK_%' AND updated_at < ?").bind(oldCutoff).run().catch(() => {}));
+     }
     }
     const dhash = String(b?.dhash || '').toLowerCase().replace(/^dh_/, '');
     const basinCode = String(b?.basinCode || 'arctic_ob_taz');
@@ -7435,7 +7449,7 @@ export default {
      globalThis.__klevVisionInFlightMap = new Map();
     }
     const inFlightMap = globalThis.__klevVisionInFlightMap;
-    const inFlightKey = (dhash && dhash !== '0000000000000000') ? dhash : (pureB64 ? pureB64.slice(-120) : '');
+    const inFlightKey = reqScanId || ((dhash && dhash !== '0000000000000000') ? dhash : (pureB64 ? pureB64.slice(-120) : ''));
     if (inFlightKey && inFlightMap.has(inFlightKey)) {
      const sharedPayload = await inFlightMap.get(inFlightKey).catch(() => null);
      if (sharedPayload && sharedPayload.ok) {
@@ -7447,16 +7461,17 @@ export default {
 
     const locHint = String(b?.locLabel || '').trim();
     const DIRECT_VISION_PROMPT = String(b?.directPrompt || '').trim() || (
-     `Определи, что за рыба на фото, её примерный размер (длину в см) и примерный вес (в граммах или кг, по масштабу ладони или предметов в кадре).${locHint ? ' Регион: ' + locHint + '.' : ''}\n` +
-     'Проверь форму спинного плавника (у хариуса высокий парус, если спинной плавник короткий — это НЕ хариус), наличие жирового плавника, чешую и окраску (сиговые: сиг-пыжьян, пелядь, тугун, чир, ряпушка, валёк; лососёвые: ленок, кумжа/форель, таймень, голец; карповые: елец, плотва, язь, голавль).\n' +
+     `Ты — эксперт-ихтиолог РФ. Точно определи вид рыбы на фото, её реальную полную длину (TL, в см) и реальный вес (в граммах или кг).${locHint ? ' Регион: ' + locHint + '.' : ''}\n` +
+     '1. МЕЛКИЕ И СТАЙНЫЕ РЫБЫ: Если на фото стайка мелких рыб в мелкоячеистой сетке/малявочнице/подсаке (ячея 5–8 мм) или в ладонях, внимательно проверь форму тела и чешую! Не называй любую мелкую рыбу плотвой: если тело вальковатое/прогонистое, чешуя мелкая, окраска золотисто-бурая/оливковая с крапом — это озёрный/речной гольян (Phoxinus), елец (Leuciscus), пескарь (Gobio), верховка (Leucaspius) или тугун (Coregonus tugun) длиной 6–11 см и весом 8–22 г. Если тело высокое округлое с крупной чешуёй и длинным спинным плавником на ладони — это карась (Carassius).\n' +
+     '2. ТРОФЕЙНЫЕ ЭКЗЕМПЛЯРЫ В РУКАХ: Ширина плеч мужчины в куртке = 55–58 см, размах локтей = 90–95 см, ширина ладони = 10 см, высота сапога = 42 см. Если крупная щука, таймень, нельма или судак выступает за оба плеча/бедра и изогнута по дуге, прибавь +10–14% на изгиб тела и учитывай массивный обхват спины северных трофеев (не занижай длину и вес!).\n' +
+     '3. Сиговые (сиг-пыжьян, пелядь, чир, тугун, ряпушка, муксун — есть жировой плавник) и карповые (гольян, елец, плотва, язь, карась — без жирового плавника) не путай с хариусом.\n' +
      'Верни ТОЛЬКО валидный JSON:\n' +
      '{"fishNameRu":"точное название рыбы на русском","fishNameLat":"латинское название","confidence":96,"lengthCm":24,"weightGrams":180,"sizeText":"Длина ~24 см • Вес ~180 г","traits":"краткие признаки на фото","fullText":"описание вида, длины и веса рыбы на фото","alternatives":[{"fishNameRu":"похожий вид","confidence":15,"reason":"отличие"}]}'
     );
 
     if (withinRateLimit && pureB64 && pureB64.length > 200) {
-     const geminiKeys = getEffectiveGeminiKeys(env, clientGeminiKey);
-
      await syncFreshGeminiConfigFromD1(env);
+     const geminiKeys = getEffectiveGeminiKeys(env, clientGeminiKey);
      // Провайдер А: Каскад из до 3 ключей Google Gemini Vision (до 4500 запросов/сут с автопереключением)
      if (geminiKeys.length > 0) {
       const runSingleGeminiTask = (async () => {
@@ -7522,6 +7537,7 @@ export default {
        if (inFlightKey) inFlightMap.delete(inFlightKey);
       });
       if (outPayload && outPayload.ok) {
+       if (reqScanId) globalThis.__klevVisionScanResultCache.set(reqScanId, outPayload);
        return new Response(JSON.stringify(outPayload), {
         headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
        });
@@ -9563,11 +9579,16 @@ function generateSyntheticWeatherJson(lat, lon) {
     if (bKey.startsWith('DM_')) {
      const dmTarget = bKey.slice(3);
      if (pullAuth.isAdmin) return true;
-     const allowedDm = Boolean(pullAuth.ok && viewer && dmTarget === viewer);
-     if (!allowedDm) {
-      recordSecurityIncident('idor', '/relay/pull', `Попытка чтения чужого личного ящика ${bKey} (запросил ${viewer || 'гость'})`, clientIp, viewer);
+     // Если пользователь запрашивает СВОЙ собственный ящик (dmTarget === viewer) или это парный ID владельца — это НЕ IDOR!
+     if (viewer && dmTarget === viewer) {
+      return Boolean(pullAuth.ok || viewerDevId || viewerAuthTok);
      }
-     return allowedDm;
+     if (viewer && isOwnerFisherId(viewer) && isOwnerFisherId(dmTarget)) {
+      return Boolean(pullAuth.ok || viewerDevId || viewerAuthTok);
+     }
+     // Настоящая попытка IDOR: запрос ЧУЖОГО ящика (dmTarget !== viewer) без прав администратора
+     recordSecurityIncident('idor', '/relay/pull', `Попытка чтения чужого личного ящика ${bKey} (запросил ${viewer || 'гость'})`, clientIp, viewer);
+     return false;
     }
     return true;
    })
