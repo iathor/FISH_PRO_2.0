@@ -404,14 +404,88 @@ function allocateNextReserveFisherId(regionCode = '89', seedDeviceId = '') {
  return candidate;
 }
 
-const OWNER_TOKEN_HASH_IATHOR = 'KTOK_6AE3BD91_21C90CF5';
-const OWNER_TOKEN_HASH_IATHOR82 = 'KTOK_52183B6B_39DEECFC';
-const OWNER_TOKEN_HASH_IATHOR_LOWER = 'KTOK_1E665A58_64E3DB80';
-const OWNER_ADMIN_CONSOLE_TOKEN = 'VIP089_D854A7F4_38D816DA';
-const OWNER_PIN_FNV_EXACT = '5c4be2a9';
-const OWNER_PIN_FNV_LOWER = '17b24989';
 const recentActionDedupMap = new Map();
 const activeAdminSessionsMap = new Map(); // token -> expiresAtMs
+const revokedAdminSessionsSet = new Set();
+const ADMIN_SESSION_DEFAULT_TTL_MS = 8 * 3600 * 1000; // 8 часов
+
+// Чистая синхронная реализация SHA-256 и RFC 2104 HMAC-SHA256 (256 бит) для криптостойкой подписи сессий
+const _SHA256_K = new Uint32Array([
+ 0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+ 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+ 0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+ 0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+ 0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+ 0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+ 0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+ 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
+]);
+
+function sha256BytesSync(dataBytes) {
+ const msg = dataBytes instanceof Uint8Array ? dataBytes : new TextEncoder().encode(String(dataBytes || ''));
+ const bitLen = msg.length * 8;
+ const padLen = ((msg.length + 9 + 63) & ~63);
+ const buf = new Uint8Array(padLen);
+ buf.set(msg);
+ buf[msg.length] = 0x80;
+ const view = new DataView(buf.buffer);
+ view.setUint32(padLen - 8, Math.floor(bitLen / 0x100000000), false);
+ view.setUint32(padLen - 4, bitLen >>> 0, false);
+
+ let h0 = 0x6a09e667, h1 = 0xbb67ae85, h2 = 0x3c6ef372, h3 = 0xa54ff53a;
+ let h4 = 0x510e527f, h5 = 0x9b05688c, h6 = 0x1f83d9ab, h7 = 0x5be0cd19;
+ const w = new Uint32Array(64);
+
+ for (let offset = 0; offset < padLen; offset += 64) {
+  for (let i = 0; i < 16; i++) w[i] = view.getUint32(offset + i * 4, false);
+  for (let i = 16; i < 64; i++) {
+   const s0 = ((w[i - 15] >>> 7) | (w[i - 15] << 25)) ^ ((w[i - 15] >>> 18) | (w[i - 15] << 14)) ^ (w[i - 15] >>> 3);
+   const s1 = ((w[i - 2] >>> 17) | (w[i - 2] << 15)) ^ ((w[i - 2] >>> 19) | (w[i - 2] << 13)) ^ (w[i - 2] >>> 10);
+   w[i] = (w[i - 16] + s0 + w[i - 7] + s1) >>> 0;
+  }
+  let a = h0, b = h1, c = h2, d = h3, e = h4, f = h5, g = h6, h = h7;
+  for (let i = 0; i < 64; i++) {
+   const S1 = ((e >>> 6) | (e << 26)) ^ ((e >>> 11) | (e << 21)) ^ ((e >>> 25) | (e << 7));
+   const ch = (e & f) ^ (~e & g);
+   const temp1 = (h + S1 + ch + _SHA256_K[i] + w[i]) >>> 0;
+   const S0 = ((a >>> 2) | (a << 30)) ^ ((a >>> 13) | (a << 19)) ^ ((a >>> 22) | (a << 10));
+   const maj = (a & b) ^ (a & c) ^ (b & c);
+   const temp2 = (S0 + maj) >>> 0;
+   h = g; g = f; f = e; e = (d + temp1) >>> 0;
+   d = c; c = b; b = a; a = (temp1 + temp2) >>> 0;
+  }
+  h0 = (h0 + a) >>> 0; h1 = (h1 + b) >>> 0; h2 = (h2 + c) >>> 0; h3 = (h3 + d) >>> 0;
+  h4 = (h4 + e) >>> 0; h5 = (h5 + f) >>> 0; h6 = (h6 + g) >>> 0; h7 = (h7 + h) >>> 0;
+ }
+ const out = new Uint8Array(32);
+ const outView = new DataView(out.buffer);
+ [h0, h1, h2, h3, h4, h5, h6, h7].forEach((val, idx) => outView.setUint32(idx * 4, val, false));
+ return out;
+}
+
+function hmacSha256HexSync(keyStr = '', messageStr = '') {
+ const enc = new TextEncoder();
+ let keyBytes = enc.encode(String(keyStr || ''));
+ if (keyBytes.length > 64) keyBytes = sha256BytesSync(keyBytes);
+ const padKey = new Uint8Array(64);
+ padKey.set(keyBytes);
+ const ipad = new Uint8Array(64);
+ const opad = new Uint8Array(64);
+ for (let i = 0; i < 64; i++) {
+  ipad[i] = padKey[i] ^ 0x36;
+  opad[i] = padKey[i] ^ 0x5c;
+ }
+ const msgBytes = enc.encode(String(messageStr || ''));
+ const innerInput = new Uint8Array(64 + msgBytes.length);
+ innerInput.set(ipad);
+ innerInput.set(msgBytes, 64);
+ const innerHash = sha256BytesSync(innerInput);
+ const outerInput = new Uint8Array(64 + 32);
+ outerInput.set(opad);
+ outerInput.set(innerHash, 64);
+ const finalHash = sha256BytesSync(outerInput);
+ return Array.from(finalHash, b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
+}
 
 function generateSecureRandomTokenHex(byteLen = 32, prefix = 'STOK_') {
  const bytes = new Uint8Array(byteLen);
@@ -423,8 +497,22 @@ function generateSecureRandomTokenHex(byteLen = 32, prefix = 'STOK_') {
  return prefix + Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
 }
 
-function issueServerAdminSessionToken(ttlMs = 12 * 3600 * 1000, env = null) {
- return getAdminConsoleToken(env) || OWNER_ADMIN_CONSOLE_TOKEN;
+function getAdminSigningSecret(env = null) {
+ if (!env || typeof env !== 'object') return '';
+ const s = String(env.ADMIN_SESSION_SECRET || env.OWNER_ADMIN_TOKEN || env.ADMIN_CONSOLE_TOKEN || env.ADMIN_SECRET_PASSWORD || '').trim();
+ return s.length >= 8 ? s : '';
+}
+
+function issueServerAdminSessionToken(ttlMs = ADMIN_SESSION_DEFAULT_TTL_MS, env = null) {
+ const secret = getAdminSigningSecret(env);
+ if (!secret) return '';
+ const safeTtl = Math.max(60000, Math.min(24 * 3600 * 1000, Number(ttlMs) || ADMIN_SESSION_DEFAULT_TTL_MS));
+ const expMs = Date.now() + safeTtl;
+ const nonceHex = generateSecureRandomTokenHex(8, '');
+ const sigHex = hmacSha256HexSync(secret, `ADM_SESS_V3:${expMs}:${nonceHex}`);
+ const token = `ADM_SESS_${expMs}_${nonceHex}_${sigHex}`;
+ activeAdminSessionsMap.set(token, expMs);
+ return token;
 }
 
 async function workerPbkdf2HashPassword(passClean = '', saltHex = '') {
@@ -474,79 +562,62 @@ function clampLon(val, fallback = 76.6333) {
 
 function isOwnerPasswordMatch(rawPass = '', env = null) {
  const clean = String(rawPass || '').trim();
- if (!clean) return false;
- if (env && env.ADMIN_SECRET_PASSWORD && String(env.ADMIN_SECRET_PASSWORD).trim().length >= 4 && constantTimeEquals(clean, String(env.ADMIN_SECRET_PASSWORD).trim())) {
+ if (!clean || !env || typeof env !== 'object') return false;
+ const envPass = String(env.ADMIN_SECRET_PASSWORD || '').trim();
+ if (envPass.length >= 4 && constantTimeEquals(clean, envPass)) {
   return true;
  }
- const hExact = workerFnv1a32(`pin::${clean}`).toString(16);
- const hLower = workerFnv1a32(`pin::${clean.toLowerCase()}`).toString(16);
- const hNoStar = workerFnv1a32(`pin::${clean.toLowerCase().replace(/\*+$/, '')}`).toString(16);
- const derived1 = workerDeriveAuthToken('iathor', clean);
- const derived2 = workerDeriveAuthToken('iathor82', clean);
- return (
-  constantTimeEquals(hExact, OWNER_PIN_FNV_EXACT) ||
-  constantTimeEquals(hLower, OWNER_PIN_FNV_LOWER) ||
-  constantTimeEquals(hNoStar, '76722d9b') ||
-  constantTimeEquals(derived1, OWNER_TOKEN_HASH_IATHOR) ||
-  constantTimeEquals(derived1, OWNER_TOKEN_HASH_IATHOR_LOWER) ||
-  constantTimeEquals(derived2, OWNER_TOKEN_HASH_IATHOR82) ||
-  constantTimeEquals(clean, OWNER_ADMIN_CONSOLE_TOKEN) ||
-  constantTimeEquals(clean, OWNER_TOKEN_HASH_IATHOR) ||
-  constantTimeEquals(clean, OWNER_TOKEN_HASH_IATHOR_LOWER) ||
-  constantTimeEquals(clean, OWNER_TOKEN_HASH_IATHOR82)
- );
+ const envOwnerTok = String(env.OWNER_ADMIN_TOKEN || env.ADMIN_CONSOLE_TOKEN || '').trim();
+ if (envOwnerTok.length >= 12 && constantTimeEquals(clean, envOwnerTok)) {
+  return true;
+ }
+ return false;
 }
 
 function getAdminConsoleToken(env = null) {
- if (env && env.ADMIN_CONSOLE_TOKEN && String(env.ADMIN_CONSOLE_TOKEN).trim().length >= 12) {
-  return String(env.ADMIN_CONSOLE_TOKEN).trim();
- }
- return OWNER_ADMIN_CONSOLE_TOKEN;
+ if (!env || typeof env !== 'object') return '';
+ const tok = String(env.OWNER_ADMIN_TOKEN || env.ADMIN_CONSOLE_TOKEN || '').trim();
+ return tok.length >= 12 ? tok : '';
 }
 
 function isValidOwnerAdminToken(tok = '', env = null) {
  const clean = String(tok || '').trim();
- if (!clean) return false;
- if (clean === 'OWNER_LOCAL_ADMIN') return false;
+ if (!clean || clean === 'OWNER_LOCAL_ADMIN') return false;
+ const signingSecret = getAdminSigningSecret(env);
+ if (!signingSecret) {
+  // Fail-closed: без настроенных секретов в Cloudflare админ-доступ полностью закрыт
+  return false;
+ }
  if (clean.startsWith('ADM_SESS_')) {
-  const exp = activeAdminSessionsMap.get(clean) || 0;
-  if (exp > Date.now()) return true;
+  if (revokedAdminSessionsSet.has(clean)) return false;
+  // Формат строго: ADM_SESS_<expMs>_<nonceHex16>_<hmacSha256Hex64> (5 частей)
+  // Любые старые/поддельные токены вида ADM_SESS_<64hex> (3 части) немедленно отклоняются!
   const parts = clean.split('_');
-  if (parts.length >= 5) {
-   const expNum = Number(parts[2] || 0);
-   const sigPart = parts[3] || '';
-   if (expNum > Date.now()) {
-    const secret = String(env?.ADMIN_SECRET_PASSWORD || env?.ADMIN_CONSOLE_TOKEN || 'KlevProOwnerAdminSecret_89VIP089').trim();
-    const s1 = (workerFnv1a32(`adm_sig1:${expNum}:${secret}`) >>> 0).toString(16).toUpperCase().padStart(8, '0');
-    const s2 = (workerFnv1a32(`adm_sig2:${secret}:${expNum}:${s1}`) >>> 0).toString(16).toUpperCase().padStart(8, '0');
-    if (constantTimeEquals(sigPart, `${s1}${s2}`)) return true;
-   }
+  if (parts.length !== 5) return false;
+  const expNum = Number(parts[2] || 0);
+  const nonceHex = String(parts[3] || '').toUpperCase();
+  const sigHex = String(parts[4] || '').toUpperCase();
+  const now = Date.now();
+  if (!Number.isFinite(expNum) || expNum <= now || expNum > (now + 24 * 3600 * 1000)) {
+   activeAdminSessionsMap.delete(clean);
+   return false;
   }
-  // Также принимаем ранее выданные 64-символьные токены ADM_SESS_<64hex> после перезапуска изолята воркера
-  if (/^ADM_SESS_[0-9A-F]{64}$/i.test(clean)) {
-   return true;
+  if (!/^[0-9A-F]{16}$/.test(nonceHex) || !/^[0-9A-F]{64}$/.test(sigHex)) {
+   return false;
   }
+  const expectedSig = hmacSha256HexSync(signingSecret, `ADM_SESS_V3:${expNum}:${nonceHex}`);
+  if (!constantTimeEquals(sigHex, expectedSig)) {
+   return false;
+  }
+  activeAdminSessionsMap.set(clean, expNum);
+  return true;
  }
  const envConsoleTok = getAdminConsoleToken(env);
- if (
-  (envConsoleTok && constantTimeEquals(clean, envConsoleTok)) ||
-  constantTimeEquals(clean, OWNER_ADMIN_CONSOLE_TOKEN) ||
-  constantTimeEquals(clean, OWNER_TOKEN_HASH_IATHOR) ||
-  constantTimeEquals(clean, OWNER_TOKEN_HASH_IATHOR82) ||
-  constantTimeEquals(clean, OWNER_TOKEN_HASH_IATHOR_LOWER)
- ) {
+ if (envConsoleTok && constantTimeEquals(clean, envConsoleTok)) {
   return true;
  }
  if (isOwnerPasswordMatch(clean, env)) {
   return true;
- }
- const envPass = String(env?.ADMIN_SECRET_PASSWORD || '').trim();
- if (envPass.length >= 4) {
-  const ktok1 = workerDeriveAuthToken('iathor', envPass);
-  const ktok2 = workerDeriveAuthToken('iathor82', envPass);
-  if ((ktok1 && constantTimeEquals(clean, ktok1)) || (ktok2 && constantTimeEquals(clean, ktok2))) {
-   return true;
-  }
  }
  return false;
 }
@@ -562,18 +633,17 @@ function parseCookieValue(cookieHeader = '', cookieName = 'klev_admin_session') 
 }
 
 function extractAdminTokenFromRequest(request, reqUrl, body = null) {
- if (body && typeof body === 'object') {
-  const fromBody = body.adminToken || body.token || body.ownerSecret || '';
-  if (fromBody) return String(fromBody).trim();
- }
+ // Пункт 5 Блока 1: Токен принимается ТОЛЬКО из заголовков (X-Admin-Token / Authorization / Cookie) или тела запроса.
+ // Чтение adminToken / token из открытых URL query-параметров (reqUrl.searchParams) запрещено!
  if (request && request.headers) {
   const hdrTok = request.headers.get('X-Admin-Token') || request.headers.get('Authorization')?.replace(/^Bearer\s+/i, '') || '';
   if (hdrTok) return String(hdrTok).trim();
   const cookieTok = parseCookieValue(request.headers.get('Cookie') || '', 'klev_admin_session');
   if (cookieTok) return cookieTok;
  }
- if (reqUrl && reqUrl.searchParams) {
-  return String(reqUrl.searchParams.get('adminToken') || reqUrl.searchParams.get('token') || '').trim();
+ if (body && typeof body === 'object') {
+  const fromBody = body.adminToken || body.token || body.ownerSecret || '';
+  if (fromBody) return String(fromBody).trim();
  }
  return '';
 }
@@ -808,7 +878,10 @@ async function resolveWorkerAccountIdentity(rawLogin = '', rawPassword = '', raw
   const preferredOwnerFid = (loginNorm === 'fp_fmp089' || String(snap?.fisherId || '').toUpperCase() === OWNER_SECONDARY_ID)
    ? OWNER_SECONDARY_ID
    : OWNER_FISHER_ID;
-  const admTok = getAdminConsoleToken(env) || OWNER_ADMIN_CONSOLE_TOKEN;
+  const admTok = issueServerAdminSessionToken(ADMIN_SESSION_DEFAULT_TTL_MS, env);
+  if (!admTok) {
+   return { ok: false, error: 'Серверные секреты администратора (ADMIN_SECRET_PASSWORD / ADMIN_SESSION_SECRET) не заданы в Cloudflare' };
+  }
   return {
    ok: true,
    isOwner: true,
@@ -818,8 +891,8 @@ async function resolveWorkerAccountIdentity(rawLogin = '', rawPassword = '', raw
    login: loginNorm === 'iathor82' ? 'iAthor82' : 'iAthor',
    callsign: loginNorm === 'iathor82' ? 'iAthor82' : 'iAthor',
    pinHash: 'owner_iathor_vip089',
-   authTokenHash: OWNER_TOKEN_HASH_IATHOR,
-   sessionToken: OWNER_TOKEN_HASH_IATHOR,
+   authTokenHash: admTok,
+   sessionToken: admTok,
    adminSessionToken: admTok
   };
  }
@@ -5822,6 +5895,7 @@ function serializeFullServerState() {
  purgeExpiredServerCirclePoints();
  return JSON.stringify({
   v: WORKER_VERSION,
+  adminSessions: Object.fromEntries(Array.from(activeAdminSessionsMap.entries()).filter(([, exp]) => exp > Date.now()).slice(-100)),
   betaTesters: Array.from(betaTestersStore.values()),
   removedBetaTesters: Array.from(removedBetaTestersSet),
   betaGateConfig: { ...betaGateConfig },
@@ -5978,6 +6052,14 @@ function applyLoadedSysMeta(parsed) {
   }
  }
  adminWhitelistStore.set(OWNER_FISHER_ID, { id: OWNER_FISHER_ID, label: "iAthor • Антон (Владелец / Супер-Админ)", addedAt: "2026-10-27" });
+ if (parsed.adminSessions && typeof parsed.adminSessions === 'object') {
+  const nowTs = Date.now();
+  for (const [sTok, expVal] of Object.entries(parsed.adminSessions)) {
+   if (sTok && Number(expVal) > nowTs && !revokedAdminSessionsSet.has(sTok)) {
+    activeAdminSessionsMap.set(sTok, Number(expVal));
+   }
+  }
+ }
  if (Array.isArray(parsed.removedBetaTesters)) {
   for (const rbid of parsed.removedBetaTesters) {
    const cleanR = String(rbid || '').trim().toUpperCase();
@@ -6040,6 +6122,7 @@ async function persistSystemMeta(env, ctx = null) {
    try {
     await d1.prepare('INSERT OR REPLACE INTO klev_kv (k, v, updated_at) VALUES (?, ?, ?)').bind('SYS_STATE_V2_1_1', payloadStr, Date.now()).run();
     await d1.prepare('INSERT OR REPLACE INTO klev_kv (k, v, updated_at) VALUES (?, ?, ?)').bind('BETA_STATE_V2', JSON.stringify({
+     adminSessions: Object.fromEntries(Array.from(activeAdminSessionsMap.entries()).filter(([, exp]) => exp > Date.now()).slice(-100)),
      betaTesters: Array.from(betaTestersStore.values()),
      removedBetaTesters: Array.from(removedBetaTestersSet),
      betaGateConfig: { ...betaGateConfig },
@@ -6439,7 +6522,7 @@ export default {
    const tok = extractAdminTokenFromRequest(request, reqUrl, b);
    if (!isValidOwnerAdminToken(tok, env)) {
     recordSecurityIncident('data_exposure', '/api/admin/security-audit', 'Попытка неавторизованного доступа к радару ИБ Супер-Админа', clientIp);
-    return jsonResponse({ ok: false, error: 'Forbidden' }, 403);
+    return jsonResponse({ ok: false, error: 'Unauthorized', authRequired: true }, 401);
    }
    if (b.action === 'clear') {
     for (const k of Object.keys(securityAuditStore.counters)) securityAuditStore.counters[k] = 0;
@@ -6790,7 +6873,9 @@ export default {
     });
    }
    const d1Info = getD1(env);
-   const sessionCookie = `klev_admin_session=${encodeURIComponent(getAdminConsoleToken(env))}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=86400`;
+   const issuedCookieTok = issueServerAdminSessionToken(ADMIN_SESSION_DEFAULT_TTL_MS, env);
+   await persistSystemMeta(env, ctx);
+   const sessionCookie = `klev_admin_session=${encodeURIComponent(issuedCookieTok)}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=28800`;
    return new Response(renderSuperAdminConsoleHtml(reqUrl.origin, d1Info), {
     headers: {
      ...CORS_HEADERS,
@@ -7177,7 +7262,7 @@ export default {
    }
    const tok = extractAdminTokenFromRequest(request, reqUrl, b);
    if (!isValidOwnerAdminToken(tok, env)) {
-    return new Response(JSON.stringify({ ok: false, error: 'Not found' }), { status: 404, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ ok: false, error: 'Unauthorized', authRequired: true }), { status: 401, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
    }
    purgeExpiredServerCirclePoints();
 
@@ -7544,7 +7629,7 @@ function generateSyntheticWeatherJson(lat, lon) {
     // 1. Проверяем, авторизован ли Владелец (iAthor / iAthor82 + токен пароля [REDACTED_OWNER_SECRET])
     const isVerifiedOwner = (
      (reqLoginNorm === 'iathor' || reqLoginNorm === 'iathor82' || reqLoginNorm === 'thorantony82' || isOwnerFisherId(reqCurId)) &&
-     isValidOwnerAdminToken(reqAuthToken)
+     isValidOwnerAdminToken(reqAuthToken, env)
     );
     if (isVerifiedOwner) {
      const ownerFid = reqCurId === OWNER_SECONDARY_ID ? OWNER_SECONDARY_ID : OWNER_FISHER_ID;
@@ -8187,7 +8272,7 @@ function generateSyntheticWeatherJson(lat, lon) {
      sessionToken: ident.sessionToken || existing?.sessionToken || '',
      authTokenHash: ident.authTokenHash,
      secureTokenHash: secureTok,
-     adminSessionToken: ident.isOwner ? (ident.adminSessionToken || getAdminConsoleToken(env) || issueServerAdminSessionToken(30 * 86400 * 1000, env)) : '',
+     adminSessionToken: ident.isOwner ? (ident.adminSessionToken || getAdminConsoleToken(env) || issueServerAdminSessionToken(ADMIN_SESSION_DEFAULT_TTL_MS, env)) : '',
      ownerUnlocked: ident.isOwner ? true : Boolean(existing?.ownerUnlocked),
      isAdmin: ident.isOwner ? true : adminWhitelistStore.has(ident.fisherId),
      isBetaTester: ident.isOwner ? true : isUserBetaTesterOnServer(ident.fisherId),
@@ -8248,7 +8333,7 @@ function generateSyntheticWeatherJson(lat, lon) {
      login: ident.login,
      pinHash: ident.pinHash,
      sessionToken: ident.sessionToken || ident.authTokenHash,
-     adminSessionToken: ident.isOwner ? (ident.adminSessionToken || issueServerAdminSessionToken()) : '',
+     adminSessionToken: ident.isOwner ? (ident.adminSessionToken || issueServerAdminSessionToken(ADMIN_SESSION_DEFAULT_TTL_MS, env)) : '',
      serverDynamicSlotHtml: ident.isOwner ? buildOwnerServerPortalSlotHtml(reqUrl.origin) : '',
      isBetaTester: Boolean(safeProfileOut.isBetaTester),
      betaGateConfig: { ...betaGateConfig },
@@ -8307,7 +8392,7 @@ function generateSyntheticWeatherJson(lat, lon) {
      pbkdf2Verifier: ident.pbkdf2Verifier || existing?.pbkdf2Verifier || '',
      sessionToken: ident.sessionToken || existing?.sessionToken || '',
      authTokenHash: ident.authTokenHash,
-     adminSessionToken: ident.isOwner ? (ident.adminSessionToken || getAdminConsoleToken(env) || issueServerAdminSessionToken(30 * 86400 * 1000, env)) : '',
+     adminSessionToken: ident.isOwner ? (ident.adminSessionToken || getAdminConsoleToken(env) || issueServerAdminSessionToken(ADMIN_SESSION_DEFAULT_TTL_MS, env)) : '',
      ownerUnlocked: ident.isOwner ? true : Boolean(existing.ownerUnlocked),
      isAdmin: ident.isOwner ? true : adminWhitelistStore.has(ident.fisherId),
      isBetaTester: ident.isOwner ? true : isUserBetaTesterOnServer(ident.fisherId),
@@ -8345,7 +8430,7 @@ function generateSyntheticWeatherJson(lat, lon) {
      ok: true,
      fisherId: ident.fisherId,
      isOwner: ident.isOwner,
-     adminSessionToken: ident.isOwner ? (ident.adminSessionToken || issueServerAdminSessionToken()) : '',
+     adminSessionToken: ident.isOwner ? (ident.adminSessionToken || issueServerAdminSessionToken(ADMIN_SESSION_DEFAULT_TTL_MS, env)) : '',
      serverDynamicSlotHtml: ident.isOwner ? buildOwnerServerPortalSlotHtml(reqUrl.origin) : '',
      isBetaTester: Boolean(safeSyncProfile.isBetaTester),
      betaGateConfig: { ...betaGateConfig },
