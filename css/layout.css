@@ -1896,3 +1896,16 @@ html[data-mobile-guest="1"] .geo-full-only-inline {
   height: 54px !important;
   margin-bottom: 3px !important;
 }
+
+html[data-tg-miniapp="1"] .bottom-nav-inner,
+html[data-tg-webapp="1"] .bottom-nav-inner {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  justify-items: stretch !important;
+  align-items: center !important;
+}
+html[data-tg-miniapp="1"] .bottom-nav-inner > .nav-tab,
+html[data-tg-webapp="1"] .bottom-nav-inner > .nav-tab {
+  width: 100% !important;
+  justify-content: center !important;
+}

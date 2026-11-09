@@ -150,7 +150,7 @@ jobs:
                   minSdk 24
                   targetSdk 34
                   versionCode ${VER_CODE}
-                  versionName "2.5.6-r222"
+                  versionName "2.5.6-r224"
               }
               signingConfigs {
                   release {
@@ -225,6 +225,12 @@ jobs:
               <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
               <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
 
+              <queries>
+                  <intent>
+                      <action android:name="android.intent.action.TTS_SERVICE" />
+                  </intent>
+              </queries>
+
               <application
                   android:allowBackup="false"
                   android:icon="@drawable/ic_launcher"
@@ -281,8 +287,18 @@ jobs:
           import java.io.ByteArrayOutputStream;
           import java.net.HttpURLConnection;
           import java.net.URL;
+          import android.location.GnssStatus;
+          import android.location.Location;
+          import android.location.LocationListener;
+          import android.location.LocationManager;
           import android.media.AudioAttributes;
+          import android.media.AudioManager;
           import android.media.RingtoneManager;
+          import android.media.ToneGenerator;
+          import android.os.Looper;
+          import android.os.PowerManager;
+          import android.speech.tts.TextToSpeech;
+          import java.util.Locale;
           import android.net.Uri;
           import android.os.Build;
           import android.os.Bundle;
@@ -324,6 +340,8 @@ jobs:
               private static final String VIRTUAL_HOST = "appassets.androidplatform.net";
               private static final String CHANNEL_ALERTS = "klev_pro_alerts";
               private static final String CHANNEL_FILES = "klev_pro_files";
+              private static final String CHANNEL_NAV = "klev_pro_nav";
+              private static final int NAV_ONGOING_NOTIF_ID = 1999;
               private static final String PERM_POST_NOTIFICATIONS = "android.permission.POST_NOTIFICATIONS";
               private static final String PERM_READ_MEDIA_IMAGES = "android.permission.READ_MEDIA_IMAGES";
               private static final AtomicInteger NOTIF_ID_SEQ = new AtomicInteger(2000);
@@ -333,6 +351,16 @@ jobs:
               private volatile int gnssSatellitesUsedCount = 0;
               private volatile int gnssSatellitesVisibleCount = 0;
               private volatile float lastGpsAccuracyMeters = 0f;
+              private volatile boolean isAppInForeground = true;
+              private volatile boolean isBgRouteTrackingActive = false;
+              private volatile boolean bgVoiceGuidanceEnabled = true;
+              private TextToSpeech ttsEngine;
+              private volatile boolean ttsReady = false;
+              private volatile String pendingTtsPhrase = null;
+              private PowerManager.WakeLock bgRouteWakeLock;
+              private LocationManager nativeLocationManager;
+              private LocationListener nativeLocationListener;
+              private GnssStatus.Callback gnssStatusCallback;
               private boolean pendingCameraLaunchAfterPerm = false;
               private Uri pendingCameraPhotoUri = null;
               private long lastRootBackPressMs = 0L;
@@ -502,16 +530,102 @@ jobs:
 
                   @JavascriptInterface
                   public void setKeepScreenAndCpuAwake(final boolean enabled) {
+                      isBgRouteTrackingActive = enabled;
                       runOnUiThread(new Runnable() {
                           @Override
                           public void run() {
                               try {
                                   if (enabled) {
                                       getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+                                      acquireNativeRouteWakeLock();
+                                      startNativeLocationUpdates();
+                                      if (webView != null) {
+                                          webView.resumeTimers();
+                                      }
+                                      showOngoingRouteNotification("Клёв ПРО 2.0 • Ведение по маршруту", "Фоновая запись GPS и голосовое сопровождение активны");
                                   } else {
                                       getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+                                      releaseNativeRouteWakeLock();
+                                      cancelOngoingRouteNotification();
                                   }
                               } catch (Exception ignored) {}
+                          }
+                      });
+                  }
+
+                  @JavascriptInterface
+                  public void setBgVoiceEnabled(final boolean enabled) {
+                      bgVoiceGuidanceEnabled = enabled;
+                  }
+
+                  @JavascriptInterface
+                  public boolean isBgVoiceEnabled() {
+                      return bgVoiceGuidanceEnabled;
+                  }
+
+                  @JavascriptInterface
+                  public void speakTts(final String text, final boolean flush) {
+                      if (text == null || text.trim().isEmpty()) return;
+                      if (!isAppInForeground && !bgVoiceGuidanceEnabled) {
+                          return;
+                      }
+                      final String clean = text.trim();
+                      runOnUiThread(new Runnable() {
+                          @Override
+                          public void run() {
+                              speakNativeRussianTts(clean, flush);
+                          }
+                      });
+                  }
+
+                  @JavascriptInterface
+                  public void stopTts() {
+                      runOnUiThread(new Runnable() {
+                          @Override
+                          public void run() {
+                              try {
+                                  if (ttsEngine != null) {
+                                      ttsEngine.stop();
+                                  }
+                              } catch (Exception ignored) {}
+                          }
+                      });
+                  }
+
+                  @JavascriptInterface
+                  public void playNavTone(final String kind) {
+                      if (!isAppInForeground && !bgVoiceGuidanceEnabled) return;
+                      try {
+                          int toneType = ToneGenerator.TONE_PROP_BEEP;
+                          int durMs = 160;
+                          if ("warn".equalsIgnoreCase(kind) || "offtrack".equalsIgnoreCase(kind)) {
+                              toneType = ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD;
+                              durMs = 280;
+                          } else if ("good".equalsIgnoreCase(kind) || "arrive".equalsIgnoreCase(kind)) {
+                              toneType = ToneGenerator.TONE_PROP_ACK;
+                              durMs = 240;
+                          }
+                          final ToneGenerator tg = new ToneGenerator(AudioManager.STREAM_NOTIFICATION, 90);
+                          tg.startTone(toneType, durMs);
+                          new android.os.Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                              @Override
+                              public void run() {
+                                  try { tg.release(); } catch (Exception ignored) {}
+                              }
+                          }, durMs + 100L);
+                      } catch (Exception ignored) {}
+                  }
+
+                  @JavascriptInterface
+                  public void updateNavNotification(final String title, final String subtitle) {
+                      if (!isBgRouteTrackingActive) return;
+                      runOnUiThread(new Runnable() {
+                          @Override
+                          public void run() {
+                              showOngoingRouteNotification(
+                                  (title != null && !title.isEmpty()) ? title : "Клёв ПРО 2.0 • Ведение по маршруту",
+                                  (subtitle != null && !subtitle.isEmpty()) ? subtitle : "Навигация по маршруту активна"
+                              );
                           }
                       });
                   }
@@ -543,17 +657,17 @@ jobs:
 
                   @JavascriptInterface
                   public String getAppVersion() {
-                      return "2.5.6-r222";
+                      return "2.5.6-r224";
                   }
 
                   @JavascriptInterface
                   public int getAppBuildNumber() {
-                      return 222;
+                      return 224;
                   }
 
                   @JavascriptInterface
                   public String getAppRevision() {
-                      return "r222";
+                      return "r224";
                   }
 
                   @JavascriptInterface
@@ -785,6 +899,16 @@ jobs:
                           filesChannel.setDescription("Уведомления о сохранении выгруженных путевых точек, журналов уловов и резервных копий в папку Загрузки");
                           filesChannel.setShowBadge(false);
                           nm.createNotificationChannel(filesChannel);
+
+                          NotificationChannel navChannel = new NotificationChannel(
+                              CHANNEL_NAV,
+                              "Навигация и ведение по маршруту в фоне",
+                              NotificationManager.IMPORTANCE_LOW
+                          );
+                          navChannel.setDescription("Постоянный статус активной записи маршрута и голосового ведения в фоновом режиме");
+                          navChannel.setShowBadge(false);
+                          navChannel.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
+                          nm.createNotificationChannel(navChannel);
                       } catch (Exception ignored) {}
                   }
               }
@@ -837,7 +961,7 @@ jobs:
                   ws.setCacheMode(WebSettings.LOAD_NO_CACHE);
                             webView.clearCache(true);
                   String baseUa = ws.getUserAgentString();
-                  ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.5.6-r222");
+                  ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.5.6-r224");
 
                   webView.addJavascriptInterface(new NativeBridge(this), "AndroidBridge");
 
@@ -1064,12 +1188,270 @@ jobs:
                       );
                   }
 
+                  initNativeTextToSpeech();
                   requestStartupPermissionsIfNeeded();
+                  startNativeLocationUpdates();
                   loadEntryUrlFromIntent(getIntent());
+              }
+
+              private void initNativeTextToSpeech() {
+                  try {
+                      if (ttsEngine != null) return;
+                      ttsEngine = new TextToSpeech(getApplicationContext(), new TextToSpeech.OnInitListener() {
+                          @Override
+                          public void onInit(int status) {
+                              if (status == TextToSpeech.SUCCESS && ttsEngine != null) {
+                                  try {
+                                      Locale ruLoc = new Locale("ru", "RU");
+                                      int res = ttsEngine.setLanguage(ruLoc);
+                                      if (res == TextToSpeech.LANG_MISSING_DATA || res == TextToSpeech.LANG_NOT_SUPPORTED) {
+                                          ttsEngine.setLanguage(new Locale("ru"));
+                                      }
+                                      ttsEngine.setSpeechRate(0.98f);
+                                      ttsEngine.setPitch(1.0f);
+                                      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                                          AudioAttributes ttsAttr = new AudioAttributes.Builder()
+                                              .setUsage(AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE)
+                                              .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                                              .build();
+                                          ttsEngine.setAudioAttributes(ttsAttr);
+                                      }
+                                      ttsReady = true;
+                                      if (pendingTtsPhrase != null && !pendingTtsPhrase.isEmpty()) {
+                                          String phr = pendingTtsPhrase;
+                                          pendingTtsPhrase = null;
+                                          speakNativeRussianTts(phr, true);
+                                      }
+                                  } catch (Exception ignored) {}
+                              }
+                          }
+                      });
+                  } catch (Exception ignored) {}
+              }
+
+              private void speakNativeRussianTts(final String phrase, final boolean flush) {
+                  if (phrase == null || phrase.isEmpty()) return;
+                  try {
+                      if (ttsEngine == null) {
+                          pendingTtsPhrase = phrase;
+                          initNativeTextToSpeech();
+                          return;
+                      }
+                      if (!ttsReady) {
+                          pendingTtsPhrase = phrase;
+                          return;
+                      }
+                      AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+                      if (am != null) {
+                          try {
+                              am.requestAudioFocus(null, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK);
+                          } catch (Exception ignored) {}
+                      }
+                      int queueMode = flush ? TextToSpeech.QUEUE_FLUSH : TextToSpeech.QUEUE_ADD;
+                      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                          Bundle params = new Bundle();
+                          params.putInt(TextToSpeech.Engine.KEY_PARAM_STREAM, AudioManager.STREAM_MUSIC);
+                          params.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, 1.0f);
+                          ttsEngine.speak(phrase, queueMode, params, "klev_nav_" + System.currentTimeMillis());
+                      } else {
+                          HashMap<String, String> params = new HashMap<>();
+                          params.put(TextToSpeech.Engine.KEY_PARAM_STREAM, String.valueOf(AudioManager.STREAM_MUSIC));
+                          ttsEngine.speak(phrase, queueMode, params);
+                      }
+                  } catch (Exception ignored) {}
+              }
+
+              private void acquireNativeRouteWakeLock() {
+                  try {
+                      if (bgRouteWakeLock == null) {
+                          PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+                          if (pm != null) {
+                              bgRouteWakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "KlevPro::RouteWakeLock");
+                              bgRouteWakeLock.setReferenceCounted(false);
+                          }
+                      }
+                      if (bgRouteWakeLock != null && !bgRouteWakeLock.isHeld()) {
+                          bgRouteWakeLock.acquire(12 * 60 * 60 * 1000L);
+                      }
+                  } catch (Exception ignored) {}
+              }
+
+              private void releaseNativeRouteWakeLock() {
+                  try {
+                      if (bgRouteWakeLock != null && bgRouteWakeLock.isHeld()) {
+                          bgRouteWakeLock.release();
+                      }
+                  } catch (Exception ignored) {}
+              }
+
+              private void showOngoingRouteNotification(String title, String body) {
+                  try {
+                      initNotificationChannels();
+                      NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+                      if (nm == null) return;
+                      if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(PERM_POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                          return;
+                      }
+                      Intent tapIntent = new Intent(this, MainActivity.class);
+                      tapIntent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                      int piFlags = PendingIntent.FLAG_UPDATE_CURRENT;
+                      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                          piFlags |= PendingIntent.FLAG_IMMUTABLE;
+                      }
+                      PendingIntent pi = PendingIntent.getActivity(this, 101, tapIntent, piFlags);
+                      Notification.Builder builder;
+                      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                          builder = new Notification.Builder(this, CHANNEL_NAV);
+                      } else {
+                          builder = new Notification.Builder(this).setPriority(Notification.PRIORITY_LOW);
+                      }
+                      builder.setSmallIcon(R.drawable.ic_launcher)
+                          .setContentTitle(title)
+                          .setContentText(body)
+                          .setOngoing(true)
+                          .setContentIntent(pi);
+                      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                          builder.setVisibility(Notification.VISIBILITY_PUBLIC);
+                          builder.setColor(Color.parseColor("#10b981"));
+                      }
+                      Notification notif = builder.build();
+                      notif.flags |= Notification.FLAG_ONGOING_EVENT | Notification.FLAG_NO_CLEAR;
+                      nm.notify(NAV_ONGOING_NOTIF_ID, notif);
+                  } catch (Exception ignored) {}
+              }
+
+              private void cancelOngoingRouteNotification() {
+                  try {
+                      NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+                      if (nm != null) {
+                          nm.cancel(NAV_ONGOING_NOTIF_ID);
+                      }
+                  } catch (Exception ignored) {}
+              }
+
+              @SuppressLint("MissingPermission")
+              private void startNativeLocationUpdates() {
+                  try {
+                      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                          if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
+                              && checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                              return;
+                          }
+                      }
+                      if (nativeLocationManager == null) {
+                          nativeLocationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+                      }
+                      if (nativeLocationManager == null) return;
+
+                      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && gnssStatusCallback == null) {
+                          gnssStatusCallback = new GnssStatus.Callback() {
+                              @Override
+                              public void onSatelliteStatusChanged(GnssStatus status) {
+                                  if (status == null) return;
+                                  int total = status.getSatelliteCount();
+                                  int used = 0;
+                                  for (int i = 0; i < total; i++) {
+                                      if (status.usedInFix(i)) used++;
+                                  }
+                                  gnssSatellitesVisibleCount = total;
+                                  gnssSatellitesUsedCount = used;
+                              }
+                          };
+                          try {
+                              nativeLocationManager.registerGnssStatusCallback(gnssStatusCallback);
+                          } catch (Exception ignored) {}
+                      }
+
+                      if (nativeLocationListener == null) {
+                          nativeLocationListener = new LocationListener() {
+                              @Override
+                              public void onLocationChanged(final Location loc) {
+                                  if (loc == null) return;
+                                  lastGpsAccuracyMeters = loc.getAccuracy();
+                                  if (webView != null) {
+                                      final double lat = loc.getLatitude();
+                                      final double lon = loc.getLongitude();
+                                      final float acc = loc.getAccuracy();
+                                      final float spd = loc.hasSpeed() ? loc.getSpeed() : 0f;
+                                      final float brg = loc.hasBearing() ? loc.getBearing() : 0f;
+                                      final long ts = loc.getTime() > 0 ? loc.getTime() : System.currentTimeMillis();
+                                      webView.post(new Runnable() {
+                                          @Override
+                                          public void run() {
+                                              try {
+                                                  if (isBgRouteTrackingActive && webView != null) {
+                                                      webView.resumeTimers();
+                                                  }
+                                                  webView.evaluateJavascript(
+                                                      "if(typeof window.__KLEV_ON_NATIVE_GPS_FIX__==='function'){window.__KLEV_ON_NATIVE_GPS_FIX__(" + lat + "," + lon + "," + acc + "," + spd + "," + brg + "," + ts + ");}",
+                                                      null
+                                                  );
+                                              } catch (Exception ignored) {}
+                                          }
+                                      });
+                                  }
+                              }
+                              @Override public void onStatusChanged(String provider, int status, Bundle extras) {}
+                              @Override public void onProviderEnabled(String provider) {}
+                              @Override public void onProviderDisabled(String provider) {}
+                          };
+                          try {
+                              if (nativeLocationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+                                  nativeLocationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000L, 1.0f, nativeLocationListener, Looper.getMainLooper());
+                              }
+                          } catch (Exception ignored) {}
+                          try {
+                              if (nativeLocationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
+                                  nativeLocationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 2500L, 2.0f, nativeLocationListener, Looper.getMainLooper());
+                              }
+                          } catch (Exception ignored) {}
+                      }
+                  } catch (Exception ignored) {}
+              }
+
+              @Override
+              protected void onResume() {
+                  super.onResume();
+                  isAppInForeground = true;
+                  try {
+                      if (webView != null) {
+                          webView.onResume();
+                          webView.resumeTimers();
+                      }
+                      startNativeLocationUpdates();
+                  } catch (Exception ignored) {}
+              }
+
+              @Override
+              protected void onPause() {
+                  isAppInForeground = false;
+                  super.onPause();
+                  try {
+                      if (isBgRouteTrackingActive && webView != null) {
+                          webView.resumeTimers();
+                      }
+                  } catch (Exception ignored) {}
               }
 
               @Override
               protected void onDestroy() {
+                  releaseNativeRouteWakeLock();
+                  cancelOngoingRouteNotification();
+                  try {
+                      if (nativeLocationManager != null && nativeLocationListener != null) {
+                          nativeLocationManager.removeUpdates(nativeLocationListener);
+                      }
+                      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && nativeLocationManager != null && gnssStatusCallback != null) {
+                          nativeLocationManager.unregisterGnssStatusCallback(gnssStatusCallback);
+                      }
+                  } catch (Exception ignored) {}
+                  try {
+                      if (ttsEngine != null) {
+                          ttsEngine.stop();
+                          ttsEngine.shutdown();
+                          ttsEngine = null;
+                      }
+                  } catch (Exception ignored) {}
                   if (Build.VERSION.SDK_INT >= 33 && backInvokedCallback != null) {
                       try {
                           getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback(backInvokedCallback);
@@ -1096,7 +1478,7 @@ jobs:
 
               private void loadEntryUrlFromIntent(Intent intent) {
                   String entryHtml = getPackageName().contains("admin") ? "kp-control-89.html" : "index.html";
-                  String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/" + entryHtml + "?v=2.5.6_r222_" + System.currentTimeMillis();
+                  String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/" + entryHtml + "?v=2.5.6_r224_" + System.currentTimeMillis();
                   if (intent != null && intent.getData() != null) {
                       Uri data = intent.getData();
                       String q = data.getEncodedQuery();
@@ -1209,6 +1591,7 @@ jobs:
               @Override
               public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
                   super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+                  startNativeLocationUpdates();
                   if (requestCode == REQ_CAMERA_PERM || requestCode == REQ_PERMISSIONS) {
                       if (pendingCameraLaunchAfterPerm) {
                           pendingCameraLaunchAfterPerm = false;
