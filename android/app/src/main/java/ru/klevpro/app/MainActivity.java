@@ -283,21 +283,31 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String getAppVersion() {
-            return "2.5.6-r221";
+            return "2.5.6-r222";
         }
 
         @JavascriptInterface
         public int getAppBuildNumber() {
-            return 221;
+            return 222;
         }
 
         @JavascriptInterface
         public String getAppRevision() {
-            return "r221";
+            return "r222";
         }
 
         @JavascriptInterface
         public void downloadApkUpdate(String url) {
+            if (url == null || url.trim().isEmpty()) return;
+            try {
+                Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url.trim()));
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                ctx.startActivity(intent);
+            } catch (Exception ignored) {}
+        }
+
+        @JavascriptInterface
+        public void openExternalUrl(String url) {
             if (url == null || url.trim().isEmpty()) return;
             try {
                 Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url.trim()));
@@ -567,7 +577,7 @@ public class MainActivity extends Activity {
         ws.setCacheMode(WebSettings.LOAD_NO_CACHE);
                   webView.clearCache(true);
         String baseUa = ws.getUserAgentString();
-        ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.5.6-r221");
+        ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.5.6-r222");
 
         webView.addJavascriptInterface(new NativeBridge(this), "AndroidBridge");
 
@@ -826,7 +836,7 @@ public class MainActivity extends Activity {
 
     private void loadEntryUrlFromIntent(Intent intent) {
         String entryHtml = getPackageName().contains("admin") ? "kp-control-89.html" : "index.html";
-        String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/" + entryHtml + "?v=2.5.6_r221_" + System.currentTimeMillis();
+        String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/" + entryHtml + "?v=2.5.6_r222_" + System.currentTimeMillis();
         if (intent != null && intent.getData() != null) {
             Uri data = intent.getData();
             String q = data.getEncodedQuery();

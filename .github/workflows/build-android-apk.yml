@@ -78,7 +78,8 @@ jobs:
           rm -rf "$PROJ_DIR/app/src/main/assets/www"
           mkdir -p "$PROJ_DIR/app/src/main/assets/www"
           if [ -f "kp-control-89.html" ]; then cp -f "kp-control-89.html" /tmp/kp-control-89-master.html; fi
-          for f in index.html kp-control-89.html policy-version.json manifest.json version.json icon.svg icon-192.png icon-512.png apple-touch-icon.png sw.js css js assets; do
+          if [ -f "icon-admin-512.png" ]; then cp -f "icon-admin-512.png" /tmp/icon-admin-512.png; fi
+          for f in index.html kp-control-89.html policy-version.json manifest.json version.json icon.svg icon-192.png icon-512.png icon-admin-192.png icon-admin-512.png apple-touch-icon.png sw.js css js assets; do
             if [ -e "$f" ]; then
               cp -r "$f" "$PROJ_DIR/app/src/main/assets/www/"
             fi
@@ -149,7 +150,7 @@ jobs:
                   minSdk 24
                   targetSdk 34
                   versionCode ${VER_CODE}
-                  versionName "2.5.6-r221"
+                  versionName "2.5.6-r222"
               }
               signingConfigs {
                   release {
@@ -542,21 +543,31 @@ jobs:
 
                   @JavascriptInterface
                   public String getAppVersion() {
-                      return "2.5.6-r221";
+                      return "2.5.6-r222";
                   }
 
                   @JavascriptInterface
                   public int getAppBuildNumber() {
-                      return 221;
+                      return 222;
                   }
 
                   @JavascriptInterface
                   public String getAppRevision() {
-                      return "r221";
+                      return "r222";
                   }
 
                   @JavascriptInterface
                   public void downloadApkUpdate(String url) {
+                      if (url == null || url.trim().isEmpty()) return;
+                      try {
+                          Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url.trim()));
+                          intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                          ctx.startActivity(intent);
+                      } catch (Exception ignored) {}
+                  }
+
+                  @JavascriptInterface
+                  public void openExternalUrl(String url) {
                       if (url == null || url.trim().isEmpty()) return;
                       try {
                           Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url.trim()));
@@ -826,7 +837,7 @@ jobs:
                   ws.setCacheMode(WebSettings.LOAD_NO_CACHE);
                             webView.clearCache(true);
                   String baseUa = ws.getUserAgentString();
-                  ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.5.6-r221");
+                  ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.5.6-r222");
 
                   webView.addJavascriptInterface(new NativeBridge(this), "AndroidBridge");
 
@@ -1085,7 +1096,7 @@ jobs:
 
               private void loadEntryUrlFromIntent(Intent intent) {
                   String entryHtml = getPackageName().contains("admin") ? "kp-control-89.html" : "index.html";
-                  String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/" + entryHtml + "?v=2.5.6_r221_" + System.currentTimeMillis();
+                  String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/" + entryHtml + "?v=2.5.6_r222_" + System.currentTimeMillis();
                   if (intent != null && intent.getData() != null) {
                       Uri data = intent.getData();
                       String q = data.getEncodedQuery();
@@ -1420,6 +1431,13 @@ jobs:
           ! grep -q 'id="secCircle"' "app/src/main/assets/www/index.html"
           sed -i 's/applicationId "ru.klevpro.app"/applicationId "ru.klevpro.admin"/g' app/build.gradle
           sed -i 's/<string name="app_name">Клёв ПРО 2.0<\/string>/<string name="app_name">Клёв ПРО Админ<\/string>/g' app/src/main/res/values/strings.xml
+          if [ -f "/tmp/icon-admin-512.png" ]; then
+            cp -f "/tmp/icon-admin-512.png" "app/src/main/res/drawable/ic_launcher.png"
+          elif [ -f "../icon-admin-512.png" ]; then
+            cp -f "../icon-admin-512.png" "app/src/main/res/drawable/ic_launcher.png"
+          elif [ -f "icon-admin-512.png" ]; then
+            cp -f "icon-admin-512.png" "app/src/main/res/drawable/ic_launcher.png"
+          fi
           sed -i '/android:host="klevpro.ru"/d' app/src/main/AndroidManifest.xml
           sed -i '/android:host="xn--b1apdneg0j.xn--p1ai"/d' app/src/main/AndroidManifest.xml
           /tmp/gradle-8.7/bin/gradle clean assembleRelease --no-daemon --console=plain
