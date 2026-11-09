@@ -391,17 +391,17 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String getAppVersion() {
-            return "2.5.6-r224";
+            return "2.7.0-r225";
         }
 
         @JavascriptInterface
         public int getAppBuildNumber() {
-            return 224;
+            return 225;
         }
 
         @JavascriptInterface
         public String getAppRevision() {
-            return "r224";
+            return "r225";
         }
 
         @JavascriptInterface
@@ -695,7 +695,7 @@ public class MainActivity extends Activity {
         ws.setCacheMode(WebSettings.LOAD_NO_CACHE);
                   webView.clearCache(true);
         String baseUa = ws.getUserAgentString();
-        ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.5.6-r224");
+        ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.7.0-r225");
 
         webView.addJavascriptInterface(new NativeBridge(this), "AndroidBridge");
 
@@ -1212,7 +1212,7 @@ public class MainActivity extends Activity {
 
     private void loadEntryUrlFromIntent(Intent intent) {
         String entryHtml = getPackageName().contains("admin") ? "kp-control-89.html" : "index.html";
-        String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/" + entryHtml + "?v=2.5.6_r224_" + System.currentTimeMillis();
+        String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/" + entryHtml + "?v=2.7.0_r225_" + System.currentTimeMillis();
         if (intent != null && intent.getData() != null) {
             Uri data = intent.getData();
             String q = data.getEncodedQuery();

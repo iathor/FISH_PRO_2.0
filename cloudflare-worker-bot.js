@@ -1,7 +1,7 @@
 // @file bot/cloudflare-worker-bot.js — @KlevProClubBot (V.2.1.1)
 // Компактная сборка для Cloudflare Workers (115 рыб, 491 водоём, 609 городов РФ + Triple-Engine $0 DB + E2EE Relay + Обмен точками Круга/Экипажа/SOS + Уникальные Региональные ID FP_89AAA001 & Эксклюзивный VIP ID владельца FP_89VIP089 + Секретная Серверная Консоль Супер-Админа)
 
-const WORKER_VERSION = '2.5.6-r224';
+const WORKER_VERSION = '2.7.0-r225';
 const RESERVE_ID_TTL_MS = 24 * 60 * 60 * 1000; // Временный резервный ID живёт строго не более 24 часов (суток)
 const deletedFisherIdsSet = new Set(); // Удалённые вручную через Админ-панель ID (защита от повторной фоновой вставки)
 const rateBuckets = new Map();
@@ -4582,12 +4582,12 @@ function computeFishScoreForWeather(fishObj, w) {
 
 function makeAppButton(text, deepAppUrl, isPrivateChat = true) {
  let finalUrl = String(deepAppUrl || 'https://klevpro.ru/');
- if (!finalUrl.includes('v=r224')) {
+ if (!finalUrl.includes('v=r225')) {
   const hashIdx = finalUrl.indexOf('#');
   const basePart = hashIdx >= 0 ? finalUrl.slice(0, hashIdx) : finalUrl;
   const hashPart = hashIdx >= 0 ? finalUrl.slice(hashIdx) : '';
   const sep = basePart.includes('?') ? '&' : '?';
-  finalUrl = `${basePart}${sep}v=r224&tma=1${hashPart}`;
+  finalUrl = `${basePart}${sep}v=r225&tma=1${hashPart}`;
  }
  if (isPrivateChat) {
   return { text, web_app: { url: finalUrl } };
@@ -6204,10 +6204,10 @@ const betaGateConfig = {
 };
 const policyStateStore = {
  policyVersion: '2026.11.06-v2.6',
- appVersion: '2.5.6',
- appRevision: 'r224',
+ appVersion: '2.7.0',
+ appRevision: 'r225',
  updatedAt: '2026-11-06T12:00:00Z',
- summary: 'Обновление версии v2.5.6 (r224): точное ведение по маршруту с ортогональной проекцией на дорогу, изоляция Telegram Mini App,4-колоночное выравнивание нижнего бара в TMA, доступ по временному ID и новые иконки APK/PWA.'
+ summary: 'Обновление версии v2.7.0 (r225): точное ведение по маршруту с ортогональной проекцией на дорогу, изоляция Telegram Mini App,4-колоночное выравнивание нижнего бара в TMA, доступ по временному ID и новые иконки APK/PWA.'
 };
 const userConsentsStore = new Map();
 

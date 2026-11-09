@@ -105,7 +105,7 @@ jobs:
 
           # 4. Вычисляем строго возрастающий versionCode для релиза 2.5.6 r194 (чтобы Android всегда обновлял APK поверх старой версии)
           RUN_NUM=${GITHUB_RUN_NUMBER:-0}
-          VER_CODE=$((260230 + RUN_NUM))
+          VER_CODE=$((270225 + RUN_NUM))
           echo "Using versionCode=$VER_CODE"
 
           cat << 'EOF' > "$PROJ_DIR/settings.gradle"
@@ -150,7 +150,7 @@ jobs:
                   minSdk 24
                   targetSdk 34
                   versionCode ${VER_CODE}
-                  versionName "2.5.6-r224"
+                  versionName "2.7.0-r225"
               }
               signingConfigs {
                   release {
@@ -657,17 +657,17 @@ jobs:
 
                   @JavascriptInterface
                   public String getAppVersion() {
-                      return "2.5.6-r224";
+                      return "2.7.0-r225";
                   }
 
                   @JavascriptInterface
                   public int getAppBuildNumber() {
-                      return 224;
+                      return 225;
                   }
 
                   @JavascriptInterface
                   public String getAppRevision() {
-                      return "r224";
+                      return "r225";
                   }
 
                   @JavascriptInterface
@@ -961,7 +961,7 @@ jobs:
                   ws.setCacheMode(WebSettings.LOAD_NO_CACHE);
                             webView.clearCache(true);
                   String baseUa = ws.getUserAgentString();
-                  ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.5.6-r224");
+                  ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.7.0-r225");
 
                   webView.addJavascriptInterface(new NativeBridge(this), "AndroidBridge");
 
@@ -1478,7 +1478,7 @@ jobs:
 
               private void loadEntryUrlFromIntent(Intent intent) {
                   String entryHtml = getPackageName().contains("admin") ? "kp-control-89.html" : "index.html";
-                  String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/" + entryHtml + "?v=2.5.6_r224_" + System.currentTimeMillis();
+                  String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/" + entryHtml + "?v=2.7.0_r225_" + System.currentTimeMillis();
                   if (intent != null && intent.getData() != null) {
                       Uri data = intent.getData();
                       String q = data.getEncodedQuery();
@@ -1836,9 +1836,11 @@ jobs:
           mkdir -p apk
           rm -f apk/*.apk
           if [ -f "/tmp/klev-apk-dist/klev-pro-v2.5.6.apk" ]; then
+            cp -f "/tmp/klev-apk-dist/klev-pro-v2.5.6.apk" apk/klev-pro-v2.7.0.apk
             cp -f "/tmp/klev-apk-dist/klev-pro-v2.5.6.apk" apk/klev-pro-v2.5.6.apk
           fi
           if [ -f "/tmp/klev-apk-dist/klev-pro-admin-v2.5.6.apk" ]; then
+            cp -f "/tmp/klev-apk-dist/klev-pro-admin-v2.5.6.apk" apk/klev-pro-admin-v2.7.0.apk
             cp -f "/tmp/klev-apk-dist/klev-pro-admin-v2.5.6.apk" apk/klev-pro-admin-v2.5.6.apk
           fi
           ls -lh apk/
