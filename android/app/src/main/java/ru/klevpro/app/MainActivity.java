@@ -283,7 +283,7 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String getAppVersion() {
-            return "2.5.6-r216";
+            return "2.5.6-r220";
         }
 
         @JavascriptInterface
@@ -293,7 +293,7 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String getAppRevision() {
-            return "r215";
+            return "r220";
         }
 
         @JavascriptInterface
@@ -567,7 +567,7 @@ public class MainActivity extends Activity {
         ws.setCacheMode(WebSettings.LOAD_NO_CACHE);
                   webView.clearCache(true);
         String baseUa = ws.getUserAgentString();
-        ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.5.6-r216");
+        ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.5.6-r220");
 
         webView.addJavascriptInterface(new NativeBridge(this), "AndroidBridge");
 
@@ -680,9 +680,10 @@ public class MainActivity extends Activity {
                     view.loadUrl(sb.toString());
                     return true;
                 }
-                if (host.equals("t.me") || host.equals("telegram.me") || scheme.equals("tg") || scheme.equals("mailto") || scheme.equals("sms") || scheme.equals("smsto") || scheme.equals("tel") || scheme.equals("geo")) {
+                if (host.equals("t.me") || host.equals("telegram.me") || scheme.equals("tg") || scheme.equals("mailto") || scheme.equals("sms") || scheme.equals("smsto") || scheme.equals("tel") || scheme.equals("geo") || host.contains("yandex.") || host.contains("google.") || host.contains("2gis.") || host.contains("openstreetmap.") || host.contains("leafletjs.") || host.contains("open-meteo.") || host.contains("met.no")) {
                     try {
                         Intent intent = new Intent(Intent.ACTION_VIEW, uri);
+                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                         startActivity(intent);
                         return true;
                     } catch (Exception ignored) {}
@@ -824,7 +825,7 @@ public class MainActivity extends Activity {
     }
 
     private void loadEntryUrlFromIntent(Intent intent) {
-        String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/index.html?v=2.5.6_r216";
+        String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/index.html?v=2.5.6_r220";
         if (intent != null && intent.getData() != null) {
             Uri data = intent.getData();
             String q = data.getEncodedQuery();
@@ -1045,6 +1046,10 @@ public class MainActivity extends Activity {
                 @Override
                 public void onReceiveValue(String value) {
                     if (value != null && value.contains("HANDLED")) {
+                        return;
+                    }
+                    if (webView != null && webView.canGoBack()) {
+                        webView.goBack();
                         return;
                     }
                     long now = System.currentTimeMillis();
