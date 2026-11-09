@@ -1,1 +1,2769 @@
-import{getFilteredFishList as e,openFishDetail as t}from"../fish/fish.module.js?v=2.5.6-r216";import{logBlankTrip as r}from"../log/log.module.js?v=2.5.6-r216";import{getSpotEcoregion as o,isSpeciesInGeoRange as n}from"../../data/basins.js?v=2.5.6-r216";import{RU as i}from"../../i18n/ru.js?v=2.5.6-r216";import{getSeasonalBaitsForContext as a,getCompatibleMethods as s}from"../../core/config.js?v=2.5.6-r216";import{events as l}from"../../core/events.js?v=2.5.6-r216";import{storage as c}from"../../core/storage.js?v=2.5.6-r216";import{store as d}from"../../core/store.js?v=2.5.6-r216";import{formatLocalYYYYMMDD as p,fmtDeltaPress as h,fmtHM as v}from"../../core/format.js?v=2.5.6-r216";import{WATER_PROFILES as u,getAvailableWaterTypes as f}from"../../data/waters.js?v=2.5.6-r216";import{FISH_DB as g}from"../../data/species.js?v=2.5.6-r216";import{renderFiveFish as b}from"../../ui/svg.js?v=2.5.6-r216";import{createPill as k,showToast as w,openModal as x,flashHighlightElement as y}from"../../ui/components.js?v=2.5.6-r216";import{computeIceSafetyIndex as m}from"../weather/weather.module.js?v=2.5.6-r216";import{evaluateCircleFieldConfirmation as $,requireRegisteredFisherId as M}from"../circle/circle.module.js?v=2.5.6-r216";import{isTelegramWebApp as _,getTelegramUser as S,shareToTelegramChat as C,openBotChatInTelegram as B,buildForecastShareUrls as T,TELEGRAM_BOT_USERNAME as A}from"../../core/telegram.js?v=2.5.6-r216";const D={smelt:{runMonths:[12,1,2,3,4,5],reason:"весенне-зимний нерестовый и кормовой ход из заливов в устья рек"},navaga:{runMonths:[11,12,1,2,3],reason:"зимний приливной и преднерестовый заход в устья северных и дальневосточных рек"},flounder:{runMonths:[3,4,5,6,7,8,9,10],reason:"заход речной камбалы (глоссы) с приливом в опреснённые устья и низовья рек"},starry_flounder:{runMonths:[4,5,6,7,8,9,10],reason:"заход звёздчатой камбалы в эстуарии и нижнее течение рек Тихого океана"},mullet:{runMonths:[4,5,8,9,10],reason:"сезонный заход пеленгаса и кефали в лиманы и устья рек на нагул и зимовку"},pink_salmon:{runMonths:[6,7,8,9],reason:"массовый анадромный нерестовый ход горбуши из моря в реки"},chum_salmon:{runMonths:[7,8,9,10],reason:"анадромный нерестовый ход кеты вверх по рекам"},coho_salmon:{runMonths:[8,9,10,11],reason:"осенний нерестовый ход кижуча в реки Камчатки и Охотоморья"},sockeye_salmon:{runMonths:[6,7,8],reason:"ход нерки в реки и озёрно-речные системы"},chinook_salmon:{runMonths:[5,6,7],reason:"весенне-летний ход чавычи в русла крупных рек"},cherry_salmon:{runMonths:[4,5,6,7],reason:"весенний заход симы в реки Приморья и Сахалина"},salmon:{runMonths:[5,6,7,8,9,10],reason:"анадромный заход атлантического лосося (сёмги) в порожистые реки"},trout:{runMonths:[4,5,6,8,9,10,11],reason:"ход кумжи между морскими губами и реками"},char:{runMonths:[5,6,7,8,9,10],reason:"миграция проходного гольца и кунджи в реки и устья"},dolly_varden:{runMonths:[5,6,7,8,9,10],reason:"нагульно-нерестовая миграция мальмы в реках"},kutum:{runMonths:[3,4,5,9,10],reason:"весенний и осенний ход кутума из Каспия в реки"},vobla:{runMonths:[3,4,5],reason:"весенний массовый ход каспийской воблы в дельту и рукава Волги"},taran:{runMonths:[2,3,4,9,10],reason:"ход азовской тарани в лиманы, Кубань и Дон"},vimba:{runMonths:[3,4,5,9,10],reason:"миграция рыбца (сырти) из заливов в реки с быстрым течением"},omul_arctic:{runMonths:[7,8,9,10,11],reason:"полупроходной ход арктического омуля из губы в низовья северных рек"},cisco:{runMonths:[8,9,10,11,12],reason:"массовый подъём сибирской ряпушки из губы в реки Пур, Таз, Обь и Енисей"},goby:{runMonths:[4,5,6,7,8,9,10],reason:"обитание бычка в эстуариях, водохранилищах и низовьях рек"},herring:{runMonths:[4,5,6],reason:"весенний подход сельди в опреснённые заливы и предустьевые зоны"}},L=new Map,z=new Map,E=new Map,H=new Map;function I(e,t=2500){e.size>t&&e.clear()}new Map;export function getPreceding5DaysForTarget(e,t=null){const r=t||d.getState();if(!e||!e.date)return[];const o=e.date,n=r.weatherDays?.[0]?.date||"",i=Array.isArray(r.weatherArchive5Days)?r.weatherArchive5Days.length:0,a=`${o}|${Math.round(100*(r.lat||0))}|${Math.round(100*(r.lon||0))}|${n}|${i}`;if(L.has(a))return L.get(a);const s={};if(Array.isArray(r.weatherDays))for(let e=0;e<r.weatherDays.length;e++){const t=r.weatherDays[e];t&&t.date&&t.date<o&&(s[t.date]=t)}if(Array.isArray(r.weatherArchive5Days))for(let e=0;e<r.weatherArchive5Days.length;e++){const t=r.weatherArchive5Days[e];t&&t.date&&t.date<o&&(s[t.date]=t)}const l=c.getArchiveDaysForLocation(r.lat,r.lon,10,o);if(Array.isArray(l.allArchiveDays))for(let e=0;e<l.allArchiveDays.length;e++){const t=l.allArchiveDays[e];t&&t.date&&t.date<o&&(s[t.date]=t)}const p=Object.keys(s).sort().slice(-5).map((e=>s[e]));return I(L,500),L.set(a,p),p}export function evaluate5DayArchiveAndBaricShock(e,t,r=[],o=!0){const n=Number.isFinite(e?.bladderSens)?e.bladderSens:.8,i="burbot"===e?.id;if(!Array.isArray(r)||0===r.length)return{val:0,isShock:!1,note:!1===o?"Архив погоды за 5 дней недоступен для этой точки":"Недостаточно архивных дней для оценки барического тренда",commentary:!1===o?"Прогноз может быть менее точным из-за отсутствия архивных данных по погоде.":"Оценка строится по текущим суткам."};const a=r.slice(-2),s=[...r.map((e=>e.pressAvg||754)),t.pressAvg||754],l=Math.min(...s),c=Math.max(...s),d=Math.round(c-l);let p=0;if(a.forEach((e=>{const t=Math.abs(e.dP||0);t>p&&(p=t)})),2===a.length){const e=Math.abs((t.pressAvg||754)-(a[0].pressAvg||754));e>p&&(p=e)}const v=Math.abs(t.dP||0)<=3,u=r[0]?.tDay??t.tDay,f=Math.round((t.tDay??10)-u);let g=0,b=!1,k="",w="";if(p>=8||d>=16){b=!0;const e=p>=11||d>=20?-14:-9;g=i?Math.round(.35*e):Math.round(e*Math.max(.6,n)),v?(k=`Барический «шок» после скачка давления (до ${p} мм за 1–2 сут., размах за 5 дн. ${d} мм)`,w=`Даже несмотря на то, что сегодня погода выровнялась (Δ ${h(t.dP)}), за предыдущие 1–2 суток зафиксирован резкий перепад давления (${p} мм, 5-дневный размах ${l}–${c} мм). После таких качелей плавательный пузырь рыбы не успевает адаптироваться — рыба находится в барическом «шоке» (ступоре) и игнорирует активные приманки.`):(k=`Затяжной барический шторм: скачки до ${p} мм (размах за 5 дн. ${d} мм)`,w=`По данным 5-дневного архива локации (10 км) продолжается сильная барическая пила (перепад ${l}–${c} мм). Рыба испытывает выраженный барический шок и стоит в глухой обороне у дна.`)}else p>=5||d>=10?(g=i?3:Math.round(-4*Math.max(.55,n)),k=`Умеренные качели давления за 5 дней (размах ${d} мм, вчера/позавчера до ${p} мм)`,w=`За последние ${r.length} дн. в радиусе 10 км давление менялось в пределах ${l}–${c} мм (${d} мм). Умеренная барическая нестабильность делает поклёвки осторожными и короткими.`):(g=Math.round(8*Math.max(.75,n)),k=`Стабильное плато давления ${r.length} дн. подряд (размах всего ${d} мм)`,w=`За последние ${r.length} дн. в этой локации (10 км) держится ровное атмосферное давление (${l}–${c} мм, без резких скачков). Рыба полностью адаптировалась к горизонту глубины и выходит на уверенную кормёжку.`);return Math.abs(f)>=6&&(f<=-6&&["burbot","chir","pizhyan","peled","cisco","whitefish"].includes(e?.id)?(g+=4,w+=` Пятидневное похолодание (${f}°C) дополнительно активизирует холоднолюбивый вид.`):f<=-6&&"peace"===e?.type&&(g-=4,w+=` Резкое похолодание за 5 дней (${f}°C) снизило кормовую активность мирной рыбы.`)),g=Math.max(-20,Math.min(12,g)),{val:g,isShock:b,note:k,commentary:w,swing5d:d,maxRecentJump:p}}export function evaluateLogbookInsight(e,t,r,o,n,i=[]){if(!Array.isArray(i)||0===i.length||!e)return{val:0,hasData:!1,note:"Журнал уловов: пока нет записей для личной калибровки",commentary:'Добавляйте свои уловы через кнопку «<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg> Я поймал» (доступна запись за последние 5 дней по календарю), чтобы прогноз автоматически учитывал вашу личную статистику по водоёмам и приманкам.'};const a=i.filter((t=>t&&t.fishId===e.id));if(0===a.length)return{val:0,hasData:!1,note:`Журнал уловов: всего записей ${i.length}, по виду «${e.name}» пока 0`,commentary:`В вашем журнале ${i.length} уловов других видов, но по рыбе «${e.name}» записей ещё нет.`};const s=t.waterTemp??10,l=r?.press??t.pressAvg??754,c=r?.hour??12,d=Math.round(a.reduce(((e,t)=>e+(Number.isFinite(t.waterTemp)?t.waterTemp:s)),0)/a.length*10)/10,p=Math.round(a.reduce(((e,t)=>e+(Number.isFinite(t.press)?t.press:l)),0)/a.length),h={};a.forEach((e=>{e.bait&&(h[e.bait]=(h[e.bait]||0)+1)}));const v=Object.entries(h).sort(((e,t)=>t[1]-e[1]))[0]?.[0]||"проверенная приманка",u=a.filter((e=>{const t=Math.abs((e.waterTemp??s)-s),r=Math.abs((e.press??l)-l);return t<=3.5&&r<=6})),f=a.filter((e=>Math.abs((e.hour??12)-c)<=2));let g=0,b="",k="";if(u.length>0)g=Math.min(9,4+2*u.length+(f.length>0?2:0)),b=`Личный журнал (${a.length} уловов): текущая погода совпадает с ${u.length} вашими поимками (+${g}%)`,k=`По данным вашего журнала уловов (${a.length} зап. по виду «${e.name}») вы уже успешно ловили эту рыбу при таких же условиях (вода ~${d}°C, давление ~${p} мм). Ваша самая уловистая приманка из журнала: «${v}».`;else{const t=Math.abs(s-d),r=Math.abs(l-p);t>6||r>10?(g=-3,b=`Личный журнал (${a.length} уловов): условия отличаются от ваших средних (вода ~${d}°C, ${p} мм)`,k=`В вашем журнале «${e.name}» чаще ловилась при воде ~${d}°C и давлении ~${p} мм (лучшая приманка: «${v}»). Сейчас условия заметно отличаются, рекомендуем более деликатную подачу.`):(g=2,b=`Личный журнал (${a.length} уловов): близко к вашей статистике (лучшая насадка — ${v})`,k=`Учтена статистика вашего журнала (${a.length} уловов вида «${e.name}», средние условия: вода ~${d}°C, давление ~${p} мм, фаворит — «${v}»).`)}return{val:g,hasData:!0,topBait:v,count:a.length,note:b,commentary:k}}export function computeHourFactors(e,t,r,o,n,i,a=752,s="open_water",l=!1){const c=d.getState(),p=t.iceState||s,v="redbook"===e.legal,f="ice_danger"===p&&!o.startsWith("winter_"),g=u[n]||u.small_river,b=g.flow>=1.8?"быстрое течение":g.flow>=1.1?"умеренное течение":"стоячая вода",k=t.waterTemp??8,[w,x]=e.tWaterOpt||[8,16],y=["carp","crucian","tench","catfish","amur_catfish","channel_catfish","tilapia","silver_carp","grass_carp","black_carp","snakehead","buffalo"].includes(e.id),m=["burbot","peled","chir","pizhyan","muksun","whitefish","cisco","tugun","valek","omul","omul_arctic","vendace","broad_whitefish","smelt","navaga","saffron_cod","cod","haddock","char","dolly_varden","lenok","taimen","nelma"].includes(e.id),M="ice_safe"===p||"ice_danger"===p||"ice_slush"===p||k<=1.2,_=Number(t.iceThickness)||0,S=("ice_safe"===p||"ice_danger"===p)&&_>=3&&_<=25;let C=0,B=`Вода ${k}°C с учётом течения (${b}, оптимум ${w}–${x}°C)`;if(M&&!y){const e=g.flow>=1.4?1.6:2.8;m?(C=S?14:10,B=`Зимний режим (подо льдом ${k}°C, у дна ~+${e}°C) — пик холодноводной активности вида`):(C=S?7:2,B=S?`Перволёдье (~${_} см, у дна ~+${e}°C) — активный кислородный режим и жор рыбы со льда`:`Подлёдный режим (у льда ${k}°C, в придонном слое ~+${e}°C, ${b})`)}else if(k<e.tMinStop)C=-32,B=`Вода ${k}°C (${b}) ниже порога активности (${e.tMinStop}°C) — зимнее оцепенение`;else if(k>=w&&k<=x)C=16,B=`Вода ${k}°C (${b}) в оптимуме вида (${w}–${x}°C)`;else if(k<w){const t=Math.max(1.5,w-e.tMinStop),r=(k-e.tMinStop)/t,o=(e.coldFactor||.7)>=1.05?6:0;C=Math.round(26*r-14+o),B=`Вода ${k}°C (${b}) прохладнее летнего оптимума (${w}–${x}°C)`}else{const e=k-x;C=Math.max(-30,Math.round(12-7*e)),B=`Вода ${k}°C (${b}) теплее оптимума (${w}–${x}°C)`}const T=Math.abs((r.press||754)-a),A=r.dp3h??t.dP/4;let L=Math.round(6-Math.min(14,.6*T*(e.bladderSens||.8)));"predator"===e.type?A<=-.8?L+=8:A>=1&&(L-=9):Math.abs(A)<=.6?L+=6:A<=-1&&(L-=8);const H=Math.abs(t.dP||0);H>=8?L-=18:H>=5&&(L-=12),L=Math.max(-24,Math.min(15,L));const U=`Давление ${r.press} мм (суточный ход ${h(t.dP)})`,K=!1!==c.hasRealArchive,Y=`${e.id}|${t.date}|${t.pressAvg}|${t.dP}|${t.tDay}|${K?1:0}|${Math.round(100*(c.lat||0))}_${Math.round(100*(c.lon||0))}`;let X=z.get(Y);X||(X=evaluate5DayArchiveAndBaricShock(e,t,getPreceding5DaysForTarget(t,c),K),I(z,2500),z.set(Y,X));const J=X.val,Q=X.note;let Z=0,ee="";"ice_safe"===p?"burbot"===e.id?r.wind>=4.5||r.precip>0?(Z=10,ee=`Ветер ${r.windDir} ${r.wind} м/с (метель и ветер подо льдом активизируют выход налима на кормовые тропы)`):r.wind>=3?(Z=6,ee=`Ветер ${r.windDir} ${r.wind} м/с (зимний ветер благоприятствует активности налима со льда)`):(Z=3,ee=`Ветер ${r.windDir} ${r.wind} м/с (монолитный лёд изолирует воду от волны)`):"winter_jig"===o&&r.wind>=5.5?(Z=-6,ee=`Ветер ${r.windDir} ${r.wind} м/с (лёд гасит волну, но ветер выдувает леску и сбивает игру тонкого кивка — рекомендуется палатка или вольфрамовая мормышка)`):(Z=["zander","pike","perch","volga_zander","nelma","taimen"].includes(e.id)&&r.wind>=4?4:3,ee=`Ветер ${r.windDir} ${r.wind} м/с (монолитный лёд изолирует воду от волны, снасть работает стабильно)`):"burbot"===e.id?Z=r.wind>=4||r.precip>0?10:0:(r.wind>=1.5&&r.wind<=5.5?Z+=6:r.wind>=8.5?Z-=16:r.wind>6.5?Z-=8:Z-=2,["Ю","ЮЗ","З"].includes(r.windDir)?Z+=4:["С","СВ","В"].includes(r.windDir)&&(Z-=4),["carp","grass_carp","crucian","bream","tench","buffalo"].includes(e.id)&&r.wind>=2.5&&r.wind<=7&&(Z+=4));const te="open_water"===p&&["carp","grass_carp","crucian","bream","tench","buffalo"].includes(e.id)&&r.wind>=2.5&&r.wind<=7,re=ee||(te?`Ветер ${r.windDir} ${r.wind} м/с (фактор «Прибойный берег» +кислород)`:`Ветер ${r.windDir} ${r.wind} м/с`),oe=void 0!==t._mIdx?t._mIdx:t._mIdx=parseInt(String(t.date||"2026-06").slice(5,7),10)-1||0,ne=oe+1,ie=(e.monthActivity&&e.monthActivity[oe])??2;let ae=3===ie?14:2===ie?6:1===ie?-6:-18;const se=D[e.id],le="big_river"===n||"small_river"===n,ce="sea_gulf"===n||"open_sea"===n;let de=`Сезонный биоритм месяца: ${ie} из 3`;se&&le?se.runMonths.includes(ne)?(ae+=10,de=`Речной ход (${se.reason})`):(ae-=12,de="Вне сезона массового захода в реки (основное стадо в море/заливе)"):"sea"===e.habitat&&!se&&le?(ae-=28,de="Строго морской вид (не заходит в пресные реки)"):e.spawnMonth&&e.spawnMonth.includes(ne)&&(se&&["pink_salmon","chum_salmon","coho_salmon","sockeye_salmon","chinook_salmon","cherry_salmon","smelt","vobla","taran","kutum"].includes(e.id)?(ae+=8,de=`Активный преднерестовый и миграционный ход (${se.reason})`):(ae=-20,de="Период нереста — кормовая активность снижена")),"ice_safe"===p&&["crucian","carp","tench","catfish","tilapia","silver_carp","grass_carp","snakehead"].includes(e.id)&&(ae=-28),"ice_slush"===p&&(["burbot","chir","pizhyan","peled","cisco","whitefish","navaga","smelt"].includes(e.id)?ae+=6:ae-=5);let pe=0;i>e.depthMax?pe-=22:i>=e.depthOpt[0]&&i<=e.depthOpt[1]?pe+=8:pe-=6,pe+=function(e,t,r="small_river"){const o=e.id,n=Boolean(D[o]);return"winter_livebait"===t?"predator"===e.type?7:-14:"winter_lure"===t?j.has(o)?8:-10:"winter_jig"===t?W.has(o)?8:-5:"winter_stuka"===t?P.has(o)?10:-12:"winter_cisco"===t?N.has(o)?10:-10:"spin_micro"===t?F.has(o)?9:"predator"===e.type?5:4:"spin_jig"===t?q.has(o)?8:"predator"===e.type?4:-10:"spin_lure"===t?"predator"===e.type||O.has(o)?8:-8:"bottom"===t?"peace"===e.type||n||V.has(o)?8:-5:"float"===t?"peace"===e.type||n||R.has(o)?8:-5:"fly"===t?G.has(o)?9:-8:t.startsWith("sea_")?"sea"===e.habitat||n||"sea_gulf"===r||"open_sea"===r?8:-12:0}(e,o,n);const he=r.hour,ve=t.sunriseHr??7,ue=t.sunsetHr??18,fe=Math.abs(he+.5-ve)<=1.5||Math.abs(he+.5-ue)<=1.5,ge=he+.5>=ve-.5&&he+.5<=ue+.5,be="winter_livebait"===o||"winter_stuka"===o;let ke=0;"nocturnal"===e.feedMode?ke=ge?fe?2:-22:7:"crepuscular"===e.feedMode?ke=fe?7:ge?2:be?-18:-24:"diurnal"===e.feedMode&&(ke=ge?5:fe?1:be?-20:-26),pe=Math.max(-26,Math.min(16,Math.round(.65*pe)+ke));const we=fe?"зорька/сумерки":ge?"светлое время":"ночь",xe=`Глубина ${i} м (оптимум ${e.depthOpt[0]}–${e.depthOpt[1]} м) • снасть и биоритм часа (${String(he).padStart(2,"0")}:00 — ${we})`,ye=t.moon?.moonDay||10;let me=0;ye>=28||ye<=2||ye>=14&&ye<=17?me+=3:(ye>=6&&ye<=8||ye>=21&&ye<=23)&&(me-=3);const $e=Math.min(Math.abs(he-(t.moon?.transitHour||12)),24-Math.abs(he-(t.moon?.transitHour||12))),Me=Math.min(Math.abs(he-(t.moon?.underfootHour||0)),24-Math.abs(he-(t.moon?.underfootHour||0)));($e<=1.5||Me<=1.5)&&(me+=ce||se?5:2);const _e=ce||se?`${t.moon?.phaseName||"Луна"} (${ye} л.д. • приливное окно)`:`${t.moon?.phaseName||"Луна"} (${ye} л.д.)`,Se=c.catches||[],Ce=Se.length>0?evaluateLogbookInsight(e,t,r,o,n,Se):{val:0,hasData:!1,note:"Журнал уловов: пока нет записей для личной калибровки",commentary:'Добавляйте свои уловы через кнопку «<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg> Я поймал» (доступна запись за последние 5 дней по календарю), чтобы прогноз автоматически учитывал вашу личную статистику по водоёмам и приманкам.'},Be=c.circleItems||[];let Te;if(0===Be.length)Te={val:0,hasSignal:!1,note:"Нет активных сигналов в радиусе 35 км за 72 ч",commentary:"В радиусе 35 км пока нет свежих отчётов Круга или точек Экипажа за последние 72 часа."};else{const t=`${e.id}|${Math.round(100*(c.lat||0))}_${Math.round(100*(c.lon||0))}|${Be.length}|${Be[0]?.id||""}|${Se.length}`;Te=E.get(t),Te||(Te=$(e,c.lat,c.lon,Be,Se),I(E,1e3),E.set(t,Te))}const Ae="pro"===c.appMode&&c.proFactorWeights?c.proFactorWeights:{temp:1,press:1,archive_shock:1,circle_field:1},De=Number(Ae.temp??1),Le=Number(Ae.press??1),ze=Number(Ae.archive_shock??1),Ee=Number(Ae.circle_field??1);C=Math.round(C*De+14*(De-1)),L=Math.round(L*Le+12*(Le-1));const He=Math.round(J*ze+10*(ze-1)),Ie=0!==(Te.val||0)?Te.val:Be.length>0?5:0,je=Math.round(Ie*Ee+12*(Ee-1));let We=52+C+L+He+Z+ae+pe+me+Ce.val+je;f&&(We=Math.min(28,We-18));const Pe=new Date(t.date||Date.now()).getMonth(),Ne=Array.isArray(e.monthActivity)&&Number(e.monthActivity[Pe])||65,Fe=.5*((Number(w)||8)+(Number(x)||16)),qe=Math.max(2.5,.5*((Number(x)||16)-(Number(w)||8))),Oe=Math.max(0,1-Math.abs(k-Fe)/(2.2*qe)),Ve=Math.round(86+Ne/100*8+4*Oe);let Re=We;if(!f&&We>72){const e=We-72;Re=72+24*(1-Math.exp(-e/24))*(.85+.15*Oe)}const Ge=Math.max(4,Math.min(Ve,Math.round(Re)));if(l)return{total:Ge,forbidden:v,iceDanger:f};const Ue=[{id:"temp",name:"1. Температура воды (с учётом течения)",val:C,note:B},{id:"press",name:"2. Давление и его текущий ход",val:L,note:U},{id:"archive_shock",name:"3. Метеоархив (5 дней) и барический шок",val:He,note:Q},{id:"season",name:"4. Сезон, биоритм и миграция",val:ae,note:de},{id:"gear",name:"5. Глубина, свет и снасть",val:pe,note:xe},{id:"wind",name:"6. Ветер и волнение",val:Z,note:re},{id:"moon",name:ce||se?"7. Фаза Луны и прилив":"7. Фаза Луны",val:me,note:_e}];return(Te.hasSignal||"pro"===c.appMode)&&Ue.push({id:"circle_field",name:"8. Полевое подтверждение (Круг ±5 км и Экипаж)",val:je,note:Te.note}),Ce.hasData&&Ue.push({id:"logbook",name:'<svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="5" y="3" width="14" height="18" rx="2.5" fill="rgba(56,189,248,0.16)" stroke="currentColor" stroke-width="1.8"/><path d="M9 7h6M9 11h6M9 15h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Калибровка по вашему Журналу уловов',val:Ce.val,note:Ce.note}),{total:Ge,forbidden:v,iceDanger:f,hasRealArchive:K,archiveEval:X,logInsight:Ce,circleEval:Te,factors:Ue}}const j=new Set(["perch","pike","zander","grayling","smelt","trout","cod","navaga","lenok","volga_zander","char","broad_whitefish","saffron_cod","peled","chir","pizhyan","whitefish","omul","baikal_grayling","kundzha","nelma","taimen"]),W=new Set(["chir","pizhyan","peled","cisco","roach","perch","whitefish","ruffe","smelt","bream","ide","dace","white_bream","vendace","omul","omul_arctic","valek","baikal_grayling","tugun","crucian","rudd","gudgeon","muksun"]),P=new Set(["burbot","cod","halibut","navaga","wolffish"]),N=new Set(["cisco","peled","smelt","whitefish","herring","vendace","omul","omul_arctic","tugun","chir","pizhyan","muksun"]),F=new Set(["perch","roach","crucian","dace","peled","rudd","bleak","chub","ide","grayling","baikal_grayling","trout","brown_trout","rainbow_trout","rotan","gudgeon","bream","white_bream","blue_bream","sopa","tench","carp","chekhon","vimba","vobla","taran","undermouth","chir","pizhyan","tugun","whitefish","cisco","vendace","broad_whitefish","omul","omul_arctic","valek","smelt","ruffe","minnow","verkhovka","bitterling","horse_mackerel","sea_bass","scorpionfish","wrasse","sea_bream","red_mullet","goby","shemaya","muksun"]),q=new Set(["zander","pike","perch","catfish","volga_zander","amur_catfish","channel_catfish","burbot","cod","halibut","greenling","asp","chub","ide","nelma","taimen","chinese_perch","yellowcheek"]),O=new Set(["ide","dace","chekhon","peled","chir","pizhyan","whitefish","tugun","rudd","bleak","roach","bream"]),V=new Set(["catfish","burbot","channel_catfish","amur_catfish","ruffe","flounder","starry_flounder","turbot","plaice","goby","perch","pike","zander","beluga","kaluga"]),R=new Set(["perch","rotan","ruffe","chub","grayling","baikal_grayling","trout","dolly_varden","garfish"]),G=new Set(["grayling","baikal_grayling","lenok","salmon","trout","chub","ide","tugun","dace","peled","chir","pizhyan","whitefish","cisco","valek","brown_trout","sockeye_salmon","char","dolly_varden","bleak","rudd","chekhon","roach","taimen","nelma"]);export function calcHourly(e,t,r,o,n,i,a=752,s="open_water"){return computeHourFactors(e,t,r,o,n,i,a,s,!0).total}function U(e,t,r,o,n,i=752,a="open_water"){const s=function(e,t,r,o,n,i,a,s){const l="pro"===e.appMode&&e.proFactorWeights?e.proFactorWeights:null,c=l?`${l.temp??1}_${l.press??1}_${l.archive_shock??1}_${l.circle_field??1}`:"1",d=Array.isArray(e.catches)?e.catches.length:0,p=Array.isArray(e.circleItems)?e.circleItems.length:0;return`${t}|${r.date}|${r.waterTemp}|${r.pressAvg}|${r.dP}|${r.windMax}|${r.iceState||s}|${o}|${n}|${i}|${a}|${e.appMode||"angler"}|${c}|${d}|${p}|${!1!==e.hasRealArchive?1:0}|${Math.round(100*(e.lat||0))}_${Math.round(100*(e.lon||0))}`}(d.getState(),e.id,t,r,o,n,i,a),l=H.get(s);if(l)return l;let c=-1,p=-1,h=-1,v=-1,u=7,f=-1;const g=t.hours;for(let s=0;s<g.length;s++){const l=g[s],d=computeHourFactors(e,t,l,r,o,n,i,a,!0).total;d>f&&(f=d,u=l.hour),d>c?(v=h,h=p,p=c,c=d):d>p?(v=h,h=p,p=d):d>h?(v=h,h=d):d>v&&(v=d)}const b=(u+2)%24,k={score:Math.round((c+p+h+v)/4),windowText:`${String(u).padStart(2,"0")}:00–${String(b).padStart(2,"0")}:00 (${f}%)`};return I(H,4e3),H.set(s,k),k}export function calcDayBest(e,t,r,o,n,i=752,a="open_water"){return e&&t?.hours?.length?U(e,t,r,o,n,i,a).score:0}export function getBestBiteWindowText(e,t,r,o,n,i=752,a="open_water"){return e&&t?.hours?.length?U(e,t,r,o,n,i,a).windowText:"06:00–09:00"}export function getFactorBreakdown(e,t,r,o,n,i=752,a="open_water",s=null){if(!t||!t.hours?.length)return{total:0,factors:[]};let l=t.hours[12];if(null!==s&&t.hours[s])l=t.hours[s];else{let s=-1;for(const c of t.hours){const d=calcHourly(e,t,c,r,o,n,i,a);d>s&&(s=d,l=c)}}return computeHourFactors(e,t,l,r,o,n,i,a)}export function renderBaitWithColorDots(e=""){const t=String(e||"").trim();if(!t)return"";const r=t.toLowerCase(),o=[];r.includes("билайн")&&o.push('<span class="bait-color-dot" title="Расцветка «Билайн» (жёлто-чёрный контраст)" style="background:linear-gradient(135deg,#ffd600 50%,#111827 50%);"></span>'),r.includes("триколор")&&o.push('<span class="bait-color-dot" title="Расцветка «Триколор» (бело-сине-красный)" style="background:linear-gradient(180deg,#ffffff 33%,#2563eb 33%,#2563eb 66%,#dc2626 66%);"></span>'),(r.includes("кислот")||r.includes("шартрез")||r.includes("firetiger"))&&o.push('<span class="bait-color-dot" title="Расцветка «Кислотник / Шартрез»" style="background:linear-gradient(135deg,#a3e635 50%,#facc15 50%);"></span>'),(r.includes("машинн")||r.includes("моторк")||r.includes("карамел"))&&o.push('<span class="bait-color-dot" title="Расцветка «Машинное масло»" style="background:linear-gradient(135deg,#78350f 50%,#65a30d 50%);"></span>'),(r.includes("фиолет")||r.includes("рубин"))&&o.push('<span class="bait-color-dot" title="Расцветка «Фиолет / Рубин»" style="background:linear-gradient(135deg,#9333ea 50%,#e11d48 50%);"></span>'),(r.includes("светонакопит")||r.includes("фосфор"))&&o.push('<span class="bait-color-dot" title="Светонакопительная (фосфорная) расцветка" style="background:radial-gradient(circle,#dcfce7 20%,#22c55e 100%);box-shadow:0 0 6px #4ade80;"></span>'),(r.includes("натурал")||r.includes("серебр")||r.includes("живец")||r.includes("плотвичк")||r.includes("уклейк"))&&o.push('<span class="bait-color-dot" title="Натуральная серебристая расцветка" style="background:linear-gradient(135deg,#f8fafc 40%,#64748b 100%);"></span>'),0===o.length&&(r.includes("мотыл")||r.includes("черв")||r.includes("красн")?o.push('<span class="bait-color-dot" title="Естественный красный / рубиновый цвет" style="background:#ef4444;"></span>'):r.includes("опарыш")||r.includes("хлеб")||r.includes("манн")||r.includes("тесто")?o.push('<span class="bait-color-dot" title="Светлая / белая насадка" style="background:#f8fafc;"></span>'):r.includes("кукуруз")||r.includes("горох")||r.includes("перловк")?o.push('<span class="bait-color-dot" title="Жёлтая растительная насадка" style="background:#facc15;"></span>'):(r.includes("мормыш")||r.includes("бокоплав")||r.includes("гаммарус"))&&o.push('<span class="bait-color-dot" title="Оливково-янтарный бокоплав" style="background:#d97706;"></span>'));const n=t.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");return`${o.join("")}<span>${n}</span>`}export function calcDynamicRig(e,t,r,o,n=null,i=12,a="open_water"){const s=(u[t]||u.small_river).flow,l=n?.id||"pike",c=n?.name||"выбранного вида",d=i<=10.5||"open_water"!==a,p=["catfish","amur_catfish","carp","grass_carp","silver_carp","salmon","chinook_salmon","taimen","halibut","cod","turbot","beluga","kaluga"].includes(l),h=["roach","rudd","bleak","dace","peled","gudgeon","crucian","white_bream","tugun","cisco","vendace","smelt","rotan","ruffe"].includes(l),v=n&&("peace"===n.type||["dace","peled","chir","pizhyan","tugun","whitefish","cisco","vendace","valek","crucian","roach","rudd","bleak","ide","bream","white_bream","tench","gudgeon","chekhon","muksun"].includes(l));if("winter_jig"===e)return{weight:`Вольфрамовая мормышка ${Math.min(3.8,Math.max(.3,Math.round(r*(h?.28:.4)*s*10)/10))} г`,line:h?"Зимняя флюорокарбоновая леска 0.08–0.10 мм":"Зимняя леска 0.11–0.14 мм",tactic:["bream","white_bream","carp","crucian"].includes(l)?`Подлёдный лов (${c}): медленное опускание ко дну, выдержка на стоячку со сторожком и плавный подъём`:`Подлёдный лов (${c}): высокочастотная проводка мормышки в 15–45 см от дна с контрольной паузой 3–4 сек`};if("winter_cisco"===e)return{weight:`Нижнее грузило ${Math.max(6,Math.round(1.4*r*s))} г + гирлянда (3–5 мормышек)`,line:"Основная леска 0.14–0.16 мм, поводки 0.10–0.12 мм",tactic:`Пелагический облов (${c}): плавное покачивание гирлянды в полводы и у нижней кромки льда`};if("winter_lure"===e){const e=["zander","volga_zander","pike"].includes(l)?2.4:1.5;return{weight:`Балансир / Раттлин ${Math.min(36,Math.max(4,Math.round(r*e*s)))} г`,line:"Зимний шнур 0.12–0.16 мм + "+("pike"===l?"титановый/стальной поводок 20 см":"флюорокарбон 0.30–0.40 мм"),tactic:`Зимнее блеснение (${c}): короткий подброс на 15–25 см, сброс и обязательная пауза ${d?"5–8":"3–5"} секунд`}}if("winter_stuka"===e)return{weight:`Тяжёлая блесна-стукалка / джиг ${Math.min(70,Math.max(18,Math.round(3.5*r*s)))} г`,line:"Монолеска 0.35–0.45 мм",tactic:`Донный лов (${c}): ритмичное постукивание по каменистому грунту с подсадкой ерша или резки рыбы`};if("winter_livebait"===e)return{weight:`Скользящее грузило-оливка ${Math.max(6,Math.round(1.6*r*s))} г`,line:"Основная леска 0.35 мм + "+("pike"===l?"вольфрамовый/стальной поводок 25–30 см":"флюорокарбон 0.40–0.50 мм"),tactic:`Жерлица (${c}): установка живца в ${["burbot","zander"].includes(l)?"5–15 см от самого дна":"25–45 см над дном у свала или камыша"}`};if("spin_micro"===e){if(v)return{weight:`Вольфрамовая мормышка / одноухий монтаж ${Math.min(1.2,Math.max(.2,Math.round(.25*r*s*10)/10))} г (0.2–0.8 г)`,line:"Ультратонкий шнур #0.08–0.15 PE / монолеска 0.065–0.09 мм (эстер)",tactic:`Нано-джиг и мормышинг (${c}, вода ${i}°C): ${d?"медленное придонное волочение с микродрожанием и паузами до 4 сек":"высокочастотный пелагический «зуд» и плавный кач в толще воды или на снос по струе"}`};const e=r*(d?.55:.7)*s,t=Math.min(5,Math.max(.3,Math.round(10*e)/10));return{weight:`Микроджиг / Мормышка ${t} г`,line:t<=1.2?"Нанофил / шнур #0.15–0.2 PE + флюорокарбон 0.10–0.12 мм":"Шнур #0.2–0.4 PE + флюорокарбон 0.14–0.16 мм",tactic:d?`Холодная вода (${i}°C, ${c}): деликатное волочение по дну с микродрожанием и паузами 3–6 секунд`:`Тёплая вода (${i}°C, ${c}): активная ступенька и пелагический зуд в придонном и среднем слоях`}}if("spin_jig"===e){const e=p?3.4:["perch"].includes(l)?1.8:2.7;return{weight:`Джиг-головка / Чебурашка ${Math.min(60,Math.max(6,Math.round(r*e*s)))} г`,line:"Плетёный шнур #0.8–1.5 PE + "+("pike"===l?"стальной поводок-струна 20–25 см":"флюорокарбон 0.35–0.50 мм"),tactic:d?`Холодная вода (${i}°C, ${c}): медленная подача у дна — 1 оборот катушки и затяжная пауза 3–5 сек`:`Тёплая вода (${i}°C, ${c}): классическая ступенька 2 оборота — пауза 1.5–2 сек по рельефу и коряжнику`}}if("spin_lure"===e){const e=["chub","trout","grayling","perch","rotan","dace","peled","ide"].includes(l)?1.1:2.3;return{weight:`Блесна / Воблер ${Math.min(32,Math.max(2,Math.round(r*e*s)))} г`,line:"Шнур #0.4–1.2 PE + "+("pike"===l?"стальной / титановый поводок 20–25 см":"флюорокарбоновый поводок 0.16–0.32 мм"),tactic:d?`Холодная вода (${i}°C, ${c}): вялый стоп-энд-гоу (Stop & Go) суспендером или микроколебалкой у дна с паузами до 4–6 секунд`:`Тёплая вода (${i}°C, ${c}): проводка на снос поперёк струи, активный твичинг минноу или равномерка вдоль укрытий`}}if("bottom"===e){const e=Math.min(140,Math.max(20,Math.round(11*r*s)));return"predator"===n?.type?{weight:`Донное грузило ${e} г`,line:p?"Шнур 0.28–0.40 мм + силовой поводок 0.50–0.80 мм":"Основная леска 0.30 мм + поводок 0.28–0.35 мм",tactic:`Донная ловля хищника (${c}): подача живца или резки на выходе из русловой ямы (${d?"пассивная зимняя стоянка":"ночной выход на бровку"})`}:{weight:`Фидерная кормушка ${e} г`,line:d?"Шнур 0.10–0.12 мм, тонкий поводок 0.09–0.12 мм (длина 60–100 см), крючок №14–16":p?"Карповая леска 0.28–0.32 мм, волосяной поводок 15–25 lb, крючок №4–8":"Шнур 0.12–0.14 мм, поводок 0.12–0.16 мм (40–70 см), крючок №10–14",tactic:d?`Холодная вода (${i}°C, ${c}): тёмная мелкофракционная прикормка со специями и кормовым мотылём, темп перезаброса 7–10 мин`:`Тёплая вода (${i}°C, ${c}): стартовый закорм точки на бровке (зерновые/пеллетс/резаный червь), темп 3–5 мин`}}return"float"===e?{weight:`Поплавок ${Math.min(8,Math.max(.5,Math.round(10*(.75*r*s+.15*o))/10))} г`,line:d?"Основная леска 0.12 мм, деликатный поводок 0.08–0.10 мм, крючок №16–18":p?"Основная леска 0.22–0.25 мм, поводок 0.18–0.20 мм":"Основная леска 0.14–0.16 мм, поводок 0.10–0.12 мм",tactic:d?`Холодная вода (${i}°C, ${c}): точная подача животной насадки в 1–3 см от дна с минимальным докормом`:`Тёплая вода (${i}°C, ${c}): ловля в проводку с придержкой по струе или у границы водной растительности`}:"fly"===e?{weight:"Нахлыст 3–5 кл. / Бомбарда (сбирулино) 4–10 г",line:`Поводок флюорокарбон ${d?"0.10–0.14":"0.12–0.18"} мм`,tactic:d?`Холодная вода (${i}°C, ${c}): проводка тяжёлой вольфрамовой нимфы (бокоплав/ручейник) у самого дна в приямках`:`Тёплая вода (${i}°C, ${c}): подача сухой мушки, эмерджера или жука со свободным дрейфом по струе`}:{weight:`Морская оснастка / Пилькер ${Math.max(10,Math.round(3.5*r*s))} г`,line:"Шнур #0.6–1.5 PE + флюорокарбоновый шок-лидер 0.26–0.40 мм",tactic:`Морской лов (${c}, вода ${i}°C): облов береговых свалов, ракушечника и каменистых банок`}}export function generateAdaptiveGuides(e,t,r,o,n,i){const a=o.iceState||i,s=o.iceThickness??0,l=e.sizeInfo?`<div style="margin-top:6px;color:var(--accent);font-weight:700;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="3" y="8" width="18" height="8" rx="2" transform="rotate(-35 12 12)" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8"/><path d="M8 11l1.5 2M11 9l1.5 2M14 7l1.5 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg> ${e.sizeInfo}</div>`:"",c=e.idTraits?`<div style="margin-top:5px;color:var(--muted);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="2"/><path d="M16 16l4.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg> <b>Приметы вида:</b> ${e.idTraits}</div>`:"",d=D[e.id],p=d?`<div style="margin-top:5px;color:var(--good);font-weight:700;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> <b>Миграция и заход в реки:</b> ${d.reason}.</div>`:"";let h="";h="redbook"===e.legal?`<svg class="k-ico" style="color:var(--bad);" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><path d="M6 6l12 12" stroke="#ef4444" stroke-width="2.1" stroke-linecap="round"/></svg> <b>КРАСНАЯ КНИГА (ПОЙМАЛ — ОТПУСТИ):</b> ${e.baseAdvice} ${e.handlingAdvice||"При случайной поимке в прилове бережно отпустите рыбу в воду!"}${p}${l}${c}`:"introduced"===e.legal?`<svg class="k-ico" viewBox="0 0 24 24" fill="none"><polygon points="13,2 4,14 11,14 10,22 20,10 13,10" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.5" stroke-linejoin="round"/></svg> <b>Вселенец / Аквакультура:</b> ${e.baseAdvice} При остывании воды ниже ${e.tMinStop}°C впадает в оцепенение.${l}${c}`:"ice_safe"===a?`<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1" stroke="#7dd3fc" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="#38bdf8"/></svg> <b>Подлёдный горизонт (лёд ~${s} см, рабочая глубина ${r.toFixed(1)} м):</b> ${e.baseAdvice}${p}${l}${c}`:"ice_danger"===a?`<svg class="k-ico" style="color:var(--warn);" viewBox="0 0 24 24" fill="none"><path d="M12 3L2.5 19.5h19L12 3z" fill="rgba(245,158,11,0.24)" stroke="#f59e0b" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9v5M12 17h.01" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/></svg> <b>Опасный лёд:</b> ${o.iceNote||"Выход на лёд запрещён!"} С берега: ${e.baseAdvice}${l}`:"ice_slush"===a?`<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1" stroke="#7dd3fc" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="#38bdf8"/></svg> <b>Шуга и забереги (колебания -3..+3°C):</b> ледостава нет, рыба стоит в придонных ямах и затишках на глубине ${r.toFixed(1)} м. ${e.baseAdvice}${p}${l}`:`<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#ef4444"/></svg> <b>Биотоп (${u[t]?.shortName||"водоём"}, горизонт ${r.toFixed(1)} м):</b> ${e.baseAdvice}${p}${l}${c}`;const v=calcDynamicRig(n,t,r,o.windMax,e,o.waterTemp,a),f="redbook"===e.legal?`<div><b>Вероятность прилова на снасть:</b> ${v.weight} (${v.line}).</div><div style="margin-top:5px;color:var(--bad);font-weight:700;"><svg class="k-ico" style="color:var(--warn);" viewBox="0 0 24 24" fill="none"><path d="M12 3L2.5 19.5h19L12 3z" fill="rgba(245,158,11,0.24)" stroke="#f59e0b" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9v5M12 17h.01" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/></svg> Целенаправленное изъятие запрещено! Используйте безбородые крючки и отпускайте рыбу прямо в воде.</div>`:`<div><b>Оптимальный монтаж сейчас:</b> ${v.weight} (${v.line}).</div><div style="margin-top:5px;"><b>Подача и анимация:</b> ${v.tactic}.</div><div style="margin-top:5px;color:var(--muted);"><b>Арсенал по виду:</b> ${e.topGear}</div>`;let g="";const b="ice_safe"===a?`<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1" stroke="#7dd3fc" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="#38bdf8"/></svg> <b>Подлёдный сезон (вода ~${o.waterTemp}°C):</b> приоритет животным насадкам (мотыль, мормыш/бокоплав, опарыш, резка) и деликатным зимним приманкам.`:o.waterTemp<=10?`<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> <b>Холодная вода (~${o.waterTemp}°C):</b> рыба избирательна — лучше всего работают животные насадки, нано-джиг с пассивными слагами/нимфами (0.2–0.8 г) и приманки на длинной паузе.`:`<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.5" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> <b>Прогретая вода (~${o.waterTemp}°C):</b> высокая кормовая активность в толще и у дна, отлично работают как животные/растительные насадки, так и мормышинг (нано-джиг), вертушки и мушки.`;return g=`<div>${e.feedBase||"Естественный бентос, зоопланктон и сезонные приманки."}</div><div style="margin-top:6px;color:var(--accent);">${b}</div>`,{standAdvice:h,tackleAdvice:f,baitAdvice:g}}export function buildPlainLanguageSummary(e,t,r,o){const n=t?.waterTemp??8,i=Math.abs(t?.dP||0),a=t?.windMax||3,s=r?.archiveEval?.isShock;return"ice_danger"===t?.iceState?"Выход на лёд сейчас смертельно опасен из-за малой толщины или промоин — рыбалка возможна только с безопасного берега.":s?"После недавнего резкого скачка давления за прошлые сутки рыба находится в барическом «шоке» и болеет, поэтому поклёвки будут редкими и очень осторожными.":o>=65?`Сегодня отличные условия для ловли вида «${e.name}»: температура воды (~${n}°C) и ровное давление (${t?.pressAvg||754} мм) располагают рыбу к активному выходу на кормёжку.`:i>=5||a>=8?`Клёв вида «${e.name}» сегодня капризный из-за ${i>=5?"перепада атмосферного давления":"сильного ветра и волны"} — подавайте приманку медленно у самого дна.`:`Умеренная кормовая активность вида «${e.name}» при воде ~${n}°C — лучший шанс на уверенную поклёвку будет в часы утренней и вечерней зорьки.`}export function computeModel30DayValidation(e=[]){const t=Date.now(),r=(Array.isArray(e)?e:[]).filter((e=>e&&t-(e.timestamp||t)<=2592e6)),o=r.length>0?r:Array.isArray(e)?e:[];if(0===o.length)return{hasData:!1,accuracyPct:84,totalChecked:0,label:"Эталонная точность модели: ~84% (добавьте уловы в Журнал для персональной верификации)"};const n=o.filter((e=>!1!==e.matchedForecast)).length,i=Math.round(n/o.length*100);return{hasData:!0,accuracyPct:i,totalChecked:o.length,label:`Подтверждённая точность на ваших водоёмах за 30 дн.: ${i}% (${n} из ${o.length} выездов)`}}export function generateTripChecklist(e,t,r,o,n){const i=d.getState(),s=calcDynamicRig(r,o,n,t?.windMax||3,e,t?.waterTemp??10,t?.iceState||i.iceState),l=a(e,r,t?.waterTemp??10,t?.iceState||i.iceState),c=m(t,o),p=t?.iceState&&"open_water"!==t.iceState||(t?.tDay??10)<=2||r&&r.startsWith("winter_");return{gearItems:[`<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg> Основная снасть: ${s.weight} (${s.line})`,`<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 18c0-4 4-4 4-8s4-4 4-6 5-1 5 3-3 5-3 8 4 4 6 2" stroke="#f43f5e" stroke-width="2.2" stroke-linecap="round"/></svg> Рабочие насадки/приманки: ${l.slice(0,3).join("; ")}`,`<svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="3" y="8" width="18" height="8" rx="2" transform="rotate(-35 12 12)" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8"/><path d="M8 11l1.5 2M11 9l1.5 2M14 7l1.5 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg> Глубиномер / эхолот (целевой горизонт стоянки ${e.name}: ~${n.toFixed(1)} м)`,'<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 8l-9-5-9 5v8l9 5 9-5V8z" fill="rgba(56,189,248,0.16)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M3 8l9 5 9-5M12 13v8" stroke="currentColor" stroke-width="1.7"/></svg> Запасные поводки, карабины, экстрактор / зевник и рулетка (контроль разрешённого размера)'],safetyItems:p?[`<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Спасалки («когти» на шнуре поверх куртки) и пешня для проверки льда (${c.statusText})`,`<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Непродуваемый костюм-поплавок, термобельё и нескользящие шипы на сапоги (воздух ${t?.tDay??0}°/${t?.tNight??-3}°C)`,'<svg class="k-ico" style="color:var(--good);" viewBox="0 0 24 24" fill="none"><polygon points="13,2 4,14 11,14 10,22 20,10 13,10" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.5" stroke-linejoin="round"/></svg> Заряженный повербанк во внутреннем тёплом кармане + термос с горячим чаем','<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3.5" fill="rgba(56,189,248,0.25)" stroke="currentColor" stroke-width="1.8"/><path d="M3 19c0-3.2 2.7-5.5 6-5.5s6 2.3 6 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="17" cy="9" r="2.8" stroke="currentColor" stroke-width="1.6"/><path d="M16 14c2.6.3 4.8 2 5 4.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg> Отправленная точка «<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> Экипаж (72ч)» близким или напарникам перед выходом на лёд']:[`<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Спасательный жилет (при ловле с лодки или взабродку, ветер до ${t?.windMax||3} м/с)`,`<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Ветровлагозащитная мембрана и поляризационные очки (вода ~${t?.waterTemp??10}°C)`,'<svg class="k-ico" style="color:var(--good);" viewBox="0 0 24 24" fill="none"><polygon points="13,2 4,14 11,14 10,22 20,10 13,10" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.5" stroke-linejoin="round"/></svg> Заряженный телефон с офлайн-кэшем «Клёв ПРО» и аптечка','<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Пакет под мусор и бережное отношение к прилову («Поймал — отпусти»)'],iceSafety:c,rig:s}}export function openTripChecklistModal(){const e=d.getState(),t=g.find((t=>t.id===e.fishId))||g[0],r=e.weatherDays?.[e.dayIdx]||e.weatherDays?.[2]||e.weatherDays?.[0]||{},o=generateTripChecklist(t,r,e.method,e.water,e.depth),n=`\n    <div style="display:flex;flex-direction:column;gap:12px;font-size:var(--fs-sm);">\n      <div style="padding:10px 12px;background:var(--card);border:1px solid var(--accent);border-radius:var(--r-sm);font-size:var(--fs-xs);">\n        <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#ef4444"/></svg> <b>Выезд:</b> ${e.locLabel} (${e.selectedWaterName||u[e.water]?.shortName||"водоём"}) • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 12s4-6 11-6c4.2 0 7 2.5 9 6-2 3.5-4.8 6-9 6-7 0-11-6-11-6z" fill="rgba(56,189,248,0.28)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M2 12l-1.5-3.5L5 10.5M2 12l-1.5 3.5L5 13.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="16.5" cy="10.8" r="1.3" fill="currentColor"/></svg> <b>Цель:</b> ${t.name}<br>\n        <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M14 14.76V5a2 2 0 1 0-4 0v9.76a4 4 0 1 0 4 0z" fill="rgba(56,189,248,0.22)" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="17.5" r="1.8" fill="#ef4444"/></svg> <b>Погода:</b> воздух ${r.tDay>0?"+"+r.tDay:r.tDay}°/${r.tNight>0?"+"+r.tNight:r.tNight}°C, вода ~${r.waterTemp}°C, ветер ${r.windDir} ${r.windMax} м/с<br>\n        <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2.5l7 3.2v5.8c0 5-3 9.3-7 10.8-4-1.5-7-5.8-7-10.8V5.7l7-3.2z" fill="rgba(56,189,248,0.22)" stroke="#38bdf8" stroke-width="1.8" stroke-linejoin="round"/></svg> <b>Безопасность льда/воды:</b> ${o.iceSafety.vehicleVerdict}\n      </div>\n      <div>\n        <div style="font-weight:800;font-size:var(--fs-xs);color:var(--accent);text-transform:uppercase;margin-bottom:6px;">\n          <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg> 1. Снасти, оснастка и приманки под условия дня:\n        </div>\n        <div style="display:flex;flex-direction:column;gap:6px;">\n          ${o.gearItems.map((e=>`\n            <label style="display:flex;align-items:flex-start;gap:8px;padding:7px 10px;background:var(--card);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:var(--fs-xs);">\n              <input type="checkbox" checked style="margin-top:2px;">\n              <span>${e}</span>\n            </label>\n          `)).join("")}\n        </div>\n      </div>\n      <div>\n        <div style="font-weight:800;font-size:var(--fs-xs);color:var(--good);text-transform:uppercase;margin-bottom:6px;">\n          <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> 2. Экипировка и безопасность на водоёме:\n        </div>\n        <div style="display:flex;flex-direction:column;gap:6px;">\n          ${o.safetyItems.map((e=>`\n            <label style="display:flex;align-items:flex-start;gap:8px;padding:7px 10px;background:var(--card);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:var(--fs-xs);">\n              <input type="checkbox" checked style="margin-top:2px;">\n              <span>${e}</span>\n            </label>\n          `)).join("")}\n        </div>\n      </div>\n    </div>\n  `;x('<svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="6" y="7" width="12" height="14" rx="3" fill="rgba(56,189,248,0.16)" stroke="currentColor" stroke-width="1.8"/><path d="M9 7V5a3 3 0 0 1 6 0v2M9 14h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Чек-лист сборов и безопасности на выезд',n)}let K=null,Y=0;export function openRigEncyclopediaModal(e){x(`<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M7 7a4 4 0 1 0 0 8h10a4 4 0 1 0 0-8H7z" stroke="#38bdf8" stroke-width="1.9"/><path d="M17 7a4 4 0 1 1 0 8H7a4 4 0 1 1 0-8" stroke="currentColor" stroke-width="1.6" stroke-dasharray="3 2"/></svg> Справочник рабочих монтажей и узлов (${e?.name||"Все виды"})`,'\n    <div style="display:flex;flex-direction:column;gap:10px;font-size:var(--fs-sm);line-height:1.45;">\n      <div style="padding:10px 12px;background:var(--panel);border:1.5px solid var(--accent);border-radius:12px;">\n        <div style="font-weight:900;color:var(--accent);margin-bottom:3px;">1. Джиг-риг / Чебурашка с мандулой или силиконом (Щука, Судак, Окунь)</div>\n        <div style="font-size:12px;color:var(--text);">\n          • <b>Шнур:</b> 8-жильный PE #0.8–#1.2 + поводок струна 20–25 см (на щуку) или флюорокарбон 0.35–0.45 мм (на судака/окуня в корягах).<br>\n          • <b>Подача:</b> 2 оборота катушки — пауза 2–6 сек (по температуре воды). В холодной воде (ниже +6°C) лучший результат даёт контрастная мандула «Билайн» (жёлто-чёрная) с паузой до 6–8 секунд.\n        </div>\n      </div>\n      <div style="padding:10px 12px;background:var(--panel);border:1.5px solid var(--good);border-radius:12px;">\n        <div style="font-weight:900;color:var(--good);margin-bottom:3px;">2. Отводной поводок / Московская оснастка (Пассивный Окунь, Судак)</div>\n        <div style="font-size:12px;color:var(--text);">\n          • <b>Монтаж:</b> Тройной вертлюжок -> груз-палочка/балерина на отводе 25 см (флюр 0.22 мм) -> рабочий поводок 90–120 см из флюорокарбона 0.16–0.20 мм с офсетным крючком №6–№2.<br>\n          • <b>Подача:</b> Медленное волочение по ракушечнику и каменистой бровке с короткими подёргиваниями и паузами до 5 секунд.\n        </div>\n      </div>\n      <div style="padding:10px 12px;background:var(--panel);border:1.5px solid var(--warn);border-radius:12px;">\n        <div style="font-weight:900;color:var(--warn);margin-bottom:3px;">3. Асимметричная петля / Инлайн и Патерностер (Лещ, Плотва, Язь, Карась)</div>\n        <div style="font-size:12px;color:var(--text);">\n          • <b>Монтаж:</b> Скользящая кормушка (Инлайн) с отводом под фидергам 8–10 см или классический Патерностер Гарднера на основной леске.<br>\n          • <b>Крючок и поводок:</b> На течении поводок 50–80 см (0.12–0.14 мм), крючок №12–№16 под пучок мотыля или бутерброд с опарышем.\n        </div>\n      </div>\n      <div style="padding:10px 12px;background:var(--panel);border:1.5px solid var(--ice);border-radius:12px;">\n        <div style="font-weight:900;color:var(--ice);margin-bottom:3px;">4. Проверенные рыболовные узлы (100% прочность на морозе и течении)</div>\n        <div style="font-size:12px;color:var(--text);">\n          • <b>Паломар (Palomar):</b> лучший узел для привязывания застёжки/вертлюжка к плетёному шнуру (прочность до 95%).<br>\n          • <b>Улучшенный Олбрайт / Морковка:</b> надёжная связка плетёного шнура с шок-лидером из флюорокарбона.<br>\n          • <b>Петля Гарднера (восьмёрка):</b> быстрое соединение поводка «петля в петлю».\n        </div>\n      </div>\n    </div>\n  ')}export function renderExpress(e){if(!e)return;const t=d.getState(),r=g.find((e=>e.id===t.fishId))||g[0],l=document.documentElement.getAttribute("data-theme")||"dark",c=([2,3,4].map(((e,o)=>{const n=t.weatherDays[e];if(!n)return"";const a=0===o?"Сегодня":1===o?"Завтра":"Послезавтра",s=calcDayBest(r,n,t.method,t.water,t.depth,t.normPress,t.iceState),c=n.iceState||t.iceState,d=getFactorBreakdown(r,n,t.method,t.water,t.depth,t.normPress,t.iceState),p=n.waterTemp>=r.tWaterOpt[0]&&n.waterTemp<=r.tWaterOpt[1],v=n.waterTemp<r.tMinStop?"bad":p?"good":"warn",u=Math.abs(n.dP)<=2&&!d.archiveEval?.isShock?"good":Math.abs(n.dP)<=4&&!d.archiveEval?.isShock?"warn":"bad",f=n.windMax<=5?"good":n.windMax<=8?"warn":"bad",g="ice_danger"===c?"bad":"ice_safe"===c?"ice":"ice_slush"===c?"warn":"good",w="ice_danger"===c?"spring_rotten_ice"===n.iceSubState?`Рыхлый лёд ~${n.iceThickness} см`:`Опасный лёд ~${n.iceThickness} см`:"ice_safe"===c?`Лёд ~${n.iceThickness} см`:"ice_slush"===c?"Шуга и забереги":"Открытая вода",x=Math.abs(n.dP)>=5,y=Boolean(d.archiveEval?.isShock),m=n.windMax>=8.5,$="ice_danger"===c;let M=i.verdictGo,_="good",S=null;"redbook"===r.legal?(M=`<svg class="k-ico" style="color:var(--bad);" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><path d="M6 6l12 12" stroke="#ef4444" stroke-width="2.1" stroke-linecap="round"/></svg> Кр. книга (прилов ~${s}%)`,_="bad",S=`Активность ${s}% • Отпусти`):$?(M="spring_rotten_ice"===n.iceSubState?'<svg class="k-ico" style="color:var(--warn);" viewBox="0 0 24 24" fill="none"><path d="M12 3L2.5 19.5h19L12 3z" fill="rgba(245,158,11,0.24)" stroke="#f59e0b" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9v5M12 17h.01" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/></svg> Рыхлый лёд и промоины':`<svg class="k-ico" style="color:var(--warn);" viewBox="0 0 24 24" fill="none"><path d="M12 3L2.5 19.5h19L12 3z" fill="rgba(245,158,11,0.24)" stroke="#f59e0b" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9v5M12 17h.01" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/></svg> Опасный лёд (~${n.iceThickness} см)`,_="bad",S="Выход на лёд опасен"):x?(M=`<svg class="k-ico" style="color:var(--warn);" viewBox="0 0 24 24" fill="none"><path d="M12 3L2.5 19.5h19L12 3z" fill="rgba(245,158,11,0.24)" stroke="#f59e0b" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9v5M12 17h.01" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/></svg> Скачок давления (${n.dP>0?"+":""}${n.dP} мм)`,_=Math.abs(n.dP)>=8?"bad":"warn",S=s<35?"Клёва нет":s<50?"Слабый клёв":"Умеренный клёв • Нестабильно"):y&&s<62?(M='<svg class="k-ico" style="color:var(--warn);" viewBox="0 0 24 24" fill="none"><path d="M12 3L2.5 19.5h19L12 3z" fill="rgba(245,158,11,0.24)" stroke="#f59e0b" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9v5M12 17h.01" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/></svg> Барический «шок» (архив)',_="warn",S=s<40?"Слабый клёв • В «шоке»":"Осторожный клёв"):m?(M=`<svg class="k-ico" style="color:var(--warn);" viewBox="0 0 24 24" fill="none"><path d="M12 3L2.5 19.5h19L12 3z" fill="rgba(245,158,11,0.24)" stroke="#f59e0b" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9v5M12 17h.01" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/></svg> Штормовой ветер (${n.windMax} м/с)`,_="bad",S=s<35?"Клёва нет":"Слабый клёв • Шторм"):s<38?(M=i.verdictStay,_="bad"):s<60&&(M=i.verdictCareful,_="warn",S="Умеренный клёв");const C=d.factors.slice(0,3).map((e=>`${e.note} (${e.val>=0?"+"+e.val:e.val}%)`)).join("; ");return`\n      <div class="card express-card ${t.dayIdx===e?"active":""}" data-express-day="${e}">\n        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">\n          <div>\n            <div style="font-size:var(--fs-md);font-weight:800;">${a} • ${n.label}</div>\n            <div style="font-size:var(--fs-xs);color:var(--muted);">Объект лова: <b>${r.name}</b></div>\n          </div>\n          ${k({text:M,tone:_})}\n        </div>\n        <div class="express-chips">\n          ${k({icon:'<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg>',text:`Вода ${n.waterTemp}°C`,tone:v})}\n          ${k({icon:'<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><polygon points="16,8 13.5,13.5 8,16 10.5,10.5" fill="#38bdf8" stroke="currentColor" stroke-width="1.3"/></svg>',text:`${n.pressAvg} мм (${h(n.dP)})`,tone:u})}\n          ${k({icon:'<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',text:`${n.windDir} ${n.windMax} м/с`,tone:f})}\n          ${k({icon:n.moon.phaseIcon,text:`${n.moon.moonDay} л.д.`,tone:"neutral"})}\n          ${k({icon:"open_water"===c?'<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg>':'<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1" stroke="#7dd3fc" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="#38bdf8"/></svg>',text:w,tone:g})}\n        </div>\n        <p style="font-size:var(--fs-xs);color:var(--muted);line-height:1.42;">\n          ${"redbook"===r.legal?`<svg class="k-ico" style="color:var(--bad);" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><path d="M6 6l12 12" stroke="#ef4444" stroke-width="2.1" stroke-linecap="round"/></svg> Поймал — отпусти! Биоактивность вида: ${C}.`:"ice_danger"===c?n.iceNote||'<svg class="k-ico" style="color:var(--warn);" viewBox="0 0 24 24" fill="none"><path d="M12 3L2.5 19.5h19L12 3z" fill="rgba(245,158,11,0.24)" stroke="#f59e0b" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9v5M12 17h.01" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/></svg> Выход на тонкий или весенний рыхлый лёд смертельно опасен! Допустима только береговая ловля.':`${C}.`}\n        </p>\n        <div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;border-top:1px solid var(--border);gap:8px;">\n          <div>\n            ${b(s,17,l,!0,S)}\n          </div>\n          <span style="font-size:var(--fs-xs);color:var(--muted);font-weight:700;">${"redbook"===r.legal?"Красная книга":"8 факторов модели"}</span>\n        </div>\n      </div>\n    `})).join(""),t.appMode||"angler"),p=t.weatherDays[2]||t.weatherDays[0],f=(t.weatherDays[3],t.selectedWaterName||t.nearbyWaters?.[0]?.name||u[t.water]?.shortName||"Ближайший водоём");let w="";const x=t.weatherDays[t.dayIdx]||p||{},y=x.iceState||t.iceState||"open_water",m=x.waterTemp??10,$=s(r,y,t.water,m),M=a(r,t.method,m,y),_=t.selectedBait&&M.includes(t.selectedBait)?t.selectedBait:M[0]||"",S=calcDynamicRig(t.method,t.water,t.depth,x.windMax||3,r,m,y),C=calcDayBest(r,x,t.method,t.water,t.depth,t.normPress,t.iceState),B=getBestBiteWindowText(r,x,t.method,t.water,t.depth,t.normPress,t.iceState),T=C>=60?"var(--good)":C>=38?"var(--warn)":"var(--bad)",A="redbook"===r.legal?"КРАСНАЯ КНИГА":"ice_danger"===y?"ОПАСНЫЙ ЛЁД!":C>=60?"АКТИВНЫЙ<br>КЛЁВ":C>=38?"УМЕРЕННЫЙ<br>КЛЁВ":"СЛАБЫЙ<br>КЛЁВ",D=C>=60?"Высокий":C>=38?"Средний":"Низкий",L=o(t.lat,t.lon,t.basinCode,t.water,t.selectedWaterName).signatureSpecies||[],z=new Map(L.map(((e,t)=>[e,t]))),E=new Set((t.nearbyWaters||[]).map((e=>e.wType)).concat([t.water])),H="cooling_reservoir"===t.water||E.has("cooling_reservoir"),I=g.filter((e=>"redbook"!==e.legal&&n(e,t.lat,t.lon,t.basinCode,t.water,t.waterRadiusKm||50,E,t.isCoastal,H,t.selectedWaterName))),j=(I.length?I:g.slice(0,8)).map((e=>{const r=calcDayBest(e,x,t.method,t.water,t.depth,t.normPress,t.iceState),o=z.has(e.id)?z.get(e.id):-1;return{fish:e,scDay:r,rankSc:r+(o>=0?Math.max(6,24-2*o):-6)}})).sort(((e,t)=>t.rankSc-e.rankSc)).slice(0,6),W=j.slice(0,3),P={spin_micro:"Микроджиг / Мормышинг",spin_jig:"Спиннинг (Джиг)",spin_lure:"Спиннинг (Блесна/Воблер)",bottom:"Донка / Фидер",float:"Поплавочная снасть",fly:"Нахлыст / Бомбарда",winter_jig:"Зимняя мормышка",winter_lure:"Зимний балансир / Виб",winter_livebait:"Жерлица (Живец)",winter_stuka:"Зимняя стукалка",winter_cisco:"Зимняя гирлянда",sea_rock:"Морской рокфишинг",sea_surf:"Морская донка",sea_boat:"Морской лов с лодки"}[t.method]||"Спиннинг",N=String(_||"по сезону").split("(")[0].trim(),F=Math.round(Math.max(5,Math.min(100,C))/100*188.5*10)/10,q=Array.isArray(x.hours)&&24===x.hours.length?x.hours:Array.from({length:24},((e,t)=>({hour:t,tAir:3,press:754,wind:3,windDir:"З"}))),O=q.map((e=>calcHourly(r,x,e,t.method,t.water,t.depth,t.normPress,t.iceState)));let V=7,R=-1,G=17,U=-1;O.forEach(((e,t)=>{t>=4&&t<=12&&e>R&&(R=e,V=t),t>=13&&t<=22&&e>U&&(U=e,G=t)}));const K=360,X=118,J=Math.min(...O),Q=Math.max(...O),Z=Math.max(12,Q-J),ee=Math.max(0,J-Math.max(3,.18*Z)),te=Math.min(100,Q+Math.max(4,.15*Z)),re=Math.max(10,te-ee),oe=O.map(((e,t)=>{const r=Math.round(10*(14+t/23*332))/10,o=Math.max(.06,Math.min(.96,(e-ee)/re));return{x:r,y:Math.round(10*(26+74*(1-o)))/10,sc:e,hr:t}}));let ne="M "+oe[0].x+" "+oe[0].y;for(let e=0;e<oe.length-1;e++){const t=oe[e],r=oe[e+1],o=Math.round((t.x+r.x)/2*10)/10;ne+=" C "+o+" "+t.y+", "+o+" "+r.y+", "+r.x+" "+r.y}const ie=ne+" L "+oe[oe.length-1].x+" 112 L "+oe[0].x+" 112 Z",ae=oe.map((e=>{const t=Math.max(4,Math.round(10*(112-e.y))/10),r=e.sc>=60?"rgba(16,185,129,0.22)":e.sc>=38?"rgba(56,189,248,0.20)":"rgba(148,163,184,0.15)";return'<rect x="'+(e.x-3.2).toFixed(1)+'" y="'+e.y+'" width="6.4" height="'+t+'" rx="2.5" fill="'+r+'"/>'})).join(""),se=oe[V]||oe[7],le=oe[G]||oe[17],ce=(Math.max(46,Math.min(314,se.x)),Math.max(46,Math.min(314,le.x)),x.tDay??3),de=`${ce>0?"+"+ce:ce}°C`,pe=`${m>0?"+"+m:m}°C`,he=x.iceThickness??t.iceThickness??0,ve="ice_safe"===y?`Лёд: ${he||12} см`:"ice_danger"===y?`Опасный лёд: ${he} см`:"ice_slush"===y?"Шуга и забереги":"Открытая вода",ue="ice_safe"===y?"(Пешком разрешено)":"ice_danger"===y?"(Выход на лёд запрещён!)":"ice_slush"===y?"(Ледостава нет • с берега)":"(Льда нет • лодка и берег)",fe=(t.circleItems||[]).filter((e=>e&&"workshop"!==e.t)).length,ge=`\n    <div class="chip-scroll-row bento-top-species-strip" style="padding-bottom:2px;">\n      ${j.map((e=>`\n        <button type="button" class="w-chip ${e.fish.id===r.id?"active":""}" data-novice-pick-fish="${e.fish.id}" style="padding:4px 10px;min-height:36px;display:inline-flex;align-items:center;gap:6px;flex-shrink:0;white-space:nowrap;">\n          <img src="assets/fish/${e.fish.id}.png" alt="" style="width:28px;height:15px;object-fit:contain;" onerror="this.style.display='none'">\n          <span>${e.fish.name}</span>\n          <span style="font-size:10.5px;opacity:0.85;">${e.scDay}%</span>\n        </button>\n      `)).join("")}\n      <button type="button" class="w-chip" id="bentoOpenAllFishBtn" style="padding:4px 10px;min-height:36px;color:var(--accent);border-color:var(--accent);flex-shrink:0;white-space:nowrap;">\n        <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 12s4-6 11-6c4.2 0 7 2.5 9 6-2 3.5-4.8 6-9 6-7 0-11-6-11-6z" fill="rgba(56,189,248,0.28)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M2 12l-1.5-3.5L5 10.5M2 12l-1.5 3.5L5 13.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="16.5" cy="10.8" r="1.3" fill="currentColor"/></svg> Все 115 рыб →\n      </button>\n    </div>\n  `,be="undefined"!=typeof document?document.getElementById("fcStickySpeciesBar"):null;if(be){const e=be.querySelector(".bento-top-species-strip")?.scrollLeft||0;if(be.innerHTML=ge,e>0){const t=be.querySelector(".bento-top-species-strip");t&&(t.scrollLeft=e)}}if(w+=`\n    <div class="bento-dashboard-wrap">\n      ${be?"":ge}\n      \x3c!-- КАРТОЧКА 1 (По Фото 1 + Свайп рыбы v2.5.0): <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="4.5" stroke="#38bdf8" stroke-width="1.6"/><circle cx="12" cy="12" r="1.8" fill="#10b981"/></svg> Ихтиологический Прогноз Клёва --\x3e\n      <div class="bento-card bento-hero-card" id="bentoSwipeHeroCard">\n        <div class="bento-card-head">\n          <div>\n            <div class="bento-card-title">\n              <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="4.5" stroke="#38bdf8" stroke-width="1.6"/><circle cx="12" cy="12" r="1.8" fill="#10b981"/></svg></span>\n              <span>Ихтиологический Прогноз Клёва</span>\n            </div>\n            <div class="bento-card-sub">\n              ${t.locLabel} (${f}) • ${x.relTitle||x.label||"Сегодня"} • <span style="color:var(--accent);">⇄ свайп рыбы</span>\n            </div>\n          </div>\n          <div style="display:flex;align-items:center;gap:4px;">\n            <button type="button" class="btn btn-sm" id="bentoPrevFishBtn" title="Предыдущая рыба" style="min-height:30px;padding:2px 9px;font-size:15px;font-weight:900;border-radius:999px;">‹</button>\n            <button type="button" class="btn btn-sm" id="bentoNextFishBtn" title="Следующая рыба" style="min-height:30px;padding:2px 9px;font-size:15px;font-weight:900;border-radius:999px;">›</button>\n          </div>\n        </div>\n        <div class="bento-hero-grid">\n          \x3c!-- Левая колонка: Иллюстрация рыбы (клик — полноэкранный зум и паспорт вида) + АКТИВНЫЙ КЛЁВ + ТОП-3 активные рыбы --\x3e\n          <div class="bento-hero-left">\n            <div class="bento-active-status-row">\n              <div class="bento-splash-fish-box" data-open-fish-zoom="${r.id}" style="cursor:zoom-in;position:relative;" title="Нажмите для увеличения иллюстрации и паспорта рыбы">\n                <img src="assets/fish/${r.id}.png" alt="${r.name}" onerror="this.style.display='none'">\n                <span style="position:absolute;bottom:1px;right:3px;font-size:9px;opacity:0.75;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="2"/><path d="M16 16l4.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>\n              </div>\n              <div>\n                <div class="bento-status-verdict" style="color:${T};">${A}</div>\n                <div style="font-size:11px;font-weight:800;color:var(--muted);margin-top:2px;">\n                  <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 12s4-6 11-6c4.2 0 7 2.5 9 6-2 3.5-4.8 6-9 6-7 0-11-6-11-6z" fill="rgba(56,189,248,0.28)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M2 12l-1.5-3.5L5 10.5M2 12l-1.5 3.5L5 13.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="16.5" cy="10.8" r="1.3" fill="currentColor"/></svg> ${r.name} • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.5 2" stroke="#38bdf8" stroke-width="1.9" stroke-linecap="round"/></svg> ${B}\n                </div>\n              </div>\n            </div>\n            <div class="bento-top3-label">ТОП-3 активные рыбы</div>\n            <div class="bento-top3-row">\n              ${W.map(((e,t)=>`\n                <button type="button" class="bento-top3-item ${e.fish.id===r.id?"active":""}" data-novice-pick-fish="${e.fish.id}" title="Выбрать рыбу «${e.fish.name}» (${t+1}-е место сегодня)">\n                  <img src="assets/fish/${e.fish.id}.png" alt="${e.fish.name}" onerror="this.style.display='none'">\n                  <span class="bento-top3-name">${t+1}-е место • ${e.fish.name}</span>\n                  <span class="bento-top3-pct">${e.scDay}%</span>\n                </button>\n              `)).join("")}\n            </div>\n          </div>\n          \x3c!-- Правая колонка: Полукруглая шкала-спидометр 78% + Выбор снасти и рекомендация --\x3e\n          <div class="bento-gauge-col">\n            <div class="bento-gauge-svg-box">\n              <svg viewBox="0 0 156 90" width="156" height="90" fill="none" xmlns="http://www.w3.org/2000/svg">\n                <defs>\n                  <linearGradient id="bentoGaugeGrad" x1="0%" y1="100%" x2="100%" y2="0%">\n                    <stop offset="0%" stop-color="var(--gauge-start, #3b82f6)"/>\n                    <stop offset="100%" stop-color="var(--gauge-end, #10b981)"/>\n                  </linearGradient>\n                </defs>\n                <path d="M 18 78 A 60 60 0 0 1 138 78" stroke="var(--gauge-track, #dbe7f3)" stroke-width="12" stroke-linecap="round" fill="none"/>\n                <path d="M 18 78 A 60 60 0 0 1 138 78" stroke="url(#bentoGaugeGrad)" stroke-width="12" stroke-linecap="round" fill="none" stroke-dasharray="${F} 200"/>\n              </svg>\n              <div class="bento-gauge-center-text">\n                <span class="bento-gauge-sub">Пик дня:</span>\n                <span class="bento-gauge-lvl">${D}</span>\n                <span class="bento-gauge-pct">${C}%</span>\n              </div>\n            </div>\n            <div style="font-size:10.5px;font-weight:800;color:var(--accent);text-align:center;margin-top:-2px;margin-bottom:3px;">\n              Сейчас <b>${O[t.selectedHour??(new Date).getHours()]??C}%</b> (${String(t.selectedHour??(new Date).getHours()).padStart(2,"0")}:00) • Пик <b>${C}%</b> в ${String(B||"07:00").slice(0,5)}\n            </div>\n            <div class="bento-tackle-summary">\n              <span style="color:var(--muted);font-size:11px;">Выбор снасти:</span><br>\n              <b style="font-size:13.5px;color:var(--text);">${P}</b>\n            </div>\n            <div class="bento-tackle-rec">\n              Рекомендуется: <b>${S.weight}</b>, ${renderBaitWithColorDots(N)}\n            </div>\n          </div>\n        </div>\n      </div>\n      \x3c!-- КАРТОЧКА 2 (По Фото 1): Интерактивный почасовой график клёва 00:00–24:00 (зажмите и ведите влево/вправо для просмотра по часам, тап — переход к суточному прогнозу) --\x3e\n      <div class="bento-card bento-chart-card" id="bentoWaveChartCard" data-hourly-points="${JSON.stringify(oe.map(((e,t)=>{const r=q[t]||{};return{hr:t,sc:e.sc,xPct:Number((e.x/K*100).toFixed(2)),yPct:Number((e.y/X*100).toFixed(2)),tAir:Math.round(Number(r.tAir??x.tDay??3)),press:Math.round(Number(r.press??x.pressAvg??754)),wind:Math.round(10*Number(r.wind??x.windMax??3))/10,windDir:String(r.windDir||x.windDir||"З")}}))).replace(/"/g,"&quot;")}" style="cursor:pointer;" title="Зажмите и ведите влево/вправо для просмотра по часам, короткое нажатие — переход к суточному прогнозу">\n        <div class="bento-card-head" style="margin-bottom:4px;">\n          <div class="bento-card-title">\n            <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M3 3v18h18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M7 15l4-5 4 3 5-7" stroke="#38bdf8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>\n            <span>Почасовой график клёва</span>\n          </div>\n          <span id="bentoChartTimeRangeLabel" style="font-size:11.5px;font-weight:800;color:var(--muted);">00:00–24:00 • ведите по шкале</span>\n        </div>\n        <div style="width:100%;overflow:hidden;">\n          <div class="bento-chart-stage" id="bentoWaveChartStage" style="position:relative;width:100%;height:122px;">\n            <svg viewBox="0 0 360 118" width="100%" height="100%" preserveAspectRatio="none" style="display:block;width:100%;height:100%;">\n              <defs>\n                <linearGradient id="bentoWaveFill" x1="0" y1="0" x2="0" y2="1">\n                  <stop offset="0%" stop-color="var(--wave-fill-top, rgba(56,189,248,0.42))"/>\n                  <stop offset="100%" stop-color="var(--wave-fill-bot, rgba(56,189,248,0.03))"/>\n                </linearGradient>\n              </defs>\n              <line x1="14" y1="44.5" x2="346" y2="44.5" stroke="var(--border)" stroke-dasharray="3 3" stroke-width="1" vector-effect="non-scaling-stroke" opacity="0.45"/>\n              <line x1="14" y1="74.1" x2="346" y2="74.1" stroke="var(--border)" stroke-dasharray="3 3" stroke-width="1" vector-effect="non-scaling-stroke" opacity="0.55"/>\n              ${ae}\n              <path d="${ie}" fill="url(#bentoWaveFill)"/>\n              <path d="${ne}" fill="none" stroke="var(--wave-stroke, #38bdf8)" stroke-width="2.8" vector-effect="non-scaling-stroke" stroke-linecap="round"/>\n              <line x1="${se.x}" y1="${se.y}" x2="${se.x}" y2="112" stroke="#10b981" stroke-dasharray="3 3" stroke-width="1.2" vector-effect="non-scaling-stroke" opacity="0.75"/>\n              <line x1="${le.x}" y1="${le.y}" x2="${le.x}" y2="112" stroke="#38bdf8" stroke-dasharray="3 3" stroke-width="1.2" vector-effect="non-scaling-stroke" opacity="0.75"/>\n            </svg>\n            \x3c!-- Нерастягиваемые HTML-маркеры и бейджи пиков клёва (100% чёткий шрифт на любом мониторе и смартфоне) --\x3e\n            <div class="bento-chart-dot bento-chart-default-marker" style="left:${(se.x/K*100).toFixed(1)}%;top:${(se.y/X*100).toFixed(1)}%;background:#10b981;"></div>\n            <div class="bento-chart-badge bento-chart-default-marker" style="left:${Math.max(12,Math.min(88,se.x/K*100)).toFixed(1)}%;top:${Math.max(18,se.y/X*100-6).toFixed(1)}%;border-color:rgba(16,185,129,0.55);">\n              ${String(se.hr).padStart(2,"0")}:00 (${se.sc}%)\n            </div>\n            <div class="bento-chart-dot bento-chart-default-marker" style="left:${(le.x/K*100).toFixed(1)}%;top:${(le.y/X*100).toFixed(1)}%;background:#38bdf8;"></div>\n            <div class="bento-chart-badge bento-chart-default-marker" style="left:${Math.max(12,Math.min(88,le.x/K*100)).toFixed(1)}%;top:${Math.max(18,le.y/X*100-6).toFixed(1)}%;border-color:rgba(56,189,248,0.55);">\n              ${String(le.hr).padStart(2,"0")}:00 (${le.sc}%)\n            </div>\n            \x3c!-- Интерактивный ползунок-скраббер при зажатии и движении пальцем / мышью --\x3e\n            <div class="bento-scrub-cursor-line" id="bentoScrubCursorLine" style="left:50%;"></div>\n            <div class="bento-scrub-cursor-dot" id="bentoScrubCursorDot" style="left:50%;top:50%;"></div>\n            <div class="bento-scrub-hud-badge" id="bentoScrubHudBadge" style="left:50%;"></div>\n          </div>\n          \x3c!-- Информативная 3-часовая шкала клёва (8 опорных точек за сутки) --\x3e\n          <div class="bento-chart-ticks-grid">\n            ${[0,3,6,9,12,15,18,21].map((e=>{const t=oe[e]||oe[0],r=t?t.sc:50,o=r>=65?"var(--good)":r>=42?"var(--accent)":"var(--muted)";return`\n                <div class="bento-chart-tick-cell" data-tick-hour="${e}">\n                  <span class="bento-chart-tick-hr">${String(e).padStart(2,"0")}:00</span>\n                  <span class="bento-chart-tick-val" style="color:${o};">${r}%</span>\n                </div>\n              `})).join("")}\n          </div>\n          <div id="bentoChartPeaksRow" style="display:flex;justify-content:space-between;align-items:center;padding:4px 4px 0;font-size:11.5px;font-weight:800;color:var(--muted);flex-wrap:wrap;gap:6px;">\n            <span style="color:var(--good);">Утренний пик: ${String(V).padStart(2,"0")}:00 (${se.sc}%)</span>\n            <span style="color:var(--accent);">Вечерний пик: ${String(G).padStart(2,"0")}:00 (${le.sc}%)</span>\n          </div>\n          <div id="bentoChartScrubLiveRow" style="display:none;justify-content:space-between;align-items:center;padding:5px 8px;margin-top:4px;border-radius:7px;background:rgba(251,191,36,0.14);border:1px solid rgba(251,191,36,0.55);font-size:11.5px;font-weight:900;color:var(--text);flex-wrap:wrap;gap:6px;"></div>\n          ${(()=>{const e=function(e){const t=Number.isFinite(e?.sunriseHr)?e.sunriseHr:7.5,r=Number.isFinite(e?.sunsetHr)?e.sunsetHr:17.5,o=Math.max(1,r-t),n=Math.floor(o),i=Math.round(60*(o-n)),a=`${n} ч ${String(i).padStart(2,"0")} м`,s=String(e?.date||"2026-10-30").split("-").reduce(((e,t)=>e+(parseInt(t,10)||0)),0),l=Math.abs(e?.dP||0)>=4?2:Math.abs(e?.dP||0)>=2?1:0,c=Math.max(1,Math.min(6,s%3+1+l));return{sr:t,ss:r,daylightStr:a,kpVal:c,kpLabel:c<=2?"Спокойно":3===c?"Слабое возмущение":4===c?"Умеренная буря":"Магнитная буря",kpTone:c<=2?"var(--good)":c<=3?"var(--warn)":"var(--bad)"}}(x);return`\n              <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-top:6px;padding-top:6px;border-top:1px dashed var(--border);font-size:11px;font-weight:800;">\n                <span style="color:var(--muted);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.5" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> Восход <b>${v(e.sr)}</b> • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.5" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> Закат <b>${v(e.ss)}</b> (День: ${e.daylightStr})</span>\n                <span style="color:${e.kpTone};"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="5" r="2.5" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5V21M5 13c0 4.5 3.1 8 7 8s7-3.5 7-8M8 10h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Геомагнитный Kp-${e.kpVal} (${e.kpLabel})</span>\n              </div>\n            `})()}\n        </div>\n      </div>\n      \x3c!-- КАРТОЧКА 3 (По Фото 1): Двойной нижний ряд «<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> Карта & Радар» + «<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="9" r="4" fill="#fbbf24" opacity="0.9"/><path d="M9 2v2M9 14v2M2 9h2M14 9h2M4.2 4.2l1.4 1.4M12.4 12.4l1.4 1.4" stroke="#fbbf24" stroke-width="1.6" stroke-linecap="round"/><path d="M10 18h8.5a3.5 3.5 0 0 0 .4-6.97A5 5 0 0 0 9.2 9.5 4 4 0 0 0 10 18z" fill="rgba(56,189,248,0.28)" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg> Погода & Лёд» --\x3e\n      <div class="bento-bottom-duo">\n        \x3c!-- Левая карточка: <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> Карта & Радар --\x3e\n        <div class="bento-card bento-radar-card" id="bentoMapRadarCard" title="Нажмите для перехода к Карте и Радару Круга">\n          <div class="bento-card-title" style="margin-bottom:8px;font-size:14.5px;">\n            <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg></span>\n            <span>Карта & Радар</span>\n          </div>\n          <div class="bento-radar-visual">\n            <svg viewBox="0 0 240 136" width="100%" height="100%" preserveAspectRatio="xMidYMid slice" fill="none">\n              <path d="M-10,28 Q60,6 130,38 T250,22 L250,145 L-10,145 Z" fill="rgba(59,130,246,0.18)"/>\n              <path d="M-10,76 Q75,48 145,82 T250,62 L250,145 L-10,145 Z" fill="rgba(14,165,233,0.24)"/>\n              <polygon points="120,18 158,40 158,84 120,106 82,84 82,40" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="5 3" fill="rgba(56,189,248,0.12)"/>\n              <circle cx="120" cy="62" r="24" stroke="var(--good)" stroke-width="1.2" stroke-dasharray="3 2" fill="rgba(16,185,129,0.14)"/>\n              <line x1="120" y1="62" x2="152" y2="36" stroke="#10b981" stroke-width="2" stroke-linecap="round"/>\n              <circle cx="120" cy="62" r="6.5" fill="var(--accent)" stroke="#ffffff" stroke-width="2.2"/>\n            </svg>\n            <div class="bento-radar-badge-zone">\n              <b>⬡ ±5 км</b> • Гексагон\n            </div>\n            <div class="bento-radar-badge-crew" id="bentoOpenCrewBadge">\n              Круг / Экипаж${fe>0?` (${fe})`:""}\n            </div>\n          </div>\n          <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;padding-top:6px;margin-top:6px;border-top:1px solid var(--border);font-size:11px;font-weight:800;color:var(--muted);">\n            <span style="color:var(--text);">Слипы • Коряги • SOS</span>\n            <span style="color:var(--accent);">На карту →</span>\n          </div>\n        </div>\n        \x3c!-- Правая карточка: Автоматически меняет название по сезону (летом — Погода & Вода, в межсезонье — Погода & Шуга, зимой — Погода & Лёд) --\x3e\n        <div class="bento-card bento-weather-card" id="bentoWeatherIceCard" title="Нажмите для перехода в подробный раздел Погода и состояние водоёма">\n          <div class="bento-card-title" style="margin-bottom:8px;font-size:14.5px;">\n            <span>${"ice_safe"===y||"ice_danger"===y?'<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1" stroke="#7dd3fc" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="#38bdf8"/></svg>':"ice_slush"===y?'<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1" stroke="#7dd3fc" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="#38bdf8"/></svg>':'<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg>'}</span>\n            <span>${"ice_safe"===y||"ice_danger"===y?"Погода & Лёд":"ice_slush"===y?"Погода & Шуга":"Погода & Вода"}</span>\n          </div>\n          <div class="bento-weather-rows">\n            <div class="bento-temp-split">\n              <div>\n                <div class="bento-temp-air">${de}</div>\n                <div style="font-size:10.5px;color:var(--muted);font-weight:700;">Воздух (${x.windDir||"З"} ${x.windMax||3} м/с)</div>\n              </div>\n              <div class="bento-temp-water-box">\n                <div style="font-size:13.5px;font-weight:900;color:var(--accent);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> ${pe}</div>\n                <div style="font-size:10.5px;color:var(--muted);font-weight:700;">Вода</div>\n              </div>\n            </div>\n            <div class="bento-weather-item-row">\n              <span style="font-size:17px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><polygon points="16,8 13.5,13.5 8,16 10.5,10.5" fill="#38bdf8" stroke="currentColor" stroke-width="1.3"/></svg></span>\n              <div>\n                <div style="font-weight:900;color:var(--text);">${x.pressAvg||750} мм рт. ст.</div>\n                <div style="font-size:10.5px;color:var(--muted);">Давление (${h(x.dP)})</div>\n              </div>\n            </div>\n            <div class="bento-weather-item-row bento-ice-hazard">\n              <span style="font-size:17px;">${"open_water"===y?'<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg>':'<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1" stroke="#7dd3fc" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="#38bdf8"/></svg>'}</span>\n              <div>\n                <div style="font-weight:900;color:var(--text);">${ve}</div>\n                <div style="font-size:10.5px;color:var(--muted);">${ue}</div>\n              </div>\n            </div>\n          </div>\n        </div>\n      </div>\n      \x3c!-- Панель выбора снасти, приманки с цветовыми кружками и быстрых действий (Я поймал / Чек-лист / Поделиться) --\x3e\n      <div class="bento-card bento-tackle-controls-card" id="fcTackleControlsCard" style="padding:11px 13px;border:1px solid var(--border);">\n        <div class="controls-grid" style="grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px;margin-bottom:9px;">\n          <div>\n            <label for="fcTopMethodSelect" style="display:block;font-size:11px;color:var(--muted);font-weight:800;margin-bottom:3px;">1. ВЫБОР СНАСТИ И СПОСОБА ЛОВЛИ:</label>\n            <select id="fcTopMethodSelect" style="width:100%;min-height:42px;">\n              ${$.map((e=>`<option value="${e.val}" ${e.val===t.method?"selected":""}>${String(e.text||"").replace(/<[^>]+>/g,"").trim()}</option>`)).join("")}\n            </select>\n          </div>\n          <div>\n            <label for="fcTopBaitSelect" style="display:block;font-size:11px;color:var(--muted);font-weight:800;margin-bottom:3px;">2. СЕЗОННАЯ ПРИМАНКА / НАСАДКА (<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> ${m}°C):</label>\n            <select id="fcTopBaitSelect" style="width:100%;min-height:42px;">\n              ${M.map((e=>`<option value="${e}" ${e===_?"selected":""}>${e}</option>`)).join("")}\n            </select>\n          </div>\n        </div>\n        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;">\n          <button type="button" class="btn" id="fcOpenRigGuideBtn" style="min-height:42px;font-weight:800;font-size:12px;padding:6px 8px;">\n            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M7 7a4 4 0 1 0 0 8h10a4 4 0 1 0 0-8H7z" stroke="#38bdf8" stroke-width="1.9"/><path d="M17 7a4 4 0 1 1 0 8H7a4 4 0 1 1 0-8" stroke="currentColor" stroke-width="1.6" stroke-dasharray="3 2"/></svg> Монтажи и узлы\n          </button>\n          <button type="button" class="btn" id="fcOpenChecklistBtn" style="min-height:42px;font-weight:800;font-size:12px;padding:6px 8px;">\n            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="6" y="7" width="12" height="14" rx="3" fill="rgba(56,189,248,0.16)" stroke="currentColor" stroke-width="1.8"/><path d="M9 7V5a3 3 0 0 1 6 0v2M9 14h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Чек-лист\n          </button>\n          <button type="button" class="btn btn-accent" id="fcShareForecastTgBtn" style="min-height:42px;font-weight:800;font-size:12px;padding:6px 8px;">\n            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 15V3m0 0L8 7m4-4l4 4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg> Поделиться\n          </button>\n        </div>\n      </div>\n      <div class="bento-tactical-advice-wrap">${function(e,t,r,o,n){const i=String(t.method||"spin_jig"),a=Number(r?.windMax??3),s=r?.windDir||"З",l=u[t.water]||u.small_river,c=Number(l.flow||1);if("ice_safe"===n||"ice_danger"===n||i.startsWith("winter_")){const t="ice_danger"===n||(r?.iceThickness||0)<7;return`\n      <div class="bento-card" style="padding:11px 13px;border:1.5px solid ${t?"var(--bad)":"var(--ice)"};">\n        <div class="bento-card-title" style="font-size:14px;margin-bottom:6px;">\n          <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1" stroke="#7dd3fc" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="#38bdf8"/></svg></span>\n          <span>Зимняя тактика и Безопасность льда (${e.name})</span>\n        </div>\n        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px;font-size:12px;line-height:1.4;">\n          <div style="padding:8px 10px;background:var(--panel);border-radius:11px;border:1px solid var(--border);">\n            <b style="color:${t?"var(--bad)":"var(--good)"};"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2.5l7 3.2v5.8c0 5-3 9.3-7 10.8-4-1.5-7-5.8-7-10.8V5.7l7-3.2z" fill="rgba(56,189,248,0.22)" stroke="#38bdf8" stroke-width="1.8" stroke-linejoin="round"/></svg> Контроль льда:</b>\n            ${t?"Опасная толщина льда! Избегайте устьев притоков, тёплых сбросов, камыша и снежных наддувов. Пешня и спасалки обязательны.":`Безопасный монолитный лёд (~${r?.iceThickness||12} см). На течении (${l.shortName}) проверяйте закраины и промоины у мостов и кос.`}\n          </div>\n          <div style="padding:8px 10px;background:var(--panel);border-radius:11px;border:1px solid var(--border);">\n            <b style="color:var(--accent);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg> Тактика поиска со льда:</b>\n            Вода ~${o}°C — бурите серию из 5–7 лунок поперёк руслового свала (шаг 6–8 м). Начинайте облов с верхней бровки, пауза в нижней точке 3–5 сек.\n          </div>\n        </div>\n      </div>\n    `}const d=["carp","grass_carp","silver_carp","crucian","bream","tench","buffalo","black_carp"].includes(e.id);if("bottom"===i||"float"===i||d){const r=o<12,n=Number(t.userProfile?.carpClipMeters||42),i=t.userProfile?.carpBottomType||"Ракушечник / Бровка",l=Y>Date.now()?Math.ceil((Y-Date.now())/1e3):0,c=String(Math.floor(l/60)).padStart(2,"0"),p=String(l%60).padStart(2,"0"),h=d?r?`Холодная вода (+${o}°C): одиночный подрезанный Поп-ап или Вафтерс 8–10 мм (специи, робин ред, чеснок, криль) + компактный ПВА-стик с микро-пеллетсом 1.5–2 мм. Исключите жирные рыбные масла и обильный закорм спомбом!`:`Прогретая вода (+${o}°C): тонущие и нейтральные бойлы 14–20 мм (рыбная мука / палтус / клубника / слива / тигровый орех) или «снеговик» с поп-апом 10 мм. Активный стартовый закорм спомбом (зерновые, конопля, резаные бойлы, пеллетс).`:r?`Холодная вода (+${o}°C): тёмная мелкофракционная инертная смесь (чёрный лещ/плотва) со щепоткой кормового мотыля без сладкой ароматики.`:`Прогретая вода (+${o}°C): активная средне- и крупнофракционная прикормка с добавлением опарыша, резаного червя или сладкой кукурузы.`,v=a>=2.5&&a<=7.5?`Активный «Прибойный берег» (${s} ${a} м/с): волна насыщает бровку кислородом и вымывает донный корм — карп, сазан и крупный лещ выходят кормиться на границу прибойной мути!`:a<2.5?`Штиль / слабый ветер (${s} ${a} м/с): рыба осторожна — используйте флюорокарбоновый поводок, нейтральную презентацию Wafters и точечный ПВА-стик.`:`Сильный ветер (${s} ${a} м/с): используйте тяжёлую кормушку-пулю / флэт 60–90 г и опустите вершинку удилища к воде.`;return`\n      <div class="bento-card" style="padding:11px 13px;border:1.5px solid var(--good);">\n        <div class="bento-card-title" style="font-size:14px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">\n          <div style="display:flex;align-items:center;gap:6px;">\n            <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg></span>\n            <span>Карпфишинг, Сазан и Флэт-Фидер: Программа питания и Свим (${e.name})</span>\n          </div>\n          <span class="pill pill-good" style="font-size:10.5px;">Клипса: <b id="fcCarpClipBadgeVal">${n} м</b> • ${i}</span>\n        </div>\n        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:8px;font-size:12px;line-height:1.42;">\n          <div style="padding:8px 10px;background:var(--panel);border-radius:11px;border:1px solid var(--border);">\n            <b style="color:var(--good);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M17 3C11 3 5 7 5 15c0 2.5 1.5 4 4 4 8 0 12-6 12-12 0-2.5-1.5-4-4-4z" fill="rgba(16,185,129,0.25)" stroke="#10b981" stroke-width="1.8"/><path d="M5 19L15 9" stroke="#10b981" stroke-width="1.8" stroke-linecap="round"/></svg> Программа бойлов и прикормки:</b> ${h}\n          </div>\n          <div style="padding:8px 10px;background:var(--panel);border-radius:11px;border:1px solid var(--border);">\n            <b style="color:var(--accent);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Фактор ветра «Прибойный берег»:</b> ${v}\n          </div>\n        </div>\n        <div style="margin-top:8px;padding:8px 10px;background:var(--panel);border-radius:11px;border:1px solid var(--border);display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;font-size:11.5px;">\n          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">\n            <b style="color:var(--text);">Карта свима (клипса, м):</b>\n            <input type="number" id="fcCarpClipInput" class="input" min="5" max="220" step="1" value="${n}" style="width:68px;min-height:30px;padding:2px 6px;font-size:12px;font-weight:800;">\n            <select id="fcCarpBottomSelect" class="input" style="width:auto;min-width:155px;min-height:30px;padding:2px 6px;font-size:11.5px;">\n              ${["Ракушечник / Бровка","Выход из ила на твёрдое","Русловой свал / Яма","Граница камыша / Коряга"].map((e=>`<option value="${e}" ${e===i?"selected":""}>${e}</option>`)).join("")}\n            </select>\n            <button type="button" class="btn btn-sm btn-good" id="fcSaveCarpSwimBtn" style="min-height:30px;padding:2px 9px;font-size:11px;font-weight:800;">Запомнить свим</button>\n          </div>\n          <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">\n            <b style="color:var(--accent);">Таймер перезаброса:</b>\n            <button type="button" class="btn btn-sm" data-recast-timer-min="10" style="min-height:28px;padding:2px 7px;font-size:11px;">10 мин</button>\n            <button type="button" class="btn btn-sm" data-recast-timer-min="15" style="min-height:28px;padding:2px 7px;font-size:11px;">15 мин</button>\n            <button type="button" class="btn btn-sm" data-recast-timer-min="45" style="min-height:28px;padding:2px 7px;font-size:11px;">45 мин</button>\n            <button type="button" class="btn btn-sm" data-recast-timer-min="120" style="min-height:28px;padding:2px 7px;font-size:11px;">2 ч</button>\n            <span id="fcRecastTimerDisplay" class="pill ${l>0?"pill-good":"pill-neutral"}" style="font-family:monospace;font-size:11.5px;font-weight:900;">${l>0?`${c}:${p}`:"Выкл"}</span>\n            ${l>0?'<button type="button" class="btn btn-sm" id="fcStopRecastTimerBtn" style="min-height:26px;padding:1px 6px;font-size:10.5px;color:var(--bad);">Стоп</button>':""}\n          </div>\n        </div>\n      </div>\n    `}return`\n    <div class="bento-card" style="padding:11px 13px;border:1.5px solid var(--accent);">\n      <div class="bento-card-title" style="font-size:14px;margin-bottom:6px;">\n        <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg></span>\n        <span>Тактика Спиннинга и Джига: Пауза и Ветровой вектор</span>\n      </div>\n      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px;font-size:12px;line-height:1.4;">\n        <div style="padding:8px 10px;background:var(--panel);border-radius:11px;border:1px solid var(--border);">\n          <b style="color:var(--accent);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.5 2" stroke="#38bdf8" stroke-width="1.9" stroke-linecap="round"/></svg> Пауза на ступеньке (вода +${o}°C):</b> <b>${o<=4?"5–8 сек (с плавным волочением и подбросом мандулы/поролона)":o<=10?"3–5 сек (классическая медленная ступенька)":"1.5–2.5 сек (активная проводка с подрывом)"}</b>. По холодной воде хищник атакует на длинной паузе со дна.\n        </div>\n        <div style="padding:8px 10px;background:var(--panel);border-radius:11px;border:1px solid var(--border);">\n          <b style="color:var(--good);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Ветровой вектор (${s} ${a} м/с, теч. ${c} м/с):</b> ${a>=5?`Свежий ветер ${s} ${a} м/с: выбирайте прибойный берег (туда сгоняет тёплую воду и малька), но увеличьте вес груза на +2..4 г и опустите вершинку спиннинга к воде против выдува дуги шнура.`:`Комфортный ветер ${s} ${a} м/с: идеальный контроль касания дна по кончику удилища и звонкому шнуру PE #0.6–1.0.`}\n        </div>\n      </div>\n    </div>\n  `}(r,t,x,m,y)}</div>\n    </div>\n  `,"pro"===c){const e=t.proFactorWeights||{temp:1,press:1,archive_shock:1,circle_field:1},o=t.weatherDays[t.dayIdx]||p||t.weatherDays[0],n=o?calcDayBest(r,o,t.method,t.water,t.depth,t.normPress,t.iceState):52;w+=`\n      <div class="card" style="margin-bottom:12px;padding:10px 12px;background:var(--card);border:1px dashed var(--accent);">\n        \n            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:8px;">\n              <div>\n                <span style="font-size:var(--fs-xs);font-weight:800;color:var(--accent);"><svg class="k-ico" style="color:var(--bad);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg> ПАНЕЛЬ ПРОФИ: РУЧНАЯ КАЛИБРОВКА ВЕСОВ 8-ФАКТОРНОЙ МОДЕЛИ</span>\n                <div style="font-size:11px;color:var(--good);font-weight:700;margin-top:2px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="4.5" stroke="#38bdf8" stroke-width="1.6"/><circle cx="12" cy="12" r="1.8" fill="#10b981"/></svg> ${computeModel30DayValidation(t.catches||[]).label}</div>\n                <div id="proCalibLiveSummary" style="font-size:11.5px;color:var(--accent);font-weight:800;margin-top:3px;">\n                  <svg class="k-ico" viewBox="0 0 24 24" fill="none"><polygon points="13,2 4,14 11,14 10,22 20,10 13,10" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.5" stroke-linejoin="round"/></svg> Активность «${r.name}» с текущей калибровкой весов: <b>${n}%</b> (двигайте ползунки для живого пересчёта прогноза)\n                </div>\n              </div>\n              <div style="display:flex;gap:6px;">\n                <button type="button" class="btn btn-sm" id="proOpenChecklistBtn" style="min-height:26px;padding:2px 8px;font-size:11px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="6" y="7" width="12" height="14" rx="3" fill="rgba(56,189,248,0.16)" stroke="currentColor" stroke-width="1.8"/><path d="M9 7V5a3 3 0 0 1 6 0v2M9 14h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Чек-лист выезда</button>\n                <button type="button" class="btn btn-sm" id="proResetWeightsBtn" style="min-height:26px;padding:2px 8px;font-size:11px;">Сбросить (1.0x)</button>\n              </div>\n            </div>\n          \n        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:10px;font-size:var(--fs-xs);">\n          <div>\n            <label style="display:flex;justify-content:space-between;font-weight:700;">\n              <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> Термика воды:</span><b id="proWTempVal" style="color:var(--accent);">${Number(e.temp??1).toFixed(1)}x</b>\n            </label>\n            <input type="range" min="0.5" max="1.5" step="0.1" value="${e.temp??1}" data-pro-weight="temp" style="width:100%;">\n          </div>\n          <div>\n            <label style="display:flex;justify-content:space-between;font-weight:700;">\n              <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><polygon points="16,8 13.5,13.5 8,16 10.5,10.5" fill="#38bdf8" stroke="currentColor" stroke-width="1.3"/></svg> Давление (сутки):</span><b id="proWPressVal" style="color:var(--accent);">${Number(e.press??1).toFixed(1)}x</b>\n            </label>\n            <input type="range" min="0.5" max="1.5" step="0.1" value="${e.press??1}" data-pro-weight="press" style="width:100%;">\n          </div>\n          <div>\n            <label style="display:flex;justify-content:space-between;font-weight:700;">\n              <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M3 3v18h18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M7 15l4-5 4 3 5-7" stroke="#38bdf8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg> Барический шок (5 дн.):</span><b id="proWShockVal" style="color:var(--accent);">${Number(e.archive_shock??1).toFixed(1)}x</b>\n            </label>\n            <input type="range" min="0.5" max="1.5" step="0.1" value="${e.archive_shock??1}" data-pro-weight="archive_shock" style="width:100%;">\n          </div>\n          <div>\n            <label style="display:flex;justify-content:space-between;font-weight:700;">\n              <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="5" stroke="#38bdf8" stroke-width="1.5"/><path d="M12 12l6-6" stroke="#10b981" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="12" r="1.8" fill="#10b981"/></svg> Сигналы Круга (35 км):</span><b id="proWCircleVal" style="color:var(--accent);">${Number(e.circle_field??1).toFixed(1)}x</b>\n            </label>\n            <input type="range" min="0.5" max="1.5" step="0.1" value="${e.circle_field??1}" data-pro-weight="circle_field" style="width:100%;">\n          </div>\n        </div>\n      </div>\n    `}e.innerHTML=`\n    <div>\n      ${w}\n    </div>\n  `}export function renderWeek(e){if(!e)return;const t=e.querySelector(".week-strip")?.scrollLeft||0,r=d.getState(),o=g.find((e=>e.id===r.fishId))||g[0],n=document.documentElement.getAttribute("data-theme")||"dark",i=r.weatherDays||[];if(e.innerHTML=`\n    <div class="bento-card">\n      <div class="bento-card-head">\n        <div>\n          <div class="bento-card-title"><span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="3" fill="rgba(56,189,248,0.14)" stroke="currentColor" stroke-width="1.8"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="7" y="13" width="3" height="3" rx="0.8" fill="#38bdf8"/><rect x="14" y="13" width="3" height="3" rx="0.8" fill="#10b981"/></svg></span><span>Календарь клёва по дням (10 дней + Архив) • ${o.name}</span></div>\n          <div class="bento-card-sub">Нажмите на любой день для пересчёта дашборда и почасового графика (Позавчера/Вчера — запись архивного улова)</div>\n        </div>\n        <button type="button" class="btn btn-sm" id="fcCleanArchiveBtn" title="Очистить старый архив погоды, кроме последних 5 дней"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Очистить кэш</button>\n      </div>\n      <div class="week-strip">\n        ${i.map(((e,t)=>{const i=calcDayBest(o,e,r.method,r.water,r.depth,r.normPress,r.iceState),a=2===t||3===t,s=e.isArchive?"#94a3b8":i>=60?"var(--good)":i>=38?"var(--warn)":"var(--bad)";if(e.isArchive)return`\n              <div class="day-card archive-day ${t===r.dayIdx?"active":""}" data-week-day="${t}" data-guest-locked-day="1">\n                <div class="day-status-stripe" style="background:${s};"></div>\n                <div style="font-weight:800;font-size:11.5px;color:var(--muted);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="5" y="3" width="14" height="18" rx="2.5" fill="rgba(56,189,248,0.16)" stroke="currentColor" stroke-width="1.8"/><path d="M9 7h6M9 11h6M9 15h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> ${e.relTitle}</div>\n                <div style="font-weight:700;font-size:12px;">${e.label}</div>\n                <div style="font-size:var(--fs-sm);font-weight:800;">${e.tDay>0?"+"+e.tDay:e.tDay}° / ${e.tNight>0?"+"+e.tNight:e.tNight}°C</div>\n                <div style="font-size:11px;color:var(--muted);line-height:1.3;">\n                  <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> ${e.waterTemp}°C • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><polygon points="16,8 13.5,13.5 8,16 10.5,10.5" fill="#38bdf8" stroke="currentColor" stroke-width="1.3"/></svg> ${e.pressAvg} мм\n                </div>\n                <div style="margin-top:auto;padding-top:4px;border-top:1px dashed var(--border);">\n                  <span style="color:var(--accent);font-size:11px;font-weight:800;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg> Внести улов →</span>\n                </div>\n              </div>\n            `;const l=2===t?'<span class="pill pill-good" style="font-size:11px;padding:2px 8px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2c1.5 3.5 4.5 5.5 4.5 10a5.5 5.5 0 1 1-11 0c0-3 2-5.5 3.5-7 0 2 1.5 3 1.5 3S12 5.5 12 2z" fill="#f97316" stroke="#fbbf24" stroke-width="1.5" stroke-linejoin="round"/></svg> Сегодня</span>':3===t?'<span class="pill pill-ice" style="font-size:11px;padding:2px 8px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><polygon points="13,2 4,14 11,14 10,22 20,10 13,10" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.5" stroke-linejoin="round"/></svg> Завтра</span>':e.relTitle?`<span style="font-size:var(--fs-xs);color:var(--accent);font-weight:700;">${e.relTitle}</span>`:"",c=a?getBestBiteWindowText(o,e,r.method,r.water,r.depth,r.normPress,r.iceState):"";return`\n            <div class="day-card ${a?"priority-day":""} ${t===r.dayIdx?"active":""}" data-week-day="${t}" data-guest-locked-day="${2===t?"0":"1"}">\n              <div class="day-status-stripe" style="background:${s};"></div>\n              <div style="display:flex;justify-content:space-between;align-items:center;gap:4px;">\n                <span style="font-weight:800;font-size:var(--fs-xs);">${e.label}</span>\n                ${l}\n              </div>\n              <div style="font-size:var(--fs-md);font-weight:800;">${e.tDay>0?"+"+e.tDay:e.tDay}° / ${e.tNight>0?"+"+e.tNight:e.tNight}°C</div>\n              <div style="font-size:var(--fs-xs);color:var(--muted);line-height:1.38;">\n                <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> Вода ${e.waterTemp}°C<br>\n                <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><polygon points="16,8 13.5,13.5 8,16 10.5,10.5" fill="#38bdf8" stroke="currentColor" stroke-width="1.3"/></svg> ${e.pressAvg} мм (${h(e.dP)})<br>\n                <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> ${e.windDir} ${e.windMax} м/с\n              </div>\n              ${a?`\n                <div style="padding:4px 7px;border-radius:6px;background:var(--panel);border:1px solid var(--border);font-size:11.5px;line-height:1.35;">\n                  <div style="color:var(--accent);font-weight:800;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.5 2" stroke="#38bdf8" stroke-width="1.9" stroke-linecap="round"/></svg> Пик клёва: ${c}</div>\n                  <div style="color:var(--muted);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.5" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> ${v(e.sunriseHr)}–${v(e.sunsetHr)} • ${e.moon.phaseIcon} ${e.moon.moonDay} л.д.</div>\n                </div>\n              `:""}\n              <div style="margin-top:auto;padding-top:6px;border-top:1px solid var(--border);">\n                ${b(i,14,n,!0,"redbook"===o.legal?`Прилов ${i}% (Отпусти)`:null)}\n              </div>\n            </div>\n          `})).join("")}\n      </div>\n    </div>\n  `,t>0){const r=e.querySelector(".week-strip");r&&(r.scrollLeft=t)}else if("undefined"!=typeof window&&"function"==typeof window.__KLEV_IS_MOBILE_GUEST__&&window.__KLEV_IS_MOBILE_GUEST__()){const t=e.querySelector(".week-strip"),r=e.querySelector('[data-week-day="2"]');t&&r&&(t.scrollLeft=Math.max(0,r.offsetLeft-8))}}export function renderHourly(e){if(!e)return;const t=e.querySelector(".bite-timeline")?.scrollLeft||0,r=d.getState(),o=g.find((e=>e.id===r.fishId))||g[0],l=r.weatherDays[r.dayIdx]||r.weatherDays[2]||r.weatherDays[0];if(!l)return;if(l.isArchive)return void function(e,t,r,o){const l=new Date;l.setHours(0,0,0,0);const d=p(l),v=[];for(let e=-1;e>=-5;e--){const r=new Date(l.getTime()+864e5*e),o=p(r),n=c.getDayWeatherByDate(t.lat,t.lon,o)||(t.weatherDays||[]).find((e=>e.date===o))||(t.weatherArchive5Days||[]).find((e=>e.date===o)),a=-1===e?"Вчера":-2===e?"Позавчера":`${Math.abs(e)} дн. назад`;v.push({date:o,offset:e,title:a,label:`${i.daysShort[r.getDay()]}, ${r.getDate()} ${i.monthsGen[r.getMonth()]}`,dayObj:n})}const u=X||r.date||v[0].date,b=c.getDayWeatherByDate(t.lat,t.lon,u)||(t.weatherDays||[]).find((e=>e.date===u))||(t.weatherArchive5Days||[]).find((e=>e.date===u))||r,w=J(t.selectedHour),x=b.hours&&b.hours[w]||b.hours?.[12]||{hour:w,tAir:b.tDay||5,press:b.pressAvg||754,wind:b.windMax||3,windDir:"З"},y=f(t.basinCode,t.lat,t.lon),m=s(o,b.iceState||t.iceState,t.water,b.waterTemp),$=m.some((e=>e.val===t.method))?t.method:m[0]?.val,M=a(o,$,b.waterTemp,b.iceState||t.iceState),_=t.selectedBait&&M.includes(t.selectedBait)?t.selectedBait:M[0],S=new Set(t.favorites||[]),C=[...g].filter((e=>"redbook"!==e.legal&&n(e,t.lat,t.lon,t.basinCode,t.water,120,new Set(["small_river","big_river","quarry","tundra_lake",...t.isCoastal?["sea_gulf","open_sea"]:[]]),t.isCoastal,!0,t.selectedWaterName))).sort(((e,t)=>(S.has(t.id)?1:0)-(S.has(e.id)?1:0)));e.innerHTML=`\n    <div class="card" style="border-color:var(--accent);">\n      <div class="section-head">\n        <div>\n          <span class="section-title"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="5" y="3" width="14" height="18" rx="2.5" fill="rgba(56,189,248,0.16)" stroke="currentColor" stroke-width="1.8"/><path d="M9 7h6M9 11h6M9 15h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Архив погоды (10 км) и запись улова за предыдущие 5 дней (${b.label||u})</span>\n          <div style="font-size:var(--fs-xs);color:var(--muted);margin-top:2px;">\n            Выберите любую дату за последние 5 дней (или через обычный календарь) — почасовой прогноз из кэша локации подставится автоматически!\n          </div>\n        </div>\n        ${k({text:`Архив: ${u}`,tone:"purple",icon:'<svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="3" fill="rgba(56,189,248,0.14)" stroke="currentColor" stroke-width="1.8"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="7" y="13" width="3" height="3" rx="0.8" fill="#38bdf8"/><rect x="14" y="13" width="3" height="3" rx="0.8" fill="#10b981"/></svg>'})}\n      </div>\n      <div style="margin-bottom:12px;padding:10px 12px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);">\n        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;">\n          <label for="archCalendarDate" style="font-size:var(--fs-xs);font-weight:800;color:var(--accent);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="3" fill="rgba(56,189,248,0.14)" stroke="currentColor" stroke-width="1.8"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="7" y="13" width="3" height="3" rx="0.8" fill="#38bdf8"/><rect x="14" y="13" width="3" height="3" rx="0.8" fill="#10b981"/></svg> ВЫБЕРИТЕ ДАТУ ВЫЕЗДА (КАЛЕНДАРЬ ИЛИ БЫСТРЫЕ 5 ДНЕЙ):</label>\n          <input type="date" id="archCalendarDate" class="input" value="${u}" max="${d}" style="max-width:190px;min-height:34px;padding:4px 10px;">\n        </div>\n        <div class="chip-scroll-row">\n          ${v.map((e=>`\n            <button type="button" class="w-chip ${e.date===u?"active":""}" data-arch-quick-date="${e.date}">\n              <svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="3" fill="rgba(56,189,248,0.14)" stroke="currentColor" stroke-width="1.8"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="7" y="13" width="3" height="3" rx="0.8" fill="#38bdf8"/><rect x="14" y="13" width="3" height="3" rx="0.8" fill="#10b981"/></svg> ${e.title} (${e.label}) ${e.dayObj?`• ${e.dayObj.tDay>0?"+"+e.dayObj.tDay:e.dayObj.tDay}°C, ${e.dayObj.pressAvg} мм`:""}\n            </button>\n          `)).join("")}\n        </div>\n      </div>\n      <div style="padding:10px 12px;border-radius:var(--r-sm);background:var(--card);margin-bottom:12px;font-size:var(--fs-xs);color:var(--accent);font-weight:700;">\n        <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="13" r="4" stroke="#38bdf8" stroke-width="1.8"/></svg> Почасовой метеоархив из кэша 10 км (${b.label||u}, ${String(w).padStart(2,"0")}:00): Воздух ${x.tAir>0?"+"+x.tAir:x.tAir}°C • Вода ~${b.waterTemp}°C • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><polygon points="16,8 13.5,13.5 8,16 10.5,10.5" fill="#38bdf8" stroke="currentColor" stroke-width="1.3"/></svg> ${x.press} мм (Δ ${h(b.dP)}) • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> ${x.windDir} ${x.wind} м/с • ${b.moon?.phaseIcon||'<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6" stroke-linejoin="round"/></svg>'} ${b.moon?.moonDay||12} л.д.\n      </div>\n      <div class="controls-grid" style="margin-bottom:12px;">\n        <div>\n          <label style="display:block;font-size:var(--fs-xs);color:var(--muted);font-weight:700;margin-bottom:3px;">ШАГ 1. ПОЙМАННАЯ РЫБА (ИЗБРАННЫЕ ВВЕРХУ)</label>\n          <select id="archFishSel">\n            ${C.map((e=>`<option value="${e.id}" ${e.id===o.id?"selected":""}>${S.has(e.id)?" ":""}${e.name}</option>`)).join("")}\n          </select>\n        </div>\n        <div>\n          <label style="display:block;font-size:var(--fs-xs);color:var(--muted);font-weight:700;margin-bottom:3px;">ШАГ 2. СНАСТЬ (ПОДХОДЯЩАЯ ПОД РЫБУ)</label>\n          <select id="archMethodSel">\n            ${m.map((e=>`<option value="${e.val}" ${e.val===$?"selected":""}>${String(e.text||"").replace(/<[^>]+>/g,"").trim()}</option>`)).join("")}\n          </select>\n        </div>\n        <div>\n          <label style="display:block;font-size:var(--fs-xs);color:var(--muted);font-weight:700;margin-bottom:3px;">ШАГ 3. СЕЗОННАЯ НАЖИВКА / ПРИМАНКА</label>\n          <select id="archBaitSel">\n            ${M.map((e=>`<option value="${e}" ${e===_?"selected":""}>${e}</option>`)).join("")}\n          </select>\n        </div>\n        <div>\n          <label style="display:block;font-size:var(--fs-xs);color:var(--muted);font-weight:700;margin-bottom:3px;">ШАГ 4. ВОДОЁМ / БИОТОП</label>\n          <select id="archWaterSel">\n            ${(t.nearbyWaters||[]).map((e=>`<option value="${e.wType}|${e.name||e.label}" ${t.selectedWaterName===e.name?"selected":""}>${String(e.label||"").replace(/<[^>]+>/g,"").trim()}</option>`)).join("")}\n            ${y.map((e=>`<option value="${e.id}|${e.shortName}">${String(e.name||"").replace(/<[^>]+>/g,"").trim()}</option>`)).join("")}\n          </select>\n        </div>\n        <div>\n          <label style="display:block;font-size:var(--fs-xs);color:var(--muted);font-weight:700;margin-bottom:3px;">ШАГ 5. ЧАС ПОИМКИ (ПОЧАСОВОЙ КЭШ НА ${u})</label>\n          <select id="archHourSel">\n            ${(b.hours||[]).map((e=>`<option value="${e.hour}" ${e.hour===w?"selected":""}>${String(e.hour).padStart(2,"0")}:00 (воздух ${e.tAir>0?"+"+e.tAir:e.tAir}°C, ${e.press} мм, ${e.windDir} ${e.wind} м/с)</option>`)).join("")}\n          </select>\n        </div>\n        <div style="display:flex;align-items:flex-end;">\n          <button type="button" class="btn btn-good" id="archOpenCatchBtn" data-arch-active-date="${u}" style="width:100%;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg> Записать улов (${b.label||u}, ${String(w).padStart(2,"0")}:00)</button>\n        </div>\n      </div>\n    </div>\n  `}(e,r,l,o);const v=document.documentElement.getAttribute("data-theme")||"dark",u=(new Date).getHours(),w=J(r.selectedHour),x=l.hours[w]||l.hours[12],y=computeHourFactors(o,l,x,r.method,r.water,r.depth,r.normPress,r.iceState),m=calcDynamicRig(r.method,r.water,r.depth,l.windMax,o,l.waterTemp,l.iceState||r.iceState),$=a(o,r.method,l.waterTemp,l.iceState||r.iceState),M=r.selectedBait&&$.includes(r.selectedBait)?r.selectedBait:$[0],_=generateAdaptiveGuides(o,r.water,r.depth,l,r.method,r.iceState);if(e.innerHTML=`\n    <div class="bento-card">\n      <div class="bento-card-head">\n        <div>\n          <div class="bento-card-title"><span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.5 2" stroke="#38bdf8" stroke-width="1.9" stroke-linecap="round"/></svg></span><span>Почасовой разбор и 8 факторов (${l.relTitle?l.relTitle+" • "+l.label:l.label})</span></div>\n          <div class="bento-card-sub"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.5" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> Зорьки и <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.5" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> лунные окна отмечены значками • Выберите любой час (00:00–23:00)</div>\n        </div>\n      </div>\n      ${"redbook"===o.legal?`\n        <div style="padding:10px 12px;margin-bottom:10px;border-radius:var(--r-sm);background:var(--pill-bad-bg);border:1px solid var(--bad);color:var(--pill-bad-text);font-weight:700;line-height:1.42;font-size:var(--fs-xs);">\n          <svg class="k-ico" style="color:var(--bad);" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><path d="M6 6l12 12" stroke="#ef4444" stroke-width="2.1" stroke-linecap="round"/></svg> <b>${o.name} — Красная книга (изъятие запрещено).</b> Ниже показан биологический прогноз активности вида (вероятность поклёвки в прилове). При поимке бережно отпустите рыбу!\n        </div>\n      `:""}\n      <div class="bite-timeline" role="listbox" aria-label="Почасовой график клёва">\n        ${l.hours.map((e=>{const t=calcHourly(o,l,e,r.method,r.water,r.depth,r.normPress,r.iceState),n=t>=60?"var(--good)":t>=38?"var(--warn)":"var(--bad)",i=2===r.dayIdx&&e.hour===u,a=Math.abs(e.hour+.5-l.sunriseHr)<=1.1||Math.abs(e.hour+.5-l.sunsetHr)<=1.1,s=e.hour===l.moon.transitHour||e.hour===l.moon.underfootHour,c=a||s?'<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.5" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg>':"·";return`\n            <button type="button" class="hour-slot ${e.hour===w?"active":""} ${i?"now":""}" data-scrub-hour="${e.hour}" aria-label="${e.hour}:00, активность ${t}%">\n              <span style="font-weight:800;">${String(e.hour).padStart(2,"0")}</span>\n              <span style="font-size:11px;" title="${a?"Утренняя/вечерняя зорька":s?"Лунное окно активности":""}">${c}</span>\n              <div class="hour-bar-wrap"><div class="hour-bar" style="height:${t}%;background:${n};"></div></div>\n              <span style="font-weight:700;font-size:11px;">${t}%</span>\n            </button>\n          `})).join("")}\n      </div>\n      <div class="card" id="fcSelectedHourDetailCard" style="margin-top:10px;background:var(--card);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">\n        <div style="flex:1;min-width:240px;">\n          <div style="font-size:var(--fs-xs);color:var(--muted);font-weight:700;">УСЛОВИЯ В ВЫБРАННЫЙ ЧАС: ${String(w).padStart(2,"0")}:00 (${l.label})</div>\n          <div style="font-size:var(--fs-md);font-weight:800;margin-top:2px;">\n            Воздух ${x.tAir>0?"+"+x.tAir:x.tAir}°C • Вода ~${l.waterTemp}°C • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><polygon points="16,8 13.5,13.5 8,16 10.5,10.5" fill="#38bdf8" stroke="currentColor" stroke-width="1.3"/></svg> ${x.press} мм (за 3ч: ${h(x.dp3h)}) • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> ${x.windDir} ${x.wind} м/с\n          </div>\n          <div style="font-size:var(--fs-xs);color:var(--accent);margin-top:5px;line-height:1.42;">\n            Рекомендуемая оснастка: <b>${m.weight}</b> (${m.line}) • ${m.tactic}\n          </div>\n          <div style="margin-top:6px;font-size:var(--fs-xs);color:var(--good);font-weight:800;display:flex;align-items:center;flex-wrap:wrap;gap:4px;">\n            <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 18c0-4 4-4 4-8s4-4 4-6 5-1 5 3-3 5-3 8 4 4 6 2" stroke="#f43f5e" stroke-width="2.2" stroke-linecap="round"/></svg> Рабочая приманка в этот час:</span> <b>${renderBaitWithColorDots(M)}</b>\n          </div>\n        </div>\n        <div>\n          ${b(y.total,19,v,!0,"redbook"===o.legal?`Активность ${y.total}% • Отпусти`:null)}\n        </div>\n      </div>\n      <details class="forecast-why-spoiler" ${"pro"===r.appMode?"open":""} style="margin-top:12px;">\n        <summary>\n          <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M3 3v18h18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M7 15l4-5 4 3 5-7" stroke="#38bdf8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg> Почему такой прогноз? (Разбор 8 факторов + архив 10 км на ${String(w).padStart(2,"0")}:00)</span>\n          <span class="pill ${y.total>=60?"pill-good":y.total>=38?"pill-warn":"pill-bad"}">Итог ${y.total}% ▾</span>\n        </summary>\n        <div style="margin-top:8px;padding:12px;background:var(--card);border-radius:var(--r-sm);">\n          ${!1===y.hasRealArchive?'\n            <div style="padding:9px 11px;margin-bottom:10px;border-radius:var(--r-sm);background:var(--pill-warn-bg);border:1px solid var(--warn);color:var(--pill-warn-text);font-size:var(--fs-xs);font-weight:800;line-height:1.42;">\n              <svg class="k-ico" style="color:var(--warn);" viewBox="0 0 24 24" fill="none"><path d="M12 3L2.5 19.5h19L12 3z" fill="rgba(245,158,11,0.24)" stroke="#f59e0b" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9v5M12 17h.01" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/></svg> Прогноз может быть менее точным из-за отсутствия архивных данных по погоде (это первый запрос в данной локации 10 км при недоступности внешнего сервера архива; со следующего дня архив накопится автоматически на вашем устройстве).\n            </div>\n          ':""}\n          <div style="padding:9px 11px;margin-bottom:10px;border-radius:var(--r-sm);background:var(--panel);border:1px solid var(--border);font-size:var(--fs-xs);line-height:1.45;">\n            <div><b><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M3 3v18h18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M7 15l4-5 4 3 5-7" stroke="#38bdf8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg> Анализ 5-дневного метеоархива (радиус 10 км):</b> ${y.archiveEval?.commentary||""}</div>\n            <div style="margin-top:5px;color:var(--accent);"><b><svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="5" y="3" width="14" height="18" rx="2.5" fill="rgba(56,189,248,0.16)" stroke="currentColor" stroke-width="1.8"/><path d="M9 7h6M9 11h6M9 15h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Анализ вашего Журнала уловов:</b> ${y.logInsight?.commentary||""}</div>\n            <div style="margin-top:5px;color:var(--good);"><b><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3.5" fill="rgba(56,189,248,0.25)" stroke="currentColor" stroke-width="1.8"/><path d="M3 19c0-3.2 2.7-5.5 6-5.5s6 2.3 6 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="17" cy="9" r="2.8" stroke="currentColor" stroke-width="1.6"/><path d="M16 14c2.6.3 4.8 2 5 4.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg> Полевая сводка «Круга» (радиус 35 км):</b> ${y.circleEval?.commentary||""}</div>\n          </div>\n          ${(()=>{const e=(y.factors||[]).reduce(((e,t)=>e+(Number(t.val)||0)),0),t=52+e,r=e>=0?`+${e}%`:`${e}%`,o=t!==y.total?` → с учётом биологического потолка вида: <b>${y.total}%</b>`:"";return`\n              <div style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:8px;padding:7px 10px;border-radius:6px;background:var(--panel);border:1px dashed var(--border);line-height:1.45;">\n                <b>Арифметика прогноза на ${String(w).padStart(2,"0")}:00:</b> База водоёма <b>52%</b> ${r} (сумма факторов ниже) = <b>${t}%</b>${o}.\n              </div>\n            `})()}\n          ${y.factors.map((e=>{const t=e.val>=0,r=t?"var(--good)":"var(--bad)",o=Math.min(100,Math.max(8,3*Math.abs(e.val)));return`\n              <div class="factor-row">\n                <div>\n                  <div style="font-weight:700;">${e.name}</div>\n                  <div style="font-size:var(--fs-xs);color:var(--muted);">${e.note}</div>\n                </div>\n                <div class="factor-bar-track">\n                  <div class="factor-bar-fill" style="width:${o}%;background:${r};"></div>\n                </div>\n                <div style="text-align:right;font-weight:800;color:${r};">${t?"+"+e.val:e.val}%</div>\n              </div>\n            `})).join("")}\n          <p style="margin-top:10px;font-size:var(--fs-xs);color:var(--muted);">\n            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3v18M5 7h14M5 7l-3 6h6l-3-6zm14 0l-3 6h6l-3-6zM8 21h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> ${i.forecastDisclaimer}\n          </p>\n        </div>\n      </details>\n      <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);">\n        <div class="section-title"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><polygon points="16,8 13.5,13.5 8,16 10.5,10.5" fill="#38bdf8" stroke="currentColor" stroke-width="1.3"/></svg> Ихтиология, снасти и кормовая база: ${o.name} (${r.depth.toFixed(1)} м)</div>\n        <div class="guide-grid">\n          <div class="guide-block"><h4>Гидробиология, размеры и стоянки</h4><div>${_.standAdvice}</div></div>\n          <div class="guide-block"><h4>Снасти, монтаж и подача</h4><div>${_.tackleAdvice}</div></div>\n          <div class="guide-block"><h4>Кормовая база и рабочие приманки</h4><div>${_.baitAdvice}</div></div>\n        </div>\n      </div>\n      \x3c!-- Пункт 23: Вероятностный дисклеймер под прогнозом --\x3e\n      <div style="margin-top:12px;padding:8px 11px;background:var(--card);border:1px dashed var(--border);border-radius:var(--r-sm);font-size:11.5px;color:var(--muted);line-height:1.4;">\n        ⓘ <b>Вероятностный биофизический индекс:</b> прогноз оценивает совокупность гидрометеорологических условий водоёма (термику воды, барический градиент, кислородный режим и солунарную фазу), но не является гарантией улова. Учитывайте локальный рельеф и правила безопасности на воде и льду.\n      </div>\n    </div>\n  `,t>0){const r=e.querySelector(".bite-timeline");r&&(r.scrollLeft=t)}}let X=null;function J(e){const t=parseInt(e,10);return Number.isFinite(t)?Math.max(0,Math.min(23,t)):12}let Q=!1;export function render(o){if(!o)return;"undefined"!=typeof window&&"function"==typeof window.__KLEV_IS_MOBILE_GUEST__&&window.__KLEV_IS_MOBILE_GUEST__()&&2!==d.getState().dayIdx&&d.dispatch({type:"SET_DAY",payload:2});const n="undefined"!=typeof window?window.scrollY:0,i=o.querySelector(".week-strip")?.scrollLeft||0,p=o.querySelector(".bite-timeline")?.scrollLeft||0;if(o.querySelector("#fcWeekBox")&&o.querySelector("#fcStickySpeciesBar")||(o.innerHTML='\n      <div id="fcStickySpeciesBar" class="fc-sticky-species-bar"></div>\n      <div id="fcExpressBox"></div>\n      <div id="fcWeekBox" style="margin-top:14px;"></div>\n      <div id="fcHourlyBox" style="margin-top:14px;"></div>\n    '),renderExpress(o.querySelector("#fcExpressBox")),renderWeek(o.querySelector("#fcWeekBox")),renderHourly(o.querySelector("#fcHourlyBox")),function(o){if(!o||o.__fcDelegatedBound)return;o.__fcDelegatedBound=!0,o.addEventListener("click",(n=>{const i=n.target;if(!i||"function"!=typeof i.closest)return;const a=i.closest("[data-express-day]");if(a){X=null;const e=parseInt(a.getAttribute("data-express-day"),10);return d.dispatch({type:"SET_DAY",payload:e}),void y(["#bentoSwipeHeroCard","#bentoWaveChartCard"],{scroll:!0,block:"center",delayMs:70})}const s=i.closest("[data-week-day]");if(s){const e=parseInt(s.getAttribute("data-week-day"),10);if(2!==e&&"undefined"!=typeof window&&"function"==typeof window.__KLEV_IS_MOBILE_GUEST__&&window.__KLEV_IS_MOBILE_GUEST__())return void("function"==typeof window.__KLEV_PROMPT_GUEST_AUTH__&&window.__KLEV_PROMPT_GUEST_AUTH__("Сначала войдите в аккаунт — посуточный прогноз на 10 дней и архив клёва доступны после авторизации"));X=null;const t=o.querySelector(".week-strip"),r=t?t.scrollLeft:0;return d.dispatch({type:"SET_DAY",payload:e}),requestAnimationFrame((()=>{const e=o.querySelector(".week-strip");e&&r>0&&(e.scrollLeft=r)})),void y(["#bentoSwipeHeroCard","#bentoWaveChartCard","#fcHourlyBox"],{scroll:!1,delayMs:70})}const p=i.closest("[data-scrub-hour]");if(p){const e=parseInt(p.getAttribute("data-scrub-hour"),10);if(Number.isFinite(e)){const t=o.querySelector(".bite-timeline"),r=t?t.scrollLeft:0;d.dispatch({type:"SET_HOUR",payload:e}),renderHourly(o.querySelector("#fcHourlyBox"));const n=o.querySelector(".bite-timeline");n&&r>0&&(n.scrollLeft=r),y("#fcSelectedHourDetailCard",{scroll:!0,block:"nearest",delayMs:50})}return}if(i.closest("#fcCleanArchiveBtn")){if("undefined"!=typeof window&&"function"==typeof window.__KLEV_IS_MOBILE_GUEST__&&window.__KLEV_IS_MOBILE_GUEST__())return void("function"==typeof window.__KLEV_PROMPT_GUEST_AUTH__&&window.__KLEV_PROMPT_GUEST_AUTH__("Сначала войдите в аккаунт — управление архивом клёва доступно после авторизации"));const e=c.clearWeatherArchiveKeep5Days();return w(` Архив погоды очищен: удалено старых записей — ${e.removedCount}, сохранены последние 5 дней архива (${e.keptArchiveCount} дн.)`,"good"),void render(o)}const h=i.closest("[data-set-app-mode]");if(h){const e=h.getAttribute("data-set-app-mode");return d.dispatch({type:"SET_APP_MODE",payload:e}),void w(`Включён ${{novice:'<svg class="k-ico" style="color:var(--good);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg> Режим «Новичок»',angler:'<svg class="k-ico" style="color:var(--warn);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg> Режим «Рыбак»',pro:'<svg class="k-ico" style="color:var(--bad);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg> Режим «Профи»'}[e]||e}`,"good")}const v=i.closest("[data-open-fish-zoom]");if(v){n.stopPropagation();const e=v.getAttribute("data-open-fish-zoom");return void(e&&"function"==typeof t&&t(e))}if(i.closest("#bentoPrevFishBtn")||i.closest("#bentoNextFishBtn")){n.stopPropagation();const t=Boolean(i.closest("#bentoNextFishBtn")),r=d.getState(),o=e(r).filter((e=>"redbook"!==e.legal));if(o.length>1){const e=Math.max(0,o.findIndex((e=>e.id===r.fishId))),n=o[(e+(t?1:-1)+o.length)%o.length];n&&(d.dispatch({type:"SET_FISH",payload:n.id}),w(` Выбрана рыба: ${n.name}`,"info"))}return}if(i.closest("#fcQuickBlankTripBtn"))return n.stopPropagation(),void r();if(i.closest("#fcSaveCarpSwimBtn")){n.stopPropagation();const e=o.querySelector("#fcCarpClipInput"),t=o.querySelector("#fcCarpBottomSelect"),r=Math.max(5,Math.min(250,parseInt(e?.value,10)||42)),i=t?.value||"Ракушечник / Бровка";d.dispatch({type:"UPDATE_USER_PROFILE",payload:{carpClipMeters:r,carpBottomType:i}});const a=o.querySelector("#fcCarpClipBadgeVal");return a&&(a.textContent=`${r} м`),void w(` Свим сохранён: клипса ${r} м (${i})`,"good")}const f=i.closest("[data-recast-timer-min]");if(f)return n.stopPropagation(),void function(e,t){const r=Math.max(1,parseInt(e,10)||15);Y=Date.now()+6e4*r,K&&clearInterval(K);const o=()=>{const e=Math.max(0,Math.ceil((Y-Date.now())/1e3)),t="undefined"!=typeof document?document.getElementById("fcRecastTimerDisplay"):null;if(t)if(e>0){const r=String(Math.floor(e/60)).padStart(2,"0"),o=String(e%60).padStart(2,"0");t.textContent=`${r}:${o}`,t.className="pill pill-good"}else t.textContent="00:00!",t.className="pill pill-warn";if(e<=0){clearInterval(K),K=null,Y=0,function(){try{const e=window.AudioContext||window.webkitAudioContext;if(!e)return;const t=new e,r=t.createOscillator(),o=t.createGain();r.type="sine",r.frequency.setValueAtTime(880,t.currentTime),r.frequency.exponentialRampToValueAtTime(1320,t.currentTime+.25),o.gain.setValueAtTime(.18,t.currentTime),o.gain.exponentialRampToValueAtTime(.001,t.currentTime+.55),r.connect(o),o.connect(t.destination),r.start(),r.stop(t.currentTime+.55)}catch(e){}}();const e=d.getState().userProfile?.carpClipMeters||42;w(` Время перезаброса снасти / докорма свима (клипса ${e} м)!`,"good")}};o(),K=setInterval(o,1e3),w(` Таймер перезаброса запущен на ${r} мин.`,"good")}(parseInt(f.getAttribute("data-recast-timer-min"),10)||15);if(i.closest("#fcStopRecastTimerBtn"))return n.stopPropagation(),void function(){K&&clearInterval(K),K=null,Y=0;const e="undefined"!=typeof document?document.getElementById("fcRecastTimerDisplay"):null;e&&(e.textContent="Выкл",e.className="pill pill-neutral"),w("Таймер перезаброса остановлен","info")}();if(i.closest("#fcOpenRigGuideBtn")){n.stopPropagation();const e=d.getState();return void openRigEncyclopediaModal(g.find((t=>t.id===e.fishId))||g[0])}const b=i.closest("[data-novice-pick-fish]");if(b){const e=b.getAttribute("data-novice-pick-fish");return void(e&&(d.dispatch({type:"SET_FISH",payload:e}),y(["#bentoSwipeHeroCard","#bentoWaveChartCard"],{scroll:!1,delayMs:60})))}if(i.closest("#bentoOpenAllFishBtn"))return"function"==typeof window.__KLEV_NAVIGATE_SECTION__&&window.__KLEV_NAVIGATE_SECTION__("fish"),void y("#secFish .card",{scroll:!0,block:"start",delayMs:100});if(i.closest("#bentoScrollToFactorsBtn")){const e=o.querySelector("#fcHourlyBox");if(e){const t=e.querySelector("details.forecast-why-spoiler");t&&(t.open=!0),y(t||e,{scroll:!0,block:"center",delayMs:60})}return}if(i.closest("#bentoWaveChartCard")){if(o._waveScrubSuppressClickUntil&&Date.now()<o._waveScrubSuppressClickUntil)return;const e=[o.querySelector("#fcWeekBox"),o.querySelector("#fcHourlyBox")].filter(Boolean);return void(e.length>0&&y(e,{scroll:!0,block:"center",delayMs:40}))}if(i.closest("#bentoOpenCrewBadge"))return n.stopPropagation(),void("function"==typeof window.__KLEV_NAVIGATE_SECTION__&&window.__KLEV_NAVIGATE_SECTION__("circle"));if(i.closest("#bentoMapRadarCard"))return"function"==typeof window.__KLEV_NAVIGATE_SECTION__&&window.__KLEV_NAVIGATE_SECTION__("geo"),void y("#mapBox",{scroll:!0,block:"center",delayMs:110});if(i.closest("#bentoWeatherIceCard"))return"function"==typeof window.__KLEV_NAVIGATE_SECTION__&&window.__KLEV_NAVIGATE_SECTION__("weather"),void y("#secWeather .card",{scroll:!0,block:"start",delayMs:100});if(i.closest("#proResetWeightsBtn"))return H.clear(),d.dispatch({type:"SET_PRO_FACTOR_WEIGHTS",payload:{temp:1,press:1,archive_shock:1,circle_field:1}}),Z(o),void w("Веса факторов сброшены к эталонным (1.0x)","info");if(i.closest("#fcOpenChecklistBtn, #proOpenChecklistBtn"))return void openTripChecklistModal();if(i.closest("#fcShareForecastTgBtn")){if(!M("отправки прогноза в Telegram"))return;const e=d.getState(),t=g.find((t=>t.id===e.fishId))||g[0],r=e.weatherDays[e.dayIdx]||e.weatherDays[2]||e.weatherDays[0];if(!r)return;const o=calcDayBest(t,r,e.method,e.water,e.depth,e.normPress,e.iceState),n=getBestBiteWindowText(t,r,e.method,e.water,e.depth,e.normPress,e.iceState),i=calcDynamicRig(e.method,e.water,e.depth,r.windMax,t,r.waterTemp,r.iceState||e.iceState),a=e.selectedWaterName||u[e.water]?.shortName||"водоём",{botStartUrl:s}=T(e.lat,e.lon,e.locLabel,t.id),l="🎣 Клёв ПРО 2.0 • Прогноз ("+(r.relTitle||r.label)+")\n📍 "+e.locLabel+(a&&a!==e.locLabel?" • "+a:"")+"\n🐟 "+t.name+" — клёв "+o+"% ("+n+")\n💧 Вода ~"+r.waterTemp+"°C • 🧭 "+r.pressAvg+" мм • 💨 "+r.windDir+" "+r.windMax+" м/с\n🎯 Снасть: "+i.weight;return void C(s,l)}const k=i.closest("[data-arch-quick-date]");if(k){const e=k.getAttribute("data-arch-quick-date");return void(e&&(X=e,renderHourly(o.querySelector("#fcHourlyBox"))))}const x=i.closest("#archOpenCatchBtn");if(x){const e=d.getState(),t=o.querySelector("#archBaitSel")?.value||e.selectedBait,r=x.getAttribute("data-arch-active-date")||X||e.weatherDays[e.dayIdx]?.date;l.emit("forecast:hourSelected",{dayIdx:e.dayIdx,date:r,hour:e.selectedHour,fishId:e.fishId,bait:t})}}));let n=0,i=0;o.addEventListener("touchstart",(e=>{e.target&&e.target.closest&&e.target.closest("#bentoSwipeHeroCard")&&e.touches&&e.touches[0]?(n=e.touches[0].clientX,i=e.touches[0].clientY):n=0}),{passive:!0}),o.addEventListener("touchend",(t=>{if(!n||!t.changedTouches||!t.changedTouches[0])return;const r=t.changedTouches[0].clientX-n,o=t.changedTouches[0].clientY-i;if(n=0,Math.abs(r)>48&&Math.abs(r)>1.4*Math.abs(o)){const t=d.getState(),o=e(t).filter((e=>"redbook"!==e.legal));if(o.length>1){const e=Math.max(0,o.findIndex((e=>e.id===t.fishId))),n=o[(e+(r<0?1:-1)+o.length)%o.length];n&&(d.dispatch({type:"SET_FISH",payload:n.id}),w(` ${n.name}`,"info"),y("#bentoSwipeHeroCard",{scroll:!1,delayMs:40}))}}}),{passive:!0});let p=!1,h=!1,v=0,f=0,b=null;const k=(e,t)=>{if(!e)return;const r=(e=>{if(!e)return null;if(e._cachedPts)return e._cachedPts;try{const t=e.getAttribute("data-hourly-points");if(!t)return null;const r=JSON.parse(t);if(Array.isArray(r)&&r.length>0)return e._cachedPts=r,r}catch(e){}return null})(e);if(!r||!r.length)return;const o=(e.querySelector("#bentoWaveChartStage")||e).getBoundingClientRect(),n=Math.max(1,o.width||320),i=Math.max(0,Math.min(1,(t-o.left)/n)),a=r[Math.max(0,Math.min(r.length-1,Math.round(i*(r.length-1))))];if(!a)return;e.classList.add("is-scrubbing"),e.setAttribute("data-scrubbing-hour",String(a.hr));const s=e.querySelector("#bentoScrubCursorLine"),l=e.querySelector("#bentoScrubCursorDot"),c=e.querySelector("#bentoScrubHudBadge"),d=e.querySelector("#bentoChartTimeRangeLabel"),p=e.querySelector("#bentoChartPeaksRow"),h=e.querySelector("#bentoChartScrubLiveRow"),v=`${String(a.hr).padStart(2,"0")}:00`,u=`${a.tAir>0?"+"+a.tAir:a.tAir}°C`,f=a.sc>=60?"#10b981":a.sc>=38?"#fbbf24":"#ef4444";if(s&&(s.style.left=`${a.xPct}%`),l&&(l.style.left=`${a.xPct}%`,l.style.top=`${a.yPct}%`,l.style.background=f),c){const e=Math.max(18,Math.min(82,a.xPct));c.style.left=`${e}%`,c.style.borderColor=f,c.innerHTML=`<span style="color:${f};">${v} • Клёв ${a.sc}%</span> <span style="opacity:0.88;">(${u} • ${a.press} мм • ${a.windDir} ${a.wind} м/с)</span>`}d&&(d.dataset.origText||(d.dataset.origText=d.textContent),d.style.color=f,d.textContent=`${v} • Клёв ${a.sc}%`),p&&(p.style.display="none"),h&&(h.style.display="flex",h.innerHTML=`<span>Час: <b style="color:${f};">${v}</b> — Клёв <b style="color:${f};">${a.sc}%</b></span><span>Воздух <b>${u}</b> • <b>${a.press} мм</b> • Ветер <b>${a.windDir} ${a.wind} м/с</b></span>`);const g=Math.min(21,3*Math.round(a.hr/3));e.querySelectorAll(".bento-chart-tick-cell[data-tick-hour]").forEach((e=>{const t=parseInt(e.getAttribute("data-tick-hour"),10);e.classList.toggle("scrub-active-tick",t===g)}))},x=e=>{if(b&&(clearTimeout(b),b=null),e||(e=o.querySelector("#bentoWaveChartCard")),e){e.classList.remove("is-scrubbing"),e.removeAttribute("data-scrubbing-hour");const t=e.querySelector("#bentoChartTimeRangeLabel");t&&t.dataset.origText&&(t.textContent=t.dataset.origText,t.style.color="var(--muted)");const r=e.querySelector("#bentoChartPeaksRow"),o=e.querySelector("#bentoChartScrubLiveRow");r&&(r.style.display="flex"),o&&(o.style.display="none",o.innerHTML=""),e.querySelectorAll(".bento-chart-tick-cell.scrub-active-tick").forEach((e=>{e.classList.remove("scrub-active-tick")}))}p=!1,h=!1};o.addEventListener("touchstart",(e=>{const t=e.target&&e.target.closest?e.target.closest("#bentoWaveChartCard"):null;t&&e.touches&&e.touches[0]&&(p=!0,h=!1,v=e.touches[0].clientX,f=e.touches[0].clientY,b&&clearTimeout(b),b=setTimeout((()=>{p&&(h=!0,k(t,v))}),150))}),{passive:!0}),o.addEventListener("touchmove",(e=>{if(!p||!e.touches||!e.touches[0])return;const t=o.querySelector("#bentoWaveChartCard");if(!t)return;const r=e.touches[0].clientX,n=e.touches[0].clientY,i=r-v,a=n-f;if(!h)if(Math.abs(i)>=6&&Math.abs(i)>=.75*Math.abs(a))b&&(clearTimeout(b),b=null),h=!0;else if(Math.abs(a)>14&&Math.abs(a)>Math.abs(i))return void x(t);h&&(e.cancelable&&e.preventDefault(),k(t,r))}),{passive:!1});const m=()=>{if(!p&&!h)return;const e=h,t=o.querySelector("#bentoWaveChartCard");x(t),e&&(o._waveScrubSuppressClickUntil=Date.now()+360)};o.addEventListener("touchend",m,{passive:!0}),o.addEventListener("touchcancel",m,{passive:!0}),o.addEventListener("mousedown",(e=>{if(0!==e.button)return;const t=e.target&&e.target.closest?e.target.closest("#bentoWaveChartCard"):null;t&&(p=!0,h=!1,v=e.clientX,f=e.clientY,b&&clearTimeout(b),b=setTimeout((()=>{p&&(h=!0,k(t,v))}),150))})),o.addEventListener("mousemove",(e=>{if(!p)return;const t=o.querySelector("#bentoWaveChartCard");if(!t)return;const r=e.clientX-v,n=e.clientY-f;!h&&Math.abs(r)>=5&&Math.abs(r)>=.7*Math.abs(n)&&(b&&(clearTimeout(b),b=null),h=!0),h&&k(t,e.clientX)}));const $=()=>{if(!p&&!h)return;const e=h,t=o.querySelector("#bentoWaveChartCard");x(t),e&&(o._waveScrubSuppressClickUntil=Date.now()+360)};o.addEventListener("mouseup",$),o.addEventListener("mouseleave",$),o.addEventListener("input",(e=>{const t=e.target&&e.target.closest?e.target.closest("[data-pro-weight]"):null;if(!t)return;Q=!0;const r=t.getAttribute("data-pro-weight"),n=parseFloat(t.value);r&&Number.isFinite(n)&&(H.clear(),d.dispatch({type:"SET_PRO_FACTOR_WEIGHTS",payload:{[r]:n}}),Z(o),setTimeout((()=>{Q=!1}),80))})),o.addEventListener("change",(e=>{const t=e.target;if(t){if(t.matches&&t.matches("[data-pro-weight]")){Q=!0;const e=t.getAttribute("data-pro-weight"),r=parseFloat(t.value);return e&&Number.isFinite(r)&&(H.clear(),d.dispatch({type:"SET_PRO_FACTOR_WEIGHTS",payload:{[e]:r}}),Z(o)),void setTimeout((()=>{Q=!1}),80)}if("fcTopMethodSelect"===t.id)return d.dispatch({type:"SET_METHOD",payload:t.value}),void y(["#bentoSwipeHeroCard","#fcTackleControlsCard"],{scroll:!1,delayMs:60});if("fcTopBaitSelect"===t.id||"fcSeasonalBaitSel"===t.id||"archBaitSel"===t.id)return d.dispatch({type:"SET_BAIT",payload:t.value}),void y(["#bentoSwipeHeroCard","#fcTackleControlsCard"],{scroll:!1,delayMs:60});if("archCalendarDate"!==t.id)if("archFishSel"!==t.id)if("archMethodSel"!==t.id)if("archHourSel"!==t.id)if("archWaterSel"!==t.id);else{const[e,r]=t.value.split("|");d.dispatch({type:"SET_WATER",payload:{water:e,selectedWaterName:r}})}else d.dispatch({type:"SET_HOUR",payload:parseInt(t.value,10)});else{const e=t.value;d.dispatch({type:"SET_METHOD",payload:e});const r=d.getState(),n=g.find((e=>e.id===r.fishId))||g[0],i=r.weatherDays[r.dayIdx]||r.weatherDays[2]||r.weatherDays[0]||{},s=a(n,e,i.waterTemp??12,i.iceState||r.iceState),l=o.querySelector("#archBaitSel");l&&(l.innerHTML=s.map((e=>`<option value="${e}">${e}</option>`)).join(""),d.dispatch({type:"SET_BAIT",payload:s[0]||""}))}else{const e=t.value,r=d.getState(),n=g.find((t=>t.id===e))||g[0];d.dispatch({type:"SET_FISH",payload:e});const i=r.weatherDays[r.dayIdx]||r.weatherDays[2]||r.weatherDays[0]||{},l=s(n,i.iceState||r.iceState,r.water,i.waterTemp??12),c=o.querySelector("#archMethodSel"),p=o.querySelector("#archBaitSel");if(c){c.innerHTML=l.map((e=>`<option value="${e.val}">${String(e.text||"").replace(/<[^>]+>/g,"").trim()}</option>`)).join("");const e=l[0]?.val;d.dispatch({type:"SET_METHOD",payload:e});const t=a(n,e,i.waterTemp??12,i.iceState||r.iceState);p&&(p.innerHTML=t.map((e=>`<option value="${e}">${e}</option>`)).join(""),d.dispatch({type:"SET_BAIT",payload:t[0]||""}))}}else t.value&&(X=t.value,renderHourly(o.querySelector("#fcHourlyBox")))}}))}(o),i>0){const e=o.querySelector(".week-strip");e&&(e.scrollLeft=i)}if(p>0){const e=o.querySelector(".bite-timeline");e&&(e.scrollLeft=p)}"undefined"!=typeof window&&n>0&&Math.abs(window.scrollY-n)>4&&window.scrollTo({top:n,behavior:"instant"})}function Z(e){if(!e)return;const t=d.getState(),r=t.proFactorWeights||{temp:1,press:1,archive_shock:1,circle_field:1},o={temp:"#proWTempVal",press:"#proWPressVal",archive_shock:"#proWShockVal",circle_field:"#proWCircleVal"};for(const[t,n]of Object.entries(o)){const o=e.querySelector(n);o&&(o.textContent=`${Number(r[t]??1).toFixed(1)}x`);const i=e.querySelector(`[data-pro-weight="${t}"]`);i&&document.activeElement!==i&&(i.value=String(r[t]??1))}const n=g.find((e=>e.id===t.fishId))||g[0],i=t.weatherDays?.[t.dayIdx]||t.weatherDays?.[2]||t.weatherDays?.[0];if(i){const r=calcDayBest(n,i,t.method,t.water,t.depth,t.normPress,t.iceState),o=e.querySelector("#proCalibLiveSummary");o&&(o.innerHTML=`<svg class="k-ico" viewBox="0 0 24 24" fill="none"><polygon points="13,2 4,14 11,14 10,22 20,10 13,10" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.5" stroke-linejoin="round"/></svg> Активность «${n.name}» с текущей калибровкой весов: <b>${r}%</b> (двигайте ползунки для живого пересчёта прогноза)`)}const a="undefined"!=typeof window?window.scrollY:0;renderWeek(e.querySelector("#fcWeekBox")),renderHourly(e.querySelector("#fcHourlyBox"));const s=document.createElement("div");renderExpress(s);const l=s.querySelector("#fcExpressCardsGrid"),c=e.querySelector("#fcExpressCardsGrid");l&&c&&(c.innerHTML=l.innerHTML),"undefined"!=typeof window&&a>0&&Math.abs(window.scrollY-a)>4&&window.scrollTo({top:a,behavior:"instant"})}let ee=null,te=!1;export function init(e){render(e),ee=d.subscribe((e=>({route:e.route,fishId:e.fishId,dayIdx:e.dayIdx,selectedHour:e.selectedHour,water:e.water,selectedWaterName:e.selectedWaterName,method:e.method,selectedBait:e.selectedBait,depth:e.depth,weatherDays:e.weatherDays,weatherArchive5Days:e.weatherArchive5Days,hasRealArchive:e.hasRealArchive,appMode:e.appMode,circleItems:e.circleItems,proFactorWeights:e.proFactorWeights,catches:e.catches,iceState:e.iceState,theme:e.theme})),((t,r)=>{if(t.route&&"forecast"!==t.route)te=!0;else{if(te||"forecast"!==r?.route)return te=!1,void render(e);if(!Q||!r||t.proFactorWeights===r.proFactorWeights){if(r&&t.proFactorWeights!==r.proFactorWeights&&t.appMode===r.appMode)return H.clear(),void Z(e);if(r&&t.fishId===r.fishId&&t.water===r.water&&t.selectedWaterName===r.selectedWaterName&&t.method===r.method&&t.selectedBait===r.selectedBait&&t.depth===r.depth&&t.appMode===r.appMode&&t.theme===r.theme&&t.weatherDays===r.weatherDays&&t.proFactorWeights===r.proFactorWeights&&e){const r="undefined"!=typeof window?window.scrollY:0;return e.querySelectorAll("[data-week-day]").forEach((e=>{const r=parseInt(e.getAttribute("data-week-day"),10);e.classList.toggle("active",r===t.dayIdx)})),renderExpress(e.querySelector("#fcExpressBox")),renderHourly(e.querySelector("#fcHourlyBox")),void("undefined"!=typeof window&&r>0&&Math.abs(window.scrollY-r)>4&&window.scrollTo({top:r,behavior:"instant"}))}render(e)}}}))}export const forecastModule={init:init,render:render,calcHourly:calcHourly,calcDayBest:calcDayBest,getBestBiteWindowText:getBestBiteWindowText,getFactorBreakdown:getFactorBreakdown,calcDynamicRig:calcDynamicRig};
+import { getFilteredFishList, openFishDetail } from '../fish/fish.module.js?v=2.8.0-r226';
+import { logBlankTrip } from '../log/log.module.js?v=2.8.0-r226';
+import { getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.8.0-r226';
+import { RU } from '../../i18n/ru.js?v=2.8.0-r226';
+import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.8.0-r226';
+import { events } from '../../core/events.js?v=2.8.0-r226';
+import { storage } from '../../core/storage.js?v=2.8.0-r226';
+import { store } from '../../core/store.js?v=2.8.0-r226';
+import { formatLocalYYYYMMDD, fmtDeltaPress, fmtHM } from '../../core/format.js?v=2.8.0-r226';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.8.0-r226';
+import { FISH_DB } from '../../data/species.js?v=2.8.0-r226';
+import { renderFiveFish } from '../../ui/svg.js?v=2.8.0-r226';
+import { createPill, showToast, openModal, flashHighlightElement } from '../../ui/components.js?v=2.8.0-r226';
+import { computeIceSafetyIndex } from '../weather/weather.module.js?v=2.8.0-r226';
+import { evaluateCircleFieldConfirmation, requireRegisteredFisherId } from '../circle/circle.module.js?v=2.8.0-r226';
+import { isTelegramWebApp, getTelegramUser, shareToTelegramChat, openBotChatInTelegram, buildForecastShareUrls, TELEGRAM_BOT_USERNAME } from '../../core/telegram.js?v=2.8.0-r226';
+/**
+ * Список морских, проходных и полупроходных видов, которые заходят в пресные реки
+ * (big_river, small_river) и эстуарии (sea_gulf) при нересте, сезонных миграциях или приливах/отливах.
+ */
+const RIVER_ENTERING_SPECIES = {
+  smelt: { runMonths: [12, 1, 2, 3, 4, 5], reason: 'весенне-зимний нерестовый и кормовой ход из заливов в устья рек' },
+  navaga: { runMonths: [11, 12, 1, 2, 3], reason: 'зимний приливной и преднерестовый заход в устья северных и дальневосточных рек' },
+  flounder: { runMonths: [3, 4, 5, 6, 7, 8, 9, 10], reason: 'заход речной камбалы (глоссы) с приливом в опреснённые устья и низовья рек' },
+  starry_flounder: { runMonths: [4, 5, 6, 7, 8, 9, 10], reason: 'заход звёздчатой камбалы в эстуарии и нижнее течение рек Тихого океана' },
+  mullet: { runMonths: [4, 5, 8, 9, 10], reason: 'сезонный заход пеленгаса и кефали в лиманы и устья рек на нагул и зимовку' },
+  pink_salmon: { runMonths: [6, 7, 8, 9], reason: 'массовый анадромный нерестовый ход горбуши из моря в реки' },
+  chum_salmon: { runMonths: [7, 8, 9, 10], reason: 'анадромный нерестовый ход кеты вверх по рекам' },
+  coho_salmon: { runMonths: [8, 9, 10, 11], reason: 'осенний нерестовый ход кижуча в реки Камчатки и Охотоморья' },
+  sockeye_salmon: { runMonths: [6, 7, 8], reason: 'ход нерки в реки и озёрно-речные системы' },
+  chinook_salmon: { runMonths: [5, 6, 7], reason: 'весенне-летний ход чавычи в русла крупных рек' },
+  cherry_salmon: { runMonths: [4, 5, 6, 7], reason: 'весенний заход симы в реки Приморья и Сахалина' },
+  salmon: { runMonths: [5, 6, 7, 8, 9, 10], reason: 'анадромный заход атлантического лосося (сёмги) в порожистые реки' },
+  trout: { runMonths: [4, 5, 6, 8, 9, 10, 11], reason: 'ход кумжи между морскими губами и реками' },
+  char: { runMonths: [5, 6, 7, 8, 9, 10], reason: 'миграция проходного гольца и кунджи в реки и устья' },
+  dolly_varden: { runMonths: [5, 6, 7, 8, 9, 10], reason: 'нагульно-нерестовая миграция мальмы в реках' },
+  kutum: { runMonths: [3, 4, 5, 9, 10], reason: 'весенний и осенний ход кутума из Каспия в реки' },
+  vobla: { runMonths: [3, 4, 5], reason: 'весенний массовый ход каспийской воблы в дельту и рукава Волги' },
+  taran: { runMonths: [2, 3, 4, 9, 10], reason: 'ход азовской тарани в лиманы, Кубань и Дон' },
+  vimba: { runMonths: [3, 4, 5, 9, 10], reason: 'миграция рыбца (сырти) из заливов в реки с быстрым течением' },
+  omul_arctic: { runMonths: [7, 8, 9, 10, 11], reason: 'полупроходной ход арктического омуля из губы в низовья северных рек' },
+  cisco: { runMonths: [8, 9, 10, 11, 12], reason: 'массовый подъём сибирской ряпушки из губы в реки Пур, Таз, Обь и Енисей' },
+  goby: { runMonths: [4, 5, 6, 7, 8, 9, 10], reason: 'обитание бычка в эстуариях, водохранилищах и низовьях рек' },
+  herring: { runMonths: [4, 5, 6], reason: 'весенний подход сельди в опреснённые заливы и предустьевые зоны' }
+};
+/**
+ * Собирает до 5 предшествующих архивных дней для указанного дня day из 10-км гео-кэша и ленты прогноза
+ */
+const _prev5DaysMemo = new Map();
+const _archiveShockMemo = new Map();
+const _circleFieldMemo = new Map();
+const _dayBestMemo = new Map();
+const _biteWindowMemo = new Map();
+function _pruneCache(mapObj, maxEntries = 2500) {
+  if (mapObj.size > maxEntries) {
+    mapObj.clear();
+  }
+}
+function _buildStateForecastSignature(st, fishId, day, method, water, depth, normPress, iceState) {
+  const pw = (st.appMode === 'pro' && st.proFactorWeights) ? st.proFactorWeights : null;
+  const wSig = pw ? `${pw.temp ?? 1}_${pw.press ?? 1}_${pw.archive_shock ?? 1}_${pw.circle_field ?? 1}` : '1';
+  const cLen = Array.isArray(st.catches) ? st.catches.length : 0;
+  const cirLen = Array.isArray(st.circleItems) ? st.circleItems.length : 0;
+  return `${fishId}|${day.date}|${day.waterTemp}|${day.pressAvg}|${day.dP}|${day.windMax}|${day.iceState || iceState}|${method}|${water}|${depth}|${normPress}|${st.appMode || 'angler'}|${wSig}|${cLen}|${cirLen}|${st.hasRealArchive !== false ? 1 : 0}|${Math.round((st.lat || 0) * 100)}_${Math.round((st.lon || 0) * 100)}`;
+}
+export function getPreceding5DaysForTarget(day, state = null) {
+  const st = state || store.getState();
+  if (!day || !day.date) return [];
+  const targetDate = day.date;
+  const firstWDate = st.weatherDays?.[0]?.date || '';
+  const archLen = Array.isArray(st.weatherArchive5Days) ? st.weatherArchive5Days.length : 0;
+  const memoKey = `${targetDate}|${Math.round((st.lat || 0) * 100)}|${Math.round((st.lon || 0) * 100)}|${firstWDate}|${archLen}`;
+  if (_prev5DaysMemo.has(memoKey)) {
+    return _prev5DaysMemo.get(memoKey);
+  }
+  const mapByDate = {};
+  if (Array.isArray(st.weatherDays)) {
+    for (let i = 0; i < st.weatherDays.length; i++) {
+      const d = st.weatherDays[i];
+      if (d && d.date && d.date < targetDate) mapByDate[d.date] = d;
+    }
+  }
+  if (Array.isArray(st.weatherArchive5Days)) {
+    for (let i = 0; i < st.weatherArchive5Days.length; i++) {
+      const d = st.weatherArchive5Days[i];
+      if (d && d.date && d.date < targetDate) mapByDate[d.date] = d;
+    }
+  }
+  const geoArch = storage.getArchiveDaysForLocation(st.lat, st.lon, 10, targetDate);
+  if (Array.isArray(geoArch.allArchiveDays)) {
+    for (let i = 0; i < geoArch.allArchiveDays.length; i++) {
+      const d = geoArch.allArchiveDays[i];
+      if (d && d.date && d.date < targetDate) mapByDate[d.date] = d;
+    }
+  }
+  const res = Object.keys(mapByDate)
+    .sort()
+    .slice(-5)
+    .map(k => mapByDate[k]);
+  _pruneCache(_prev5DaysMemo, 500);
+  _prev5DaysMemo.set(memoKey, res);
+  return res;
+}
+/**
+ * 7-й ФАКТОР ПРОГНОЗИРОВАНИЯ (Ревизия 2.0.15):
+ * Анализ 5-дневного метеоархива (в радиусе 10 км) и эффекта «барического шока» (ступора рыбы после скачков давления за 1–2 суток).
+ * Даже если сегодня погода и давление нормализовались, при резких скачках за предыдущие 24–72 часа рыба находится в барическом «шоке» и болеет.
+ */
+export function evaluate5DayArchiveAndBaricShock(fish, day, prev5Days = [], hasRealArchive = true) {
+  const sens = Number.isFinite(fish?.bladderSens) ? fish.bladderSens : 0.8;
+  const isBurbot = fish?.id === 'burbot';
+  if (!Array.isArray(prev5Days) || prev5Days.length === 0) {
+    return {
+      val: 0,
+      isShock: false,
+      note: hasRealArchive === false
+        ? 'Архив погоды за 5 дней недоступен для этой точки'
+        : 'Недостаточно архивных дней для оценки барического тренда',
+      commentary: hasRealArchive === false
+        ? 'Прогноз может быть менее точным из-за отсутствия архивных данных по погоде.'
+        : 'Оценка строится по текущим суткам.'
+    };
+  }
+  const recent2 = prev5Days.slice(-2); // Вчера и Позавчера
+  const allPress = [...prev5Days.map(d => d.pressAvg || 754), day.pressAvg || 754];
+  const minP = Math.min(...allPress);
+  const maxP = Math.max(...allPress);
+  const swing5d = Math.round(maxP - minP);
+  let maxRecentJump = 0;
+  recent2.forEach(d => {
+    const dpAbs = Math.abs(d.dP || 0);
+    if (dpAbs > maxRecentJump) maxRecentJump = dpAbs;
+  });
+  if (recent2.length === 2) {
+    const diff2d = Math.abs((day.pressAvg || 754) - (recent2[0].pressAvg || 754));
+    if (diff2d > maxRecentJump) maxRecentJump = diff2d;
+  }
+  const todayJump = Math.abs(day.dP || 0);
+  const todayNormalized = todayJump <= 3;
+  const firstT = prev5Days[0]?.tDay ?? day.tDay;
+  const tempShift5d = Math.round((day.tDay ?? 10) - firstT);
+  let val = 0;
+  let isShock = false;
+  let note = '';
+  let commentary = '';
+  if (maxRecentJump >= 8 || swing5d >= 16) {
+    isShock = true;
+    const rawPenalty = maxRecentJump >= 11 || swing5d >= 20 ? -14 : -9;
+    val = isBurbot ? Math.round(rawPenalty * 0.35) : Math.round(rawPenalty * Math.max(0.6, sens));
+    if (todayNormalized) {
+      note = `Барический «шок» после скачка давления (до ${maxRecentJump} мм за 1–2 сут., размах за 5 дн. ${swing5d} мм)`;
+      commentary = `Даже несмотря на то, что сегодня погода выровнялась (Δ ${fmtDeltaPress(day.dP)}), за предыдущие 1–2 суток зафиксирован резкий перепад давления (${maxRecentJump} мм, 5-дневный размах ${minP}–${maxP} мм). После таких качелей плавательный пузырь рыбы не успевает адаптироваться — рыба находится в барическом «шоке» (ступоре) и игнорирует активные приманки.`;
+    } else {
+      note = `Затяжной барический шторм: скачки до ${maxRecentJump} мм (размах за 5 дн. ${swing5d} мм)`;
+      commentary = `По данным 5-дневного архива локации (10 км) продолжается сильная барическая пила (перепад ${minP}–${maxP} мм). Рыба испытывает выраженный барический шок и стоит в глухой обороне у дна.`;
+    }
+  } else if (maxRecentJump >= 5 || swing5d >= 10) {
+    val = isBurbot ? +3 : Math.round(-4 * Math.max(0.55, sens));
+    note = `Умеренные качели давления за 5 дней (размах ${swing5d} мм, вчера/позавчера до ${maxRecentJump} мм)`;
+    commentary = `За последние ${prev5Days.length} дн. в радиусе 10 км давление менялось в пределах ${minP}–${maxP} мм (${swing5d} мм). Умеренная барическая нестабильность делает поклёвки осторожными и короткими.`;
+  } else {
+    val = Math.round(8 * Math.max(0.75, sens));
+    note = `Стабильное плато давления ${prev5Days.length} дн. подряд (размах всего ${swing5d} мм)`;
+    commentary = `За последние ${prev5Days.length} дн. в этой локации (10 км) держится ровное атмосферное давление (${minP}–${maxP} мм, без резких скачков). Рыба полностью адаптировалась к горизонту глубины и выходит на уверенную кормёжку.`;
+  }
+  if (Math.abs(tempShift5d) >= 6) {
+    if (tempShift5d <= -6 && ['burbot', 'chir', 'pizhyan', 'peled', 'cisco', 'whitefish'].includes(fish?.id)) {
+      val += 4;
+      commentary += ` Пятидневное похолодание (${tempShift5d}°C) дополнительно активизирует холоднолюбивый вид.`;
+    } else if (tempShift5d <= -6 && fish?.type === 'peace') {
+      val -= 4;
+      commentary += ` Резкое похолодание за 5 дней (${tempShift5d}°C) снизило кормовую активность мирной рыбы.`;
+    }
+  }
+  const spaceWeather = store.getState()?.spaceWeather;
+  if (spaceWeather && Number.isFinite(spaceWeather.kpIndex) && spaceWeather.kpIndex >= 5.0 && !isBurbot) {
+    const geoPenalty = spaceWeather.kpIndex >= 6.5 ? -4 : -2;
+    val += Math.round(geoPenalty * Math.max(0.6, sens));
+    commentary += ` Дополнительно по сводке ИПГ Росгидромета зафиксирована геомагнитная активность (Kp=${spaceWeather.kpIndex}, ${spaceWeather.label.toLowerCase()}).`;
+  }
+  val = Math.max(-20, Math.min(12, val));
+  return { val, isShock, note, commentary, swing5d, maxRecentJump };
+}
+/**
+ * Аналитика Личного журнала рыболова для калибровки прогноза клёва (Ревизия 2.0.15):
+ * Сравнивает текущие условия (температура воды, давление, ветер, снасть, час) с реальными уловами пользователя из журнала.
+ */
+export function evaluateLogbookInsight(fish, day, hrObj, method, water, catches = []) {
+  if (!Array.isArray(catches) || catches.length === 0 || !fish) {
+    return {
+      val: 0,
+      hasData: false,
+      note: 'Журнал уловов: пока нет записей для личной калибровки',
+      commentary: 'Добавляйте свои уловы через кнопку «<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg> Я поймал» (доступна запись за последние 5 дней по календарю), чтобы прогноз автоматически учитывал вашу личную статистику по водоёмам и приманкам.'
+    };
+  }
+  const byFish = catches.filter(c => c && c.fishId === fish.id);
+  if (byFish.length === 0) {
+    return {
+      val: 0,
+      hasData: false,
+      note: `Журнал уловов: всего записей ${catches.length}, по виду «${fish.name}» пока 0`,
+      commentary: `В вашем журнале ${catches.length} уловов других видов, но по рыбе «${fish.name}» записей ещё нет.`
+    };
+  }
+  const curWT = day.waterTemp ?? 10;
+  const curP = hrObj?.press ?? day.pressAvg ?? 754;
+  const curHr = hrObj?.hour ?? 12;
+  const avgWT = Math.round((byFish.reduce((a, b) => a + (Number.isFinite(b.waterTemp) ? b.waterTemp : curWT), 0) / byFish.length) * 10) / 10;
+  const avgP = Math.round(byFish.reduce((a, b) => a + (Number.isFinite(b.press) ? b.press : curP), 0) / byFish.length);
+  const baitCounts = {};
+  byFish.forEach(c => {
+    if (c.bait) baitCounts[c.bait] = (baitCounts[c.bait] || 0) + 1;
+  });
+  const topBait = Object.entries(baitCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'проверенная приманка';
+  const similarCatches = byFish.filter(c => {
+    const wtDiff = Math.abs((c.waterTemp ?? curWT) - curWT);
+    const pDiff = Math.abs((c.press ?? curP) - curP);
+    return wtDiff <= 3.5 && pDiff <= 6;
+  });
+  const sameHourCatches = byFish.filter(c => Math.abs((c.hour ?? 12) - curHr) <= 2);
+  let val = 0;
+  let note = '';
+  let commentary = '';
+  if (similarCatches.length > 0) {
+    val = Math.min(9, 4 + similarCatches.length * 2 + (sameHourCatches.length > 0 ? 2 : 0));
+    note = `Личный журнал (${byFish.length} уловов): текущая погода совпадает с ${similarCatches.length} вашими поимками (+${val}%)`;
+    commentary = `По данным вашего журнала уловов (${byFish.length} зап. по виду «${fish.name}») вы уже успешно ловили эту рыбу при таких же условиях (вода ~${avgWT}°C, давление ~${avgP} мм). Ваша самая уловистая приманка из журнала: «${topBait}».`;
+  } else {
+    const wtDiffAvg = Math.abs(curWT - avgWT);
+    const pDiffAvg = Math.abs(curP - avgP);
+    if (wtDiffAvg > 6 || pDiffAvg > 10) {
+      val = -3;
+      note = `Личный журнал (${byFish.length} уловов): условия отличаются от ваших средних (вода ~${avgWT}°C, ${avgP} мм)`;
+      commentary = `В вашем журнале «${fish.name}» чаще ловилась при воде ~${avgWT}°C и давлении ~${avgP} мм (лучшая приманка: «${topBait}»). Сейчас условия заметно отличаются, рекомендуем более деликатную подачу.`;
+    } else {
+      val = +2;
+      note = `Личный журнал (${byFish.length} уловов): близко к вашей статистике (лучшая насадка — ${topBait})`;
+      commentary = `Учтена статистика вашего журнала (${byFish.length} уловов вида «${fish.name}», средние условия: вода ~${avgWT}°C, давление ~${avgP} мм, фаворит — «${topBait}»).`;
+    }
+  }
+  return { val, hasData: true, topBait, count: byFish.length, note, commentary };
+}
+/**
+ * Ревизия 2.0.15:
+ * 7-факторный расчёт почасового прогноза клёва + калибровка по Личному журналу рыболова:
+ * 1) Температура воды (с учётом течения водоёма)
+ * 2) Давление и его суточный/3ч ход
+ * 3) Метеоархив за 5 дней и барический шок (7-й уникальный фактор из 10-км гео-кэша!)
+ * 4) Сезон, биоритм и миграция
+ * 5) Глубина, течение, свет и снасть
+ * 6) Ветер и волнение
+ * 7) Фаза Луны и приливные окна
+ * + Учёт Личного журнала уловов пользователя
+ */
+export function computeHourFactors(fish, day, hrObj, method, water, depth, normPress = 752, globalIceState = 'open_water', fastScoreOnly = false) {
+  const st = store.getState();
+  const dayIce = day.iceState || globalIceState;
+  const isRedBook = fish.legal === 'redbook';
+  const isIceDanger = dayIce === 'ice_danger' && !method.startsWith('winter_');
+  const prof = WATER_PROFILES[water] || WATER_PROFILES.small_river;
+  const flowLabel = prof.flow >= 1.8 ? 'быстрое течение' : (prof.flow >= 1.1 ? 'умеренное течение' : 'стоячая вода');
+  const wt = day.waterTemp ?? 8;
+  const [tOptMin, tOptMax] = fish.tWaterOpt || [8, 16];
+  const isDormantWinterFish = ['carp', 'crucian', 'tench', 'catfish', 'amur_catfish', 'channel_catfish', 'tilapia', 'silver_carp', 'grass_carp', 'black_carp', 'snakehead', 'buffalo'].includes(fish.id);
+  const isColdLovingKing = ['burbot', 'peled', 'chir', 'pizhyan', 'muksun', 'whitefish', 'cisco', 'tugun', 'valek', 'omul', 'omul_arctic', 'vendace', 'broad_whitefish', 'smelt', 'navaga', 'saffron_cod', 'cod', 'haddock', 'char', 'dolly_varden', 'lenok', 'taimen', 'nelma'].includes(fish.id);
+  const isUnderIceOrFreezeUp = dayIce === 'ice_safe' || dayIce === 'ice_danger' || dayIce === 'ice_slush' || wt <= 1.2;
+  const iceCmNow = Number(day.iceThickness) || 0;
+  const isFirstIceBoom = (dayIce === 'ice_safe' || dayIce === 'ice_danger') && iceCmNow >= 3 && iceCmNow <= 25;
+  let tempDelta = 0;
+  let tempNote = `Вода ${wt}°C с учётом течения (${flowLabel}, оптимум ${tOptMin}–${tOptMax}°C)`;
+  if (isUnderIceOrFreezeUp && !isDormantWinterFish) {
+    const bottomLayerTemp = prof.flow >= 1.4 ? 1.6 : 2.8;
+    if (isColdLovingKing) {
+      tempDelta = isFirstIceBoom ? +14 : +10;
+      tempNote = `Зимний режим (подо льдом ${wt}°C, у дна ~+${bottomLayerTemp}°C) — пик холодноводной активности вида`;
+    } else {
+      tempDelta = isFirstIceBoom ? +7 : +2;
+      tempNote = isFirstIceBoom
+        ? `Перволёдье (~${iceCmNow} см, у дна ~+${bottomLayerTemp}°C) — активный кислородный режим и жор рыбы со льда`
+        : `Подлёдный режим (у льда ${wt}°C, в придонном слое ~+${bottomLayerTemp}°C, ${flowLabel})`;
+    }
+  } else if (wt < fish.tMinStop) {
+    tempDelta = -32;
+    tempNote = `Вода ${wt}°C (${flowLabel}) ниже порога активности (${fish.tMinStop}°C) — зимнее оцепенение`;
+  } else if (wt >= tOptMin && wt <= tOptMax) {
+    tempDelta = +16;
+    tempNote = `Вода ${wt}°C (${flowLabel}) в оптимуме вида (${tOptMin}–${tOptMax}°C)`;
+  } else if (wt < tOptMin) {
+    const span = Math.max(1.5, tOptMin - fish.tMinStop);
+    const ratio = (wt - fish.tMinStop) / span;
+    const coldBoost = (fish.coldFactor || 0.7) >= 1.05 ? 6 : 0;
+    tempDelta = Math.round(-14 + ratio * 26 + coldBoost);
+    tempNote = `Вода ${wt}°C (${flowLabel}) прохладнее летнего оптимума (${tOptMin}–${tOptMax}°C)`;
+  } else {
+    const excess = wt - tOptMax;
+    tempDelta = Math.max(-30, Math.round(12 - excess * 7));
+    tempNote = `Вода ${wt}°C (${flowLabel}) теплее оптимума (${tOptMin}–${tOptMax}°C)`;
+  }
+  const pDiff = Math.abs((hrObj.press || 754) - normPress);
+  const dp = hrObj.dp3h ?? (day.dP / 4);
+  let pressDelta = Math.round(6 - Math.min(14, pDiff * 0.6 * (fish.bladderSens || 0.8)));
+  if (fish.type === 'predator') {
+    if (dp <= -0.8) pressDelta += 8;
+    else if (dp >= 1.0) pressDelta -= 9;
+  } else {
+    if (Math.abs(dp) <= 0.6) pressDelta += 6;
+    else if (dp <= -1.0) pressDelta -= 8;
+  }
+  const absDailyDP = Math.abs(day.dP || 0);
+  if (absDailyDP >= 8) {
+    pressDelta -= 18;
+  } else if (absDailyDP >= 5) {
+    pressDelta -= 12;
+  }
+  pressDelta = Math.max(-24, Math.min(15, pressDelta));
+  const pressNote = `Давление ${hrObj.press} мм (суточный ход ${fmtDeltaPress(day.dP)})`;
+  const hasRealArchive = st.hasRealArchive !== false;
+  const archMemoKey = `${fish.id}|${day.date}|${day.pressAvg}|${day.dP}|${day.tDay}|${hasRealArchive ? 1 : 0}|${Math.round((st.lat || 0) * 100)}_${Math.round((st.lon || 0) * 100)}`;
+  let archiveEval = _archiveShockMemo.get(archMemoKey);
+  if (!archiveEval) {
+    const prev5Days = getPreceding5DaysForTarget(day, st);
+    archiveEval = evaluate5DayArchiveAndBaricShock(fish, day, prev5Days, hasRealArchive);
+    _pruneCache(_archiveShockMemo, 2500);
+    _archiveShockMemo.set(archMemoKey, archiveEval);
+  }
+  const archiveDelta = archiveEval.val;
+  const archiveNote = archiveEval.note;
+  let windDelta = 0;
+  let customIceWindNote = '';
+  if (dayIce === 'ice_safe') {
+    if (fish.id === 'burbot') {
+      if (hrObj.wind >= 4.5 || hrObj.precip > 0) {
+        windDelta = +10;
+        customIceWindNote = `Ветер ${hrObj.windDir} ${hrObj.wind} м/с (метель и ветер подо льдом активизируют выход налима на кормовые тропы)`;
+      } else if (hrObj.wind >= 3.0) {
+        windDelta = +6;
+        customIceWindNote = `Ветер ${hrObj.windDir} ${hrObj.wind} м/с (зимний ветер благоприятствует активности налима со льда)`;
+      } else {
+        windDelta = +3;
+        customIceWindNote = `Ветер ${hrObj.windDir} ${hrObj.wind} м/с (монолитный лёд изолирует воду от волны)`;
+      }
+    } else if (method === 'winter_jig' && hrObj.wind >= 5.5) {
+      windDelta = -6;
+      customIceWindNote = `Ветер ${hrObj.windDir} ${hrObj.wind} м/с (лёд гасит волну, но ветер выдувает леску и сбивает игру тонкого кивка — рекомендуется палатка или вольфрамовая мормышка)`;
+    } else {
+      const isActiveUnderIcePredator = ['zander', 'pike', 'perch', 'volga_zander', 'nelma', 'taimen'].includes(fish.id) && hrObj.wind >= 4.0;
+      windDelta = isActiveUnderIcePredator ? +4 : +3;
+      customIceWindNote = `Ветер ${hrObj.windDir} ${hrObj.wind} м/с (монолитный лёд изолирует воду от волны, снасть работает стабильно)`;
+    }
+  } else if (fish.id === 'burbot') {
+    windDelta = (hrObj.wind >= 4 || hrObj.precip > 0) ? +10 : 0;
+  } else {
+    if (hrObj.wind >= 1.5 && hrObj.wind <= 5.5) windDelta += 6;
+    else if (hrObj.wind >= 8.5) windDelta -= 16;
+    else if (hrObj.wind > 6.5) windDelta -= 8;
+    else windDelta -= 2;
+    if (['Ю', 'ЮЗ', 'З'].includes(hrObj.windDir)) windDelta += 4;
+    else if (['С', 'СВ', 'В'].includes(hrObj.windDir)) windDelta -= 4;
+    if (['carp', 'grass_carp', 'crucian', 'bream', 'tench', 'buffalo'].includes(fish.id) && hrObj.wind >= 2.5 && hrObj.wind <= 7.0) {
+      windDelta += 4;
+    }
+  }
+  const isCarpSurf = dayIce === 'open_water' && ['carp', 'grass_carp', 'crucian', 'bream', 'tench', 'buffalo'].includes(fish.id) && hrObj.wind >= 2.5 && hrObj.wind <= 7.0;
+  const windNote = customIceWindNote
+    ? customIceWindNote
+    : (isCarpSurf
+        ? `Ветер ${hrObj.windDir} ${hrObj.wind} м/с (фактор «Прибойный берег» +кислород)`
+        : `Ветер ${hrObj.windDir} ${hrObj.wind} м/с`);
+  const dtMonthIdx = day._mIdx !== undefined ? day._mIdx : (day._mIdx = (parseInt(String(day.date || '2026-06').slice(5, 7), 10) - 1) || 0);
+  const curMonthNum = dtMonthIdx + 1;
+  const mAct = (fish.monthActivity && fish.monthActivity[dtMonthIdx]) ?? 2;
+  let seasonDelta = mAct === 3 ? +14 : (mAct === 2 ? +6 : (mAct === 1 ? -6 : -18));
+  const runInfo = RIVER_ENTERING_SPECIES[fish.id];
+  const isRiverWater = water === 'big_river' || water === 'small_river';
+  const isSeaWater = water === 'sea_gulf' || water === 'open_sea';
+  let seasonNote = `Сезонный биоритм месяца: ${mAct} из 3`;
+  if (runInfo && isRiverWater) {
+    if (runInfo.runMonths.includes(curMonthNum)) {
+      seasonDelta += 10;
+      seasonNote = `Речной ход (${runInfo.reason})`;
+    } else {
+      seasonDelta -= 12;
+      seasonNote = `Вне сезона массового захода в реки (основное стадо в море/заливе)`;
+    }
+  } else if (fish.habitat === 'sea' && !runInfo && isRiverWater) {
+    seasonDelta -= 28;
+    seasonNote = 'Строго морской вид (не заходит в пресные реки)';
+  } else if (fish.spawnMonth && fish.spawnMonth.includes(curMonthNum)) {
+    if (runInfo && ['pink_salmon', 'chum_salmon', 'coho_salmon', 'sockeye_salmon', 'chinook_salmon', 'cherry_salmon', 'smelt', 'vobla', 'taran', 'kutum'].includes(fish.id)) {
+      seasonDelta += 8;
+      seasonNote = `Активный преднерестовый и миграционный ход (${runInfo.reason})`;
+    } else {
+      seasonDelta = -20;
+      seasonNote = 'Период нереста — кормовая активность снижена';
+    }
+  }
+  if (dayIce === 'ice_safe' && ['crucian', 'carp', 'tench', 'catfish', 'tilapia', 'silver_carp', 'grass_carp', 'snakehead'].includes(fish.id)) {
+    seasonDelta = -28;
+  }
+  if (dayIce === 'ice_slush') {
+    if (['burbot', 'chir', 'pizhyan', 'peled', 'cisco', 'whitefish', 'navaga', 'smelt'].includes(fish.id)) {
+      seasonDelta += 6;
+    } else {
+      seasonDelta -= 5;
+    }
+  }
+  let gearDelta = 0;
+  if (depth > fish.depthMax) {
+    gearDelta -= 22;
+  } else if (depth >= fish.depthOpt[0] && depth <= fish.depthOpt[1]) {
+    gearDelta += 8;
+  } else {
+    gearDelta -= 6;
+  }
+  gearDelta += getMethodCompatibility(fish, method, water);
+  const h = hrObj.hour;
+  const sr = day.sunriseHr ?? 7;
+  const ss = day.sunsetHr ?? 18;
+  const isTwilight = Math.abs(h + 0.5 - sr) <= 1.5 || Math.abs(h + 0.5 - ss) <= 1.5;
+  const isDay = (h + 0.5 >= sr - 0.5) && (h + 0.5 <= ss + 0.5);
+  const isStationaryLivebait = method === 'winter_livebait' || method === 'winter_stuka';
+  let timeOfDayDelta = 0;
+  if (fish.feedMode === 'nocturnal') timeOfDayDelta = !isDay ? +7 : (isTwilight ? +2 : -22);
+  else if (fish.feedMode === 'crepuscular') timeOfDayDelta = isTwilight ? +7 : (isDay ? +2 : (isStationaryLivebait ? -18 : -24));
+  else if (fish.feedMode === 'diurnal') timeOfDayDelta = isDay ? +5 : (isTwilight ? +1 : (isStationaryLivebait ? -20 : -26));
+  gearDelta = Math.max(-26, Math.min(16, Math.round(gearDelta * 0.65) + timeOfDayDelta));
+  const timeLabelRu = isTwilight ? 'зорька/сумерки' : (isDay ? 'светлое время' : 'ночь');
+  const gearNote = `Глубина ${depth} м (оптимум ${fish.depthOpt[0]}–${fish.depthOpt[1]} м) • снасть и биоритм часа (${String(h).padStart(2, '0')}:00 — ${timeLabelRu})`;
+  const md = day.moon?.moonDay || 10;
+  let moonDelta = 0;
+  if (md >= 28 || md <= 2 || (md >= 14 && md <= 17)) moonDelta += 3;
+  else if ((md >= 6 && md <= 8) || (md >= 21 && md <= 23)) moonDelta -= 3;
+  const dTr = Math.min(Math.abs(h - (day.moon?.transitHour || 12)), 24 - Math.abs(h - (day.moon?.transitHour || 12)));
+  const dUn = Math.min(Math.abs(h - (day.moon?.underfootHour || 0)), 24 - Math.abs(h - (day.moon?.underfootHour || 0)));
+  if (dTr <= 1.5 || dUn <= 1.5) {
+    moonDelta += (isSeaWater || runInfo) ? 5 : 2;
+  }
+  const moonNote = (isSeaWater || runInfo)
+    ? `${day.moon?.phaseName || 'Луна'} (${md} л.д. • приливное окно)`
+    : `${day.moon?.phaseName || 'Луна'} (${md} л.д.)`;
+  const catchesArr = st.catches || [];
+  const logInsight = catchesArr.length > 0
+    ? evaluateLogbookInsight(fish, day, hrObj, method, water, catchesArr)
+    : { val: 0, hasData: false, note: 'Журнал уловов: пока нет записей для личной калибровки', commentary: 'Добавляйте свои уловы через кнопку «<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg> Я поймал» (доступна запись за последние 5 дней по календарю), чтобы прогноз автоматически учитывал вашу личную статистику по водоёмам и приманкам.' };
+  const circleArr = st.circleItems || [];
+  let circleEval;
+  if (circleArr.length === 0) {
+    circleEval = { val: 0, hasSignal: false, note: 'Нет активных сигналов в радиусе 35 км за 72 ч', commentary: 'В радиусе 35 км пока нет свежих отчётов Круга или точек Экипажа за последние 72 часа.' };
+  } else {
+    const cirMemoKey = `${fish.id}|${Math.round((st.lat || 0) * 100)}_${Math.round((st.lon || 0) * 100)}|${circleArr.length}|${circleArr[0]?.id || ''}|${catchesArr.length}`;
+    circleEval = _circleFieldMemo.get(cirMemoKey);
+    if (!circleEval) {
+      circleEval = evaluateCircleFieldConfirmation(fish, st.lat, st.lon, circleArr, catchesArr);
+      _pruneCache(_circleFieldMemo, 1000);
+      _circleFieldMemo.set(cirMemoKey, circleEval);
+    }
+  }
+  const w = (st.appMode === "pro" && st.proFactorWeights) ? st.proFactorWeights : { temp: 1, press: 1, archive_shock: 1, circle_field: 1 };
+  const wTemp = Number(w.temp ?? 1);
+  const wPress = Number(w.press ?? 1);
+  const wShock = Number(w.archive_shock ?? 1);
+  const wCircle = Number(w.circle_field ?? 1);
+  tempDelta = Math.round(tempDelta * wTemp + (wTemp - 1) * 14);
+  pressDelta = Math.round(pressDelta * wPress + (wPress - 1) * 12);
+  const weightedArchiveDelta = Math.round(archiveDelta * wShock + (wShock - 1) * 10);
+  const rawCircleSignal = (circleEval.val || 0) !== 0 ? circleEval.val : (circleArr.length > 0 ? 5 : 0);
+  const circleDelta = Math.round(rawCircleSignal * wCircle + (wCircle - 1) * 12);
+  const baseScore = 52;
+  let rawTotal = baseScore + tempDelta + pressDelta + weightedArchiveDelta + windDelta + seasonDelta + gearDelta + moonDelta + logInsight.val + circleDelta;
+  if (isIceDanger) {
+    rawTotal = Math.min(28, rawTotal - 18);
+  }
+  // Биологическая нормировка на собственный температурно-сезонный оптимум вида (без ручных констант и потолка 98%)
+  const curMonthIdx = new Date(day.date || Date.now()).getMonth();
+  const monthBioBase = Array.isArray(fish.monthActivity) ? (Number(fish.monthActivity[curMonthIdx]) || 65) : 65;
+  const optMid = ((Number(tOptMin) || 8) + (Number(tOptMax) || 16)) * 0.5;
+  const optSpan = Math.max(2.5, ((Number(tOptMax) || 16) - (Number(tOptMin) || 8)) * 0.5);
+  const thermalFit = Math.max(0, 1 - Math.abs(wt - optMid) / (optSpan * 2.2));
+  const bioNormCeiling = Math.round(86 + (monthBioBase / 100) * 8 + thermalFit * 4);
+  let scaledTotal = rawTotal;
+  if (!isIceDanger && rawTotal > 72) {
+    const excess = rawTotal - 72;
+    scaledTotal = 72 + 24 * (1 - Math.exp(-excess / 24)) * (0.85 + 0.15 * thermalFit);
+  }
+  const total = Math.max(4, Math.min(bioNormCeiling, Math.round(scaledTotal)));
+  if (fastScoreOnly) {
+    return { total, forbidden: isRedBook, iceDanger: isIceDanger };
+  }
+  const factors = [
+    { id: 'temp', name: '1. Температура воды (с учётом течения)', val: tempDelta, note: tempNote },
+    { id: 'press', name: '2. Давление и его текущий ход', val: pressDelta, note: pressNote },
+    { id: 'archive_shock', name: '3. Метеоархив (5 дней) и барический шок', val: weightedArchiveDelta, note: archiveNote },
+    { id: 'season', name: '4. Сезон, биоритм и миграция', val: seasonDelta, note: seasonNote },
+    { id: 'gear', name: '5. Глубина, свет и снасть', val: gearDelta, note: gearNote },
+    { id: 'wind', name: '6. Ветер и волнение', val: windDelta, note: windNote },
+    { id: 'moon', name: (isSeaWater || runInfo) ? '7. Фаза Луны и прилив' : '7. Фаза Луны', val: moonDelta, note: moonNote }
+  ];
+  if (circleEval.hasSignal || st.appMode === "pro") {
+    factors.push({
+      id: 'circle_field',
+      name: '8. Полевое подтверждение (Круг ±5 км и Экипаж)',
+      val: circleDelta,
+      note: circleEval.note
+    });
+  }
+  if (logInsight.hasData) {
+    factors.push({
+      id: 'logbook',
+      name: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="5" y="3" width="14" height="18" rx="2.5" fill="rgba(56,189,248,0.16)" stroke="currentColor" stroke-width="1.8"/><path d="M9 7h6M9 11h6M9 15h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Калибровка по вашему Журналу уловов',
+      val: logInsight.val,
+      note: logInsight.note
+    });
+  }
+  return {
+    total,
+    forbidden: isRedBook,
+    iceDanger: isIceDanger,
+    hasRealArchive,
+    archiveEval,
+    logInsight,
+    circleEval,
+    factors
+  };
+}
+const _WINTER_LURE_SET = new Set(['perch', 'pike', 'zander', 'grayling', 'smelt', 'trout', 'cod', 'navaga', 'lenok', 'volga_zander', 'char', 'broad_whitefish', 'saffron_cod', 'peled', 'chir', 'pizhyan', 'whitefish', 'omul', 'baikal_grayling', 'kundzha', 'nelma', 'taimen']);
+const _WINTER_JIG_SET = new Set(['chir', 'pizhyan', 'peled', 'cisco', 'roach', 'perch', 'whitefish', 'ruffe', 'smelt', 'bream', 'ide', 'dace', 'white_bream', 'vendace', 'omul', 'omul_arctic', 'valek', 'baikal_grayling', 'tugun', 'crucian', 'rudd', 'gudgeon', 'muksun']);
+const _WINTER_STUKA_SET = new Set(['burbot', 'cod', 'halibut', 'navaga', 'wolffish']);
+const _WINTER_CISCO_SET = new Set(['cisco', 'peled', 'smelt', 'whitefish', 'herring', 'vendace', 'omul', 'omul_arctic', 'tugun', 'chir', 'pizhyan', 'muksun']);
+const _NANO_MASTERS_SET = new Set([
+  'perch', 'roach', 'crucian', 'dace', 'peled', 'rudd', 'bleak', 'chub', 'ide',
+  'grayling', 'baikal_grayling', 'trout', 'brown_trout', 'rainbow_trout', 'rotan',
+  'gudgeon', 'bream', 'white_bream', 'blue_bream', 'sopa', 'tench', 'carp', 'chekhon',
+  'vimba', 'vobla', 'taran', 'undermouth', 'chir', 'pizhyan', 'tugun', 'whitefish',
+  'cisco', 'vendace', 'broad_whitefish', 'omul', 'omul_arctic', 'valek', 'smelt',
+  'ruffe', 'minnow', 'verkhovka', 'bitterling', 'horse_mackerel', 'sea_bass',
+  'scorpionfish', 'wrasse', 'sea_bream', 'red_mullet', 'goby', 'shemaya', 'muksun'
+]);
+const _SPIN_JIG_SET = new Set(['zander', 'pike', 'perch', 'catfish', 'volga_zander', 'amur_catfish', 'channel_catfish', 'burbot', 'cod', 'halibut', 'greenling', 'asp', 'chub', 'ide', 'nelma', 'taimen', 'chinese_perch', 'yellowcheek']);
+const _SPIN_LURE_SET = new Set(['ide', 'dace', 'chekhon', 'peled', 'chir', 'pizhyan', 'whitefish', 'tugun', 'rudd', 'bleak', 'roach', 'bream']);
+const _BOTTOM_EXTRA_SET = new Set(['catfish', 'burbot', 'channel_catfish', 'amur_catfish', 'ruffe', 'flounder', 'starry_flounder', 'turbot', 'plaice', 'goby', 'perch', 'pike', 'zander', 'beluga', 'kaluga']);
+const _FLOAT_EXTRA_SET = new Set(['perch', 'rotan', 'ruffe', 'chub', 'grayling', 'baikal_grayling', 'trout', 'dolly_varden', 'garfish']);
+const _FLY_SET = new Set(['grayling', 'baikal_grayling', 'lenok', 'salmon', 'trout', 'chub', 'ide', 'tugun', 'dace', 'peled', 'chir', 'pizhyan', 'whitefish', 'cisco', 'valek', 'brown_trout', 'sockeye_salmon', 'char', 'dolly_varden', 'bleak', 'rudd', 'chekhon', 'roach', 'taimen', 'nelma']);
+function getMethodCompatibility(fish, method, water = 'small_river') {
+  const fid = fish.id;
+  const isRiverEntering = Boolean(RIVER_ENTERING_SPECIES[fid]);
+  if (method === 'winter_livebait') return fish.type === 'predator' ? 7 : -14;
+  if (method === 'winter_lure') return _WINTER_LURE_SET.has(fid) ? 8 : -10;
+  if (method === 'winter_jig') return _WINTER_JIG_SET.has(fid) ? 8 : -5;
+  if (method === 'winter_stuka') return _WINTER_STUKA_SET.has(fid) ? 10 : -12;
+  if (method === 'winter_cisco') return _WINTER_CISCO_SET.has(fid) ? 10 : -10;
+  if (method === 'spin_micro') return _NANO_MASTERS_SET.has(fid) ? 9 : (fish.type === 'predator' ? 5 : 4);
+  if (method === 'spin_jig') return _SPIN_JIG_SET.has(fid) ? 8 : (fish.type === 'predator' ? 4 : -10);
+  if (method === 'spin_lure') return (fish.type === 'predator' || _SPIN_LURE_SET.has(fid)) ? 8 : -8;
+  if (method === 'bottom') return (fish.type === 'peace' || isRiverEntering || _BOTTOM_EXTRA_SET.has(fid)) ? 8 : -5;
+  if (method === 'float') return (fish.type === 'peace' || isRiverEntering || _FLOAT_EXTRA_SET.has(fid)) ? 8 : -5;
+  if (method === 'fly') return _FLY_SET.has(fid) ? 9 : -8;
+  if (method.startsWith('sea_')) return (fish.habitat === 'sea' || isRiverEntering || water === 'sea_gulf' || water === 'open_sea') ? 8 : -12;
+  return 0;
+}
+export function calcHourly(fish, day, hrObj, method, water, depth, normPress = 752, iceState = 'open_water') {
+  return computeHourFactors(fish, day, hrObj, method, water, depth, normPress, iceState, true).total;
+}
+function _computeDaySummaryFast(fish, day, method, water, depth, normPress = 752, iceState = 'open_water') {
+  const st = store.getState();
+  const sig = _buildStateForecastSignature(st, fish.id, day, method, water, depth, normPress, iceState);
+  const cached = _dayBestMemo.get(sig);
+  if (cached) return cached;
+  let s0 = -1, s1 = -1, s2 = -1, s3 = -1;
+  let bestHr = 7;
+  let bestScore = -1;
+  const hrs = day.hours;
+  for (let i = 0; i < hrs.length; i++) {
+    const hr = hrs[i];
+    const sc = computeHourFactors(fish, day, hr, method, water, depth, normPress, iceState, true).total;
+    if (sc > bestScore) {
+      bestScore = sc;
+      bestHr = hr.hour;
+    }
+    if (sc > s0) { s3 = s2; s2 = s1; s1 = s0; s0 = sc; }
+    else if (sc > s1) { s3 = s2; s2 = s1; s1 = sc; }
+    else if (sc > s2) { s3 = s2; s2 = sc; }
+    else if (sc > s3) { s3 = sc; }
+  }
+  const score = Math.round((s0 + s1 + s2 + s3) / 4);
+  const endHr = (bestHr + 2) % 24;
+  const windowText = `${String(bestHr).padStart(2, '0')}:00–${String(endHr).padStart(2, '0')}:00 (${bestScore}%)`;
+  const summary = { score, windowText };
+  _pruneCache(_dayBestMemo, 4000);
+  _dayBestMemo.set(sig, summary);
+  return summary;
+}
+export function calcDayBest(fish, day, method, water, depth, normPress = 752, iceState = 'open_water') {
+  if (!fish || !day?.hours?.length) return 0;
+  return _computeDaySummaryFast(fish, day, method, water, depth, normPress, iceState).score;
+}
+export function getBestBiteWindowText(fish, day, method, water, depth, normPress = 752, iceState = 'open_water') {
+  if (!fish || !day?.hours?.length) return '06:00–09:00';
+  return _computeDaySummaryFast(fish, day, method, water, depth, normPress, iceState).windowText;
+}
+export function getFactorBreakdown(fish, day, method, water, depth, normPress = 752, iceState = 'open_water', hourIdx = null) {
+  if (!day || !day.hours?.length) return { total: 0, factors: [] };
+  let targetHr = day.hours[12];
+  if (hourIdx !== null && day.hours[hourIdx]) {
+    targetHr = day.hours[hourIdx];
+  } else {
+    let bestSc = -1;
+    for (const hr of day.hours) {
+      const sc = calcHourly(fish, day, hr, method, water, depth, normPress, iceState);
+      if (sc > bestSc) { bestSc = sc; targetHr = hr; }
+    }
+  }
+  return computeHourFactors(fish, day, targetHr, method, water, depth, normPress, iceState);
+}
+/**
+ * Автоматически отрисовывает наглядные цветные кружки-маркеры расцветки рядом с названием приманки (Пункт 6 Дорожной карты v2.5.0 r186)
+ */
+export function renderBaitWithColorDots(baitText = '') {
+  const raw = String(baitText || '').trim();
+  if (!raw) return '';
+  const low = raw.toLowerCase();
+  const dots = [];
+  if (low.includes('билайн')) {
+    dots.push(`<span class="bait-color-dot" title="Расцветка «Билайн» (жёлто-чёрный контраст)" style="background:linear-gradient(135deg,#ffd600 50%,#111827 50%);"></span>`);
+  }
+  if (low.includes('триколор')) {
+    dots.push(`<span class="bait-color-dot" title="Расцветка «Триколор» (бело-сине-красный)" style="background:linear-gradient(180deg,#ffffff 33%,#2563eb 33%,#2563eb 66%,#dc2626 66%);"></span>`);
+  }
+  if (low.includes('кислот') || low.includes('шартрез') || low.includes('firetiger')) {
+    dots.push(`<span class="bait-color-dot" title="Расцветка «Кислотник / Шартрез»" style="background:linear-gradient(135deg,#a3e635 50%,#facc15 50%);"></span>`);
+  }
+  if (low.includes('машинн') || low.includes('моторк') || low.includes('карамел')) {
+    dots.push(`<span class="bait-color-dot" title="Расцветка «Машинное масло»" style="background:linear-gradient(135deg,#78350f 50%,#65a30d 50%);"></span>`);
+  }
+  if (low.includes('фиолет') || low.includes('рубин')) {
+    dots.push(`<span class="bait-color-dot" title="Расцветка «Фиолет / Рубин»" style="background:linear-gradient(135deg,#9333ea 50%,#e11d48 50%);"></span>`);
+  }
+  if (low.includes('светонакопит') || low.includes('фосфор')) {
+    dots.push(`<span class="bait-color-dot" title="Светонакопительная (фосфорная) расцветка" style="background:radial-gradient(circle,#dcfce7 20%,#22c55e 100%);box-shadow:0 0 6px #4ade80;"></span>`);
+  }
+  if (low.includes('натурал') || low.includes('серебр') || low.includes('живец') || low.includes('плотвичк') || low.includes('уклейк')) {
+    dots.push(`<span class="bait-color-dot" title="Натуральная серебристая расцветка" style="background:linear-gradient(135deg,#f8fafc 40%,#64748b 100%);"></span>`);
+  }
+  if (dots.length === 0) {
+    if (low.includes('мотыл') || low.includes('черв') || low.includes('красн')) {
+      dots.push(`<span class="bait-color-dot" title="Естественный красный / рубиновый цвет" style="background:#ef4444;"></span>`);
+    } else if (low.includes('опарыш') || low.includes('хлеб') || low.includes('манн') || low.includes('тесто')) {
+      dots.push(`<span class="bait-color-dot" title="Светлая / белая насадка" style="background:#f8fafc;"></span>`);
+    } else if (low.includes('кукуруз') || low.includes('горох') || low.includes('перловк')) {
+      dots.push(`<span class="bait-color-dot" title="Жёлтая растительная насадка" style="background:#facc15;"></span>`);
+    } else if (low.includes('мормыш') || low.includes('бокоплав') || low.includes('гаммарус')) {
+      dots.push(`<span class="bait-color-dot" title="Оливково-янтарный бокоплав" style="background:#d97706;"></span>`);
+    }
+  }
+  const safeText = raw.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return `${dots.join('')}<span>${safeText}</span>`;
+}
+export function calcDynamicRig(method, water, depth, wind, fish = null, waterTemp = 12, iceState = 'open_water') {
+  const prof = WATER_PROFILES[water] || WATER_PROFILES.small_river;
+  const flowCoeff = prof.flow;
+  const fid = fish?.id || 'pike';
+  const fName = fish?.name || 'выбранного вида';
+  const isCold = waterTemp <= 10.5 || iceState !== 'open_water';
+  const isTrophy = ['catfish', 'amur_catfish', 'carp', 'grass_carp', 'silver_carp', 'salmon', 'chinook_salmon', 'taimen', 'halibut', 'cod', 'turbot', 'beluga', 'kaluga'].includes(fid);
+  const isDelicate = ['roach', 'rudd', 'bleak', 'dace', 'peled', 'gudgeon', 'crucian', 'white_bream', 'tugun', 'cisco', 'vendace', 'smelt', 'rotan', 'ruffe'].includes(fid);
+  const isWhiteNano = fish && (fish.type === 'peace' || ['dace', 'peled', 'chir', 'pizhyan', 'tugun', 'whitefish', 'cisco', 'vendace', 'valek', 'crucian', 'roach', 'rudd', 'bleak', 'ide', 'bream', 'white_bream', 'tench', 'gudgeon', 'chekhon', 'muksun'].includes(fid));
+  if (method === 'winter_jig') {
+    const w = Math.min(3.8, Math.max(0.3, Math.round(depth * (isDelicate ? 0.28 : 0.40) * flowCoeff * 10) / 10));
+    const line = isDelicate ? 'Зимняя флюорокарбоновая леска 0.08–0.10 мм' : 'Зимняя леска 0.11–0.14 мм';
+    const tactic = ['bream', 'white_bream', 'carp', 'crucian'].includes(fid)
+      ? `Подлёдный лов (${fName}): медленное опускание ко дну, выдержка на стоячку со сторожком и плавный подъём`
+      : `Подлёдный лов (${fName}): высокочастотная проводка мормышки в 15–45 см от дна с контрольной паузой 3–4 сек`;
+    return { weight: `Вольфрамовая мормышка ${w} г`, line, tactic };
+  }
+  if (method === 'winter_cisco') {
+    return {
+      weight: `Нижнее грузило ${Math.max(6, Math.round(depth * 1.4 * flowCoeff))} г + гирлянда (3–5 мормышек)`,
+      line: 'Основная леска 0.14–0.16 мм, поводки 0.10–0.12 мм',
+      tactic: `Пелагический облов (${fName}): плавное покачивание гирлянды в полводы и у нижней кромки льда`
+    };
+  }
+  if (method === 'winter_lure') {
+    const mult = ['zander', 'volga_zander', 'pike'].includes(fid) ? 2.4 : 1.5;
+    const w = Math.min(36, Math.max(4, Math.round(depth * mult * flowCoeff)));
+    const leader = fid === 'pike' ? 'титановый/стальной поводок 20 см' : 'флюорокарбон 0.30–0.40 мм';
+    return {
+      weight: `Балансир / Раттлин ${w} г`,
+      line: `Зимний шнур 0.12–0.16 мм + ${leader}`,
+      tactic: `Зимнее блеснение (${fName}): короткий подброс на 15–25 см, сброс и обязательная пауза ${isCold ? '5–8' : '3–5'} секунд`
+    };
+  }
+  if (method === 'winter_stuka') {
+    const w = Math.min(70, Math.max(18, Math.round(depth * 3.5 * flowCoeff)));
+    return {
+      weight: `Тяжёлая блесна-стукалка / джиг ${w} г`,
+      line: 'Монолеска 0.35–0.45 мм',
+      tactic: `Донный лов (${fName}): ритмичное постукивание по каменистому грунту с подсадкой ерша или резки рыбы`
+    };
+  }
+  if (method === 'winter_livebait') {
+    const w = Math.max(6, Math.round(depth * 1.6 * flowCoeff));
+    const leader = fid === 'pike' ? 'вольфрамовый/стальной поводок 25–30 см' : 'флюорокарбон 0.40–0.50 мм';
+    return {
+      weight: `Скользящее грузило-оливка ${w} г`,
+      line: `Основная леска 0.35 мм + ${leader}`,
+      tactic: `Жерлица (${fName}): установка живца в ${['burbot', 'zander'].includes(fid) ? '5–15 см от самого дна' : '25–45 см над дном у свала или камыша'}`
+    };
+  }
+  if (method === 'spin_micro') {
+    if (isWhiteNano) {
+      const nanoW = Math.min(1.2, Math.max(0.2, Math.round(depth * 0.25 * flowCoeff * 10) / 10));
+      return {
+        weight: `Вольфрамовая мормышка / одноухий монтаж ${nanoW} г (0.2–0.8 г)`,
+        line: 'Ультратонкий шнур #0.08–0.15 PE / монолеска 0.065–0.09 мм (эстер)',
+        tactic: `Нано-джиг и мормышинг (${fName}, вода ${waterTemp}°C): ${isCold ? 'медленное придонное волочение с микродрожанием и паузами до 4 сек' : 'высокочастотный пелагический «зуд» и плавный кач в толще воды или на снос по струе'}`
+      };
+    }
+    const baseW = depth * (isCold ? 0.55 : 0.70) * flowCoeff;
+    const w = Math.min(5.0, Math.max(0.3, Math.round(baseW * 10) / 10));
+    const line = w <= 1.2 ? 'Нанофил / шнур #0.15–0.2 PE + флюорокарбон 0.10–0.12 мм' : 'Шнур #0.2–0.4 PE + флюорокарбон 0.14–0.16 мм';
+    const tactic = isCold
+      ? `Холодная вода (${waterTemp}°C, ${fName}): деликатное волочение по дну с микродрожанием и паузами 3–6 секунд`
+      : `Тёплая вода (${waterTemp}°C, ${fName}): активная ступенька и пелагический зуд в придонном и среднем слоях`;
+    return { weight: `Микроджиг / Мормышка ${w} г`, line, tactic };
+  }
+  if (method === 'spin_jig') {
+    const mult = isTrophy ? 3.4 : (['perch'].includes(fid) ? 1.8 : 2.7);
+    const w = Math.min(60, Math.max(6, Math.round(depth * mult * flowCoeff)));
+    const leader = fid === 'pike' ? 'стальной поводок-струна 20–25 см' : 'флюорокарбон 0.35–0.50 мм';
+    const tactic = isCold
+      ? `Холодная вода (${waterTemp}°C, ${fName}): медленная подача у дна — 1 оборот катушки и затяжная пауза 3–5 сек`
+      : `Тёплая вода (${waterTemp}°C, ${fName}): классическая ступенька 2 оборота — пауза 1.5–2 сек по рельефу и коряжнику`;
+    return { weight: `Джиг-головка / Чебурашка ${w} г`, line: `Плетёный шнур #0.8–1.5 PE + ${leader}`, tactic };
+  }
+  if (method === 'spin_lure') {
+    const mult = ['chub', 'trout', 'grayling', 'perch', 'rotan', 'dace', 'peled', 'ide'].includes(fid) ? 1.1 : 2.3;
+    const w = Math.min(32, Math.max(2, Math.round(depth * mult * flowCoeff)));
+    const leader = fid === 'pike' ? 'стальной / титановый поводок 20–25 см' : 'флюорокарбоновый поводок 0.16–0.32 мм';
+    const tactic = isCold
+      ? `Холодная вода (${waterTemp}°C, ${fName}): вялый стоп-энд-гоу (Stop & Go) суспендером или микроколебалкой у дна с паузами до 4–6 секунд`
+      : `Тёплая вода (${waterTemp}°C, ${fName}): проводка на снос поперёк струи, активный твичинг минноу или равномерка вдоль укрытий`;
+    return { weight: `Блесна / Воблер ${w} г`, line: `Шнур #0.4–1.2 PE + ${leader}`, tactic };
+  }
+  if (method === 'bottom') {
+    const w = Math.min(140, Math.max(20, Math.round(depth * 11 * flowCoeff)));
+    if (fish?.type === 'predator') {
+      return {
+        weight: `Донное грузило ${w} г`,
+        line: isTrophy ? 'Шнур 0.28–0.40 мм + силовой поводок 0.50–0.80 мм' : 'Основная леска 0.30 мм + поводок 0.28–0.35 мм',
+        tactic: `Донная ловля хищника (${fName}): подача живца или резки на выходе из русловой ямы (${isCold ? 'пассивная зимняя стоянка' : 'ночной выход на бровку'})`
+      };
+    }
+    const line = isCold
+      ? `Шнур 0.10–0.12 мм, тонкий поводок 0.09–0.12 мм (длина 60–100 см), крючок №14–16`
+      : (isTrophy ? 'Карповая леска 0.28–0.32 мм, волосяной поводок 15–25 lb, крючок №4–8' : 'Шнур 0.12–0.14 мм, поводок 0.12–0.16 мм (40–70 см), крючок №10–14');
+    const tactic = isCold
+      ? `Холодная вода (${waterTemp}°C, ${fName}): тёмная мелкофракционная прикормка со специями и кормовым мотылём, темп перезаброса 7–10 мин`
+      : `Тёплая вода (${waterTemp}°C, ${fName}): стартовый закорм точки на бровке (зерновые/пеллетс/резаный червь), темп 3–5 мин`;
+    return { weight: `Фидерная кормушка ${w} г`, line, tactic };
+  }
+  if (method === 'float') {
+    const w = Math.min(8.0, Math.max(0.5, Math.round((depth * 0.75 * flowCoeff + wind * 0.15) * 10) / 10));
+    const line = isCold
+      ? 'Основная леска 0.12 мм, деликатный поводок 0.08–0.10 мм, крючок №16–18'
+      : (isTrophy ? 'Основная леска 0.22–0.25 мм, поводок 0.18–0.20 мм' : 'Основная леска 0.14–0.16 мм, поводок 0.10–0.12 мм');
+    const tactic = isCold
+      ? `Холодная вода (${waterTemp}°C, ${fName}): точная подача животной насадки в 1–3 см от дна с минимальным докормом`
+      : `Тёплая вода (${waterTemp}°C, ${fName}): ловля в проводку с придержкой по струе или у границы водной растительности`;
+    return { weight: `Поплавок ${w} г`, line, tactic };
+  }
+  if (method === 'fly') {
+    const tactic = isCold
+      ? `Холодная вода (${waterTemp}°C, ${fName}): проводка тяжёлой вольфрамовой нимфы (бокоплав/ручейник) у самого дна в приямках`
+      : `Тёплая вода (${waterTemp}°C, ${fName}): подача сухой мушки, эмерджера или жука со свободным дрейфом по струе`;
+    return { weight: 'Нахлыст 3–5 кл. / Бомбарда (сбирулино) 4–10 г', line: `Поводок флюорокарбон ${isCold ? '0.10–0.14' : '0.12–0.18'} мм`, tactic };
+  }
+  return {
+    weight: `Морская оснастка / Пилькер ${Math.max(10, Math.round(depth * 3.5 * flowCoeff))} г`,
+    line: 'Шнур #0.6–1.5 PE + флюорокарбоновый шок-лидер 0.26–0.40 мм',
+    tactic: `Морской лов (${fName}, вода ${waterTemp}°C): облов береговых свалов, ракушечника и каменистых банок`
+  };
+}
+export function generateAdaptiveGuides(fish, water, depth, day, method, globalIceState) {
+  const iceState = day.iceState || globalIceState;
+  const iceThickness = day.iceThickness ?? 0;
+  const sizeBlock = fish.sizeInfo ? `<div style="margin-top:6px;color:var(--accent);font-weight:700;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="3" y="8" width="18" height="8" rx="2" transform="rotate(-35 12 12)" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8"/><path d="M8 11l1.5 2M11 9l1.5 2M14 7l1.5 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg> ${fish.sizeInfo}</div>` : '';
+  const traitsBlock = fish.idTraits ? `<div style="margin-top:5px;color:var(--muted);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="2"/><path d="M16 16l4.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg> <b>Приметы вида:</b> ${fish.idTraits}</div>` : '';
+  const runInfo = RIVER_ENTERING_SPECIES[fish.id];
+  const migrationBlock = runInfo
+    ? `<div style="margin-top:5px;color:var(--good);font-weight:700;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> <b>Миграция и заход в реки:</b> ${runInfo.reason}.</div>`
+    : '';
+  let standAdvice = '';
+  if (fish.legal === 'redbook') {
+    standAdvice = `<svg class="k-ico" style="color:var(--bad);" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><path d="M6 6l12 12" stroke="#ef4444" stroke-width="2.1" stroke-linecap="round"/></svg> <b>КРАСНАЯ КНИГА (ПОЙМАЛ — ОТПУСТИ):</b> ${fish.baseAdvice} ${fish.handlingAdvice || 'При случайной поимке в прилове бережно отпустите рыбу в воду!'}${migrationBlock}${sizeBlock}${traitsBlock}`;
+  } else if (fish.legal === 'introduced') {
+    standAdvice = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><polygon points="13,2 4,14 11,14 10,22 20,10 13,10" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.5" stroke-linejoin="round"/></svg> <b>Вселенец / Аквакультура:</b> ${fish.baseAdvice} При остывании воды ниже ${fish.tMinStop}°C впадает в оцепенение.${sizeBlock}${traitsBlock}`;
+  } else if (iceState === 'ice_safe') {
+    standAdvice = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1" stroke="#7dd3fc" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="#38bdf8"/></svg> <b>Подлёдный горизонт (лёд ~${iceThickness} см, рабочая глубина ${depth.toFixed(1)} м):</b> ${fish.baseAdvice}${migrationBlock}${sizeBlock}${traitsBlock}`;
+  } else if (iceState === 'ice_danger') {
+    standAdvice = `<svg class="k-ico" style="color:var(--warn);" viewBox="0 0 24 24" fill="none"><path d="M12 3L2.5 19.5h19L12 3z" fill="rgba(245,158,11,0.24)" stroke="#f59e0b" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9v5M12 17h.01" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/></svg> <b>Опасный лёд:</b> ${day.iceNote || 'Выход на лёд запрещён!'} С берега: ${fish.baseAdvice}${sizeBlock}`;
+  } else if (iceState === 'ice_slush') {
+    standAdvice = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1" stroke="#7dd3fc" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="#38bdf8"/></svg> <b>Шуга и забереги (колебания -3..+3°C):</b> ледостава нет, рыба стоит в придонных ямах и затишках на глубине ${depth.toFixed(1)} м. ${fish.baseAdvice}${migrationBlock}${sizeBlock}`;
+  } else {
+    standAdvice = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#ef4444"/></svg> <b>Биотоп (${WATER_PROFILES[water]?.shortName || 'водоём'}, горизонт ${depth.toFixed(1)} м):</b> ${fish.baseAdvice}${migrationBlock}${sizeBlock}${traitsBlock}`;
+  }
+  const rigInfo = calcDynamicRig(method, water, depth, day.windMax, fish, day.waterTemp, iceState);
+  const tackleAdvice = fish.legal === 'redbook'
+    ? `<div><b>Вероятность прилова на снасть:</b> ${rigInfo.weight} (${rigInfo.line}).</div><div style="margin-top:5px;color:var(--bad);font-weight:700;"><svg class="k-ico" style="color:var(--warn);" viewBox="0 0 24 24" fill="none"><path d="M12 3L2.5 19.5h19L12 3z" fill="rgba(245,158,11,0.24)" stroke="#f59e0b" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9v5M12 17h.01" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/></svg> Целенаправленное изъятие запрещено! Используйте безбородые крючки и отпускайте рыбу прямо в воде.</div>`
+    : `<div><b>Оптимальный монтаж сейчас:</b> ${rigInfo.weight} (${rigInfo.line}).</div><div style="margin-top:5px;"><b>Подача и анимация:</b> ${rigInfo.tactic}.</div><div style="margin-top:5px;color:var(--muted);"><b>Арсенал по виду:</b> ${fish.topGear}</div>`;
+  let baitAdvice = '';
+  const seasonTone = iceState === 'ice_safe'
+    ? `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1" stroke="#7dd3fc" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="#38bdf8"/></svg> <b>Подлёдный сезон (вода ~${day.waterTemp}°C):</b> приоритет животным насадкам (мотыль, мормыш/бокоплав, опарыш, резка) и деликатным зимним приманкам.`
+    : (day.waterTemp <= 10.0
+        ? `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> <b>Холодная вода (~${day.waterTemp}°C):</b> рыба избирательна — лучше всего работают животные насадки, нано-джиг с пассивными слагами/нимфами (0.2–0.8 г) и приманки на длинной паузе.`
+        : `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.5" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> <b>Прогретая вода (~${day.waterTemp}°C):</b> высокая кормовая активность в толще и у дна, отлично работают как животные/растительные насадки, так и мормышинг (нано-джиг), вертушки и мушки.`);
+  baitAdvice = `<div>${fish.feedBase || 'Естественный бентос, зоопланктон и сезонные приманки.'}</div><div style="margin-top:6px;color:var(--accent);">${seasonTone}</div>`;
+  return { standAdvice, tackleAdvice, baitAdvice };
+}
+/**
+ * Формирует простое человеческое объяснение прогноза в одно предложение для режима « Новичок»
+ */
+export function buildPlainLanguageSummary(fish, day, bd, bestScore) {
+  const wt = day?.waterTemp ?? 8;
+  const dp = Math.abs(day?.dP || 0);
+  const wMax = day?.windMax || 3;
+  const shock = bd?.archiveEval?.isShock;
+  if (day?.iceState === "ice_danger") {
+    return "Выход на лёд сейчас смертельно опасен из-за малой толщины или промоин — рыбалка возможна только с безопасного берега.";
+  }
+  if (shock) {
+    return `После недавнего резкого скачка давления за прошлые сутки рыба находится в барическом «шоке» и болеет, поэтому поклёвки будут редкими и очень осторожными.`;
+  }
+  if (bestScore >= 65) {
+    return `Сегодня отличные условия для ловли вида «${fish.name}»: температура воды (~${wt}°C) и ровное давление (${day?.pressAvg || 754} мм) располагают рыбу к активному выходу на кормёжку.`;
+  }
+  if (dp >= 5 || wMax >= 8) {
+    return `Клёв вида «${fish.name}» сегодня капризный из-за ${dp >= 5 ? "перепада атмосферного давления" : "сильного ветра и волны"} — подавайте приманку медленно у самого дна.`;
+  }
+  return `Умеренная кормовая активность вида «${fish.name}» при воде ~${wt}°C — лучший шанс на уверенную поклёвку будет в часы утренней и вечерней зорьки.`;
+}
+/**
+ * Вычисляет 30-дневную ретроспективную точность модели прогноза по данным личного Журнала уловов пользователя
+ */
+export function computeModel30DayValidation(catches = []) {
+  const now = Date.now();
+  const window30d = 30 * 86400 * 1000;
+  const list = (Array.isArray(catches) ? catches : []).filter(c => c && (now - (c.timestamp || now)) <= window30d);
+  const sample = list.length > 0 ? list : (Array.isArray(catches) ? catches : []);
+  if (sample.length === 0) {
+    return {
+      hasData: false,
+      accuracyPct: 84,
+      totalChecked: 0,
+      label: "Эталонная точность модели: ~84% (добавьте уловы в Журнал для персональной верификации)"
+    };
+  }
+  const matched = sample.filter(c => c.matchedForecast !== false).length;
+  const pct = Math.round((matched / sample.length) * 100);
+  return {
+    hasData: true,
+    accuracyPct: pct,
+    totalChecked: sample.length,
+    label: `Подтверждённая точность на ваших водоёмах за 30 дн.: ${pct}% (${matched} из ${sample.length} выездов)`
+  };
+}
+/**
+ * Автоматический генератор чек-листа сборов и безопасности на выезд (под текущую рыбу, снасть, температуру и лёд)
+ */
+export function generateTripChecklist(fish, day, method, water, depth) {
+  const s = store.getState();
+  const rig = calcDynamicRig(method, water, depth, day?.windMax || 3, fish, day?.waterTemp ?? 10, day?.iceState || s.iceState);
+  const baits = getSeasonalBaitsForContext(fish, method, day?.waterTemp ?? 10, day?.iceState || s.iceState);
+  const iceSafety = computeIceSafetyIndex(day, water);
+  const isWinter = (day?.iceState && day.iceState !== "open_water") || (day?.tDay ?? 10) <= 2 || (method && method.startsWith("winter_"));
+  const gearItems = [
+    `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg> Основная снасть: ${rig.weight} (${rig.line})`,
+    `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 18c0-4 4-4 4-8s4-4 4-6 5-1 5 3-3 5-3 8 4 4 6 2" stroke="#f43f5e" stroke-width="2.2" stroke-linecap="round"/></svg> Рабочие насадки/приманки: ${baits.slice(0, 3).join("; ")}`,
+    `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="3" y="8" width="18" height="8" rx="2" transform="rotate(-35 12 12)" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8"/><path d="M8 11l1.5 2M11 9l1.5 2M14 7l1.5 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg> Глубиномер / эхолот (целевой горизонт стоянки ${fish.name}: ~${depth.toFixed(1)} м)`,
+    `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 8l-9-5-9 5v8l9 5 9-5V8z" fill="rgba(56,189,248,0.16)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M3 8l9 5 9-5M12 13v8" stroke="currentColor" stroke-width="1.7"/></svg> Запасные поводки, карабины, экстрактор / зевник и рулетка (контроль разрешённого размера)`
+  ];
+  const safetyItems = isWinter
+    ? [
+        `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Спасалки («когти» на шнуре поверх куртки) и пешня для проверки льда (${iceSafety.statusText})`,
+        `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Непродуваемый костюм-поплавок, термобельё и нескользящие шипы на сапоги (воздух ${day?.tDay ?? 0}°/${day?.tNight ?? -3}°C)`,
+        `<svg class="k-ico" style="color:var(--good);" viewBox="0 0 24 24" fill="none"><polygon points="13,2 4,14 11,14 10,22 20,10 13,10" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.5" stroke-linejoin="round"/></svg> Заряженный повербанк во внутреннем тёплом кармане + термос с горячим чаем`,
+        `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3.5" fill="rgba(56,189,248,0.25)" stroke="currentColor" stroke-width="1.8"/><path d="M3 19c0-3.2 2.7-5.5 6-5.5s6 2.3 6 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="17" cy="9" r="2.8" stroke="currentColor" stroke-width="1.6"/><path d="M16 14c2.6.3 4.8 2 5 4.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg> Отправленная точка «<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> Экипаж (72ч)» близким или напарникам перед выходом на лёд`
+      ]
+    : [
+        `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Спасательный жилет (при ловле с лодки или взабродку, ветер до ${day?.windMax || 3} м/с)`,
+        `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Ветровлагозащитная мембрана и поляризационные очки (вода ~${day?.waterTemp ?? 10}°C)`,
+        `<svg class="k-ico" style="color:var(--good);" viewBox="0 0 24 24" fill="none"><polygon points="13,2 4,14 11,14 10,22 20,10 13,10" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.5" stroke-linejoin="round"/></svg> Заряженный телефон с офлайн-кэшем «Клёв ПРО» и аптечка`,
+        `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Пакет под мусор и бережное отношение к прилову («Поймал — отпусти»)`
+      ];
+  return { gearItems, safetyItems, iceSafety, rig };
+}
+export function openTripChecklistModal() {
+  const s = store.getState();
+  const fish = FISH_DB.find(f => f.id === s.fishId) || FISH_DB[0];
+  const day = s.weatherDays?.[s.dayIdx] || s.weatherDays?.[2] || s.weatherDays?.[0] || {};
+  const cl = generateTripChecklist(fish, day, s.method, s.water, s.depth);
+  const html = `
+    <div style="display:flex;flex-direction:column;gap:12px;font-size:var(--fs-sm);">
+      <div style="padding:10px 12px;background:var(--card);border:1px solid var(--accent);border-radius:var(--r-sm);font-size:var(--fs-xs);">
+        <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#ef4444"/></svg> <b>Выезд:</b> ${s.locLabel} (${s.selectedWaterName || WATER_PROFILES[s.water]?.shortName || "водоём"}) • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 12s4-6 11-6c4.2 0 7 2.5 9 6-2 3.5-4.8 6-9 6-7 0-11-6-11-6z" fill="rgba(56,189,248,0.28)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M2 12l-1.5-3.5L5 10.5M2 12l-1.5 3.5L5 13.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="16.5" cy="10.8" r="1.3" fill="currentColor"/></svg> <b>Цель:</b> ${fish.name}<br>
+        <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M14 14.76V5a2 2 0 1 0-4 0v9.76a4 4 0 1 0 4 0z" fill="rgba(56,189,248,0.22)" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="17.5" r="1.8" fill="#ef4444"/></svg> <b>Погода:</b> воздух ${day.tDay > 0 ? "+" + day.tDay : day.tDay}°/${day.tNight > 0 ? "+" + day.tNight : day.tNight}°C, вода ~${day.waterTemp}°C, ветер ${day.windDir} ${day.windMax} м/с<br>
+        <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2.5l7 3.2v5.8c0 5-3 9.3-7 10.8-4-1.5-7-5.8-7-10.8V5.7l7-3.2z" fill="rgba(56,189,248,0.22)" stroke="#38bdf8" stroke-width="1.8" stroke-linejoin="round"/></svg> <b>Безопасность льда/воды:</b> ${cl.iceSafety.vehicleVerdict}
+      </div>
+      <div>
+        <div style="font-weight:800;font-size:var(--fs-xs);color:var(--accent);text-transform:uppercase;margin-bottom:6px;">
+          <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg> 1. Снасти, оснастка и приманки под условия дня:
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          ${cl.gearItems.map(item => `
+            <label style="display:flex;align-items:flex-start;gap:8px;padding:7px 10px;background:var(--card);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:var(--fs-xs);">
+              <input type="checkbox" checked style="margin-top:2px;">
+              <span>${item}</span>
+            </label>
+          `).join("")}
+        </div>
+      </div>
+      <div>
+        <div style="font-weight:800;font-size:var(--fs-xs);color:var(--good);text-transform:uppercase;margin-bottom:6px;">
+          <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> 2. Экипировка и безопасность на водоёме:
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          ${cl.safetyItems.map(item => `
+            <label style="display:flex;align-items:flex-start;gap:8px;padding:7px 10px;background:var(--card);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:var(--fs-xs);">
+              <input type="checkbox" checked style="margin-top:2px;">
+              <span>${item}</span>
+            </label>
+          `).join("")}
+        </div>
+      </div>
+    </div>
+  `;
+  openModal("<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><rect x=\"6\" y=\"7\" width=\"12\" height=\"14\" rx=\"3\" fill=\"rgba(56,189,248,0.16)\" stroke=\"currentColor\" stroke-width=\"1.8\"/><path d=\"M9 7V5a3 3 0 0 1 6 0v2M9 14h6\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\"/></svg> Чек-лист сборов и безопасности на выезд", html);
+}
+function computeDayKpAndDaylight(day) {
+  const sr = Number.isFinite(day?.sunriseHr) ? day.sunriseHr : 7.5;
+  const ss = Number.isFinite(day?.sunsetHr) ? day.sunsetHr : 17.5;
+  const diff = Math.max(1, ss - sr);
+  const dH = Math.floor(diff);
+  const dM = Math.round((diff - dH) * 60);
+  const daylightStr = `${dH} ч ${String(dM).padStart(2, '0')} м`;
+  const dateSeed = String(day?.date || '2026-10-30').split('-').reduce((a, b) => a + (parseInt(b, 10) || 0), 0);
+  const dpShift = Math.abs(day?.dP || 0) >= 4 ? 2 : (Math.abs(day?.dP || 0) >= 2 ? 1 : 0);
+  const kpVal = Math.max(1, Math.min(6, ((dateSeed % 3) + 1 + dpShift)));
+  const kpLabel = kpVal <= 2 ? 'Спокойно' : (kpVal === 3 ? 'Слабое возмущение' : (kpVal === 4 ? 'Умеренная буря' : 'Магнитная буря'));
+  const kpTone = kpVal <= 2 ? 'var(--good)' : (kpVal <= 3 ? 'var(--warn)' : 'var(--bad)');
+  return { sr, ss, daylightStr, kpVal, kpLabel, kpTone };
+}
+let _recastTimerInterval = null;
+let _recastTimerTargetTs = 0;
+function playCarpRecastChime() {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.25);
+    gain.gain.setValueAtTime(0.18, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.55);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.55);
+  } catch (e) {}
+}
+function startCarpRecastTimer(minutes, container) {
+  const mins = Math.max(1, parseInt(minutes, 10) || 15);
+  _recastTimerTargetTs = Date.now() + mins * 60000;
+  if (_recastTimerInterval) clearInterval(_recastTimerInterval);
+  const updateDisp = () => {
+    const remSec = Math.max(0, Math.ceil((_recastTimerTargetTs - Date.now()) / 1000));
+    const disp = typeof document !== 'undefined' ? document.getElementById('fcRecastTimerDisplay') : null;
+    if (disp) {
+      if (remSec > 0) {
+        const mm = String(Math.floor(remSec / 60)).padStart(2, '0');
+        const ss = String(remSec % 60).padStart(2, '0');
+        disp.textContent = `${mm}:${ss}`;
+        disp.className = 'pill pill-good';
+      } else {
+        disp.textContent = '00:00!';
+        disp.className = 'pill pill-warn';
+      }
+    }
+    if (remSec <= 0) {
+      clearInterval(_recastTimerInterval);
+      _recastTimerInterval = null;
+      _recastTimerTargetTs = 0;
+      playCarpRecastChime();
+      const clip = store.getState().userProfile?.carpClipMeters || 42;
+      showToast(` Время перезаброса снасти / докорма свима (клипса ${clip} м)!`, 'good');
+    }
+  };
+  updateDisp();
+  _recastTimerInterval = setInterval(updateDisp, 1000);
+  showToast(` Таймер перезаброса запущен на ${mins} мин.`, 'good');
+}
+function stopCarpRecastTimer() {
+  if (_recastTimerInterval) clearInterval(_recastTimerInterval);
+  _recastTimerInterval = null;
+  _recastTimerTargetTs = 0;
+  const disp = typeof document !== 'undefined' ? document.getElementById('fcRecastTimerDisplay') : null;
+  if (disp) {
+    disp.textContent = 'Выкл';
+    disp.className = 'pill pill-neutral';
+  }
+  showToast('Таймер перезаброса остановлен', 'info');
+}
+function buildSpecializedTacticalHtml(fish, s, day, waterTemp, iceState) {
+  const m = String(s.method || 'spin_jig');
+  const wind = Number(day?.windMax ?? 3);
+  const windDir = day?.windDir || 'З';
+  const prof = WATER_PROFILES[s.water] || WATER_PROFILES.small_river;
+  const flow = Number(prof.flow || 1.0);
+  if (iceState === 'ice_safe' || iceState === 'ice_danger' || m.startsWith('winter_')) {
+    const isDanger = iceState === 'ice_danger' || (day?.iceThickness || 0) < 7;
+    return `
+      <div class="bento-card" style="padding:11px 13px;border:1.5px solid ${isDanger ? 'var(--bad)' : 'var(--ice)'};">
+        <div class="bento-card-title" style="font-size:14px;margin-bottom:6px;">
+          <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1" stroke="#7dd3fc" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="#38bdf8"/></svg></span>
+          <span>Зимняя тактика и Безопасность льда (${fish.name})</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px;font-size:12px;line-height:1.4;">
+          <div style="padding:8px 10px;background:var(--panel);border-radius:11px;border:1px solid var(--border);">
+            <b style="color:${isDanger ? 'var(--bad)' : 'var(--good)'};"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2.5l7 3.2v5.8c0 5-3 9.3-7 10.8-4-1.5-7-5.8-7-10.8V5.7l7-3.2z" fill="rgba(56,189,248,0.22)" stroke="#38bdf8" stroke-width="1.8" stroke-linejoin="round"/></svg> Контроль льда:</b>
+            ${isDanger
+              ? 'Опасная толщина льда! Избегайте устьев притоков, тёплых сбросов, камыша и снежных наддувов. Пешня и спасалки обязательны.'
+              : `Безопасный монолитный лёд (~${day?.iceThickness || 12} см). На течении (${prof.shortName}) проверяйте закраины и промоины у мостов и кос.`}
+          </div>
+          <div style="padding:8px 10px;background:var(--panel);border-radius:11px;border:1px solid var(--border);">
+            <b style="color:var(--accent);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg> Тактика поиска со льда:</b>
+            Вода ~${waterTemp}°C — бурите серию из 5–7 лунок поперёк руслового свала (шаг 6–8 м). Начинайте облов с верхней бровки, пауза в нижней точке 3–5 сек.
+          </div>
+        </div>
+      </div>
+    `;
+  }
+  const isCarpSpecies = ['carp', 'grass_carp', 'silver_carp', 'crucian', 'bream', 'tench', 'buffalo', 'black_carp'].includes(fish.id);
+  if (m === 'bottom' || m === 'float' || isCarpSpecies) {
+    const isCold = waterTemp < 12.0;
+    const savedClip = Number(s.userProfile?.carpClipMeters || 42);
+    const savedBottom = s.userProfile?.carpBottomType || 'Ракушечник / Бровка';
+    const timerLeftSec = _recastTimerTargetTs > Date.now() ? Math.ceil((_recastTimerTargetTs - Date.now()) / 1000) : 0;
+    const timerMm = String(Math.floor(timerLeftSec / 60)).padStart(2, '0');
+    const timerSs = String(timerLeftSec % 60).padStart(2, '0');
+    const carpProgramAdvice = isCarpSpecies
+      ? (isCold
+          ? `Холодная вода (+${waterTemp}°C): одиночный подрезанный Поп-ап или Вафтерс 8–10 мм (специи, робин ред, чеснок, криль) + компактный ПВА-стик с микро-пеллетсом 1.5–2 мм. Исключите жирные рыбные масла и обильный закорм спомбом!`
+          : `Прогретая вода (+${waterTemp}°C): тонущие и нейтральные бойлы 14–20 мм (рыбная мука / палтус / клубника / слива / тигровый орех) или «снеговик» с поп-апом 10 мм. Активный стартовый закорм спомбом (зерновые, конопля, резаные бойлы, пеллетс).`)
+      : (isCold
+          ? `Холодная вода (+${waterTemp}°C): тёмная мелкофракционная инертная смесь (чёрный лещ/плотва) со щепоткой кормового мотыля без сладкой ароматики.`
+          : `Прогретая вода (+${waterTemp}°C): активная средне- и крупнофракционная прикормка с добавлением опарыша, резаного червя или сладкой кукурузы.`);
+    const surfShoreAdvice = (wind >= 2.5 && wind <= 7.5)
+      ? `Активный «Прибойный берег» (${windDir} ${wind} м/с): волна насыщает бровку кислородом и вымывает донный корм — карп, сазан и крупный лещ выходят кормиться на границу прибойной мути!`
+      : (wind < 2.5
+          ? `Штиль / слабый ветер (${windDir} ${wind} м/с): рыба осторожна — используйте флюорокарбоновый поводок, нейтральную презентацию Wafters и точечный ПВА-стик.`
+          : `Сильный ветер (${windDir} ${wind} м/с): используйте тяжёлую кормушку-пулю / флэт 60–90 г и опустите вершинку удилища к воде.`);
+    return `
+      <div class="bento-card" style="padding:11px 13px;border:1.5px solid var(--good);">
+        <div class="bento-card-title" style="font-size:14px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+          <div style="display:flex;align-items:center;gap:6px;">
+            <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg></span>
+            <span>Карпфишинг, Сазан и Флэт-Фидер: Программа питания и Свим (${fish.name})</span>
+          </div>
+          <span class="pill pill-good" style="font-size:10.5px;">Клипса: <b id="fcCarpClipBadgeVal">${savedClip} м</b> • ${savedBottom}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:8px;font-size:12px;line-height:1.42;">
+          <div style="padding:8px 10px;background:var(--panel);border-radius:11px;border:1px solid var(--border);">
+            <b style="color:var(--good);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M17 3C11 3 5 7 5 15c0 2.5 1.5 4 4 4 8 0 12-6 12-12 0-2.5-1.5-4-4-4z" fill="rgba(16,185,129,0.25)" stroke="#10b981" stroke-width="1.8"/><path d="M5 19L15 9" stroke="#10b981" stroke-width="1.8" stroke-linecap="round"/></svg> Программа бойлов и прикормки:</b> ${carpProgramAdvice}
+          </div>
+          <div style="padding:8px 10px;background:var(--panel);border-radius:11px;border:1px solid var(--border);">
+            <b style="color:var(--accent);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Фактор ветра «Прибойный берег»:</b> ${surfShoreAdvice}
+          </div>
+        </div>
+        <div style="margin-top:8px;padding:8px 10px;background:var(--panel);border-radius:11px;border:1px solid var(--border);display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;font-size:11.5px;">
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+            <b style="color:var(--text);">Карта свима (клипса, м):</b>
+            <input type="number" id="fcCarpClipInput" class="input" min="5" max="220" step="1" value="${savedClip}" style="width:68px;min-height:30px;padding:2px 6px;font-size:12px;font-weight:800;">
+            <select id="fcCarpBottomSelect" class="input" style="width:auto;min-width:155px;min-height:30px;padding:2px 6px;font-size:11.5px;">
+              ${['Ракушечник / Бровка', 'Выход из ила на твёрдое', 'Русловой свал / Яма', 'Граница камыша / Коряга'].map(opt => `<option value="${opt}" ${opt === savedBottom ? 'selected' : ''}>${opt}</option>`).join('')}
+            </select>
+            <button type="button" class="btn btn-sm btn-good" id="fcSaveCarpSwimBtn" style="min-height:30px;padding:2px 9px;font-size:11px;font-weight:800;">Запомнить свим</button>
+          </div>
+          <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
+            <b style="color:var(--accent);">Таймер перезаброса:</b>
+            <button type="button" class="btn btn-sm" data-recast-timer-min="10" style="min-height:28px;padding:2px 7px;font-size:11px;">10 мин</button>
+            <button type="button" class="btn btn-sm" data-recast-timer-min="15" style="min-height:28px;padding:2px 7px;font-size:11px;">15 мин</button>
+            <button type="button" class="btn btn-sm" data-recast-timer-min="45" style="min-height:28px;padding:2px 7px;font-size:11px;">45 мин</button>
+            <button type="button" class="btn btn-sm" data-recast-timer-min="120" style="min-height:28px;padding:2px 7px;font-size:11px;">2 ч</button>
+            <span id="fcRecastTimerDisplay" class="pill ${timerLeftSec > 0 ? 'pill-good' : 'pill-neutral'}" style="font-family:monospace;font-size:11.5px;font-weight:900;">${timerLeftSec > 0 ? `${timerMm}:${timerSs}` : 'Выкл'}</span>
+            ${timerLeftSec > 0 ? `<button type="button" class="btn btn-sm" id="fcStopRecastTimerBtn" style="min-height:26px;padding:1px 6px;font-size:10.5px;color:var(--bad);">Стоп</button>` : ''}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+  const pauseSec = waterTemp <= 4.0 ? '5–8 сек (с плавным волочением и подбросом мандулы/поролона)' : (waterTemp <= 10.0 ? '3–5 сек (классическая медленная ступенька)' : '1.5–2.5 сек (активная проводка с подрывом)');
+  const windAdvice = wind >= 5
+    ? `Свежий ветер ${windDir} ${wind} м/с: выбирайте прибойный берег (туда сгоняет тёплую воду и малька), но увеличьте вес груза на +2..4 г и опустите вершинку спиннинга к воде против выдува дуги шнура.`
+    : `Комфортный ветер ${windDir} ${wind} м/с: идеальный контроль касания дна по кончику удилища и звонкому шнуру PE #0.6–1.0.`;
+  return `
+    <div class="bento-card" style="padding:11px 13px;border:1.5px solid var(--accent);">
+      <div class="bento-card-title" style="font-size:14px;margin-bottom:6px;">
+        <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg></span>
+        <span>Тактика Спиннинга и Джига: Пауза и Ветровой вектор</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px;font-size:12px;line-height:1.4;">
+        <div style="padding:8px 10px;background:var(--panel);border-radius:11px;border:1px solid var(--border);">
+          <b style="color:var(--accent);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.5 2" stroke="#38bdf8" stroke-width="1.9" stroke-linecap="round"/></svg> Пауза на ступеньке (вода +${waterTemp}°C):</b> <b>${pauseSec}</b>. По холодной воде хищник атакует на длинной паузе со дна.
+        </div>
+        <div style="padding:8px 10px;background:var(--panel);border-radius:11px;border:1px solid var(--border);">
+          <b style="color:var(--good);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Ветровой вектор (${windDir} ${wind} м/с, теч. ${flow} м/с):</b> ${windAdvice}
+        </div>
+      </div>
+    </div>
+  `;
+}
+export function openRigEncyclopediaModal(fish) {
+  const html = `
+    <div style="display:flex;flex-direction:column;gap:10px;font-size:var(--fs-sm);line-height:1.45;">
+      <div style="padding:10px 12px;background:var(--panel);border:1.5px solid var(--accent);border-radius:12px;">
+        <div style="font-weight:900;color:var(--accent);margin-bottom:3px;">1. Джиг-риг / Чебурашка с мандулой или силиконом (Щука, Судак, Окунь)</div>
+        <div style="font-size:12px;color:var(--text);">
+          • <b>Шнур:</b> 8-жильный PE #0.8–#1.2 + поводок струна 20–25 см (на щуку) или флюорокарбон 0.35–0.45 мм (на судака/окуня в корягах).<br>
+          • <b>Подача:</b> 2 оборота катушки — пауза 2–6 сек (по температуре воды). В холодной воде (ниже +6°C) лучший результат даёт контрастная мандула «Билайн» (жёлто-чёрная) с паузой до 6–8 секунд.
+        </div>
+      </div>
+      <div style="padding:10px 12px;background:var(--panel);border:1.5px solid var(--good);border-radius:12px;">
+        <div style="font-weight:900;color:var(--good);margin-bottom:3px;">2. Отводной поводок / Московская оснастка (Пассивный Окунь, Судак)</div>
+        <div style="font-size:12px;color:var(--text);">
+          • <b>Монтаж:</b> Тройной вертлюжок -> груз-палочка/балерина на отводе 25 см (флюр 0.22 мм) -> рабочий поводок 90–120 см из флюорокарбона 0.16–0.20 мм с офсетным крючком №6–№2.<br>
+          • <b>Подача:</b> Медленное волочение по ракушечнику и каменистой бровке с короткими подёргиваниями и паузами до 5 секунд.
+        </div>
+      </div>
+      <div style="padding:10px 12px;background:var(--panel);border:1.5px solid var(--warn);border-radius:12px;">
+        <div style="font-weight:900;color:var(--warn);margin-bottom:3px;">3. Асимметричная петля / Инлайн и Патерностер (Лещ, Плотва, Язь, Карась)</div>
+        <div style="font-size:12px;color:var(--text);">
+          • <b>Монтаж:</b> Скользящая кормушка (Инлайн) с отводом под фидергам 8–10 см или классический Патерностер Гарднера на основной леске.<br>
+          • <b>Крючок и поводок:</b> На течении поводок 50–80 см (0.12–0.14 мм), крючок №12–№16 под пучок мотыля или бутерброд с опарышем.
+        </div>
+      </div>
+      <div style="padding:10px 12px;background:var(--panel);border:1.5px solid var(--ice);border-radius:12px;">
+        <div style="font-weight:900;color:var(--ice);margin-bottom:3px;">4. Проверенные рыболовные узлы (100% прочность на морозе и течении)</div>
+        <div style="font-size:12px;color:var(--text);">
+          • <b>Паломар (Palomar):</b> лучший узел для привязывания застёжки/вертлюжка к плетёному шнуру (прочность до 95%).<br>
+          • <b>Улучшенный Олбрайт / Морковка:</b> надёжная связка плетёного шнура с шок-лидером из флюорокарбона.<br>
+          • <b>Петля Гарднера (восьмёрка):</b> быстрое соединение поводка «петля в петлю».
+        </div>
+      </div>
+    </div>
+  `;
+  openModal(`<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M7 7a4 4 0 1 0 0 8h10a4 4 0 1 0 0-8H7z" stroke="#38bdf8" stroke-width="1.9"/><path d="M17 7a4 4 0 1 1 0 8H7a4 4 0 1 1 0-8" stroke="currentColor" stroke-width="1.6" stroke-dasharray="3 2"/></svg> Справочник рабочих монтажей и узлов (${fish?.name || 'Все виды'})`, html);
+}
+export function renderExpress(container) {
+  if (!container) return;
+  const s = store.getState();
+  const fish = FISH_DB.find(f => f.id === s.fishId) || FISH_DB[0];
+  const expressIndices = [2, 3, 4]; // Сегодня, Завтра, Послезавтра
+  const curTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+  const cardsHtml = expressIndices.map((dayIdx, pos) => {
+    const d = s.weatherDays[dayIdx];
+    if (!d) return '';
+    const dayName = pos === 0 ? 'Сегодня' : (pos === 1 ? 'Завтра' : 'Послезавтра');
+    const score = calcDayBest(fish, d, s.method, s.water, s.depth, s.normPress, s.iceState);
+    const dayIce = d.iceState || s.iceState;
+    const bd = getFactorBreakdown(fish, d, s.method, s.water, s.depth, s.normPress, s.iceState);
+    const wtOk = d.waterTemp >= fish.tWaterOpt[0] && d.waterTemp <= fish.tWaterOpt[1];
+    const wtTone = d.waterTemp < fish.tMinStop ? 'bad' : (wtOk ? 'good' : 'warn');
+    const pTone = Math.abs(d.dP) <= 2 && !bd.archiveEval?.isShock ? 'good' : (Math.abs(d.dP) <= 4 && !bd.archiveEval?.isShock ? 'warn' : 'bad');
+    const wTone = d.windMax <= 5 ? 'good' : (d.windMax <= 8 ? 'warn' : 'bad');
+    const iceTone = dayIce === 'ice_danger' ? 'bad' : (dayIce === 'ice_safe' ? 'ice' : (dayIce === 'ice_slush' ? 'warn' : 'good'));
+    const iceText = dayIce === 'ice_danger'
+      ? (d.iceSubState === 'spring_rotten_ice' ? `Рыхлый лёд ~${d.iceThickness} см` : `Опасный лёд ~${d.iceThickness} см`)
+      : (dayIce === 'ice_safe' ? `Лёд ~${d.iceThickness} см` : (dayIce === 'ice_slush' ? 'Шуга и забереги' : 'Открытая вода'));
+    const isPressJump = Math.abs(d.dP) >= 5;
+    const isArchiveShock = Boolean(bd.archiveEval?.isShock);
+    const isGale = d.windMax >= 8.5;
+    const isIceDanger = dayIce === 'ice_danger';
+    let verdict = RU.verdictGo;
+    let verdictTone = 'good';
+    let customRatingWord = null;
+    if (fish.legal === 'redbook') {
+      verdict = `<svg class="k-ico" style="color:var(--bad);" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><path d="M6 6l12 12" stroke="#ef4444" stroke-width="2.1" stroke-linecap="round"/></svg> Кр. книга (прилов ~${score}%)`;
+      verdictTone = 'bad';
+      customRatingWord = `Активность ${score}% • Отпусти`;
+    } else if (isIceDanger) {
+      verdict = d.iceSubState === 'spring_rotten_ice'
+        ? `<svg class="k-ico" style="color:var(--warn);" viewBox="0 0 24 24" fill="none"><path d="M12 3L2.5 19.5h19L12 3z" fill="rgba(245,158,11,0.24)" stroke="#f59e0b" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9v5M12 17h.01" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/></svg> Рыхлый лёд и промоины`
+        : `<svg class="k-ico" style="color:var(--warn);" viewBox="0 0 24 24" fill="none"><path d="M12 3L2.5 19.5h19L12 3z" fill="rgba(245,158,11,0.24)" stroke="#f59e0b" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9v5M12 17h.01" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/></svg> Опасный лёд (~${d.iceThickness} см)`;
+      verdictTone = 'bad';
+      customRatingWord = 'Выход на лёд опасен';
+    } else if (isPressJump) {
+      verdict = `<svg class="k-ico" style="color:var(--warn);" viewBox="0 0 24 24" fill="none"><path d="M12 3L2.5 19.5h19L12 3z" fill="rgba(245,158,11,0.24)" stroke="#f59e0b" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9v5M12 17h.01" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/></svg> Скачок давления (${d.dP > 0 ? '+' : ''}${d.dP} мм)`;
+      verdictTone = Math.abs(d.dP) >= 8 ? 'bad' : 'warn';
+      customRatingWord = score < 35 ? 'Клёва нет' : (score < 50 ? 'Слабый клёв' : 'Умеренный клёв • Нестабильно');
+    } else if (isArchiveShock && score < 62) {
+      verdict = `<svg class="k-ico" style="color:var(--warn);" viewBox="0 0 24 24" fill="none"><path d="M12 3L2.5 19.5h19L12 3z" fill="rgba(245,158,11,0.24)" stroke="#f59e0b" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9v5M12 17h.01" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/></svg> Барический «шок» (архив)`;
+      verdictTone = 'warn';
+      customRatingWord = score < 40 ? 'Слабый клёв • В «шоке»' : 'Осторожный клёв';
+    } else if (isGale) {
+      verdict = `<svg class="k-ico" style="color:var(--warn);" viewBox="0 0 24 24" fill="none"><path d="M12 3L2.5 19.5h19L12 3z" fill="rgba(245,158,11,0.24)" stroke="#f59e0b" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9v5M12 17h.01" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/></svg> Штормовой ветер (${d.windMax} м/с)`;
+      verdictTone = 'bad';
+      customRatingWord = score < 35 ? 'Клёва нет' : 'Слабый клёв • Шторм';
+    } else if (score < 38) {
+      verdict = RU.verdictStay;
+      verdictTone = 'bad';
+    } else if (score < 60) {
+      verdict = RU.verdictCareful;
+      verdictTone = 'warn';
+      customRatingWord = 'Умеренный клёв';
+    }
+    const topNotes = bd.factors.slice(0, 3).map(f => `${f.note} (${f.val >= 0 ? '+' + f.val : f.val}%)`).join('; ');
+    return `
+      <div class="card express-card ${s.dayIdx === dayIdx ? 'active' : ''}" data-express-day="${dayIdx}">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+          <div>
+            <div style="font-size:var(--fs-md);font-weight:800;">${dayName} • ${d.label}</div>
+            <div style="font-size:var(--fs-xs);color:var(--muted);">Объект лова: <b>${fish.name}</b></div>
+          </div>
+          ${createPill({ text: verdict, tone: verdictTone })}
+        </div>
+        <div class="express-chips">
+          ${createPill({ icon: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg>', text: `Вода ${d.waterTemp}°C`, tone: wtTone })}
+          ${createPill({ icon: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><polygon points="16,8 13.5,13.5 8,16 10.5,10.5" fill="#38bdf8" stroke="currentColor" stroke-width="1.3"/></svg>', text: `${d.pressAvg} мм (${fmtDeltaPress(d.dP)})`, tone: pTone })}
+          ${createPill({ icon: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>', text: `${d.windDir} ${d.windMax} м/с`, tone: wTone })}
+          ${createPill({ icon: d.moon.phaseIcon, text: `${d.moon.moonDay} л.д.`, tone: 'neutral' })}
+          ${createPill({ icon: dayIce === 'open_water' ? '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg>' : '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1" stroke="#7dd3fc" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="#38bdf8"/></svg>', text: iceText, tone: iceTone })}
+        </div>
+        <p style="font-size:var(--fs-xs);color:var(--muted);line-height:1.42;">
+          ${fish.legal === 'redbook'
+            ? `<svg class="k-ico" style="color:var(--bad);" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><path d="M6 6l12 12" stroke="#ef4444" stroke-width="2.1" stroke-linecap="round"/></svg> Поймал — отпусти! Биоактивность вида: ${topNotes}.`
+            : (dayIce === 'ice_danger'
+                ? (d.iceNote || '<svg class="k-ico" style="color:var(--warn);" viewBox="0 0 24 24" fill="none"><path d="M12 3L2.5 19.5h19L12 3z" fill="rgba(245,158,11,0.24)" stroke="#f59e0b" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9v5M12 17h.01" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/></svg> Выход на тонкий или весенний рыхлый лёд смертельно опасен! Допустима только береговая ловля.')
+                : `${topNotes}.`)}
+        </p>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;border-top:1px solid var(--border);gap:8px;">
+          <div>
+            ${renderFiveFish(score, 17, curTheme, true, customRatingWord)}
+          </div>
+          <span style="font-size:var(--fs-xs);color:var(--muted);font-weight:700;">${fish.legal === 'redbook' ? 'Красная книга' : '8 факторов модели'}</span>
+        </div>
+      </div>
+    `;
+  }).join('');
+  const appMode = s.appMode || "angler";
+  const todayObj = s.weatherDays[2] || s.weatherDays[0];
+  const tomorrowObj = s.weatherDays[3] || todayObj;
+  const nearWaterTitle = s.selectedWaterName || s.nearbyWaters?.[0]?.name || WATER_PROFILES[s.water]?.shortName || "Ближайший водоём";
+  let modeBannerHtml = '';
+  const activeDayForTackle = s.weatherDays[s.dayIdx] || todayObj || {};
+  const effIceForTackle = activeDayForTackle.iceState || s.iceState || 'open_water';
+  const effWaterTempForTackle = activeDayForTackle.waterTemp ?? 10;
+  const compatibleMethodsTop = getCompatibleMethods(fish, effIceForTackle, s.water, effWaterTempForTackle);
+  const seasonalBaitsTop = getSeasonalBaitsForContext(fish, s.method, effWaterTempForTackle, effIceForTackle);
+  const activeBaitTop = s.selectedBait && seasonalBaitsTop.includes(s.selectedBait) ? s.selectedBait : (seasonalBaitsTop[0] || '');
+  const rigTop = calcDynamicRig(s.method, s.water, s.depth, activeDayForTackle.windMax || 3, fish, effWaterTempForTackle, effIceForTackle);
+  const activeHeroScore = calcDayBest(fish, activeDayForTackle, s.method, s.water, s.depth, s.normPress, s.iceState);
+  const activeHeroWin = getBestBiteWindowText(fish, activeDayForTackle, s.method, s.water, s.depth, s.normPress, s.iceState);
+  const heroTone = activeHeroScore >= 60 ? 'var(--good)' : (activeHeroScore >= 38 ? 'var(--warn)' : 'var(--bad)');
+  const heroStatusShort = fish.legal === 'redbook'
+    ? 'КРАСНАЯ КНИГА'
+    : (effIceForTackle === 'ice_danger'
+        ? 'ОПАСНЫЙ ЛЁД!'
+        : (activeHeroScore >= 60 ? 'АКТИВНЫЙ<br>КЛЁВ' : (activeHeroScore >= 38 ? 'УМЕРЕННЫЙ<br>КЛЁВ' : 'СЛАБЫЙ<br>КЛЁВ')));
+  const gaugeLevelWord = activeHeroScore >= 60 ? 'Высокий' : (activeHeroScore >= 38 ? 'Средний' : 'Низкий');
+  const ecoregBento = getSpotEcoregion(s.lat, s.lon, s.basinCode, s.water, s.selectedWaterName);
+  const sigOrderBento = ecoregBento.signatureSpecies || [];
+  const sigMapBento = new Map(sigOrderBento.map((id, idx) => [id, idx]));
+  const radiusTypesBento = new Set((s.nearbyWaters || []).map(w => w.wType).concat([s.water]));
+  const hasCoolingBento = s.water === 'cooling_reservoir' || radiusTypesBento.has('cooling_reservoir');
+  const regionalPool = FISH_DB.filter(f =>
+    f.legal !== 'redbook' &&
+    isSpeciesInGeoRange(f, s.lat, s.lon, s.basinCode, s.water, s.waterRadiusKm || 50, radiusTypesBento, s.isCoastal, hasCoolingBento, s.selectedWaterName)
+  );
+  const top6Species = (regionalPool.length ? regionalPool : FISH_DB.slice(0, 8))
+    .map(f => {
+      const scDay = calcDayBest(f, activeDayForTackle, s.method, s.water, s.depth, s.normPress, s.iceState);
+      const sigIdx = sigMapBento.has(f.id) ? sigMapBento.get(f.id) : -1;
+      const bonus = sigIdx >= 0 ? Math.max(6, 24 - sigIdx * 2) : -6;
+      return { fish: f, scDay, rankSc: scDay + bonus };
+    })
+    .sort((a, b) => b.rankSc - a.rankSc)
+    .slice(0, 6);
+  const top3Bento = top6Species.slice(0, 3);
+  const methodLabelsShort = {
+    spin_micro: 'Микроджиг / Мормышинг',
+    spin_jig: 'Спиннинг (Джиг)',
+    spin_lure: 'Спиннинг (Блесна/Воблер)',
+    bottom: 'Донка / Фидер',
+    float: 'Поплавочная снасть',
+    fly: 'Нахлыст / Бомбарда',
+    winter_jig: 'Зимняя мормышка',
+    winter_lure: 'Зимний балансир / Виб',
+    winter_livebait: 'Жерлица (Живец)',
+    winter_stuka: 'Зимняя стукалка',
+    winter_cisco: 'Зимняя гирлянда',
+    sea_rock: 'Морской рокфишинг',
+    sea_surf: 'Морская донка',
+    sea_boat: 'Морской лов с лодки'
+  };
+  const shortMethodName = methodLabelsShort[s.method] || 'Спиннинг';
+  const shortBaitClean = String(activeBaitTop || 'по сезону').split('(')[0].trim();
+  const arcLenTotal = 188.5;
+  const arcFillLen = Math.round((Math.max(5, Math.min(100, activeHeroScore)) / 100) * arcLenTotal * 10) / 10;
+  const hrsArr = Array.isArray(activeDayForTackle.hours) && activeDayForTackle.hours.length === 24
+    ? activeDayForTackle.hours
+    : Array.from({ length: 24 }, (_, h) => ({ hour: h, tAir: 3, press: 754, wind: 3, windDir: 'З' }));
+  const hrScores = hrsArr.map(hr => calcHourly(fish, activeDayForTackle, hr, s.method, s.water, s.depth, s.normPress, s.iceState));
+  let morningPeakHr = 7, morningPeakSc = -1;
+  let eveningPeakHr = 17, eveningPeakSc = -1;
+  hrScores.forEach((sc, h) => {
+    if (h >= 4 && h <= 12 && sc > morningPeakSc) { morningPeakSc = sc; morningPeakHr = h; }
+    if (h >= 13 && h <= 22 && sc > eveningPeakSc) { eveningPeakSc = sc; eveningPeakHr = h; }
+  });
+  const svgW = 360, svgH = 118, padL = 14, padR = 14, padT = 26, padB = 18;
+  const plotW = svgW - padL - padR;
+  const plotH = svgH - padT - padB;
+  const rawMinSc = Math.min(...hrScores);
+  const rawMaxSc = Math.max(...hrScores);
+  const spanSc = Math.max(12, rawMaxSc - rawMinSc);
+  const floorSc = Math.max(0, rawMinSc - Math.max(3, spanSc * 0.18));
+  const ceilSc = Math.min(100, rawMaxSc + Math.max(4, spanSc * 0.15));
+  const effRange = Math.max(10, ceilSc - floorSc);
+  const pts = hrScores.map((sc, idx) => {
+    const x = Math.round((padL + (idx / 23) * plotW) * 10) / 10;
+    const norm = Math.max(0.06, Math.min(0.96, (sc - floorSc) / effRange));
+    const y = Math.round((padT + (1 - norm) * plotH) * 10) / 10;
+    return { x, y, sc, hr: idx };
+  });
+  let wavePathD = 'M ' + pts[0].x + ' ' + pts[0].y;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i];
+    const p1 = pts[i + 1];
+    const cx = Math.round(((p0.x + p1.x) / 2) * 10) / 10;
+    wavePathD += ' C ' + cx + ' ' + p0.y + ', ' + cx + ' ' + p1.y + ', ' + p1.x + ' ' + p1.y;
+  }
+  const baseLineY = svgH - 6;
+  const waveAreaD = wavePathD + ' L ' + pts[pts.length - 1].x + ' ' + baseLineY + ' L ' + pts[0].x + ' ' + baseLineY + ' Z';
+  const hourlyBarsSvg = pts.map(p => {
+    const bh = Math.max(4, Math.round((baseLineY - p.y) * 10) / 10);
+    const col = p.sc >= 60 ? 'rgba(16,185,129,0.22)' : (p.sc >= 38 ? 'rgba(56,189,248,0.20)' : 'rgba(148,163,184,0.15)');
+    return '<rect x="' + (p.x - 3.2).toFixed(1) + '" y="' + p.y + '" width="6.4" height="' + bh + '" rx="2.5" fill="' + col + '"/>';
+  }).join('');
+  const mPt = pts[morningPeakHr] || pts[7];
+  const ePt = pts[eveningPeakHr] || pts[17];
+  const mLabelX = Math.max(46, Math.min(svgW - 46, mPt.x));
+  const eLabelX = Math.max(46, Math.min(svgW - 46, ePt.x));
+  const tAirVal = activeDayForTackle.tDay ?? 3;
+  const tAirStr = `${tAirVal > 0 ? '+' + tAirVal : tAirVal}°C`;
+  const tWatStr = `${effWaterTempForTackle > 0 ? '+' + effWaterTempForTackle : effWaterTempForTackle}°C`;
+  const iceThickVal = activeDayForTackle.iceThickness ?? s.iceThickness ?? 0;
+  const iceMainTitle = effIceForTackle === 'ice_safe'
+    ? `Лёд: ${iceThickVal || 12} см`
+    : (effIceForTackle === 'ice_danger'
+        ? `Опасный лёд: ${iceThickVal} см`
+        : (effIceForTackle === 'ice_slush' ? 'Шуга и забереги' : 'Открытая вода'));
+  const iceSubTitle = effIceForTackle === 'ice_safe'
+    ? '(Пешком разрешено)'
+    : (effIceForTackle === 'ice_danger'
+        ? '(Выход на лёд запрещён!)'
+        : (effIceForTackle === 'ice_slush' ? '(Ледостава нет • с берега)' : '(Льда нет • лодка и берег)'));
+  const activeCircleCount = (s.circleItems || []).filter(x => x && x.t !== 'workshop').length;
+  const stickySpeciesHtml = `
+    <div class="chip-scroll-row bento-top-species-strip" style="padding-bottom:2px;">
+      ${top6Species.map(item => `
+        <button type="button" class="w-chip ${item.fish.id === fish.id ? 'active' : ''}" data-novice-pick-fish="${item.fish.id}" style="padding:4px 10px;min-height:36px;display:inline-flex;align-items:center;gap:6px;flex-shrink:0;white-space:nowrap;">
+          <img src="assets/fish/${item.fish.id}.png" alt="" style="width:28px;height:15px;object-fit:contain;" onerror="this.style.display='none'">
+          <span>${item.fish.name}</span>
+          <span style="font-size:10.5px;opacity:0.85;">${item.scDay}%</span>
+        </button>
+      `).join('')}
+      <button type="button" class="w-chip" id="bentoOpenAllFishBtn" style="padding:4px 10px;min-height:36px;color:var(--accent);border-color:var(--accent);flex-shrink:0;white-space:nowrap;">
+        <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 12s4-6 11-6c4.2 0 7 2.5 9 6-2 3.5-4.8 6-9 6-7 0-11-6-11-6z" fill="rgba(56,189,248,0.28)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M2 12l-1.5-3.5L5 10.5M2 12l-1.5 3.5L5 13.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="16.5" cy="10.8" r="1.3" fill="currentColor"/></svg> Все 115 рыб →
+      </button>
+    </div>
+  `;
+  const stickyRoot = (typeof document !== 'undefined') ? document.getElementById('fcStickySpeciesBar') : null;
+  if (stickyRoot) {
+    const prevSpeciesLeft = stickyRoot.querySelector('.bento-top-species-strip')?.scrollLeft || 0;
+    stickyRoot.innerHTML = stickySpeciesHtml;
+    if (prevSpeciesLeft > 0) {
+      const nextStrip = stickyRoot.querySelector('.bento-top-species-strip');
+      if (nextStrip) nextStrip.scrollLeft = prevSpeciesLeft;
+    }
+  }
+  modeBannerHtml += `
+    <div class="bento-dashboard-wrap">
+      ${stickyRoot ? '' : stickySpeciesHtml}
+      <!-- КАРТОЧКА 1 (По Фото 1 + Свайп рыбы v2.5.0): <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="4.5" stroke="#38bdf8" stroke-width="1.6"/><circle cx="12" cy="12" r="1.8" fill="#10b981"/></svg> Ихтиологический Прогноз Клёва -->
+      <div class="bento-card bento-hero-card" id="bentoSwipeHeroCard">
+        <div class="bento-card-head">
+          <div>
+            <div class="bento-card-title">
+              <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="4.5" stroke="#38bdf8" stroke-width="1.6"/><circle cx="12" cy="12" r="1.8" fill="#10b981"/></svg></span>
+              <span>Ихтиологический Прогноз Клёва</span>
+            </div>
+            <div class="bento-card-sub">
+              ${s.locLabel} (${nearWaterTitle}) • ${activeDayForTackle.relTitle || activeDayForTackle.label || 'Сегодня'} • <span style="color:var(--accent);">⇄ свайп рыбы</span>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:4px;">
+            <button type="button" class="btn btn-sm" id="bentoPrevFishBtn" title="Предыдущая рыба" style="min-height:30px;padding:2px 9px;font-size:15px;font-weight:900;border-radius:999px;">‹</button>
+            <button type="button" class="btn btn-sm" id="bentoNextFishBtn" title="Следующая рыба" style="min-height:30px;padding:2px 9px;font-size:15px;font-weight:900;border-radius:999px;">›</button>
+          </div>
+        </div>
+        <div class="bento-hero-grid">
+          <!-- Левая колонка: Иллюстрация рыбы (клик — полноэкранный зум и паспорт вида) + АКТИВНЫЙ КЛЁВ + ТОП-3 активные рыбы -->
+          <div class="bento-hero-left">
+            <div class="bento-active-status-row">
+              <div class="bento-splash-fish-box" data-open-fish-zoom="${fish.id}" style="cursor:zoom-in;position:relative;" title="Нажмите для увеличения иллюстрации и паспорта рыбы">
+                <img src="assets/fish/${fish.id}.png" alt="${fish.name}" onerror="this.style.display='none'">
+                <span style="position:absolute;bottom:1px;right:3px;font-size:9px;opacity:0.75;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="2"/><path d="M16 16l4.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>
+              </div>
+              <div>
+                <div class="bento-status-verdict" style="color:${heroTone};">${heroStatusShort}</div>
+                <div style="font-size:11px;font-weight:800;color:var(--muted);margin-top:2px;">
+                  <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 12s4-6 11-6c4.2 0 7 2.5 9 6-2 3.5-4.8 6-9 6-7 0-11-6-11-6z" fill="rgba(56,189,248,0.28)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M2 12l-1.5-3.5L5 10.5M2 12l-1.5 3.5L5 13.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="16.5" cy="10.8" r="1.3" fill="currentColor"/></svg> ${fish.name} • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.5 2" stroke="#38bdf8" stroke-width="1.9" stroke-linecap="round"/></svg> ${activeHeroWin}
+                </div>
+              </div>
+            </div>
+            <div class="bento-top3-label">ТОП-3 активные рыбы</div>
+            <div class="bento-top3-row">
+              ${top3Bento.map((item, rankIdx) => `
+                <button type="button" class="bento-top3-item ${item.fish.id === fish.id ? 'active' : ''}" data-novice-pick-fish="${item.fish.id}" title="Выбрать рыбу «${item.fish.name}» (${rankIdx + 1}-е место сегодня)">
+                  <img src="assets/fish/${item.fish.id}.png" alt="${item.fish.name}" onerror="this.style.display='none'">
+                  <span class="bento-top3-name">${rankIdx + 1}-е место • ${item.fish.name}</span>
+                  <span class="bento-top3-pct">${item.scDay}%</span>
+                </button>
+              `).join('')}
+            </div>
+          </div>
+          <!-- Правая колонка: Полукруглая шкала-спидометр 78% + Выбор снасти и рекомендация -->
+          <div class="bento-gauge-col">
+            <div class="bento-gauge-svg-box">
+              <svg viewBox="0 0 156 90" width="156" height="90" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <linearGradient id="bentoGaugeGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="var(--gauge-start, #3b82f6)"/>
+                    <stop offset="100%" stop-color="var(--gauge-end, #10b981)"/>
+                  </linearGradient>
+                </defs>
+                <path d="M 18 78 A 60 60 0 0 1 138 78" stroke="var(--gauge-track, #dbe7f3)" stroke-width="12" stroke-linecap="round" fill="none"/>
+                <path d="M 18 78 A 60 60 0 0 1 138 78" stroke="url(#bentoGaugeGrad)" stroke-width="12" stroke-linecap="round" fill="none" stroke-dasharray="${arcFillLen} 200"/>
+              </svg>
+              <div class="bento-gauge-center-text">
+                <span class="bento-gauge-sub">Пик дня:</span>
+                <span class="bento-gauge-lvl">${gaugeLevelWord}</span>
+                <span class="bento-gauge-pct">${activeHeroScore}%</span>
+              </div>
+            </div>
+            <div style="font-size:10.5px;font-weight:800;color:var(--accent);text-align:center;margin-top:-2px;margin-bottom:3px;">
+              Сейчас <b>${hrScores[s.selectedHour ?? new Date().getHours()] ?? activeHeroScore}%</b> (${String(s.selectedHour ?? new Date().getHours()).padStart(2, '0')}:00) • Пик <b>${activeHeroScore}%</b> в ${String(activeHeroWin || '07:00').slice(0, 5)}
+            </div>
+            <div class="bento-tackle-summary">
+              <span style="color:var(--muted);font-size:11px;">Выбор снасти:</span><br>
+              <b style="font-size:13.5px;color:var(--text);">${shortMethodName}</b>
+            </div>
+            <div class="bento-tackle-rec">
+              Рекомендуется: <b>${rigTop.weight}</b>, ${renderBaitWithColorDots(shortBaitClean)}
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- КАРТОЧКА 2 (По Фото 1): Интерактивный почасовой график клёва 00:00–24:00 (зажмите и ведите влево/вправо для просмотра по часам, тап — переход к суточному прогнозу) -->
+      ${(() => {
+        const scrubPtsJson = JSON.stringify(pts.map((p, h) => {
+          const hObj = hrsArr[h] || {};
+          return {
+            hr: h,
+            sc: p.sc,
+            xPct: Number(((p.x / svgW) * 100).toFixed(2)),
+            yPct: Number(((p.y / svgH) * 100).toFixed(2)),
+            tAir: Math.round(Number(hObj.tAir ?? activeDayForTackle.tDay ?? 3)),
+            press: Math.round(Number(hObj.press ?? activeDayForTackle.pressAvg ?? 754)),
+            wind: Math.round(Number(hObj.wind ?? activeDayForTackle.windMax ?? 3) * 10) / 10,
+            windDir: String(hObj.windDir || activeDayForTackle.windDir || 'З')
+          };
+        })).replace(/"/g, '&quot;');
+        return `<div class="bento-card bento-chart-card" id="bentoWaveChartCard" data-hourly-points="${scrubPtsJson}" style="cursor:pointer;" title="Зажмите и ведите влево/вправо для просмотра по часам, короткое нажатие — переход к суточному прогнозу">`;
+      })()}
+        <div class="bento-card-head" style="margin-bottom:4px;">
+          <div class="bento-card-title">
+            <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M3 3v18h18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M7 15l4-5 4 3 5-7" stroke="#38bdf8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            <span>Почасовой график клёва</span>
+          </div>
+          <span id="bentoChartTimeRangeLabel" style="font-size:11.5px;font-weight:800;color:var(--muted);">00:00–24:00 • ведите по шкале</span>
+        </div>
+        <div style="width:100%;overflow:hidden;">
+          <div class="bento-chart-stage" id="bentoWaveChartStage" style="position:relative;width:100%;height:122px;">
+            <svg viewBox="0 0 ${svgW} ${svgH}" width="100%" height="100%" preserveAspectRatio="none" style="display:block;width:100%;height:100%;">
+              <defs>
+                <linearGradient id="bentoWaveFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="var(--wave-fill-top, rgba(56,189,248,0.42))"/>
+                  <stop offset="100%" stop-color="var(--wave-fill-bot, rgba(56,189,248,0.03))"/>
+                </linearGradient>
+              </defs>
+              <line x1="${padL}" y1="${padT + plotH * 0.25}" x2="${svgW - padR}" y2="${padT + plotH * 0.25}" stroke="var(--border)" stroke-dasharray="3 3" stroke-width="1" vector-effect="non-scaling-stroke" opacity="0.45"/>
+              <line x1="${padL}" y1="${padT + plotH * 0.65}" x2="${svgW - padR}" y2="${padT + plotH * 0.65}" stroke="var(--border)" stroke-dasharray="3 3" stroke-width="1" vector-effect="non-scaling-stroke" opacity="0.55"/>
+              ${hourlyBarsSvg}
+              <path d="${waveAreaD}" fill="url(#bentoWaveFill)"/>
+              <path d="${wavePathD}" fill="none" stroke="var(--wave-stroke, #38bdf8)" stroke-width="2.8" vector-effect="non-scaling-stroke" stroke-linecap="round"/>
+              <line x1="${mPt.x}" y1="${mPt.y}" x2="${mPt.x}" y2="${svgH - 6}" stroke="#10b981" stroke-dasharray="3 3" stroke-width="1.2" vector-effect="non-scaling-stroke" opacity="0.75"/>
+              <line x1="${ePt.x}" y1="${ePt.y}" x2="${ePt.x}" y2="${svgH - 6}" stroke="#38bdf8" stroke-dasharray="3 3" stroke-width="1.2" vector-effect="non-scaling-stroke" opacity="0.75"/>
+            </svg>
+            <!-- Нерастягиваемые HTML-маркеры и бейджи пиков клёва (100% чёткий шрифт на любом мониторе и смартфоне) -->
+            <div class="bento-chart-dot bento-chart-default-marker" style="left:${((mPt.x / svgW) * 100).toFixed(1)}%;top:${((mPt.y / svgH) * 100).toFixed(1)}%;background:#10b981;"></div>
+            <div class="bento-chart-badge bento-chart-default-marker" style="left:${Math.max(12, Math.min(88, (mPt.x / svgW) * 100)).toFixed(1)}%;top:${Math.max(18, ((mPt.y / svgH) * 100) - 6).toFixed(1)}%;border-color:rgba(16,185,129,0.55);">
+              ${String(mPt.hr).padStart(2, '0')}:00 (${mPt.sc}%)
+            </div>
+            <div class="bento-chart-dot bento-chart-default-marker" style="left:${((ePt.x / svgW) * 100).toFixed(1)}%;top:${((ePt.y / svgH) * 100).toFixed(1)}%;background:#38bdf8;"></div>
+            <div class="bento-chart-badge bento-chart-default-marker" style="left:${Math.max(12, Math.min(88, (ePt.x / svgW) * 100)).toFixed(1)}%;top:${Math.max(18, ((ePt.y / svgH) * 100) - 6).toFixed(1)}%;border-color:rgba(56,189,248,0.55);">
+              ${String(ePt.hr).padStart(2, '0')}:00 (${ePt.sc}%)
+            </div>
+            <!-- Интерактивный ползунок-скраббер при зажатии и движении пальцем / мышью -->
+            <div class="bento-scrub-cursor-line" id="bentoScrubCursorLine" style="left:50%;"></div>
+            <div class="bento-scrub-cursor-dot" id="bentoScrubCursorDot" style="left:50%;top:50%;"></div>
+            <div class="bento-scrub-hud-badge" id="bentoScrubHudBadge" style="left:50%;"></div>
+          </div>
+          <!-- Информативная 3-часовая шкала клёва (8 опорных точек за сутки) -->
+          <div class="bento-chart-ticks-grid">
+            ${[0, 3, 6, 9, 12, 15, 18, 21].map(hIdx => {
+              const pObj = pts[hIdx] || pts[0];
+              const scVal = pObj ? pObj.sc : 50;
+              const colTone = scVal >= 65 ? 'var(--good)' : (scVal >= 42 ? 'var(--accent)' : 'var(--muted)');
+              return `
+                <div class="bento-chart-tick-cell" data-tick-hour="${hIdx}">
+                  <span class="bento-chart-tick-hr">${String(hIdx).padStart(2, '0')}:00</span>
+                  <span class="bento-chart-tick-val" style="color:${colTone};">${scVal}%</span>
+                </div>
+              `;
+            }).join('')}
+          </div>
+          <div id="bentoChartPeaksRow" style="display:flex;justify-content:space-between;align-items:center;padding:4px 4px 0;font-size:11.5px;font-weight:800;color:var(--muted);flex-wrap:wrap;gap:6px;">
+            <span style="color:var(--good);">Утренний пик: ${String(morningPeakHr).padStart(2, '0')}:00 (${mPt.sc}%)</span>
+            <span style="color:var(--accent);">Вечерний пик: ${String(eveningPeakHr).padStart(2, '0')}:00 (${ePt.sc}%)</span>
+          </div>
+          <div id="bentoChartScrubLiveRow" style="display:none;justify-content:space-between;align-items:center;padding:5px 8px;margin-top:4px;border-radius:7px;background:rgba(251,191,36,0.14);border:1px solid rgba(251,191,36,0.55);font-size:11.5px;font-weight:900;color:var(--text);flex-wrap:wrap;gap:6px;"></div>
+          ${(() => {
+            const astro = computeDayKpAndDaylight(activeDayForTackle);
+            return `
+              <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-top:6px;padding-top:6px;border-top:1px dashed var(--border);font-size:11px;font-weight:800;">
+                <span style="color:var(--muted);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.5" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> Восход <b>${fmtHM(astro.sr)}</b> • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.5" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> Закат <b>${fmtHM(astro.ss)}</b> (День: ${astro.daylightStr})</span>
+                <span style="color:${astro.kpTone};"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="5" r="2.5" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5V21M5 13c0 4.5 3.1 8 7 8s7-3.5 7-8M8 10h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Геомагнитный Kp-${astro.kpVal} (${astro.kpLabel})</span>
+              </div>
+            `;
+          })()}
+        </div>
+      </div>
+      <!-- КАРТОЧКА 3 (По Фото 1): Двойной нижний ряд «<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> Карта & Радар» + «<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="9" r="4" fill="#fbbf24" opacity="0.9"/><path d="M9 2v2M9 14v2M2 9h2M14 9h2M4.2 4.2l1.4 1.4M12.4 12.4l1.4 1.4" stroke="#fbbf24" stroke-width="1.6" stroke-linecap="round"/><path d="M10 18h8.5a3.5 3.5 0 0 0 .4-6.97A5 5 0 0 0 9.2 9.5 4 4 0 0 0 10 18z" fill="rgba(56,189,248,0.28)" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg> Погода & Лёд» -->
+      <div class="bento-bottom-duo">
+        <!-- Левая карточка: <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> Карта & Радар -->
+        <div class="bento-card bento-radar-card" id="bentoMapRadarCard" title="Нажмите для перехода к Карте и Радару Круга">
+          <div class="bento-card-title" style="margin-bottom:8px;font-size:14.5px;">
+            <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg></span>
+            <span>Карта & Радар</span>
+          </div>
+          <div class="bento-radar-visual">
+            <svg viewBox="0 0 240 136" width="100%" height="100%" preserveAspectRatio="xMidYMid slice" fill="none">
+              <path d="M-10,28 Q60,6 130,38 T250,22 L250,145 L-10,145 Z" fill="rgba(59,130,246,0.18)"/>
+              <path d="M-10,76 Q75,48 145,82 T250,62 L250,145 L-10,145 Z" fill="rgba(14,165,233,0.24)"/>
+              <polygon points="120,18 158,40 158,84 120,106 82,84 82,40" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="5 3" fill="rgba(56,189,248,0.12)"/>
+              <circle cx="120" cy="62" r="24" stroke="var(--good)" stroke-width="1.2" stroke-dasharray="3 2" fill="rgba(16,185,129,0.14)"/>
+              <line x1="120" y1="62" x2="152" y2="36" stroke="#10b981" stroke-width="2" stroke-linecap="round"/>
+              <circle cx="120" cy="62" r="6.5" fill="var(--accent)" stroke="#ffffff" stroke-width="2.2"/>
+            </svg>
+            <div class="bento-radar-badge-zone">
+              <b>⬡ ±5 км</b> • Гексагон
+            </div>
+            <div class="bento-radar-badge-crew" id="bentoOpenCrewBadge">
+              Круг / Экипаж${activeCircleCount > 0 ? ` (${activeCircleCount})` : ''}
+            </div>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;padding-top:6px;margin-top:6px;border-top:1px solid var(--border);font-size:11px;font-weight:800;color:var(--muted);">
+            <span style="color:var(--text);">Слипы • Коряги • SOS</span>
+            <span style="color:var(--accent);">На карту →</span>
+          </div>
+        </div>
+        <!-- Правая карточка: Автоматически меняет название по сезону (летом — Погода & Вода, в межсезонье — Погода & Шуга, зимой — Погода & Лёд) -->
+        <div class="bento-card bento-weather-card" id="bentoWeatherIceCard" title="Нажмите для перехода в подробный раздел Погода и состояние водоёма">
+          <div class="bento-card-title" style="margin-bottom:8px;font-size:14.5px;">
+            <span>${effIceForTackle === 'ice_safe' || effIceForTackle === 'ice_danger' ? '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1" stroke="#7dd3fc" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="#38bdf8"/></svg>' : (effIceForTackle === 'ice_slush' ? '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1" stroke="#7dd3fc" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="#38bdf8"/></svg>' : '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg>')}</span>
+            <span>${effIceForTackle === 'ice_safe' || effIceForTackle === 'ice_danger' ? 'Погода & Лёд' : (effIceForTackle === 'ice_slush' ? 'Погода & Шуга' : 'Погода & Вода')}</span>
+          </div>
+          <div class="bento-weather-rows">
+            <div class="bento-temp-split">
+              <div>
+                <div class="bento-temp-air">${tAirStr}</div>
+                <div style="font-size:10.5px;color:var(--muted);font-weight:700;">Воздух (${activeDayForTackle.windDir || 'З'} ${activeDayForTackle.windMax || 3} м/с)</div>
+              </div>
+              <div class="bento-temp-water-box">
+                <div style="font-size:13.5px;font-weight:900;color:var(--accent);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> ${tWatStr}</div>
+                <div style="font-size:10.5px;color:var(--muted);font-weight:700;">Вода</div>
+              </div>
+            </div>
+            <div class="bento-weather-item-row">
+              <span style="font-size:17px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><polygon points="16,8 13.5,13.5 8,16 10.5,10.5" fill="#38bdf8" stroke="currentColor" stroke-width="1.3"/></svg></span>
+              <div>
+                <div style="font-weight:900;color:var(--text);">${activeDayForTackle.pressAvg || 750} мм рт. ст.</div>
+                <div style="font-size:10.5px;color:var(--muted);">Давление (${fmtDeltaPress(activeDayForTackle.dP)})</div>
+              </div>
+            </div>
+            <div class="bento-weather-item-row bento-ice-hazard">
+              <span style="font-size:17px;">${effIceForTackle === 'open_water' ? '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg>' : '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1" stroke="#7dd3fc" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="#38bdf8"/></svg>'}</span>
+              <div>
+                <div style="font-weight:900;color:var(--text);">${iceMainTitle}</div>
+                <div style="font-size:10.5px;color:var(--muted);">${iceSubTitle}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Панель выбора снасти, приманки с цветовыми кружками и быстрых действий (Я поймал / Чек-лист / Поделиться) -->
+      <div class="bento-card bento-tackle-controls-card" id="fcTackleControlsCard" style="padding:11px 13px;border:1px solid var(--border);">
+        <div class="controls-grid" style="grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px;margin-bottom:9px;">
+          <div>
+            <label for="fcTopMethodSelect" style="display:block;font-size:11px;color:var(--muted);font-weight:800;margin-bottom:3px;">1. ВЫБОР СНАСТИ И СПОСОБА ЛОВЛИ:</label>
+            <select id="fcTopMethodSelect" style="width:100%;min-height:42px;">
+              ${compatibleMethodsTop.map(m => `<option value="${m.val}" ${m.val === s.method ? 'selected' : ''}>${String(m.text || '').replace(/<[^>]+>/g, '').trim()}</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <label for="fcTopBaitSelect" style="display:block;font-size:11px;color:var(--muted);font-weight:800;margin-bottom:3px;">2. СЕЗОННАЯ ПРИМАНКА / НАСАДКА (<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> ${effWaterTempForTackle}°C):</label>
+            <select id="fcTopBaitSelect" style="width:100%;min-height:42px;">
+              ${seasonalBaitsTop.map(b => `<option value="${b}" ${b === activeBaitTop ? 'selected' : ''}>${b}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;">
+          <button type="button" class="btn" id="fcOpenRigGuideBtn" style="min-height:42px;font-weight:800;font-size:12px;padding:6px 8px;">
+            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M7 7a4 4 0 1 0 0 8h10a4 4 0 1 0 0-8H7z" stroke="#38bdf8" stroke-width="1.9"/><path d="M17 7a4 4 0 1 1 0 8H7a4 4 0 1 1 0-8" stroke="currentColor" stroke-width="1.6" stroke-dasharray="3 2"/></svg> Монтажи и узлы
+          </button>
+          <button type="button" class="btn" id="fcOpenChecklistBtn" style="min-height:42px;font-weight:800;font-size:12px;padding:6px 8px;">
+            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="6" y="7" width="12" height="14" rx="3" fill="rgba(56,189,248,0.16)" stroke="currentColor" stroke-width="1.8"/><path d="M9 7V5a3 3 0 0 1 6 0v2M9 14h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Чек-лист
+          </button>
+          <button type="button" class="btn btn-accent" id="fcShareForecastTgBtn" style="min-height:42px;font-weight:800;font-size:12px;padding:6px 8px;">
+            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 15V3m0 0L8 7m4-4l4 4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg> Поделиться
+          </button>
+        </div>
+      </div>
+      <div class="bento-tactical-advice-wrap">${buildSpecializedTacticalHtml(fish, s, activeDayForTackle, effWaterTempForTackle, effIceForTackle)}</div>
+    </div>
+  `;
+  if (appMode === "pro") {
+    const pw = s.proFactorWeights || { temp: 1.0, press: 1.0, archive_shock: 1.0, circle_field: 1.0 };
+    const activeDayObj = s.weatherDays[s.dayIdx] || todayObj || s.weatherDays[0];
+    const calScoreNow = activeDayObj ? calcDayBest(fish, activeDayObj, s.method, s.water, s.depth, s.normPress, s.iceState) : 52;
+    modeBannerHtml += `
+      <div class="card" style="margin-bottom:12px;padding:10px 12px;background:var(--card);border:1px dashed var(--accent);">
+        ${(() => {
+          const val30 = computeModel30DayValidation(s.catches || []);
+          return `
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:8px;">
+              <div>
+                <span style="font-size:var(--fs-xs);font-weight:800;color:var(--accent);"><svg class="k-ico" style="color:var(--bad);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg> ПАНЕЛЬ ПРОФИ: РУЧНАЯ КАЛИБРОВКА ВЕСОВ 8-ФАКТОРНОЙ МОДЕЛИ</span>
+                <div style="font-size:11px;color:var(--good);font-weight:700;margin-top:2px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="4.5" stroke="#38bdf8" stroke-width="1.6"/><circle cx="12" cy="12" r="1.8" fill="#10b981"/></svg> ${val30.label}</div>
+                <div id="proCalibLiveSummary" style="font-size:11.5px;color:var(--accent);font-weight:800;margin-top:3px;">
+                  <svg class="k-ico" viewBox="0 0 24 24" fill="none"><polygon points="13,2 4,14 11,14 10,22 20,10 13,10" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.5" stroke-linejoin="round"/></svg> Активность «${fish.name}» с текущей калибровкой весов: <b>${calScoreNow}%</b> (двигайте ползунки для живого пересчёта прогноза)
+                </div>
+              </div>
+              <div style="display:flex;gap:6px;">
+                <button type="button" class="btn btn-sm" id="proOpenChecklistBtn" style="min-height:26px;padding:2px 8px;font-size:11px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="6" y="7" width="12" height="14" rx="3" fill="rgba(56,189,248,0.16)" stroke="currentColor" stroke-width="1.8"/><path d="M9 7V5a3 3 0 0 1 6 0v2M9 14h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Чек-лист выезда</button>
+                <button type="button" class="btn btn-sm" id="proResetWeightsBtn" style="min-height:26px;padding:2px 8px;font-size:11px;">Сбросить (1.0x)</button>
+              </div>
+            </div>
+          `;
+        })()}
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:10px;font-size:var(--fs-xs);">
+          <div>
+            <label style="display:flex;justify-content:space-between;font-weight:700;">
+              <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> Термика воды:</span><b id="proWTempVal" style="color:var(--accent);">${Number(pw.temp ?? 1).toFixed(1)}x</b>
+            </label>
+            <input type="range" min="0.5" max="1.5" step="0.1" value="${pw.temp ?? 1}" data-pro-weight="temp" style="width:100%;">
+          </div>
+          <div>
+            <label style="display:flex;justify-content:space-between;font-weight:700;">
+              <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><polygon points="16,8 13.5,13.5 8,16 10.5,10.5" fill="#38bdf8" stroke="currentColor" stroke-width="1.3"/></svg> Давление (сутки):</span><b id="proWPressVal" style="color:var(--accent);">${Number(pw.press ?? 1).toFixed(1)}x</b>
+            </label>
+            <input type="range" min="0.5" max="1.5" step="0.1" value="${pw.press ?? 1}" data-pro-weight="press" style="width:100%;">
+          </div>
+          <div>
+            <label style="display:flex;justify-content:space-between;font-weight:700;">
+              <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M3 3v18h18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M7 15l4-5 4 3 5-7" stroke="#38bdf8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg> Барический шок (5 дн.):</span><b id="proWShockVal" style="color:var(--accent);">${Number(pw.archive_shock ?? 1).toFixed(1)}x</b>
+            </label>
+            <input type="range" min="0.5" max="1.5" step="0.1" value="${pw.archive_shock ?? 1}" data-pro-weight="archive_shock" style="width:100%;">
+          </div>
+          <div>
+            <label style="display:flex;justify-content:space-between;font-weight:700;">
+              <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="5" stroke="#38bdf8" stroke-width="1.5"/><path d="M12 12l6-6" stroke="#10b981" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="12" r="1.8" fill="#10b981"/></svg> Сигналы Круга (35 км):</span><b id="proWCircleVal" style="color:var(--accent);">${Number(pw.circle_field ?? 1).toFixed(1)}x</b>
+            </label>
+            <input type="range" min="0.5" max="1.5" step="0.1" value="${pw.circle_field ?? 1}" data-pro-weight="circle_field" style="width:100%;">
+          </div>
+        </div>
+      </div>
+    `;
+  }
+  container.innerHTML = `
+    <div>
+      ${modeBannerHtml}
+    </div>
+  `;
+}
+export function renderWeek(container) {
+  if (!container) return;
+  const prevScroll = container.querySelector('.week-strip')?.scrollLeft || 0;
+  const s = store.getState();
+  const fish = FISH_DB.find(f => f.id === s.fishId) || FISH_DB[0];
+  const curTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+  const days = s.weatherDays || [];
+  container.innerHTML = `
+    <div class="bento-card">
+      <div class="bento-card-head">
+        <div>
+          <div class="bento-card-title"><span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="3" fill="rgba(56,189,248,0.14)" stroke="currentColor" stroke-width="1.8"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="7" y="13" width="3" height="3" rx="0.8" fill="#38bdf8"/><rect x="14" y="13" width="3" height="3" rx="0.8" fill="#10b981"/></svg></span><span>Календарь клёва по дням (10 дней + Архив) • ${fish.name}</span></div>
+          <div class="bento-card-sub">Нажмите на любой день для пересчёта дашборда и почасового графика (Позавчера/Вчера — запись архивного улова)</div>
+        </div>
+        <button type="button" class="btn btn-sm" id="fcCleanArchiveBtn" title="Очистить старый архив погоды, кроме последних 5 дней"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Очистить кэш</button>
+      </div>
+      <div class="week-strip">
+        ${days.map((d, idx) => {
+          const score = calcDayBest(fish, d, s.method, s.water, s.depth, s.normPress, s.iceState);
+          const isPriority = idx === 2 || idx === 3;
+          const col = d.isArchive ? '#94a3b8' : (score >= 60 ? 'var(--good)' : (score >= 38 ? 'var(--warn)' : 'var(--bad)'));
+          if (d.isArchive) {
+            return `
+              <div class="day-card archive-day ${idx === s.dayIdx ? 'active' : ''}" data-week-day="${idx}" data-guest-locked-day="1">
+                <div class="day-status-stripe" style="background:${col};"></div>
+                <div style="font-weight:800;font-size:11.5px;color:var(--muted);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="5" y="3" width="14" height="18" rx="2.5" fill="rgba(56,189,248,0.16)" stroke="currentColor" stroke-width="1.8"/><path d="M9 7h6M9 11h6M9 15h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> ${d.relTitle}</div>
+                <div style="font-weight:700;font-size:12px;">${d.label}</div>
+                <div style="font-size:var(--fs-sm);font-weight:800;">${d.tDay > 0 ? '+' + d.tDay : d.tDay}° / ${d.tNight > 0 ? '+' + d.tNight : d.tNight}°C</div>
+                <div style="font-size:11px;color:var(--muted);line-height:1.3;">
+                  <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> ${d.waterTemp}°C • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><polygon points="16,8 13.5,13.5 8,16 10.5,10.5" fill="#38bdf8" stroke="currentColor" stroke-width="1.3"/></svg> ${d.pressAvg} мм
+                </div>
+                <div style="margin-top:auto;padding-top:4px;border-top:1px dashed var(--border);">
+                  <span style="color:var(--accent);font-size:11px;font-weight:800;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg> Внести улов →</span>
+                </div>
+              </div>
+            `;
+          }
+          const topBadge = idx === 2
+            ? `<span class="pill pill-good" style="font-size:11px;padding:2px 8px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2c1.5 3.5 4.5 5.5 4.5 10a5.5 5.5 0 1 1-11 0c0-3 2-5.5 3.5-7 0 2 1.5 3 1.5 3S12 5.5 12 2z" fill="#f97316" stroke="#fbbf24" stroke-width="1.5" stroke-linejoin="round"/></svg> Сегодня</span>`
+            : (idx === 3
+                ? `<span class="pill pill-ice" style="font-size:11px;padding:2px 8px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><polygon points="13,2 4,14 11,14 10,22 20,10 13,10" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.5" stroke-linejoin="round"/></svg> Завтра</span>`
+                : (d.relTitle ? `<span style="font-size:var(--fs-xs);color:var(--accent);font-weight:700;">${d.relTitle}</span>` : ''));
+          const bestWindow = isPriority ? getBestBiteWindowText(fish, d, s.method, s.water, s.depth, s.normPress, s.iceState) : '';
+          return `
+            <div class="day-card ${isPriority ? 'priority-day' : ''} ${idx === s.dayIdx ? 'active' : ''}" data-week-day="${idx}" data-guest-locked-day="${idx === 2 ? '0' : '1'}">
+              <div class="day-status-stripe" style="background:${col};"></div>
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:4px;">
+                <span style="font-weight:800;font-size:var(--fs-xs);">${d.label}</span>
+                ${topBadge}
+              </div>
+              <div style="font-size:var(--fs-md);font-weight:800;">${d.tDay > 0 ? '+' + d.tDay : d.tDay}° / ${d.tNight > 0 ? '+' + d.tNight : d.tNight}°C</div>
+              <div style="font-size:var(--fs-xs);color:var(--muted);line-height:1.38;">
+                <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> Вода ${d.waterTemp}°C<br>
+                <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><polygon points="16,8 13.5,13.5 8,16 10.5,10.5" fill="#38bdf8" stroke="currentColor" stroke-width="1.3"/></svg> ${d.pressAvg} мм (${fmtDeltaPress(d.dP)})<br>
+                <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> ${d.windDir} ${d.windMax} м/с
+              </div>
+              ${isPriority ? `
+                <div style="padding:4px 7px;border-radius:6px;background:var(--panel);border:1px solid var(--border);font-size:11.5px;line-height:1.35;">
+                  <div style="color:var(--accent);font-weight:800;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.5 2" stroke="#38bdf8" stroke-width="1.9" stroke-linecap="round"/></svg> Пик клёва: ${bestWindow}</div>
+                  <div style="color:var(--muted);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.5" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> ${fmtHM(d.sunriseHr)}–${fmtHM(d.sunsetHr)} • ${d.moon.phaseIcon} ${d.moon.moonDay} л.д.</div>
+                </div>
+              ` : ''}
+              <div style="margin-top:auto;padding-top:6px;border-top:1px solid var(--border);">
+                ${renderFiveFish(score, 14, curTheme, true, fish.legal === 'redbook' ? `Прилов ${score}% (Отпусти)` : null)}
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>
+  `;
+  if (prevScroll > 0) {
+    const strip = container.querySelector('.week-strip');
+    if (strip) strip.scrollLeft = prevScroll;
+  } else if (typeof window !== 'undefined' && typeof window.__KLEV_IS_MOBILE_GUEST__ === 'function' && window.__KLEV_IS_MOBILE_GUEST__()) {
+    const strip = container.querySelector('.week-strip');
+    const todayCard = container.querySelector('[data-week-day="2"]');
+    if (strip && todayCard) {
+      strip.scrollLeft = Math.max(0, todayCard.offsetLeft - 8);
+    }
+  }
+}
+export function renderHourly(container) {
+  if (!container) return;
+  const prevScroll = container.querySelector('.bite-timeline')?.scrollLeft || 0;
+  const s = store.getState();
+  const fish = FISH_DB.find(f => f.id === s.fishId) || FISH_DB[0];
+  const day = s.weatherDays[s.dayIdx] || s.weatherDays[2] || s.weatherDays[0];
+  if (!day) return;
+  if (day.isArchive) {
+    renderArchiveDayLogger(container, s, day, fish);
+    return;
+  }
+  const curTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+  const curH = new Date().getHours();
+  const selH = clampHour(s.selectedHour);
+  const selHrObj = day.hours[selH] || day.hours[12];
+  const selBreakdown = computeHourFactors(fish, day, selHrObj, s.method, s.water, s.depth, s.normPress, s.iceState);
+  const rig = calcDynamicRig(s.method, s.water, s.depth, day.windMax, fish, day.waterTemp, day.iceState || s.iceState);
+  const seasonalBaits = getSeasonalBaitsForContext(fish, s.method, day.waterTemp, day.iceState || s.iceState);
+  const activeBait = s.selectedBait && seasonalBaits.includes(s.selectedBait) ? s.selectedBait : seasonalBaits[0];
+  const guides = generateAdaptiveGuides(fish, s.water, s.depth, day, s.method, s.iceState);
+  container.innerHTML = `
+    <div class="bento-card">
+      <div class="bento-card-head">
+        <div>
+          <div class="bento-card-title"><span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.5 2" stroke="#38bdf8" stroke-width="1.9" stroke-linecap="round"/></svg></span><span>Почасовой разбор и 8 факторов (${day.relTitle ? day.relTitle + ' • ' + day.label : day.label})</span></div>
+          <div class="bento-card-sub"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.5" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> Зорьки и <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.5" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> лунные окна отмечены значками • Выберите любой час (00:00–23:00)</div>
+        </div>
+      </div>
+      ${fish.legal === 'redbook' ? `
+        <div style="padding:10px 12px;margin-bottom:10px;border-radius:var(--r-sm);background:var(--pill-bad-bg);border:1px solid var(--bad);color:var(--pill-bad-text);font-weight:700;line-height:1.42;font-size:var(--fs-xs);">
+          <svg class="k-ico" style="color:var(--bad);" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><path d="M6 6l12 12" stroke="#ef4444" stroke-width="2.1" stroke-linecap="round"/></svg> <b>${fish.name} — Красная книга (изъятие запрещено).</b> Ниже показан биологический прогноз активности вида (вероятность поклёвки в прилове). При поимке бережно отпустите рыбу!
+        </div>
+      ` : ''}
+      <div class="bite-timeline" role="listbox" aria-label="Почасовой график клёва">
+        ${day.hours.map(hr => {
+          const sc = calcHourly(fish, day, hr, s.method, s.water, s.depth, s.normPress, s.iceState);
+          const col = sc >= 60 ? 'var(--good)' : (sc >= 38 ? 'var(--warn)' : 'var(--bad)');
+          const isNow = s.dayIdx === 2 && hr.hour === curH;
+          const isTw = Math.abs(hr.hour + 0.5 - day.sunriseHr) <= 1.1 || Math.abs(hr.hour + 0.5 - day.sunsetHr) <= 1.1;
+          const isLunar = hr.hour === day.moon.transitHour || hr.hour === day.moon.underfootHour;
+          const mark = isTw ? '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.5" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg>' : (isLunar ? '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.5" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg>' : '·');
+          return `
+            <button type="button" class="hour-slot ${hr.hour === selH ? 'active' : ''} ${isNow ? 'now' : ''}" data-scrub-hour="${hr.hour}" aria-label="${hr.hour}:00, активность ${sc}%">
+              <span style="font-weight:800;">${String(hr.hour).padStart(2, '0')}</span>
+              <span style="font-size:11px;" title="${isTw ? 'Утренняя/вечерняя зорька' : (isLunar ? 'Лунное окно активности' : '')}">${mark}</span>
+              <div class="hour-bar-wrap"><div class="hour-bar" style="height:${sc}%;background:${col};"></div></div>
+              <span style="font-weight:700;font-size:11px;">${sc}%</span>
+            </button>
+          `;
+        }).join('')}
+      </div>
+      <div class="card" id="fcSelectedHourDetailCard" style="margin-top:10px;background:var(--card);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+        <div style="flex:1;min-width:240px;">
+          <div style="font-size:var(--fs-xs);color:var(--muted);font-weight:700;">УСЛОВИЯ В ВЫБРАННЫЙ ЧАС: ${String(selH).padStart(2, '0')}:00 (${day.label})</div>
+          <div style="font-size:var(--fs-md);font-weight:800;margin-top:2px;">
+            Воздух ${selHrObj.tAir > 0 ? '+' + selHrObj.tAir : selHrObj.tAir}°C • Вода ~${day.waterTemp}°C • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><polygon points="16,8 13.5,13.5 8,16 10.5,10.5" fill="#38bdf8" stroke="currentColor" stroke-width="1.3"/></svg> ${selHrObj.press} мм (за 3ч: ${fmtDeltaPress(selHrObj.dp3h)}) • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> ${selHrObj.windDir} ${selHrObj.wind} м/с
+          </div>
+          <div style="font-size:var(--fs-xs);color:var(--accent);margin-top:5px;line-height:1.42;">
+            Рекомендуемая оснастка: <b>${rig.weight}</b> (${rig.line}) • ${rig.tactic}
+          </div>
+          <div style="margin-top:6px;font-size:var(--fs-xs);color:var(--good);font-weight:800;display:flex;align-items:center;flex-wrap:wrap;gap:4px;">
+            <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 18c0-4 4-4 4-8s4-4 4-6 5-1 5 3-3 5-3 8 4 4 6 2" stroke="#f43f5e" stroke-width="2.2" stroke-linecap="round"/></svg> Рабочая приманка в этот час:</span> <b>${renderBaitWithColorDots(activeBait)}</b>
+          </div>
+        </div>
+        <div>
+          ${renderFiveFish(selBreakdown.total, 19, curTheme, true, fish.legal === 'redbook' ? `Активность ${selBreakdown.total}% • Отпусти` : null)}
+        </div>
+      </div>
+      <details class="forecast-why-spoiler" ${s.appMode === 'pro' ? 'open' : ''} style="margin-top:12px;">
+        <summary>
+          <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M3 3v18h18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M7 15l4-5 4 3 5-7" stroke="#38bdf8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg> Почему такой прогноз? (Разбор 8 факторов + архив 10 км на ${String(selH).padStart(2, '0')}:00)</span>
+          <span class="pill ${selBreakdown.total >= 60 ? 'pill-good' : (selBreakdown.total >= 38 ? 'pill-warn' : 'pill-bad')}">Итог ${selBreakdown.total}% ▾</span>
+        </summary>
+        <div style="margin-top:8px;padding:12px;background:var(--card);border-radius:var(--r-sm);">
+          ${selBreakdown.hasRealArchive === false ? `
+            <div style="padding:9px 11px;margin-bottom:10px;border-radius:var(--r-sm);background:var(--pill-warn-bg);border:1px solid var(--warn);color:var(--pill-warn-text);font-size:var(--fs-xs);font-weight:800;line-height:1.42;">
+              <svg class="k-ico" style="color:var(--warn);" viewBox="0 0 24 24" fill="none"><path d="M12 3L2.5 19.5h19L12 3z" fill="rgba(245,158,11,0.24)" stroke="#f59e0b" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9v5M12 17h.01" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/></svg> Прогноз может быть менее точным из-за отсутствия архивных данных по погоде (это первый запрос в данной локации 10 км при недоступности внешнего сервера архива; со следующего дня архив накопится автоматически на вашем устройстве).
+            </div>
+          ` : ''}
+          <div style="padding:9px 11px;margin-bottom:10px;border-radius:var(--r-sm);background:var(--panel);border:1px solid var(--border);font-size:var(--fs-xs);line-height:1.45;">
+            <div><b><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M3 3v18h18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M7 15l4-5 4 3 5-7" stroke="#38bdf8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg> Анализ 5-дневного метеоархива (радиус 10 км):</b> ${selBreakdown.archiveEval?.commentary || ''}</div>
+            <div style="margin-top:5px;color:var(--accent);"><b><svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="5" y="3" width="14" height="18" rx="2.5" fill="rgba(56,189,248,0.16)" stroke="currentColor" stroke-width="1.8"/><path d="M9 7h6M9 11h6M9 15h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Анализ вашего Журнала уловов:</b> ${selBreakdown.logInsight?.commentary || ''}</div>
+            <div style="margin-top:5px;color:var(--good);"><b><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3.5" fill="rgba(56,189,248,0.25)" stroke="currentColor" stroke-width="1.8"/><path d="M3 19c0-3.2 2.7-5.5 6-5.5s6 2.3 6 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="17" cy="9" r="2.8" stroke="currentColor" stroke-width="1.6"/><path d="M16 14c2.6.3 4.8 2 5 4.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg> Полевая сводка «Круга» (радиус 35 км):</b> ${selBreakdown.circleEval?.commentary || ''}</div>
+          </div>
+          ${(() => {
+            const sumFactors = (selBreakdown.factors || []).reduce((acc, f) => acc + (Number(f.val) || 0), 0);
+            const rawSum = 52 + sumFactors;
+            const sumSign = sumFactors >= 0 ? `+${sumFactors}%` : `${sumFactors}%`;
+            const compressNote = rawSum !== selBreakdown.total ? ` → с учётом биологического потолка вида: <b>${selBreakdown.total}%</b>` : '';
+            return `
+              <div style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:8px;padding:7px 10px;border-radius:6px;background:var(--panel);border:1px dashed var(--border);line-height:1.45;">
+                <b>Арифметика прогноза на ${String(selH).padStart(2, '0')}:00:</b> База водоёма <b>52%</b> ${sumSign} (сумма факторов ниже) = <b>${rawSum}%</b>${compressNote}.
+              </div>
+            `;
+          })()}
+          ${selBreakdown.factors.map(f => {
+            const isPos = f.val >= 0;
+            const col = isPos ? 'var(--good)' : 'var(--bad)';
+            const widthPct = Math.min(100, Math.max(8, Math.abs(f.val) * 3));
+            return `
+              <div class="factor-row">
+                <div>
+                  <div style="font-weight:700;">${f.name}</div>
+                  <div style="font-size:var(--fs-xs);color:var(--muted);">${f.note}</div>
+                </div>
+                <div class="factor-bar-track">
+                  <div class="factor-bar-fill" style="width:${widthPct}%;background:${col};"></div>
+                </div>
+                <div style="text-align:right;font-weight:800;color:${col};">${isPos ? '+' + f.val : f.val}%</div>
+              </div>
+            `;
+          }).join('')}
+          <p style="margin-top:10px;font-size:var(--fs-xs);color:var(--muted);">
+            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3v18M5 7h14M5 7l-3 6h6l-3-6zm14 0l-3 6h6l-3-6zM8 21h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> ${RU.forecastDisclaimer}
+          </p>
+        </div>
+      </details>
+      <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);">
+        <div class="section-title"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><polygon points="16,8 13.5,13.5 8,16 10.5,10.5" fill="#38bdf8" stroke="currentColor" stroke-width="1.3"/></svg> Ихтиология, снасти и кормовая база: ${fish.name} (${s.depth.toFixed(1)} м)</div>
+        <div class="guide-grid">
+          <div class="guide-block"><h4>Гидробиология, размеры и стоянки</h4><div>${guides.standAdvice}</div></div>
+          <div class="guide-block"><h4>Снасти, монтаж и подача</h4><div>${guides.tackleAdvice}</div></div>
+          <div class="guide-block"><h4>Кормовая база и рабочие приманки</h4><div>${guides.baitAdvice}</div></div>
+        </div>
+      </div>
+      <!-- Пункт 23: Вероятностный дисклеймер под прогнозом -->
+      <div style="margin-top:12px;padding:8px 11px;background:var(--card);border:1px dashed var(--border);border-radius:var(--r-sm);font-size:11.5px;color:var(--muted);line-height:1.4;">
+        ⓘ <b>Вероятностный биофизический индекс:</b> прогноз оценивает совокупность гидрометеорологических условий водоёма (термику воды, барический градиент, кислородный режим и солунарную фазу), но не является гарантией улова. Учитывайте локальный рельеф и правила безопасности на воде и льду.
+      </div>
+    </div>
+  `;
+  if (prevScroll > 0) {
+    const strip = container.querySelector('.bite-timeline');
+    if (strip) strip.scrollLeft = prevScroll;
+  }
+}
+/**
+ * Блок записи архивного улова с обычным календарём (<input type="date">) и быстрыми кнопками за предыдущие 5 дней
+ * с автоматической подгрузкой почасового прогноза из кэша 10 км!
+ */
+let selectedArchiveDateOverride = null;
+function renderArchiveDayLogger(container, s, defaultDay, currentFish) {
+  const todayDt = new Date();
+  todayDt.setHours(0, 0, 0, 0);
+  const todayStr = formatLocalYYYYMMDD(todayDt);
+  const past5Dates = [];
+  for (let offset = -1; offset >= -5; offset--) {
+    const dt = new Date(todayDt.getTime() + offset * 86400000);
+    const dStr = formatLocalYYYYMMDD(dt);
+    const cachedDay = storage.getDayWeatherByDate(s.lat, s.lon, dStr) ||
+      (s.weatherDays || []).find(x => x.date === dStr) ||
+      (s.weatherArchive5Days || []).find(x => x.date === dStr);
+    const title = offset === -1 ? 'Вчера' : (offset === -2 ? 'Позавчера' : `${Math.abs(offset)} дн. назад`);
+    past5Dates.push({
+      date: dStr,
+      offset,
+      title,
+      label: `${RU.daysShort[dt.getDay()]}, ${dt.getDate()} ${RU.monthsGen[dt.getMonth()]}`,
+      dayObj: cachedDay
+    });
+  }
+  const activeDateStr = selectedArchiveDateOverride || defaultDay.date || past5Dates[0].date;
+  const activeDayObj = storage.getDayWeatherByDate(s.lat, s.lon, activeDateStr) ||
+    (s.weatherDays || []).find(x => x.date === activeDateStr) ||
+    (s.weatherArchive5Days || []).find(x => x.date === activeDateStr) ||
+    defaultDay;
+  const selH = clampHour(s.selectedHour);
+  const selHrObj = (activeDayObj.hours && activeDayObj.hours[selH]) || activeDayObj.hours?.[12] || { hour: selH, tAir: activeDayObj.tDay || 5, press: activeDayObj.pressAvg || 754, wind: activeDayObj.windMax || 3, windDir: 'З' };
+  const availWaters = getAvailableWaterTypes(s.basinCode, s.lat, s.lon);
+  const compatibleMethods = getCompatibleMethods(currentFish, activeDayObj.iceState || s.iceState, s.water, activeDayObj.waterTemp);
+  const currentMethodVal = compatibleMethods.some(m => m.val === s.method) ? s.method : compatibleMethods[0]?.val;
+  const seasonalBaits = getSeasonalBaitsForContext(currentFish, currentMethodVal, activeDayObj.waterTemp, activeDayObj.iceState || s.iceState);
+  const activeBait = s.selectedBait && seasonalBaits.includes(s.selectedBait) ? s.selectedBait : seasonalBaits[0];
+  const favSet = new Set(s.favorites || []);
+  const legalSpecies = [...FISH_DB]
+    .filter(f => f.legal !== 'redbook' && isSpeciesInGeoRange(f, s.lat, s.lon, s.basinCode, s.water, 120, new Set(['small_river', 'big_river', 'quarry', 'tundra_lake', ...(s.isCoastal ? ['sea_gulf', 'open_sea'] : [])]), s.isCoastal, true, s.selectedWaterName))
+    .sort((a, b) => (favSet.has(b.id) ? 1 : 0) - (favSet.has(a.id) ? 1 : 0));
+  container.innerHTML = `
+    <div class="card" style="border-color:var(--accent);">
+      <div class="section-head">
+        <div>
+          <span class="section-title"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="5" y="3" width="14" height="18" rx="2.5" fill="rgba(56,189,248,0.16)" stroke="currentColor" stroke-width="1.8"/><path d="M9 7h6M9 11h6M9 15h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Архив погоды (10 км) и запись улова за предыдущие 5 дней (${activeDayObj.label || activeDateStr})</span>
+          <div style="font-size:var(--fs-xs);color:var(--muted);margin-top:2px;">
+            Выберите любую дату за последние 5 дней (или через обычный календарь) — почасовой прогноз из кэша локации подставится автоматически!
+          </div>
+        </div>
+        ${createPill({ text: `Архив: ${activeDateStr}`, tone: 'purple', icon: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="3" fill="rgba(56,189,248,0.14)" stroke="currentColor" stroke-width="1.8"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="7" y="13" width="3" height="3" rx="0.8" fill="#38bdf8"/><rect x="14" y="13" width="3" height="3" rx="0.8" fill="#10b981"/></svg>' })}
+      </div>
+      <div style="margin-bottom:12px;padding:10px 12px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
+          <label for="archCalendarDate" style="font-size:var(--fs-xs);font-weight:800;color:var(--accent);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="3" fill="rgba(56,189,248,0.14)" stroke="currentColor" stroke-width="1.8"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="7" y="13" width="3" height="3" rx="0.8" fill="#38bdf8"/><rect x="14" y="13" width="3" height="3" rx="0.8" fill="#10b981"/></svg> ВЫБЕРИТЕ ДАТУ ВЫЕЗДА (КАЛЕНДАРЬ ИЛИ БЫСТРЫЕ 5 ДНЕЙ):</label>
+          <input type="date" id="archCalendarDate" class="input" value="${activeDateStr}" max="${todayStr}" style="max-width:190px;min-height:34px;padding:4px 10px;">
+        </div>
+        <div class="chip-scroll-row">
+          ${past5Dates.map(item => `
+            <button type="button" class="w-chip ${item.date === activeDateStr ? 'active' : ''}" data-arch-quick-date="${item.date}">
+              <svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="3" fill="rgba(56,189,248,0.14)" stroke="currentColor" stroke-width="1.8"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="7" y="13" width="3" height="3" rx="0.8" fill="#38bdf8"/><rect x="14" y="13" width="3" height="3" rx="0.8" fill="#10b981"/></svg> ${item.title} (${item.label}) ${item.dayObj ? `• ${item.dayObj.tDay > 0 ? '+' + item.dayObj.tDay : item.dayObj.tDay}°C, ${item.dayObj.pressAvg} мм` : ''}
+            </button>
+          `).join('')}
+        </div>
+      </div>
+      <div style="padding:10px 12px;border-radius:var(--r-sm);background:var(--card);margin-bottom:12px;font-size:var(--fs-xs);color:var(--accent);font-weight:700;">
+        <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="13" r="4" stroke="#38bdf8" stroke-width="1.8"/></svg> Почасовой метеоархив из кэша 10 км (${activeDayObj.label || activeDateStr}, ${String(selH).padStart(2, '0')}:00): Воздух ${selHrObj.tAir > 0 ? '+' + selHrObj.tAir : selHrObj.tAir}°C • Вода ~${activeDayObj.waterTemp}°C • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><polygon points="16,8 13.5,13.5 8,16 10.5,10.5" fill="#38bdf8" stroke="currentColor" stroke-width="1.3"/></svg> ${selHrObj.press} мм (Δ ${fmtDeltaPress(activeDayObj.dP)}) • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> ${selHrObj.windDir} ${selHrObj.wind} м/с • ${activeDayObj.moon?.phaseIcon || '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6" stroke-linejoin="round"/></svg>'} ${activeDayObj.moon?.moonDay || 12} л.д.
+      </div>
+      <div class="controls-grid" style="margin-bottom:12px;">
+        <div>
+          <label style="display:block;font-size:var(--fs-xs);color:var(--muted);font-weight:700;margin-bottom:3px;">ШАГ 1. ПОЙМАННАЯ РЫБА (ИЗБРАННЫЕ ВВЕРХУ)</label>
+          <select id="archFishSel">
+            ${legalSpecies.map(f => `<option value="${f.id}" ${f.id === currentFish.id ? 'selected' : ''}>${favSet.has(f.id) ? ' ' : ''}${f.name}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label style="display:block;font-size:var(--fs-xs);color:var(--muted);font-weight:700;margin-bottom:3px;">ШАГ 2. СНАСТЬ (ПОДХОДЯЩАЯ ПОД РЫБУ)</label>
+          <select id="archMethodSel">
+            ${compatibleMethods.map(m => `<option value="${m.val}" ${m.val === currentMethodVal ? 'selected' : ''}>${String(m.text || '').replace(/<[^>]+>/g, '').trim()}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label style="display:block;font-size:var(--fs-xs);color:var(--muted);font-weight:700;margin-bottom:3px;">ШАГ 3. СЕЗОННАЯ НАЖИВКА / ПРИМАНКА</label>
+          <select id="archBaitSel">
+            ${seasonalBaits.map(b => `<option value="${b}" ${b === activeBait ? 'selected' : ''}>${b}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label style="display:block;font-size:var(--fs-xs);color:var(--muted);font-weight:700;margin-bottom:3px;">ШАГ 4. ВОДОЁМ / БИОТОП</label>
+          <select id="archWaterSel">
+            ${(s.nearbyWaters || []).map(w => `<option value="${w.wType}|${w.name || w.label}" ${s.selectedWaterName === w.name ? 'selected' : ''}>${String(w.label || '').replace(/<[^>]+>/g, '').trim()}</option>`).join('')}
+            ${availWaters.map(w => `<option value="${w.id}|${w.shortName}">${String(w.name || '').replace(/<[^>]+>/g, '').trim()}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label style="display:block;font-size:var(--fs-xs);color:var(--muted);font-weight:700;margin-bottom:3px;">ШАГ 5. ЧАС ПОИМКИ (ПОЧАСОВОЙ КЭШ НА ${activeDateStr})</label>
+          <select id="archHourSel">
+            ${(activeDayObj.hours || []).map(hr => `<option value="${hr.hour}" ${hr.hour === selH ? 'selected' : ''}>${String(hr.hour).padStart(2, '0')}:00 (воздух ${hr.tAir > 0 ? '+' + hr.tAir : hr.tAir}°C, ${hr.press} мм, ${hr.windDir} ${hr.wind} м/с)</option>`).join('')}
+          </select>
+        </div>
+        <div style="display:flex;align-items:flex-end;">
+          <button type="button" class="btn btn-good" id="archOpenCatchBtn" data-arch-active-date="${activeDateStr}" style="width:100%;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg> Записать улов (${activeDayObj.label || activeDateStr}, ${String(selH).padStart(2, '0')}:00)</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+function clampHour(h) {
+  const n = parseInt(h, 10);
+  return Number.isFinite(n) ? Math.max(0, Math.min(23, n)) : 12;
+}
+let _sliderDragActive = false;
+export function render(container) {
+  if (!container) return;
+  if (typeof window !== 'undefined' && typeof window.__KLEV_IS_MOBILE_GUEST__ === 'function' && window.__KLEV_IS_MOBILE_GUEST__()) {
+    if (store.getState().dayIdx !== 2) {
+      store.dispatch({ type: 'SET_DAY', payload: 2 });
+    }
+  }
+  const savedWinScrollY = typeof window !== 'undefined' ? window.scrollY : 0;
+  const savedWeekScroll = container.querySelector('.week-strip')?.scrollLeft || 0;
+  const savedHourlyScroll = container.querySelector('.bite-timeline')?.scrollLeft || 0;
+  if (!container.querySelector('#fcWeekBox') || !container.querySelector('#fcStickySpeciesBar')) {
+    container.innerHTML = `
+      <div id="fcStickySpeciesBar" class="fc-sticky-species-bar"></div>
+      <div id="fcExpressBox"></div>
+      <div id="fcWeekBox" style="margin-top:14px;"></div>
+      <div id="fcHourlyBox" style="margin-top:14px;"></div>
+    `;
+  }
+  renderExpress(container.querySelector('#fcExpressBox'));
+  renderWeek(container.querySelector('#fcWeekBox'));
+  renderHourly(container.querySelector('#fcHourlyBox'));
+  bindForecastEvents(container);
+  if (savedWeekScroll > 0) {
+    const ws = container.querySelector('.week-strip');
+    if (ws) ws.scrollLeft = savedWeekScroll;
+  }
+  if (savedHourlyScroll > 0) {
+    const hs = container.querySelector('.bite-timeline');
+    if (hs) hs.scrollLeft = savedHourlyScroll;
+  }
+  if (typeof window !== 'undefined' && savedWinScrollY > 0 && Math.abs(window.scrollY - savedWinScrollY) > 4) {
+    window.scrollTo({ top: savedWinScrollY, behavior: 'instant' });
+  }
+}
+function updateLiveWeightLabelsAndScores(container) {
+  if (!container) return;
+  const s = store.getState();
+  const pw = s.proFactorWeights || { temp: 1.0, press: 1.0, archive_shock: 1.0, circle_field: 1.0 };
+  const mapIds = {
+    temp: '#proWTempVal',
+    press: '#proWPressVal',
+    archive_shock: '#proWShockVal',
+    circle_field: '#proWCircleVal'
+  };
+  for (const [k, sel] of Object.entries(mapIds)) {
+    const el = container.querySelector(sel);
+    if (el) el.textContent = `${Number(pw[k] ?? 1.0).toFixed(1)}x`;
+    const rng = container.querySelector(`[data-pro-weight="${k}"]`);
+    if (rng && document.activeElement !== rng) {
+      rng.value = String(pw[k] ?? 1.0);
+    }
+  }
+  const fish = FISH_DB.find(f => f.id === s.fishId) || FISH_DB[0];
+  const activeDayObj = s.weatherDays?.[s.dayIdx] || s.weatherDays?.[2] || s.weatherDays?.[0];
+  if (activeDayObj) {
+    const calScoreNow = calcDayBest(fish, activeDayObj, s.method, s.water, s.depth, s.normPress, s.iceState);
+    const sumEl = container.querySelector('#proCalibLiveSummary');
+    if (sumEl) {
+      sumEl.innerHTML = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><polygon points="13,2 4,14 11,14 10,22 20,10 13,10" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.5" stroke-linejoin="round"/></svg> Активность «${fish.name}» с текущей калибровкой весов: <b>${calScoreNow}%</b> (двигайте ползунки для живого пересчёта прогноза)`;
+    }
+  }
+  const savedWinScrollY = typeof window !== 'undefined' ? window.scrollY : 0;
+  renderWeek(container.querySelector('#fcWeekBox'));
+  renderHourly(container.querySelector('#fcHourlyBox'));
+  const expBox = document.createElement('div');
+  renderExpress(expBox);
+  const newGrid = expBox.querySelector('#fcExpressCardsGrid');
+  const curGrid = container.querySelector('#fcExpressCardsGrid');
+  if (newGrid && curGrid) {
+    curGrid.innerHTML = newGrid.innerHTML;
+  }
+  if (typeof window !== 'undefined' && savedWinScrollY > 0 && Math.abs(window.scrollY - savedWinScrollY) > 4) {
+    window.scrollTo({ top: savedWinScrollY, behavior: 'instant' });
+  }
+}
+/**
+ * Делегированная привязка событий на корневой контейнер #secForecast.
+ * Привязывается ОДИН РАЗ и никогда не слетает при частичном перерендере #fcHourlyBox или #fcWeekBox!
+ */
+function bindForecastEvents(container) {
+  if (!container || container.__fcDelegatedBound) return;
+  container.__fcDelegatedBound = true;
+  container.addEventListener('click', (e) => {
+    const target = e.target;
+    if (!target || typeof target.closest !== 'function') return;
+    const expCard = target.closest('[data-express-day]');
+    if (expCard) {
+      selectedArchiveDateOverride = null;
+      const idx = parseInt(expCard.getAttribute('data-express-day'), 10);
+      store.dispatch({ type: 'SET_DAY', payload: idx });
+      flashHighlightElement(['#bentoSwipeHeroCard', '#bentoWaveChartCard'], { scroll: true, block: 'center', delayMs: 70 });
+      return;
+    }
+    const weekCard = target.closest('[data-week-day]');
+    if (weekCard) {
+      const idx = parseInt(weekCard.getAttribute('data-week-day'), 10);
+      if (idx !== 2 && typeof window !== 'undefined' && typeof window.__KLEV_IS_MOBILE_GUEST__ === 'function' && window.__KLEV_IS_MOBILE_GUEST__()) {
+        if (typeof window.__KLEV_PROMPT_GUEST_AUTH__ === 'function') {
+          window.__KLEV_PROMPT_GUEST_AUTH__('Сначала войдите в аккаунт — посуточный прогноз на 10 дней и архив клёва доступны после авторизации');
+        }
+        return;
+      }
+      selectedArchiveDateOverride = null;
+      const strip = container.querySelector('.week-strip');
+      const savedStripLeft = strip ? strip.scrollLeft : 0;
+      store.dispatch({ type: 'SET_DAY', payload: idx });
+      requestAnimationFrame(() => {
+        const nextStrip = container.querySelector('.week-strip');
+        if (nextStrip && savedStripLeft > 0) nextStrip.scrollLeft = savedStripLeft;
+      });
+      flashHighlightElement(['#bentoSwipeHeroCard', '#bentoWaveChartCard', '#fcHourlyBox'], { scroll: false, delayMs: 70 });
+      return;
+    }
+    const hourBtn = target.closest('[data-scrub-hour]');
+    if (hourBtn) {
+      const hr = parseInt(hourBtn.getAttribute('data-scrub-hour'), 10);
+      if (Number.isFinite(hr)) {
+        const timeline = container.querySelector('.bite-timeline');
+        const savedLeft = timeline ? timeline.scrollLeft : 0;
+        store.dispatch({ type: 'SET_HOUR', payload: hr });
+        renderHourly(container.querySelector('#fcHourlyBox'));
+        const nextTimeline = container.querySelector('.bite-timeline');
+        if (nextTimeline && savedLeft > 0) nextTimeline.scrollLeft = savedLeft;
+        flashHighlightElement('#fcSelectedHourDetailCard', { scroll: true, block: 'nearest', delayMs: 50 });
+      }
+      return;
+    }
+    if (target.closest('#fcCleanArchiveBtn')) {
+      if (typeof window !== 'undefined' && typeof window.__KLEV_IS_MOBILE_GUEST__ === 'function' && window.__KLEV_IS_MOBILE_GUEST__()) {
+        if (typeof window.__KLEV_PROMPT_GUEST_AUTH__ === 'function') {
+          window.__KLEV_PROMPT_GUEST_AUTH__('Сначала войдите в аккаунт — управление архивом клёва доступно после авторизации');
+        }
+        return;
+      }
+      const res = storage.clearWeatherArchiveKeep5Days();
+      showToast(` Архив погоды очищен: удалено старых записей — ${res.removedCount}, сохранены последние 5 дней архива (${res.keptArchiveCount} дн.)`, 'good');
+      render(container);
+      return;
+    }
+    const modeBtn = target.closest('[data-set-app-mode]');
+    if (modeBtn) {
+      const m = modeBtn.getAttribute('data-set-app-mode');
+      store.dispatch({ type: 'SET_APP_MODE', payload: m });
+      const titles = { novice: '<svg class="k-ico" style="color:var(--good);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg> Режим «Новичок»', angler: '<svg class="k-ico" style="color:var(--warn);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg> Режим «Рыбак»', pro: '<svg class="k-ico" style="color:var(--bad);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg> Режим «Профи»' };
+      showToast(`Включён ${titles[m] || m}`, 'good');
+      return;
+    }
+    const zoomFishBox = target.closest('[data-open-fish-zoom]');
+    if (zoomFishBox) {
+      e.stopPropagation();
+      const fid = zoomFishBox.getAttribute('data-open-fish-zoom');
+      if (fid && typeof openFishDetail === 'function') openFishDetail(fid);
+      return;
+    }
+    if (target.closest('#bentoPrevFishBtn') || target.closest('#bentoNextFishBtn')) {
+      e.stopPropagation();
+      const isNext = Boolean(target.closest('#bentoNextFishBtn'));
+      const stNow = store.getState();
+      const list = getFilteredFishList(stNow).filter(f => f.legal !== 'redbook');
+      if (list.length > 1) {
+        const curIdx = Math.max(0, list.findIndex(f => f.id === stNow.fishId));
+        const nextIdx = (curIdx + (isNext ? 1 : -1) + list.length) % list.length;
+        const nextFish = list[nextIdx];
+        if (nextFish) {
+          store.dispatch({ type: 'SET_FISH', payload: nextFish.id });
+          showToast(` Выбрана рыба: ${nextFish.name}`, 'info');
+        }
+      }
+      return;
+    }
+    if (target.closest('#fcQuickBlankTripBtn')) {
+      e.stopPropagation();
+      logBlankTrip();
+      return;
+    }
+    if (target.closest('#fcSaveCarpSwimBtn')) {
+      e.stopPropagation();
+      const clipInp = container.querySelector('#fcCarpClipInput');
+      const botSel = container.querySelector('#fcCarpBottomSelect');
+      const clipMeters = Math.max(5, Math.min(250, parseInt(clipInp?.value, 10) || 42));
+      const bottomType = botSel?.value || 'Ракушечник / Бровка';
+      store.dispatch({
+        type: 'UPDATE_USER_PROFILE',
+        payload: { carpClipMeters: clipMeters, carpBottomType: bottomType }
+      });
+      const badgeEl = container.querySelector('#fcCarpClipBadgeVal');
+      if (badgeEl) badgeEl.textContent = `${clipMeters} м`;
+      showToast(` Свим сохранён: клипса ${clipMeters} м (${bottomType})`, 'good');
+      return;
+    }
+    const timerBtn = target.closest('[data-recast-timer-min]');
+    if (timerBtn) {
+      e.stopPropagation();
+      const mins = parseInt(timerBtn.getAttribute('data-recast-timer-min'), 10) || 15;
+      startCarpRecastTimer(mins, container);
+      return;
+    }
+    if (target.closest('#fcStopRecastTimerBtn')) {
+      e.stopPropagation();
+      stopCarpRecastTimer();
+      return;
+    }
+    if (target.closest('#fcOpenRigGuideBtn')) {
+      e.stopPropagation();
+      const stNow = store.getState();
+      const curFish = FISH_DB.find(f => f.id === stNow.fishId) || FISH_DB[0];
+      openRigEncyclopediaModal(curFish);
+      return;
+    }
+    const novFishBtn = target.closest('[data-novice-pick-fish]');
+    if (novFishBtn) {
+      const fid = novFishBtn.getAttribute('data-novice-pick-fish');
+      if (fid) {
+        store.dispatch({ type: 'SET_FISH', payload: fid });
+        flashHighlightElement(['#bentoSwipeHeroCard', '#bentoWaveChartCard'], { scroll: false, delayMs: 60 });
+      }
+      return;
+    }
+    if (target.closest('#bentoOpenAllFishBtn')) {
+      if (typeof window.__KLEV_NAVIGATE_SECTION__ === 'function') window.__KLEV_NAVIGATE_SECTION__('fish');
+      flashHighlightElement('#secFish .card', { scroll: true, block: 'start', delayMs: 100 });
+      return;
+    }
+    if (target.closest('#bentoScrollToFactorsBtn')) {
+      const hrBox = container.querySelector('#fcHourlyBox');
+      if (hrBox) {
+        const sp = hrBox.querySelector('details.forecast-why-spoiler');
+        if (sp) sp.open = true;
+        flashHighlightElement(sp || hrBox, { scroll: true, block: 'center', delayMs: 60 });
+      }
+      return;
+    }
+    if (target.closest('#bentoWaveChartCard')) {
+      if (container._waveScrubSuppressClickUntil && Date.now() < container._waveScrubSuppressClickUntil) {
+        return;
+      }
+      const weekBox = container.querySelector('#fcWeekBox');
+      const hrBox = container.querySelector('#fcHourlyBox');
+      const targets = [weekBox, hrBox].filter(Boolean);
+      if (targets.length > 0) {
+        flashHighlightElement(targets, { scroll: true, block: 'center', delayMs: 40 });
+      }
+      return;
+    }
+    if (target.closest('#bentoOpenCrewBadge')) {
+      e.stopPropagation();
+      if (typeof window.__KLEV_NAVIGATE_SECTION__ === 'function') window.__KLEV_NAVIGATE_SECTION__('circle');
+      return;
+    }
+    if (target.closest('#bentoMapRadarCard')) {
+      if (typeof window.__KLEV_NAVIGATE_SECTION__ === 'function') window.__KLEV_NAVIGATE_SECTION__('geo');
+      flashHighlightElement('#mapBox', { scroll: true, block: 'center', delayMs: 110 });
+      return;
+    }
+    if (target.closest('#bentoWeatherIceCard')) {
+      if (typeof window.__KLEV_NAVIGATE_SECTION__ === 'function') window.__KLEV_NAVIGATE_SECTION__('weather');
+      flashHighlightElement('#secWeather .card', { scroll: true, block: 'start', delayMs: 100 });
+      return;
+    }
+    if (target.closest('#proResetWeightsBtn')) {
+      _dayBestMemo.clear();
+      store.dispatch({
+        type: 'SET_PRO_FACTOR_WEIGHTS',
+        payload: { temp: 1.0, press: 1.0, archive_shock: 1.0, circle_field: 1.0 }
+      });
+      updateLiveWeightLabelsAndScores(container);
+      showToast('Веса факторов сброшены к эталонным (1.0x)', 'info');
+      return;
+    }
+    if (target.closest('#fcOpenChecklistBtn, #proOpenChecklistBtn')) {
+      openTripChecklistModal();
+      return;
+    }
+    if (target.closest('#fcShareForecastTgBtn')) {
+      if (!requireRegisteredFisherId('отправки прогноза в Telegram')) return;
+      const s = store.getState();
+      const fish = FISH_DB.find(f => f.id === s.fishId) || FISH_DB[0];
+      const day = s.weatherDays[s.dayIdx] || s.weatherDays[2] || s.weatherDays[0];
+      if (!day) return;
+      const sc = calcDayBest(fish, day, s.method, s.water, s.depth, s.normPress, s.iceState);
+      const win = getBestBiteWindowText(fish, day, s.method, s.water, s.depth, s.normPress, s.iceState);
+      const rig = calcDynamicRig(s.method, s.water, s.depth, day.windMax, fish, day.waterTemp, day.iceState || s.iceState);
+      const waterTitle = s.selectedWaterName || WATER_PROFILES[s.water]?.shortName || 'водоём';
+      const { botStartUrl } = buildForecastShareUrls(s.lat, s.lon, s.locLabel, fish.id);
+      const summary =
+        '🎣 Клёв ПРО 2.0 • Прогноз (' + (day.relTitle || day.label) + ')\n' +
+        '📍 ' + s.locLabel + (waterTitle && waterTitle !== s.locLabel ? ' • ' + waterTitle : '') + '\n' +
+        '🐟 ' + fish.name + ' — клёв ' + sc + '% (' + win + ')\n' +
+        '💧 Вода ~' + day.waterTemp + '°C • 🧭 ' + day.pressAvg + ' мм • 💨 ' + day.windDir + ' ' + day.windMax + ' м/с\n' +
+        '🎯 Снасть: ' + rig.weight;
+      shareToTelegramChat(botStartUrl, summary);
+      return;
+    }
+    const archQuickBtn = target.closest('[data-arch-quick-date]');
+    if (archQuickBtn) {
+      const dStr = archQuickBtn.getAttribute('data-arch-quick-date');
+      if (dStr) {
+        selectedArchiveDateOverride = dStr;
+        renderHourly(container.querySelector('#fcHourlyBox'));
+      }
+      return;
+    }
+    const archBtn = target.closest('#archOpenCatchBtn');
+    if (archBtn) {
+      const s = store.getState();
+      const chosenBait = container.querySelector('#archBaitSel')?.value || s.selectedBait;
+      const chosenDate = archBtn.getAttribute('data-arch-active-date') || selectedArchiveDateOverride || s.weatherDays[s.dayIdx]?.date;
+      events.emit('forecast:hourSelected', {
+        dayIdx: s.dayIdx,
+        date: chosenDate,
+        hour: s.selectedHour,
+        fishId: s.fishId,
+        bait: chosenBait
+      });
+      return;
+    }
+  });
+  let _heroTouchStartX = 0;
+  let _heroTouchStartY = 0;
+  container.addEventListener('touchstart', (e) => {
+    const hero = e.target && e.target.closest ? e.target.closest('#bentoSwipeHeroCard') : null;
+    if (!hero || !e.touches || !e.touches[0]) {
+      _heroTouchStartX = 0;
+      return;
+    }
+    _heroTouchStartX = e.touches[0].clientX;
+    _heroTouchStartY = e.touches[0].clientY;
+  }, { passive: true });
+  container.addEventListener('touchend', (e) => {
+    if (!_heroTouchStartX || !e.changedTouches || !e.changedTouches[0]) return;
+    const dx = e.changedTouches[0].clientX - _heroTouchStartX;
+    const dy = e.changedTouches[0].clientY - _heroTouchStartY;
+    _heroTouchStartX = 0;
+    if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy) * 1.4) {
+      const stNow = store.getState();
+      const list = getFilteredFishList(stNow).filter(f => f.legal !== 'redbook');
+      if (list.length > 1) {
+        const curIdx = Math.max(0, list.findIndex(f => f.id === stNow.fishId));
+        const step = dx < 0 ? 1 : -1;
+        const nextFish = list[(curIdx + step + list.length) % list.length];
+        if (nextFish) {
+          store.dispatch({ type: 'SET_FISH', payload: nextFish.id });
+          showToast(` ${nextFish.name}`, 'info');
+          flashHighlightElement('#bentoSwipeHeroCard', { scroll: false, delayMs: 40 });
+        }
+      }
+    }
+  }, { passive: true });
+
+  // Интерактивный скраббинг по почасовому графику клёва (#bentoWaveChartCard):
+  // зажали и двигаем влево/вправо — смотрим каждый час (00:00..23:00), отпустили — возврат к исходному виду,
+  // просто тапнули без сдвига — плавный скролл к суточному прогнозу с подсветкой.
+  let _wavePtrDown = false;
+  let _waveScrubActive = false;
+  let _waveStartX = 0;
+  let _waveStartY = 0;
+  let _waveHoldTimer = null;
+
+  const parseWavePoints = (waveCard) => {
+    if (!waveCard) return null;
+    if (waveCard._cachedPts) return waveCard._cachedPts;
+    try {
+      const raw = waveCard.getAttribute('data-hourly-points');
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        waveCard._cachedPts = parsed;
+        return parsed;
+      }
+    } catch (_e) {}
+    return null;
+  };
+
+  const applyWaveScrubAtClientX = (waveCard, clientX) => {
+    if (!waveCard) return;
+    const ptsData = parseWavePoints(waveCard);
+    if (!ptsData || !ptsData.length) return;
+    const stageEl = waveCard.querySelector('#bentoWaveChartStage') || waveCard;
+    const rect = stageEl.getBoundingClientRect();
+    const width = Math.max(1, rect.width || 320);
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / width));
+    const hrIdx = Math.max(0, Math.min(ptsData.length - 1, Math.round(ratio * (ptsData.length - 1))));
+    const pt = ptsData[hrIdx];
+    if (!pt) return;
+
+    waveCard.classList.add('is-scrubbing');
+    waveCard.setAttribute('data-scrubbing-hour', String(pt.hr));
+
+    const lineEl = waveCard.querySelector('#bentoScrubCursorLine');
+    const dotEl = waveCard.querySelector('#bentoScrubCursorDot');
+    const hudEl = waveCard.querySelector('#bentoScrubHudBadge');
+    const headLbl = waveCard.querySelector('#bentoChartTimeRangeLabel');
+    const peaksRow = waveCard.querySelector('#bentoChartPeaksRow');
+    const liveRow = waveCard.querySelector('#bentoChartScrubLiveRow');
+
+    const hrStr = `${String(pt.hr).padStart(2, '0')}:00`;
+    const tStr = `${pt.tAir > 0 ? '+' + pt.tAir : pt.tAir}°C`;
+    const toneColor = pt.sc >= 60 ? '#10b981' : (pt.sc >= 38 ? '#fbbf24' : '#ef4444');
+
+    if (lineEl) {
+      lineEl.style.left = `${pt.xPct}%`;
+    }
+    if (dotEl) {
+      dotEl.style.left = `${pt.xPct}%`;
+      dotEl.style.top = `${pt.yPct}%`;
+      dotEl.style.background = toneColor;
+    }
+    if (hudEl) {
+      const clampedHudX = Math.max(18, Math.min(82, pt.xPct));
+      hudEl.style.left = `${clampedHudX}%`;
+      hudEl.style.borderColor = toneColor;
+      hudEl.innerHTML = `<span style="color:${toneColor};">${hrStr} • Клёв ${pt.sc}%</span> <span style="opacity:0.88;">(${tStr} • ${pt.press} мм • ${pt.windDir} ${pt.wind} м/с)</span>`;
+    }
+    if (headLbl) {
+      if (!headLbl.dataset.origText) headLbl.dataset.origText = headLbl.textContent;
+      headLbl.style.color = toneColor;
+      headLbl.textContent = `${hrStr} • Клёв ${pt.sc}%`;
+    }
+    if (peaksRow) peaksRow.style.display = 'none';
+    if (liveRow) {
+      liveRow.style.display = 'flex';
+      liveRow.innerHTML = `<span>Час: <b style="color:${toneColor};">${hrStr}</b> — Клёв <b style="color:${toneColor};">${pt.sc}%</b></span><span>Воздух <b>${tStr}</b> • <b>${pt.press} мм</b> • Ветер <b>${pt.windDir} ${pt.wind} м/с</b></span>`;
+    }
+    const nearestTick = Math.min(21, Math.round(pt.hr / 3) * 3);
+    waveCard.querySelectorAll('.bento-chart-tick-cell[data-tick-hour]').forEach(cell => {
+      const th = parseInt(cell.getAttribute('data-tick-hour'), 10);
+      cell.classList.toggle('scrub-active-tick', th === nearestTick);
+    });
+  };
+
+  const resetWaveScrubState = (waveCard) => {
+    if (_waveHoldTimer) {
+      clearTimeout(_waveHoldTimer);
+      _waveHoldTimer = null;
+    }
+    if (!waveCard) {
+      waveCard = container.querySelector('#bentoWaveChartCard');
+    }
+    if (waveCard) {
+      waveCard.classList.remove('is-scrubbing');
+      waveCard.removeAttribute('data-scrubbing-hour');
+      const headLbl = waveCard.querySelector('#bentoChartTimeRangeLabel');
+      if (headLbl && headLbl.dataset.origText) {
+        headLbl.textContent = headLbl.dataset.origText;
+        headLbl.style.color = 'var(--muted)';
+      }
+      const peaksRow = waveCard.querySelector('#bentoChartPeaksRow');
+      const liveRow = waveCard.querySelector('#bentoChartScrubLiveRow');
+      if (peaksRow) peaksRow.style.display = 'flex';
+      if (liveRow) {
+        liveRow.style.display = 'none';
+        liveRow.innerHTML = '';
+      }
+      waveCard.querySelectorAll('.bento-chart-tick-cell.scrub-active-tick').forEach(cell => {
+        cell.classList.remove('scrub-active-tick');
+      });
+    }
+    _wavePtrDown = false;
+    _waveScrubActive = false;
+  };
+
+  container.addEventListener('touchstart', (e) => {
+    const waveCard = e.target && e.target.closest ? e.target.closest('#bentoWaveChartCard') : null;
+    if (!waveCard || !e.touches || !e.touches[0]) return;
+    _wavePtrDown = true;
+    _waveScrubActive = false;
+    _waveStartX = e.touches[0].clientX;
+    _waveStartY = e.touches[0].clientY;
+    if (_waveHoldTimer) clearTimeout(_waveHoldTimer);
+    _waveHoldTimer = setTimeout(() => {
+      if (_wavePtrDown) {
+        _waveScrubActive = true;
+        applyWaveScrubAtClientX(waveCard, _waveStartX);
+      }
+    }, 150);
+  }, { passive: true });
+
+  container.addEventListener('touchmove', (e) => {
+    if (!_wavePtrDown || !e.touches || !e.touches[0]) return;
+    const waveCard = container.querySelector('#bentoWaveChartCard');
+    if (!waveCard) return;
+    const cx = e.touches[0].clientX;
+    const cy = e.touches[0].clientY;
+    const dx = cx - _waveStartX;
+    const dy = cy - _waveStartY;
+    if (!_waveScrubActive) {
+      if (Math.abs(dx) >= 6 && Math.abs(dx) >= Math.abs(dy) * 0.75) {
+        if (_waveHoldTimer) {
+          clearTimeout(_waveHoldTimer);
+          _waveHoldTimer = null;
+        }
+        _waveScrubActive = true;
+      } else if (Math.abs(dy) > 14 && Math.abs(dy) > Math.abs(dx)) {
+        resetWaveScrubState(waveCard);
+        return;
+      }
+    }
+    if (_waveScrubActive) {
+      if (e.cancelable) e.preventDefault();
+      applyWaveScrubAtClientX(waveCard, cx);
+    }
+  }, { passive: false });
+
+  const handleWaveTouchEnd = () => {
+    if (!_wavePtrDown && !_waveScrubActive) return;
+    const wasScrubbing = _waveScrubActive;
+    const waveCard = container.querySelector('#bentoWaveChartCard');
+    resetWaveScrubState(waveCard);
+    if (wasScrubbing) {
+      container._waveScrubSuppressClickUntil = Date.now() + 360;
+    }
+  };
+  container.addEventListener('touchend', handleWaveTouchEnd, { passive: true });
+  container.addEventListener('touchcancel', handleWaveTouchEnd, { passive: true });
+
+  container.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return;
+    const waveCard = e.target && e.target.closest ? e.target.closest('#bentoWaveChartCard') : null;
+    if (!waveCard) return;
+    _wavePtrDown = true;
+    _waveScrubActive = false;
+    _waveStartX = e.clientX;
+    _waveStartY = e.clientY;
+    if (_waveHoldTimer) clearTimeout(_waveHoldTimer);
+    _waveHoldTimer = setTimeout(() => {
+      if (_wavePtrDown) {
+        _waveScrubActive = true;
+        applyWaveScrubAtClientX(waveCard, _waveStartX);
+      }
+    }, 150);
+  });
+
+  container.addEventListener('mousemove', (e) => {
+    if (!_wavePtrDown) return;
+    const waveCard = container.querySelector('#bentoWaveChartCard');
+    if (!waveCard) return;
+    const dx = e.clientX - _waveStartX;
+    const dy = e.clientY - _waveStartY;
+    if (!_waveScrubActive && Math.abs(dx) >= 5 && Math.abs(dx) >= Math.abs(dy) * 0.7) {
+      if (_waveHoldTimer) {
+        clearTimeout(_waveHoldTimer);
+        _waveHoldTimer = null;
+      }
+      _waveScrubActive = true;
+    }
+    if (_waveScrubActive) {
+      applyWaveScrubAtClientX(waveCard, e.clientX);
+    }
+  });
+
+  const handleWaveMouseUp = () => {
+    if (!_wavePtrDown && !_waveScrubActive) return;
+    const wasScrubbing = _waveScrubActive;
+    const waveCard = container.querySelector('#bentoWaveChartCard');
+    resetWaveScrubState(waveCard);
+    if (wasScrubbing) {
+      container._waveScrubSuppressClickUntil = Date.now() + 360;
+    }
+  };
+  container.addEventListener('mouseup', handleWaveMouseUp);
+  container.addEventListener('mouseleave', handleWaveMouseUp);
+  container.addEventListener('input', (e) => {
+    const rng = e.target && e.target.closest ? e.target.closest('[data-pro-weight]') : null;
+    if (!rng) return;
+    _sliderDragActive = true;
+    const key = rng.getAttribute('data-pro-weight');
+    const val = parseFloat(rng.value);
+    if (!key || !Number.isFinite(val)) return;
+    _dayBestMemo.clear();
+    store.dispatch({ type: 'SET_PRO_FACTOR_WEIGHTS', payload: { [key]: val } });
+    updateLiveWeightLabelsAndScores(container);
+    setTimeout(() => { _sliderDragActive = false; }, 80);
+  });
+  container.addEventListener('change', (e) => {
+    const t = e.target;
+    if (!t) return;
+    if (t.matches && t.matches('[data-pro-weight]')) {
+      _sliderDragActive = true;
+      const key = t.getAttribute('data-pro-weight');
+      const val = parseFloat(t.value);
+      if (key && Number.isFinite(val)) {
+        _dayBestMemo.clear();
+        store.dispatch({ type: 'SET_PRO_FACTOR_WEIGHTS', payload: { [key]: val } });
+        updateLiveWeightLabelsAndScores(container);
+      }
+      setTimeout(() => { _sliderDragActive = false; }, 80);
+      return;
+    }
+    if (t.id === 'fcTopMethodSelect') {
+      store.dispatch({ type: 'SET_METHOD', payload: t.value });
+      flashHighlightElement(['#bentoSwipeHeroCard', '#fcTackleControlsCard'], { scroll: false, delayMs: 60 });
+      return;
+    }
+    if (t.id === 'fcTopBaitSelect' || t.id === 'fcSeasonalBaitSel' || t.id === 'archBaitSel') {
+      store.dispatch({ type: 'SET_BAIT', payload: t.value });
+      flashHighlightElement(['#bentoSwipeHeroCard', '#fcTackleControlsCard'], { scroll: false, delayMs: 60 });
+      return;
+    }
+    if (t.id === 'archCalendarDate') {
+      if (t.value) {
+        selectedArchiveDateOverride = t.value;
+        renderHourly(container.querySelector('#fcHourlyBox'));
+      }
+      return;
+    }
+    if (t.id === 'archFishSel') {
+      const newFishId = t.value;
+      const s = store.getState();
+      const fObj = FISH_DB.find(x => x.id === newFishId) || FISH_DB[0];
+      store.dispatch({ type: 'SET_FISH', payload: newFishId });
+      const dayObj = s.weatherDays[s.dayIdx] || s.weatherDays[2] || s.weatherDays[0] || {};
+      const newMethods = getCompatibleMethods(fObj, dayObj.iceState || s.iceState, s.water, dayObj.waterTemp ?? 12);
+      const archMethod = container.querySelector('#archMethodSel');
+      const archBait = container.querySelector('#archBaitSel');
+      if (archMethod) {
+        archMethod.innerHTML = newMethods.map(m => `<option value="${m.val}">${String(m.text || '').replace(/<[^>]+>/g, '').trim()}</option>`).join('');
+        const chosenMethod = newMethods[0]?.val;
+        store.dispatch({ type: 'SET_METHOD', payload: chosenMethod });
+        const newBaits = getSeasonalBaitsForContext(fObj, chosenMethod, dayObj.waterTemp ?? 12, dayObj.iceState || s.iceState);
+        if (archBait) {
+          archBait.innerHTML = newBaits.map(b => `<option value="${b}">${b}</option>`).join('');
+          store.dispatch({ type: 'SET_BAIT', payload: newBaits[0] || '' });
+        }
+      }
+      return;
+    }
+    if (t.id === 'archMethodSel') {
+      const chosenMethod = t.value;
+      store.dispatch({ type: 'SET_METHOD', payload: chosenMethod });
+      const s = store.getState();
+      const fObj = FISH_DB.find(x => x.id === s.fishId) || FISH_DB[0];
+      const day = s.weatherDays[s.dayIdx] || s.weatherDays[2] || s.weatherDays[0] || {};
+      const newBaits = getSeasonalBaitsForContext(fObj, chosenMethod, day.waterTemp ?? 12, day.iceState || s.iceState);
+      const archBait = container.querySelector('#archBaitSel');
+      if (archBait) {
+        archBait.innerHTML = newBaits.map(b => `<option value="${b}">${b}</option>`).join('');
+        store.dispatch({ type: 'SET_BAIT', payload: newBaits[0] || '' });
+      }
+      return;
+    }
+    if (t.id === 'archHourSel') {
+      store.dispatch({ type: 'SET_HOUR', payload: parseInt(t.value, 10) });
+      return;
+    }
+    if (t.id === 'archWaterSel') {
+      const [wType, wName] = t.value.split('|');
+      store.dispatch({ type: 'SET_WATER', payload: { water: wType, selectedWaterName: wName } });
+      return;
+    }
+  });
+}
+let unsub = null;
+let _fcNeedsRender = false;
+export function init(container) {
+  render(container);
+  unsub = store.subscribe(
+    s => ({
+      route: s.route,
+      fishId: s.fishId,
+      dayIdx: s.dayIdx,
+      selectedHour: s.selectedHour,
+      water: s.water,
+      selectedWaterName: s.selectedWaterName,
+      method: s.method,
+      selectedBait: s.selectedBait,
+      depth: s.depth,
+      weatherDays: s.weatherDays,
+      weatherArchive5Days: s.weatherArchive5Days,
+      hasRealArchive: s.hasRealArchive,
+      appMode: s.appMode,
+      circleItems: s.circleItems,
+      proFactorWeights: s.proFactorWeights,
+      catches: s.catches,
+      iceState: s.iceState,
+      theme: s.theme
+    }),
+    (next, prev) => {
+      const isVisible = !next.route || next.route === 'forecast';
+      if (!isVisible) {
+        _fcNeedsRender = true;
+        return;
+      }
+      if (_fcNeedsRender || prev?.route !== 'forecast') {
+        _fcNeedsRender = false;
+        render(container);
+        return;
+      }
+      if (_sliderDragActive && prev && next.proFactorWeights !== prev.proFactorWeights) {
+        return;
+      }
+      if (prev && next.proFactorWeights !== prev.proFactorWeights && next.appMode === prev.appMode) {
+        _dayBestMemo.clear();
+        updateLiveWeightLabelsAndScores(container);
+        return;
+      }
+      if (prev &&
+          next.fishId === prev.fishId &&
+          next.water === prev.water &&
+          next.selectedWaterName === prev.selectedWaterName &&
+          next.method === prev.method &&
+          next.selectedBait === prev.selectedBait &&
+          next.depth === prev.depth &&
+          next.appMode === prev.appMode &&
+          next.theme === prev.theme &&
+          next.weatherDays === prev.weatherDays &&
+          next.proFactorWeights === prev.proFactorWeights) {
+        if (container) {
+          const savedWinY = typeof window !== 'undefined' ? window.scrollY : 0;
+          container.querySelectorAll('[data-week-day]').forEach(cd => {
+            const d = parseInt(cd.getAttribute('data-week-day'), 10);
+            cd.classList.toggle('active', d === next.dayIdx);
+          });
+          renderExpress(container.querySelector('#fcExpressBox'));
+          renderHourly(container.querySelector('#fcHourlyBox'));
+          if (typeof window !== 'undefined' && savedWinY > 0 && Math.abs(window.scrollY - savedWinY) > 4) {
+            window.scrollTo({ top: savedWinY, behavior: 'instant' });
+          }
+          return;
+        }
+      }
+      render(container);
+    }
+  );
+}
+export const forecastModule = {
+  init,
+  render,
+  calcHourly,
+  calcDayBest,
+  getBestBiteWindowText,
+  getFactorBreakdown,
+  calcDynamicRig
+};

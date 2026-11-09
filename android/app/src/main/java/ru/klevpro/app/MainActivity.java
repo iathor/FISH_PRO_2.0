@@ -13,6 +13,8 @@ import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
+import org.json.JSONObject;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -99,6 +101,221 @@ public class MainActivity extends Activity {
     private Uri pendingCameraPhotoUri = null;
     private long lastRootBackPressMs = 0L;
     private OnBackInvokedCallback backInvokedCallback;
+
+
+    private static final String APPDATA_PREFS_NAME = "klev_pro_appdata_vault_v1";
+    private static final String APPDATA_DIR_NAME = "klev_appdata_vault";
+    private static final Object VAULT_LOCK = new Object();
+
+    private File getPrimaryAppDataVaultDir() {
+        File dir = new File(getFilesDir(), APPDATA_DIR_NAME);
+        if (!dir.exists()) {
+            dir.mkdirs();
+        }
+        return dir;
+    }
+
+    private File getMirrorAppDataVaultDir() {
+        File dir = getDir("klev_userdata_mirror", Context.MODE_PRIVATE);
+        if (dir != null && !dir.exists()) {
+            dir.mkdirs();
+        }
+        return dir;
+    }
+
+    private static String sanitizeVaultKeyFileName(String key) {
+        if (key == null) return " empty_key";
+        return key.trim().replaceAll("[^a-zA-Z0-9._-]", "_") + ".dat";
+    }
+
+    private static void writeFileAtomically(File targetFile, byte[] bytes) throws Exception {
+        if (targetFile == null) return;
+        File parent = targetFile.getParentFile();
+        if (parent != null && !parent.exists()) {
+            parent.mkdirs();
+        }
+        File tmpFile = new File(parent, targetFile.getName() + ".tmp");
+        try (FileOutputStream fos = new FileOutputStream(tmpFile)) {
+            fos.write(bytes);
+            fos.getFD().sync();
+        }
+        if (!tmpFile.renameTo(targetFile)) {
+            try (FileOutputStream fos2 = new FileOutputStream(targetFile)) {
+                fos2.write(bytes);
+                fos2.getFD().sync();
+            }
+            tmpFile.delete();
+        }
+    }
+
+    private static String readFileUtf8(File file) {
+        if (file == null || !file.exists() || !file.isFile()) return null;
+        try (InputStream is = new java.io.FileInputStream(file);
+             ByteArrayOutputStream bos = new ByteArrayOutputStream()) {
+            byte[] buf = new byte[8192];
+            int r;
+            while ((r = is.read(buf)) != -1) {
+                bos.write(buf, 0, r);
+            }
+            return new String(bos.toByteArray(), StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private boolean saveKeyToNativeAppDataVault(String key, String value) {
+        if (key == null || key.trim().isEmpty() || value == null) return false;
+        String cleanKey = key.trim();
+        synchronized (VAULT_LOCK) {
+            boolean ok = false;
+            try {
+                byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
+                String fName = sanitizeVaultKeyFileName(cleanKey);
+                File primaryFile = new File(getPrimaryAppDataVaultDir(), fName);
+                writeFileAtomically(primaryFile, bytes);
+                ok = true;
+
+                File mirrorDir = getMirrorAppDataVaultDir();
+                if (mirrorDir != null) {
+                    File mirrorFile = new File(mirrorDir, fName);
+                    writeFileAtomically(mirrorFile, bytes);
+                }
+
+                // Store index of keys + small/medium values in SharedPreferences (also in App Data, never cleared by Clear Cache)
+                SharedPreferences prefs = getSharedPreferences(APPDATA_PREFS_NAME, Context.MODE_PRIVATE);
+                SharedPreferences.Editor ed = prefs.edit();
+                String rawIndex = prefs.getString("__vault_keys_index__", "{}");
+                JSONObject idxObj;
+                try {
+                    idxObj = new JSONObject(rawIndex);
+                } catch (Exception ex) {
+                    idxObj = new JSONObject();
+                }
+                idxObj.put(cleanKey, fName);
+                ed.putString("__vault_keys_index__", idxObj.toString());
+                if (value.length() <= 262144) {
+                    ed.putString("k_" + cleanKey, value);
+                }
+                ed.apply();
+            } catch (Exception ignored) {}
+            return ok;
+        }
+    }
+
+    private String loadKeyFromNativeAppDataVault(String key) {
+        if (key == null || key.trim().isEmpty()) return null;
+        String cleanKey = key.trim();
+        synchronized (VAULT_LOCK) {
+            try {
+                String fName = sanitizeVaultKeyFileName(cleanKey);
+                File primaryFile = new File(getPrimaryAppDataVaultDir(), fName);
+                String val = readFileUtf8(primaryFile);
+                if (val != null && !val.isEmpty()) return val;
+
+                File mirrorDir = getMirrorAppDataVaultDir();
+                if (mirrorDir != null) {
+                    File mirrorFile = new File(mirrorDir, fName);
+                    val = readFileUtf8(mirrorFile);
+                    if (val != null && !val.isEmpty()) {
+                        try {
+                            writeFileAtomically(primaryFile, val.getBytes(StandardCharsets.UTF_8));
+                        } catch (Exception ignored) {}
+                        return val;
+                    }
+                }
+
+                SharedPreferences prefs = getSharedPreferences(APPDATA_PREFS_NAME, Context.MODE_PRIVATE);
+                val = prefs.getString("k_" + cleanKey, null);
+                if (val != null && !val.isEmpty()) {
+                    try {
+                        writeFileAtomically(primaryFile, val.getBytes(StandardCharsets.UTF_8));
+                    } catch (Exception ignored) {}
+                    return val;
+                }
+            } catch (Exception ignored) {}
+            return null;
+        }
+    }
+
+    private boolean removeKeyFromNativeAppDataVault(String key) {
+        if (key == null || key.trim().isEmpty()) return false;
+        String cleanKey = key.trim();
+        synchronized (VAULT_LOCK) {
+            try {
+                String fName = sanitizeVaultKeyFileName(cleanKey);
+                File primaryFile = new File(getPrimaryAppDataVaultDir(), fName);
+                if (primaryFile.exists()) primaryFile.delete();
+                File mirrorDir = getMirrorAppDataVaultDir();
+                if (mirrorDir != null) {
+                    File mirrorFile = new File(mirrorDir, fName);
+                    if (mirrorFile.exists()) mirrorFile.delete();
+                }
+                SharedPreferences prefs = getSharedPreferences(APPDATA_PREFS_NAME, Context.MODE_PRIVATE);
+                SharedPreferences.Editor ed = prefs.edit();
+                ed.remove("k_" + cleanKey);
+                String rawIndex = prefs.getString("__vault_keys_index__", "{}");
+                try {
+                    JSONObject idxObj = new JSONObject(rawIndex);
+                    idxObj.remove(cleanKey);
+                    ed.putString("__vault_keys_index__", idxObj.toString());
+                } catch (Exception ignored) {}
+                ed.apply();
+                return true;
+            } catch (Exception e) {
+                return false;
+            }
+        }
+    }
+
+    private String loadAllNativeAppDataVaultJson() {
+        synchronized (VAULT_LOCK) {
+            JSONObject out = new JSONObject();
+            try {
+                SharedPreferences prefs = getSharedPreferences(APPDATA_PREFS_NAME, Context.MODE_PRIVATE);
+                String rawIndex = prefs.getString("__vault_keys_index__", "{}");
+                JSONObject idxObj;
+                try {
+                    idxObj = new JSONObject(rawIndex);
+                } catch (Exception ex) {
+                    idxObj = new JSONObject();
+                }
+                String[] defaultKeys = new String[]{
+                    "klev_pro_state_v2.0",
+                    "klev_pro_weather_v2.0",
+                    "klev_pro_v200_state",
+                    "klev_pro_spots_backup_v2",
+                    "klev_pro_catches_backup_v2",
+                    "klev_pro_phase3_routes_v1",
+                    "klev_pro_phase3_active_track_v1",
+                    "klev_pro_circle_packs_v2",
+                    "klev_pro_circle_chats_v2",
+                    "klev_pro_circle_notifs_v2",
+                    "klev_pro_device_id_v2",
+                    "klev_pro_photo_dhashes_v2",
+                    "klev_pro_geo_weather_archive_v2",
+                    "klev_pro_v259_waters_cache_r196",
+                    "klev_pro_bg_voice_v1",
+                    "klev_pro_voice_nav_v1",
+                    "klev_pro_clean_slate_v2_1_1_r4",
+                    "klev_pro_clean_slate_notice_v2_1_1_r4"
+                };
+                for (String dk : defaultKeys) {
+                    if (!idxObj.has(dk)) {
+                        idxObj.put(dk, sanitizeVaultKeyFileName(dk));
+                    }
+                }
+                java.util.Iterator<String> keys = idxObj.keys();
+                while (keys.hasNext()) {
+                    String k = keys.next();
+                    String val = loadKeyFromNativeAppDataVault(k);
+                    if (val != null && !val.isEmpty()) {
+                        out.put(k, val);
+                    }
+                }
+            } catch (Exception ignored) {}
+            return out.toString();
+        }
+    }
 
     public class NativeBridge {
         private final Context ctx;
@@ -390,18 +607,62 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public boolean saveAppDataKey(String key, String value) {
+            return saveKeyToNativeAppDataVault(key, value);
+        }
+
+        @JavascriptInterface
+        public String loadAppDataKey(String key) {
+            String val = loadKeyFromNativeAppDataVault(key);
+            return val != null ? val : "";
+        }
+
+        @JavascriptInterface
+        public boolean removeAppDataKey(String key) {
+            return removeKeyFromNativeAppDataVault(key);
+        }
+
+        @JavascriptInterface
+        public String loadAllAppDataJson() {
+            return loadAllNativeAppDataVaultJson();
+        }
+
+        @JavascriptInterface
+        public String getAppDataVaultStats() {
+            try {
+                File dir = getPrimaryAppDataVaultDir();
+                File[] files = dir.listFiles();
+                int count = files != null ? files.length : 0;
+                long bytes = 0L;
+                if (files != null) {
+                    for (File f : files) {
+                        if (f.isFile()) bytes += f.length();
+                    }
+                }
+                JSONObject st = new JSONObject();
+                st.put("storageLocation", "Android Internal AppData (Context.getFilesDir)");
+                st.put("immuneToClearCache", true);
+                st.put("filesCount", count);
+                st.put("totalBytes", bytes);
+                return st.toString();
+            } catch (Exception e) {
+                return "{\"immuneToClearCache\":true}";
+            }
+        }
+
+        @JavascriptInterface
         public String getAppVersion() {
-            return "2.7.0-r225";
+            return "2.8.0-r226";
         }
 
         @JavascriptInterface
         public int getAppBuildNumber() {
-            return 225;
+            return 226;
         }
 
         @JavascriptInterface
         public String getAppRevision() {
-            return "r225";
+            return "r226";
         }
 
         @JavascriptInterface
@@ -692,10 +953,10 @@ public class MainActivity extends Activity {
         ws.setGeolocationEnabled(true);
         ws.setAllowFileAccess(true);
         ws.setAllowContentAccess(true);
-        ws.setCacheMode(WebSettings.LOAD_NO_CACHE);
-                  webView.clearCache(true);
+        ws.setCacheMode(WebSettings.LOAD_DEFAULT);
+        // Пользовательские данные защищены в Context.getFilesDir()/klev_appdata_vault; кэш WebView не очищается принудительно
         String baseUa = ws.getUserAgentString();
-        ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.7.0-r225");
+        ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.8.0-r226");
 
         webView.addJavascriptInterface(new NativeBridge(this), "AndroidBridge");
 
@@ -718,6 +979,52 @@ public class MainActivity extends Activity {
                 Uri uri = request.getUrl();
                 if (uri != null && VIRTUAL_HOST.equalsIgnoreCase(uri.getHost())) {
                     String path = uri.getPath();
+                    if ("/__klev_net_proxy__".equals(path)) {
+                        String targetUrl = uri.getQueryParameter("url");
+                        if (targetUrl != null && (targetUrl.startsWith("https://") || targetUrl.startsWith("http://"))) {
+                            HttpURLConnection conn = null;
+                            try {
+                                URL u = new URL(targetUrl);
+                                String h = u.getHost() != null ? u.getHost().toLowerCase() : "";
+                                if (h.endsWith("meteoinfo.ru") || h.endsWith("met.no") || h.endsWith("open-meteo.com") || h.endsWith("project-osrm.org") || h.endsWith("openstreetmap.de") || h.endsWith("openstreetmap.org") || h.endsWith("workers.dev") || h.endsWith("klevpro.ru")) {
+                                    conn = (HttpURLConnection) u.openConnection();
+                                    conn.setRequestMethod("GET");
+                                    conn.setConnectTimeout(6500);
+                                    conn.setReadTimeout(7500);
+                                    conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14; KlevPro/2.8.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36");
+                                    conn.setRequestProperty("Accept", "application/json,text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
+                                    conn.setRequestProperty("Accept-Language", "ru-RU,ru;q=0.9,en;q=0.5");
+                                    int code = conn.getResponseCode();
+                                    if (code >= 200 && code < 300) {
+                                        InputStream netIn = conn.getInputStream();
+                                        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+                                        byte[] buf = new byte[8192];
+                                        int r;
+                                        while ((r = netIn.read(buf)) != -1) {
+                                            bos.write(buf, 0, r);
+                                        }
+                                        netIn.close();
+                                        byte[] data = bos.toByteArray();
+                                        String cType = conn.getContentType();
+                                        if (cType == null || cType.isEmpty()) cType = "application/json";
+                                        String mimeOnly = cType.contains(";") ? cType.split(";")[0].trim() : cType.trim();
+                                        Map<String, String> corsHeaders = new HashMap<>();
+                                        corsHeaders.put("Access-Control-Allow-Origin", "*");
+                                        corsHeaders.put("Cache-Control", "no-store");
+                                        return new WebResourceResponse(mimeOnly, "UTF-8", 200, "OK", corsHeaders, new ByteArrayInputStream(data));
+                                    }
+                                }
+                            } catch (Exception ignored) {
+                            } finally {
+                                if (conn != null) {
+                                    try { conn.disconnect(); } catch (Exception ignored) {}
+                                }
+                            }
+                        }
+                        Map<String, String> errHeaders = new HashMap<>();
+                        errHeaders.put("Access-Control-Allow-Origin", "*");
+                        return new WebResourceResponse("application/json", "UTF-8", 502, "Net Proxy Error", errHeaders, new ByteArrayInputStream("{\"ok\":false}".getBytes(StandardCharsets.UTF_8)));
+                    }
                     if ("/__klev_tile_proxy__".equals(path)) {
                         String targetUrl = uri.getQueryParameter("url");
                         if (targetUrl != null && targetUrl.startsWith("https://")) {
@@ -1159,6 +1466,11 @@ public class MainActivity extends Activity {
     @Override
     protected void onPause() {
         isAppInForeground = false;
+        try {
+            if (webView != null) {
+                webView.evaluateJavascript("try{if(window.__klevFlushAllToNativeVault)window.__klevFlushAllToNativeVault();}catch(e){}", null);
+            }
+        } catch (Exception ignored) {}
         super.onPause();
         try {
             if (isBgRouteTrackingActive && webView != null) {

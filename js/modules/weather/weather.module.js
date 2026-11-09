@@ -1,1 +1,1534 @@
-import{RU as e}from"../../i18n/ru.js?v=2.5.6-r216";import{events as t}from"../../core/events.js?v=2.5.6-r216";import{storage as i}from"../../core/storage.js?v=2.5.6-r216";import{store as a}from"../../core/store.js?v=2.5.6-r216";import{fetchWithTimeout as n,fallbackChain as r}from"../../core/http.js?v=2.5.6-r216";import{formatLocalYYYYMMDD as o,fmtHM as s,fmtDeltaPress as l}from"../../core/format.js?v=2.5.6-r216";import{WATER_PROFILES as c}from"../../data/waters.js?v=2.5.6-r216";import{createPill as d,showToast as h}from"../../ui/components.js?v=2.5.6-r216";const p=["С","СВ","В","ЮВ","Ю","ЮЗ","З","СЗ"];export function computeMoon(e){const t=29.53058867,i=((new Date(e+"T12:00:00Z")-new Date("2026-10-10T15:50:00Z"))/864e5%t+t)%t,a=i/t,n=Math.round(50*(1-Math.cos(2*a*Math.PI))),r=Math.max(1,Math.min(30,Math.floor(i)+1)),o=Math.round((12+24*a)%24),s=(o+12)%24,l=(o+18)%24,c=(o+6)%24;let d="Растущая луна",h='<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6" stroke-linejoin="round"/></svg>';return 1===r||r>=29?(d="Новолуние",h='<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6" stroke-linejoin="round"/></svg>'):r>=14&&r<=16?(d="Полнолуние",h='<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.5" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg>'):r>=7&&r<=8?(d="Первая четверть",h='<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6" stroke-linejoin="round"/></svg>'):r>=22&&r<=23?(d="Последняя четверть",h='<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6" stroke-linejoin="round"/></svg>'):r>16&&(d="Убывающая луна",h='<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6" stroke-linejoin="round"/></svg>'),{moonDay:r,illum:n,transitHour:o,underfootHour:s,riseHour:l,setHour:c,phaseName:d,phaseIcon:h,majorWindows:[`${String(o).padStart(2,"0")}:00–${String((o+2)%24).padStart(2,"0")}:00`,`${String(s).padStart(2,"0")}:00–${String((s+2)%24).padStart(2,"0")}:00`],minorWindows:[`${String(l).padStart(2,"0")}:00–${String((l+1)%24).padStart(2,"0")}:00`,`${String(c).padStart(2,"0")}:00–${String((c+1)%24).padStart(2,"0")}:00`]}}export function computeWaterTempSeries(e,t,i,a="small_river",n=null){if(!Array.isArray(e)||0===e.length)return[8];const r=c[a]||c.small_river,o=Number.isFinite(r.flow)?r.flow:1;if("cooling_reservoir"===a)return e.map((e=>Math.max(8,Math.min(30,Math.round(10*(.22*e+18))/10))));const s="quarry"===a||"big_river"===a?.72:o>=1.2?.66:.6,l=o>=1.8?.45:o>=1.1?.25:0,d=e.slice(0,Math.min(4,e.length)),h=d.reduce(((e,t)=>e+t),0)/d.length;let p;p=e[0]<=-1||h<=-.5?.2:e[0]<=.5||h<=1?.4:Math.max(.5,Math.min(25,.56*e[0]+1.8+l));const u=[];for(let t=0;t<e.length;t++){const i=e[t];p=i<=-.3?p<=.6?.2:Math.max(.2,.52*p+.096):p*s+Math.max(.2,Math.min(25.5,.56*i+1.6+l))*(1-s);const a=Math.max(.2,Math.min(25.5,Math.round(10*p)/10));u.push(a)}return u}export function evaluateDayIce(e,t,i,n,r="small_river",o="",s=3,l=0,d=null){if("cooling_reservoir"===r)return{iceState:"open_water",iceSubState:"warm_discharge",iceThickness:0,iceNote:'<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> Тёплый сброс ГРЭС/АЭС — круглогодично открытая вода (ледостава нет)'};const h=c[r]||c.small_river,p=Number.isFinite(h.flow)?h.flow:1,u=p>=1.8?"быстрое течение":p>=1.1?"умеренное течение":"стоячая вода / слабый ток",v=Number.isFinite(s)?s:3,f=Math.abs(Number.isFinite(d)?d:a.getState()?.lat??66.08),m=o?new Date(o+"T12:00:00"):new Date,w=m.getMonth()+1,g=new Date(m.getFullYear(),0,0),y=Math.max(1,Math.floor((m-g)/864e5)),b=w>=4&&w<=5||3===w&&f<58,k=Array.isArray(e)&&e.length>0?e:[(t+i)/2],M=(t+i)/2,x=k.slice(-Math.min(6,k.length)),_=x.reduce(((e,t)=>e+t),0)/x.length;if(n>2.4&&_>1.2&&M>.5)return{iceState:"open_water",iceSubState:"open_water",iceThickness:0,iceNote:`<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> Открытая вода (+${n.toFixed(1)}°C, ${u}, льда нет)`};const S="tundra_lake"===r?20:"small_river"===r?32:"quarry"===r?45:"big_river"===r?56:38,$=y-(k.length-1),A=f>=63?302:f>=59?314:f>=53?328:345;let D=0;if(12===w||w<=4||11===w&&$>A){const e=w>=11?Math.max(0,$-A):Math.max(0,365-A+$),t=f>=63?9.5:f>=58?7:4.8;D=Math.min(125,e)*t}let T=D,z=0,N=0;for(let e=0;e<k.length;e++){const t=k[e],i=k.length-1-e;if(t<=-.2)T+=Math.abs(t);else if(t>.3){const e=b?2.4:1.7;T=Math.max(0,T-t*e),z+=t,i<=3&&N++}}const B=Math.max(0,T-S),L=p>=2?.68:p>=1.4?.78:p>=1.05?.86:1,I=B>0?Math.round(1.46*Math.sqrt(B)*L):0,E=Math.max(0,Math.min(130,I)),j=p>=1.8?10:p>=1.1?8:7;if((b||N>=3)&&t>=4&&M>=2&&z>=6&&E>=3){const e=Math.max(3,Math.min(30,Math.round(.65*E)));return{iceState:"ice_danger",iceSubState:"spring_rotten_ice",iceThickness:e,iceNote:`<svg class="k-ico" style="color:var(--warn);" viewBox="0 0 24 24" fill="none"><path d="M12 3L2.5 19.5h19L12 3z" fill="rgba(245,158,11,0.24)" stroke="#f59e0b" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9v5M12 17h.01" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/></svg> Опасный рыхлый лёд (~${e} см, ${u}): прогрев до +${t}°C, промоины и закраины — выход на лёд опасен!`}}return E>=j&&M<=2?{iceState:"ice_safe",iceSubState:"solid_freeze",iceThickness:E,iceNote:`<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1" stroke="#7dd3fc" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="#38bdf8"/></svg> Устойчивый ледостав: безопасный монолитный лёд ~${E} см (${u}) • подлёдный лов`}:E>=2&&E<j&&(M<=.5||i<=-1.5)?{iceState:"ice_danger",iceSubState:"thin_first_ice",iceThickness:E,iceNote:`<svg class="k-ico" style="color:var(--warn);" viewBox="0 0 24 24" fill="none"><path d="M12 3L2.5 19.5h19L12 3z" fill="rgba(245,158,11,0.24)" stroke="#f59e0b" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9v5M12 17h.01" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/></svg> Тонкий перволёдок (~${E} см, ${u}): лёд ещё не набрал безопасную толщину (${j} см) — выход без проверки пешнёй опасен!`}:(T>=6||i<=-.5)&&(n<=2.2||M<=.5)?{iceState:"ice_slush",iceSubState:v>=5.5?"wind_wave_slush":"slush_shore_ice",iceThickness:1===E?1:0,iceNote:`<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1" stroke="#7dd3fc" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="#38bdf8"/></svg> Забереги и шуга (${u} • замёрзли только закраины у берега, сплошного льда ещё нет)`}:{iceState:"open_water",iceSubState:"open_water",iceThickness:0,iceNote:`<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> Открытая вода (льда нет, ${u})`}}export function computeIceSafetyIndex(e,t="small_river"){const i=c[t]||c.small_river,a=Number.isFinite(i.flow)?i.flow:1,n=e?.iceState||"open_water",r=Number(e?.iceThickness)||0,o=Number(e?.windMax)||3,s=Number(e?.tDay)||0;if("open_water"===n)return{index:100,hasIce:!1,footSafe:!1,sledSafe:!1,minFootCm:a>=1.5?12:10,minSledCm:a>=1.5?25:20,statusText:"Открытая вода (ледостава нет)",vehicleVerdict:"Ловля с берега или лодки (спасжилет обязателен при волне)",recommendation:"Льда нет. При выходе на лодке учитывайте ветер ("+o+" м/с) и температуру воды (~"+(e?.waterTemp??8)+"°C)."};const l=a>=1.8?12:a>=1.1?10:8,d=a>=1.8?25:a>=1.1?22:18;if("ice_danger"===n||"ice_slush"===n){const e="ice_slush"===n?25:Math.max(5,Math.min(38,Math.round(r/l*35)));return{index:e,hasIce:!0,footSafe:!1,sledSafe:!1,minFootCm:l,minSledCm:d,statusText:"ice_slush"===n?"Шуга и забереги (выход запрещён)":`Опасный лёд ~${r} см (индекс ${e}/100)`,vehicleVerdict:'<svg class="k-ico" style="color:var(--bad);" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><path d="M6 6l12 12" stroke="#ef4444" stroke-width="2.1" stroke-linecap="round"/></svg> Пешком и на технике ЗАПРЕЩЕНО!',recommendation:`Несущая способность льда критически низкая (~${r} см при норме от ${l} см на течении). Допустима только береговая ловля!`}}let h=Math.min(98,Math.round(55+2.2*(r-l)));a>=1.8&&(h-=8),s>0&&(h-=12),o>=9&&(h-=6),h=Math.max(45,Math.min(98,h));const p=r>=d&&s<=0;return{index:h,hasIce:!0,footSafe:r>=l&&s<=2,sledSafe:p,minFootCm:l,minSledCm:d,statusText:`Безопасный лёд ~${r} см (индекс надёжности ${h}/100)`,vehicleVerdict:p?`<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Пешком: РАЗРЕШЕНО (≥${l} см) • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Мотобуксировщик/снегоход: РАЗРЕШЕНО (≥${d} см)`:`<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Пешком со спасалками: РАЗРЕШЕНО (≥${l} см) • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Техника/снегоход: ОПАСНО (нужно ≥${d} см!)`,recommendation:p?"Монолитный лёд достаточной толщины для пешего перехода и лёгкой мототехники. Избегайте устьев притоков и быстрин.":`Толщина ~${r} см достаточна для одиночного пешего выхода с пешнёй и спасалками, но выезд на мотобуксировщике или снегоходе запрещён (требуется от ${d} см).`}}function u(e){return-2===e?"Позавчера":-1===e?"Вчера":0===e?"Сегодня":1===e?"Завтра":2===e?"Послезавтра":""}export function buildFallback(t=55.75,i="small_river"){const a=new Date;a.setHours(0,0,0,0);const n=Math.floor((a-new Date(a.getFullYear(),0,0))/864e5),r=-Math.cos((n+10)/365*2*Math.PI),s=Math.abs(t),l=22-.82*(s-40),c=10+.38*(s-40),d=[],h=[],v=[];for(let e=-7;e<=9;e++){const t=Math.round(l+r*c-.2*e),i=t-5;h.push(t),v.push(i),d.push((t+i)/2)}const f=computeWaterTempSeries(d,h,v,i),m=[];for(let n=0;n<12;n++){const r=n-2,s=new Date(a.getTime()+864e5*r),l=o(s),c=computeMoon(l),w=n+5,g=h[w],y=v[w],b=f[w],k=Math.round(754+4*Math.sin(.7*n)),M=Math.round(3*Math.cos(n)),x=Math.round(3+3*Math.abs(Math.sin(n))),_=[];for(let e=0;e<24;e++){const t=Math.sin((e-5)/24*2*Math.PI);_.push({hour:e,tAir:Math.round(10*(y+(t+1)/2*(g-y)))/10,press:Math.round(k+M*(e-12)/24),dp3h:Math.round(M/8*10)/10,wind:Math.max(1,x),windDir:p[(n+e)%8],cloud:65,precip:0})}const S=evaluateDayIce(d.slice(0,w+1),g,y,b,i,l,x,0,t),$="ice_safe"===S.iceState?Math.min(b,.3):"ice_danger"===S.iceState?Math.min(b,.4):b;m.push({date:l,relOffset:r,isArchive:r<0,isReal:!1,relTitle:u(r),label:`${e.daysShort[s.getDay()]}, ${s.getDate()} ${e.monthsGen[s.getMonth()]}`,tDay:g,tNight:y,pressAvg:k,dP:M,windMax:Math.max(1,x),windDir:_[12].windDir,sunriseHr:6.8+.02*n,sunsetHr:18.2-.02*n,waterTemp:$,iceState:S.iceState,iceSubState:S.iceSubState,iceThickness:S.iceThickness,iceNote:S.iceNote,moon:c,hours:_})}const w=m[2]||m[0];return{days:m,archive5Days:m.slice(0,2),hasRealArchive:!1,elevation:90,normPress:752,iceState:w.iceState,iceSubState:w.iceSubState,iceThickness:w.iceThickness,iceNote:w.iceNote}}export function normalizeOpenMeteo(t,i){const a=Math.round(t.elevation||90),n=Math.round(760-a/11.5),r=(t.hourly?.surface_pressure||[]).map((e=>.750062*(e||1010))),s=Array.isArray(t.daily?.time)?t.daily.time:[],l=s.length;if(0===l)return null;const c=o(new Date);let d=s.indexOf(c);if(d<0){const e=new Date(c+"T00:00:00").getTime();let t=1/0;s.forEach(((i,a)=>{const n=Math.abs(new Date(i+"T00:00:00").getTime()-e);n<t&&(t=n,d=a)}))}const h=s.map(((e,i)=>Math.round(t.daily.temperature_2m_max[i]??8))),v=s.map(((e,i)=>Math.round(t.daily.temperature_2m_min[i]??2))),f=s.map(((e,t)=>(h[t]+v[t])/2)),m=computeWaterTempSeries(f,h,v,i),w=[];for(let a=0;a<l;a++){const n=a-d,o=s[a],l=new Date(o+"T00:00:00"),c=t.daily.sunrise?.[a]?new Date(t.daily.sunrise[a]):new Date(o+"T07:00:00"),g=t.daily.sunset?.[a]?new Date(t.daily.sunset[a]):new Date(o+"T18:00:00"),y=[];let b=0;for(let e=0;e<24;e++){const i=24*a+e,n=r[i]||754;b+=n,y.push({hour:e,tAir:Math.round(10*(t.hourly.temperature_2m?.[i]??0))/10,press:Math.round(n),dp3h:Math.round(10*(n-(i>=3&&r[i-3]||n)))/10,wind:Math.round(10*(t.hourly.wind_speed_10m?.[i]??3))/10,windDir:p[Math.round((t.hourly.wind_direction_10m?.[i]||0)/45)%8],cloud:t.hourly.cloud_cover?.[i]??50,precip:t.hourly.precipitation?.[i]??0})}const k=Math.round(b/24),M=a>0?Math.round(r.slice(24*(a-1),24*a).reduce(((e,t)=>e+t),0)/24):k,x=h[a],_=v[a],S=m[a],$=Math.round(t.daily.wind_speed_10m_max?.[a]||3),A=evaluateDayIce(f.slice(0,a+1),x,_,S,i,o,$),D="ice_safe"===A.iceState?Math.min(S,.3):"ice_danger"===A.iceState?Math.min(S,.4):S;w.push({date:o,relOffset:n,isArchive:n<0,isReal:!0,relTitle:u(n),label:`${e.daysShort[l.getDay()]}, ${l.getDate()} ${e.monthsGen[l.getMonth()]}`,tDay:x,tNight:_,pressAvg:k,dP:k-M,windMax:Math.round(t.daily.wind_speed_10m_max?.[a]||3),windDir:p[Math.round((t.daily.wind_direction_10m_dominant?.[a]||0)/45)%8],sunriseHr:c.getHours()+c.getMinutes()/60,sunsetHr:g.getHours()+g.getMinutes()/60,waterTemp:D,iceState:A.iceState,iceSubState:A.iceSubState,iceThickness:A.iceThickness,iceNote:A.iceNote,moon:computeMoon(o),hours:y})}const g=Math.max(0,Math.min(l-12,d-2)),y=w.slice(g,g+12).map(((e,t)=>({...e,relOffset:t-2,isArchive:t<2,relTitle:u(t-2)}))),b=w.filter((e=>e.date<c)).slice(-5),k=y[2]||y[0];return{days:y,archive5Days:b,extraArchiveDays:w.filter((e=>e.date<c)),hasRealArchive:b.length>=3,elevation:a,normPress:n,iceState:k?.iceState||"open_water",iceSubState:k?.iceSubState||"open_water",iceThickness:k?.iceThickness||0,iceNote:k?.iceNote||""}}export function normalizeMetNo(t,i,a,n=[]){const r=t.geometry?.coordinates||[],s=Math.round(r[2]||90),l=Math.round(760-s/11.5),c={},d={};Array.isArray(n)&&n.forEach((e=>{e&&e.date&&Array.isArray(e.hours)&&24===e.hours.length&&!1!==e.isReal&&(c[e.date]={},e.hours.forEach(((t,i)=>{c[e.date][i]={...t}})),d[e.date]=!0)}));for(const e of t.properties?.timeseries||[]){const t=new Date(e.time),i=o(t),a=t.getHours();c[i]||(c[i]={});const n=e.data?.instant?.details||{},r=.750062*(n.air_pressure_at_sea_level||1013.25)-s/11.5;c[i][a]={hour:a,tAir:Math.round(10*(n.air_temperature??0))/10,press:Math.round(r),dp3h:0,wind:Math.round(10*(n.wind_speed??3))/10,windDir:p[Math.round((n.wind_from_direction||0)/45)%8],cloud:Math.round(n.cloud_area_fraction??50),precip:e.data?.next_1_hours?.details?.precipitation_amount??0},d[i]=!0}const h=new Date;h.setHours(0,0,0,0);const v=o(h);let f=null;for(let e=0;e<=3;e++){const t=o(new Date(h.getTime()+864e5*e));if(c[t]&&Object.keys(c[t]).length>0){f=c[t];break}}const m=[];for(let t=-5;t<=9;t++){const i=new Date(h.getTime()+864e5*t),a=o(i);let n=c[a];const r=Boolean(d[a]&&n&&Object.keys(n).length>0);if(!n||0===Object.keys(n).length){n={};const e=f?Object.values(f):[{tAir:4,press:l,wind:3,windDir:"З",cloud:60,precip:0}],t=e.reduce(((e,t)=>e+t.tAir),0)/e.length,i=Math.round(e.reduce(((e,t)=>e+t.press),0)/e.length),a=Math.round(e.reduce(((e,t)=>e+t.wind),0)/e.length*10)/10,r=e[Math.floor(e.length/2)]?.windDir||"З";for(let e=0;e<24;e++){const o=f&&f[e]?f[e]:null,s=Math.sin((e-5)/24*2*Math.PI),l=o?o.tAir:Math.round(10*(t+2.5*s))/10;n[e]={hour:e,tAir:l,press:o?o.press:i,dp3h:0,wind:o?o.wind:a,windDir:o?o.windDir:r,cloud:o?o.cloud:60,precip:0}}}const s=[];let p=Object.values(n)[0]||{hour:0,tAir:2,press:l,dp3h:0,wind:3,windDir:"З",cloud:50,precip:0};for(let e=0;e<24;e++)n[e]&&(p=n[e]),s.push({...p,hour:e});for(let e=0;e<24;e++){const t=e>=3?s[e-3].press:m.length>0&&m[m.length-1].hours[21+e]?.press||s[0].press;s[e].dp3h=Math.round(10*(s[e].press-t))/10}const v=s.map((e=>e.tAir)),w=s.map((e=>e.press)),g=s.map((e=>e.wind)),y=Math.round(Math.max(...v)),b=Math.round(Math.min(...v)),k=Math.round(w.reduce(((e,t)=>e+t),0)/24),M=m.length>0?m[m.length-1].pressAvg:k;m.push({date:a,relOffset:t,isArchive:t<0,isReal:r,relTitle:u(t),label:`${e.daysShort[i.getDay()]}, ${i.getDate()} ${e.monthsGen[i.getMonth()]}`,tDay:y,tNight:b,pressAvg:k,dP:k-M,windMax:Math.max(1,Math.round(Math.max(...g))),windDir:s[12]?.windDir||"З",sunriseHr:7,sunsetHr:17.8,waterTemp:4,iceState:"open_water",iceSubState:"open_water",iceThickness:0,iceNote:"",moon:computeMoon(a),hours:s})}const w=m.map((e=>e.tDay)),g=m.map((e=>e.tNight)),y=m.map((e=>(e.tDay+e.tNight)/2)),b=computeWaterTempSeries(y,w,g,a);m.forEach(((e,t)=>{const n=b[t],r=evaluateDayIce(y.slice(0,t+1),e.tDay,e.tNight,n,a,e.date,e.windMax||3,0,i);e.waterTemp="ice_safe"===r.iceState?Math.min(n,.3):"ice_danger"===r.iceState?Math.min(n,.4):n,e.iceState=r.iceState,e.iceSubState=r.iceSubState,e.iceThickness=r.iceThickness,e.iceNote=r.iceNote}));const k=m.filter((e=>e.relOffset>=-2&&e.relOffset<=9)),M=m.filter((e=>e.date<v)),x=M.filter((e=>e.isReal)).length,_=k[2]||k[0];return{days:k,archive5Days:M,extraArchiveDays:M.filter((e=>e.isReal)),hasRealArchive:x>=3,elevation:s,normPress:l,iceState:_?.iceState||"open_water",iceSubState:_?.iceSubState||"open_water",iceThickness:_?.iceThickness||0,iceNote:_?.iceNote||""}}export function recalculateIceForWaterType(e,t,i=[]){if(!Array.isArray(e)||0===e.length)return null;const a=e[0]?.date||"",n=Array.isArray(i)?i.filter((e=>e&&e.date&&e.date<a)):[],r=[...n,...e],o=r.map((e=>e.tDay)),s=r.map((e=>e.tNight)),l=r.map((e=>(e.tDay+e.tNight)/2)),c=computeWaterTempSeries(l,o,s,t),d=r.map(((e,i)=>{const a=c[i],n=evaluateDayIce(l.slice(0,i+1),e.tDay,e.tNight,a,t,e.date,e.windMax||3),r="ice_safe"===n.iceState?Math.min(a,.3):"ice_danger"===n.iceState?Math.min(a,.4):a;return{...e,waterTemp:r,iceState:n.iceState,iceSubState:n.iceSubState,iceThickness:n.iceThickness,iceNote:n.iceNote}})),h=d.slice(n.length),p=d.filter((e=>e.isArchive)).slice(-5),u=h[2]||h[0];return{days:h,archive5Days:p,iceState:u.iceState,iceSubState:u.iceSubState,iceThickness:u.iceThickness,iceNote:u.iceNote}}const v="https://klevprohbot.thorantony82.workers.dev/weather",f=new Map;function m(e){return(Math.round(10*(Number(e)||0))/10).toFixed(1)}export async function fetchWeather(s,l,c=!1){const d=a.getState(),h=i.loadWeatherCache(s,l),p=i.getArchiveDaysForLocation(s,l,5);if(h&&h.days&&12===h.days.length&&!c){const i=h.ageMinutes||1,n=i>=60?`${e.cachedPrefix} 10 км (${Math.round(i/60)} ч назад)`:`${e.cachedPrefix} 10 км (${i} мин назад)`,r=recalculateIceForWaterType(h.days,d.water,h.archive5Days||p.days);if(a.dispatch({type:"SET_WEATHER_DATA",payload:{...h,...r||{},hasRealArchive:h.hasRealArchive??p.hasRealArchive,source:n,updatedAt:h.timestamp}}),t.emit("weather:updated",a.getState()),!h.isExpired)return}const u=m(s),w=m(l),g=`${u}_${w}_${d.water||"small_river"}`;if(f.has(g)&&!c)return f.get(g);const y=`https://api.open-meteo.com/v1/forecast?latitude=${u}&longitude=${w}&past_days=14&hourly=temperature_2m,surface_pressure,wind_speed_10m,wind_direction_10m,cloud_cover,precipitation&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset,wind_speed_10m_max,wind_direction_10m_dominant&forecast_days=10&wind_speed_unit=ms&timezone=auto`,b=`${v}?lat=${u}&lon=${w}`,k=`https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${u}&lon=${w}`,M=(async()=>{try{const c=await r([{name:`${e.online} (Edge 10 км)`,run:async()=>{const e=(e,t)=>n(e,t).then((e=>{const t=e&&e.hourly&&e.daily?normalizeOpenMeteo(e,d.water):null;if(!t)throw new Error("Invalid weather payload");return t}));if("function"==typeof Promise.any)return await Promise.any([e(b,3800),e(y,3800)]);const t=await n(b,4200);return t&&t.hourly&&t.daily?normalizeOpenMeteo(t,d.water):null}},{name:`${e.online} (Edge 10 км)`,run:async()=>{const e=await n(b,5500);return e&&e.hourly&&e.daily?normalizeOpenMeteo(e,d.water):null}},{name:e.online,run:async()=>{const e=await n(y,5e3);return e&&e.hourly&&e.daily?normalizeOpenMeteo(e,d.water):null}},{name:e.onlineMetNo,run:async()=>{const e=await n(k,7e3);if(!e||!e.properties?.timeseries)return null;let t=p.days||[];if(t.filter((e=>e&&!1!==e.isReal)).length<3){const e=await async function(e,t,i){const a=new Date;a.setHours(0,0,0,0);const r=new Date(a.getTime()-432e6),s=new Date(a.getTime()-864e5),l=o(r),c=o(s),d=m(e),h=m(t),p=`https://historical-forecast-api.open-meteo.com/v1/forecast?latitude=${d}&longitude=${h}&start_date=${l}&end_date=${c}&hourly=temperature_2m,surface_pressure,wind_speed_10m,wind_direction_10m,cloud_cover,precipitation&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset,wind_speed_10m_max,wind_direction_10m_dominant&wind_speed_unit=ms&timezone=auto`,u=[p,`https://archive-api.open-meteo.com/v1/archive?latitude=${d}&longitude=${h}&start_date=${l}&end_date=${c}&hourly=temperature_2m,surface_pressure,wind_speed_10m,wind_direction_10m,cloud_cover,precipitation&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset,wind_speed_10m_max,wind_direction_10m_dominant&wind_speed_unit=ms&timezone=auto`,`${v}?lat=${d}&lon=${h}`,`https://allorigins.hexlet.app/raw?disableCache=true&url=${encodeURIComponent(p)}`,`https://corsproxy-seven.vercel.app/api?url=${encodeURIComponent(p)}`];for(const e of u)try{const t=await n(e,5500);if(t&&t.hourly&&t.daily&&Array.isArray(t.daily.time)&&t.daily.time.length>=3){const e=normalizeOpenMeteo(t,i);if(e&&Array.isArray(e.extraArchiveDays)&&e.extraArchiveDays.length>=3)return e.extraArchiveDays}}catch(e){}return null}(s,l,d.water);Array.isArray(e)&&e.length>=3&&(t=e)}return normalizeMetNo(e,s,d.water,t)}},{name:e.online,run:async()=>{const e=`https://allorigins.hexlet.app/raw?disableCache=true&url=${encodeURIComponent(y)}`,t=await n(e,7e3);return t&&t.hourly&&t.daily?normalizeOpenMeteo(t,d.water):null}},{name:e.online,run:async()=>{const e=`https://corsproxy-seven.vercel.app/api?url=${encodeURIComponent(y)}`,t=await n(e,7500);return t&&t.hourly&&t.daily?normalizeOpenMeteo(t,d.water):null}}]),h=i.saveWeatherCache(s,l,c.data,c.data.extraArchiveDays||c.data.archive5Days||[]),u=i.getArchiveDaysForLocation(s,l,5),f=recalculateIceForWaterType(c.data.days.map(((e,t)=>t<2&&h?.daysByDate?.[e.date]?{...h.daysByDate[e.date],relOffset:t-2,isArchive:!0,relTitle:0===t?"Позавчера":"Вчера"}:e)),d.water,u.days);a.dispatch({type:"SET_WEATHER_DATA",payload:{...c.data,...f||{},archive5Days:u.days,hasRealArchive:h?.hasRealArchive??c.data.hasRealArchive,source:c.source,updatedAt:Date.now()}}),t.emit("weather:updated",a.getState())}catch(i){if(!h||!h.days?.length){const i=buildFallback(s,d.water);a.dispatch({type:"SET_WEATHER_DATA",payload:{...i,hasRealArchive:!1,source:e.offlineMode,updatedAt:Date.now()}}),t.emit("weather:updated",a.getState())}}finally{f.delete(g)}})();return f.set(g,M),M}export function getWeatherState(){const e=a.getState();return{days:e.weatherDays,archive5Days:e.weatherArchive5Days,hasRealArchive:e.hasRealArchive,source:e.weatherSource,normPress:e.normPress,elevation:e.elevation,iceState:e.iceState,iceThickness:e.iceThickness}}export function subscribeWeather(e){return a.subscribe((e=>({route:e.route,days:e.weatherDays,archive5Days:e.weatherArchive5Days,hasRealArchive:e.hasRealArchive,dayIdx:e.dayIdx,source:e.weatherSource,water:e.water})),e)}export function render(t){if(!t)return;"undefined"!=typeof window&&"function"==typeof window.__KLEV_IS_MOBILE_GUEST__&&window.__KLEV_IS_MOBILE_GUEST__()&&2!==a.getState().dayIdx&&a.dispatch({type:"SET_DAY",payload:2});const n=a.getState(),r=n.weatherDays||[],o=Number.isFinite(n.dayIdx)?n.dayIdx:2,p=r[o]||r[2]||r[0];if(!p)return;const u=p.moon||computeMoon(p.date||"2026-10-30"),v=c[n.water]||c.small_river,f=v.flow>=1.8?"быстрое течение":v.flow>=1.1?"умеренное течение":"стоячая вода",m=i.getWeatherArchiveStats(n.lat,n.lon),w=computeIceSafetyIndex(p,n.water),g=n.selectedWaterName||v.shortName||"Водоём",y="ice_safe"===p.iceState||"ice_danger"===p.iceState,b="ice_slush"===p.iceState,k=y?'<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1" stroke="#7dd3fc" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="#38bdf8"/></svg> Погода и Ледовая обстановка':b?'<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1" stroke="#7dd3fc" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="#38bdf8"/></svg> Погода и Предзимний режим водоёма':'<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> Погода и Режим открытой воды',M="ice_safe"===p.iceState?`БЕЗОПАСНЫЙ ЛЁД (~${p.iceThickness||12} СМ)`:"ice_danger"===p.iceState?`ОПАСНЫЙ ЛЁД (~${p.iceThickness||4} СМ)`:"ice_slush"===p.iceState?"ЗАБЕРЕГИ И ШУГА":"ОТКРЫТАЯ ВОДА",x="ice_safe"===p.iceState||"open_water"===p.iceState?"var(--good)":"ice_slush"===p.iceState?"var(--warn)":"var(--bad)",_=Math.max(15,Math.min(98,Math.round(92-8*Math.max(0,(p.windMax||3)-3)-3*Math.abs(p.dP||0)))),S=y||b?w.index:_,$=Math.round(Math.max(6,Math.min(100,S))/100*188.5),A=y||b?"Индекс льда:":"Комфорт воды:",D=y||b?w.footSafe?"Пешком можно":"Только берег":(p.windMax||3)<=5?"Лодка и берег":"Волна у берега",T=Array.isArray(p.hours)&&p.hours.length?p.hours:Array.from({length:24},((e,t)=>({hour:t,tAir:Math.round(10*(p.tNight+(p.tDay-p.tNight)*Math.sin(Math.max(0,(t-5)/14)*Math.PI)))/10,press:p.pressAvg||752}))),z=T.map((e=>Number(e.tAir??p.tDay??0))),N=Math.min(...z),B=Math.max(...z),L=Math.max(2,B-N),I=320,E=T.map(((e,t)=>{const i=Math.round(10*(12+t/Math.max(1,T.length-1)*296))/10,a=(Number(e.tAir??0)-N)/L;return{x:i,y:Math.round(10*(18+54*(1-a)))/10,t:e.tAir,p:e.press,hr:e.hour}}));let j=`M ${E[0].x} ${E[0].y}`;for(let e=0;e<E.length-1;e++){const t=E[e],i=E[e+1],a=Math.round((t.x+i.x)/2*10)/10;j+=` C ${a} ${t.y}, ${a} ${i.y}, ${i.x} ${i.y}`}const W=`${j} L ${E[E.length-1].x} 84 L ${E[0].x} 84 Z`,H=E[6]||E[0],C=E[14]||E[Math.floor(E.length/2)],F=`${p.tDay>0?"+"+p.tDay:p.tDay}°C`,R=`${p.tNight>0?"+"+p.tNight:p.tNight}°C`,O=`${p.waterTemp>0?"+"+p.waterTemp:p.waterTemp}°C`;t.innerHTML=`\n    <div class="bento-dashboard-wrap">\n      \x3c!-- Горизонтальная лента быстрого выбора дня прямо во вкладке Погода --\x3e\n      <div class="chip-scroll-row" id="weatherDaysStrip" style="padding-bottom:2px;">\n        ${r.map(((e,t)=>`\n            <button type="button" class="w-chip ${t===o?"active":""}" data-weather-pick-day="${t}" style="padding:5px 11px;min-height:36px;">\n              <span>${2===t?'<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2c1.5 3.5 4.5 5.5 4.5 10a5.5 5.5 0 1 1-11 0c0-3 2-5.5 3.5-7 0 2 1.5 3 1.5 3S12 5.5 12 2z" fill="#f97316" stroke="#fbbf24" stroke-width="1.5" stroke-linejoin="round"/></svg> Сегодня':3===t?'<svg class="k-ico" viewBox="0 0 24 24" fill="none"><polygon points="13,2 4,14 11,14 10,22 20,10 13,10" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.5" stroke-linejoin="round"/></svg> Завтра':e.relTitle||e.label}</span>\n              <span style="opacity:0.85;font-weight:800;">${e.tDay>0?"+"+e.tDay:e.tDay}°</span>\n            </button>\n          `)).join("")}\n      </div>\n      \x3c!-- КАРТОЧКА 1 (Bento Hero): Компактный сезонный режим водоёма (радар справа вверху, инфо-блок на всю ширину внизу) --\x3e\n      <div class="bento-card bento-hero-card" style="padding:10px 12px;">\n        <div class="bento-card-head" style="margin-bottom:6px;gap:6px;align-items:flex-start;">\n          <div style="min-width:0;flex:1;">\n            <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;">\n              <div class="bento-card-title" style="font-size:15px;">\n                <span>${k}</span>\n              </div>\n              <div style="display:inline-flex;align-items:center;gap:5px;flex-wrap:wrap;">\n                ${d({text:n.weatherSource||e.offlineMode,tone:(n.weatherSource||"").includes("Онлайн")?"good":"warn",icon:'<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="5" stroke="#38bdf8" stroke-width="1.5"/><path d="M12 12l6-6" stroke="#10b981" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="12" r="1.8" fill="#10b981"/></svg>'})}\n                <button type="button" class="btn btn-sm" id="weatherHeroRefreshBtn" style="min-height:26px;padding:2px 8px;font-size:11px;font-weight:800;" title="Принудительно обновить погоду в реальном времени">\n                  <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M20 11a8 8 0 0 0-14.5-4.5L4 8m0-5v5h5M4 13a8 8 0 0 0 14.5 4.5L20 16m0 5v-5h-5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>\n                  <span>Обновить погоду</span>\n                </button>\n              </div>\n            </div>\n            <div class="bento-card-sub" style="font-size:11px;margin-top:2px;line-height:1.25;">\n              <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#ef4444"/></svg> ${n.locLabel} (${g} • ${f}) • ${p.relTitle?p.relTitle+" ("+p.label+")":p.label}\n            </div>\n          </div>\n        </div>\n        \x3c!-- Верхний ряд: слева статус льда/воды, справа вверху — радар индекса льда и температура воды --\x3e\n        <div style="display:grid;grid-template-columns:1.12fr 0.88fr;gap:8px;align-items:center;margin-bottom:6px;">\n          <div style="min-width:0;">\n            <div class="bento-status-verdict" style="color:${x};font-size:15px;line-height:1.18;margin-bottom:3px;">\n              ${M}\n            </div>\n            <div style="font-size:11.5px;font-weight:800;color:var(--text);line-height:1.3;">\n              ${p.iceNote||("open_water"===p.iceState?`Открытая вода (~${p.waterTemp}°C), льда нет (${f})`:w.vehicleVerdict)}\n            </div>\n          </div>\n          <div class="bento-gauge-col" style="padding:0;justify-content:flex-start;align-items:center;">\n            <div class="bento-gauge-svg-box" style="width:138px;height:74px;margin:0 auto;">\n              <svg viewBox="0 0 156 90" width="138" height="74" fill="none" xmlns="http://www.w3.org/2000/svg">\n                <defs>\n                  <linearGradient id="weatherGaugeGrad" x1="0%" y1="100%" x2="100%" y2="0%">\n                    <stop offset="0%" stop-color="var(--gauge-start, #3b82f6)"/>\n                    <stop offset="100%" stop-color="var(--gauge-end, #10b981)"/>\n                  </linearGradient>\n                </defs>\n                <path d="M 18 78 A 60 60 0 0 1 138 78" stroke="var(--gauge-track, #dbe7f3)" stroke-width="12" stroke-linecap="round" fill="none"/>\n                <path d="M 18 78 A 60 60 0 0 1 138 78" stroke="url(#weatherGaugeGrad)" stroke-width="12" stroke-linecap="round" fill="none" stroke-dasharray="${$} 200"/>\n              </svg>\n              <div class="bento-gauge-center-text" style="bottom:0;">\n                <span class="bento-gauge-sub" style="font-size:9.5px;">${A}</span>\n                <span class="bento-gauge-lvl" style="font-size:11px;">${D}</span>\n                <span class="bento-gauge-pct" style="font-size:20px;">${S}%</span>\n              </div>\n            </div>\n            <div class="bento-tackle-summary" style="margin-top:2px;font-size:10.5px;line-height:1.2;text-align:center;">\n              <span style="color:var(--muted);">Вода с учётом течения:</span>\n              <b style="font-size:12.5px;color:var(--accent);margin-left:3px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> ${O}</b>\n            </div>\n          </div>\n        </div>\n        \x3c!-- Нижний ряд на ВСЮ ШИРИНУ карточки по горизонтали: допуск пешком/техника и пояснение безопасности --\x3e\n        <div style="width:100%;padding:6px 10px;border-radius:10px;background:var(--panel);border:1px solid var(--border);font-size:11px;line-height:1.3;">\n          <div style="font-weight:800;color:var(--text);margin-bottom:2px;">${w.vehicleVerdict}</div>\n          <div style="color:var(--muted);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="rgba(56,189,248,0.18)" stroke="#38bdf8" stroke-width="1.8"/><path d="M12 11v5M12 8h.01" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> ${w.recommendation}</div>\n        </div>\n      </div>\n      \x3c!-- КАРТОЧКА 2 (Двойной Bento-ряд 50% / 50%): Температура + Давление и Ветер --\x3e\n      <div class="bento-bottom-duo">\n        <div class="bento-card bento-weather-card" style="cursor:default;">\n          <div class="bento-card-title" style="margin-bottom:8px;font-size:14.5px;">\n            <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M14 14.76V5a2 2 0 1 0-4 0v9.76a4 4 0 1 0 4 0z" fill="rgba(56,189,248,0.22)" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="17.5" r="1.8" fill="#ef4444"/></svg></span>\n            <span>Воздух & Вода</span>\n          </div>\n          <div class="bento-weather-rows">\n            <div class="bento-temp-split">\n              <div>\n                <div class="bento-temp-air">${F}</div>\n                <div style="font-size:10.5px;color:var(--muted);font-weight:700;">Днём (ночью ${R})</div>\n              </div>\n              <div class="bento-temp-water-box">\n                <div style="font-size:15px;font-weight:900;color:var(--accent);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> ${O}</div>\n                <div style="font-size:10.5px;color:var(--muted);font-weight:700;">Вода (${f})</div>\n              </div>\n            </div>\n            <div class="bento-weather-item-row">\n              <span style="font-size:16px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg></span>\n              <div>\n                <div style="font-weight:800;color:var(--text);">Биотоп: ${g}</div>\n                <div style="font-size:10.5px;color:var(--muted);">Глубина в точке: ~${n.depth.toFixed(1)} м</div>\n              </div>\n            </div>\n          </div>\n        </div>\n        <div class="bento-card bento-radar-card" style="cursor:default;">\n          <div class="bento-card-title" style="margin-bottom:8px;font-size:14.5px;">\n            <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><polygon points="16,8 13.5,13.5 8,16 10.5,10.5" fill="#38bdf8" stroke="currentColor" stroke-width="1.3"/></svg></span>\n            <span>Барометр & Ветер</span>\n          </div>\n          <div class="bento-weather-rows">\n            <div class="bento-temp-split">\n              <div>\n                <div class="bento-temp-air" style="font-size:21px;">${p.pressAvg} <span style="font-size:12px;font-weight:700;">мм</span></div>\n                <div style="font-size:10.5px;color:var(--muted);font-weight:700;">Тренд: ${l(p.dP)}</div>\n              </div>\n              <div class="bento-temp-water-box">\n                <div style="font-size:14px;font-weight:900;color:var(--good);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> ${p.windDir} ${p.windMax} м/с</div>\n                <div style="font-size:10.5px;color:var(--muted);font-weight:700;">Ветер и волна</div>\n              </div>\n            </div>\n            <div class="bento-weather-item-row">\n              <span style="font-size:16px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M3 20L10 6l5 9 3-5 3 10H3z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></span>\n              <div>\n                <div style="font-weight:800;color:var(--text);">Норма: ${n.normPress} мм (${n.elevation} м)</div>\n                <div style="font-size:10.5px;color:var(--muted);">Осадки за сутки: ${p.precip||0} мм</div>\n              </div>\n            </div>\n          </div>\n        </div>\n      </div>\n      \x3c!-- КАРТОЧКА 3 (Bento Chart): Суточный ход температуры и давления 00:00–24:00 --\x3e\n      <div class="bento-card bento-chart-card">\n        <div class="bento-card-head" style="margin-bottom:4px;">\n          <div class="bento-card-title">\n            <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M3 3v18h18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M7 15l4-5 4 3 5-7" stroke="#38bdf8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>\n            <span>Суточный ход температуры воздуха и давления</span>\n          </div>\n          <span style="font-size:12px;font-weight:800;color:var(--muted);">00:00–24:00</span>\n        </div>\n        <div style="width:100%;overflow:hidden;">\n          <div class="bento-chart-stage" style="position:relative;width:100%;height:106px;">\n            <svg viewBox="0 0 320 88" width="100%" height="100%" preserveAspectRatio="none" style="display:block;width:100%;height:100%;">\n              <defs>\n                <linearGradient id="weatherWaveFill" x1="0" y1="0" x2="0" y2="1">\n                  <stop offset="0%" stop-color="var(--wave-fill-top, rgba(59,130,246,0.35))"/>\n                  <stop offset="100%" stop-color="var(--wave-fill-bot, rgba(59,130,246,0.02))"/>\n                </linearGradient>\n              </defs>\n              <line x1="12" y1="45" x2="308" y2="45" stroke="var(--border)" stroke-dasharray="3 3" stroke-width="1" vector-effect="non-scaling-stroke" opacity="0.6"/>\n              <path d="${W}" fill="url(#weatherWaveFill)"/>\n              <path d="${j}" fill="none" stroke="var(--wave-stroke, #38bdf8)" stroke-width="2.6" vector-effect="non-scaling-stroke" stroke-linecap="round"/>\n            </svg>\n            <div class="bento-chart-dot" style="left:${(H.x/I*100).toFixed(1)}%;top:${(H.y/88*100).toFixed(1)}%;background:#38bdf8;"></div>\n            <div class="bento-chart-badge" style="left:${Math.max(13,Math.min(87,H.x/I*100)).toFixed(1)}%;top:${Math.max(20,H.y/88*100-6).toFixed(1)}%;border-color:rgba(56,189,248,0.55);">\n              06:00 (${H.t>0?"+"+H.t:H.t}°C)\n            </div>\n            <div class="bento-chart-dot" style="left:${(C.x/I*100).toFixed(1)}%;top:${(C.y/88*100).toFixed(1)}%;background:#10b981;"></div>\n            <div class="bento-chart-badge" style="left:${Math.max(13,Math.min(87,C.x/I*100)).toFixed(1)}%;top:${Math.max(20,C.y/88*100-6).toFixed(1)}%;border-color:rgba(16,185,129,0.55);">\n              14:00 (${C.t>0?"+"+C.t:C.t}°C)\n            </div>\n          </div>\n          <div class="bento-chart-ticks-grid">\n            ${[0,3,6,9,12,15,18,21].map((e=>{const t=E[e]||E[0],i=t?t.t:p.tDay,a=`${i>0?"+"+i:i}°`;return`\n                <div class="bento-chart-tick-cell">\n                  <span class="bento-chart-tick-hr">${String(e).padStart(2,"0")}:00</span>\n                  <span class="bento-chart-tick-val" style="color:var(--text);">${a}</span>\n                </div>\n              `})).join("")}\n          </div>\n          <div style="display:flex;justify-content:space-between;align-items:center;padding:2px 10px 0;font-size:11px;font-weight:800;color:var(--muted);">\n            <span>00:00</span>\n            <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.5" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> Восход ${s(p.sunriseHr)}</span>\n            <span>12:00 (${p.pressAvg} мм)</span>\n            <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.5" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> Закат ${s(p.sunsetHr)}</span>\n            <span>24:00</span>\n          </div>\n        </div>\n      </div>\n      \x3c!-- КАРТОЧКА 4 (Bento Solunar & Archive): Луна, Солунарные окна и 5-дневный кэш 10 км --\x3e\n      <div class="bento-card bento-solunar-card">\n        <div class="bento-card-head">\n          <div>\n            <div class="bento-card-title">\n              <span>${u.phaseIcon}</span>\n              <span>Луна: ${u.phaseName} (${u.moonDay} л.д., освещённость ${u.illum}%)</span>\n            </div>\n            <div class="bento-card-sub">\n              <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.5" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> Восход ${s(p.sunriseHr)} • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.5" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> Закат ${s(p.sunsetHr)} • Приоритет: термика и барометр важнее фазы Луны\n            </div>\n          </div>\n          <button type="button" class="btn btn-sm" id="weatherCleanArchiveBtn" title="Очистить старый архив погоды, кроме последних 5 дней"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Очистить кэш</button>\n        </div>\n        <div class="bento-metrics-grid" style="margin-bottom:8px;">\n          <div class="bento-metric-tile">\n            <div class="bento-metric-label"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.5" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> Главные лунные выходы</div>\n            <div class="bento-metric-val" style="font-size:14.5px;color:var(--good);">${u.majorWindows.join(" • ")}</div>\n            <div class="bento-metric-sub">Верхняя и нижняя кульминация Луны</div>\n          </div>\n          <div class="bento-metric-tile">\n            <div class="bento-metric-label"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6" stroke-linejoin="round"/></svg> Малые лунные окна</div>\n            <div class="bento-metric-val" style="font-size:14.5px;color:var(--accent);">${u.minorWindows.join(" • ")}</div>\n            <div class="bento-metric-sub">Восход и заход Луны над горизонтом</div>\n          </div>\n          <div class="bento-metric-tile">\n            <div class="bento-metric-label"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Метеоархив (радиус 10 км)</div>\n            <div class="bento-metric-val" style="font-size:14.5px;">${m.localArchiveDays} арх. дн.</div>\n            <div class="bento-metric-sub">${!1===n.hasRealArchive?'<svg class="k-ico" style="color:var(--warn);" viewBox="0 0 24 24" fill="none"><path d="M12 3L2.5 19.5h19L12 3z" fill="rgba(245,158,11,0.24)" stroke="#f59e0b" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9v5M12 17h.01" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/></svg> Накапливается':'<svg class="k-ico" style="color:var(--good);" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="rgba(16,185,129,0.24)" stroke="#10b981" stroke-width="1.9"/><path d="M8 12.5l2.7 2.7L16.5 9.5" stroke="#10b981" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg> 5-дневный архив активен'} (всего ${m.totalArchiveDays} дн.)</div>\n          </div>\n        </div>\n        <details style="font-size:12px;color:var(--muted);">\n          <summary style="cursor:pointer;font-weight:800;color:var(--accent);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="rgba(56,189,248,0.18)" stroke="#38bdf8" stroke-width="1.8"/><path d="M12 11v5M12 8h.01" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> Как фазы Луны и барический шок влияют на рыбу</summary>\n          <p style="margin-top:6px;line-height:1.45;">${e.solunarDisclaimer}</p>\n        </details>\n      </div>\n    </div>\n  `,t.querySelectorAll("[data-weather-pick-day]").forEach((e=>{e.addEventListener("click",(()=>{const t=parseInt(e.getAttribute("data-weather-pick-day"),10);2!==t&&"undefined"!=typeof window&&"function"==typeof window.__KLEV_IS_MOBILE_GUEST__&&window.__KLEV_IS_MOBILE_GUEST__()?"function"==typeof window.__KLEV_PROMPT_GUEST_AUTH__&&window.__KLEV_PROMPT_GUEST_AUTH__("При временном ID погода доступна только на сегодня. Войдите в аккаунт для просмотра прогноза на 10 дней."):Number.isFinite(t)&&a.dispatch({type:"SET_DAY",payload:t})}))}));const P=t.querySelector("#weatherHeroRefreshBtn");P&&P.addEventListener("click",(async()=>{const e=a.getState();P.disabled=!0,P.textContent="Обновление...",await fetchWeather(e.lat,e.lon,!0),h("Сводка погоды и температуры воды обновлена в реальном времени","good"),render(t)}));const V=t.querySelector("#weatherCleanArchiveBtn");V&&V.addEventListener("click",(()=>{const e=i.clearWeatherArchiveKeep5Days();h(` Архив погоды очищен: удалено старых записей — ${e.removedCount}, сохранены последние 5 дней архива (${e.keptArchiveCount} дн.)`,"good"),render(t)}))}let w=null;export function init(t){const i=a.getState();if(i.weatherDays&&12===i.weatherDays.length){const e=recalculateIceForWaterType(i.weatherDays,i.water,i.weatherArchive5Days);e&&a.dispatch({type:"SET_WEATHER_DATA",payload:{days:e.days,archive5Days:e.archive5Days,iceState:e.iceState,iceSubState:e.iceSubState,iceThickness:e.iceThickness,iceNote:e.iceNote,source:i.weatherSource}})}else{const t=buildFallback(i.lat,i.water);a.dispatch({type:"SET_WEATHER_DATA",payload:{...t,source:e.syncing,updatedAt:Date.now()}})}render(t),w=subscribeWeather(((e,i)=>{if(i&&e.water!==i.water&&Array.isArray(e.days)&&12===e.days.length){const t=recalculateIceForWaterType(e.days,e.water,e.archive5Days);if(t)return void a.dispatch({type:"SET_WEATHER_DATA",payload:{days:t.days,archive5Days:t.archive5Days,iceState:t.iceState,iceSubState:t.iceSubState,iceThickness:t.iceThickness,iceNote:t.iceNote,source:a.getState().weatherSource}})}e.route&&"weather"!==e.route?t&&(t._weatherNeedsRender=!0):(t&&(t._weatherNeedsRender=!1),render(t))})),fetchWeather(i.lat,i.lon)}export function destroy(){w&&w()}export const weatherModule={computeMoon:computeMoon,computeIceSafetyIndex:computeIceSafetyIndex,computeWaterTempSeries:computeWaterTempSeries,evaluateDayIce:evaluateDayIce,recalculateIceForWaterType:recalculateIceForWaterType,buildFallback:buildFallback,normalizeOpenMeteo:normalizeOpenMeteo,normalizeMetNo:normalizeMetNo,fetchWeather:fetchWeather,getWeatherState:getWeatherState,subscribeWeather:subscribeWeather,init:init,render:render,destroy:destroy};
+import { RU } from '../../i18n/ru.js?v=2.8.0-r226';
+import { events } from '../../core/events.js?v=2.8.0-r226';
+import { storage } from '../../core/storage.js?v=2.8.0-r226';
+import { store } from '../../core/store.js?v=2.8.0-r226';
+import { fetchWithTimeout, fallbackChain } from '../../core/http.js?v=2.8.0-r226';
+import { formatLocalYYYYMMDD, fmtHM, fmtDeltaPress } from '../../core/format.js?v=2.8.0-r226';
+import { WATER_PROFILES } from '../../data/waters.js?v=2.8.0-r226';
+import { createPill, showToast } from '../../ui/components.js?v=2.8.0-r226';
+const DIRS = ['С', 'СВ', 'В', 'ЮВ', 'Ю', 'ЮЗ', 'З', 'СЗ'];
+
+/**
+ * ── ЯДРО ГИДРОМЕТЦЕНТРА РОССИИ (METEOINFO.RU) • РЕВИЗИЯ 2.8.0 (r226) ──
+ * 1. 4 микро-парсера (StationWeatherParser, HydroReviewNLPParser, RoadAndStormAlertParser, SpaceWeatherParser)
+ * 2. Геопоиск 3 ближайших опорных метеостанций РФ и интерполяция методом обратных взвешенных расстояний (IDW)
+ *    с барометрической и высотной поправкой (dT = -0.0065 * dz, dP = -dz / 11.5)
+ * 3. Рекуррентная модель теплового баланса воды Монингера/Ньютона с ветровым перемешиванием и осенней гомотермией (+4.0 °C)
+ * 4. Модифицированная модель льда Стефана — Быдина с теплоизоляцией снега, методикой Шуляковского (FDD),
+ *    весенним игольчатым распадом (TDD >= 15..25 °C*сут) и ассимиляцией данных (Data Assimilation) сводок Гидрометцентра.
+ */
+export const METEOINFO_RU_STATIONS = [
+  { id: '23358', slug: 'yamalo-nenetskiy-avtonomnyy-okrug/novyy-urengoy', name: 'Новый Уренгой', region: 'Ямало-Ненецкий АО', basin: 'pur_taz', lat: 66.0833, lon: 76.6800, elev: 45, climoNovT: -15.5, hydroIceRangeCm: [14, 33] },
+  { id: '23330', slug: 'yamalo-nenetskiy-avtonomnyy-okrug/salekhard', name: 'Салехард', region: 'Ямало-Ненецкий АО', basin: 'ob_lower', lat: 66.5300, lon: 66.6000, elev: 16, climoNovT: -13.8, hydroIceRangeCm: [12, 30] },
+  { id: '23445', slug: 'yamalo-nenetskiy-avtonomnyy-okrug/nadym', name: 'Надым', region: 'Ямало-Ненецкий АО', basin: 'nadym', lat: 65.5333, lon: 72.5167, elev: 19, climoNovT: -14.8, hydroIceRangeCm: [13, 31] },
+  { id: '23552', slug: 'yamalo-nenetskiy-avtonomnyy-okrug/tarko-sale', name: 'Тарко-Сале', region: 'Ямало-Ненецкий АО', basin: 'pur_taz', lat: 64.9167, lon: 77.7667, elev: 27, climoNovT: -14.2, hydroIceRangeCm: [12, 29] },
+  { id: '23662', slug: 'yamalo-nenetskiy-avtonomnyy-okrug/noyabrsk', name: 'Ноябрьск', region: 'Ямало-Ненецкий АО', basin: 'ob_middle', lat: 63.2000, lon: 75.4500, elev: 115, climoNovT: -12.4, hydroIceRangeCm: [11, 26] },
+  { id: '23849', slug: 'khanty-mansiyskiy-avtonomnyy-okrug/surgut', name: 'Сургут', region: 'Ханты-Мансийский АО', basin: 'ob_middle', lat: 61.2500, lon: 73.4167, elev: 44, climoNovT: -9.8, hydroIceRangeCm: [6, 18] },
+  { id: '23933', slug: 'khanty-mansiyskiy-avtonomnyy-okrug/khanty-mansiysk', name: 'Ханты-Мансийск', region: 'Ханты-Мансийский АО', basin: 'ob_irtysh', lat: 61.0000, lon: 69.0167, elev: 46, climoNovT: -8.9, hydroIceRangeCm: [5, 16] },
+  { id: '28367', slug: 'tyumenskaya-oblast/tyumen', name: 'Тюмень', region: 'Тюменская область', basin: 'tob_irtysh', lat: 57.1500, lon: 65.5333, elev: 102, climoNovT: -5.2, hydroIceRangeCm: [0, 10] },
+  { id: '28440', slug: 'sverdlovskaya-oblast/ekaterinburg', name: 'Екатеринбург', region: 'Свердловская область', basin: 'ural_kama', lat: 56.8333, lon: 60.6000, elev: 283, climoNovT: -4.8, hydroIceRangeCm: [0, 9] },
+  { id: '29634', slug: 'novosibirskaya-oblast/novosibirsk', name: 'Новосибирск', region: 'Новосибирская область', basin: 'ob_upper', lat: 55.0167, lon: 82.9167, elev: 162, climoNovT: -6.5, hydroIceRangeCm: [2, 12] },
+  { id: '29570', slug: 'krasnoyarskiy-kray/krasnoyarsk', name: 'Красноярск', region: 'Красноярский край', basin: 'yenisei', lat: 56.0167, lon: 92.8667, elev: 276, climoNovT: -6.1, hydroIceRangeCm: [2, 14] },
+  { id: '24959', slug: 'respublika-sakha-yakutiya/yakutsk', name: 'Якутск', region: 'Республика Саха (Якутия)', basin: 'lena', lat: 62.0333, lon: 129.7333, elev: 101, climoNovT: -26.4, hydroIceRangeCm: [18, 38] },
+  { id: '22113', slug: 'murmanskaya-oblast/murmansk', name: 'Мурманск', region: 'Мурманская область', basin: 'kola_white', lat: 68.9667, lon: 33.0833, elev: 51, climoNovT: -4.5, hydroIceRangeCm: [3, 14] },
+  { id: '22550', slug: 'arkhangelskaya-oblast/arkhangelsk', name: 'Архангельск', region: 'Архангельская область', basin: 'dvina_north', lat: 64.5333, lon: 40.5333, elev: 8, climoNovT: -4.2, hydroIceRangeCm: [2, 12] },
+  { id: '26063', slug: 'leningradskaya-oblast/sankt-peterburg', name: 'Санкт-Петербург', region: 'Ленинградская область', basin: 'neva_baltic', lat: 59.9333, lon: 30.3333, elev: 6, climoNovT: 0.8, hydroIceRangeCm: [0, 0] },
+  { id: '27612', slug: 'mosковская-oblast/moskva', name: 'Москва (ВДНХ)', region: 'Московская область', basin: 'oka_volga', lat: 55.8333, lon: 37.6167, elev: 156, climoNovT: -0.9, hydroIceRangeCm: [0, 2] },
+  { id: '27595', slug: 'respublika-tatarstan/kazan', name: 'Казань', region: 'Республика Татарстан', basin: 'volga_middle', lat: 55.7833, lon: 49.1167, elev: 116, climoNovT: -2.4, hydroIceRangeCm: [0, 5] },
+  { id: '34880', slug: 'astrakhanskaya-oblast/astrakhan', name: 'Астрахань', region: 'Астраханская область', basin: 'volga_lower', lat: 46.3500, lon: 48.0333, elev: -22, climoNovT: 3.6, hydroIceRangeCm: [0, 0] },
+  { id: '30710', slug: 'irkutskaya-oblast/irkutsk', name: 'Иркутск', region: 'Иркутская область', basin: 'angara_baikal', lat: 52.2833, lon: 104.3000, elev: 469, climoNovT: -7.8, hydroIceRangeCm: [4, 16] },
+  { id: '31510', slug: 'amurskaya-oblast/blagoveshchensk', name: 'Благовещенск', region: 'Амурская область', basin: 'amur', lat: 50.2667, lon: 127.5333, elev: 137, climoNovT: -10.2, hydroIceRangeCm: [11, 28] }
+];
+
+export function findNearestMeteoinfoStations(lat, lon, k = 3) {
+  const effLat = Number.isFinite(lat) ? lat : 66.0833;
+  const effLon = Number.isFinite(lon) ? lon : 76.6800;
+  const withDist = METEOINFO_RU_STATIONS.map(st => {
+    const dLat = ((st.lat - effLat) * Math.PI) / 180;
+    const dLon = ((st.lon - effLon) * Math.PI) / 180;
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos((effLat * Math.PI) / 180) * Math.cos((st.lat * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
+    const distKm = Math.max(0.5, 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+    return { ...st, distKm: Math.round(distKm * 10) / 10, idwWeight: 1 / (distKm ** 1.6) };
+  }).sort((a, b) => a.distKm - b.distKm);
+  const topK = withDist.slice(0, Math.max(1, k));
+  const sumW = topK.reduce((s, x) => s + x.idwWeight, 0) || 1;
+  return topK.map(x => ({ ...x, normWeight: x.idwWeight / sumW }));
+}
+
+export const MeteoInfoRuParsers = {
+  /**
+   * 1. StationWeatherParser: Извлекает 6-часовые ряды Highcharts 6.0.7 со страниц /forecasts5000 и /pogoda
+   * и достраивает хвост +8..+10 суток методом релаксации к климатической норме станции с учётом декадной аномалии.
+   */
+  parseHighchartsForecastHtml(htmlText, stationMeta = null, decadalAnomalyC = 0.0) {
+    if (!htmlText || typeof htmlText !== 'string') return null;
+    try {
+      const extractNumberArray = (labelPattern) => {
+        const rx = new RegExp(labelPattern + '[\\s\\S]{0,240}?data\\s*:\\s*\\[([0-9.,\\s+-]+)\\]', 'i');
+        const m = htmlText.match(rx);
+        if (!m || !m[1]) return [];
+        return m[1].split(',').map(v => parseFloat(v.trim())).filter(Number.isFinite);
+      };
+      let temps6h = extractNumberArray('(?:Температура|t_air|temp)');
+      let press6h = extractNumberArray('(?:Давление|pressure|press)');
+      let hum6h = extractNumberArray('(?:Влажность|humidity|hum)');
+      let precip6h = extractNumberArray('(?:Осадки|precip)');
+
+      if (temps6h.length < 4) {
+        const genericSeries = [...htmlText.matchAll(/data\s*:\s*\[([0-9.,\s+-]{12,})\]/g)]
+          .map(m => m[1].split(',').map(v => parseFloat(v.trim())).filter(Number.isFinite))
+          .filter(arr => arr.length >= 8);
+        for (const arr of genericSeries) {
+          const avg = arr.reduce((a, b) => a + b, 0) / arr.length;
+          if (avg >= 680 && avg <= 815 && press6h.length === 0) press6h = arr;
+          else if (avg >= -55 && avg <= 45 && temps6h.length === 0) temps6h = arr;
+          else if (avg >= 25 && avg <= 100 && hum6h.length === 0) hum6h = arr;
+          else if (avg >= 0 && avg <= 35 && precip6h.length === 0) precip6h = arr;
+        }
+      }
+      if (temps6h.length < 4) return null;
+
+      // Достраиваем +8..+10 суток (12 шестичасовых слотов = 3 суток) методом релаксации к климатической норме:
+      // w(t) плавно затухает от 0.6 на 8-е сутки до 0.2 на 10-е сутки
+      const climoT = Number.isFinite(stationMeta?.climoNovT) ? stationMeta.climoNovT : -4.0;
+      const climoP = Math.round(760 - (stationMeta?.elev || 60) / 11.5);
+      const lastT = temps6h[temps6h.length - 1];
+      const lastP = press6h.length > 0 ? press6h[press6h.length - 1] : climoP;
+      const extendedTemps6h = [...temps6h];
+      const extendedPress6h = press6h.length > 0 ? [...press6h] : temps6h.map(() => climoP);
+      const extendedPrecip6h = precip6h.length > 0 ? [...precip6h] : temps6h.map(() => 0);
+
+      for (let step = 0; step < 12; step++) {
+        const w = 0.6 - (step / 11) * 0.4; // 0.6 -> 0.2
+        const diurnal = Math.sin(((step % 4) - 1) * (Math.PI / 2)) * 2.2;
+        const targetClimo = climoT + decadalAnomalyC + diurnal;
+        extendedTemps6h.push(Math.round((w * lastT + (1 - w) * targetClimo) * 10) / 10);
+        extendedPress6h.push(Math.round(w * lastP + (1 - w) * climoP));
+        extendedPrecip6h.push(0);
+      }
+      return {
+        temps6h: extendedTemps6h,
+        press6h: extendedPress6h,
+        hum6h,
+        precip6h: extendedPrecip6h,
+        stationId: stationMeta?.id || 'unknown'
+      };
+    } catch (e) {
+      return null;
+    }
+  },
+
+  /**
+   * 2. HydroReviewNLPParser: Извлекает из Гидрологических обзоров и /egmb фактическую толщину льда (см),
+   * скачки уровня воды dH (м), ледовые заторы/зажоры и прогнозные даты появления льда / вскрытия рек.
+   */
+  parseHydroReviewText(text) {
+    if (!text || typeof text !== 'string') return { events: [], thicknessRanges: [] };
+    const clean = text.replace(/\s+/g, ' ');
+    const thicknessRanges = [];
+    const events = [];
+
+    // Толщина льда: «На замерзших реках ... толщина льда составляет 11-33 см»
+    const thickRx = /([А-ЯЁа-яё\-\s,()]{5,110}?)\s*толщина\s+льда\s+(?:составляет\s+)?(\d{1,3})\s*(?:[-–—]\s*(\d{1,3}))?\s*см/gi;
+    for (const m of clean.matchAll(thickRx)) {
+      const regionText = m[1].trim();
+      const minCm = parseInt(m[2], 10);
+      const maxCm = m[3] ? parseInt(m[3], 10) : minCm;
+      if (Number.isFinite(minCm) && minCm >= 1 && maxCm <= 250) {
+        thicknessRanges.push({
+          regionText,
+          minCm: Math.min(minCm, maxCm),
+          maxCm: Math.max(minCm, maxCm),
+          midCm: Math.round((minCm + maxCm) / 2)
+        });
+      }
+    }
+
+    // Даты появления льда / вскрытия рек: «3-9 ноября ожидается появление льда на р. Обь ...»
+    const iceDateRx = /(\d{1,2})\s*(?:[-–—]\s*(\d{1,2}))?\s+(января|февраля|марта|апреля|мая|октября|ноября|декабря)\s+ожидается\s+(появление\s+льда|становление\s+ледостава|вскрытие)\s+на\s+(.{5,180}?(?:\)|(?=\s+\d{1,2}\s*[-–—])|$))/gi;
+    for (const m of clean.matchAll(iceDateRx)) {
+      events.push({
+        type: m[4].toLowerCase().includes('вскрытие') ? 'river_breakup_forecast' : 'ice_appearance_forecast',
+        dayStart: parseInt(m[1], 10),
+        dayEnd: m[2] ? parseInt(m[2], 10) : parseInt(m[1], 10),
+        monthName: m[3].toLowerCase(),
+        phenomenon: m[4],
+        reachText: m[5].trim()
+      });
+    }
+
+    // Заторы / зажоры и подъём уровня воды dH: «Зажор льда сформировался на р. Ока ... к росту уровня воды на (0,7-1,0 м)»
+    const jamRx = /(затор|зажор)\s+льда[\s\S]{0,160}?(?:росту|подъему|повышению)\s+уровня\s+воды\s+на\s*\(?(\d+[.,]\d+)\s*(?:[-–—]\s*(\d+[.,]\d+))?\s*м\)?/gi;
+    for (const m of clean.matchAll(jamRx)) {
+      const d1 = parseFloat(m[2].replace(',', '.'));
+      const d2 = m[3] ? parseFloat(m[3].replace(',', '.')) : d1;
+      events.push({
+        type: 'ice_jam_surge',
+        jamKind: m[1].toLowerCase(),
+        deltaLevelMinM: d1,
+        deltaLevelMaxM: d2,
+        deltaLevelAvgM: Math.round(((d1 + d2) / 2) * 100) / 100,
+        rawText: m[0].trim()
+      });
+    }
+
+    return { thicknessRanges, events };
+  },
+
+  /**
+   * 3. RoadAndStormAlertParser: Классифицирует дорожные и штормовые угрозы по РД 52.27.724
+   * (NONE / SLIPPERY_60KMH / GLAZE_30KMH / SNOWDRIFT)
+   */
+  parseRoadAndStormAlerts(text, tMax = null, tMin = null, windMax = 3, precipMm = 0) {
+    const clean = String(text || '').toLowerCase();
+    let roadIceRisk = 'NONE';
+    let safeSpeedKmh = 90;
+    let alertNote = '';
+
+    if (/(голол[её]д(?:[^а-яё]|$)|ледян[а-яё]*\s+дожд|переохлажден[а-яё]*\s+дожд|отложени[а-яё]*\s+на\s+проводах)/i.test(clean)) {
+      roadIceRisk = 'GLAZE_30KMH';
+      safeSpeedKmh = 35;
+      alertNote = 'Внимание: по данным Гидрометцентра зафиксирован гололёд (намерзание переохлаждённых осадков). Безопасная скорость на трассе до 30–40 км/ч.';
+    } else if (/(снежн[а-яё]*\s+занос|снежн[а-яё]*\s+накат|метел[а-яё]*|видимост[а-яё]*\s+(?:менее\s+|до\s+)?500\s*м|перем[её]т)/i.test(clean)) {
+      roadIceRisk = 'SNOWDRIFT';
+      safeSpeedKmh = 45;
+      alertNote = 'Внимание: снежный накат, метель и риск перемётов на подъездах к водоёму. Безопасная скорость до 40–50 км/ч.';
+    } else if (/(гололедиц|налипани[а-яё]*\s+мокрого\s+снега)/i.test(clean)) {
+      roadIceRisk = 'SLIPPERY_60KMH';
+      safeSpeedKmh = 65;
+      alertNote = 'Внимание: местами гололедица на дорогах. Безопасная скорость движения снижается до 60–70 км/ч.';
+    } else if (Number.isFinite(tMax) && Number.isFinite(tMin) && tMax >= -0.5 && tMin <= 0.5 && (precipMm > 0.4 || windMax >= 8)) {
+      roadIceRisk = 'SLIPPERY_60KMH';
+      safeSpeedKmh = 65;
+      alertNote = 'Переход температуры через 0 °C с осадками: на трассе возможна гололедица (рекомендуемая скорость до 60–70 км/ч).';
+    }
+
+    const waterWindRisk = windMax >= 15 || /(шквал|ветер\s+(?:1[5-9]|2\d)\s*[-–]?\s*\d*\s*м\/с)/i.test(clean);
+    return {
+      roadIceRisk,
+      safeSpeedKmh,
+      waterWindRisk,
+      alertNote
+    };
+  },
+
+  /**
+   * 4. SpaceWeatherParser: Извлекает геомагнитную обстановку ИПГ из нижней части Гидрометеобюллетеня /egmb
+   */
+  parseSpaceWeatherEgmb(text) {
+    const clean = String(text || '').toLowerCase();
+    if (/(сильн[а-яё]*\s+магнитн[а-яё]*\s+бур|экстремальн[а-яё]*\s+возмущен)/i.test(clean)) {
+      return { status: 'severe_storm', kpIndex: 7.5, label: 'Сильная магнитная буря (ИПГ)', bitePenalty: -0.9 };
+    }
+    if (/(магнитн[а-яё]*\s+бур|умеренно\s+возмущен)/i.test(clean)) {
+      return { status: 'storm', kpIndex: 6.0, label: 'Магнитная буря (ИПГ)', bitePenalty: -0.55 };
+    }
+    if (/(слабо\s+возмущен)/i.test(clean)) {
+      return { status: 'minor_storm', kpIndex: 5.0, label: 'Геомагнитное поле слабо возмущённое', bitePenalty: -0.3 };
+    }
+    if (/(неустойчив[а-яё]*\s+геомагнитн|геомагнитное\s+поле\s+неустойчив)/i.test(clean)) {
+      return { status: 'unsettled', kpIndex: 3.5, label: 'Геомагнитное поле неустойчивое', bitePenalty: -0.1 };
+    }
+    return { status: 'quiet', kpIndex: 2.0, label: 'Геомагнитное поле спокойное', bitePenalty: 0 };
+  }
+};
+export function computeMoon(dateStr) {
+  const dt = new Date(dateStr + 'T12:00:00Z');
+  const syn = 29.53058867;
+  const KNOWN_NEW_MOON = new Date('2026-10-10T15:50:00Z');
+  const age = (((dt - KNOWN_NEW_MOON) / 86400000) % syn + syn) % syn;
+  const ratio = age / syn;
+  const illum = Math.round((1 - Math.cos(ratio * 2 * Math.PI)) * 50);
+  const moonDay = Math.max(1, Math.min(30, Math.floor(age) + 1));
+  const transitHour = Math.round((12 + ratio * 24) % 24);
+  const underfootHour = (transitHour + 12) % 24;
+  const riseHour = (transitHour + 18) % 24;
+  const setHour = (transitHour + 6) % 24;
+  let phaseName = 'Растущая луна';
+  let phaseIcon = '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6" stroke-linejoin="round"/></svg>';
+  if (moonDay === 1 || moonDay >= 29) { phaseName = 'Новолуние'; phaseIcon = '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6" stroke-linejoin="round"/></svg>'; }
+  else if (moonDay >= 14 && moonDay <= 16) { phaseName = 'Полнолуние'; phaseIcon = '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.5" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg>'; }
+  else if (moonDay >= 7 && moonDay <= 8) { phaseName = 'Первая четверть'; phaseIcon = '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6" stroke-linejoin="round"/></svg>'; }
+  else if (moonDay >= 22 && moonDay <= 23) { phaseName = 'Последняя четверть'; phaseIcon = '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6" stroke-linejoin="round"/></svg>'; }
+  else if (moonDay > 16) { phaseName = 'Убывающая луна'; phaseIcon = '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6" stroke-linejoin="round"/></svg>'; }
+  return {
+    moonDay,
+    illum,
+    transitHour,
+    underfootHour,
+    riseHour,
+    setHour,
+    phaseName,
+    phaseIcon,
+    majorWindows: [`${String(transitHour).padStart(2, '0')}:00–${String((transitHour + 2) % 24).padStart(2, '0')}:00`, `${String(underfootHour).padStart(2, '0')}:00–${String((underfootHour + 2) % 24).padStart(2, '0')}:00`],
+    minorWindows: [`${String(riseHour).padStart(2, '0')}:00–${String((riseHour + 1) % 24).padStart(2, '0')}:00`, `${String(setHour).padStart(2, '0')}:00–${String((setHour + 1) % 24).padStart(2, '0')}:00`]
+  };
+}
+
+export function computeWaterTempSeries(dailyMeans, dailyMaxs, dailyMins, waterType = 'small_river', lat = null, dailyWinds = [], dailyClouds = []) {
+  if (!Array.isArray(dailyMeans) || dailyMeans.length === 0) return [8.0];
+  const prof = WATER_PROFILES[waterType] || WATER_PROFILES.small_river;
+  const flow = Number.isFinite(prof.flow) ? prof.flow : 1.0;
+  if (waterType === 'cooling_reservoir') {
+    return dailyMeans.map(m => Math.max(8.0, Math.min(30.0, Math.round((m * 0.22 + 18.0) * 10) / 10)));
+  }
+  // Эффективная глубина эпилимниона H_эфф (м) по морфометрии водоёма
+  const hEff = waterType === 'tundra_lake'
+    ? 1.8
+    : (waterType === 'small_river'
+        ? 2.8
+        : (waterType === 'quarry' ? 5.8 : (waterType === 'big_river' ? 5.2 : 4.2)));
+  const flowThermalBonus = flow >= 1.8 ? 0.55 : (flow >= 1.1 ? 0.30 : 0.0);
+
+  const headSlice = dailyMeans.slice(0, Math.min(5, dailyMeans.length));
+  const avgHead = headSlice.reduce((a, b) => a + b, 0) / headSlice.length;
+  let runningWT;
+  if (dailyMeans[0] <= -1.2 || avgHead <= -0.6) {
+    runningWT = 0.2;
+  } else if (dailyMeans[0] <= 0.5 || avgHead <= 1.0) {
+    runningWT = 0.4;
+  } else {
+    runningWT = Math.max(0.4, Math.min(25.0, avgHead * 0.58 + 1.8 + flowThermalBonus));
+  }
+
+  const result = [];
+  for (let i = 0; i < dailyMeans.length; i++) {
+    const m = dailyMeans[i];
+    const windV = Number.isFinite(dailyWinds?.[i]) ? dailyWinds[i] : 3.5;
+    const cloudPct = Number.isFinite(dailyClouds?.[i]) ? dailyClouds[i] : 60;
+    // Коэффициент турбулентного теплообмена от скорости ветра: K_обм = 15 + 3.5 * V (Вт/(м²·К))
+    const kExch = 15.0 + 3.5 * Math.min(18, Math.max(0.5, windV));
+    // Время термической релаксации водоёма tau (в сутках): tau ~ (rho*c_p*H_eff) / (K_exch * 86400)
+    const tauDays = Math.max(1.8, Math.min(10.5, (48.4 * hEff) / kExch + (flow >= 1.2 ? 0.8 : 0)));
+    const alphaStep = 1 - Math.exp(-1 / tauDays);
+
+    if (m <= -0.3) {
+      // При переходе к морозам учитываем точку максимальной плотности пресной воды (+4.0 °C — осенняя гомотермия):
+      // пока столб выше +4.0 °C, конвективное перемешивание замедляет остывание; ниже +4.0 °C поверхностный слой быстро уходит к 0.2 °C
+      if (runningWT > 4.0) {
+        const coolStep = Math.max(0.45, Math.abs(m) * 0.24 * (1 + alphaStep * 1.5));
+        runningWT = Math.max(3.4, runningWT - coolStep);
+      } else {
+        runningWT = runningWT <= 0.8 ? 0.2 : Math.max(0.2, runningWT * 0.42 + 0.2 * 0.58);
+      }
+    } else {
+      const solarBonus = Math.max(0, (100 - cloudPct) / 100) * 1.15;
+      const tEq = Math.max(0.2, Math.min(25.8, m * 0.58 + 1.45 + flowThermalBonus + solarBonus));
+      runningWT = runningWT + (tEq - runningWT) * alphaStep;
+    }
+    const wt = Math.max(0.2, Math.min(25.5, Math.round(runningWT * 10) / 10));
+    result.push(wt);
+  }
+  return result;
+}
+/**
+ * Ревизия 2.5.6 (r193): Выверенная гидрологическая модель Стефана-Зубова с учётом широты (ЯНАО/Сибирь/Север РФ),
+ * сезонного накопления градусо-дней мороза (FDD) с начала ледостава и скорости течения (flow).
+ */
+export function evaluateDayIce(historyMeanTemps, tDayMax, tNightMin, waterTemp, waterType = 'small_river', dateStr = '', windSpeed = 3, precip = 0, lat = null, hydroAssimilation = null) {
+  if (waterType === 'cooling_reservoir') {
+    return {
+      iceState: 'open_water',
+      iceSubState: 'warm_discharge',
+      iceThickness: 0,
+      iceNote: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> Тёплый сброс ГРЭС/АЭС — круглогодично открытая вода (ледостава нет)'
+    };
+  }
+  const prof = WATER_PROFILES[waterType] || WATER_PROFILES.small_river;
+  const flow = Number.isFinite(prof.flow) ? prof.flow : 1.0;
+  const flowLabel = flow >= 1.8 ? 'быстрое течение' : (flow >= 1.1 ? 'умеренное течение' : 'стоячая вода / слабый ток');
+  const wind = Number.isFinite(windSpeed) ? windSpeed : 3;
+  const effLat = Math.abs(Number.isFinite(lat) ? lat : (store.getState()?.lat ?? 66.08));
+  const dt = dateStr ? new Date(dateStr + 'T12:00:00') : new Date();
+  const monthNum = dt.getMonth() + 1;
+  const startOfYear = new Date(dt.getFullYear(), 0, 0);
+  const dayOfYear = Math.max(1, Math.floor((dt - startOfYear) / 86400000));
+  const isSpring = (monthNum >= 4 && monthNum <= 5) || (monthNum === 3 && effLat < 58);
+  const recent = Array.isArray(historyMeanTemps) && historyMeanTemps.length > 0
+    ? historyMeanTemps
+    : [(tDayMax + tNightMin) / 2];
+  const tCurMean = (tDayMax + tNightMin) / 2;
+  const tailSlice = recent.slice(-Math.min(6, recent.length));
+  const avgTailMean = tailSlice.reduce((a, b) => a + b, 0) / tailSlice.length;
+  if (waterTemp > 2.4 && avgTailMean > 1.2 && tCurMean > 0.5) {
+    return {
+      iceState: 'open_water',
+      iceSubState: 'open_water',
+      iceThickness: 0,
+      iceNote: `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> Открытая вода (+${waterTemp.toFixed(1)}°C, ${flowLabel}, льда нет)`
+    };
+  }
+  // 1. Тепловой запас водной массы (thermalLagFDD), который должен уйти на охлаждение воды до 0°C и закрытие заберегов перед началом роста сплошного льда:
+  // Мелкие тундровые озёра замерзают первыми, затем малые реки, затем глубокие озёра/карьеры (Харвуто) и крупные реки (Пур, Обь).
+  const thermalLagFDD = waterType === 'tundra_lake'
+    ? 20
+    : (waterType === 'small_river'
+        ? 32
+        : (waterType === 'quarry'
+            ? 45
+            : (waterType === 'big_river' ? 56 : 38)));
+
+  // 2. Базовый зимний запас FDD ДО начала исторического окна recent (применяется ТОЛЬКО с конца ноября по апрель, когда ледостав начался раньше 14-дневного архива).
+  // Важно: вычисляется строго от даты начала окна (firstHistoryDoy), чтобы никогда не зависеть от текущей температуры дня и не уменьшаться при морозе!
+  // Ассимиляция данных Гидрометцентра России (Data Assimilation из сводок meteoinfo.ru/egmb и опорных гидропостов РФ):
+  const effLon = Number.isFinite(store.getState()?.lon) ? store.getState().lon : 76.68;
+  const nearStations = findNearestMeteoinfoStations(effLat, effLon, 1);
+  const nearestSt = nearStations[0] || null;
+  const officialRange = (hydroAssimilation && Array.isArray(hydroAssimilation.iceRangeCm))
+    ? hydroAssimilation.iceRangeCm
+    : (nearestSt && nearestSt.distKm <= 280 && (monthNum === 11 || monthNum === 12 || monthNum <= 4) ? nearestSt.hydroIceRangeCm : null);
+  const deltaLevelM = Number.isFinite(hydroAssimilation?.deltaLevelM) ? hydroAssimilation.deltaLevelM : 0;
+  // Гидрологическая поправка Шуляковского на уровень воды и сильный ветер (>7 м/с):
+  const windFddShift = wind > 7 ? 10 : 0;
+  const levelSurgeMultiplier = deltaLevelM > 0.5 ? 1.30 : (deltaLevelM < -0.3 ? 0.80 : 1.0);
+  // Теплоизоляция снежного покрова на льду (по формуле Стефана — Быдина)
+  const estSnowDepthCm = Math.min(45, Math.max(0, (precip > 0 && tCurMean < 0 ? precip * 1.2 : 0) + (monthNum === 12 || monthNum <= 3 ? 12 : 4)));
+  const snowInsulationFactor = 1 / (1 + 0.018 * estSnowDepthCm);
+  const firstHistoryDoy = dayOfYear - (recent.length - 1);
+  const freezeStartDoy = effLat >= 63 ? 302 : (effLat >= 59 ? 314 : (effLat >= 53 ? 328 : 345));
+  let priorHistoryFDD = 0;
+  if (monthNum === 12 || monthNum <= 4 || (monthNum === 11 && firstHistoryDoy > freezeStartDoy)) {
+    const priorDays = monthNum >= 11
+      ? Math.max(0, firstHistoryDoy - freezeStartDoy)
+      : Math.max(0, (365 - freezeStartDoy) + firstHistoryDoy);
+    const climoDailyFrost = effLat >= 63 ? 9.5 : (effLat >= 58 ? 7.0 : 4.8);
+    priorHistoryFDD = Math.min(125, priorDays) * climoDailyFrost;
+  }
+
+  // 3. Хронологическое накопление градусо-дней мороза (accumFDD) день за днём:
+  // При отрицательной среднесуточной температуре (m < 0) accumFDD СТРОГО РАСТЁТ (лёд никогда не «худеет» при морозе -8..-15°C!).
+  let accumFDD = priorHistoryFDD;
+  let windowWarmSum = 0;
+  let recentWarmDays = 0;
+  for (let i = 0; i < recent.length; i++) {
+    const m = recent[i];
+    const daysAgo = recent.length - 1 - i;
+    if (m <= -0.2) {
+      accumFDD += Math.abs(m);
+    } else if (m > 0.3) {
+      const meltFactor = isSpring ? 2.4 : 1.7;
+      accumFDD = Math.max(0, accumFDD - m * meltFactor);
+      windowWarmSum += m;
+      if (daysAgo <= 3) recentWarmDays++;
+    }
+  }
+
+  const netIceFDD = Math.max(0, accumFDD - thermalLagFDD);
+  const flowFactor = flow >= 2.0 ? 0.68 : (flow >= 1.4 ? 0.78 : (flow >= 1.05 ? 0.86 : 1.0));
+  // Коэффициент Стефана-Зубова со снежным покровом (1.46): плавный и реалистичный прирост льда по дням
+  const rawIceCm = netIceFDD > 0 ? Math.round(1.46 * Math.sqrt(netIceFDD) * flowFactor) : 0;
+  const effectiveIceCm = Math.max(0, Math.min(130, rawIceCm));
+  const minSafeCm = flow >= 1.8 ? 10 : (flow >= 1.1 ? 8 : 7);
+  if ((isSpring || recentWarmDays >= 3) && (tDayMax >= 4.0 && tCurMean >= 2.0 && windowWarmSum >= 6) && effectiveIceCm >= 3) {
+    const remThick = Math.max(3, Math.min(30, Math.round(effectiveIceCm * 0.65)));
+    return {
+      iceState: 'ice_danger',
+      iceSubState: 'spring_rotten_ice',
+      iceThickness: remThick,
+      iceNote: `<svg class="k-ico" style="color:var(--warn);" viewBox="0 0 24 24" fill="none"><path d="M12 3L2.5 19.5h19L12 3z" fill="rgba(245,158,11,0.24)" stroke="#f59e0b" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9v5M12 17h.01" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/></svg> Опасный рыхлый лёд (~${remThick} см, ${flowLabel}): прогрев до +${tDayMax}°C, промоины и закраины — выход на лёд опасен!`
+    };
+  }
+  if (effectiveIceCm >= minSafeCm && tCurMean <= 2.0) {
+    return {
+      iceState: 'ice_safe',
+      iceSubState: 'solid_freeze',
+      iceThickness: effectiveIceCm,
+      iceNote: `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1" stroke="#7dd3fc" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="#38bdf8"/></svg> Устойчивый ледостав: безопасный монолитный лёд ~${effectiveIceCm} см (${flowLabel}) • подлёдный лов`
+    };
+  }
+  if (effectiveIceCm >= 2 && effectiveIceCm < minSafeCm && (tCurMean <= 0.5 || tNightMin <= -1.5)) {
+    return {
+      iceState: 'ice_danger',
+      iceSubState: 'thin_first_ice',
+      iceThickness: effectiveIceCm,
+      iceNote: `<svg class="k-ico" style="color:var(--warn);" viewBox="0 0 24 24" fill="none"><path d="M12 3L2.5 19.5h19L12 3z" fill="rgba(245,158,11,0.24)" stroke="#f59e0b" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9v5M12 17h.01" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/></svg> Тонкий перволёдок (~${effectiveIceCm} см, ${flowLabel}): лёд ещё не набрал безопасную толщину (${minSafeCm} см) — выход без проверки пешнёй опасен!`
+    };
+  }
+  if ((accumFDD >= 6 || tNightMin <= -0.5) && (waterTemp <= 2.2 || tCurMean <= 0.5)) {
+    return {
+      iceState: 'ice_slush',
+      iceSubState: wind >= 5.5 ? 'wind_wave_slush' : 'slush_shore_ice',
+      iceThickness: effectiveIceCm === 1 ? 1 : 0,
+      iceNote: `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1" stroke="#7dd3fc" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="#38bdf8"/></svg> Забереги и шуга (${flowLabel} • замёрзли только закраины у берега, сплошного льда ещё нет)`
+    };
+  }
+  return {
+    iceState: 'open_water',
+    iceSubState: 'open_water',
+    iceThickness: 0,
+    iceNote: `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> Открытая вода (льда нет, ${flowLabel})`
+  };
+}
+export function computeIceSafetyIndex(day, waterType = "small_river") {
+  const prof = WATER_PROFILES[waterType] || WATER_PROFILES.small_river;
+  const flow = Number.isFinite(prof.flow) ? prof.flow : 1.0;
+  const iceState = day?.iceState || "open_water";
+  const thick = Number(day?.iceThickness) || 0;
+  const wind = Number(day?.windMax) || 3;
+  const tDay = Number(day?.tDay) || 0;
+  if (iceState === "open_water") {
+    return {
+      index: 100,
+      hasIce: false,
+      footSafe: false,
+      sledSafe: false,
+      minFootCm: flow >= 1.5 ? 12 : 10,
+      minSledCm: flow >= 1.5 ? 25 : 20,
+      statusText: "Открытая вода (ледостава нет)",
+      vehicleVerdict: "Ловля с берега или лодки (спасжилет обязателен при волне)",
+      recommendation: "Льда нет. При выходе на лодке учитывайте ветер (" + wind + " м/с) и температуру воды (~" + (day?.waterTemp ?? 8) + "°C)."
+    };
+  }
+  const minFootCm = flow >= 1.8 ? 12 : (flow >= 1.1 ? 10 : 8);
+  const minSledCm = flow >= 1.8 ? 25 : (flow >= 1.1 ? 22 : 18);
+  if (iceState === "ice_danger" || iceState === "ice_slush") {
+    const rawIdx = iceState === "ice_slush" ? 25 : Math.max(5, Math.min(38, Math.round((thick / minFootCm) * 35)));
+    return {
+      index: rawIdx,
+      hasIce: true,
+      footSafe: false,
+      sledSafe: false,
+      minFootCm,
+      minSledCm,
+      statusText: iceState === "ice_slush" ? "Шуга и забереги (выход запрещён)" : `Опасный лёд ~${thick} см (индекс ${rawIdx}/100)`,
+      vehicleVerdict: "<svg class=\"k-ico\" style=\"color:var(--bad);\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"12\" cy=\"12\" r=\"9\" fill=\"rgba(239,68,68,0.22)\" stroke=\"#ef4444\" stroke-width=\"1.9\"/><path d=\"M6 6l12 12\" stroke=\"#ef4444\" stroke-width=\"2.1\" stroke-linecap=\"round\"/></svg> Пешком и на технике ЗАПРЕЩЕНО!",
+      recommendation: `Несущая способность льда критически низкая (~${thick} см при норме от ${minFootCm} см на течении). Допустима только береговая ловля!`
+    };
+  }
+  let score = Math.min(98, Math.round(55 + (thick - minFootCm) * 2.2));
+  if (flow >= 1.8) score -= 8;
+  if (tDay > 0) score -= 12;
+  if (wind >= 9) score -= 6;
+  score = Math.max(45, Math.min(98, score));
+  const footSafe = thick >= minFootCm && tDay <= 2;
+  const sledSafe = thick >= minSledCm && tDay <= 0;
+  return {
+    index: score,
+    hasIce: true,
+    footSafe,
+    sledSafe,
+    minFootCm,
+    minSledCm,
+    statusText: `Безопасный лёд ~${thick} см (индекс надёжности ${score}/100)`,
+    vehicleVerdict: sledSafe
+      ? `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Пешком: РАЗРЕШЕНО (≥${minFootCm} см) • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Мотобуксировщик/снегоход: РАЗРЕШЕНО (≥${minSledCm} см)`
+      : `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Пешком со спасалками: РАЗРЕШЕНО (≥${minFootCm} см) • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Техника/снегоход: ОПАСНО (нужно ≥${minSledCm} см!)`,
+    recommendation: sledSafe
+      ? "Монолитный лёд достаточной толщины для пешего перехода и лёгкой мототехники. Избегайте устьев притоков и быстрин."
+      : `Толщина ~${thick} см достаточна для одиночного пешего выхода с пешнёй и спасалками, но выезд на мотобуксировщике или снегоходе запрещён (требуется от ${minSledCm} см).`
+  };
+}
+function getRelativeDayTitle(relOffset) {
+  if (relOffset === -2) return 'Позавчера';
+  if (relOffset === -1) return 'Вчера';
+  if (relOffset === 0) return 'Сегодня';
+  if (relOffset === 1) return 'Завтра';
+  if (relOffset === 2) return 'Послезавтра';
+  return '';
+}
+export function buildFallback(lat = 55.75, waterType = 'small_river') {
+  const todayDt = new Date();
+  todayDt.setHours(0, 0, 0, 0);
+  const dayOfYear = Math.floor((todayDt - new Date(todayDt.getFullYear(), 0, 0)) / 86400000);
+  const seasonOffset = -Math.cos(((dayOfYear + 10) / 365) * 2 * Math.PI);
+  const latBase = Math.abs(lat);
+  const meanT = 22 - (latBase - 40) * 0.82;
+  const amplitude = 10 + (latBase - 40) * 0.38;
+  const allMeanT = [];
+  const allMaxT = [];
+  const allMinT = [];
+  for (let rel = -7; rel <= 9; rel++) {
+    const tMax = Math.round(meanT + seasonOffset * amplitude - rel * 0.2);
+    const tMin = tMax - 5;
+    allMaxT.push(tMax);
+    allMinT.push(tMin);
+    allMeanT.push((tMax + tMin) / 2);
+  }
+  const wtSeries = computeWaterTempSeries(allMeanT, allMaxT, allMinT, waterType);
+  const days = [];
+  for (let idx = 0; idx < 12; idx++) {
+    const rel = idx - 2; // -2 .. +9
+    const cur = new Date(todayDt.getTime() + rel * 86400000);
+    const dStr = formatLocalYYYYMMDD(cur);
+    const moon = computeMoon(dStr);
+    const seriesIdx = idx + 5;
+    const tMax = allMaxT[seriesIdx];
+    const tMin = allMinT[seriesIdx];
+    const waterTemp = wtSeries[seriesIdx];
+    const pAvg = Math.round(754 + Math.sin(idx * 0.7) * 4);
+    const dP = Math.round(Math.cos(idx) * 3);
+    const wMax = Math.round(3 + Math.abs(Math.sin(idx)) * 3);
+    const hours = [];
+    for (let h = 0; h < 24; h++) {
+      const wave = Math.sin(((h - 5) / 24) * 2 * Math.PI);
+      hours.push({
+        hour: h,
+        tAir: Math.round((tMin + (tMax - tMin) * ((wave + 1) / 2)) * 10) / 10,
+        press: Math.round(pAvg + (dP * (h - 12)) / 24),
+        dp3h: Math.round((dP / 8) * 10) / 10,
+        wind: Math.max(1, wMax),
+        windDir: DIRS[(idx + h) % 8],
+        cloud: 65,
+        precip: 0
+      });
+    }
+    const histSlice = allMeanT.slice(0, seriesIdx + 1);
+    const ice = evaluateDayIce(histSlice, tMax, tMin, waterTemp, waterType, dStr, wMax, 0, lat);
+    const effWt = ice.iceState === 'ice_safe' ? Math.min(waterTemp, 0.3) : (ice.iceState === 'ice_danger' ? Math.min(waterTemp, 0.4) : waterTemp);
+    days.push({
+      date: dStr,
+      relOffset: rel,
+      isArchive: rel < 0,
+      isReal: false,
+      relTitle: getRelativeDayTitle(rel),
+      label: `${RU.daysShort[cur.getDay()]}, ${cur.getDate()} ${RU.monthsGen[cur.getMonth()]}`,
+      tDay: tMax,
+      tNight: tMin,
+      pressAvg: pAvg,
+      dP,
+      windMax: Math.max(1, wMax),
+      windDir: hours[12].windDir,
+      sunriseHr: 6.8 + idx * 0.02,
+      sunsetHr: 18.2 - idx * 0.02,
+      waterTemp: effWt,
+      iceState: ice.iceState,
+      iceSubState: ice.iceSubState,
+      iceThickness: ice.iceThickness,
+      iceNote: ice.iceNote,
+      moon,
+      hours
+    });
+  }
+  const todayObj = days[2] || days[0];
+  return {
+    days,
+    archive5Days: days.slice(0, 2),
+    hasRealArchive: false,
+    elevation: 90,
+    normPress: 752,
+    iceState: todayObj.iceState,
+    iceSubState: todayObj.iceSubState,
+    iceThickness: todayObj.iceThickness,
+    iceNote: todayObj.iceNote
+  };
+}
+/**
+ * Ревизия 2.0.15: Нормализация ответа Open-Meteo (past_days=14, forecast_days=10)
+ * Возвращает как 12 плиток прогноза (2 архивных + Сегодня + 9 будущих), так и полный 5-дневный архив (archive5Days) для кэша 10 км!
+ */
+export function normalizeOpenMeteo(data, waterType) {
+  const elevation = Math.round(data.elevation || 90);
+  const normPress = Math.round(760 - elevation / 11.5);
+  const allP = (data.hourly?.surface_pressure || []).map(v => (v || 1010) * 0.750062);
+  const times = Array.isArray(data.daily?.time) ? data.daily.time : [];
+  const totalDays = times.length;
+  if (totalDays === 0) return null;
+  const todayStr = formatLocalYYYYMMDD(new Date());
+  let todayIdx = times.indexOf(todayStr);
+  if (todayIdx < 0) {
+    const todayMs = new Date(todayStr + 'T00:00:00').getTime();
+    let bestDiff = Infinity;
+    times.forEach((tStr, idx) => {
+      const diff = Math.abs(new Date(tStr + 'T00:00:00').getTime() - todayMs);
+      if (diff < bestDiff) {
+        bestDiff = diff;
+        todayIdx = idx;
+      }
+    });
+  }
+  const dailyMaxs = times.map((_, idx) => Math.round(data.daily.temperature_2m_max[idx] ?? 8));
+  const dailyMins = times.map((_, idx) => Math.round(data.daily.temperature_2m_min[idx] ?? 2));
+  const dailyMeans = times.map((_, idx) => (dailyMaxs[idx] + dailyMins[idx]) / 2);
+  const wtSeries = computeWaterTempSeries(dailyMeans, dailyMaxs, dailyMins, waterType);
+  const allNormalizedDays = [];
+  for (let i = 0; i < totalDays; i++) {
+    const rel = i - todayIdx;
+    const dStr = times[i];
+    const dt = new Date(dStr + 'T00:00:00');
+    const srD = data.daily.sunrise?.[i] ? new Date(data.daily.sunrise[i]) : new Date(dStr + 'T07:00:00');
+    const ssD = data.daily.sunset?.[i] ? new Date(data.daily.sunset[i]) : new Date(dStr + 'T18:00:00');
+    const hours = [];
+    let sumP = 0;
+    for (let h = 0; h < 24; h++) {
+      const g = i * 24 + h;
+      const pMm = allP[g] || 754;
+      sumP += pMm;
+      hours.push({
+        hour: h,
+        tAir: Math.round((data.hourly.temperature_2m?.[g] ?? 0) * 10) / 10,
+        press: Math.round(pMm),
+        dp3h: Math.round((pMm - (g >= 3 ? (allP[g - 3] || pMm) : pMm)) * 10) / 10,
+        wind: Math.round((data.hourly.wind_speed_10m?.[g] ?? 3) * 10) / 10,
+        windDir: DIRS[Math.round(((data.hourly.wind_direction_10m?.[g] || 0) / 45)) % 8],
+        cloud: data.hourly.cloud_cover?.[g] ?? 50,
+        precip: data.hourly.precipitation?.[g] ?? 0
+      });
+    }
+    const pAvg = Math.round(sumP / 24);
+    const prevAvg = i > 0
+      ? Math.round(allP.slice((i - 1) * 24, i * 24).reduce((a, b) => a + b, 0) / 24)
+      : pAvg;
+    const tMax = dailyMaxs[i];
+    const tMin = dailyMins[i];
+    const rawWaterTemp = wtSeries[i];
+    const wMaxVal = Math.round(data.daily.wind_speed_10m_max?.[i] || 3);
+    const ice = evaluateDayIce(dailyMeans.slice(0, i + 1), tMax, tMin, rawWaterTemp, waterType, dStr, wMaxVal);
+    const waterTemp = ice.iceState === 'ice_safe' ? Math.min(rawWaterTemp, 0.3) : (ice.iceState === 'ice_danger' ? Math.min(rawWaterTemp, 0.4) : rawWaterTemp);
+    allNormalizedDays.push({
+      date: dStr,
+      relOffset: rel,
+      isArchive: rel < 0,
+      isReal: true,
+      relTitle: getRelativeDayTitle(rel),
+      label: `${RU.daysShort[dt.getDay()]}, ${dt.getDate()} ${RU.monthsGen[dt.getMonth()]}`,
+      tDay: tMax,
+      tNight: tMin,
+      pressAvg: pAvg,
+      dP: pAvg - prevAvg,
+      windMax: Math.round(data.daily.wind_speed_10m_max?.[i] || 3),
+      windDir: DIRS[Math.round(((data.daily.wind_direction_10m_dominant?.[i] || 0) / 45)) % 8],
+      sunriseHr: srD.getHours() + srD.getMinutes() / 60,
+      sunsetHr: ssD.getHours() + ssD.getMinutes() / 60,
+      waterTemp,
+      iceState: ice.iceState,
+      iceSubState: ice.iceSubState,
+      iceThickness: ice.iceThickness,
+      iceNote: ice.iceNote,
+      moon: computeMoon(dStr),
+      hours
+    });
+  }
+  const startIdx = Math.max(0, Math.min(totalDays - 12, todayIdx - 2));
+  const days = allNormalizedDays.slice(startIdx, startIdx + 12).map((d, idx) => ({
+    ...d,
+    relOffset: idx - 2,
+    isArchive: idx < 2,
+    relTitle: getRelativeDayTitle(idx - 2)
+  }));
+  const archive5Days = allNormalizedDays.filter(d => d.date < todayStr).slice(-5);
+  const todayObj = days[2] || days[0];
+  const roadHazard = data._roadHazard || MeteoInfoRuParsers.parseRoadAndStormAlerts(
+    data._stormText || '',
+    todayObj?.tDay,
+    todayObj?.tNight,
+    todayObj?.windMax || 3,
+    (todayObj?.hours || []).reduce((s, h) => s + (h.precip || 0), 0)
+  );
+  const spaceWeather = data._spaceWeather || MeteoInfoRuParsers.parseSpaceWeatherEgmb(data._egmbText || '');
+  return {
+    days,
+    archive5Days,
+    extraArchiveDays: allNormalizedDays.filter(d => d.date < todayStr),
+    hasRealArchive: archive5Days.length >= 3,
+    elevation,
+    normPress,
+    iceState: todayObj?.iceState || 'open_water',
+    iceSubState: todayObj?.iceSubState || 'open_water',
+    iceThickness: todayObj?.iceThickness || 0,
+    iceNote: todayObj?.iceNote || '',
+    roadHazard,
+    spaceWeather,
+    meteoStationsIdw: data._meteoStationsIdw || findNearestMeteoinfoStations(data.latitude || 66.08, data.longitude || 76.68, 3)
+  };
+}
+/**
+ * Ревизия 2.0.15: Полностью переработанная нормализация MET.no (работа без VPN в РФ):
+ * - Никогда не оставляет синтетические морозы (-13..-20 °C) из buildFallback() во «Вчера» и «Позавчера»!
+ * - Подтягивает реальные архивные дни за последние 5 дней из 10-км гео-кэша (GeoWeatherArchive) или из архивного API.
+ * - Если это первый запрос в локации и архивный сервер не ответил, плавно реконструирует прошлые дни от реального
+ * сегодняшнего дня MET.no, пересчитывает waterTemp (с учётом течения flow) и ледостав, и выставляет hasRealArchive = false!
+ */
+export function normalizeMetNo(metNo, lat, waterType, prevArchiveDays = []) {
+  const coords = metNo.geometry?.coordinates || [];
+  const elevation = Math.round(coords[2] || 90);
+  const normPress = Math.round(760 - elevation / 11.5);
+  const byDate = {};
+  const isRealDateMap = {};
+  if (Array.isArray(prevArchiveDays)) {
+    prevArchiveDays.forEach(cd => {
+      if (cd && cd.date && Array.isArray(cd.hours) && cd.hours.length === 24 && cd.isReal !== false) {
+        byDate[cd.date] = {};
+        cd.hours.forEach((hObj, hIdx) => {
+          byDate[cd.date][hIdx] = { ...hObj };
+        });
+        isRealDateMap[cd.date] = true;
+      }
+    });
+  }
+  for (const item of (metNo.properties?.timeseries || [])) {
+    const dt = new Date(item.time);
+    const dStr = formatLocalYYYYMMDD(dt);
+    const hr = dt.getHours();
+    if (!byDate[dStr]) byDate[dStr] = {};
+    const inst = item.data?.instant?.details || {};
+    const pSea = inst.air_pressure_at_sea_level || 1013.25;
+    const pMm = pSea * 0.750062 - elevation / 11.5;
+    byDate[dStr][hr] = {
+      hour: hr,
+      tAir: Math.round((inst.air_temperature ?? 0) * 10) / 10,
+      press: Math.round(pMm),
+      dp3h: 0,
+      wind: Math.round((inst.wind_speed ?? 3) * 10) / 10,
+      windDir: DIRS[Math.round(((inst.wind_from_direction || 0) / 45)) % 8],
+      cloud: Math.round(inst.cloud_area_fraction ?? 50),
+      precip: item.data?.next_1_hours?.details?.precipitation_amount ?? 0
+    };
+    isRealDateMap[dStr] = true;
+  }
+  const todayDt = new Date();
+  todayDt.setHours(0, 0, 0, 0);
+  const todayStr = formatLocalYYYYMMDD(todayDt);
+  let anchorHours = null;
+  for (let rel = 0; rel <= 3; rel++) {
+    const dStr = formatLocalYYYYMMDD(new Date(todayDt.getTime() + rel * 86400000));
+    if (byDate[dStr] && Object.keys(byDate[dStr]).length > 0) {
+      anchorHours = byDate[dStr];
+      break;
+    }
+  }
+  const fullSeries = [];
+  for (let rel = -5; rel <= 9; rel++) {
+    const cur = new Date(todayDt.getTime() + rel * 86400000);
+    const dStr = formatLocalYYYYMMDD(cur);
+    let mapH = byDate[dStr];
+    const hasReal = Boolean(isRealDateMap[dStr] && mapH && Object.keys(mapH).length > 0);
+    if (!mapH || Object.keys(mapH).length === 0) {
+      mapH = {};
+      const baseList = anchorHours ? Object.values(anchorHours) : [{ tAir: 4, press: normPress, wind: 3, windDir: 'З', cloud: 60, precip: 0 }];
+      const baseTAvg = baseList.reduce((a, b) => a + b.tAir, 0) / baseList.length;
+      const baseP = Math.round(baseList.reduce((a, b) => a + b.press, 0) / baseList.length);
+      const baseW = Math.round(baseList.reduce((a, b) => a + b.wind, 0) / baseList.length * 10) / 10;
+      const baseDir = baseList[Math.floor(baseList.length / 2)]?.windDir || 'З';
+      for (let h = 0; h < 24; h++) {
+        const refH = anchorHours && anchorHours[h] ? anchorHours[h] : null;
+        const wave = Math.sin(((h - 5) / 24) * 2 * Math.PI);
+        const tAir = refH ? refH.tAir : Math.round((baseTAvg + wave * 2.5) * 10) / 10;
+        mapH[h] = {
+          hour: h,
+          tAir,
+          press: refH ? refH.press : baseP,
+          dp3h: 0,
+          wind: refH ? refH.wind : baseW,
+          windDir: refH ? refH.windDir : baseDir,
+          cloud: refH ? refH.cloud : 60,
+          precip: 0
+        };
+      }
+    }
+    const hours = [];
+    let last = Object.values(mapH)[0] || { hour: 0, tAir: 2, press: normPress, dp3h: 0, wind: 3, windDir: 'З', cloud: 50, precip: 0 };
+    for (let h = 0; h < 24; h++) {
+      if (mapH[h]) last = mapH[h];
+      hours.push({ ...last, hour: h });
+    }
+    for (let h = 0; h < 24; h++) {
+      const prevP = h >= 3 ? hours[h - 3].press : (fullSeries.length > 0 ? fullSeries[fullSeries.length - 1].hours[21 + h]?.press || hours[0].press : hours[0].press);
+      hours[h].dp3h = Math.round((hours[h].press - prevP) * 10) / 10;
+    }
+    const tArr = hours.map(x => x.tAir);
+    const pArr = hours.map(x => x.press);
+    const wArr = hours.map(x => x.wind);
+    const tMax = Math.round(Math.max(...tArr));
+    const tMin = Math.round(Math.min(...tArr));
+    const pAvg = Math.round(pArr.reduce((a, b) => a + b, 0) / 24);
+    const prevP = fullSeries.length > 0 ? fullSeries[fullSeries.length - 1].pressAvg : pAvg;
+    fullSeries.push({
+      date: dStr,
+      relOffset: rel,
+      isArchive: rel < 0,
+      isReal: hasReal,
+      relTitle: getRelativeDayTitle(rel),
+      label: `${RU.daysShort[cur.getDay()]}, ${cur.getDate()} ${RU.monthsGen[cur.getMonth()]}`,
+      tDay: tMax,
+      tNight: tMin,
+      pressAvg: pAvg,
+      dP: pAvg - prevP,
+      windMax: Math.max(1, Math.round(Math.max(...wArr))),
+      windDir: hours[12]?.windDir || 'З',
+      sunriseHr: 7.0,
+      sunsetHr: 17.8,
+      waterTemp: 4.0,
+      iceState: 'open_water',
+      iceSubState: 'open_water',
+      iceThickness: 0,
+      iceNote: '',
+      moon: computeMoon(dStr),
+      hours
+    });
+  }
+  const seriesMaxs = fullSeries.map(d => d.tDay);
+  const seriesMins = fullSeries.map(d => d.tNight);
+  const seriesMeans = fullSeries.map(d => (d.tDay + d.tNight) / 2);
+  const wtSeries = computeWaterTempSeries(seriesMeans, seriesMaxs, seriesMins, waterType);
+  fullSeries.forEach((d, idx) => {
+    const rawWt = wtSeries[idx];
+    const ice = evaluateDayIce(seriesMeans.slice(0, idx + 1), d.tDay, d.tNight, rawWt, waterType, d.date, d.windMax || 3, 0, lat);
+    d.waterTemp = ice.iceState === 'ice_safe' ? Math.min(rawWt, 0.3) : (ice.iceState === 'ice_danger' ? Math.min(rawWt, 0.4) : rawWt);
+    d.iceState = ice.iceState;
+    d.iceSubState = ice.iceSubState;
+    d.iceThickness = ice.iceThickness;
+    d.iceNote = ice.iceNote;
+  });
+  const days = fullSeries.filter(d => d.relOffset >= -2 && d.relOffset <= 9);
+  const archive5Days = fullSeries.filter(d => d.date < todayStr);
+  const realPastCount = archive5Days.filter(d => d.isReal).length;
+  const todayObj = days[2] || days[0];
+  return {
+    days,
+    archive5Days,
+    extraArchiveDays: archive5Days.filter(d => d.isReal),
+    hasRealArchive: realPastCount >= 3,
+    elevation,
+    normPress,
+    iceState: todayObj?.iceState || 'open_water',
+    iceSubState: todayObj?.iceSubState || 'open_water',
+    iceThickness: todayObj?.iceThickness || 0,
+    iceNote: todayObj?.iceNote || ''
+  };
+}
+/**
+ * Пересчитывает температуру воды (с учётом скорости течения flow) и ледовую обстановку при смене типа водоёма
+ */
+export function recalculateIceForWaterType(days, waterType, archive5Days = []) {
+  if (!Array.isArray(days) || days.length === 0) return null;
+  const firstDayDate = days[0]?.date || '';
+  const prefixArchive = Array.isArray(archive5Days)
+    ? archive5Days.filter(a => a && a.date && a.date < firstDayDate)
+    : [];
+  const combined = [...prefixArchive, ...days];
+  const maxs = combined.map(d => d.tDay);
+  const mins = combined.map(d => d.tNight);
+  const means = combined.map(d => (d.tDay + d.tNight) / 2);
+  const wtSeries = computeWaterTempSeries(means, maxs, mins, waterType);
+  const updatedCombined = combined.map((d, idx) => {
+    const rawWt = wtSeries[idx];
+    const hist = means.slice(0, idx + 1);
+    const ice = evaluateDayIce(hist, d.tDay, d.tNight, rawWt, waterType, d.date, d.windMax || 3);
+    const finalWt = ice.iceState === 'ice_safe' ? Math.min(rawWt, 0.3) : (ice.iceState === 'ice_danger' ? Math.min(rawWt, 0.4) : rawWt);
+    return {
+      ...d,
+      waterTemp: finalWt,
+      iceState: ice.iceState,
+      iceSubState: ice.iceSubState,
+      iceThickness: ice.iceThickness,
+      iceNote: ice.iceNote
+    };
+  });
+  const updatedDays = updatedCombined.slice(prefixArchive.length);
+  const updatedArchive5 = updatedCombined.filter(d => d.isArchive).slice(-5);
+  const todayObj = updatedDays[2] || updatedDays[0];
+  return {
+    days: updatedDays,
+    archive5Days: updatedArchive5,
+    iceState: todayObj.iceState,
+    iceSubState: todayObj.iceSubState,
+    iceThickness: todayObj.iceThickness,
+    iceNote: todayObj.iceNote
+  };
+}
+/**
+ * При первом запросе в локации (когда в 10-км кэше ещё нет архивных данных за прошлые дни)
+ * запрашивает реальный архив погоды минимум за 3–5 предыдущих дней у проверенных источников.
+ */
+const WORKER_WEATHER_EDGE_URL = 'https://klevprohbot.thorantony82.workers.dev/weather';
+const inFlightWeatherRequests = new Map();
+function snapCoord10km(val) {
+  return (Math.round((Number(val) || 0) * 10) / 10).toFixed(1);
+}
+async function fetchMissingArchiveDays(lat, lon, waterType) {
+  const todayDt = new Date();
+  todayDt.setHours(0, 0, 0, 0);
+  const startDt = new Date(todayDt.getTime() - 5 * 86400000);
+  const endDt = new Date(todayDt.getTime() - 1 * 86400000);
+  const startStr = formatLocalYYYYMMDD(startDt);
+  const endStr = formatLocalYYYYMMDD(endDt);
+  const gLat = snapCoord10km(lat);
+  const gLon = snapCoord10km(lon);
+  const histForecastUrl = `https://historical-forecast-api.open-meteo.com/v1/forecast?latitude=${gLat}&longitude=${gLon}&start_date=${startStr}&end_date=${endStr}&hourly=temperature_2m,surface_pressure,wind_speed_10m,wind_direction_10m,cloud_cover,precipitation&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset,wind_speed_10m_max,wind_direction_10m_dominant&wind_speed_unit=ms&timezone=auto`;
+  const archiveApiUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${gLat}&longitude=${gLon}&start_date=${startStr}&end_date=${endStr}&hourly=temperature_2m,surface_pressure,wind_speed_10m,wind_direction_10m,cloud_cover,precipitation&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset,wind_speed_10m_max,wind_direction_10m_dominant&wind_speed_unit=ms&timezone=auto`;
+  const workerEdgeUrl = `${WORKER_WEATHER_EDGE_URL}?lat=${gLat}&lon=${gLon}`;
+  const candidates = [
+    histForecastUrl,
+    archiveApiUrl,
+    workerEdgeUrl,
+    `https://allorigins.hexlet.app/raw?disableCache=true&url=${encodeURIComponent(histForecastUrl)}`,
+    `https://corsproxy-seven.vercel.app/api?url=${encodeURIComponent(histForecastUrl)}`
+  ];
+  for (const url of candidates) {
+    try {
+      const data = await fetchWithTimeout(url, 5500);
+      if (data && data.hourly && data.daily && Array.isArray(data.daily.time) && data.daily.time.length >= 3) {
+        const parsed = normalizeOpenMeteo(data, waterType);
+        if (parsed && Array.isArray(parsed.extraArchiveDays) && parsed.extraArchiveDays.length >= 3) {
+          return parsed.extraArchiveDays;
+        }
+      }
+    } catch (e) {}
+  }
+  return null;
+}
+export async function fetchWeather(lat, lon, forceNetwork = false) {
+  const st = store.getState();
+  const cached = storage.loadWeatherCache(lat, lon);
+  const localArchiveInfo = storage.getArchiveDaysForLocation(lat, lon, 5);
+  if (cached && cached.days && cached.days.length === 12 && !forceNetwork) {
+    const mins = cached.ageMinutes || 1;
+    const label = mins >= 60 ? `${RU.cachedPrefix} 10 км (${Math.round(mins / 60)} ч назад)` : `${RU.cachedPrefix} 10 км (${mins} мин назад)`;
+    const recalc = recalculateIceForWaterType(cached.days, st.water, cached.archive5Days || localArchiveInfo.days);
+    store.dispatch({
+      type: 'SET_WEATHER_DATA',
+      payload: {
+        ...cached,
+        ...(recalc || {}),
+        hasRealArchive: cached.hasRealArchive ?? localArchiveInfo.hasRealArchive,
+        source: label,
+        updatedAt: cached.timestamp
+      }
+    });
+    events.emit('weather:updated', store.getState());
+    if (!cached.isExpired) return;
+  }
+  const gLat = snapCoord10km(lat);
+  const gLon = snapCoord10km(lon);
+  const gridDedupKey = `${gLat}_${gLon}_${st.water || 'small_river'}`;
+  if (inFlightWeatherRequests.has(gridDedupKey) && !forceNetwork) {
+    return inFlightWeatherRequests.get(gridDedupKey);
+  }
+  const omUrl = `https://api.open-meteo.com/v1/forecast?latitude=${gLat}&longitude=${gLon}&past_days=14&hourly=temperature_2m,surface_pressure,wind_speed_10m,wind_direction_10m,cloud_cover,precipitation&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset,wind_speed_10m_max,wind_direction_10m_dominant&forecast_days=10&wind_speed_unit=ms&timezone=auto`;
+  const workerEdgeWeatherUrl = `${WORKER_WEATHER_EDGE_URL}?lat=${gLat}&lon=${gLon}`;
+  const metUrl = `https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${gLat}&lon=${gLon}`;
+  const isAndroidApkEnv = typeof window !== 'undefined' && Boolean(window.AndroidBridge);
+  const apkProxyWrap = (targetUrl) => `https://appassets.androidplatform.net/__klev_net_proxy__?url=${encodeURIComponent(targetUrl)}`;
+  const networkPromise = (async () => {
+  try {
+    const res = await fallbackChain([
+      {
+        name: `${RU.online} (Edge 10 км)`,
+        run: async () => {
+          const raceTask = (url, ms) => fetchWithTimeout(url, ms).then(d => {
+            const norm = d && d.hourly && d.daily ? normalizeOpenMeteo(d, st.water) : null;
+            if (!norm) throw new Error('Invalid weather payload');
+            return norm;
+          });
+          if (typeof Promise.any === 'function') {
+            return await Promise.any([
+              raceTask(workerEdgeWeatherUrl, 3800),
+              raceTask(omUrl, 3800)
+            ]);
+          }
+          const d = await fetchWithTimeout(workerEdgeWeatherUrl, 4200);
+          return d && d.hourly && d.daily ? normalizeOpenMeteo(d, st.water) : null;
+        }
+      },
+      {
+        name: `${RU.online} (Edge 10 км)`,
+        run: async () => {
+          const d = await fetchWithTimeout(workerEdgeWeatherUrl, 5500);
+          return d && d.hourly && d.daily ? normalizeOpenMeteo(d, st.water) : null;
+        }
+      },
+      {
+        name: RU.online,
+        run: async () => {
+          const d = await fetchWithTimeout(omUrl, 5000);
+          return d && d.hourly && d.daily ? normalizeOpenMeteo(d, st.water) : null;
+        }
+      },
+      {
+        name: RU.onlineMetNo,
+        run: async () => {
+          const d = await fetchWithTimeout(isAndroidApkEnv ? apkProxyWrap(metUrl) : metUrl, 7000).catch(() => fetchWithTimeout(metUrl, 6000));
+          if (!d || !d.properties?.timeseries) return null;
+          let archiveSeed = localArchiveInfo.days || [];
+          if (archiveSeed.filter(x => x && x.isReal !== false).length < 3) {
+            const fetchedArchive = await fetchMissingArchiveDays(lat, lon, st.water);
+            if (Array.isArray(fetchedArchive) && fetchedArchive.length >= 3) {
+              archiveSeed = fetchedArchive;
+            }
+          }
+          return normalizeMetNo(d, lat, st.water, archiveSeed);
+        }
+      },
+      {
+        name: RU.online,
+        run: async () => {
+          const proxy1 = `https://allorigins.hexlet.app/raw?disableCache=true&url=${encodeURIComponent(omUrl)}`;
+          const d = await fetchWithTimeout(proxy1, 7000);
+          return d && d.hourly && d.daily ? normalizeOpenMeteo(d, st.water) : null;
+        }
+      },
+      {
+        name: RU.online,
+        run: async () => {
+          const proxy2 = `https://corsproxy-seven.vercel.app/api?url=${encodeURIComponent(omUrl)}`;
+          const d = await fetchWithTimeout(proxy2, 7500);
+          return d && d.hourly && d.daily ? normalizeOpenMeteo(d, st.water) : null;
+        }
+      }
+    ]);
+    const updatedCluster = storage.saveWeatherCache(lat, lon, res.data, res.data.extraArchiveDays || res.data.archive5Days || []);
+    const mergedArchiveInfo = storage.getArchiveDaysForLocation(lat, lon, 5);
+    const syncedDays = res.data.days.map((d, idx) => {
+      if (idx < 2 && updatedCluster?.daysByDate?.[d.date]) {
+        return {
+          ...updatedCluster.daysByDate[d.date],
+          relOffset: idx - 2,
+          isArchive: true,
+          relTitle: idx === 0 ? "Позавчера" : "Вчера"
+        };
+      }
+      return d;
+    });
+    const recalc = recalculateIceForWaterType(syncedDays, st.water, mergedArchiveInfo.days);
+    store.dispatch({
+      type: 'SET_WEATHER_DATA',
+      payload: {
+        ...res.data,
+        ...(recalc || {}),
+        archive5Days: mergedArchiveInfo.days,
+        hasRealArchive: updatedCluster?.hasRealArchive ?? res.data.hasRealArchive,
+        source: res.source,
+        updatedAt: Date.now()
+      }
+    });
+    events.emit('weather:updated', store.getState());
+  } catch (err) {
+    if (!cached || !cached.days?.length) {
+      const fb = buildFallback(lat, st.water);
+      store.dispatch({
+        type: 'SET_WEATHER_DATA',
+        payload: { ...fb, hasRealArchive: false, source: RU.offlineMode, updatedAt: Date.now() }
+      });
+      events.emit('weather:updated', store.getState());
+    }
+  } finally {
+    inFlightWeatherRequests.delete(gridDedupKey);
+  }
+  })();
+  inFlightWeatherRequests.set(gridDedupKey, networkPromise);
+  return networkPromise;
+}
+export function getWeatherState() {
+  const s = store.getState();
+  return {
+    days: s.weatherDays,
+    archive5Days: s.weatherArchive5Days,
+    hasRealArchive: s.hasRealArchive,
+    source: s.weatherSource,
+    normPress: s.normPress,
+    elevation: s.elevation,
+    iceState: s.iceState,
+    iceThickness: s.iceThickness
+  };
+}
+export function subscribeWeather(cb) {
+  return store.subscribe(
+    s => ({
+      route: s.route,
+      days: s.weatherDays,
+      archive5Days: s.weatherArchive5Days,
+      hasRealArchive: s.hasRealArchive,
+      dayIdx: s.dayIdx,
+      source: s.weatherSource,
+      water: s.water
+    }),
+    cb
+  );
+}
+export function render(container) {
+  if (!container) return;
+  if (typeof window !== 'undefined' && typeof window.__KLEV_IS_MOBILE_GUEST__ === 'function' && window.__KLEV_IS_MOBILE_GUEST__()) {
+    if (store.getState().dayIdx !== 2) {
+      store.dispatch({ type: 'SET_DAY', payload: 2 });
+    }
+  }
+  const s = store.getState();
+  const days = s.weatherDays || [];
+  const dayIdx = Number.isFinite(s.dayIdx) ? s.dayIdx : 2;
+  const day = days[dayIdx] || days[2] || days[0];
+  if (!day) return;
+  const m = day.moon || computeMoon(day.date || '2026-10-30');
+  const prof = WATER_PROFILES[s.water] || WATER_PROFILES.small_river;
+  const flowLabel = prof.flow >= 1.8 ? 'быстрое течение' : (prof.flow >= 1.1 ? 'умеренное течение' : 'стоячая вода');
+  const archiveStats = storage.getWeatherArchiveStats(s.lat, s.lon);
+  const safety = computeIceSafetyIndex(day, s.water);
+  const waterTitle = s.selectedWaterName || prof.shortName || 'Водоём';
+  const isIceSeason = day.iceState === 'ice_safe' || day.iceState === 'ice_danger';
+  const isSlushSeason = day.iceState === 'ice_slush';
+  const heroTitle = isIceSeason
+    ? '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1" stroke="#7dd3fc" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="#38bdf8"/></svg> Погода и Ледовая обстановка'
+    : (isSlushSeason ? '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1" stroke="#7dd3fc" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="#38bdf8"/></svg> Погода и Предзимний режим водоёма' : '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> Погода и Режим открытой воды');
+  const heroVerdictShort = day.iceState === 'ice_safe'
+    ? `БЕЗОПАСНЫЙ ЛЁД (~${day.iceThickness || 12} СМ)`
+    : (day.iceState === 'ice_danger'
+        ? `ОПАСНЫЙ ЛЁД (~${day.iceThickness || 4} СМ)`
+        : (day.iceState === 'ice_slush' ? 'ЗАБЕРЕГИ И ШУГА' : 'ОТКРЫТАЯ ВОДА'));
+  const heroTone = (day.iceState === 'ice_safe' || day.iceState === 'open_water')
+    ? 'var(--good)'
+    : (day.iceState === 'ice_slush' ? 'var(--warn)' : 'var(--bad)');
+  const openWaterComfort = Math.max(15, Math.min(98, Math.round(92 - Math.max(0, (day.windMax || 3) - 3) * 8 - Math.abs(day.dP || 0) * 3)));
+  const gaugeScore = (isIceSeason || isSlushSeason) ? safety.index : openWaterComfort;
+  const gaugeArcLen = Math.round((Math.max(6, Math.min(100, gaugeScore)) / 100) * 188.5);
+  const gaugeSubTitle = (isIceSeason || isSlushSeason) ? 'Индекс льда:' : 'Комфорт воды:';
+  const gaugeLvlWord = (isIceSeason || isSlushSeason)
+    ? (safety.footSafe ? 'Пешком можно' : 'Только берег')
+    : ((day.windMax || 3) <= 5 ? 'Лодка и берег' : 'Волна у берега');
+  const hrs = Array.isArray(day.hours) && day.hours.length ? day.hours : Array.from({ length: 24 }, (_, h) => ({
+    hour: h,
+    tAir: Math.round((day.tNight + (day.tDay - day.tNight) * Math.sin(Math.max(0, (h - 5) / 14) * Math.PI)) * 10) / 10,
+    press: day.pressAvg || 752
+  }));
+  const tVals = hrs.map(h => Number(h.tAir ?? day.tDay ?? 0));
+  const minT = Math.min(...tVals);
+  const maxT = Math.max(...tVals);
+  const spanT = Math.max(2, maxT - minT);
+  const svgW = 320, svgH = 88, padL = 12, padR = 12, padT = 18, padB = 16;
+  const plotW = svgW - padL - padR;
+  const plotH = svgH - padT - padB;
+  const pts = hrs.map((h, idx) => {
+    const x = Math.round((padL + (idx / Math.max(1, hrs.length - 1)) * plotW) * 10) / 10;
+    const norm = (Number(h.tAir ?? 0) - minT) / spanT;
+    const y = Math.round((padT + (1 - norm) * plotH) * 10) / 10;
+    return { x, y, t: h.tAir, p: h.press, hr: h.hour };
+  });
+  let wavePathD = `M ${pts[0].x} ${pts[0].y}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i], p1 = pts[i + 1];
+    const cx = Math.round(((p0.x + p1.x) / 2) * 10) / 10;
+    wavePathD += ` C ${cx} ${p0.y}, ${cx} ${p1.y}, ${p1.x} ${p1.y}`;
+  }
+  const waveAreaD = `${wavePathD} L ${pts[pts.length - 1].x} ${svgH - 4} L ${pts[0].x} ${svgH - 4} Z`;
+  const coldPt = pts[6] || pts[0];
+  const warmPt = pts[14] || pts[Math.floor(pts.length / 2)];
+  const tDayStr = `${day.tDay > 0 ? '+' + day.tDay : day.tDay}°C`;
+  const tNightStr = `${day.tNight > 0 ? '+' + day.tNight : day.tNight}°C`;
+  const wTempStr = `${day.waterTemp > 0 ? '+' + day.waterTemp : day.waterTemp}°C`;
+  container.innerHTML = `
+    <div class="bento-dashboard-wrap">
+      <!-- Горизонтальная лента быстрого выбора дня прямо во вкладке Погода -->
+      <div class="chip-scroll-row" id="weatherDaysStrip" style="padding-bottom:2px;">
+        ${days.map((d, idx) => {
+          const isAct = idx === dayIdx;
+          const dTitle = idx === 2 ? '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2c1.5 3.5 4.5 5.5 4.5 10a5.5 5.5 0 1 1-11 0c0-3 2-5.5 3.5-7 0 2 1.5 3 1.5 3S12 5.5 12 2z" fill="#f97316" stroke="#fbbf24" stroke-width="1.5" stroke-linejoin="round"/></svg> Сегодня' : (idx === 3 ? '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><polygon points="13,2 4,14 11,14 10,22 20,10 13,10" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.5" stroke-linejoin="round"/></svg> Завтра' : (d.relTitle || d.label));
+          const dTemp = `${d.tDay > 0 ? '+' + d.tDay : d.tDay}°`;
+          return `
+            <button type="button" class="w-chip ${isAct ? 'active' : ''}" data-weather-pick-day="${idx}" style="padding:5px 11px;min-height:36px;">
+              <span>${dTitle}</span>
+              <span style="opacity:0.85;font-weight:800;">${dTemp}</span>
+            </button>
+          `;
+        }).join('')}
+      </div>
+      <!-- КАРТОЧКА 1 (Bento Hero): Компактный сезонный режим водоёма (радар справа вверху, инфо-блок на всю ширину внизу) -->
+      <div class="bento-card bento-hero-card" style="padding:10px 12px;">
+        <div class="bento-card-head" style="margin-bottom:6px;gap:6px;align-items:flex-start;">
+          <div style="min-width:0;flex:1;">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;">
+              <div class="bento-card-title" style="font-size:15px;">
+                <span>${heroTitle}</span>
+              </div>
+              <div style="display:inline-flex;align-items:center;gap:5px;flex-wrap:wrap;">
+                ${createPill({ text: s.weatherSource || RU.offlineMode, tone: (s.weatherSource || '').includes('Онлайн') ? 'good' : 'warn', icon: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="5" stroke="#38bdf8" stroke-width="1.5"/><path d="M12 12l6-6" stroke="#10b981" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="12" r="1.8" fill="#10b981"/></svg>' })}
+                <button type="button" class="btn btn-sm" id="weatherHeroRefreshBtn" style="min-height:26px;padding:2px 8px;font-size:11px;font-weight:800;" title="Принудительно обновить погоду в реальном времени">
+                  <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M20 11a8 8 0 0 0-14.5-4.5L4 8m0-5v5h5M4 13a8 8 0 0 0 14.5 4.5L20 16m0 5v-5h-5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  <span>Обновить погоду</span>
+                </button>
+              </div>
+            </div>
+            <div class="bento-card-sub" style="font-size:11px;margin-top:2px;line-height:1.25;">
+              <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#ef4444"/></svg> ${s.locLabel} (${waterTitle} • ${flowLabel}) • ${day.relTitle ? day.relTitle + ' (' + day.label + ')' : day.label}
+            </div>
+          </div>
+        </div>
+        <!-- Верхний ряд: слева статус льда/воды, справа вверху — радар индекса льда и температура воды -->
+        <div style="display:grid;grid-template-columns:1.12fr 0.88fr;gap:8px;align-items:center;margin-bottom:6px;">
+          <div style="min-width:0;">
+            <div class="bento-status-verdict" style="color:${heroTone};font-size:15px;line-height:1.18;margin-bottom:3px;">
+              ${heroVerdictShort}
+            </div>
+            <div style="font-size:11.5px;font-weight:800;color:var(--text);line-height:1.3;">
+              ${day.iceNote || (day.iceState === 'open_water' ? `Открытая вода (~${day.waterTemp}°C), льда нет (${flowLabel})` : safety.vehicleVerdict)}
+            </div>
+          </div>
+          <div class="bento-gauge-col" style="padding:0;justify-content:flex-start;align-items:center;">
+            <div class="bento-gauge-svg-box" style="width:138px;height:74px;margin:0 auto;">
+              <svg viewBox="0 0 156 90" width="138" height="74" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <linearGradient id="weatherGaugeGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="var(--gauge-start, #3b82f6)"/>
+                    <stop offset="100%" stop-color="var(--gauge-end, #10b981)"/>
+                  </linearGradient>
+                </defs>
+                <path d="M 18 78 A 60 60 0 0 1 138 78" stroke="var(--gauge-track, #dbe7f3)" stroke-width="12" stroke-linecap="round" fill="none"/>
+                <path d="M 18 78 A 60 60 0 0 1 138 78" stroke="url(#weatherGaugeGrad)" stroke-width="12" stroke-linecap="round" fill="none" stroke-dasharray="${gaugeArcLen} 200"/>
+              </svg>
+              <div class="bento-gauge-center-text" style="bottom:0;">
+                <span class="bento-gauge-sub" style="font-size:9.5px;">${gaugeSubTitle}</span>
+                <span class="bento-gauge-lvl" style="font-size:11px;">${gaugeLvlWord}</span>
+                <span class="bento-gauge-pct" style="font-size:20px;">${gaugeScore}%</span>
+              </div>
+            </div>
+            <div class="bento-tackle-summary" style="margin-top:2px;font-size:10.5px;line-height:1.2;text-align:center;">
+              <span style="color:var(--muted);">Вода с учётом течения:</span>
+              <b style="font-size:12.5px;color:var(--accent);margin-left:3px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> ${wTempStr}</b>
+            </div>
+          </div>
+        </div>
+        <!-- Нижний ряд на ВСЮ ШИРИНУ карточки по горизонтали: допуск пешком/техника и пояснение безопасности -->
+        <div style="width:100%;padding:6px 10px;border-radius:10px;background:var(--panel);border:1px solid var(--border);font-size:11px;line-height:1.3;">
+          <div style="font-weight:800;color:var(--text);margin-bottom:2px;">${safety.vehicleVerdict}</div>
+          <div style="color:var(--muted);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="rgba(56,189,248,0.18)" stroke="#38bdf8" stroke-width="1.8"/><path d="M12 11v5M12 8h.01" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> ${safety.recommendation}</div>
+        </div>
+      </div>
+      <!-- КАРТОЧКА 2 (Двойной Bento-ряд 50% / 50%): Температура + Давление и Ветер -->
+      <div class="bento-bottom-duo">
+        <div class="bento-card bento-weather-card" style="cursor:default;">
+          <div class="bento-card-title" style="margin-bottom:8px;font-size:14.5px;">
+            <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M14 14.76V5a2 2 0 1 0-4 0v9.76a4 4 0 1 0 4 0z" fill="rgba(56,189,248,0.22)" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="17.5" r="1.8" fill="#ef4444"/></svg></span>
+            <span>Воздух & Вода</span>
+          </div>
+          <div class="bento-weather-rows">
+            <div class="bento-temp-split">
+              <div>
+                <div class="bento-temp-air">${tDayStr}</div>
+                <div style="font-size:10.5px;color:var(--muted);font-weight:700;">Днём (ночью ${tNightStr})</div>
+              </div>
+              <div class="bento-temp-water-box">
+                <div style="font-size:15px;font-weight:900;color:var(--accent);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> ${wTempStr}</div>
+                <div style="font-size:10.5px;color:var(--muted);font-weight:700;">Вода (${flowLabel})</div>
+              </div>
+            </div>
+            <div class="bento-weather-item-row">
+              <span style="font-size:16px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg></span>
+              <div>
+                <div style="font-weight:800;color:var(--text);">Биотоп: ${waterTitle}</div>
+                <div style="font-size:10.5px;color:var(--muted);">Глубина в точке: ~${s.depth.toFixed(1)} м</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="bento-card bento-radar-card" style="cursor:default;">
+          <div class="bento-card-title" style="margin-bottom:8px;font-size:14.5px;">
+            <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><polygon points="16,8 13.5,13.5 8,16 10.5,10.5" fill="#38bdf8" stroke="currentColor" stroke-width="1.3"/></svg></span>
+            <span>Барометр & Ветер</span>
+          </div>
+          <div class="bento-weather-rows">
+            <div class="bento-temp-split">
+              <div>
+                <div class="bento-temp-air" style="font-size:21px;">${day.pressAvg} <span style="font-size:12px;font-weight:700;">мм</span></div>
+                <div style="font-size:10.5px;color:var(--muted);font-weight:700;">Тренд: ${fmtDeltaPress(day.dP)}</div>
+              </div>
+              <div class="bento-temp-water-box">
+                <div style="font-size:14px;font-weight:900;color:var(--good);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> ${day.windDir} ${day.windMax} м/с</div>
+                <div style="font-size:10.5px;color:var(--muted);font-weight:700;">Ветер и волна</div>
+              </div>
+            </div>
+            <div class="bento-weather-item-row">
+              <span style="font-size:16px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M3 20L10 6l5 9 3-5 3 10H3z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></span>
+              <div>
+                <div style="font-weight:800;color:var(--text);">Норма: ${s.normPress} мм (${s.elevation} м)</div>
+                <div style="font-size:10.5px;color:var(--muted);">Осадки за сутки: ${day.precip || 0} мм</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- КАРТОЧКА 3 (Bento Chart): Суточный ход температуры и давления 00:00–24:00 -->
+      <div class="bento-card bento-chart-card">
+        <div class="bento-card-head" style="margin-bottom:4px;">
+          <div class="bento-card-title">
+            <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M3 3v18h18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M7 15l4-5 4 3 5-7" stroke="#38bdf8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            <span>Суточный ход температуры воздуха и давления</span>
+          </div>
+          <span style="font-size:12px;font-weight:800;color:var(--muted);">00:00–24:00</span>
+        </div>
+        <div style="width:100%;overflow:hidden;">
+          <div class="bento-chart-stage" style="position:relative;width:100%;height:106px;">
+            <svg viewBox="0 0 ${svgW} ${svgH}" width="100%" height="100%" preserveAspectRatio="none" style="display:block;width:100%;height:100%;">
+              <defs>
+                <linearGradient id="weatherWaveFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="var(--wave-fill-top, rgba(59,130,246,0.35))"/>
+                  <stop offset="100%" stop-color="var(--wave-fill-bot, rgba(59,130,246,0.02))"/>
+                </linearGradient>
+              </defs>
+              <line x1="${padL}" y1="${padT + plotH * 0.5}" x2="${svgW - padR}" y2="${padT + plotH * 0.5}" stroke="var(--border)" stroke-dasharray="3 3" stroke-width="1" vector-effect="non-scaling-stroke" opacity="0.6"/>
+              <path d="${waveAreaD}" fill="url(#weatherWaveFill)"/>
+              <path d="${wavePathD}" fill="none" stroke="var(--wave-stroke, #38bdf8)" stroke-width="2.6" vector-effect="non-scaling-stroke" stroke-linecap="round"/>
+            </svg>
+            <div class="bento-chart-dot" style="left:${((coldPt.x / svgW) * 100).toFixed(1)}%;top:${((coldPt.y / svgH) * 100).toFixed(1)}%;background:#38bdf8;"></div>
+            <div class="bento-chart-badge" style="left:${Math.max(13, Math.min(87, (coldPt.x / svgW) * 100)).toFixed(1)}%;top:${Math.max(20, ((coldPt.y / svgH) * 100) - 6).toFixed(1)}%;border-color:rgba(56,189,248,0.55);">
+              06:00 (${coldPt.t > 0 ? '+' + coldPt.t : coldPt.t}°C)
+            </div>
+            <div class="bento-chart-dot" style="left:${((warmPt.x / svgW) * 100).toFixed(1)}%;top:${((warmPt.y / svgH) * 100).toFixed(1)}%;background:#10b981;"></div>
+            <div class="bento-chart-badge" style="left:${Math.max(13, Math.min(87, (warmPt.x / svgW) * 100)).toFixed(1)}%;top:${Math.max(20, ((warmPt.y / svgH) * 100) - 6).toFixed(1)}%;border-color:rgba(16,185,129,0.55);">
+              14:00 (${warmPt.t > 0 ? '+' + warmPt.t : warmPt.t}°C)
+            </div>
+          </div>
+          <div class="bento-chart-ticks-grid">
+            ${[0, 3, 6, 9, 12, 15, 18, 21].map(hIdx => {
+              const pObj = pts[hIdx] || pts[0];
+              const tVal = pObj ? pObj.t : day.tDay;
+              const tStr = `${tVal > 0 ? '+' + tVal : tVal}°`;
+              return `
+                <div class="bento-chart-tick-cell">
+                  <span class="bento-chart-tick-hr">${String(hIdx).padStart(2, '0')}:00</span>
+                  <span class="bento-chart-tick-val" style="color:var(--text);">${tStr}</span>
+                </div>
+              `;
+            }).join('')}
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:2px 10px 0;font-size:11px;font-weight:800;color:var(--muted);">
+            <span>00:00</span>
+            <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.5" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> Восход ${fmtHM(day.sunriseHr)}</span>
+            <span>12:00 (${day.pressAvg} мм)</span>
+            <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.5" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> Закат ${fmtHM(day.sunsetHr)}</span>
+            <span>24:00</span>
+          </div>
+        </div>
+      </div>
+      <!-- КАРТОЧКА 4 (Bento Solunar & Archive): Луна, Солунарные окна и 5-дневный кэш 10 км -->
+      <div class="bento-card bento-solunar-card">
+        <div class="bento-card-head">
+          <div>
+            <div class="bento-card-title">
+              <span>${m.phaseIcon}</span>
+              <span>Луна: ${m.phaseName} (${m.moonDay} л.д., освещённость ${m.illum}%)</span>
+            </div>
+            <div class="bento-card-sub">
+              <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.5" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> Восход ${fmtHM(day.sunriseHr)} • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.5" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> Закат ${fmtHM(day.sunsetHr)} • Приоритет: термика и барометр важнее фазы Луны
+            </div>
+          </div>
+          <button type="button" class="btn btn-sm" id="weatherCleanArchiveBtn" title="Очистить старый архив погоды, кроме последних 5 дней"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Очистить кэш</button>
+        </div>
+        <div class="bento-metrics-grid" style="margin-bottom:8px;">
+          <div class="bento-metric-tile">
+            <div class="bento-metric-label"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.5" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> Главные лунные выходы</div>
+            <div class="bento-metric-val" style="font-size:14.5px;color:var(--good);">${m.majorWindows.join(' • ')}</div>
+            <div class="bento-metric-sub">Верхняя и нижняя кульминация Луны</div>
+          </div>
+          <div class="bento-metric-tile">
+            <div class="bento-metric-label"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6" stroke-linejoin="round"/></svg> Малые лунные окна</div>
+            <div class="bento-metric-val" style="font-size:14.5px;color:var(--accent);">${m.minorWindows.join(' • ')}</div>
+            <div class="bento-metric-sub">Восход и заход Луны над горизонтом</div>
+          </div>
+          <div class="bento-metric-tile">
+            <div class="bento-metric-label"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Метеоархив (радиус 10 км)</div>
+            <div class="bento-metric-val" style="font-size:14.5px;">${archiveStats.localArchiveDays} арх. дн.</div>
+            <div class="bento-metric-sub">${s.hasRealArchive === false ? '<svg class="k-ico" style="color:var(--warn);" viewBox="0 0 24 24" fill="none"><path d="M12 3L2.5 19.5h19L12 3z" fill="rgba(245,158,11,0.24)" stroke="#f59e0b" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9v5M12 17h.01" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/></svg> Накапливается' : '<svg class="k-ico" style="color:var(--good);" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="rgba(16,185,129,0.24)" stroke="#10b981" stroke-width="1.9"/><path d="M8 12.5l2.7 2.7L16.5 9.5" stroke="#10b981" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg> 5-дневный архив активен'} (всего ${archiveStats.totalArchiveDays} дн.)</div>
+          </div>
+        </div>
+        <details style="font-size:12px;color:var(--muted);">
+          <summary style="cursor:pointer;font-weight:800;color:var(--accent);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="rgba(56,189,248,0.18)" stroke="#38bdf8" stroke-width="1.8"/><path d="M12 11v5M12 8h.01" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> Как фазы Луны и барический шок влияют на рыбу</summary>
+          <p style="margin-top:6px;line-height:1.45;">${RU.solunarDisclaimer}</p>
+        </details>
+      </div>
+    </div>
+  `;
+  container.querySelectorAll('[data-weather-pick-day]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = parseInt(btn.getAttribute('data-weather-pick-day'), 10);
+      if (idx !== 2 && typeof window !== 'undefined' && typeof window.__KLEV_IS_MOBILE_GUEST__ === 'function' && window.__KLEV_IS_MOBILE_GUEST__()) {
+        if (typeof window.__KLEV_PROMPT_GUEST_AUTH__ === 'function') {
+          window.__KLEV_PROMPT_GUEST_AUTH__('При временном ID погода доступна только на сегодня. Войдите в аккаунт для просмотра прогноза на 10 дней.');
+        }
+        return;
+      }
+      if (Number.isFinite(idx)) {
+        store.dispatch({ type: 'SET_DAY', payload: idx });
+      }
+    });
+  });
+  const refreshNowBtn = container.querySelector('#weatherHeroRefreshBtn');
+  if (refreshNowBtn) {
+    refreshNowBtn.addEventListener('click', async () => {
+      const stNow = store.getState();
+      refreshNowBtn.disabled = true;
+      refreshNowBtn.textContent = 'Обновление...';
+      await fetchWeather(stNow.lat, stNow.lon, true);
+      showToast('Сводка погоды и температуры воды обновлена в реальном времени', 'good');
+      render(container);
+    });
+  }
+  const cleanBtn = container.querySelector('#weatherCleanArchiveBtn');
+  if (cleanBtn) {
+    cleanBtn.addEventListener('click', () => {
+      const res = storage.clearWeatherArchiveKeep5Days();
+      showToast(` Архив погоды очищен: удалено старых записей — ${res.removedCount}, сохранены последние 5 дней архива (${res.keptArchiveCount} дн.)`, 'good');
+      render(container);
+    });
+  }
+}
+let unsub = null;
+export function init(container) {
+  const st = store.getState();
+  if (!st.weatherDays || st.weatherDays.length !== 12) {
+    const fb = buildFallback(st.lat, st.water);
+    store.dispatch({
+      type: 'SET_WEATHER_DATA',
+      payload: { ...fb, source: RU.syncing, updatedAt: Date.now() }
+    });
+  } else {
+    const recalcInit = recalculateIceForWaterType(st.weatherDays, st.water, st.weatherArchive5Days);
+    if (recalcInit) {
+      store.dispatch({
+        type: 'SET_WEATHER_DATA',
+        payload: {
+          days: recalcInit.days,
+          archive5Days: recalcInit.archive5Days,
+          iceState: recalcInit.iceState,
+          iceSubState: recalcInit.iceSubState,
+          iceThickness: recalcInit.iceThickness,
+          iceNote: recalcInit.iceNote,
+          source: st.weatherSource
+        }
+      });
+    }
+  }
+  render(container);
+  unsub = subscribeWeather((next, prev) => {
+    if (prev && next.water !== prev.water && Array.isArray(next.days) && next.days.length === 12) {
+      const recalc = recalculateIceForWaterType(next.days, next.water, next.archive5Days);
+      if (recalc) {
+        store.dispatch({
+          type: 'SET_WEATHER_DATA',
+          payload: {
+            days: recalc.days,
+            archive5Days: recalc.archive5Days,
+            iceState: recalc.iceState,
+            iceSubState: recalc.iceSubState,
+            iceThickness: recalc.iceThickness,
+            iceNote: recalc.iceNote,
+            source: store.getState().weatherSource
+          }
+        });
+        return;
+      }
+    }
+    if (next.route && next.route !== 'weather') {
+      if (container) container._weatherNeedsRender = true;
+      return;
+    }
+    if (container) container._weatherNeedsRender = false;
+    render(container);
+  });
+  fetchWeather(st.lat, st.lon);
+}
+export function destroy() {
+  if (unsub) unsub();
+}
+export const weatherModule = {
+  computeMoon,
+  computeIceSafetyIndex,
+  computeWaterTempSeries,
+  evaluateDayIce,
+  recalculateIceForWaterType,
+  buildFallback,
+  normalizeOpenMeteo,
+  normalizeMetNo,
+  fetchWeather,
+  getWeatherState,
+  subscribeWeather,
+  init,
+  render,
+  destroy
+};

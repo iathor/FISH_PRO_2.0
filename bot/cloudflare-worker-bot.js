@@ -1,7 +1,7 @@
 // @file bot/cloudflare-worker-bot.js — @KlevProClubBot (V.2.1.1)
 // Компактная сборка для Cloudflare Workers (115 рыб, 491 водоём, 609 городов РФ + Triple-Engine $0 DB + E2EE Relay + Обмен точками Круга/Экипажа/SOS + Уникальные Региональные ID FP_89AAA001 & Эксклюзивный VIP ID владельца FP_89VIP089 + Секретная Серверная Консоль Супер-Админа)
 
-const WORKER_VERSION = '2.5.6';
+const WORKER_VERSION = '2.8.0-r226';
 const RESERVE_ID_TTL_MS = 24 * 60 * 60 * 1000; // Временный резервный ID живёт строго не более 24 часов (суток)
 const deletedFisherIdsSet = new Set(); // Удалённые вручную через Админ-панель ID (защита от повторной фоновой вставки)
 const rateBuckets = new Map();
@@ -3945,7 +3945,7 @@ function saveUserSession(userId, patch = {}) {
 const BOT_REPLY_KEYBOARD = {
  keyboard: [
   [{ text: '🎣 Прогноз' }, { text: '🌊 Водоёмы' }, { text: '🌟 ТОП-5 клёва' }],
-  [{ text: '📷 ИИ по фото' }, { text: '📡 Круг и SOS' }, { text: '🧭 Меню' }]
+  [{ text: '📷 ИИ по фото' }, { text: '📡 Круг и Точки' }, { text: '🧭 Меню' }]
  ],
  resize_keyboard: true,
  is_persistent: true,
@@ -3958,7 +3958,7 @@ const BOT_COMMANDS_LIST = [
  { command: 'waters', description: '🌊 Поиск водоёма с прогнозом и ихтиобазой' },
  { command: 'top', description: '🌟 ТОП-5 клёва сегодня в локации' },
  { command: 'ai', description: '📷 Определить рыбу, длину и вес по фото' },
- { command: 'circle', description: '📡 Сводки Круга, SOS и точки рядом' },
+ { command: 'circle', description: '📡 Сводки Круга и точки рядом' },
  { command: 'menu', description: '🎛 Компактное меню функций' },
  { command: 'help', description: '❓ Памятка по командам и ключам экипажей' }
 ];
@@ -4339,7 +4339,7 @@ async function configureBotMenusAndCommands(botToken, chatId = null) {
   { command: 'waters', description: '🌊 Поиск водоёма и ихтиобаза' },
   { command: 'top', description: '🌟 ТОП-5 активных рыб в локации' },
   { command: 'ai', description: '📷 Распознать рыбу по фото' },
-  { command: 'circle', description: '📡 Круг, SOS и точки рядом' },
+  { command: 'circle', description: '📡 Круг и точки рядом' },
   { command: 'help', description: '❓ Памятка по боту и ключам экипажей' }
   ],
   scope: { type: 'all_group_chats' }
@@ -4581,10 +4581,18 @@ function computeFishScoreForWeather(fishObj, w) {
 }
 
 function makeAppButton(text, deepAppUrl, isPrivateChat = true) {
- if (isPrivateChat) {
-  return { text, web_app: { url: deepAppUrl } };
+ let finalUrl = String(deepAppUrl || 'https://klevpro.ru/');
+ if (!finalUrl.includes('v=r226')) {
+  const hashIdx = finalUrl.indexOf('#');
+  const basePart = hashIdx >= 0 ? finalUrl.slice(0, hashIdx) : finalUrl;
+  const hashPart = hashIdx >= 0 ? finalUrl.slice(hashIdx) : '';
+  const sep = basePart.includes('?') ? '&' : '?';
+  finalUrl = `${basePart}${sep}v=r226&tma=1${hashPart}`;
  }
- return { text, url: deepAppUrl };
+ if (isPrivateChat) {
+  return { text, web_app: { url: finalUrl } };
+ }
+ return { text, url: finalUrl };
 }
 
 function getForecastSubmenuKeyboard(city, currentFish, deepAppUrl, isPrivateChat = true) {
@@ -4605,7 +4613,7 @@ function getForecastSubmenuKeyboard(city, currentFish, deepAppUrl, isPrivateChat
    { text: '⚡ На 3 дня', callback_data: `exp:${latFmt}:${lonFmt}:${fid}:${shortCity}` }
   ],
   [
-   { text: '📡 Круг и SOS', callback_data: `rad:${latFmt}:${lonFmt}:${shortCity}` },
+   { text: '📡 Круг и Точки', callback_data: `rad:${latFmt}:${lonFmt}:${shortCity}` },
    { text: '🧭 Меню', callback_data: `menu:${latFmt}:${lonFmt}:${fid}:${shortCity}` }
   ]
  ];
@@ -4927,7 +4935,7 @@ function buildBotMainMenuCard(session, city, fish, webappUrl, isPrivateChat = tr
   ],
   [
    { text: '⚡ Прогноз на 3 дня', callback_data: `exp:${latFmt}:${lonFmt}:${fid}:${shortCity}` },
-   { text: '📡 Круг, SOS и Точки', callback_data: `rad:${latFmt}:${lonFmt}:${shortCity}` }
+   { text: '📡 Круг и Точки', callback_data: `rad:${latFmt}:${lonFmt}:${shortCity}` }
   ],
   [
    { text: '📷 ИИ по фото', callback_data: `ai_help:${latFmt}:${lonFmt}:${fid}:${shortCity}` },
@@ -6196,10 +6204,10 @@ const betaGateConfig = {
 };
 const policyStateStore = {
  policyVersion: '2026.11.06-v2.6',
- appVersion: '2.5.6',
- appRevision: 'r215',
+ appVersion: '2.8.0',
+ appRevision: 'r226',
  updatedAt: '2026-11-06T12:00:00Z',
- summary: 'Обновление версии v2.5.6 (r215) и редакции Политики конфиденциальности (152-ФЗ / ст. 10.1 о передаче геолокации, удалении УЗ и маршрутах Фазы 3).'
+ summary: 'Обновление версии v2.8.0 (r226): точное ведение по маршруту с ортогональной проекцией на дорогу, изоляция Telegram Mini App,4-колоночное выравнивание нижнего бара в TMA, доступ по временному ID и новые иконки APK/PWA.'
 };
 const userConsentsStore = new Map();
 
@@ -7882,6 +7890,58 @@ function generateSyntheticWeatherJson(lat, lon) {
  });
 }
 
+
+// ── Модуль обогащения метеоядра данными Гидрометцентра России (meteoinfo.ru: /egmb, /extrainfopage, /forecasts5000) ──
+async function fetchMeteoinfoEnrichment(lat, lon) {
+ const out = {
+  _sourceMeteoinfo: 'meteoinfo.ru',
+  _roadHazard: null,
+  _spaceWeather: null,
+  _hydroAssimilation: null
+ };
+ try {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 2400);
+  const [egmbRes, extraRes] = await Promise.all([
+   fetch('https://meteoinfo.ru/egmb', { headers: { 'User-Agent': 'Mozilla/5.0 (KlevPro/2.8.0)' }, signal: ctrl.signal }).catch(() => null),
+   fetch('https://meteoinfo.ru/extrainfopage', { headers: { 'User-Agent': 'Mozilla/5.0 (KlevPro/2.8.0)' }, signal: ctrl.signal }).catch(() => null)
+  ]);
+  clearTimeout(t);
+  const egmbTxt = (egmbRes && egmbRes.ok) ? await egmbRes.text().catch(() => '') : '';
+  const extraTxt = (extraRes && extraRes.ok) ? await extraRes.text().catch(() => '') : '';
+  if (egmbTxt) {
+   const lowerEgmb = egmbTxt.toLowerCase();
+   if (lowerEgmb.includes('магнитная буря')) {
+    out._spaceWeather = { status: 'storm', kpIndex: 6.0, label: 'Магнитная буря (ИПГ Росгидромета)', bitePenalty: -0.55 };
+   } else if (lowerEgmb.includes('слабо возмущен')) {
+    out._spaceWeather = { status: 'minor_storm', kpIndex: 5.0, label: 'Геомагнитное поле слабо возмущённое', bitePenalty: -0.3 };
+   } else if (lowerEgmb.includes('неустойчив')) {
+    out._spaceWeather = { status: 'unsettled', kpIndex: 3.5, label: 'Геомагнитное поле неустойчивое', bitePenalty: -0.1 };
+   } else {
+    out._spaceWeather = { status: 'quiet', kpIndex: 2.0, label: 'Геомагнитное поле спокойное', bitePenalty: 0 };
+   }
+   const thickMatch = egmbTxt.match(/толщина\s+льда\s+(?:составляет\s+)?(\d{1,3})\s*[-–—]\s*(\d{1,3})\s*см/i);
+   if (thickMatch) {
+    out._hydroAssimilation = {
+     iceRangeCm: [parseInt(thickMatch[1], 10), parseInt(thickMatch[2], 10)],
+     source: 'meteoinfo.ru/egmb'
+    };
+   }
+  }
+  if (extraTxt) {
+   const lowerExtra = extraTxt.toLowerCase();
+   if (/(голол[её]д(?:[^а-яё]|$)|ледян[а-яё]*\s+дожд)/i.test(lowerExtra)) {
+    out._roadHazard = { roadIceRisk: 'GLAZE_30KMH', safeSpeedKmh: 35, alertNote: 'Внимание: по сводке Гидрометцентра гололёд на трассах, безопасная скорость до 30–40 км/ч.' };
+   } else if (/(снежн[а-яё]*\s+занос|снежн[а-яё]*\s+накат|метел)/i.test(lowerExtra)) {
+    out._roadHazard = { roadIceRisk: 'SNOWDRIFT', safeSpeedKmh: 45, alertNote: 'Внимание: снежный накат и метель на подъездах к водоёму, безопасная скорость до 40–50 км/ч.' };
+   } else if (/гололедиц/i.test(lowerExtra)) {
+    out._roadHazard = { roadIceRisk: 'SLIPPERY_60KMH', safeSpeedKmh: 65, alertNote: 'Внимание: местами гололедица на дорогах, безопасная скорость до 60–70 км/ч.' };
+   }
+  }
+ } catch (e) {}
+ return out;
+}
+
 // ── 1. Эндпоинт 10-км гео-сетки погоды (/weather?lat=...&lon=...) с двойным кэшем и защитой от 502/сбоев ──
   if (reqUrl.pathname.endsWith('/weather') && request.method === 'GET') {
    const rawLat = parseFloat(reqUrl.searchParams.get('lat') || '66.1');
@@ -8008,6 +8068,15 @@ function generateSyntheticWeatherJson(lat, lon) {
     weatherPayload = generateSyntheticWeatherJson(gLat, gLon);
    }
 
+   try {
+    const miEnrich = await fetchMeteoinfoEnrichment(parseFloat(gLat), parseFloat(gLon));
+    const parsedWp = JSON.parse(weatherPayload);
+    if (miEnrich._spaceWeather) parsedWp._spaceWeather = miEnrich._spaceWeather;
+    if (miEnrich._roadHazard) parsedWp._roadHazard = miEnrich._roadHazard;
+    if (miEnrich._hydroAssimilation) parsedWp._hydroAssimilation = miEnrich._hydroAssimilation;
+    parsedWp._sourceMeteoinfo = 'meteoinfo.ru+idw';
+    weatherPayload = JSON.stringify(parsedWp);
+   } catch (e) {}
    if (weatherFullGridCache.size > 600) {
     const oldest = weatherFullGridCache.keys().next().value;
     if (oldest) weatherFullGridCache.delete(oldest);
