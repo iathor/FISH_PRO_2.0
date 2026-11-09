@@ -22,9 +22,9 @@ jobs:
     steps:
       - name: Purge Old Workflow Artifacts (Free 0.5 GB GitHub Storage Quota)
         run: |
-          ART_IDS=$(curl -fsSL -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?per_page=100" | python3 -c "import sys,json; data=json.load(sys.stdin); print(' '.join(str(a['id']) for a in data.get('artifacts',[])))" 2>/dev/null || true)
+          ART_IDS=$(curl -sSL -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?per_page=100" | python3 -c "import sys,json; data=json.load(sys.stdin); print(' '.join(str(a['id']) for a in data.get('artifacts',[])))" 2>/dev/null || true)
           for AID in $ART_IDS; do
-            curl -fsSL -X DELETE -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/$AID" || true
+            curl -sSL -X DELETE -H "Accept: application/vnd.github+json" -o /dev/null -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/$AID" || true
           done
 
       - name: Checkout repository
@@ -50,7 +50,7 @@ jobs:
               git commit -m "chore(release): auto-unpack release archive from mobile upload"
               git pull --rebase origin "${GITHUB_REF_NAME:-main}" || true
               git push origin HEAD:"${GITHUB_REF_NAME:-main}"
-              curl -fsSL -X POST -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/${GITHUB_REPOSITORY}/pages/builds" || true
+              curl -sSL -X POST -H "Accept: application/vnd.github+json" -o /dev/null -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/${GITHUB_REPOSITORY}/pages/builds" || true
             fi
           fi
 
@@ -104,7 +104,7 @@ jobs:
 
           # 4. Вычисляем строго возрастающий versionCode для релиза 2.5.6 r194 (чтобы Android всегда обновлял APK поверх старой версии)
           RUN_NUM=${GITHUB_RUN_NUMBER:-0}
-          VER_CODE=$((260220 + RUN_NUM))
+          VER_CODE=$((260230 + RUN_NUM))
           echo "Using versionCode=$VER_CODE"
 
           cat << 'EOF' > "$PROJ_DIR/settings.gradle"
@@ -149,7 +149,7 @@ jobs:
                   minSdk 24
                   targetSdk 34
                   versionCode ${VER_CODE}
-                  versionName "2.5.6-r216"
+                  versionName "2.5.6-r221"
               }
               signingConfigs {
                   release {
@@ -329,6 +329,9 @@ jobs:
 
               private WebView webView;
               private ValueCallback<Uri[]> fileUploadCallback;
+              private volatile int gnssSatellitesUsedCount = 0;
+              private volatile int gnssSatellitesVisibleCount = 0;
+              private volatile float lastGpsAccuracyMeters = 0f;
               private boolean pendingCameraLaunchAfterPerm = false;
               private Uri pendingCameraPhotoUri = null;
               private long lastRootBackPressMs = 0L;
@@ -511,6 +514,7 @@ jobs:
                           }
                       });
                   }
+
                   @JavascriptInterface
                   public String getDeviceId() {
                       try {
@@ -522,18 +526,33 @@ jobs:
                   }
 
                   @JavascriptInterface
+                  public int getGnssSatellitesUsed() {
+                      return gnssSatellitesUsedCount;
+                  }
+
+                  @JavascriptInterface
+                  public int getGnssSatellitesVisible() {
+                      return gnssSatellitesVisibleCount;
+                  }
+
+                  @JavascriptInterface
+                  public float getLastLocationAccuracyMeters() {
+                      return lastGpsAccuracyMeters;
+                  }
+
+                  @JavascriptInterface
                   public String getAppVersion() {
-                      return "2.5.6-r216";
+                      return "2.5.6-r221";
                   }
 
                   @JavascriptInterface
                   public int getAppBuildNumber() {
-                      return 210;
+                      return 221;
                   }
 
                   @JavascriptInterface
                   public String getAppRevision() {
-                      return "r215";
+                      return "r221";
                   }
 
                   @JavascriptInterface
@@ -805,9 +824,9 @@ jobs:
                   ws.setAllowFileAccess(true);
                   ws.setAllowContentAccess(true);
                   ws.setCacheMode(WebSettings.LOAD_NO_CACHE);
-                  webView.clearCache(true);
+                            webView.clearCache(true);
                   String baseUa = ws.getUserAgentString();
-                  ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.5.6-r216");
+                  ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.5.6-r221");
 
                   webView.addJavascriptInterface(new NativeBridge(this), "AndroidBridge");
 
@@ -920,9 +939,10 @@ jobs:
                               view.loadUrl(sb.toString());
                               return true;
                           }
-                          if (host.equals("t.me") || host.equals("telegram.me") || scheme.equals("tg") || scheme.equals("mailto")) {
+                          if (host.equals("t.me") || host.equals("telegram.me") || scheme.equals("tg") || scheme.equals("mailto") || scheme.equals("sms") || scheme.equals("smsto") || scheme.equals("tel") || scheme.equals("geo") || host.contains("yandex.") || host.contains("google.") || host.contains("2gis.") || host.contains("openstreetmap.") || host.contains("leafletjs.") || host.contains("open-meteo.") || host.contains("met.no")) {
                               try {
                                   Intent intent = new Intent(Intent.ACTION_VIEW, uri);
+                                  intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                                   startActivity(intent);
                                   return true;
                               } catch (Exception ignored) {}
@@ -1065,7 +1085,7 @@ jobs:
 
               private void loadEntryUrlFromIntent(Intent intent) {
                   String entryHtml = getPackageName().contains("admin") ? "kp-control-89.html" : "index.html";
-                  String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/" + entryHtml + "?v=2.5.6_r216_" + System.currentTimeMillis();
+                  String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/" + entryHtml + "?v=2.5.6_r221_" + System.currentTimeMillis();
                   if (intent != null && intent.getData() != null) {
                       Uri data = intent.getData();
                       String q = data.getEncodedQuery();
@@ -1084,7 +1104,9 @@ jobs:
               }
 
               private void requestStartupPermissionsIfNeeded() {
-                  // Этап 5 (Just-in-Time): камера и фото запрашиваются только при открытии Ихтио-Сканера или Журнала
+                  // Этап 5 (Just-in-Time): при старте запрашиваем только базовую геолокацию и уведомления.
+                  // Камера (CAMERA) и Галерея (READ_MEDIA_IMAGES) запрашиваются только при вызове Ихтио-Сканера или прикреплении фото в Журнал,
+                  // а фоновая геолокация (ACCESS_BACKGROUND_LOCATION) — только при запуске записи маршрута Фазы 3.
                   if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                       List<String> needed = new ArrayList<>();
                       if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
@@ -1286,6 +1308,10 @@ jobs:
                               if (value != null && value.contains("HANDLED")) {
                                   return;
                               }
+                              if (webView != null && webView.canGoBack()) {
+                                  webView.goBack();
+                                  return;
+                              }
                               long now = System.currentTimeMillis();
                               if (now - lastRootBackPressMs < 2200L) {
                                   finish();
@@ -1338,13 +1364,10 @@ jobs:
       - name: Obfuscate & Minify Web Assets (Terser ES Module Mangle + Strip Comments)
         working-directory: ${{ steps.locate.outputs.proj_dir }}
         run: |
-          if command -v npx >/dev/null 2>&1; then
+          if command -v terser >/dev/null 2>&1; then
             find app/src/main/assets/www/js -name "*.js" -type f | while read -r jsf; do
-              npx --yes terser "$jsf" --module --compress dead_code=true,drop_debugger=true,passes=2 --mangle --comments false -o "$jsf.obf" && mv "$jsf.obf" "$jsf"
+              terser "$jsf" --module --compress dead_code=true,drop_debugger=true,passes=2 --mangle --comments false -o "$jsf.obf" && mv "$jsf.obf" "$jsf" || true
             done
-            if [ -f "app/src/main/assets/www/sw.js" ]; then
-              npx --yes terser "app/src/main/assets/www/sw.js" --compress --mangle --comments false -o "app/src/main/assets/www/sw.js.obf" && mv "app/src/main/assets/www/sw.js.obf" "app/src/main/assets/www/sw.js"
-            fi
           fi
 
       - name: Build Signed User APK (klev-pro-v2.5.6.apk — Pure User Contour)
@@ -1367,8 +1390,10 @@ jobs:
                   f.write(h)
           EOF_PY
           python3 /tmp/patch_user_apk.py
-          curl -fsSL https://services.gradle.org/distributions/gradle-8.7-bin.zip -o /tmp/gradle-8.7.zip
-          unzip -q -o /tmp/gradle-8.7.zip -d /tmp
+          if [ ! -x "/tmp/gradle-8.7/bin/gradle" ]; then
+            curl -sSL --retry 5 --retry-delay 3 --retry-all-errors https://services.gradle.org/distributions/gradle-8.7-bin.zip -o /tmp/gradle-8.7.zip || curl -sSL --retry 5 --retry-delay 3 https://downloads.gradle.org/distributions/gradle-8.7-bin.zip -o /tmp/gradle-8.7.zip
+            unzip -q -o /tmp/gradle-8.7.zip -d /tmp
+          fi
           /tmp/gradle-8.7/bin/gradle assembleRelease --no-daemon --console=plain
           REL_DIR="app/build/outputs/apk/release"
           SRC_APK=$(ls -t "$REL_DIR"/*.apk | head -n 1)
@@ -1423,7 +1448,7 @@ jobs:
             git commit -m "chore(apk): auto-publish user & admin apks v2.5.6"
             git pull --rebase origin "${GITHUB_REF_NAME:-main}" || true
             git push origin HEAD:"${GITHUB_REF_NAME:-main}"
-          curl -fsSL -X POST -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/${GITHUB_REPOSITORY}/pages/builds" || true
+          curl -sSL -X POST -H "Accept: application/vnd.github+json" -o /dev/null -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/${GITHUB_REPOSITORY}/pages/builds" || true
           fi
 
       - name: Upload Signed User APK Artifact (klev-pro-v2.5.6.apk)
