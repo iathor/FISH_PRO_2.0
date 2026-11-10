@@ -133,6 +133,10 @@ export function switchAdminWorkspaceTab(tabId = 'dashboard', opts = {}) {
   _activeAdminSubTab = tabId || 'dashboard';
   if (!opts || !opts.keepChatOpen) {
     isFullScreenChatOpen = false;
+    activeChatChannelId = '';
+    if (typeof mountFullScreenChatOverlayPortal === 'function') {
+      mountFullScreenChatOverlayPortal('');
+    }
   }
   if (typeof document !== 'undefined') {
     document.querySelectorAll('[data-adm-workspace-tab]').forEach(btn => {
@@ -6598,8 +6602,8 @@ function renderFullScreenChatWindowHtml(s, ident, visibleCrews) {
     .sort((a, b) => (a.ts || 0) - (b.ts || 0));
 
   return `
-    <div id="klevFullScreenChatOverlay" style="position:fixed;inset:0;z-index:9100;background:rgba(6,11,22,0.88);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:8px;box-sizing:border-box;">
-      <div style="width:100%;max-width:680px;height:calc(100dvh - 16px);max-height:calc(100vh - 16px);background:var(--bg);border:1.5px solid var(--accent);border-radius:16px;box-shadow:0 20px 50px rgba(0,0,0,0.85);display:flex;flex-direction:column;overflow:hidden;">
+    <div id="klevFullScreenChatOverlay" style="position:fixed;inset:0;z-index:9500;background:rgba(6,11,22,0.90);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:max(10px, env(safe-area-inset-top, 10px)) 8px max(10px, env(safe-area-inset-bottom, 10px)) 8px;box-sizing:border-box;overscroll-behavior:contain;">
+      <div id="klevFullScreenChatDialogCard" style="width:100%;max-width:680px;height:calc(100dvh - 24px);max-height:calc(100vh - 24px);background:var(--bg);border:1.5px solid var(--accent);border-radius:16px;box-shadow:0 20px 50px rgba(0,0,0,0.85);display:flex;flex-direction:column;overflow:hidden;">
         <!-- Шапка окна чата (всегда видна наверху) -->
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 12px;background:var(--panel);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap;">
           <div style="display:flex;align-items:center;gap:8px;min-width:0;flex:1;">
@@ -6682,24 +6686,57 @@ function renderFullScreenChatWindowHtml(s, ident, visibleCrews) {
   `;
 }
 
+export function mountFullScreenChatOverlayPortal(html = '') {
+  if (typeof document === 'undefined' || !document.body) return null;
+  try {
+    document.body.style.overflow = '';
+  } catch (e) {}
+  let portal = document.getElementById('klevFullScreenChatPortal');
+  if (!html || !isFullScreenChatOpen || !activeChatChannelId) {
+    if (portal) {
+      portal.innerHTML = '';
+      portal.style.display = 'none';
+    }
+    return null;
+  }
+  if (!portal) {
+    portal = document.createElement('div');
+    portal.id = 'klevFullScreenChatPortal';
+    document.body.appendChild(portal);
+  }
+  portal.style.display = 'block';
+  portal.innerHTML = html;
+  return portal;
+}
+
 export function renderChatsSection(customContainer = null) {
-  const container = customContainer || (typeof document !== 'undefined' ? (document.getElementById('secChats') || document.getElementById('admEmbeddedChatsBox')) : null);
-  if (!container) return;
-  const isEmbeddedInAdmin = container.id === 'admEmbeddedChatsBox';
+  const container = customContainer || (typeof document !== 'undefined'
+    ? (isAdminContourActive()
+        ? (document.getElementById('admEmbeddedChatsBox') || document.getElementById('secChats'))
+        : (document.getElementById('secChats') || document.getElementById('admEmbeddedChatsBox')))
+    : null);
   const s = store.getState();
   const ident = getCurrentFisherIdentity(s);
   const allItems = purgeExpiredCircleItems(s.circleItems || []);
   const visibleCrews = allItems.filter(x => x.t === 'crew' && !x.sos && canUserAccessCrewItem(x, s));
   try {
     if (typeof document !== 'undefined' && document.body) {
-      document.body.style.overflow = (isFullScreenChatOpen && activeChatChannelId) ? 'hidden' : '';
+      document.body.style.overflow = '';
     }
   } catch (e) {}
+  if (!container) {
+    const overlayHtmlOnly = renderFullScreenChatWindowHtml(s, ident, visibleCrews);
+    const portalOnly = mountFullScreenChatOverlayPortal(overlayHtmlOnly);
+    if (portalOnly) bindChatViewEvents(portalOnly);
+    return;
+  }
+  const isEmbeddedInAdmin = container.id === 'admEmbeddedChatsBox';
+  const subViewHtml = renderChatsSubView(s, ident, visibleCrews);
+  const overlayHtml = renderFullScreenChatWindowHtml(s, ident, visibleCrews);
   container.innerHTML = isEmbeddedInAdmin ? `
     <div style="display:flex;flex-direction:column;gap:8px;">
-      ${renderChatsSubView(s, ident, visibleCrews)}
+      ${subViewHtml}
     </div>
-    ${renderFullScreenChatWindowHtml(s, ident, visibleCrews)}
   ` : `
     <div class="card">
       ${isAdminContourActive() ? `
@@ -6718,15 +6755,15 @@ export function renderChatsSection(customContainer = null) {
           </div>
         </div>
       </div>
-      ${renderChatsSubView(s, ident, visibleCrews)}
+      ${subViewHtml}
     </div>
-    ${renderFullScreenChatWindowHtml(s, ident, visibleCrews)}
   `;
+  mountFullScreenChatOverlayPortal(overlayHtml);
   if (!isEmbeddedInAdmin) bindCircleChatsHubBarEvents(container);
   container.querySelector('#chatBackToAdminConsoleBtn')?.addEventListener('click', () => {
     isFullScreenChatOpen = false;
     activeChatChannelId = '';
-    try { if (typeof document !== 'undefined' && document.body) document.body.style.overflow = ''; } catch (e) {}
+    mountFullScreenChatOverlayPortal('');
     router.navigate('admin');
     renderAdminSection();
   });
@@ -8592,9 +8629,15 @@ export function renderAdminSection(customContainer = null) {
       ${tabContentHtml}
     </div>
   `;
+  try {
+    if (typeof document !== 'undefined' && document.body) document.body.style.overflow = '';
+  } catch (e) {}
   const admChatsBox = container.querySelector('#admEmbeddedChatsBox');
   if (admChatsBox) {
     renderChatsSection(admChatsBox);
+  } else {
+    isFullScreenChatOpen = false;
+    mountFullScreenChatOverlayPortal('');
   }
   bindAdminSectionEvents(container, users);
 }
@@ -8640,7 +8683,7 @@ function bindAdminSectionEvents(container, users) {
     renderAdminSection(container);
   });
   container.querySelector('#admCollapseAllBlocksBtn')?.addEventListener('click', () => {
-    const allIds = ['adm_blk_summary', 'adm_blk_gateways', 'adm_blk_meteoinfo', 'adm_blk_gemini', 'adm_blk_beta', 'adm_blk_users', 'adm_blk_regions', 'adm_blk_points', 'adm_blk_regchats', 'adm_blk_mods', 'adm_blk_policy', 'adm_blk_shield', 'adm_blk_errors'];
+    const allIds = ['adm_blk_livechats', 'adm_blk_summary', 'adm_blk_gateways', 'adm_blk_meteoinfo', 'adm_blk_gemini', 'adm_blk_beta', 'adm_blk_users', 'adm_blk_regions', 'adm_blk_points', 'adm_blk_regchats', 'adm_blk_mods', 'adm_blk_policy', 'adm_blk_shield', 'adm_blk_errors'];
     _adminCollapsedSet = new Set(allIds);
     try { localStorage.setItem(ADMIN_COLLAPSED_BLOCKS_KEY, JSON.stringify(allIds)); } catch (e) {}
     renderAdminSection(container);
@@ -8972,7 +9015,7 @@ function bindAdminSectionEvents(container, users) {
       activeChatChannelId = dmChan;
       isFullScreenChatOpen = true;
       if (isAdminContourActive()) {
-        _adminCollapsedSet.delete('adm_blk_livechats');
+        getAdminCollapsedSet().delete('adm_blk_livechats');
         switchAdminWorkspaceTab('moderation', { keepChatOpen: true });
       } else {
         router.navigate('chats');
@@ -9883,21 +9926,27 @@ function openEditChatMessageModal(msgId, container) {
 }
 function bindChatViewEvents(container) {
   if (!container) return;
-  container.querySelector('#chatAddThematicSpotBtn')?.addEventListener('click', () => {
+  const getPortal = () => (typeof document !== 'undefined' ? document.getElementById('klevFullScreenChatPortal') : null);
+  const q = (sel) => container.querySelector(sel) || getPortal()?.querySelector(sel) || null;
+  const qAll = (sel) => [
+    ...Array.from(container.querySelectorAll(sel)),
+    ...(getPortal() ? Array.from(getPortal().querySelectorAll(sel)) : [])
+  ];
+  q('#chatAddThematicSpotBtn')?.addEventListener('click', () => {
     openAddThematicMapPointModal('slip');
   });
-  container.querySelector('#chatShareCatchTopBtn')?.addEventListener('click', () => {
+  q('#chatShareCatchTopBtn')?.addEventListener('click', () => {
     openShareCatchToChatModal(null);
   });
-  container.querySelector('#chatAttachCatchBtn')?.addEventListener('click', () => {
+  q('#chatAttachCatchBtn')?.addEventListener('click', () => {
     openShareCatchToChatModal(null);
   });
-  container.querySelector('#chatShareLocationBtn')?.addEventListener('click', async () => {
+  q('#chatShareLocationBtn')?.addEventListener('click', async () => {
     if (!requireRegisteredFisherId('отправки местоположения в чат')) return;
     if (!activeChatChannelId) return;
     if (!isGeoDistributionConsentActive()) {
       ensureGeoDistributionConsent('отправки вашей геопозиции в чат', () => {
-        container.querySelector('#chatShareLocationBtn')?.click();
+        q('#chatShareLocationBtn')?.click();
       });
       return;
     }
@@ -9921,23 +9970,26 @@ function bindChatViewEvents(container) {
     }
     showToast('Ваше местоположение отправлено в чат (без добавления в Круг)', 'good');
     renderChatsSection(container);
-    const scrollBox = container.querySelector('#chatMessagesScrollBox');
+    const scrollBox = q('#chatMessagesScrollBox');
     if (scrollBox) scrollBox.scrollTop = scrollBox.scrollHeight;
   });
-  container.querySelector('#chatOpenAuthBtn')?.addEventListener('click', () => {
+  q('#chatOpenAuthBtn')?.addEventListener('click', () => {
     openAuthAndBackupModal();
   });
   const closeFullScreenChat = () => {
     isFullScreenChatOpen = false;
     activeChatChannelId = '';
-    try {
-      if (typeof document !== 'undefined' && document.body) document.body.style.overflow = '';
-    } catch (e) {}
+    mountFullScreenChatOverlayPortal('');
     renderChatsSection(container);
   };
-  container.querySelector('#chatFullScreenBackBtn')?.addEventListener('click', closeFullScreenChat);
-  container.querySelector('#chatFullScreenCloseBtn')?.addEventListener('click', closeFullScreenChat);
-  container.querySelectorAll('[data-select-chat-chan]').forEach(el => {
+  q('#chatFullScreenBackBtn')?.addEventListener('click', closeFullScreenChat);
+  q('#chatFullScreenCloseBtn')?.addEventListener('click', closeFullScreenChat);
+  q('#klevFullScreenChatOverlay')?.addEventListener('click', (ev) => {
+    if (ev.target && ev.target.id === 'klevFullScreenChatOverlay') {
+      closeFullScreenChat();
+    }
+  });
+  qAll('[data-select-chat-chan]').forEach(el => {
     el.addEventListener('click', (e) => {
       if (e.target.closest('[data-del-chat-chan]')) return;
       e.stopPropagation();
@@ -9949,11 +10001,11 @@ function bindChatViewEvents(container) {
         window.__KLEV_PUSH_BACK_GUARD__('chatFullScreen');
       }
       renderChatsSection(container);
-      const scrollBox = container.querySelector('#chatMessagesScrollBox');
+      const scrollBox = q('#chatMessagesScrollBox');
       if (scrollBox) scrollBox.scrollTop = scrollBox.scrollHeight;
     });
   });
-  container.querySelectorAll('[data-del-chat-chan]').forEach(btn => {
+  qAll('[data-del-chat-chan]').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const chanId = btn.getAttribute('data-del-chat-chan');
@@ -9961,21 +10013,21 @@ function bindChatViewEvents(container) {
       deleteChatChannelWithConfirm(chanId, title, container);
     });
   });
-  container.querySelectorAll('[data-del-chat-msg]').forEach(btn => {
+  qAll('[data-del-chat-msg]').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const msgId = btn.getAttribute('data-del-chat-msg');
       openDeleteChatMessageModal(msgId, container);
     });
   });
-  container.querySelectorAll('[data-edit-chat-msg]').forEach(btn => {
+  qAll('[data-edit-chat-msg]').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const msgId = btn.getAttribute('data-edit-chat-msg');
       openEditChatMessageModal(msgId, container);
     });
   });
-  container.querySelectorAll('[data-chat-import-pack]').forEach(btn => {
+  qAll('[data-chat-import-pack]').forEach(btn => {
     btn.addEventListener('click', async () => {
       const tok = btn.getAttribute('data-chat-import-pack');
       if (!tok) return;
@@ -9990,9 +10042,9 @@ function bindChatViewEvents(container) {
       }
     });
   });
-  const regFilterInp = container.querySelector('#regChatFilterInput');
-  const regSelectEl = container.querySelector('#regChatSelectDropdown');
-  const regOpenSelBtn = container.querySelector('#regChatOpenSelectedBtn');
+  const regFilterInp = q('#regChatFilterInput');
+  const regSelectEl = q('#regChatSelectDropdown');
+  const regOpenSelBtn = q('#regChatOpenSelectedBtn');
   if (regFilterInp && regSelectEl) {
     regFilterInp.addEventListener('input', () => {
       const q = (regFilterInp.value || '').trim().toLowerCase();
@@ -10022,7 +10074,7 @@ function bindChatViewEvents(container) {
       showToast(`Открыт региональный чат рыбаков: ${regKey}`, 'good');
     });
   }
-  container.querySelectorAll('[data-open-regional-chat]').forEach(btn => {
+  qAll('[data-open-regional-chat]').forEach(btn => {
     btn.addEventListener('click', () => {
       const regKey = btn.getAttribute('data-open-regional-chat');
       if (!regKey) return;
@@ -10037,8 +10089,8 @@ function bindChatViewEvents(container) {
       showToast(` Открыт региональный чат рыбаков: ${regKey}`, 'good');
     });
   });
-  const joinCrewBtn = container.querySelector('#chatJoinCrewKeyBtn');
-  const joinCrewInp = container.querySelector('#chatJoinCrewKeyInput');
+  const joinCrewBtn = q('#chatJoinCrewKeyBtn');
+  const joinCrewInp = q('#chatJoinCrewKeyInput');
   if (joinCrewBtn && joinCrewInp) {
     joinCrewBtn.addEventListener('click', () => {
       const raw = (joinCrewInp.value || '').trim().toUpperCase();
@@ -10088,18 +10140,18 @@ function bindChatViewEvents(container) {
       window.__KLEV_PUSH_BACK_GUARD__('chatFullScreen');
     }
     renderChatsSection(container);
-    const scrollBox = container.querySelector('#chatMessagesScrollBox');
+    const scrollBox = q('#chatMessagesScrollBox');
     if (scrollBox) scrollBox.scrollTop = scrollBox.scrollHeight;
   };
-  const writeAdminBtn = container.querySelector('#chatWriteAdminBtn');
+  const writeAdminBtn = q('#chatWriteAdminBtn');
   if (writeAdminBtn) {
     writeAdminBtn.addEventListener('click', () => {
       if (!requireRegisteredFisherId('обращения к Администратору')) return;
       openOrReuseDirectChat(OWNER_BOUND_FISHER_ID, '<svg class="k-ico" style="color:#fbbf24;" viewBox="0 0 24 24" fill="none"><path d="M3 18h18l-2-11-5 4-2-6-2 6-5-4-2 11z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Админ («Клёв ПРО»)');
     });
   }
-  const admPickSel = container.querySelector('#chatAdminPickUserSelect');
-  const admPickOpenBtn = container.querySelector('#chatAdminOpenPickedUserBtn');
+  const admPickSel = q('#chatAdminPickUserSelect');
+  const admPickOpenBtn = q('#chatAdminOpenPickedUserBtn');
   if (admPickSel && admPickOpenBtn) {
     admPickOpenBtn.addEventListener('click', () => {
       const val = admPickSel.value || '';
@@ -10111,8 +10163,8 @@ function bindChatViewEvents(container) {
       if (fidPart) openOrReuseDirectChat(fidPart.trim(), (namePart || 'Рыболов').trim());
     });
   }
-  const startDmBtn = container.querySelector('#chatStartDmBtn');
-  const startDmInp = container.querySelector('#chatStartDmIdInput');
+  const startDmBtn = q('#chatStartDmBtn');
+  const startDmInp = q('#chatStartDmIdInput');
   if (startDmBtn && startDmInp) {
     startDmBtn.addEventListener('click', async () => {
       if (!requireRegisteredFisherId('открытия личного чата')) return;
@@ -10159,12 +10211,12 @@ function bindChatViewEvents(container) {
       openOrReuseDirectChat(peerId, peerName);
     });
   }
-  container.querySelector('#chatDeleteHistoryBtn')?.addEventListener('click', () => {
+  q('#chatDeleteHistoryBtn')?.addEventListener('click', () => {
     if (!activeChatChannelId) return;
     deleteChatChannelWithConfirm(activeChatChannelId, activeChatChannelId, container);
   });
-  const chatInput = container.querySelector('#chatComposeInput');
-  const chatSendBtn = container.querySelector('#chatSendMsgBtn');
+  const chatInput = q('#chatComposeInput');
+  const chatSendBtn = q('#chatSendMsgBtn');
   if (chatInput && chatSendBtn) {
     const triggerSend = async () => {
       if (!requireRegisteredFisherId('отправки сообщения')) return;
@@ -10181,7 +10233,7 @@ function bindChatViewEvents(container) {
         await sendFishermanChatMessage({ channelId: activeChatChannelId, text: val, peerId });
       }
       renderChatsSection(container);
-      const scrollBox = container.querySelector('#chatMessagesScrollBox');
+      const scrollBox = q('#chatMessagesScrollBox');
       if (scrollBox) scrollBox.scrollTop = scrollBox.scrollHeight;
     };
     chatSendBtn.addEventListener('click', triggerSend);
@@ -10455,9 +10507,13 @@ export async function init(container, chatsContainer = null, adminContainer = nu
   });
   if (typeof window !== 'undefined') {
     window.__KLEV_CLOSE_FULLSCREEN_CHAT__ = () => {
-      if (isFullScreenChatOpen) {
+      const portal = document.getElementById('klevFullScreenChatPortal');
+      const hasPortal = !!(portal && portal.innerHTML.trim() !== '');
+      if (isFullScreenChatOpen || hasPortal) {
         isFullScreenChatOpen = false;
         activeChatChannelId = '';
+        mountFullScreenChatOverlayPortal('');
+        document.body.style.overflow = '';
         renderChatsSection();
         return true;
       }

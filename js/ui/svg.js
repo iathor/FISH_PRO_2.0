@@ -8,7 +8,7 @@ let clipSeq = 0;
  * - 'missing': PNG отсутствует по всем путям (показываем детальный векторный атлас без повторных 404)
  */
 const pngStatusCache = new Map();
-const PNG_CACHE_STORAGE_KEY = 'klev_pro_png_status_v2_166';
+const PNG_CACHE_STORAGE_KEY = 'klev_pro_png_status_v2_230';
 try {
   if (typeof sessionStorage !== 'undefined') {
     const raw = sessionStorage.getItem(PNG_CACHE_STORAGE_KEY);
@@ -40,16 +40,14 @@ function savePngStatus(fid, status) {
 export function renderFishVisual(f) {
   const fish = f || { id: 'pike', name: 'Рыба' };
   const fid = fish.id || 'pike';
-  const svgMarkup = getFishCustomSVG(fish);
   const status = pngStatusCache.get(fid);
   if (status === 'missing' || !IMG_SEARCH_DIRS || IMG_SEARCH_DIRS.length === 0) {
-    return svgMarkup;
+    return getFishCustomSVG(fish);
   }
   const firstSrc = `${IMG_SEARCH_DIRS[0]}${fid}.png?v=${APP_VERSION}`;
-  return `<div class="fish-visual-hybrid" data-fid="${fid}" style="position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;">` +
-    `<div class="fish-visual-svg-layer" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;">${svgMarkup}</div>` +
+  return `<div class="fish-visual-hybrid has-png" data-fid="${fid}" style="position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;">` +
     `<img class="fish-visual-img" src="${firstSrc}" alt="${fish.name || fid}" loading="lazy" decoding="async" data-fid="${fid}" data-try="0" ` +
-    `style="position:absolute;inset:0;width:100%;height:100%;max-width:100%;max-height:100%;object-fit:contain;display:block;margin:0 auto;opacity:0;" ` +
+    `style="width:100%;height:100%;max-width:100%;max-height:100%;object-fit:contain;display:block;margin:0 auto;opacity:1;" ` +
     `onload="window.handleFishImgLoad && window.handleFishImgLoad(this)" ` +
     `onerror="window.handleFishImgError && window.handleFishImgError(this)">` +
     `</div>`;
@@ -80,19 +78,19 @@ export function handleFishImgError(imgEl, fishObj) {
     imgEl.src = `${IMG_SEARCH_DIRS[nextTry]}${fid}.png?v=${APP_VERSION}`;
   } else {
     if (fid) savePngStatus(fid, 'missing');
+    const found = FISH_DB.find(item => item.id === fid);
+    const fallbackSvg = getFishCustomSVG(fishObj || found || { id: fid || 'pike', name: fid || 'Рыба' });
     const wrap = imgEl.closest('.fish-visual-hybrid');
     if (wrap) {
       const svgLayer = wrap.querySelector('.fish-visual-svg-layer');
       if (svgLayer) {
         svgLayer.style.display = 'flex';
       } else {
-        const found = FISH_DB.find(item => item.id === fid);
-        wrap.insertAdjacentHTML('afterbegin', `<div class="fish-visual-svg-layer" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;">${getFishCustomSVG(fishObj || found || { id: fid || 'pike', name: fid || 'Рыба' })}</div>`);
+        wrap.innerHTML = `<div class="fish-visual-svg-layer" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;">${fallbackSvg}</div>`;
       }
       imgEl.remove();
     } else {
-      const found = FISH_DB.find(item => item.id === fid);
-      imgEl.outerHTML = getFishCustomSVG(fishObj || found || { id: fid || 'pike', name: fid || 'Рыба' });
+      imgEl.outerHTML = fallbackSvg;
     }
   }
 }

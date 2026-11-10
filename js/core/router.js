@@ -181,6 +181,12 @@ export const router = {
     }
   },
   applyVisibility(route) {
+    if (typeof document !== 'undefined' && document.body) {
+      document.body.style.overflow = '';
+      if (route !== 'chats' && route !== 'admin' && typeof window !== 'undefined' && typeof window.__KLEV_CLOSE_FULLSCREEN_CHAT__ === 'function') {
+        try { window.__KLEV_CLOSE_FULLSCREEN_CHAT__(); } catch (_e) { /* ignore */ }
+      }
+    }
     document.querySelectorAll('[data-route-section]').forEach(sec => {
       const secName = sec.getAttribute('data-route-section');
       if (secName === route) {
