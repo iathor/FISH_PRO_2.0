@@ -1,18 +1,18 @@
-import { store } from './store.js?v=2.8.1-r227';
+import { store } from './store.js?v=2.8.3-r229';
 /**
  * @file updater.js
- * @description Модуль строгого контроля версий (v2.8.1 r227):
+ * @description Модуль строгого контроля версий (v2.8.3 r229):
  * - В Android APK: запрос на обновление выводится ТОЛЬКО если версия/ревизия на сервере СТРОГО ВЫШЕ установленной в APK.
  * - На Сайте и в PWA: проверка выхода новой версии с уведомлением о необходимости обновления кэша
  *   и бережной очисткой устаревшего кэша и технических куки БЕЗ удаления пользовательских данных (точек, журнала, профиля, чатов, офлайн-карт).
  */
-import { APP_VERSION, APP_BUILD_NUMBER, APP_REVISION, APP_DISPLAY_VERSION, RELEASE_CACHE_KEY, CURRENT_RELEASE_INFO } from './config.js?v=2.8.1-r227';
-import { showToast } from '../ui/components.js?v=2.8.1-r227';
+import { APP_VERSION, APP_BUILD_NUMBER, APP_REVISION, APP_DISPLAY_VERSION, RELEASE_CACHE_KEY, CURRENT_RELEASE_INFO } from './config.js?v=2.8.3-r229';
+import { showToast } from '../ui/components.js?v=2.8.3-r229';
 
 export const PUBLIC_SITE_ORIGIN = 'https://klevpro.ru';
 export const APK_MANIFEST_PATH = '/apk/apk-version.json';
-export const DEFAULT_APK_DOWNLOAD_URL = 'https://klevpro.ru/apk/klev-pro-v2.8.1.apk';
-export const APK_BANNER_DISMISSED_KEY = 'klev_pro_hide_apk_banner_v2.8.1_r227';
+export const DEFAULT_APK_DOWNLOAD_URL = 'https://klevpro.ru/apk/klev-pro-v2.8.3.apk';
+export const APK_BANNER_DISMISSED_KEY = 'klev_pro_hide_apk_banner_v2.8.3_r229';
 const WEB_CACHE_SYNCED_VER_KEY = 'klev_pro_web_cache_synced_ver_v2';
 
 let pendingSwRegistration = null;
@@ -103,7 +103,7 @@ export function compareSemverStrings(vA = '', vB = '') {
 
 /**
  * Строгое сравнение двух версий:
- * 1) Сначала сравнивается семантическая версия (например, 2.8.1 > 2.5.6 -> 1; 2.5.6 < 2.8.1 -> -1).
+ * 1) Сначала сравнивается семантическая версия (например, 2.8.3 > 2.5.6 -> 1; 2.5.6 < 2.8.3 -> -1).
  * 2) Только при полном равенстве семантической версии сравнивается номер сборки (buildNumber / rNNN).
  */
 export function compareReleaseVersions(verA, revA, verB, revB) {
@@ -193,7 +193,7 @@ function saveInstalledReleaseRecord(info) {
  * - НЕ затрагивает IndexedDB (сохранённые точки на карте, журнал уловов с фото, офлайн-тайлы карт, настройки).
  * - НЕ затрагивает пользовательские ключи localStorage (профиль, Рыболовный ID, логин/пароль, чаты, маршруты Фазы 3).
  * - Очищает только устаревшие технические куки (кроме авторизационных), кэш статических файлов Service Worker (CacheStorage)
- *   и временный кэш старого прогноза погоды, чтобы сразу применились новые ресурсы v2.8.1.
+ *   и временный кэш старого прогноза погоды, чтобы сразу применились новые ресурсы v2.8.3.
  */
 export async function safeCleanObsoleteCacheAndCookies() {
   // 1. Аккуратная очистка только технических/кэширующих куки (сохраняем любые авторизационные/пользовательские куки)
@@ -763,7 +763,7 @@ export async function checkForReleaseUpdate({ manual = false } = {}) {
   const lastCacheSyncedKey = (typeof localStorage !== 'undefined') ? localStorage.getItem(WEB_CACHE_SYNCED_VER_KEY) : null;
   const dismissedRev = (typeof localStorage !== 'undefined') ? localStorage.getItem('klev_pro_dismissed_rev') : null;
 
-  // Серверная версия выше запущенного в браузере JS ИЛИ пользователь перешёл со старой версии (напр. 2.5.6 -> 2.8.1) и кэш ещё не синхронизирован
+  // Серверная версия выше запущенного в браузере JS ИЛИ пользователь перешёл со старой версии (напр. 2.5.6 -> 2.8.3) и кэш ещё не синхронизирован
   const isServerHigherThanRunningJs = compareReleaseVersions(serverInfo.version, serverInfo.buildNumber, APP_VERSION, APP_BUILD_NUMBER) > 0;
   const isUpgradedFromOlderCachedVersion = Boolean(
     prevRecord &&
@@ -803,7 +803,7 @@ export async function checkForReleaseUpdate({ manual = false } = {}) {
 }
 
 export function initReleaseUpdater() {
-  // Сохраняем слепок предыдущей установленной версии ДО проверки, чтобы корректно определить переход (например, с 2.5.6 на 2.8.1)
+  // Сохраняем слепок предыдущей установленной версии ДО проверки, чтобы корректно определить переход (например, с 2.5.6 на 2.8.3)
   _bootInitialInstalledRecord = getInstalledReleaseRecord();
 
   // Если страница уже перезагружена с параметром ?rev=rNNN после нажатия «Обновить кэш», фиксируем успешное обновление кэша

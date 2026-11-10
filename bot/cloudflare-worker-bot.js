@@ -1,7 +1,7 @@
 // @file bot/cloudflare-worker-bot.js — @KlevProClubBot (V.2.1.1)
 // Компактная сборка для Cloudflare Workers (115 рыб, 491 водоём, 609 городов РФ + Triple-Engine $0 DB + E2EE Relay + Обмен точками Круга/Экипажа/SOS + Уникальные Региональные ID FP_89AAA001 & Эксклюзивный VIP ID владельца FP_89VIP089 + Секретная Серверная Консоль Супер-Админа)
 
-const WORKER_VERSION = '2.8.1-r227';
+const WORKER_VERSION = '2.8.3-r229';
 const RESERVE_ID_TTL_MS = 24 * 60 * 60 * 1000; // Временный резервный ID живёт строго не более 24 часов (суток)
 const deletedFisherIdsSet = new Set(); // Удалённые вручную через Админ-панель ID (защита от повторной фоновой вставки)
 const rateBuckets = new Map();
@@ -4620,12 +4620,12 @@ function computeFishScoreForWeather(fishObj, w) {
 
 function makeAppButton(text, deepAppUrl, isPrivateChat = true) {
  let finalUrl = String(deepAppUrl || 'https://klevpro.ru/');
- if (!finalUrl.includes('v=r227')) {
+ if (!finalUrl.includes('v=r229')) {
   const hashIdx = finalUrl.indexOf('#');
   const basePart = hashIdx >= 0 ? finalUrl.slice(0, hashIdx) : finalUrl;
   const hashPart = hashIdx >= 0 ? finalUrl.slice(hashIdx) : '';
   const sep = basePart.includes('?') ? '&' : '?';
-  finalUrl = `${basePart}${sep}v=r227&tma=1${hashPart}`;
+  finalUrl = `${basePart}${sep}v=r229&tma=1${hashPart}`;
  }
  if (isPrivateChat) {
   return { text, web_app: { url: finalUrl } };
@@ -5693,6 +5693,16 @@ async function ensurePersistentStateLoaded(env, forceReload = false) {
      applyLoadedSysMeta(parsedRelBeta);
     }
    }
+   const polKvRow = await d1.prepare('SELECT v FROM klev_kv WHERE k = ?').bind('POLICY_STATE_V2').first().catch(() => null);
+   if (polKvRow && polKvRow.v) {
+    const parsedPolKv = workerSafeJsonParse(polKvRow.v, null);
+    if (parsedPolKv) applyLoadedSysMeta({ policyState: parsedPolKv });
+   }
+   const relPolRow = await d1.prepare('SELECT cipher_payload FROM transit_relay WHERE channel_id = ? ORDER BY ts DESC LIMIT 1').bind('SYS_POLICY_BROADCAST_V1').first().catch(() => null);
+   if (relPolRow && relPolRow.cipher_payload) {
+    const parsedRelPol = workerSafeJsonParse(relPolRow.cipher_payload, null);
+    if (parsedRelPol) applyLoadedSysMeta({ policyState: parsedRelPol });
+   }
    const gemRow = await d1.prepare('SELECT v FROM klev_kv WHERE k = ?').bind('GEMINI_CONFIG_V2').first().catch(() => null);
    if (gemRow && gemRow.v) {
     const parsedGem = workerSafeJsonParse(gemRow.v, null);
@@ -6386,12 +6396,17 @@ const betaGateConfig = {
  phase2BetaOnly: true,
  phase3BetaOnly: true
 };
+const DEFAULT_WORKER_POLICY_SECTIONS = [{"id": "general_and_platforms", "title": "1. Общие положения, некоммерческий статус и режимы платформ (ЗоЗПП РФ, ФЗ № 149-ФЗ)", "text": "Экосистема «Клёв ПРО 2.0: Круг» (домены клевпро.рф / klevpro.ru, веб-приложение PWA, мобильное приложение Android APK и Telegram-бот @KlevProClubBot, возрастная маркировка 12+ по ст. 6 ФЗ № 436-ФЗ) является бесплатным некоммерческим информационно-справочным проектом для рыболовов-любителей. Правообладатель и оператор: Тхор Антон Сергеевич (e-mail: i@athor.ru). В Android APK все пользовательские данные (профиль, постоянный ID, точки на карте, журнал уловов с фото, маршруты) хранятся в защищённом системном разделе «Данные приложения» (Context.getFilesDir()), который не удаляется при очистке кэша. В мини-приложении Telegram (TMA) действует облегчённый режим просмотра и оперативной работы (выгрузка/загрузка файлов, хранение фото в журнале, офлайн-карты, кнопка SOS и функции Фаз 2 и 3 в мини-приложении отключены)."}, {"id": "privacy_and_id", "title": "2. Единый Рыболовный ID и Политика конфиденциальности (Zero-PII, ФЗ № 152-ФЗ)", "text": "Приложение построено по архитектуре Zero-PII: система не запрашивает и не собирает ФИО, паспортные данные, номера телефонов или e-mail. Без регистрации устройству на 24 часа выдаётся временный резервный ID (FP_XXRZYYYY, позывной «Гость (Резерв)»), открывающий доступ к погоде и прогнозу клёва на сегодня, атласу 115 видов рыб РФ (без ИИ), календарю, точкам на карте и журналу уловов. При регистрации Логина и Пароля за пользователем один раз и навсегда закрепляется единственный постоянный региональный ID (FP_XXAAA001..999). При входе под своим логином и паролем с любого устройства (смартфон, планшет, ПК) система проверяет аккаунт в базе Cloudflare D1, возвращает единый постоянный ID пользователя и автоматически удаляет временный гостевой номер. Пароли хешируются по стандарту PBKDF2-HMAC-SHA256 (100 000 итераций), а сетевые пакеты через резервные анти-DPI шлюзы шифруются алгоритмом RSA-OAEP-2048 + AES-256-GCM."}, {"id": "geo_consent", "title": "3. Порядок обработки геолокации в сети Интернет (ст. 10.1 ФЗ № 152-ФЗ)", "text": "Для расчёта локального прогноза клёва, температуры воды, толщины льда и записи личного маршрута координаты обрабатываются на устройстве пользователя. Передача геоданных в сеть Интернет (в разделы «Круг ±5 км», «Экипаж 72 ч», «Слипы/Точки», «Чаты» или сигнал «SOS») осуществляется только при наличии отдельного предварительного согласия пользователя. Пользователь вправе в любой момент отозвать согласие одной кнопкой в профиле или на карте — при отзыве все ранее переданные геоданные и точки пользователя немедленно удаляются с сервера и из чатов. Оперативные точки «Круга» и «Экипажа (72 ч)» автоматически удаляются через 72 часа."}, {"id": "account_deletion", "title": "4. Право на полное удаление учётной записи («Удалить УЗ»)", "text": "Пользователь имеет право в любой момент удалить свою учётную запись через раздел «Профиль и ID» -> «Удалить УЗ». При удалении учётной записи с сервера и из базы данных D1 безвозвратно удаляются: профиль и постоянный ID пользователя, все опубликованные точки «Круга» и «Слипов», уловы, сообщения во всех региональных и личных чатах, а также привязка к Telegram."}, {"id": "ip_and_data_sources", "title": "5. Интеллектуальная собственность, картография и метео-гидрологические источники (ГК РФ)", "text": "Исключительные права на программный код, 115 иллюстраций рыб, базу водоёмов РФ и физико-математические модели принадлежат правообладателю (© Тхор А. С., 2025–2026). Картографические материалы предоставляются ООО «Яндекс» для личного некоммерческого использования в соответствии с Условиями использования сервиса Яндекс.Карты (https://yandex.ru/legal/maps_termsofuse/), а также проектами OpenStreetMap (ODbL) и OSRM. Расчётное ядро использует открытые метеорологические, гидрологические, ледовые и дорожные сводки Гидрометцентра России (meteoinfo.ru), MET Norway и Open-Meteo."}, {"id": "beta_and_safety", "title": "6. Регламент Бета-теста (Фазы 2 и 3), безопасность на воде, льду и дорогах (ГИМС МЧС РФ, ФЗ № 166-ФЗ)", "text": "Функции закрытого Бета-теста — Фаза 2 (ИИ-распознавание улова по фото, диагностика патологий рыб и голосовой ИИ-помощник) и Фаза 3 (фоновая запись маршрута с привязкой к дорогам и тропам, голосовое ведение по маршруту и возврат по следу «Я потерялся») — предоставляются зарегистрированным участникам тестирования в ознакомительном режиме. Все расчёты прогноза клёва, температуры воды, толщины льда, дорожных предупреждений о гололёде/гололедице и голосовые подсказки навигатора носят исключительно информационно-справочный характер и не заменяют официальные сводки МЧС России, ГИМС и экстренный вызов 112. Пользователь обязуется соблюдать Правила рыболовства РФ (ФЗ № 166-ФЗ)."}];
 const policyStateStore = {
- policyVersion: '2026.11.06-v2.6',
- appVersion: '2.8.1',
- appRevision: 'r227',
- updatedAt: '2026-11-06T12:00:00Z',
- summary: 'Обновление версии v2.8.1 (r227): точное ведение по маршруту с ортогональной проекцией на дорогу, изоляция Telegram Mini App,4-колоночное выравнивание нижнего бара в TMA, доступ по временному ID и новые иконки APK/PWA.'
+ policyVersion: '2026.11.10-v2.8.3',
+ appVersion: '2.8.3',
+ appRevision: 'r229',
+ effectiveDate: '10 ноября 2026 г.',
+ title: 'Политика конфиденциальности, Пользовательское соглашение и Правила обработки геоданных «Клёв ПРО 2.0»',
+ updatedAt: '2026-11-10T03:35:00Z',
+ broadcastId: 'POL_BC_INIT_283',
+ summary: 'Редакция v2.8.3 (r229): защита пользовательских данных в разделе «Данные приложения» Android APK (Context.getFilesDir), единая привязка постоянного ID к логину и паролю на всех устройствах, калибровка гидрологии по сводкам Росгидромета (meteoinfo.ru) и динамическая рассылка политики без пересборки.',
+ sections: DEFAULT_WORKER_POLICY_SECTIONS
 };
 const userConsentsStore = new Map();
 
@@ -6624,11 +6639,21 @@ function applyLoadedSysMeta(parsed) {
   if (typeof parsed.betaGateConfig.phase3BetaOnly === 'boolean') betaGateConfig.phase3BetaOnly = parsed.betaGateConfig.phase3BetaOnly;
  }
  if (parsed.policyState && typeof parsed.policyState === 'object') {
-  if (parsed.policyState.policyVersion) policyStateStore.policyVersion = String(parsed.policyState.policyVersion);
-  if (parsed.policyState.appVersion) policyStateStore.appVersion = String(parsed.policyState.appVersion);
-  if (parsed.policyState.appRevision) policyStateStore.appRevision = String(parsed.policyState.appRevision);
-  if (parsed.policyState.updatedAt) policyStateStore.updatedAt = String(parsed.policyState.updatedAt);
-  if (parsed.policyState.summary) policyStateStore.summary = String(parsed.policyState.summary);
+  const inTs = Date.parse(parsed.policyState.updatedAt || '') || 0;
+  const curTs = Date.parse(policyStateStore.updatedAt || '') || 0;
+  if (inTs >= curTs || parsed.policyState.broadcastId) {
+   if (parsed.policyState.policyVersion) policyStateStore.policyVersion = String(parsed.policyState.policyVersion);
+   if (parsed.policyState.appVersion) policyStateStore.appVersion = String(parsed.policyState.appVersion);
+   if (parsed.policyState.appRevision) policyStateStore.appRevision = String(parsed.policyState.appRevision);
+   if (parsed.policyState.effectiveDate) policyStateStore.effectiveDate = String(parsed.policyState.effectiveDate);
+   if (parsed.policyState.title) policyStateStore.title = String(parsed.policyState.title);
+   if (parsed.policyState.updatedAt) policyStateStore.updatedAt = String(parsed.policyState.updatedAt);
+   if (parsed.policyState.summary) policyStateStore.summary = String(parsed.policyState.summary);
+   if (parsed.policyState.broadcastId) policyStateStore.broadcastId = String(parsed.policyState.broadcastId);
+   if (Array.isArray(parsed.policyState.sections) && parsed.policyState.sections.length > 0) {
+    policyStateStore.sections = parsed.policyState.sections;
+   }
+  }
  }
  if (parsed.userConsents && typeof parsed.userConsents === 'object') {
   for (const [cfid, cobj] of Object.entries(parsed.userConsents)) {
@@ -8097,8 +8122,8 @@ async function fetchMeteoinfoEnrichment(lat, lon) {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), 2400);
   const [egmbRes, extraRes] = await Promise.all([
-   fetch('https://meteoinfo.ru/egmb', { headers: { 'User-Agent': 'Mozilla/5.0 (KlevPro/2.8.1)' }, signal: ctrl.signal }).catch(() => null),
-   fetch('https://meteoinfo.ru/extrainfopage', { headers: { 'User-Agent': 'Mozilla/5.0 (KlevPro/2.8.1)' }, signal: ctrl.signal }).catch(() => null)
+   fetch('https://meteoinfo.ru/egmb', { headers: { 'User-Agent': 'Mozilla/5.0 (KlevPro/2.8.3)' }, signal: ctrl.signal }).catch(() => null),
+   fetch('https://meteoinfo.ru/extrainfopage', { headers: { 'User-Agent': 'Mozilla/5.0 (KlevPro/2.8.3)' }, signal: ctrl.signal }).catch(() => null)
   ]);
   clearTimeout(t);
   const egmbTxt = (egmbRes && egmbRes.ok) ? await egmbRes.text().catch(() => '') : '';
@@ -8831,6 +8856,7 @@ async function fetchMeteoinfoEnrichment(lat, lon) {
    return new Response(JSON.stringify({
     ok: true,
     items: safeItems,
+    policyState: policyStateStore,
     serverTime: Date.now()
    }), {
     headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
@@ -9298,6 +9324,7 @@ async function fetchMeteoinfoEnrichment(lat, lon) {
      deviceId: String(body.deviceId || '').trim(),
      policyVersion: String(body.policyVersion || policyStateStore.policyVersion),
      appVersion: String(body.appVersion || policyStateStore.appVersion),
+     broadcastId: String(body.broadcastId || policyStateStore.broadcastId || ''),
      chkPrivacy: true,
      chkTerms: true,
      acceptedAt: Date.now()
@@ -9333,10 +9360,66 @@ async function fetchMeteoinfoEnrichment(lat, lon) {
     if (body.policyVersion) policyStateStore.policyVersion = String(body.policyVersion).trim().slice(0, 64);
     if (body.appVersion) policyStateStore.appVersion = String(body.appVersion).trim().slice(0, 32);
     if (body.appRevision) policyStateStore.appRevision = String(body.appRevision).trim().slice(0, 32);
-    if (body.summary) policyStateStore.summary = String(body.summary).trim().slice(0, 500);
-    policyStateStore.updatedAt = new Date().toISOString();
+    if (body.effectiveDate) policyStateStore.effectiveDate = String(body.effectiveDate).trim().slice(0, 48);
+    if (body.title) policyStateStore.title = String(body.title).trim().slice(0, 220);
+    if (body.summary) policyStateStore.summary = String(body.summary).trim().slice(0, 1000);
+    if (Array.isArray(body.sections) && body.sections.length > 0) {
+     policyStateStore.sections = body.sections.slice(0, 15).map((s, idx) => ({
+      id: String(s?.id || `sec_${idx + 1}`).slice(0, 32),
+      title: String(s?.title || `Раздел ${idx + 1}`).slice(0, 200),
+      text: String(s?.text || '').slice(0, 6000)
+     }));
+    }
+    const nowMs = Date.now();
+    policyStateStore.broadcastId = String(body.broadcastId || `POL_BC_${nowMs}`).trim().slice(0, 64);
+    policyStateStore.updatedAt = new Date(nowMs).toISOString();
+
+    // Сохраняем в D1 (klev_kv и transit_relay для мгновенной доставки во все клиентские сессии)
+    const d1Info = getD1(env);
+    const d1 = d1Info?.db;
+    const serializedPol = JSON.stringify(policyStateStore);
+    if (d1) {
+     await d1.prepare('INSERT OR REPLACE INTO klev_kv (k, v, updated_at) VALUES (?, ?, ?)').bind('POLICY_STATE_V2', serializedPol, nowMs).run().catch(() => {});
+     await d1PushRelay(env, {
+      id: policyStateStore.broadcastId,
+      channelId: 'SYS_POLICY_BROADCAST_V1',
+      senderId: OWNER_FISHER_ID,
+      cipherPayload: serializedPol,
+      kind: 'policy_broadcast',
+      ts: nowMs
+     }).catch(() => {});
+     await d1PushRelay(env, {
+      id: `${policyStateStore.broadcastId}_ALL`,
+      channelId: 'SOS_ALL',
+      senderId: OWNER_FISHER_ID,
+      cipherPayload: serializedPol,
+      kind: 'policy_broadcast',
+      ts: nowMs
+     }).catch(() => {});
+    }
+    for (const ch of ['SYS_POLICY_BROADCAST_V1', 'SOS_ALL']) {
+     const list = transitBoxes.get(ch) || [];
+     list.push({
+      id: ch === 'SOS_ALL' ? `${policyStateStore.broadcastId}_ALL` : policyStateStore.broadcastId,
+      channelId: ch,
+      senderId: OWNER_FISHER_ID,
+      cipherPayload: serializedPol,
+      kind: 'policy_broadcast',
+      ts: nowMs
+     });
+     transitBoxes.set(ch, list.slice(-50));
+    }
+    const kv = getKV(env);
+    if (kv) {
+     await kv.put('POLICY_STATE_V2', serializedPol).catch(() => {});
+    }
     await persistSystemMeta(env, ctx);
-    return new Response(JSON.stringify({ ok: true, policyState: policyStateStore }), {
+    return new Response(JSON.stringify({
+     ok: true,
+     policyState: policyStateStore,
+     broadcastId: policyStateStore.broadcastId,
+     deliveredChannels: ['SYS_POLICY_BROADCAST_V1', 'SOS_ALL', 'D1_KV']
+    }), {
      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
     });
    } catch (e) {

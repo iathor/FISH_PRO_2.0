@@ -1,4 +1,4 @@
-import { RU } from '../i18n/ru.js?v=2.8.1-r227';
+import { RU } from '../i18n/ru.js?v=2.8.3-r229';
 export function formatLocalYYYYMMDD(dt) {
   const y = dt.getFullYear();
   const m = String(dt.getMonth() + 1).padStart(2, '0');

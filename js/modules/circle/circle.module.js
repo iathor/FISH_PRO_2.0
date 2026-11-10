@@ -9,16 +9,16 @@
  * - Выделенная вкладка « Чаты» на нижней панели навигации + отправка карточки улова прямо в чат.
  * - Закрытый режим Супер-Админа (только для Владельца + управляемая База Администраторов с синхронизацией).
  */
-import { events } from '../../core/events.js?v=2.8.1-r227';
-import { store } from '../../core/store.js?v=2.8.1-r227';
-import { storage, calcGeoDistanceKm, safeJsonParse } from '../../core/storage.js?v=2.8.1-r227';
-import { router } from '../../core/router.js?v=2.8.1-r227';
-import { getSeasonalBaitsForContext, SPOT_CATEGORIES } from '../../core/config.js?v=2.8.1-r227';
-import { detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.8.1-r227';
-import { findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.8.1-r227';
-import { WATER_PROFILES } from '../../data/waters.js?v=2.8.1-r227';
-import { FISH_DB } from '../../data/species.js?v=2.8.1-r227';
-import { escapeHtml, isAnonymousCallsignValid, createPill, showToast, openModal, closeModal, copyFisherIdToClipboard, openConfirmDeleteModal, openUserAgreementModal, isUserAgreementAccepted, downloadFileCrossPlatform, triggerSystemNotificationCrossPlatform, requestSystemNotificationsAccess, flashHighlightElement, isPolicyVersionAccepted, getSavedPolicyConsentMeta, POLICY_CONSENT_META_KEY, ACTIVE_POLICY_VERSION_DEFAULT, ACTIVE_APP_VERSION_DEFAULT, isGeoDistributionConsentActive, ensureGeoDistributionConsent, setGeoDistributionConsentState } from '../../ui/components.js?v=2.8.1-r227';
+import { events } from '../../core/events.js?v=2.8.3-r229';
+import { store } from '../../core/store.js?v=2.8.3-r229';
+import { storage, calcGeoDistanceKm, safeJsonParse } from '../../core/storage.js?v=2.8.3-r229';
+import { router } from '../../core/router.js?v=2.8.3-r229';
+import { getSeasonalBaitsForContext, SPOT_CATEGORIES } from '../../core/config.js?v=2.8.3-r229';
+import { detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.8.3-r229';
+import { findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.8.3-r229';
+import { WATER_PROFILES } from '../../data/waters.js?v=2.8.3-r229';
+import { FISH_DB } from '../../data/species.js?v=2.8.3-r229';
+import { escapeHtml, isAnonymousCallsignValid, createPill, showToast, openModal, closeModal, copyFisherIdToClipboard, openConfirmDeleteModal, openUserAgreementModal, isUserAgreementAccepted, downloadFileCrossPlatform, triggerSystemNotificationCrossPlatform, requestSystemNotificationsAccess, flashHighlightElement, isPolicyVersionAccepted, getSavedPolicyConsentMeta, POLICY_CONSENT_META_KEY, ACTIVE_POLICY_VERSION_DEFAULT, ACTIVE_APP_VERSION_DEFAULT, saveRemotePolicyToClientEnv, getRemotePolicyFromClientEnv, parsePolicySectionsFromEditableText, formatPolicySectionsToEditableText, DEFAULT_POLICY_SECTIONS, isGeoDistributionConsentActive, ensureGeoDistributionConsent, setGeoDistributionConsentState } from '../../ui/components.js?v=2.8.3-r229';
 import {
   RELAY_WORKER_URL,
   buildShareUrls,
@@ -31,9 +31,9 @@ import {
   syncToTelegramCloud,
   readFromTelegramCloud,
   triggerHaptic
-} from '../../core/telegram.js?v=2.8.1-r227';
-import { setLocation } from '../geo/geo.module.js?v=2.8.1-r227';
-import { calcDynamicRig } from '../forecast/forecast.module.js?v=2.8.1-r227';
+} from '../../core/telegram.js?v=2.8.3-r229';
+import { setLocation } from '../geo/geo.module.js?v=2.8.3-r229';
+import { calcDynamicRig } from '../forecast/forecast.module.js?v=2.8.3-r229';
 export const CREW_TTL_MS = 72 * 60 * 60 * 1000;
 /**
  * Вычисляет точное время окончания действия ссылки на длинную экспедицию:
@@ -2614,7 +2614,7 @@ export async function authenticateAndSyncAccount(rawLogin, rawPassword, mode = '
       deviceId: snapshot.deviceId,
       previousFisherId: previousReserveId,
       platform: detectClientPlatformLabel(),
-      version: '2.8.1',
+      version: '2.8.3',
       profileSnapshot: snapshot
     });
     const endpoint = mode === 'sync' ? '/auth/sync' : '/auth/login';
@@ -4011,6 +4011,9 @@ export async function pollEncryptedRelayPackets(manual = false) {
       return 0;
     }
     const data = await res.json();
+    if (data?.policyState && typeof data.policyState === 'object' && data.policyState.policyVersion) {
+      receiveRemotePolicyBroadcastOnClient(data.policyState, { triggerModal: true });
+    }
     const packets = Array.isArray(data?.packets) ? data.packets : [];
     let newCount = 0;
     let stateChanged = false;
@@ -4037,6 +4040,13 @@ export async function pollEncryptedRelayPackets(manual = false) {
             store.dispatch({ type: 'SET_CIRCLE_ITEMS', payload: filtered });
             syncCircleNavBadge();
           }
+        }
+        continue;
+      }
+      if (pkt.kind === 'policy_broadcast' && pkt.cipherPayload) {
+        const polPkt = safeJsonParse(pkt.cipherPayload, null);
+        if (polPkt && polPkt.policyVersion) {
+          receiveRemotePolicyBroadcastOnClient(polPkt, { triggerModal: true });
         }
         continue;
       }
@@ -5369,46 +5379,100 @@ export function openNotificationsModal(onBackToHub = null) {
  * - Управление Базой Администраторов и резервное копирование (.json)
  */
 
-export async function checkAndEnforcePolicyVersionOnStartup() {
-  if (typeof window === 'undefined' || isAdminContourActive()) return;
-  let expectedPolicyVer = ACTIVE_POLICY_VERSION_DEFAULT;
-  let expectedAppVer = ACTIVE_APP_VERSION_DEFAULT;
-  try {
-    const r = await fetch('./policy-version.json?t=' + Date.now(), { cache: 'no-store' }).catch(() => null);
-    if (r && r.ok) {
-      const d = await r.json().catch(() => null);
-      if (d && d.policyVersion) expectedPolicyVer = String(d.policyVersion);
-      if (d && d.appVersion) expectedAppVer = String(d.appVersion);
+let _lastHandledPolicyBroadcastKey = '';
+let _policySyncTimerBound = false;
+
+export function receiveRemotePolicyBroadcastOnClient(incomingPol, { triggerModal = true } = {}) {
+  if (!incomingPol || typeof incomingPol !== 'object' || !incomingPol.policyVersion) return false;
+  const prevEnv = getRemotePolicyFromClientEnv();
+  const prevKey = `${prevEnv.policyVersion || ''}::${prevEnv.broadcastId || ''}`;
+  const savedEnv = saveRemotePolicyToClientEnv(incomingPol);
+  const nextKey = `${savedEnv.policyVersion || ''}::${savedEnv.broadcastId || ''}`;
+  const changed = prevKey !== nextKey;
+
+  if (typeof window !== 'undefined' && isAdminContourActive()) {
+    if (!_adminDashboardCache) _adminDashboardCache = {};
+    _adminDashboardCache.policyState = savedEnv;
+    return changed;
+  }
+
+  if (triggerModal && !isPolicyVersionAccepted(savedEnv.policyVersion, savedEnv.appVersion, savedEnv.broadcastId)) {
+    if (_lastHandledPolicyBroadcastKey !== nextKey) {
+      _lastHandledPolicyBroadcastKey = nextKey;
+      if (changed) {
+        showToast(`Получено обновление Политики и Пользовательского соглашения (${savedEnv.policyVersion})`, 'info');
+      }
+      setTimeout(() => {
+        openUserAgreementModal({ requireVerification: false, isRemotePushUpdate: Boolean(changed) });
+      }, 450);
     }
-  } catch (e) {}
+  }
+  return changed;
+}
+
+export async function syncRemotePolicyFromServer(triggerModal = true) {
+  let bestPol = null;
   try {
     const s = store.getState();
     const fid = s?.userProfile?.fisherId || '';
-    const srvRes = await workerFetch(`/api/policy/status?fid=${encodeURIComponent(fid)}`, { method: 'GET' }, 3500, 0).catch(() => null);
+    const srvRes = await workerFetch(`/api/policy/status?fid=${encodeURIComponent(fid)}&_t=${Date.now()}`, { method: 'GET' }, 4000, 0).catch(() => null);
     if (srvRes && srvRes.ok) {
       const srvData = await srvRes.json().catch(() => null);
-      if (srvData && srvData.policyVersion) expectedPolicyVer = String(srvData.policyVersion);
-      if (srvData && srvData.appVersion) expectedAppVer = String(srvData.appVersion);
+      if (srvData && srvData.policyVersion) {
+        bestPol = srvData;
+      }
     }
   } catch (e) {}
-  window.__KLEV_ACTIVE_POLICY_VERSION__ = expectedPolicyVer;
-  window.__KLEV_ACTIVE_APP_VERSION__ = expectedAppVer;
-  window.__KLEV_ON_POLICY_ACCEPTED__ = async ({ policyVersion, appVersion }) => {
+  try {
+    const pullRes = await workerFetch(`/relay/pull?viewer=POL_SYNC&boxes=SYS_POLICY_BROADCAST_V1&since=0&_t=${Date.now()}`, { method: 'GET' }, 4000, 0).catch(() => null);
+    if (pullRes && pullRes.ok) {
+      const pullData = await pullRes.json().catch(() => null);
+      if (pullData?.policyState && pullData.policyState.policyVersion) {
+        bestPol = pullData.policyState;
+      }
+      if (Array.isArray(pullData?.packets) && pullData.packets.length > 0) {
+        const sorted = [...pullData.packets].sort((a, b) => (Number(b?.ts) || 0) - (Number(a?.ts) || 0));
+        for (const pkt of sorted) {
+          const pObj = safeJsonParse(pkt?.cipherPayload, null);
+          if (pObj && pObj.policyVersion) {
+            const pTs = Date.parse(pObj.updatedAt || '') || Number(pkt.ts) || 0;
+            const bTs = bestPol ? (Date.parse(bestPol.updatedAt || '') || 0) : 0;
+            if (!bestPol || pTs >= bTs || pObj.broadcastId !== bestPol.broadcastId) {
+              bestPol = pObj;
+            }
+            break;
+          }
+        }
+      }
+    }
+  } catch (e) {}
+  if (bestPol && bestPol.policyVersion) {
+    receiveRemotePolicyBroadcastOnClient(bestPol, { triggerModal });
+    return bestPol;
+  }
+  return getRemotePolicyFromClientEnv();
+}
+
+export async function checkAndEnforcePolicyVersionOnStartup() {
+  if (typeof window === 'undefined') return;
+  window.__KLEV_ON_POLICY_ACCEPTED__ = async ({ policyVersion, appVersion, broadcastId }) => {
     try {
       const sNow = store.getState();
       const ident = getCurrentFisherIdentity(sNow);
+      const envPol = getRemotePolicyFromClientEnv();
       await workerFetch('/api/policy/accept', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           fisherId: ident.fisherId,
           deviceId: ident.deviceId,
-          policyVersion: policyVersion || expectedPolicyVer,
-          appVersion: appVersion || expectedAppVer,
+          policyVersion: policyVersion || envPol.policyVersion,
+          appVersion: appVersion || envPol.appVersion,
+          broadcastId: broadcastId || envPol.broadcastId || '',
           chkPrivacy: true,
           chkTerms: true
         })
-      }, 4000, 0);
+      }, 4500, 0);
     } catch (e) {}
   };
   window.__KLEV_ON_GEO_CONSENT_CHANGED__ = async (granted) => {
@@ -5423,10 +5487,45 @@ export async function checkAndEnforcePolicyVersionOnStartup() {
       } catch (e) {}
     }
   };
-  if (!isPolicyVersionAccepted(expectedPolicyVer, expectedAppVer)) {
+  if (isAdminContourActive()) return;
+
+  // 1. Загружаем локальный baseline из ./policy-version.json, если в окружении ещё нет более свежей серверной рассылки
+  try {
+    const existingRaw = typeof localStorage !== 'undefined' ? localStorage.getItem('klev_pro_remote_policy_env_v1') : null;
+    if (!existingRaw) {
+      const r = await fetch('./policy-version.json?t=' + Date.now(), { cache: 'no-store' }).catch(() => null);
+      if (r && r.ok) {
+        const d = await r.json().catch(() => null);
+        if (d && d.policyVersion) {
+          saveRemotePolicyToClientEnv(d);
+        }
+      }
+    }
+  } catch (e) {}
+
+  // 2. Запрашиваем актуальную серверную редакцию политики (с записью в окружение клиента)
+  await syncRemotePolicyFromServer(true);
+
+  const curEnv = getRemotePolicyFromClientEnv();
+  if (!isPolicyVersionAccepted(curEnv.policyVersion, curEnv.appVersion, curEnv.broadcastId)) {
     setTimeout(() => {
       openUserAgreementModal({ requireVerification: false });
     }, 650);
+  }
+
+  // 3. Фоновый слушатель для активных клиентских сессий (при развороте приложения и каждые 2.5 минуты)
+  if (!_policySyncTimerBound && typeof document !== 'undefined') {
+    _policySyncTimerBound = true;
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && !isAdminContourActive()) {
+        syncRemotePolicyFromServer(true).catch(() => {});
+      }
+    });
+    setInterval(() => {
+      if (!isAdminContourActive()) {
+        syncRemotePolicyFromServer(true).catch(() => {});
+      }
+    }, 150000);
   }
 }
 
@@ -5556,7 +5655,7 @@ export function openAuthAndBackupModal(onBackToHub = null) {
               ? `За вашим аккаунтом <b>${savedLogin}</b> навечно закреплены оба неприкосновенных ID Владельца: <b>FP_89VIP089</b> и <b>FP_FMP089</b>. Никто другой не может их получить.`
               : (ident.isRegistered
                   ? `Ваш постоянный ID <b>${ident.fisherId}</b> выдан один раз и навсегда жёстко привязан только к вашему логину (<b>${escapeHtml(savedLogin)}</b>) и паролю. Входите с Android, iOS, планшета или ПК — везде будет этот же ID и ваши данные!`
-                  : `Сейчас вам выдан временный резервный ID <b>${ident.fisherId}</b> (гостевой профиль <code>FP_XXRZYYYY</code>). <b>В гостевом режиме на мобильных устройствах доступны только экспресс-прогноз клёва на сегодня и обзорная карта («Где я» и «Кто здесь клюёт»).</b> После регистрации логина и пароля вам навсегда выдаётся постоянный региональный ID и открываются все возможности: прогноз на 10 дней и архив, режимы «Новичок / Рыбак / Профи», слои Яндекс Карт и офлайн-карты 50/120 км, ихтиоатлас 115 рыб, био-календарь, журнал уловов, Круг, Экипаж, Чаты и SOS!`)}
+                  : `Сейчас вам выдан временный резервный ID <b>${ident.fisherId}</b> (гостевой профиль <code>FP_XXRZYYYY</code>). <b>С временным ID вам открыты прогноз клёва и погода на сегодня, справочник 115 видов рыб РФ (вертикальная лента карточек, без ИИ), годовой био-календарь, создание точек на карте и журнал уловов.</b> После регистрации логина и пароля вам навсегда выдаётся постоянный региональный ID и открываются все возможности: прогноз на 10 дней и архив, режимы «Новичок / Рыбак / Профи», слои Яндекс Карт и офлайн-карты 50/120 км, ихтиоатлас 115 рыб, био-календарь, журнал уловов, Круг, Экипаж, Чаты и SOS!`)}
           </div>
           ${ident.isOwner ? `
             <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">
@@ -7958,30 +8057,54 @@ export function renderAdminSection(customContainer = null) {
         if (rawP) locPol = JSON.parse(rawP);
       }
     } catch (e) {}
-    const polState = locPol || db.policyState || {
-      policyVersion: '2026.11.06-v2.6',
-      appVersion: '2.5.6',
-      summary: 'Обновление версии v2.5.6 (r215) и редакции Политики конфиденциальности (152-ФЗ / ст. 10.1 о передаче геолокации, удалении УЗ и маршрутах Фазы 3).'
+    const envPolFallback = getRemotePolicyFromClientEnv();
+    const polState = locPol || db.policyState || envPolFallback || {
+      policyVersion: '2026.11.10-v2.8.3',
+      appVersion: '2.8.3',
+      summary: envPolFallback.summary,
+      sections: DEFAULT_POLICY_SECTIONS
     };
+    const editableSectionsStr = formatPolicySectionsToEditableText(
+      Array.isArray(polState.sections) && polState.sections.length > 0 ? polState.sections : DEFAULT_POLICY_SECTIONS
+    );
+    const consentsMap = (db && db.userConsents && typeof db.userConsents === 'object') ? db.userConsents : {};
+    const acceptedCurrCount = Object.values(consentsMap).filter(c => c && c.policyVersion === polState.policyVersion && c.chkPrivacy && c.chkTerms).length;
 
     const policyBodyHtml = `
-      <div style="font-size:11.5px;color:var(--muted);line-height:1.4;">
-        При публикации нового номера редакции Политики у всех пользователей (на сайте и в APK) автоматически откроется окно повторного согласия с чекбоксами:
+      <div style="font-size:11.5px;color:var(--muted);line-height:1.45;">
+        <b>Механизм прямого обновления без пересборки (Отправитель -> Получатель):</b> при нажатии кнопки «Отправить...» новая редакция, сводка и полный текст разделов передаются во все активные и будущие клиентские сессии (Сайт, PWA, Android APK, TMA), записываются в локальное окружение клиентов (<code>klev_pro_remote_policy_env_v1</code>) и автоматически открывают окно согласия с чекбоксами.
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;padding:7px 10px;background:var(--panel);border:1px solid var(--border);border-radius:8px;font-size:11px;">
+        <span>Активная редакция: <b style="color:var(--accent);">${escapeHtml(polState.policyVersion || '2026.11.10-v2.8.3')}</b></span>
+        <span>Приняли в D1: <b style="color:var(--good);">${acceptedCurrCount} чел.</b></span>
+        <button type="button" class="btn btn-sm" id="admBumpPolicyVerBtn" style="min-height:26px;padding:2px 8px;font-size:10.5px;font-weight:800;">+ Новая дата/номер</button>
       </div>
       <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
         <div>
           <label style="font-size:10.5px;font-weight:800;color:var(--muted);">РЕДАКЦИЯ ПОЛИТИКИ:</label>
-          <input type="text" id="admPolicyVerInput" class="input" value="${escapeHtml(polState.policyVersion || '2026.11.06-v2.6')}" style="width:100%;min-height:40px;font-weight:800;">
+          <input type="text" id="admPolicyVerInput" class="input" value="${escapeHtml(polState.policyVersion || '2026.11.10-v2.8.3')}" style="width:100%;min-height:40px;font-weight:800;">
         </div>
         <div>
           <label style="font-size:10.5px;font-weight:800;color:var(--muted);">ВЕРСИЯ ПРИЛОЖЕНИЯ:</label>
-          <input type="text" id="admPolicyAppVerInput" class="input" value="${escapeHtml(polState.appVersion || '2.5.6')}" style="width:100%;min-height:40px;font-weight:800;">
+          <input type="text" id="admPolicyAppVerInput" class="input" value="${escapeHtml(polState.appVersion || '2.8.3')}" style="width:100%;min-height:40px;font-weight:800;">
         </div>
       </div>
-      <input type="text" id="admPolicySummaryInput" class="input" value="${escapeHtml(polState.summary || '')}" placeholder="Краткое описание изменений в политике..." style="width:100%;min-height:40px;">
-      <button type="button" class="btn btn-good" id="admPublishPolicyVerBtn" style="width:100%;min-height:42px;font-weight:900;justify-content:center;">
-        Опубликовать Политику и запросить согласие у всех
-      </button>
+      <div>
+        <label style="font-size:10.5px;font-weight:800;color:var(--muted);">КРАТКОЕ ОПИСАНИЕ ИЗМЕНЕНИЙ (SUMMARY В ШАПКЕ ОКНА СОГЛАШЕНИЯ):</label>
+        <input type="text" id="admPolicySummaryInput" class="input" value="${escapeHtml(polState.summary || '')}" placeholder="Краткое описание изменений в политике..." style="width:100%;min-height:40px;">
+      </div>
+      <div>
+        <label style="font-size:10.5px;font-weight:800;color:var(--muted);">ПОЛНЫЙ ТЕКСТ И РАЗДЕЛЫ СОГЛАШЕНИЯ (ЗАПИСЫВАЮТСЯ В ОКРУЖЕНИЕ КЛИЕНТОВ):</label>
+        <textarea id="admPolicySectionsTextarea" class="input" rows="8" style="width:100%;min-height:150px;font-size:11.5px;line-height:1.42;font-family:inherit;resize:vertical;">${escapeHtml(editableSectionsStr)}</textarea>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1.5fr;gap:8px;">
+        <button type="button" class="btn btn-sm" id="admPreviewPolicyModalBtn" style="min-height:42px;font-weight:800;justify-content:center;">
+          Предпросмотр окна
+        </button>
+        <button type="button" class="btn btn-good" id="admPublishPolicyVerBtn" style="min-height:42px;font-weight:900;justify-content:center;">
+          Отправить в клиентские сессии
+        </button>
+      </div>
     `;
 
     const secRep = getMergedSecurityAuditReport();
@@ -8360,32 +8483,115 @@ function bindAdminSectionEvents(container, users) {
     showToast(`Отправлена команда очистки регионального чата ${cleanKey}`, 'info');
   });
 
-  container.querySelector('#admPublishPolicyVerBtn')?.addEventListener('click', async () => {
-    const pVer = (container.querySelector('#admPolicyVerInput')?.value || '').trim();
-    const aVer = (container.querySelector('#admPolicyAppVerInput')?.value || '').trim();
+  container.querySelector('#admBumpPolicyVerBtn')?.addEventListener('click', () => {
+    const inp = container.querySelector('#admPolicyVerInput');
+    if (!inp) return;
+    const dStr = new Date().toISOString().slice(0, 10).replace(/-/g, '.');
+    const curVal = inp.value.trim();
+    const revMatch = curVal.match(/-rev(\d+)$/i);
+    const nextRev = revMatch ? (parseInt(revMatch[1], 10) + 1) : 2;
+    inp.value = `${dStr}-v2.8.3-rev${nextRev}`;
+  });
+
+  container.querySelector('#admPreviewPolicyModalBtn')?.addEventListener('click', () => {
+    const pVer = (container.querySelector('#admPolicyVerInput')?.value || '').trim() || '2026.11.10-v2.8.3';
+    const aVer = (container.querySelector('#admPolicyAppVerInput')?.value || '').trim() || '2.8.3';
     const pSum = (container.querySelector('#admPolicySummaryInput')?.value || '').trim();
+    const pSecTxt = container.querySelector('#admPolicySectionsTextarea')?.value || '';
+    const parsedSecs = parsePolicySectionsFromEditableText(pSecTxt);
+    saveRemotePolicyToClientEnv({
+      policyVersion: pVer,
+      appVersion: aVer,
+      summary: pSum,
+      sections: parsedSecs,
+      updatedAt: new Date().toISOString()
+    });
+    openUserAgreementModal({ requireVerification: false, isRemotePushUpdate: true });
+  });
+
+  container.querySelector('#admPublishPolicyVerBtn')?.addEventListener('click', async (ev) => {
+    const btn = ev.currentTarget;
+    const pVer = (container.querySelector('#admPolicyVerInput')?.value || '').trim();
+    const aVer = (container.querySelector('#admPolicyAppVerInput')?.value || '').trim() || '2.8.3';
+    const pSum = (container.querySelector('#admPolicySummaryInput')?.value || '').trim();
+    const pSecTxt = container.querySelector('#admPolicySectionsTextarea')?.value || '';
     if (!pVer) {
       showToast('Укажите версию редакции Политики', 'warn');
       return;
     }
-    const newPolObj = { policyVersion: pVer, appVersion: aVer || '2.5.6', summary: pSum, updatedAt: new Date().toISOString() };
+    const parsedSecs = parsePolicySectionsFromEditableText(pSecTxt);
+    const nowMs = Date.now();
+    const broadcastId = `POL_BC_${nowMs}`;
+    const newPolObj = {
+      policyVersion: pVer,
+      appVersion: aVer,
+      appRevision: 'r229',
+      effectiveDate: new Date(nowMs).toLocaleDateString('ru-RU'),
+      summary: pSum,
+      sections: parsedSecs,
+      broadcastId,
+      updatedAt: new Date(nowMs).toISOString()
+    };
     try {
       if (typeof localStorage !== 'undefined') {
         localStorage.setItem(ADMIN_LOCAL_POLICY_STATE_KEY, JSON.stringify(newPolObj));
       }
+      saveRemotePolicyToClientEnv(newPolObj);
     } catch (e) {}
     if (!_adminDashboardCache) _adminDashboardCache = {};
     _adminDashboardCache.policyState = newPolObj;
-    renderAdminSection(container);
-    showToast(`Опубликована Политика ${pVer}. У всех пользователей будет запрошено согласие с чекбоксами.`, 'good');
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Отправка в клиентские сессии...';
+    }
     const tok = getActiveAdminToken();
+    let sentOk = false;
     try {
-      await workerFetch('/api/admin/policy-update', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ adminToken: tok, token: tok, policyVersion: pVer, appVersion: aVer, summary: pSum })
-      }, 6000, 1);
+      const [updRes, relRes1, relRes2] = await Promise.all([
+        workerFetch('/api/admin/policy-update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            adminToken: tok,
+            token: tok,
+            ...newPolObj
+          })
+        }, 6500, 1).catch(() => null),
+        workerFetch('/relay/push', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: broadcastId,
+            channelId: 'SYS_POLICY_BROADCAST_V1',
+            senderId: OWNER_BOUND_FISHER_ID,
+            authTokenHash: tok,
+            adminToken: tok,
+            kind: 'policy_broadcast',
+            cipherPayload: JSON.stringify(newPolObj)
+          })
+        }, 5500, 1).catch(() => null),
+        workerFetch('/relay/push', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: `${broadcastId}_ALL`,
+            channelId: 'SOS_ALL',
+            senderId: OWNER_BOUND_FISHER_ID,
+            authTokenHash: tok,
+            adminToken: tok,
+            kind: 'policy_broadcast',
+            cipherPayload: JSON.stringify(newPolObj)
+          })
+        }, 5500, 1).catch(() => null)
+      ]);
+      sentOk = Boolean((updRes && updRes.ok) || (relRes1 && relRes1.ok) || (relRes2 && relRes2.ok));
     } catch (e) {}
+    renderAdminSection(container);
+    if (sentOk) {
+      showToast(`Политика ${pVer} отправлена во все клиентские сессии! Текст записан в окружение клиентов без пересборки.`, 'good');
+    } else {
+      showToast(`Политика ${pVer} сохранена локально и поставлена в очередь рассылки.`, 'warn');
+    }
   });
 
   container.querySelectorAll('[data-adm-reply-err-user]').forEach(btn => {

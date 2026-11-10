@@ -1,4 +1,4 @@
-import { svgIcon } from './icons.js?v=2.8.1-r227';
+import { svgIcon } from './icons.js?v=2.8.3-r229';
 /**
  * Экранирует пользовательские строки перед вставкой в HTML (защита от DOM XSS и инъекций тегов)
  */
@@ -270,9 +270,118 @@ export function openConfirmDeleteModal({
 }
 export const USER_AGREEMENT_STORAGE_KEY = 'klev_pro_ua_accepted_v260_r220';
 export const POLICY_CONSENT_META_KEY = 'klev_pro_policy_consent_meta_v260';
-export const ACTIVE_POLICY_VERSION_DEFAULT = '2026.11.06-v2.6';
-export const ACTIVE_APP_VERSION_DEFAULT = '2.5.6';
+export const REMOTE_POLICY_ENV_STORAGE_KEY = 'klev_pro_remote_policy_env_v1';
+export const ACTIVE_POLICY_VERSION_DEFAULT = '2026.11.10-v2.8.3';
+export const ACTIVE_APP_VERSION_DEFAULT = '2.8.3';
 export const GEO_DISTRIBUTION_CONSENT_KEY = 'klev_pro_geo_internet_consent_v1';
+
+export const DEFAULT_POLICY_SECTIONS = [{"id": "general_and_platforms", "title": "1. Общие положения, некоммерческий статус и режимы платформ (ЗоЗПП РФ, ФЗ № 149-ФЗ)", "text": "Экосистема «Клёв ПРО 2.0: Круг» (домены клевпро.рф / klevpro.ru, веб-приложение PWA, мобильное приложение Android APK и Telegram-бот @KlevProClubBot, возрастная маркировка 12+ по ст. 6 ФЗ № 436-ФЗ) является бесплатным некоммерческим информационно-справочным проектом для рыболовов-любителей. Правообладатель и оператор: Тхор Антон Сергеевич (e-mail: i@athor.ru). В Android APK все пользовательские данные (профиль, постоянный ID, точки на карте, журнал уловов с фото, маршруты) хранятся в защищённом системном разделе «Данные приложения» (Context.getFilesDir()), который не удаляется при очистке кэша. В мини-приложении Telegram (TMA) действует облегчённый режим просмотра и оперативной работы (выгрузка/загрузка файлов, хранение фото в журнале, офлайн-карты, кнопка SOS и функции Фаз 2 и 3 в мини-приложении отключены)."}, {"id": "privacy_and_id", "title": "2. Единый Рыболовный ID и Политика конфиденциальности (Zero-PII, ФЗ № 152-ФЗ)", "text": "Приложение построено по архитектуре Zero-PII: система не запрашивает и не собирает ФИО, паспортные данные, номера телефонов или e-mail. Без регистрации устройству на 24 часа выдаётся временный резервный ID (FP_XXRZYYYY, позывной «Гость (Резерв)»), открывающий доступ к погоде и прогнозу клёва на сегодня, атласу 115 видов рыб РФ (без ИИ), календарю, точкам на карте и журналу уловов. При регистрации Логина и Пароля за пользователем один раз и навсегда закрепляется единственный постоянный региональный ID (FP_XXAAA001..999). При входе под своим логином и паролем с любого устройства (смартфон, планшет, ПК) система проверяет аккаунт в базе Cloudflare D1, возвращает единый постоянный ID пользователя и автоматически удаляет временный гостевой номер. Пароли хешируются по стандарту PBKDF2-HMAC-SHA256 (100 000 итераций), а сетевые пакеты через резервные анти-DPI шлюзы шифруются алгоритмом RSA-OAEP-2048 + AES-256-GCM."}, {"id": "geo_consent", "title": "3. Порядок обработки геолокации в сети Интернет (ст. 10.1 ФЗ № 152-ФЗ)", "text": "Для расчёта локального прогноза клёва, температуры воды, толщины льда и записи личного маршрута координаты обрабатываются на устройстве пользователя. Передача геоданных в сеть Интернет (в разделы «Круг ±5 км», «Экипаж 72 ч», «Слипы/Точки», «Чаты» или сигнал «SOS») осуществляется только при наличии отдельного предварительного согласия пользователя. Пользователь вправе в любой момент отозвать согласие одной кнопкой в профиле или на карте — при отзыве все ранее переданные геоданные и точки пользователя немедленно удаляются с сервера и из чатов. Оперативные точки «Круга» и «Экипажа (72 ч)» автоматически удаляются через 72 часа."}, {"id": "account_deletion", "title": "4. Право на полное удаление учётной записи («Удалить УЗ»)", "text": "Пользователь имеет право в любой момент удалить свою учётную запись через раздел «Профиль и ID» -> «Удалить УЗ». При удалении учётной записи с сервера и из базы данных D1 безвозвратно удаляются: профиль и постоянный ID пользователя, все опубликованные точки «Круга» и «Слипов», уловы, сообщения во всех региональных и личных чатах, а также привязка к Telegram."}, {"id": "ip_and_data_sources", "title": "5. Интеллектуальная собственность, картография и метео-гидрологические источники (ГК РФ)", "text": "Исключительные права на программный код, 115 иллюстраций рыб, базу водоёмов РФ и физико-математические модели принадлежат правообладателю (© Тхор А. С., 2025–2026). Картографические материалы предоставляются ООО «Яндекс» для личного некоммерческого использования в соответствии с Условиями использования сервиса Яндекс.Карты (https://yandex.ru/legal/maps_termsofuse/), а также проектами OpenStreetMap (ODbL) и OSRM. Расчётное ядро использует открытые метеорологические, гидрологические, ледовые и дорожные сводки Гидрометцентра России (meteoinfo.ru), MET Norway и Open-Meteo."}, {"id": "beta_and_safety", "title": "6. Регламент Бета-теста (Фазы 2 и 3), безопасность на воде, льду и дорогах (ГИМС МЧС РФ, ФЗ № 166-ФЗ)", "text": "Функции закрытого Бета-теста — Фаза 2 (ИИ-распознавание улова по фото, диагностика патологий рыб и голосовой ИИ-помощник) и Фаза 3 (фоновая запись маршрута с привязкой к дорогам и тропам, голосовое ведение по маршруту и возврат по следу «Я потерялся») — предоставляются зарегистрированным участникам тестирования в ознакомительном режиме. Все расчёты прогноза клёва, температуры воды, толщины льда, дорожных предупреждений о гололёде/гололедице и голосовые подсказки навигатора носят исключительно информационно-справочный характер и не заменяют официальные сводки МЧС России, ГИМС и экстренный вызов 112. Пользователь обязуется соблюдать Правила рыболовства РФ (ФЗ № 166-ФЗ)."}];
+
+export function parsePolicySectionsFromEditableText(rawText = '') {
+  const txt = String(rawText || '').trim();
+  if (!txt) return DEFAULT_POLICY_SECTIONS;
+  const blocks = txt.split(/\n(?=\s*(?:===|\d+\.\s))/g).map(b => b.trim()).filter(Boolean);
+  if (blocks.length === 0) return DEFAULT_POLICY_SECTIONS;
+  const out = [];
+  blocks.forEach((blk, idx) => {
+    const lines = blk.split('\n');
+    let firstLine = lines[0].replace(/^===\s*|\s*===$/g, '').trim();
+    let bodyLines = lines.slice(1).join('\n').trim();
+    if (!bodyLines && firstLine.includes(':')) {
+      const parts = firstLine.split(':');
+      firstLine = parts[0].trim();
+      bodyLines = parts.slice(1).join(':').trim();
+    }
+    out.push({
+      id: `sec_${idx + 1}`,
+      title: firstLine || `Раздел ${idx + 1}`,
+      text: bodyLines || firstLine
+    });
+  });
+  return out.length > 0 ? out : DEFAULT_POLICY_SECTIONS;
+}
+
+export function formatPolicySectionsToEditableText(sections = DEFAULT_POLICY_SECTIONS) {
+  const arr = Array.isArray(sections) && sections.length > 0 ? sections : DEFAULT_POLICY_SECTIONS;
+  return arr.map(s => `=== ${s.title || 'Раздел'} ===\n${s.text || ''}`).join('\n\n');
+}
+
+export function getRemotePolicyFromClientEnv() {
+  const fallback = {
+    policyVersion: ACTIVE_POLICY_VERSION_DEFAULT,
+    appVersion: ACTIVE_APP_VERSION_DEFAULT,
+    appRevision: 'r229',
+    effectiveDate: '10 ноября 2026 г.',
+    title: 'Политика конфиденциальности, Пользовательское соглашение и Правила обработки геоданных «Клёв ПРО 2.0»',
+    summary: 'Редакция v2.8.3 (r229): защита данных в разделе «Данные приложения» Android APK (Context.getFilesDir), единый постоянный ID на всех устройствах, калибровка гидрологии по сводкам Росгидромета (meteoinfo.ru) и динамическое обновление политики без пересборки.',
+    sections: DEFAULT_POLICY_SECTIONS,
+    broadcastId: ''
+  };
+  try {
+    if (typeof window !== 'undefined' && window.__KLEV_REMOTE_POLICY_ENV__ && typeof window.__KLEV_REMOTE_POLICY_ENV__ === 'object') {
+      const wEnv = window.__KLEV_REMOTE_POLICY_ENV__;
+      return {
+        ...fallback,
+        ...wEnv,
+        sections: Array.isArray(wEnv.sections) && wEnv.sections.length > 0 ? wEnv.sections : fallback.sections
+      };
+    }
+    if (typeof localStorage !== 'undefined') {
+      const raw = localStorage.getItem(REMOTE_POLICY_ENV_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object') {
+          const merged = {
+            ...fallback,
+            ...parsed,
+            sections: Array.isArray(parsed.sections) && parsed.sections.length > 0 ? parsed.sections : fallback.sections
+          };
+          if (typeof window !== 'undefined') window.__KLEV_REMOTE_POLICY_ENV__ = merged;
+          return merged;
+        }
+      }
+    }
+  } catch (e) {}
+  return fallback;
+}
+
+export function saveRemotePolicyToClientEnv(policyPayload) {
+  if (!policyPayload || typeof policyPayload !== 'object') return getRemotePolicyFromClientEnv();
+  const current = getRemotePolicyFromClientEnv();
+  const nextSections = Array.isArray(policyPayload.sections) && policyPayload.sections.length > 0
+    ? policyPayload.sections
+    : (typeof policyPayload.sectionsText === 'string' && policyPayload.sectionsText.trim()
+        ? parsePolicySectionsFromEditableText(policyPayload.sectionsText)
+        : current.sections);
+  const updated = {
+    policyVersion: String(policyPayload.policyVersion || current.policyVersion || ACTIVE_POLICY_VERSION_DEFAULT).trim(),
+    appVersion: String(policyPayload.appVersion || current.appVersion || ACTIVE_APP_VERSION_DEFAULT).trim(),
+    appRevision: String(policyPayload.appRevision || current.appRevision || 'r229').trim(),
+    effectiveDate: String(policyPayload.effectiveDate || current.effectiveDate || '10 ноября 2026 г.').trim(),
+    title: String(policyPayload.title || current.title).trim(),
+    summary: String(policyPayload.summary || current.summary).trim(),
+    sections: nextSections,
+    broadcastId: String(policyPayload.broadcastId || current.broadcastId || '').trim(),
+    updatedAt: String(policyPayload.updatedAt || new Date().toISOString()),
+    savedToEnvAt: Date.now()
+  };
+  try {
+    if (typeof window !== 'undefined') {
+      window.__KLEV_REMOTE_POLICY_ENV__ = updated;
+      window.__KLEV_ACTIVE_POLICY_VERSION__ = updated.policyVersion;
+      window.__KLEV_ACTIVE_APP_VERSION__ = updated.appVersion;
+      window.__KLEV_ACTIVE_POLICY_BROADCAST_ID__ = updated.broadcastId;
+    }
+    if (typeof localStorage !== 'undefined') {
+      const serialized = JSON.stringify(updated);
+      localStorage.setItem(REMOTE_POLICY_ENV_STORAGE_KEY, serialized);
+      if (typeof window !== 'undefined' && window.AndroidBridge && typeof window.AndroidBridge.saveAppDataKey === 'function') {
+        window.AndroidBridge.saveAppDataKey(REMOTE_POLICY_ENV_STORAGE_KEY, serialized);
+      }
+    }
+  } catch (e) {}
+  return updated;
+}
 
 export function getSavedPolicyConsentMeta() {
   try {
@@ -285,10 +394,17 @@ export function getSavedPolicyConsentMeta() {
   }
 }
 
-export function isPolicyVersionAccepted(expectedPolicyVer = ACTIVE_POLICY_VERSION_DEFAULT, expectedAppVer = ACTIVE_APP_VERSION_DEFAULT) {
+export function isPolicyVersionAccepted(expectedPolicyVer = null, expectedAppVer = null, expectedBroadcastId = null) {
   const meta = getSavedPolicyConsentMeta();
   if (!meta || !meta.chkPrivacy || !meta.chkTerms) return false;
-  return meta.policyVersion === expectedPolicyVer && meta.appVersion === expectedAppVer;
+  const envPol = getRemotePolicyFromClientEnv();
+  const targetVer = expectedPolicyVer || (typeof window !== 'undefined' && window.__KLEV_ACTIVE_POLICY_VERSION__) || envPol.policyVersion || ACTIVE_POLICY_VERSION_DEFAULT;
+  const targetBcId = expectedBroadcastId !== null
+    ? expectedBroadcastId
+    : ((typeof window !== 'undefined' && window.__KLEV_ACTIVE_POLICY_BROADCAST_ID__) || envPol.broadcastId || '');
+  if (meta.policyVersion !== targetVer) return false;
+  if (targetBcId && meta.broadcastId !== targetBcId) return false;
+  return true;
 }
 
 export function isGeoDistributionConsentActive() {
@@ -317,12 +433,13 @@ export function setGeoDistributionConsentState(granted = true) {
   try {
     if (typeof localStorage === 'undefined') return;
     if (granted) {
+      const envPol = getRemotePolicyFromClientEnv();
       const rec = {
         granted: true,
         chkLocationAccess: true,
         chkInternetSpread: true,
         grantedAt: Date.now(),
-        policyVersion: ACTIVE_POLICY_VERSION_DEFAULT
+        policyVersion: envPol.policyVersion || ACTIVE_POLICY_VERSION_DEFAULT
       };
       localStorage.setItem(GEO_DISTRIBUTION_CONSENT_KEY, JSON.stringify(rec));
     } else {
@@ -401,26 +518,27 @@ export function ensureGeoDistributionConsent(actionLabel = 'отправки г�
   });
   return false;
 }
+
 export const USER_AGREEMENT_MIN_READ_SECONDS = 15;
 export function isUserAgreementAccepted() {
   try {
-    return Boolean(typeof localStorage !== 'undefined' && localStorage.getItem(USER_AGREEMENT_STORAGE_KEY));
+    return isPolicyVersionAccepted() || Boolean(typeof localStorage !== 'undefined' && localStorage.getItem(USER_AGREEMENT_STORAGE_KEY) && isPolicyVersionAccepted());
   } catch (e) {
     return false;
   }
 }
-/**
- * Отдельное окно «<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" fill="rgba(56,189,248,0.14)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M14 2v6h6M8 13h8M8 17h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Пользовательское соглашение и Политика конфиденциальности (152-ФЗ)» при регистрации и в настройках профиля.
- * При регистрации (requireVerification === true) требует:
- * 1) Прокрутки текста соглашения до самого конца («Пролистано до конца»)
- * 2) Минимального времени чтения текста (таймер не менее USER_AGREEMENT_MIN_READ_SECONDS секунд)
- */
+
 export function openUserAgreementModal({
   requireVerification = false,
+  isRemotePushUpdate = false,
   onAccepted = null,
   onClose = null
 } = {}) {
   if (typeof document === 'undefined') return;
+  const envPol = getRemotePolicyFromClientEnv();
+  const alreadyAcceptedCurrent = isPolicyVersionAccepted(envPol.policyVersion, envPol.appVersion, envPol.broadcastId);
+  const needCheckboxes = Boolean(requireVerification || isRemotePushUpdate || !alreadyAcceptedCurrent);
+
   let overlay = document.getElementById('klevUserAgreementBackdrop');
   if (!overlay) {
     overlay = document.createElement('div');
@@ -437,79 +555,78 @@ export function openUserAgreementModal({
     overlay.innerHTML = '';
     if (typeof onClose === 'function') onClose();
   };
+
+  const sectionsHtml = (Array.isArray(envPol.sections) && envPol.sections.length > 0 ? envPol.sections : DEFAULT_POLICY_SECTIONS)
+    .map(sec => `
+      <div>
+        <b style="color:var(--accent);">${escapeHtml(sec.title || 'Раздел')}</b><br>
+        ${escapeHtml(sec.text || '').replace(/\n/g, '<br>')}
+      </div>
+    `).join('');
+
   overlay.style.display = 'flex';
   overlay.innerHTML = `
     <div class="card" role="dialog" aria-modal="true" aria-label="Пользовательское соглашение Клёв ПРО 2.0" style="max-width:540px;width:100%;max-height:92vh;background:var(--panel);border:1.5px solid var(--accent);border-radius:var(--r-md);padding:14px;display:flex;flex-direction:column;gap:10px;box-shadow:0 18px 48px rgba(0,0,0,0.75);">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:8px;">
         <div style="min-width:0;flex:1;">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;">
-            <div style="font-size:var(--fs-md);font-weight:900;color:var(--accent);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" fill="rgba(56,189,248,0.14)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M14 2v6h6M8 13h8M8 17h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Пользовательское соглашение и Политика (152-ФЗ)</div>
-            <span class="pill" style="font-size:10.5px;font-weight:900;padding:2px 7px;">12+</span>
+            <div style="font-size:var(--fs-md);font-weight:900;color:var(--accent);">Пользовательское соглашение и Политика (152-ФЗ)</div>
+            <div style="display:flex;gap:4px;align-items:center;">
+              <span class="pill pill-good" style="font-size:10px;font-weight:900;padding:2px 7px;">Ред. ${escapeHtml(envPol.policyVersion)}</span>
+              <span class="pill" style="font-size:10.5px;font-weight:900;padding:2px 7px;">12+</span>
+            </div>
           </div>
           <div style="font-size:11px;color:var(--muted);margin-top:2px;">
             ${requireVerification
               ? 'Для завершения регистрации внимательно прочитайте соглашение и пролистайте его до конца'
-              : 'Правовой статус (ЗоЗПП / 149-ФЗ), защита данных (152-ФЗ), авторские права (ГК РФ) и безопасность'}
+              : (isRemotePushUpdate ? 'Администратор обновил редакцию Политики и Пользовательского соглашения — ознакомьтесь и подтвердите согласие' : 'Правовой статус (ЗоЗПП / 149-ФЗ), защита данных (152-ФЗ), авторские права (ГК РФ) и безопасность')}
           </div>
         </div>
       </div>
+      ${envPol.summary ? `
+        <div style="padding:8px 10px;border-radius:8px;background:rgba(56,189,248,0.10);border:1px solid rgba(56,189,248,0.35);font-size:11.5px;line-height:1.4;color:var(--text);">
+          <b style="color:var(--accent);">Актуальная сводка редакции (${escapeHtml(envPol.policyVersion)}):</b> ${escapeHtml(envPol.summary)}
+        </div>
+      ` : ''}
       ${requireVerification ? `
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11px;">
           <div id="uaScrollStatusBox" style="padding:6px 8px;border-radius:6px;background:rgba(245,158,11,0.12);border:1px solid var(--warn);color:var(--warn);font-weight:800;text-align:center;">
-            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" fill="rgba(56,189,248,0.14)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M14 2v6h6M8 13h8M8 17h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Пролистайте текст до конца
+            Пролистайте текст до конца
           </div>
           <div id="uaTimerStatusBox" style="padding:6px 8px;border-radius:6px;background:rgba(56,189,248,0.12);border:1px solid var(--accent);color:var(--accent);font-weight:800;text-align:center;">
-            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.5 2" stroke="#38bdf8" stroke-width="1.9" stroke-linecap="round"/></svg> Время чтения: ${secondsLeft} сек.
+            Время чтения: ${secondsLeft} сек.
           </div>
         </div>
       ` : ''}
-      <div id="uaScrollTextContainer" style="flex:1;min-height:220px;max-height:54vh;overflow-y:auto;padding:12px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);font-size:12.5px;line-height:1.52;color:var(--text);display:flex;flex-direction:column;gap:10px;">
-        <div>
-          <b style="color:var(--accent);">1. Общие положения и некоммерческий статус (ст. 9 ЗоЗПП РФ, ст. 10 ФЗ № 149-ФЗ)</b><br>
-          Экосистема «Клёв ПРО 2.0: Круг» (домены <code>клевпро.рф</code> / <code>klevpro.ru</code>, веб-приложение PWA и Android-приложение, возрастная маркировка <b>12+</b> по ст. 6 ФЗ № 436-ФЗ) является бесплатным некоммерческим информационно-справочным проектом для рыболовов-любителей.<br>
-          На ресурсе не осуществляются возмездная продажа товаров, выполнение платных работ или оказание платных услуг потребителям, в связи с чем положения ст. 9 Закона РФ № 2300-1 «О защите прав потребителей» об указании коммерческих реквизитов продавца (ИНН / ОГРН / ОГРНИП) не применяются. Сведения о владельце сайта и правообладателе (ч. 2 ст. 10 ФЗ № 149-ФЗ): Тхор Антон Сергеевич, электронная почта для юридически значимых обращений: <a href="mailto:i@athor.ru" style="color:var(--accent);">i@athor.ru</a>.
-        </div>
-        <div>
-          <b style="color:var(--accent);">2. Политика конфиденциальности и режимы обработки геоданных (ФЗ № 152-ФЗ ст. 3, 12, 18.1, 22)</b><br>
-          Сервис спроектирован по принципу <b>Privacy by Design (Zero-PII)</b> и не осуществляет сбор персональных данных, позволяющих идентифицировать физическое лицо (ФИО, паспортные данные, номера телефонов, e-mail, домашние адреса не запрашиваются и не хранятся):<br>
-          • <b>Фоновый расчёт погоды и прогноза клёва:</b> координаты выбранного водоёма обрабатываются локально на устройстве пользователя и округляются до сетки района при запросе метеосводки.<br>
-          • <b>Публикация в раздел «Круг»:</b> точные GPS-координаты принудительно размываются на устройстве алгоритмом гексагональной сетки в радиусе <b>±5..10 км</b>, а метаданные фотографий (EXIF/GPS) автоматически вычищаются до отправки.<br>
-          • <b>Добровольная передача точных координат по действию пользователя:</b> точные координаты точки передаются на сервер только тогда, когда пользователь сам нажимает кнопку публикации в закрытый «Экипаж (72 ч)» по секретному ключу, добавляет общедоступную инфраструктурную метку (слип, опасная промоина, коряга), отправляет геометку в личном диалоге или активирует сигнал «SOS на воде».<br>
-          • <b>Сквозное транспортное шифрование (AES-256-GCM) и хранение в Cloudflare D1:</b> при работе через резервные анти-DPI шлюзы в сетях РФ без VPN все передаваемые пакеты (логин, верификатор пароля, сессионные токены и геокоординаты) шифруются на устройстве алгоритмом <b>RSA-OAEP-2048 + AES-256-GCM</b> (параметр <code>?e2e=</code>). Пароли хешируются по стандарту <b>PBKDF2-HMAC-SHA256 (100 000 итераций)</b>, данные учётной записи хранятся в защищённой СУБД <b>Cloudflare D1</b>, а оперативные точки «Круга» и «Экипажа (72 ч)» автоматически удаляются через <b>72 часа</b> (TTL). Рекламные и трекинговые счётчики отсутствуют.
-        </div>
-        <div>
-          <b style="color:var(--accent);">3. Интеллектуальная собственность (Часть IV ГК РФ) и условия картографических сервисов</b><br>
-          Исключительные права на исходный и объектный код приложения (ст. 1261 ГК РФ), 115 авторских графических иллюстраций рыб в каталоге <code>assets/fish/</code> (ст. 1259 ГК РФ), структурированную базу данных 115 видов рыб, 491 водоёма и 609 населённых пунктов по 8 рыбохозяйственным бассейнам РФ (ст. 1260 и ст. 1334 ГК РФ), а также математическую модель расчёта клёва (ст. 1465 ГК РФ) принадлежат правообладателю (© Тхор А. С., 2025–2026).<br>
-          Картографические слои и метеоданные предоставляются правообладателями для личного некоммерческого использования: © <a href="https://yandex.ru/maps/" target="_blank" rel="noopener" style="color:var(--accent);">Яндекс Карты</a> (<a href="https://yandex.ru/legal/maps_termsofuse/" target="_blank" rel="noopener" style="color:var(--accent);">Условия использования сервиса Яндекс.Карты</a>), © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener" style="color:var(--accent);">OpenStreetMap contributors</a> (ODbL), © <a href="https://leafletjs.com/" target="_blank" rel="noopener" style="color:var(--accent);">Leaflet</a> (BSD-2-Clause), метеорологические сводки <a href="https://open-meteo.com/" target="_blank" rel="noopener" style="color:var(--accent);">Open-Meteo.com</a> и <a href="https://api.met.no/" target="_blank" rel="noopener" style="color:var(--accent);">MET Norway</a> (CC-BY 4.0). Локальное браузерное кэширование фрагментов карты (IndexedDB) выполняется исключительно на устройстве пользователя для временной личной ориентации вне зоны связи без права коммерческого распространения или перепродажи.
-        </div>
-        <div>
-          <b style="color:var(--accent);">4. Правила применения рекомендательных технологий (ст. 10.2-2 ФЗ № 149-ФЗ)</b><br>
-          Расчёт «Индекса клёва (0–100%)» и подбор рекомендуемых видов рыб, приманок и оснасток выполняются локальным 8-факторным математическим алгоритмом на основе публичных метеорологических параметров (динамика атмосферного давления, температура воды и воздуха, растворённый кислород, скорость ветра, фаза Луны, время суток и сезон), гидрологического типа выбранного пользователем водоёма и отмеченных пользователем избранных видов рыб.
-        </div>
-        <div>
-          <b style="color:var(--accent);">5. Безопасность на водоёмах и соблюдение правил рыболовства (ГИМС МЧС РФ и ФЗ № 166-ФЗ)</b><br>
-          Все расчёты погодных условий, высоты волны, скорости ветра, температуры воды и ориентировочной толщины льда носят исключительно информационно-справочный характер и не заменяют официальные сводки МЧС России и Гидрометцентра. Решение о выходе на воду или на лёд принимается пользователем самостоятельно под личную ответственность.<br>
-          Пользователь обязуется соблюдать действующие Правила рыболовства соответствующего рыбохозяйственного бассейна РФ (ФЗ № 166-ФЗ), суточные нормы вылова, промысловую меру и нерестовые ограничения. Виды рыб, занесённые в Красную книгу РФ и регионов, подлежат немедленному выпуску в живом виде.
-        </div>
-        <div>
-          <b style="color:var(--accent);">6. Правила сообщества, чатов и сигнала «SOS на воде»</b><br>
-          В разделах «Круг», «Экипаж» и в чатах запрещены оскорбления, спам, публикация заведомо ложных координат опасных участков льда и неправомерное использование экстренного сигнала «<svg class="k-ico" style="color:var(--bad);" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9.5" fill="#dc2626" stroke="#fca5a5" stroke-width="1.8"/><text x="12" y="15" text-anchor="middle" fill="#fff" font-size="7.5" font-weight="900" font-family="sans-serif">SOS</text></svg> SOS на воде». Функции «SOS на воде» и «Контрольный таймер возвращения» являются <b>вспомогательным инструментом</b> оповещения находящихся поблизости участников сообщества, зависят от наличия связи и заряда батареи смартфона и <b>не заменяют официальный вызов экстренных служб 112</b> или сертифицированные спутниковые аварийные радиобуи. За ложные вызовы администрация вправе заблокировать учётную запись.
-        </div>
+      <div id="uaScrollTextContainer" style="flex:1;min-height:190px;max-height:46vh;overflow-y:auto;padding:12px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);font-size:12.5px;line-height:1.52;color:var(--text);display:flex;flex-direction:column;gap:10px;">
+        ${sectionsHtml}
         <div id="uaBottomSentinel" style="padding:8px 10px;background:rgba(16,185,129,0.10);border:1px dashed var(--good);border-radius:6px;font-size:11.5px;color:var(--good);font-weight:800;text-align:center;">
-          <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Конец текста Пользовательского соглашения и Политики конфиденциальности «Клёв ПРО 2.0»
+          Конец текста Пользовательского соглашения и Политики конфиденциальности «Клёв ПРО 2.0» (Редакция ${escapeHtml(envPol.policyVersion)})
         </div>
       </div>
+      ${needCheckboxes ? `
+        <div style="display:flex;flex-direction:column;gap:6px;font-size:11.5px;">
+          <label style="display:flex;align-items:flex-start;gap:8px;padding:7px 9px;background:rgba(56,189,248,0.08);border:1px solid var(--border);border-radius:8px;cursor:pointer;line-height:1.35;">
+            <input type="checkbox" id="uaChkPrivacy" checked style="margin-top:2px;width:16px;height:16px;accent-color:#10b981;flex-shrink:0;">
+            <span>Я ознакомился(лась) и принимаю Политику конфиденциальности (ФЗ № 152-ФЗ)</span>
+          </label>
+          <label style="display:flex;align-items:flex-start;gap:8px;padding:7px 9px;background:rgba(16,185,129,0.08);border:1px solid var(--border);border-radius:8px;cursor:pointer;line-height:1.35;">
+            <input type="checkbox" id="uaChkTerms" checked style="margin-top:2px;width:16px;height:16px;accent-color:#10b981;flex-shrink:0;">
+            <span>Я ознакомился(лась) и принимаю Пользовательское соглашение, условия Бета-теста и правила безопасности на воде</span>
+          </label>
+        </div>
+      ` : ''}
       <div style="display:grid;grid-template-columns:minmax(100px,1fr) minmax(150px,1.6fr);gap:8px;padding-top:4px;width:100%;">
         <button type="button" class="btn btn-sm" id="uaCancelCloseBtn" style="width:100%;min-height:42px;padding:6px 10px;font-size:13px;font-weight:800;">
-          <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Закрыть
+          Закрыть
         </button>
         ${requireVerification ? `
           <button type="button" class="btn btn-sm" id="uaAcceptConfirmBtn" disabled style="width:100%;min-height:42px;padding:6px 10px;font-size:12.5px;font-weight:800;line-height:1.2;white-space:normal;text-align:center;opacity:0.55;cursor:not-allowed;">
-            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.5 2" stroke="#38bdf8" stroke-width="1.9" stroke-linecap="round"/></svg> Прочитайте (${secondsLeft} с)
+            Прочитайте (${secondsLeft} с)
           </button>
         ` : `
           <button type="button" class="btn btn-sm btn-good" id="uaAcceptConfirmBtn" style="width:100%;min-height:42px;padding:6px 10px;font-size:13px;font-weight:800;line-height:1.2;white-space:normal;text-align:center;">
-            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> ${isUserAgreementAccepted() ? 'Понятно (Принято)' : 'Принять соглашение'}
+            ${alreadyAcceptedCurrent && !isRemotePushUpdate ? 'Понятно (Принято)' : 'Принять соглашение'}
           </button>
         `}
       </div>
@@ -526,9 +643,9 @@ export function openUserAgreementModal({
         scrollBadge.style.background = 'rgba(16,185,129,0.15)';
         scrollBadge.style.borderColor = 'var(--good)';
         scrollBadge.style.color = 'var(--good)';
-        scrollBadge.innerHTML = '<svg class="k-ico" style="color:var(--good);" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="rgba(16,185,129,0.24)" stroke="#10b981" stroke-width="1.9"/><path d="M8 12.5l2.7 2.7L16.5 9.5" stroke="#10b981" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg> Пролистано до конца';
+        scrollBadge.textContent = 'Пролистано до конца';
       } else {
-        scrollBadge.innerHTML = '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" fill="rgba(56,189,248,0.14)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M14 2v6h6M8 13h8M8 17h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Пролистайте до конца ↓';
+        scrollBadge.textContent = 'Пролистайте до конца ↓';
       }
     }
     if (timerBadge) {
@@ -536,9 +653,9 @@ export function openUserAgreementModal({
         timerBadge.style.background = 'rgba(16,185,129,0.15)';
         timerBadge.style.borderColor = 'var(--good)';
         timerBadge.style.color = 'var(--good)';
-        timerBadge.innerHTML = '<svg class="k-ico" style="color:var(--good);" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="rgba(16,185,129,0.24)" stroke="#10b981" stroke-width="1.9"/><path d="M8 12.5l2.7 2.7L16.5 9.5" stroke="#10b981" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg> Время чтения выполнено';
+        timerBadge.textContent = 'Время чтения выполнено';
       } else {
-        timerBadge.innerHTML = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.5 2" stroke="#38bdf8" stroke-width="1.9" stroke-linecap="round"/></svg> Время чтения: ${secondsLeft} сек.`;
+        timerBadge.textContent = `Время чтения: ${secondsLeft} сек.`;
       }
     }
     if (acceptBtn) {
@@ -548,13 +665,13 @@ export function openUserAgreementModal({
         acceptBtn.className = 'btn btn-sm btn-good';
         acceptBtn.style.opacity = '1';
         acceptBtn.style.cursor = 'pointer';
-        acceptBtn.innerHTML = '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Принять и продолжить';
+        acceptBtn.textContent = 'Принять и продолжить';
       } else if (!scrolledToBottom && secondsLeft > 0) {
-        acceptBtn.innerHTML = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.5 2" stroke="#38bdf8" stroke-width="1.9" stroke-linecap="round"/></svg> Листайте вниз (${secondsLeft} с)`;
+        acceptBtn.textContent = `Листайте вниз (${secondsLeft} с)`;
       } else if (!scrolledToBottom) {
-        acceptBtn.innerHTML = '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" fill="rgba(56,189,248,0.14)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M14 2v6h6M8 13h8M8 17h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Пролистайте до конца ↓';
+        acceptBtn.textContent = 'Пролистайте до конца ↓';
       } else {
-        acceptBtn.innerHTML = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.5 2" stroke="#38bdf8" stroke-width="1.9" stroke-linecap="round"/></svg> Чтение (${secondsLeft} с)...`;
+        acceptBtn.textContent = `Чтение (${secondsLeft} с)...`;
       }
     }
   };
@@ -589,17 +706,20 @@ export function openUserAgreementModal({
         return;
       }
       localStorage.setItem(USER_AGREEMENT_STORAGE_KEY, String(Date.now()));
-      const curPolVer = (typeof window !== 'undefined' && window.__KLEV_ACTIVE_POLICY_VERSION__) || ACTIVE_POLICY_VERSION_DEFAULT;
-      const curAppVer = (typeof window !== 'undefined' && window.__KLEV_ACTIVE_APP_VERSION__) || ACTIVE_APP_VERSION_DEFAULT;
+      const latestPol = getRemotePolicyFromClientEnv();
+      const curPolVer = latestPol.policyVersion || ACTIVE_POLICY_VERSION_DEFAULT;
+      const curAppVer = latestPol.appVersion || ACTIVE_APP_VERSION_DEFAULT;
+      const curBcId = latestPol.broadcastId || '';
       localStorage.setItem(POLICY_CONSENT_META_KEY, JSON.stringify({
         policyVersion: curPolVer,
         appVersion: curAppVer,
+        broadcastId: curBcId,
         chkPrivacy: true,
         chkTerms: true,
         acceptedAt: Date.now()
       }));
       if (typeof window !== 'undefined' && typeof window.__KLEV_ON_POLICY_ACCEPTED__ === 'function') {
-        try { window.__KLEV_ON_POLICY_ACCEPTED__({ policyVersion: curPolVer, appVersion: curAppVer }); } catch (_e) {}
+        try { window.__KLEV_ON_POLICY_ACCEPTED__({ policyVersion: curPolVer, appVersion: curAppVer, broadcastId: curBcId }); } catch (_e) {}
       }
     } catch (e) {}
     if (timerInterval) clearInterval(timerInterval);
