@@ -715,13 +715,13 @@ export function normalizeOpenMeteo(data, waterType) {
     (todayObj?.hours || []).reduce((s, h) => s + (h.precip || 0), 0)
   );
   const spaceWeather = data._spaceWeather || MeteoInfoRuParsers.parseSpaceWeatherEgmb(data._egmbText || '');
-  if (typeof window !== 'undefined' && (raw._sourceMeteoinfo || raw._hydroAssimilation || raw._spaceWeather || raw._roadHazard)) {
+  if (typeof window !== 'undefined' && data && (data._sourceMeteoinfo || data._hydroAssimilation || data._spaceWeather || data._roadHazard)) {
     window.__KLEV_METEOINFO_LATEST__ = {
-      source: raw._sourceMeteoinfo || 'meteoinfo.ru',
-      hydro: raw._hydroAssimilation || null,
-      spaceWeather: raw._spaceWeather || null,
-      roadHazard: raw._roadHazard || null,
-      station: raw._meteoInfoStation || null,
+      source: data._sourceMeteoinfo || 'meteoinfo.ru',
+      hydro: data._hydroAssimilation || null,
+      spaceWeather: data._spaceWeather || null,
+      roadHazard: data._roadHazard || null,
+      station: data._meteoInfoStation || null,
       ts: Date.now()
     };
   }

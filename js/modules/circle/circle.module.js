@@ -7244,7 +7244,7 @@ function resolveLatestAdminPolicyState(db = {}) {
     policyVersion: ACTIVE_POLICY_VERSION_DEFAULT || '2026.11.10-v2.8.3',
     appVersion: ACTIVE_APP_VERSION_DEFAULT || APP_VERSION || '2.8.3',
     appRevision: APP_REVISION || 'r230',
-    summary: 'Редакция v2.8.3 (r230): защита пользовательских данных в разделе «Данные приложения» Android APK (Context.getFilesDir), единая привязка постоянного ID к логину и паролю на всех устройствах, калибровка гидрологии по сводкам Росгидромета (meteoinfo.ru) и динамическая рассылка политики без пересборки.',
+    summary: 'Редакция v2.8.3 (r230): сохранность пользовательских данных при очистке кэша, единый постоянный ID рыбака на всех устройствах по логину и паролю, расчёт гидрологии и льда по данным Росгидромета (meteoinfo.ru), правила гостевого доступа и Бета-теста.',
     sections: DEFAULT_POLICY_SECTIONS
   };
   let locPol = null;
@@ -7268,7 +7268,7 @@ function resolveLatestAdminPolicyState(db = {}) {
     policyVersion: best.policyVersion || baseline.policyVersion,
     appVersion: (best.appVersion && best.appVersion !== '2.5.6') ? best.appVersion : baseline.appVersion,
     appRevision: best.appRevision || APP_REVISION || 'r230',
-    summary: (best.summary && !/v2\.5\.6/i.test(best.summary)) ? best.summary : baseline.summary,
+    summary: (best.summary && !/v2\.5\.6|\(r22[0-9]\)/i.test(best.summary)) ? best.summary : baseline.summary,
     sections: (Array.isArray(best.sections) && best.sections.length > 0) ? best.sections : DEFAULT_POLICY_SECTIONS,
     broadcastId: best.broadcastId || '',
     updatedAt: best.updatedAt || new Date().toISOString()

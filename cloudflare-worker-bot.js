@@ -4620,12 +4620,12 @@ function computeFishScoreForWeather(fishObj, w) {
 
 function makeAppButton(text, deepAppUrl, isPrivateChat = true) {
  let finalUrl = String(deepAppUrl || 'https://klevpro.ru/');
- if (!finalUrl.includes('v=r229')) {
+ if (!finalUrl.includes('v=r230')) {
   const hashIdx = finalUrl.indexOf('#');
   const basePart = hashIdx >= 0 ? finalUrl.slice(0, hashIdx) : finalUrl;
   const hashPart = hashIdx >= 0 ? finalUrl.slice(hashIdx) : '';
   const sep = basePart.includes('?') ? '&' : '?';
-  finalUrl = `${basePart}${sep}v=r229&tma=1${hashPart}`;
+  finalUrl = `${basePart}${sep}v=r230&tma=1${hashPart}`;
  }
  if (isPrivateChat) {
   return { text, web_app: { url: finalUrl } };
@@ -6679,7 +6679,7 @@ const DEFAULT_WORKER_POLICY_SECTIONS = [{"id": "general_and_platforms", "title":
 const policyStateStore = {
  policyVersion: '2026.11.10-v2.8.3',
  appVersion: '2.8.3',
- appRevision: 'r229',
+ appRevision: 'r230',
  effectiveDate: '10 ноября 2026 г.',
  title: 'Политика конфиденциальности, Пользовательское соглашение и Правила обработки геоданных «Клёв ПРО 2.0»',
  updatedAt: '2026-11-10T03:35:00Z',
