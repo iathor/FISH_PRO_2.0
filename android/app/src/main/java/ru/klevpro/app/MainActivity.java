@@ -652,17 +652,17 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String getAppVersion() {
-            return "2.8.0-r226";
+            return "2.8.1-r227";
         }
 
         @JavascriptInterface
         public int getAppBuildNumber() {
-            return 226;
+            return 227;
         }
 
         @JavascriptInterface
         public String getAppRevision() {
-            return "r226";
+            return "r227";
         }
 
         @JavascriptInterface
@@ -956,7 +956,7 @@ public class MainActivity extends Activity {
         ws.setCacheMode(WebSettings.LOAD_DEFAULT);
         // Пользовательские данные защищены в Context.getFilesDir()/klev_appdata_vault; кэш WebView не очищается принудительно
         String baseUa = ws.getUserAgentString();
-        ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.8.0-r226");
+        ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.8.1-r227");
 
         webView.addJavascriptInterface(new NativeBridge(this), "AndroidBridge");
 
@@ -991,7 +991,7 @@ public class MainActivity extends Activity {
                                     conn.setRequestMethod("GET");
                                     conn.setConnectTimeout(6500);
                                     conn.setReadTimeout(7500);
-                                    conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14; KlevPro/2.8.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36");
+                                    conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14; KlevPro/2.8.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36");
                                     conn.setRequestProperty("Accept", "application/json,text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
                                     conn.setRequestProperty("Accept-Language", "ru-RU,ru;q=0.9,en;q=0.5");
                                     int code = conn.getResponseCode();

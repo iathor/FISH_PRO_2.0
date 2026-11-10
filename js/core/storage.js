@@ -1,5 +1,5 @@
-import { STATE_CACHE_KEY, WEATHER_CACHE_KEY, WEATHER_TTL_MS } from './config.js?v=2.8.0-r226';
-import { formatLocalYYYYMMDD } from './format.js?v=2.8.0-r226';
+import { STATE_CACHE_KEY, WEATHER_CACHE_KEY, WEATHER_TTL_MS } from './config.js?v=2.8.1-r227';
+import { formatLocalYYYYMMDD } from './format.js?v=2.8.1-r227';
 const DB_NAME = 'KlevProDB_v2_1_1';
 export const CLEAN_SLATE_FLAG_KEY = 'klev_pro_clean_slate_v2_1_1_r4';
 export const CLEAN_SLATE_NOTICE_KEY = 'klev_pro_clean_slate_notice_v2_1_1_r4';

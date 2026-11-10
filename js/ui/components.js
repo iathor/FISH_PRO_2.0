@@ -1,4 +1,4 @@
-import { svgIcon } from './icons.js?v=2.8.0-r226';
+import { svgIcon } from './icons.js?v=2.8.1-r227';
 /**
  * Экранирует пользовательские строки перед вставкой в HTML (защита от DOM XSS и инъекций тегов)
  */

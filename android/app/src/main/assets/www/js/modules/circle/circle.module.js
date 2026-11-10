@@ -9,16 +9,16 @@
  * - Выделенная вкладка « Чаты» на нижней панели навигации + отправка карточки улова прямо в чат.
  * - Закрытый режим Супер-Админа (только для Владельца + управляемая База Администраторов с синхронизацией).
  */
-import { events } from '../../core/events.js?v=2.8.0-r226';
-import { store } from '../../core/store.js?v=2.8.0-r226';
-import { storage, calcGeoDistanceKm, safeJsonParse } from '../../core/storage.js?v=2.8.0-r226';
-import { router } from '../../core/router.js?v=2.8.0-r226';
-import { getSeasonalBaitsForContext, SPOT_CATEGORIES } from '../../core/config.js?v=2.8.0-r226';
-import { detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.8.0-r226';
-import { findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.8.0-r226';
-import { WATER_PROFILES } from '../../data/waters.js?v=2.8.0-r226';
-import { FISH_DB } from '../../data/species.js?v=2.8.0-r226';
-import { escapeHtml, isAnonymousCallsignValid, createPill, showToast, openModal, closeModal, copyFisherIdToClipboard, openConfirmDeleteModal, openUserAgreementModal, isUserAgreementAccepted, downloadFileCrossPlatform, triggerSystemNotificationCrossPlatform, requestSystemNotificationsAccess, flashHighlightElement, isPolicyVersionAccepted, getSavedPolicyConsentMeta, POLICY_CONSENT_META_KEY, ACTIVE_POLICY_VERSION_DEFAULT, ACTIVE_APP_VERSION_DEFAULT, isGeoDistributionConsentActive, ensureGeoDistributionConsent, setGeoDistributionConsentState } from '../../ui/components.js?v=2.8.0-r226';
+import { events } from '../../core/events.js?v=2.8.1-r227';
+import { store } from '../../core/store.js?v=2.8.1-r227';
+import { storage, calcGeoDistanceKm, safeJsonParse } from '../../core/storage.js?v=2.8.1-r227';
+import { router } from '../../core/router.js?v=2.8.1-r227';
+import { getSeasonalBaitsForContext, SPOT_CATEGORIES } from '../../core/config.js?v=2.8.1-r227';
+import { detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.8.1-r227';
+import { findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.8.1-r227';
+import { WATER_PROFILES } from '../../data/waters.js?v=2.8.1-r227';
+import { FISH_DB } from '../../data/species.js?v=2.8.1-r227';
+import { escapeHtml, isAnonymousCallsignValid, createPill, showToast, openModal, closeModal, copyFisherIdToClipboard, openConfirmDeleteModal, openUserAgreementModal, isUserAgreementAccepted, downloadFileCrossPlatform, triggerSystemNotificationCrossPlatform, requestSystemNotificationsAccess, flashHighlightElement, isPolicyVersionAccepted, getSavedPolicyConsentMeta, POLICY_CONSENT_META_KEY, ACTIVE_POLICY_VERSION_DEFAULT, ACTIVE_APP_VERSION_DEFAULT, isGeoDistributionConsentActive, ensureGeoDistributionConsent, setGeoDistributionConsentState } from '../../ui/components.js?v=2.8.1-r227';
 import {
   RELAY_WORKER_URL,
   buildShareUrls,
@@ -31,9 +31,9 @@ import {
   syncToTelegramCloud,
   readFromTelegramCloud,
   triggerHaptic
-} from '../../core/telegram.js?v=2.8.0-r226';
-import { setLocation } from '../geo/geo.module.js?v=2.8.0-r226';
-import { calcDynamicRig } from '../forecast/forecast.module.js?v=2.8.0-r226';
+} from '../../core/telegram.js?v=2.8.1-r227';
+import { setLocation } from '../geo/geo.module.js?v=2.8.1-r227';
+import { calcDynamicRig } from '../forecast/forecast.module.js?v=2.8.1-r227';
 export const CREW_TTL_MS = 72 * 60 * 60 * 1000;
 /**
  * Вычисляет точное время окончания действия ссылки на длинную экспедицию:
@@ -1535,9 +1535,6 @@ export function resolveAccountCredentials(rawLogin = '', rawPassword = '', prefe
   const passClean = String(rawPassword || '').trim();
   const isOwnerLogin = isLoginOwnerMatch(loginClean);
   if (isOwnerLogin) {
-    if (!isAdminContourActive()) {
-      return { ok: false, error: 'Вход Владельца доступен только через выделенный админ-контур (Клёв ПРО Админ)' };
-    }
     if (passClean.length < 4) {
       return { ok: false, error: 'Введите серверный мастер-пароль Владельца (ADMIN_SECRET_PASSWORD)' };
     }
@@ -1642,8 +1639,8 @@ export function getCurrentFisherIdentity(stateObj = null) {
   const up = s?.userProfile || {};
   const tgUser = getTelegramUser();
   const devId = storage.getDeviceId ? storage.getDeviceId() : 'dev_local';
-  const isOwner = isOwnerAdmin(s);
-  const hasCredentials = Boolean(isOwner || (up.login && up.login !== 'Рыболов' && (up.pinHash || up.authTokenHash)));
+  const isOwner = isOwnerAdmin(s) || Boolean((isOwnerFisherId(up.fisherId) || isLoginOwnerMatch(up.login)) && (up.ownerUnlocked || up.authTokenHash || up.adminSessionToken));
+  const hasCredentials = Boolean(isOwner || (up.login && up.login !== 'Рыболов' && up.login !== 'Гость (Резерв)' && (up.pinHash || up.authTokenHash)));
   const regCode = resolveRussianRegionCode(s);
   const rawSavedFid = String(up.fisherId || '').trim().toUpperCase();
   let fisherId = '';
@@ -1655,16 +1652,17 @@ export function getCurrentFisherIdentity(stateObj = null) {
     callsign = up.callsign && up.callsign !== 'Рыболов' ? up.callsign : login;
   } else if (hasCredentials) {
     login = String(up.login || up.callsign || '').trim();
-    callsign = (up.callsign && up.callsign !== 'Рыболов') ? up.callsign : login;
+    callsign = (up.callsign && up.callsign !== 'Рыболов' && up.callsign !== 'Гость (Резерв)') ? up.callsign : login;
     if (rawSavedFid && isValidFisherIdFormat(rawSavedFid) && !isTemporaryReserveId(rawSavedFid) && !isOwnerFisherId(rawSavedFid)) {
-      fisherId = normalizeFisherId(rawSavedFid, regCode);
+      const savedReg = rawSavedFid.slice(3, 5) || regCode;
+      fisherId = normalizeFisherId(rawSavedFid, savedReg);
     } else {
       const detIdx = 1 + (fnv1a32(`auth_v21:${login.toLowerCase()}:${up.pinHash || up.authTokenHash}`) % (26 * 999 - 2));
       fisherId = formatFisherIdFromIndex(regCode, detIdx);
     }
   } else {
     login = '';
-    callsign = (up.callsign && up.callsign !== 'Рыболов' && !isLoginOwnerMatch(up.callsign)) ? up.callsign : 'Гость (Резерв)';
+    callsign = 'Гость (Резерв)';
     fisherId = _getOrCreateLockedDeviceReserveId(regCode, devId, rawSavedFid);
   }
   const isTemp = isTemporaryReserveId(fisherId);
@@ -2035,9 +2033,10 @@ export async function ensureFisherIdentityInitialized(forceReallocateForRegion =
         profileBackup: null,
         locLabel: s.locLabel || 'Новый Уренгой',
         locAdmin1: s.locAdmin1 || '',
-        login: ident.isRegistered ? (ident.login || '') : '',
-        authTokenHash: ident.isRegistered ? (curUpNow.authTokenHash || '') : '',
-        callsign: ident.callsign || 'Гость (Резерв)',
+        login: ident.isRegistered ? (ident.login || curUpNow.login || '') : '',
+        authTokenHash: ident.isRegistered ? (curUpNow.authTokenHash || curUpNow.sessionToken || curUpNow.adminSessionToken || '') : '',
+        pinHash: ident.isRegistered ? (curUpNow.pinHash || '') : '',
+        callsign: ident.isRegistered ? (ident.callsign || ident.login || 'Рыболов') : 'Гость (Резерв)',
         tgId: ident.isRegistered ? (ident.tgLinkedId || '') : '',
         tgUsername: ident.isRegistered ? (ident.tgUsername || '') : '',
         platform: detectClientPlatformLabel(),
@@ -2586,34 +2585,23 @@ export async function authenticateAndSyncAccount(rawLogin, rawPassword, mode = '
   }
   const tgUser = getTelegramUser();
   const prevUp = { ...(s.userProfile || {}) };
+  const previousReserveId = (prevUp.fisherId && isTemporaryReserveId(prevUp.fisherId)) ? prevUp.fisherId : '';
   const isSamePrevLogin = Boolean(prevUp.login && prevUp.login.toLowerCase() === creds.login.toLowerCase());
-  let effectiveFisherId = creds.fisherId;
-  if (!creds.isOwnerCandidate && isSamePrevLogin && prevUp.fisherId && !isTemporaryReserveId(prevUp.fisherId) && !isOwnerFisherId(prevUp.fisherId)) {
-    effectiveFisherId = normalizeFisherId(prevUp.fisherId, regCode);
-  }
+  let effectiveFisherId = (isSamePrevLogin && prevUp.fisherId && !isTemporaryReserveId(prevUp.fisherId) && !isOwnerFisherId(prevUp.fisherId))
+    ? normalizeFisherId(prevUp.fisherId, prevUp.fisherId.slice(3, 5) || regCode)
+    : (creds.isOwnerCandidate ? creds.fisherId : (prevUp.fisherId || creds.fisherId));
   const rawTgId = tgUser?.id || (isSamePrevLogin ? prevUp.tgLinkedId : '') || '';
   let rawTgUname = tgUser?.username || (isSamePrevLogin ? prevUp.tgUsername : '') || '';
   if (!creds.isOwnerCandidate && isLoginOwnerMatch(rawTgUname)) {
     rawTgUname = '';
   }
-  store.dispatch({
-    type: 'UPDATE_USER_PROFILE',
-    payload: {
-      onboarded: true,
-      login: creds.login,
-      callsign: creds.callsign,
-      fisherId: creds.isOwner ? creds.fisherId : effectiveFisherId,
-      pinHash: creds.pinHash,
-      authTokenHash: creds.authTokenHash,
-      adminSessionToken: '',
-      authShadow: '',
-      ownerUnlocked: false,
-      tgLinkedId: rawTgId,
-      tgUsername: rawTgUname
-    }
-  });
-  const snapshot = buildProfileCloudSnapshot(store.getState());
-  syncToTelegramCloud('klev_auth_v2', snapshot);
+  const snapshot = {
+    ...buildProfileCloudSnapshot(store.getState()),
+    login: creds.login,
+    callsign: creds.callsign,
+    previousFisherId: previousReserveId,
+    deviceId: storage.getDeviceId ? storage.getDeviceId() : (prevUp.deviceId || 'dev_local')
+  };
   let cloudSynced = false;
   let finalFisherId = effectiveFisherId;
   try {
@@ -2623,8 +2611,10 @@ export async function authenticateAndSyncAccount(rawLogin, rawPassword, mode = '
       authTokenHash: creds.authTokenHash,
       pinHash: creds.pinHash,
       regionCode: regCode,
+      deviceId: snapshot.deviceId,
+      previousFisherId: previousReserveId,
       platform: detectClientPlatformLabel(),
-      version: '2.5.6',
+      version: '2.8.1',
       profileSnapshot: snapshot
     });
     const endpoint = mode === 'sync' ? '/auth/sync' : '/auth/login';
@@ -2713,10 +2703,16 @@ export async function authenticateAndSyncAccount(rawLogin, rawPassword, mode = '
           adminSessionToken: _serverAdminSessionToken
         });
       } else if (data.fisherId) {
-        finalFisherId = normalizeFisherId(data.fisherId, regCode);
+        const srvHomeReg = String(data.fisherId).slice(3, 5) || regCode;
+        finalFisherId = normalizeFisherId(data.fisherId, srvHomeReg);
         data.profile.fisherId = finalFisherId;
         data.profile.ownerUnlocked = false;
       }
+      try {
+        if (typeof localStorage !== 'undefined') {
+          localStorage.removeItem(DEVICE_RESERVE_ID_STORAGE_KEY);
+        }
+      } catch (_e) {}
       if (data.sessionToken && (String(data.sessionToken).startsWith('STOK_') || String(data.sessionToken).startsWith('KTOK_'))) {
         data.profile.authTokenHash = data.sessionToken;
         data.profile.sessionToken = data.sessionToken;

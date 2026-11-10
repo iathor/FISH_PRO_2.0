@@ -1,15 +1,15 @@
-import { RU } from '../../i18n/ru.js?v=2.8.0-r226';
-import { events } from '../../core/events.js?v=2.8.0-r226';
-import { storage } from '../../core/storage.js?v=2.8.0-r226';
-import { store } from '../../core/store.js?v=2.8.0-r226';
-import { fetchWithTimeout, fallbackChain } from '../../core/http.js?v=2.8.0-r226';
-import { formatLocalYYYYMMDD, fmtHM, fmtDeltaPress } from '../../core/format.js?v=2.8.0-r226';
-import { WATER_PROFILES } from '../../data/waters.js?v=2.8.0-r226';
-import { createPill, showToast } from '../../ui/components.js?v=2.8.0-r226';
+import { RU } from '../../i18n/ru.js?v=2.8.1-r227';
+import { events } from '../../core/events.js?v=2.8.1-r227';
+import { storage } from '../../core/storage.js?v=2.8.1-r227';
+import { store } from '../../core/store.js?v=2.8.1-r227';
+import { fetchWithTimeout, fallbackChain } from '../../core/http.js?v=2.8.1-r227';
+import { formatLocalYYYYMMDD, fmtHM, fmtDeltaPress } from '../../core/format.js?v=2.8.1-r227';
+import { WATER_PROFILES } from '../../data/waters.js?v=2.8.1-r227';
+import { createPill, showToast } from '../../ui/components.js?v=2.8.1-r227';
 const DIRS = ['С', 'СВ', 'В', 'ЮВ', 'Ю', 'ЮЗ', 'З', 'СЗ'];
 
 /**
- * ── ЯДРО ГИДРОМЕТЦЕНТРА РОССИИ (METEOINFO.RU) • РЕВИЗИЯ 2.8.0 (r226) ──
+ * ── ЯДРО ГИДРОМЕТЦЕНТРА РОССИИ (METEOINFO.RU) • РЕВИЗИЯ 2.8.1 (r227) ──
  * 1. 4 микро-парсера (StationWeatherParser, HydroReviewNLPParser, RoadAndStormAlertParser, SpaceWeatherParser)
  * 2. Геопоиск 3 ближайших опорных метеостанций РФ и интерполяция методом обратных взвешенных расстояний (IDW)
  *    с барометрической и высотной поправкой (dT = -0.0065 * dz, dP = -dz / 11.5)

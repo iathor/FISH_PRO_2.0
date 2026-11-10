@@ -1,13 +1,13 @@
-import { MAP_LAYERS, SPOT_CATEGORIES, getCompatibleMethods } from '../../core/config.js?v=2.8.0-r226';
-import { events } from '../../core/events.js?v=2.8.0-r226';
-import { storage, safeJsonParse } from '../../core/storage.js?v=2.8.0-r226';
-import { router } from '../../core/router.js?v=2.8.0-r226';
-import { store } from '../../core/store.js?v=2.8.0-r226';
-import { fetchWithTimeout } from '../../core/http.js?v=2.8.0-r226';
-import { installShortcut, syncInstallButtons } from '../../core/pwa.js?v=2.8.0-r226';
-import { triggerHaptic } from '../../core/telegram.js?v=2.8.0-r226';
-import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.8.0-r226';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.8.0-r226';
+import { MAP_LAYERS, SPOT_CATEGORIES, getCompatibleMethods } from '../../core/config.js?v=2.8.1-r227';
+import { events } from '../../core/events.js?v=2.8.1-r227';
+import { storage, safeJsonParse } from '../../core/storage.js?v=2.8.1-r227';
+import { router } from '../../core/router.js?v=2.8.1-r227';
+import { store } from '../../core/store.js?v=2.8.1-r227';
+import { fetchWithTimeout } from '../../core/http.js?v=2.8.1-r227';
+import { installShortcut, syncInstallButtons } from '../../core/pwa.js?v=2.8.1-r227';
+import { triggerHaptic } from '../../core/telegram.js?v=2.8.1-r227';
+import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.8.1-r227';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.8.1-r227';
 import {
   RUSSIA_CITIES,
   RUSSIA_WATERS,
@@ -15,12 +15,12 @@ import {
   getNearestRussianSettlements,
   getNearestRussianWaters,
   getWaterTypeShortTag
-} from '../../data/russia-waters.js?v=2.8.0-r226';
-import { FISH_DB } from '../../data/species.js?v=2.8.0-r226';
-import { escapeHtml, createPill, showToast, openModal, closeModal, openConfirmDeleteModal, downloadFileCrossPlatform, flashHighlightElement, isGeoDistributionConsentActive, ensureGeoDistributionConsent, setGeoDistributionConsentState } from '../../ui/components.js?v=2.8.0-r226';
-import { fetchWeather } from '../weather/weather.module.js?v=2.8.0-r226';
-import { calcDayBest } from '../forecast/forecast.module.js?v=2.8.0-r226';
-import { computeHexPolygonForCircle, getEffectiveCircleRadiusKm, getCircleHexDecayState, canUserAccessCrewItem, getCurrentFisherIdentity, isUserAdmin, isCurrentUserBetaTester, verifyBetaTesterStatusFromCloud, isCircleItemMine, isCircleItemHidden, openAddThematicMapPointModal } from '../circle/circle.module.js?v=2.8.0-r226';
+} from '../../data/russia-waters.js?v=2.8.1-r227';
+import { FISH_DB } from '../../data/species.js?v=2.8.1-r227';
+import { escapeHtml, createPill, showToast, openModal, closeModal, openConfirmDeleteModal, downloadFileCrossPlatform, flashHighlightElement, isGeoDistributionConsentActive, ensureGeoDistributionConsent, setGeoDistributionConsentState } from '../../ui/components.js?v=2.8.1-r227';
+import { fetchWeather } from '../weather/weather.module.js?v=2.8.1-r227';
+import { calcDayBest } from '../forecast/forecast.module.js?v=2.8.1-r227';
+import { computeHexPolygonForCircle, getEffectiveCircleRadiusKm, getCircleHexDecayState, canUserAccessCrewItem, getCurrentFisherIdentity, isUserAdmin, isCurrentUserBetaTester, verifyBetaTesterStatusFromCloud, isCircleItemMine, isCircleItemHidden, openAddThematicMapPointModal } from '../circle/circle.module.js?v=2.8.1-r227';
 // ============================================================================
 // АВТОНОМНОЕ ЯДРО, РЕПРОЕКТОР EPSG:3395 И ИНСПЕКТОР ПРОВЕРКИ ОФЛАЙН-КАРТ (ФАЗА 1 • v2)
 // Хранение в формате инлайн-DataURL (100% сохранность после перезапуска Android WebView)

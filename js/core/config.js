@@ -2,25 +2,25 @@
  * @file config.js
  * @description Конфигурация приложения (Релиз 2.5.6 r216), слои карт без VPN и адаптивные справочники снастей и сезонных наживок
  */
-export const APP_VERSION = '2.8.0';
-export const APP_BUILD_NUMBER = 226;
-export const APP_REVISION = 'r226';
-export const APP_DISPLAY_VERSION = 'v2.8.0 r226';
+export const APP_VERSION = '2.8.1';
+export const APP_BUILD_NUMBER = 227;
+export const APP_REVISION = 'r227';
+export const APP_DISPLAY_VERSION = 'v2.8.1 r227';
 export const STATE_CACHE_KEY = 'klev_pro_state_v2.0';
 export const WEATHER_CACHE_KEY = 'klev_pro_weather_v2.0';
 export const RELEASE_CACHE_KEY = 'klev_pro_release_v2.0';
 export const WEATHER_TTL_MS = 2 * 60 * 60 * 1000;
 export const CURRENT_RELEASE_INFO = {
-  "version": "2.8.0",
-  "versionCode": 280226,
-  "buildNumber": 226,
-  "revision": "r226",
-  "displayVersion": "v2.8.0 r226",
+  "version": "2.8.1",
+  "versionCode": 280227,
+  "buildNumber": 227,
+  "revision": "r227",
+  "displayVersion": "v2.8.1 r227",
   "date": "9 ноября 2026",
   "releasedAt": "2026-11-09T12:00:00Z",
-  "apkUrl": "https://klevpro.ru/apk/klev-pro-v2.8.0.apk",
+  "apkUrl": "https://klevpro.ru/apk/klev-pro-v2.8.1.apk",
   "fileSize": "38.6 МБ",
-  "title": "Обновление «Клёв ПРО 2.0» (v2.8.0 r226)",
+  "title": "Обновление «Клёв ПРО 2.0» (v2.8.1 r227)",
   "subtitle": "Новый интерактивный загрузочный экран с работающим сонаром для 3 тем, точное голосовое ведение по маршруту и умное обновление кэша без потери данных.",
   "summary": "Внедрён адаптивный экран загрузки с работающим сонаром и подсветкой целей для смартфонов, планшетов и ПК во всех 3 темах, нативное голосовое сопровождение маршрута и безопасная очистка устаревшего кэша.",
   "highlights": [
@@ -36,7 +36,7 @@ export const CURRENT_RELEASE_INFO = {
     },
     {
       "icon": "<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"12\" cy=\"12\" r=\"9\" fill=\"rgba(16,185,129,0.22)\" stroke=\"#10b981\" stroke-width=\"1.8\"/><path d=\"M8 12.5l2.7 2.7L16.5 9.5\" stroke=\"#10b981\" stroke-width=\"2.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>",
-      "title": "Контроль версий 2.8.0 и безопасное обновление кэша",
+      "title": "Контроль версий 2.8.1 и безопасное обновление кэша",
       "text": "Запрос обновления в APK только при выходе строго более высокой версии, а на сайте и в PWA — бережная очистка кэша и технических куки с полным сохранением всех данных пользователя."
     }
   ]

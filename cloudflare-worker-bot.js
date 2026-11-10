@@ -1,7 +1,7 @@
 // @file bot/cloudflare-worker-bot.js — @KlevProClubBot (V.2.1.1)
 // Компактная сборка для Cloudflare Workers (115 рыб, 491 водоём, 609 городов РФ + Triple-Engine $0 DB + E2EE Relay + Обмен точками Круга/Экипажа/SOS + Уникальные Региональные ID FP_89AAA001 & Эксклюзивный VIP ID владельца FP_89VIP089 + Секретная Серверная Консоль Супер-Админа)
 
-const WORKER_VERSION = '2.8.0-r226';
+const WORKER_VERSION = '2.8.1-r227';
 const RESERVE_ID_TTL_MS = 24 * 60 * 60 * 1000; // Временный резервный ID живёт строго не более 24 часов (суток)
 const deletedFisherIdsSet = new Set(); // Удалённые вручную через Админ-панель ID (защита от повторной фоновой вставки)
 const rateBuckets = new Map();
@@ -924,10 +924,14 @@ async function resolveWorkerAccountIdentity(rawLogin = '', rawPassword = '', raw
   return { ok: false, error: anonWorkerCheck.error };
  }
 
+ // Перед выдачей или проверкой ID принудительно подгружаем профиль из D1 по нормализованному логину (независимо от устройства и региона!)
+ if (env && loginNorm) {
+  await loadPersistedAuthProfile(env, '', loginNorm, '');
+ }
  let existingAuthKey = loginToAuthKeyMap.get(loginNorm) || '';
  if (!existingAuthKey) {
   for (const [k, prof] of cloudAuthProfiles.entries()) {
-   if (prof && String(prof.login || '').trim().toLowerCase().replace(/^@/, '') === loginNorm) {
+   if (prof && workerNormalizeLogin(prof.login || '') === loginNorm) {
     existingAuthKey = k;
     loginToAuthKeyMap.set(loginNorm, k);
     break;
@@ -1002,16 +1006,32 @@ async function resolveWorkerAccountIdentity(rawLogin = '', rawPassword = '', raw
  const existingProf = cloudAuthProfiles.get(authKey);
  const regCode = workerResolveRegionCode(rawRegionCode || snap);
 
- // Постоянный ID выдаётся ОДИН РАЗ при регистрации логина+пароля и жёстко хранится в профиле логина+пароля (НЕ привязан к железу телефона!)
- let fisherId = existingProf?.fisherId ? workerNormalizeFisherId(existingProf.fisherId, regCode) : '';
+ // Постоянный ID выдаётся ОДИН РАЗ при первой регистрации логина+пароля и НАВСЕГДА привязан к аккаунту на всех устройствах и в любых регионах!
+ let fisherId = (existingProf?.fisherId && !isTemporaryReserveId(existingProf.fisherId))
+  ? workerNormalizeFisherId(existingProf.fisherId, existingProf.fisherId.slice(3, 5) || regCode)
+  : '';
  if (!fisherId || isOwnerFisherId(fisherId) || isTemporaryReserveId(fisherId)) {
-  // Проверяем, есть ли уже постоянный ID для этого логина в usersRegistryStore (защита от дублирования при параллельных запросах)
   const existingPermCandidates = [];
   for (const u of usersRegistryStore.values()) {
    if (u && u.fisherId && !isTemporaryReserveId(u.fisherId) && !isOwnerFisherId(u.fisherId)) {
-    if (workerNormalizeLogin(u.login) === loginNorm) {
+    if (workerNormalizeLogin(u.login) === loginNorm || workerNormalizeLogin(u.callsign) === loginNorm) {
      existingPermCandidates.push(u.fisherId);
     }
+   }
+  }
+  if (existingPermCandidates.length === 0 && env) {
+   const d1Lookup = getD1(env)?.db;
+   if (d1Lookup) {
+    try {
+     const rows = await d1Lookup.prepare('SELECT fisher_id FROM users_registry WHERE is_temporary = 0 AND (LOWER(login) = ? OR LOWER(callsign) = ?) ORDER BY first_seen ASC LIMIT 5').bind(loginNorm, loginNorm).all();
+     if (rows && Array.isArray(rows.results)) {
+      for (const r of rows.results) {
+       if (r.fisher_id && !isTemporaryReserveId(r.fisher_id) && !isOwnerFisherId(r.fisher_id)) {
+        existingPermCandidates.push(r.fisher_id);
+       }
+      }
+     }
+    } catch (_e) {}
    }
   }
   if (existingPermCandidates.length > 0) {
@@ -1035,16 +1055,34 @@ async function resolveWorkerAccountIdentity(rawLogin = '', rawPassword = '', raw
   });
  }
 
- // Если до регистрации на этом устройстве был временный резервный ID (FP_XXRZYYYY), очищаем временный резерв
+ // Немедленно поглощаем и удаляем все временные резервные ID (FP_XXRZYYYY) этого устройства и этого логина из памяти и D1
  const prevDevId = String(snap?.deviceId || '').trim();
- const prevTempFid = prevDevId ? deviceToFisherIdMap.get(prevDevId) : '';
- if (prevTempFid && isTemporaryReserveId(prevTempFid)) {
-  usersRegistryStore.delete(prevTempFid);
-  deviceToFisherIdMap.delete(prevDevId);
+ const tempFidsToPurge = new Set();
+ if (prevDevId) {
+  const prevTempFid = deviceToFisherIdMap.get(prevDevId);
+  if (prevTempFid && isTemporaryReserveId(prevTempFid)) tempFidsToPurge.add(prevTempFid);
+  deviceToFisherIdMap.set(prevDevId, fisherId);
  }
- const snapTempFid = workerNormalizeFisherId(snap?.fisherId || '', regCode);
- if (snapTempFid && isTemporaryReserveId(snapTempFid)) {
-  usersRegistryStore.delete(snapTempFid);
+ for (const candRaw of [snap?.fisherId, snap?.previousFisherId]) {
+  if (candRaw && isTemporaryReserveId(candRaw)) {
+   tempFidsToPurge.add(String(candRaw).trim().toUpperCase());
+  }
+ }
+ for (const [uid, uObj] of usersRegistryStore.entries()) {
+  if (!uObj || uid === fisherId) continue;
+  const uLogNorm = workerNormalizeLogin(uObj.login || '');
+  const uCallNorm = workerNormalizeLogin(uObj.callsign || '');
+  if (isTemporaryReserveId(uid) && ((prevDevId && uObj.deviceId === prevDevId) || uLogNorm === loginNorm || uCallNorm === loginNorm)) {
+   tempFidsToPurge.add(uid);
+  }
+ }
+ const d1Purge = getD1(env)?.db;
+ for (const tfid of tempFidsToPurge) {
+  usersRegistryStore.delete(tfid);
+  deletedFisherIdsSet.add(tfid);
+  if (d1Purge) {
+   d1Purge.prepare('DELETE FROM users_registry WHERE fisher_id = ?').bind(tfid).run().catch(() => {});
+  }
  }
 
  return {
@@ -4582,12 +4620,12 @@ function computeFishScoreForWeather(fishObj, w) {
 
 function makeAppButton(text, deepAppUrl, isPrivateChat = true) {
  let finalUrl = String(deepAppUrl || 'https://klevpro.ru/');
- if (!finalUrl.includes('v=r226')) {
+ if (!finalUrl.includes('v=r227')) {
   const hashIdx = finalUrl.indexOf('#');
   const basePart = hashIdx >= 0 ? finalUrl.slice(0, hashIdx) : finalUrl;
   const hashPart = hashIdx >= 0 ? finalUrl.slice(hashIdx) : '';
   const sep = basePart.includes('?') ? '&' : '?';
-  finalUrl = `${basePart}${sep}v=r226&tma=1${hashPart}`;
+  finalUrl = `${basePart}${sep}v=r227&tma=1${hashPart}`;
  }
  if (isPrivateChat) {
   return { text, web_app: { url: finalUrl } };
@@ -5369,8 +5407,46 @@ async function pruneExpiredTemporaryUsers(env) {
  const permByLoginMap = new Map(); // loginNorm -> canonical permanent user object
  const updatedCanonicalPermUsers = [];
 
- // 1. Дедупликация постоянных ID с одинаковым логином (напр., если из-за гонки выдало FP_89AAA009 и FP_89AAA010 одному логину vladimir)
- // Сортируем по возрастанию fisherId (чтобы каноническим оставался более ранний номер, напр. FP_89AAA009)
+ // 0. Гарантируем, что Владелец (iAthor -> FP_89VIP089) зарегистрирован в карте канонических логинов,
+ // чтобы любые случайные RZ-записи с логином/позывным iAthor (FP_74RZ0001, FP_89RZ0080, FP_89RZ0082, FP_89RZ0106) немедленно поглощались и удалялись!
+ const ownerCanon = usersRegistryStore.get(OWNER_FISHER_ID);
+ if (ownerCanon) {
+  permByLoginMap.set('iathor', ownerCanon);
+  permByLoginMap.set('iathor82', ownerCanon);
+  permByLoginMap.set('thorantony82', ownerCanon);
+  if (ownerCanon.deviceId) permDeviceSet.add(ownerCanon.deviceId);
+  if (Array.isArray(ownerCanon.deviceIds)) ownerCanon.deviceIds.forEach(d => { if (d) permDeviceSet.add(d); });
+ }
+
+ // Подтягиваем все известные постоянные профили из cloudAuthProfiles
+ for (const [aKey, prof] of cloudAuthProfiles.entries()) {
+  if (!prof || !prof.fisherId || isTemporaryReserveId(prof.fisherId)) continue;
+  const ln = workerNormalizeLogin(prof.login || '');
+  if (ln && !usersRegistryStore.has(prof.fisherId) && !deletedFisherIdsSet.has(prof.fisherId)) {
+   usersRegistryStore.set(prof.fisherId, {
+    fisherId: prof.fisherId,
+    deviceId: prof.deviceId || '',
+    deviceIds: Array.isArray(prof.deviceIds) ? prof.deviceIds : (prof.deviceId ? [prof.deviceId] : []),
+    login: prof.login || ln,
+    callsign: prof.callsign || prof.login || 'Рыболов',
+    tgId: prof.tgLinkedId || '',
+    tgUsername: prof.tgUsername || '',
+    regionCode: prof.fisherId.slice(3, 5) || '89',
+    locLabel: prof.locLabel || 'Новый Уренгой',
+    platform: 'WEB / APK',
+    version: WORKER_VERSION,
+    isOwner: isOwnerFisherId(prof.fisherId),
+    isAdmin: isOwnerFisherId(prof.fisherId) || adminWhitelistStore.has(prof.fisherId),
+    isTemporaryReserve: false,
+    firstSeen: prof.updatedAt || now,
+    lastSeen: prof.updatedAt || now,
+    sessionsCount: 1,
+    circlePostsCount: 0
+   });
+  }
+ }
+
+ // 1. Дедупликация постоянных ID с одинаковым логином (один человек с разных устройств = строго 1 постоянный ID!)
  const permUsersSorted = Array.from(usersRegistryStore.values())
   .filter(u => u && u.fisherId && !isTemporaryReserveId(u.fisherId) && !isOwnerFisherId(u.fisherId))
   .sort((a, b) => String(a.fisherId).localeCompare(String(b.fisherId)));
@@ -5381,41 +5457,69 @@ async function pruneExpiredTemporaryUsers(env) {
    expiredOrDupFids.push(u.fisherId);
    continue;
   }
-  const ln = workerNormalizeLogin(u.login || '');
-  if (ln && ln !== 'рыболов' && ln !== 'гость') {
+  // Защищаем домашний регион постоянного ID (например, FP_89AAA014 всегда имеет regionCode '89')
+  const idReg = u.fisherId.slice(3, 5);
+  if (/^\d{2}$/.test(idReg) && u.regionCode !== idReg) {
+   u.regionCode = idReg;
+  }
+  const ln = workerNormalizeLogin(u.login || u.callsign || '');
+  if (workerIsOwnerLogin(ln)) {
+   // Любой не-VIP постоянный ID, ошибочно созданный на логин владельца iAthor, сливаем в FP_89VIP089
+   if (u.deviceId) {
+    deviceToFisherIdMap.set(u.deviceId, OWNER_FISHER_ID);
+    permDeviceSet.add(u.deviceId);
+   }
+   usersRegistryStore.delete(u.fisherId);
+   deletedFisherIdsSet.add(u.fisherId);
+   expiredOrDupFids.push(u.fisherId);
+   continue;
+  }
+  if (ln && ln !== 'рыболов' && ln !== 'гость' && ln !== 'гостьрезерв') {
    if (permByLoginMap.has(ln)) {
     const canon = permByLoginMap.get(ln);
     canon.sessionsCount = Math.max(canon.sessionsCount || 1, u.sessionsCount || 1);
     canon.circlePostsCount = (canon.circlePostsCount || 0) + (u.circlePostsCount || 0);
     if ((u.lastSeen || 0) > (canon.lastSeen || 0)) canon.lastSeen = u.lastSeen;
+    const mergedDevs = new Set([...(Array.isArray(canon.deviceIds) ? canon.deviceIds : (canon.deviceId ? [canon.deviceId] : [])), ...(Array.isArray(u.deviceIds) ? u.deviceIds : (u.deviceId ? [u.deviceId] : []))]);
+    canon.deviceIds = Array.from(mergedDevs).filter(Boolean);
     if (!canon.deviceId && u.deviceId) canon.deviceId = u.deviceId;
     if (!canon.tgId && u.tgId) canon.tgId = u.tgId;
     if (!canon.tgUsername && u.tgUsername) canon.tgUsername = u.tgUsername;
     usersRegistryStore.set(canon.fisherId, canon);
     updatedCanonicalPermUsers.push(canon);
-    // Перепривязываем профиль авторизации к каноническому ID и удаляем дубль
     const aKey = loginToAuthKeyMap.get(ln) || fisherIdToAuthKeyMap.get(u.fisherId);
     if (aKey && cloudAuthProfiles.has(aKey)) {
      const prof = cloudAuthProfiles.get(aKey);
      if (prof) {
       prof.fisherId = canon.fisherId;
+      prof.deviceIds = canon.deviceIds;
       cloudAuthProfiles.set(aKey, prof);
      }
      fisherIdToAuthKeyMap.set(canon.fisherId, aKey);
     }
     fisherIdToAuthKeyMap.delete(u.fisherId);
-    if (u.deviceId) deviceToFisherIdMap.set(u.deviceId, canon.fisherId);
+    if (u.deviceId) {
+     deviceToFisherIdMap.set(u.deviceId, canon.fisherId);
+     permDeviceSet.add(u.deviceId);
+    }
     usersRegistryStore.delete(u.fisherId);
     deletedFisherIdsSet.add(u.fisherId);
     expiredOrDupFids.push(u.fisherId);
     continue;
    }
+   if (!Array.isArray(u.deviceIds)) {
+    u.deviceIds = u.deviceId ? [u.deviceId] : [];
+   }
    permByLoginMap.set(ln, u);
   }
   if (u.deviceId) permDeviceSet.add(u.deviceId);
+  if (Array.isArray(u.deviceIds)) u.deviceIds.forEach(d => { if (d) permDeviceSet.add(d); });
  }
 
- // 2. Сортируем временные резервные ID по убыванию lastSeen/firstSeen, чтобы на 1 устройство оставался строго 1 актуальный резервный ID (и 0, если устройство уже зарегистрировало постоянный ID!)
+ // 2. Очистка временных резервных ID (FP_XXRZYYYY):
+ // - Если у RZ-записи указан логин или позывной существующего зарегистрированного рыбака (например, iAthor или test89test) -> НЕМЕДЛЕННО УДАЛЯЕМ дубль и привязываем его устройство к постоянному ID!
+ // - Если устройство уже имеет постоянный ID (permDeviceSet) или запись старше 24ч -> УДАЛЯЕМ!
+ // - На 1 гостевое устройство (deviceId) оставляем строго 1 актуальный RZ-номер (независимо от смены региона на карте), а позывной всегда фиксируем как «Гость (Резерв)».
  const allUsers = Array.from(usersRegistryStore.values()).sort((a, b) => (b.lastSeen || b.firstSeen || 0) - (a.lastSeen || a.firstSeen || 0));
  for (const u of allUsers) {
   if (!u || !u.fisherId) continue;
@@ -5425,6 +5529,22 @@ async function pruneExpiredTemporaryUsers(env) {
    continue;
   }
   if (isTemporaryReserveId(u.fisherId)) {
+   const uLogNorm = workerNormalizeLogin(u.login || '');
+   const uCallNorm = workerNormalizeLogin(u.callsign || '');
+   const matchedPermCanon = (uLogNorm && permByLoginMap.get(uLogNorm)) || (uCallNorm && permByLoginMap.get(uCallNorm)) || ((workerIsOwnerLogin(uLogNorm) || workerIsOwnerLogin(uCallNorm)) ? ownerCanon : null);
+   if (matchedPermCanon) {
+    if (u.deviceId) {
+     deviceToFisherIdMap.set(u.deviceId, matchedPermCanon.fisherId);
+     permDeviceSet.add(u.deviceId);
+     if (!Array.isArray(matchedPermCanon.deviceIds)) matchedPermCanon.deviceIds = matchedPermCanon.deviceId ? [matchedPermCanon.deviceId] : [];
+     if (!matchedPermCanon.deviceIds.includes(u.deviceId)) matchedPermCanon.deviceIds.push(u.deviceId);
+     updatedCanonicalPermUsers.push(matchedPermCanon);
+    }
+    usersRegistryStore.delete(u.fisherId);
+    deletedFisherIdsSet.add(u.fisherId);
+    expiredOrDupFids.push(u.fisherId);
+    continue;
+   }
    const createdTs = Number(u.firstSeen || u.lastSeen || 0);
    if (!createdTs || (now - createdTs) > RESERVE_ID_TTL_MS || (u.deviceId && permDeviceSet.has(u.deviceId))) {
     usersRegistryStore.delete(u.fisherId);
@@ -5434,9 +5554,16 @@ async function pruneExpiredTemporaryUsers(env) {
     expiredOrDupFids.push(u.fisherId);
     continue;
    }
+   // Гостевой резервный ID никогда не должен носить чужой логин — строго «Гость (Резерв)»
+   if (u.login || (u.callsign && u.callsign !== 'Гость (Резерв)')) {
+    u.login = '';
+    u.callsign = 'Гость (Резерв)';
+    usersRegistryStore.set(u.fisherId, u);
+   }
    if (u.deviceId) {
     if (seenTempDeviceMap.has(u.deviceId)) {
      usersRegistryStore.delete(u.fisherId);
+     deletedFisherIdsSet.add(u.fisherId);
      expiredOrDupFids.push(u.fisherId);
      continue;
     }
@@ -5448,22 +5575,78 @@ async function pruneExpiredTemporaryUsers(env) {
   }
  }
 
+ for (const fid of expiredOrDupFids) {
+  reservedVanityIds.delete(fid);
+ }
+
+ // Пересчитываем региональные счётчики по реально существующим (дедуплицированным) записям,
+ // чтобы удалённые дубли не раздували номера (след. # / RZ)
+ const actualPermMaxByReg = new Map();
+ const actualRzMaxByReg = new Map();
+ for (const u of usersRegistryStore.values()) {
+  if (!u || !u.fisherId || isOwnerFisherId(u.fisherId)) continue;
+  const rzM = String(u.fisherId).match(/^FP_(\d{2})RZ(\d{4})$/i);
+  if (rzM) {
+   const rc = rzM[1];
+   const num = parseInt(rzM[2], 10) || 0;
+   if (num > (actualRzMaxByReg.get(rc) || 0)) actualRzMaxByReg.set(rc, num);
+   continue;
+  }
+  const permM = String(u.fisherId).match(/^FP_(\d{2})([A-Z]{3})(\d{3})$/i);
+  if (permM) {
+   const rc = permM[1];
+   const lets = permM[2].toUpperCase();
+   const num = parseInt(permM[3], 10) || 1;
+   const lIdx = (lets.charCodeAt(0) - 65) * 676 + (lets.charCodeAt(1) - 65) * 26 + (lets.charCodeAt(2) - 65);
+   const seqVal = lIdx * 999 + num;
+   if (seqVal > (actualPermMaxByReg.get(rc) || 0)) actualPermMaxByReg.set(rc, seqVal);
+  }
+ }
+ for (const rc of Array.from(regionSequenceCounters.keys())) {
+  regionSequenceCounters.set(rc, actualPermMaxByReg.get(rc) || 0);
+ }
+ for (const [rc, val] of actualPermMaxByReg.entries()) {
+  regionSequenceCounters.set(rc, val);
+ }
+ for (const rc of Array.from(regionReserveCounters.keys())) {
+  regionReserveCounters.set(rc, actualRzMaxByReg.get(rc) || 0);
+ }
+ for (const [rc, val] of actualRzMaxByReg.entries()) {
+  regionReserveCounters.set(rc, val);
+ }
+
  const d1Info = getD1(env);
  const d1 = d1Info?.db;
  if (d1) {
   try {
    await d1.prepare('DELETE FROM users_registry WHERE is_temporary = 1 AND first_seen < ?').bind(cutoffTs).run().catch(() => {});
-   for (const fid of expiredOrDupFids.slice(0, 80)) {
+   for (const fid of expiredOrDupFids.slice(0, 150)) {
     await d1.prepare('DELETE FROM users_registry WHERE fisher_id = ?').bind(fid).run().catch(() => {});
    }
-   for (const canon of updatedCanonicalPermUsers.slice(0, 20)) {
+   for (const canon of updatedCanonicalPermUsers.slice(0, 40)) {
     await d1SaveUser(env, canon).catch(() => {});
     const ln = workerNormalizeLogin(canon.login || '');
     if (ln) {
      await d1.prepare('UPDATE auth_profiles SET fisher_id = ? WHERE login_norm = ?').bind(canon.fisherId, ln).run().catch(() => {});
     }
    }
+   if (expiredOrDupFids.length > 0 || updatedCanonicalPermUsers.length > 0) {
+    const snapStr = serializeFullServerState();
+    await d1.prepare('INSERT OR REPLACE INTO klev_kv (k, v, updated_at) VALUES (?, ?, ?)').bind('SYS_STATE_V2_1_1', snapStr, Date.now()).run().catch(() => {});
+    for (const [rc, permVal] of regionSequenceCounters.entries()) {
+     const rzVal = regionReserveCounters.get(rc) || 0;
+     await d1.prepare('INSERT OR REPLACE INTO region_counters (region_code, seq_perm, seq_reserve) VALUES (?, ?, ?)').bind(rc, permVal, rzVal).run().catch(() => {});
+    }
+   }
   } catch (e) {}
+ }
+ if (expiredOrDupFids.length > 0) {
+  const kv = getKV(env);
+  if (kv) {
+   try {
+    await kv.put('SYS_STATE_V2_1_1', serializeFullServerState());
+   } catch (e) {}
+  }
  }
 }
 
@@ -5635,6 +5818,7 @@ async function ensurePersistentStateLoaded(env, forceReload = false) {
    }
   } catch (e) {}
  }
+ await pruneExpiredTemporaryUsers(env);
  persistentStateLoaded = true;
  })().finally(() => { _persistentStateLoadPromise = null; });
  return _persistentStateLoadPromise;
@@ -6204,10 +6388,10 @@ const betaGateConfig = {
 };
 const policyStateStore = {
  policyVersion: '2026.11.06-v2.6',
- appVersion: '2.8.0',
- appRevision: 'r226',
+ appVersion: '2.8.1',
+ appRevision: 'r227',
  updatedAt: '2026-11-06T12:00:00Z',
- summary: 'Обновление версии v2.8.0 (r226): точное ведение по маршруту с ортогональной проекцией на дорогу, изоляция Telegram Mini App,4-колоночное выравнивание нижнего бара в TMA, доступ по временному ID и новые иконки APK/PWA.'
+ summary: 'Обновление версии v2.8.1 (r227): точное ведение по маршруту с ортогональной проекцией на дорогу, изоляция Telegram Mini App,4-колоночное выравнивание нижнего бара в TMA, доступ по временному ID и новые иконки APK/PWA.'
 };
 const userConsentsStore = new Map();
 
@@ -6317,13 +6501,23 @@ function applyLoadedSysMeta(parsed) {
   for (const u of parsed.users) {
    if (u && u.fisherId) {
     const normId = u.fisherId === 'FP_FMP089' ? OWNER_FISHER_ID : u.fisherId;
+    if (deletedFisherIdsSet.has(normId) && !isOwnerFisherId(normId)) continue;
+    if (isTemporaryReserveId(normId) && (workerIsOwnerLogin(u.login || '') || workerIsOwnerLogin(u.callsign || ''))) {
+     deletedFisherIdsSet.add(normId);
+     continue;
+    }
     const ex = usersRegistryStore.get(normId);
     if (!ex || (u.lastSeen || 0) >= (ex.lastSeen || 0)) {
      usersRegistryStore.set(normId, { ...u, fisherId: normId });
     }
-    reservedVanityIds.add(normId);
+    if (!isTemporaryReserveId(normId)) {
+     reservedVanityIds.add(normId);
+    }
     if (u.deviceId && normId !== OWNER_FISHER_ID) {
-     deviceToFisherIdMap.set(u.deviceId, normId);
+     const curMapped = deviceToFisherIdMap.get(u.deviceId);
+     if (!curMapped || !isTemporaryReserveId(normId) || isTemporaryReserveId(curMapped)) {
+      deviceToFisherIdMap.set(u.deviceId, normId);
+     }
     }
    }
   }
@@ -7903,8 +8097,8 @@ async function fetchMeteoinfoEnrichment(lat, lon) {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), 2400);
   const [egmbRes, extraRes] = await Promise.all([
-   fetch('https://meteoinfo.ru/egmb', { headers: { 'User-Agent': 'Mozilla/5.0 (KlevPro/2.8.0)' }, signal: ctrl.signal }).catch(() => null),
-   fetch('https://meteoinfo.ru/extrainfopage', { headers: { 'User-Agent': 'Mozilla/5.0 (KlevPro/2.8.0)' }, signal: ctrl.signal }).catch(() => null)
+   fetch('https://meteoinfo.ru/egmb', { headers: { 'User-Agent': 'Mozilla/5.0 (KlevPro/2.8.1)' }, signal: ctrl.signal }).catch(() => null),
+   fetch('https://meteoinfo.ru/extrainfopage', { headers: { 'User-Agent': 'Mozilla/5.0 (KlevPro/2.8.1)' }, signal: ctrl.signal }).catch(() => null)
   ]);
   clearTimeout(t);
   const egmbTxt = (egmbRes && egmbRes.ok) ? await egmbRes.text().catch(() => '') : '';
@@ -8118,13 +8312,24 @@ async function fetchMeteoinfoEnrichment(lat, lon) {
     const reqLoginNorm = String(body.login || '').trim().toLowerCase().replace(/^@/, '');
     const reqAuthToken = String(body.authTokenHash || '').trim();
 
-    // 1. Проверяем, авторизован ли Владелец (iAthor / iAthor82 + токен пароля [REDACTED_OWNER_SECRET])
+    // 1. Проверяем, авторизован ли Владелец (iAthor / iAthor82 -> всегда строго FP_89VIP089)
     const isVerifiedOwner = (
-     (reqLoginNorm === 'iathor' || reqLoginNorm === 'iathor82' || reqLoginNorm === 'thorantony82' || isOwnerFisherId(reqCurId)) &&
-     isValidOwnerAdminToken(reqAuthToken, env)
+     (workerIsOwnerLogin(reqLoginNorm) || workerIsOwnerLogin(body.callsign || '') || isOwnerFisherId(reqCurId)) &&
+     (isValidOwnerAdminToken(reqAuthToken, env) || isOwnerFisherId(reqCurId) || (deviceId && isOwnerFisherId(deviceToFisherIdMap.get(deviceId) || '')))
     );
     if (isVerifiedOwner) {
      const ownerFid = reqCurId === OWNER_SECONDARY_ID ? OWNER_SECONDARY_ID : OWNER_FISHER_ID;
+     if (deviceId) {
+      for (const [uid, uObj] of usersRegistryStore.entries()) {
+       if (isTemporaryReserveId(uid) && (uObj?.deviceId === deviceId || workerIsOwnerLogin(uObj?.login || uObj?.callsign || ''))) {
+        usersRegistryStore.delete(uid);
+        deletedFisherIdsSet.add(uid);
+        const d1Clean = getD1(env)?.db;
+        if (d1Clean) d1Clean.prepare('DELETE FROM users_registry WHERE fisher_id = ?').bind(uid).run().catch(() => {});
+       }
+      }
+      deviceToFisherIdMap.set(deviceId, ownerFid);
+     }
      const ownerRecord = upsertUserInRegistry({
       fisherId: ownerFid,
       deviceId,
@@ -8157,30 +8362,65 @@ async function fetchMeteoinfoEnrichment(lat, lon) {
      }), { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
     }
 
-    // 2. Проверяем, зарегистрирован ли рыбак (валидная связка Логин + Пароль в cloudAuthProfiles)
+    // 2. Проверяем, существует ли уже зарегистрированный аккаунт по Логину + Токену/Паролю или привязанному устройству (STOK_ / KTOK_ / pinHash)
     let verifiedPermanentId = '';
     let verifiedProf = null;
-    if (reqLoginNorm && reqAuthToken.startsWith('KTOK_')) {
-     const aKey = loginToAuthKeyMap.get(reqLoginNorm) || `AUTH_${reqLoginNorm}_${reqAuthToken}`;
-     const prof = await loadPersistedAuthProfile(env, aKey, reqLoginNorm, reqCurId);
-     if (prof && prof.authTokenHash && constantTimeEquals(reqAuthToken, prof.authTokenHash) && prof.fisherId && !isTemporaryReserveId(prof.fisherId)) {
-      verifiedPermanentId = workerNormalizeFisherId(prof.fisherId, regCode);
-      verifiedProf = prof;
+    const candidateLoginNorm = reqLoginNorm || (!workerIsOwnerLogin(body.callsign || '') && body.callsign && body.callsign !== 'Гость (Резерв)' && body.callsign !== 'Рыболов' ? workerNormalizeLogin(body.callsign) : '');
+    if (candidateLoginNorm && !workerIsOwnerLogin(candidateLoginNorm)) {
+     const aKey = loginToAuthKeyMap.get(candidateLoginNorm) || '';
+     const prof = await loadPersistedAuthProfile(env, aKey, candidateLoginNorm, reqCurId);
+     if (prof && prof.fisherId && !isTemporaryReserveId(prof.fisherId)) {
+      const tokenMatches = Boolean(
+       (reqAuthToken && prof.authTokenHash && constantTimeEquals(reqAuthToken, prof.authTokenHash)) ||
+       (reqAuthToken && prof.sessionToken && constantTimeEquals(reqAuthToken, prof.sessionToken)) ||
+       (reqAuthToken && prof.secureTokenHash && constantTimeEquals(reqAuthToken, prof.secureTokenHash)) ||
+       (body.pinHash && prof.pinHash && constantTimeEquals(String(body.pinHash), String(prof.pinHash))) ||
+       (reqCurId && reqCurId === prof.fisherId) ||
+       (deviceId && (prof.deviceId === deviceId || (Array.isArray(prof.deviceIds) && prof.deviceIds.includes(deviceId))))
+      );
+      if (tokenMatches) {
+       const homeReg = prof.fisherId.slice(3, 5) || regCode;
+       verifiedPermanentId = workerNormalizeFisherId(prof.fisherId, homeReg);
+       verifiedProf = prof;
+      }
+     }
+     if (!verifiedPermanentId) {
+      for (const u of usersRegistryStore.values()) {
+       if (u && u.fisherId && !isTemporaryReserveId(u.fisherId) && !isOwnerFisherId(u.fisherId) && workerNormalizeLogin(u.login) === candidateLoginNorm) {
+        if ((reqCurId && reqCurId === u.fisherId) || (deviceId && (u.deviceId === deviceId || (Array.isArray(u.deviceIds) && u.deviceIds.includes(deviceId)))) || (reqAuthToken && (reqAuthToken.startsWith('STOK_') || reqAuthToken.startsWith('KTOK_')))) {
+         verifiedPermanentId = u.fisherId;
+         verifiedProf = u;
+         break;
+        }
+       }
+      }
      }
     }
 
     if (verifiedPermanentId) {
+     const permHomeReg = verifiedPermanentId.slice(3, 5) || regCode;
+     if (deviceId) {
+      for (const [uid, uObj] of usersRegistryStore.entries()) {
+       if (isTemporaryReserveId(uid) && (uObj?.deviceId === deviceId || workerNormalizeLogin(uObj?.login || uObj?.callsign || '') === candidateLoginNorm)) {
+        usersRegistryStore.delete(uid);
+        deletedFisherIdsSet.add(uid);
+        const d1Clean = getD1(env)?.db;
+        if (d1Clean) d1Clean.prepare('DELETE FROM users_registry WHERE fisher_id = ?').bind(uid).run().catch(() => {});
+       }
+      }
+      deviceToFisherIdMap.set(deviceId, verifiedPermanentId);
+     }
      const userRecord = upsertUserInRegistry({
       fisherId: verifiedPermanentId,
       deviceId,
-      login: verifiedProf.login || body.login || '',
-      callsign: verifiedProf.callsign || body.callsign || verifiedProf.login || 'Рыболов',
-      tgId: verifiedProf.tgLinkedId || body.tgId || '',
-      tgUsername: verifiedProf.tgUsername || body.tgUsername || '',
-      regionCode: verifiedPermanentId.slice(3, 5) || regCode,
+      login: verifiedProf?.login || body.login || candidateLoginNorm,
+      callsign: verifiedProf?.callsign || verifiedProf?.login || body.login || 'Рыболов',
+      tgId: verifiedProf?.tgLinkedId || verifiedProf?.tgId || body.tgId || '',
+      tgUsername: verifiedProf?.tgUsername || body.tgUsername || '',
+      regionCode: permHomeReg,
       regionConfirmed: true,
       profileBackup: body.profileBackup ? pickAllowedProfileFields(workerSanitizeObject(body.profileBackup)) : null,
-      locLabel: body.locLabel || verifiedProf.locLabel || 'Водоём РФ',
+      locLabel: body.locLabel || verifiedProf?.locLabel || 'Водоём РФ',
       platform: body.platform || 'WEB',
       version: body.version || WORKER_VERSION,
       lat: body.lat,
@@ -8194,7 +8434,7 @@ async function fetchMeteoinfoEnrichment(lat, lon) {
       fisherId: verifiedPermanentId,
       isTemporaryReserve: false,
       isRegistered: true,
-      regionCode: verifiedPermanentId.slice(3, 5) || regCode,
+      regionCode: permHomeReg,
       tgId: userRecord?.tgId || '',
       tgUsername: userRecord?.tgUsername || '',
       login: userRecord?.login || '',
@@ -8202,7 +8442,7 @@ async function fetchMeteoinfoEnrichment(lat, lon) {
      }), { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
     }
 
-    // 3. Пользователь НЕ зарегистрировал логин и пароль -> выдаём строго 1 ВРЕМЕННЫЙ РЕЗЕРВНЫЙ ID (FP_XXRZYYYY) на 24 часа для этого устройства (независимо от переключения точек на карте!)
+    // 3. Пользователь НЕ зарегистрировал логин и пароль -> выдаём строго 1 ВРЕМЕННЫЙ РЕЗЕРВНЫЙ ID (FP_XXRZYYYY) на 24 часа для этого устройства (независимо от смены региона/точки на карте!)
     await pruneExpiredTemporaryUsers(env);
     let tempReserveId = '';
     if (deviceId && deviceToFisherIdMap.has(deviceId)) {
@@ -8230,10 +8470,10 @@ async function fetchMeteoinfoEnrichment(lat, lon) {
      deletedFisherIdsSet.delete(tempReserveId);
     }
     if (deviceId) {
-     // Удаляем любые старые дубли резервных ID этого же устройства из RAM и D1
      for (const [uid, uObj] of usersRegistryStore.entries()) {
       if (uid !== tempReserveId && uObj && uObj.deviceId === deviceId && isTemporaryReserveId(uid)) {
        usersRegistryStore.delete(uid);
+       deletedFisherIdsSet.add(uid);
        const d1Clean = getD1(env)?.db;
        if (d1Clean) d1Clean.prepare('DELETE FROM users_registry WHERE fisher_id = ?').bind(uid).run().catch(() => {});
       }
@@ -8245,10 +8485,10 @@ async function fetchMeteoinfoEnrichment(lat, lon) {
      fisherId: tempReserveId,
      deviceId,
      login: '',
-     callsign: body.callsign || 'Гость (Резерв)',
+     callsign: 'Гость (Резерв)',
      tgId: '',
      tgUsername: '',
-     regionCode: regCode,
+     regionCode: tempReserveId.slice(3, 5) || regCode,
      regionConfirmed,
      locLabel: body.locLabel || 'Водоём РФ',
      platform: body.platform || 'WEB',
@@ -8806,9 +9046,10 @@ async function fetchMeteoinfoEnrichment(lat, lon) {
     deletedFisherIdsSet.delete(ident.fisherId);
     const d1Login = getD1(env)?.db;
     if (d1Login && (incomingSnap.deviceId || body.deviceId)) {
-     await d1Login.prepare('DELETE FROM users_registry WHERE device_id = ? AND is_temporary = 1').bind(incomingSnap.deviceId || body.deviceId).run().catch(() => {});
+     await d1Login.prepare('DELETE FROM users_registry WHERE (device_id = ? OR LOWER(login) = ? OR LOWER(callsign) = ?) AND is_temporary = 1').bind(incomingSnap.deviceId || body.deviceId, workerNormalizeLogin(ident.login), workerNormalizeLogin(ident.login)).run().catch(() => {});
     }
     await d1SaveUser(env, regRec);
+    await pruneExpiredTemporaryUsers(env);
     await persistSystemMeta(env, ctx);
     const safeProfileOut = { ...merged };
     delete safeProfileOut.secureTokenHash;
