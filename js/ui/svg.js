@@ -40,14 +40,16 @@ function savePngStatus(fid, status) {
 export function renderFishVisual(f) {
   const fish = f || { id: 'pike', name: 'Рыба' };
   const fid = fish.id || 'pike';
+  const svgMarkup = getFishCustomSVG(fish);
   const status = pngStatusCache.get(fid);
   if (status === 'missing' || !IMG_SEARCH_DIRS || IMG_SEARCH_DIRS.length === 0) {
-    return getFishCustomSVG(fish);
+    return svgMarkup;
   }
   const firstSrc = `${IMG_SEARCH_DIRS[0]}${fid}.png?v=${APP_VERSION}`;
-  return `<div class="fish-visual-hybrid has-png" data-fid="${fid}" style="position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;">` +
+  return `<div class="fish-visual-hybrid" data-fid="${fid}" style="position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;">` +
+    `<div class="fish-visual-svg-layer" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;">${svgMarkup}</div>` +
     `<img class="fish-visual-img" src="${firstSrc}" alt="${fish.name || fid}" loading="lazy" decoding="async" data-fid="${fid}" data-try="0" ` +
-    `style="width:100%;height:100%;max-width:100%;max-height:100%;object-fit:contain;display:block;margin:0 auto;opacity:1;" ` +
+    `style="position:absolute;inset:0;width:100%;height:100%;max-width:100%;max-height:100%;object-fit:contain;display:block;margin:0 auto;opacity:0;" ` +
     `onload="window.handleFishImgLoad && window.handleFishImgLoad(this)" ` +
     `onerror="window.handleFishImgError && window.handleFishImgError(this)">` +
     `</div>`;
@@ -81,7 +83,12 @@ export function handleFishImgError(imgEl, fishObj) {
     const wrap = imgEl.closest('.fish-visual-hybrid');
     if (wrap) {
       const svgLayer = wrap.querySelector('.fish-visual-svg-layer');
-      if (svgLayer) svgLayer.style.display = 'flex';
+      if (svgLayer) {
+        svgLayer.style.display = 'flex';
+      } else {
+        const found = FISH_DB.find(item => item.id === fid);
+        wrap.insertAdjacentHTML('afterbegin', `<div class="fish-visual-svg-layer" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;">${getFishCustomSVG(fishObj || found || { id: fid || 'pike', name: fid || 'Рыба' })}</div>`);
+      }
       imgEl.remove();
     } else {
       const found = FISH_DB.find(item => item.id === fid);

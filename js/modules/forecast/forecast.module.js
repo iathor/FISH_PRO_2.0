@@ -9,7 +9,7 @@ import { store } from '../../core/store.js?v=2.8.3-r230';
 import { formatLocalYYYYMMDD, fmtDeltaPress, fmtHM } from '../../core/format.js?v=2.8.3-r230';
 import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.8.3-r230';
 import { FISH_DB } from '../../data/species.js?v=2.8.3-r230';
-import { renderFiveFish } from '../../ui/svg.js?v=2.8.3-r230';
+import { renderFiveFish , renderFishVisual } from '../../ui/svg.js?v=2.8.3-r230';
 import { createPill, showToast, openModal, flashHighlightElement } from '../../ui/components.js?v=2.8.3-r230';
 import { computeIceSafetyIndex } from '../weather/weather.module.js?v=2.8.3-r230';
 import { evaluateCircleFieldConfirmation, requireRegisteredFisherId } from '../circle/circle.module.js?v=2.8.3-r230';
@@ -1369,7 +1369,7 @@ export function renderExpress(container) {
     <div class="chip-scroll-row bento-top-species-strip" style="padding-bottom:2px;">
       ${top6Species.map(item => `
         <button type="button" class="w-chip ${item.fish.id === fish.id ? 'active' : ''}" data-novice-pick-fish="${item.fish.id}" style="padding:4px 10px;min-height:36px;display:inline-flex;align-items:center;gap:6px;flex-shrink:0;white-space:nowrap;">
-          <img src="assets/fish/${item.fish.id}.png" alt="" style="width:28px;height:15px;object-fit:contain;" onerror="this.style.display='none'">
+          <span style="display:inline-flex;width:28px;height:15px;align-items:center;justify-content:center;">${renderFishVisual(item.fish)}</span>
           <span>${item.fish.name}</span>
           <span style="font-size:10.5px;opacity:0.85;">${item.scDay}%</span>
         </button>
@@ -1413,7 +1413,7 @@ export function renderExpress(container) {
           <div class="bento-hero-left">
             <div class="bento-active-status-row">
               <div class="bento-splash-fish-box" data-open-fish-zoom="${fish.id}" style="cursor:zoom-in;position:relative;" title="Нажмите для увеличения иллюстрации и паспорта рыбы">
-                <img src="assets/fish/${fish.id}.png" alt="${fish.name}" onerror="this.style.display='none'">
+                ${renderFishVisual(fish)}
                 <span style="position:absolute;bottom:1px;right:3px;font-size:9px;opacity:0.75;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="2"/><path d="M16 16l4.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>
               </div>
               <div>
@@ -1427,7 +1427,7 @@ export function renderExpress(container) {
             <div class="bento-top3-row">
               ${top3Bento.map((item, rankIdx) => `
                 <button type="button" class="bento-top3-item ${item.fish.id === fish.id ? 'active' : ''}" data-novice-pick-fish="${item.fish.id}" title="Выбрать рыбу «${item.fish.name}» (${rankIdx + 1}-е место сегодня)">
-                  <img src="assets/fish/${item.fish.id}.png" alt="${item.fish.name}" onerror="this.style.display='none'">
+                  ${renderFishVisual(item.fish)}
                   <span class="bento-top3-name">${rankIdx + 1}-е место • ${item.fish.name}</span>
                   <span class="bento-top3-pct">${item.scDay}%</span>
                 </button>

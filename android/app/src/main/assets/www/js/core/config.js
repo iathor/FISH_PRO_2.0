@@ -41,7 +41,7 @@ export const CURRENT_RELEASE_INFO = {
     }
   ]
 };
-export const IMG_SEARCH_DIRS = ['assets/fish/', 'fish/', 'https://klevpro.ru/assets/fish/', 'https://klevpro.ru/fish/'];
+export const IMG_SEARCH_DIRS = [];
 export const MAP_LAYERS = {
   yandex_map: {
     name: 'Яндекс Схема',

@@ -7396,6 +7396,7 @@ export async function init(container) {
  };
  },
  (next, prev) => {
+ if (!container) return;
  if (next.route && next.route !== 'geo') {
  container._geoNeedsRender = true;
  return;

@@ -8281,6 +8281,22 @@ export default {
       .filter(([k]) => k.startsWith('CREW_REG-'))
       .map(([k, arr]) => [k.replace(/^CREW_/, ''), (arr || []).slice(-60)])
     ),
+    adminDmPackets: (() => {
+     const out = [];
+     const seen = new Set();
+     for (const [bKey, arr] of transitBoxes.entries()) {
+      if (bKey === 'DM_FP_89VIP089' || bKey === 'DM_FP_FMP089' || bKey.startsWith('DM_FP_')) {
+       for (const p of (arr || [])) {
+        if (!p || !p.id || seen.has(p.id)) continue;
+        if (bKey === 'DM_FP_89VIP089' || bKey === 'DM_FP_FMP089' || p.senderId === 'FP_89VIP089' || p.senderId === 'FP_FMP089' || p.peerId === 'FP_89VIP089' || p.peerId === 'FP_FMP089') {
+         seen.add(p.id);
+         out.push(p);
+        }
+       }
+      }
+     }
+     return out.sort((a, b) => (a.ts || 0) - (b.ts || 0)).slice(-150);
+    })(),
     counters: Object.fromEntries(regionSequenceCounters.entries()),
     reserveCounters: Object.fromEntries(regionReserveCounters.entries()),
     aiQuota: getGeminiQuotaStatus(env, true),

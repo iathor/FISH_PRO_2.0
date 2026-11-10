@@ -129,8 +129,11 @@ export function getActiveAdminToken(stateObj = null) {
   ).trim();
 }
 
-export function switchAdminWorkspaceTab(tabId = 'dashboard') {
+export function switchAdminWorkspaceTab(tabId = 'dashboard', opts = {}) {
   _activeAdminSubTab = tabId || 'dashboard';
+  if (!opts || !opts.keepChatOpen) {
+    isFullScreenChatOpen = false;
+  }
   if (typeof document !== 'undefined') {
     document.querySelectorAll('[data-adm-workspace-tab]').forEach(btn => {
       const isAct = btn.getAttribute('data-adm-workspace-tab') === _activeAdminSubTab;
@@ -4061,8 +4064,20 @@ export async function pollEncryptedRelayPackets(manual = false) {
         if (pkt.channelId && pkt.channelId.startsWith('CREW_')) candidates.push(pkt.channelId.replace(/^CREW_/, ''));
         if (pkt.channelKey) candidates.push(pkt.channelKey);
         if (pkt.channelId) candidates.push(pkt.channelId);
-        if (pkt.senderId) candidates.push([ident.fisherId, pkt.senderId].sort().join(':'));
-        if (pkt.peerId) candidates.push([ident.fisherId, pkt.peerId].sort().join(':'));
+        if (pkt.senderId) {
+          candidates.push([ident.fisherId, pkt.senderId].sort().join(':'));
+          if (ident.isOwner || isAdminContourActive()) {
+            candidates.push([OWNER_BOUND_FISHER_ID, pkt.senderId].sort().join(':'));
+            candidates.push([OWNER_SECONDARY_FISHER_ID, pkt.senderId].sort().join(':'));
+          }
+        }
+        if (pkt.peerId) {
+          candidates.push([ident.fisherId, pkt.peerId].sort().join(':'));
+          if (ident.isOwner || isAdminContourActive()) {
+            candidates.push([OWNER_BOUND_FISHER_ID, pkt.peerId].sort().join(':'));
+            candidates.push([OWNER_SECONDARY_FISHER_ID, pkt.peerId].sort().join(':'));
+          }
+        }
         if (pkt.channelId && pkt.channelId.startsWith('DM_')) candidates.push(pkt.channelId.replace(/^DM_/, ''));
         for (const k of candidates) {
           if (!k) continue;
@@ -4121,6 +4136,10 @@ export async function pollEncryptedRelayPackets(manual = false) {
             const secChats = document.getElementById('secChats');
             if (secChats && secChats.classList.contains('active')) {
               renderChatsSection(secChats);
+            }
+            const admChatsBox = document.getElementById('admEmbeddedChatsBox');
+            if (admChatsBox) {
+              renderChatsSection(admChatsBox);
             }
           }
         }
@@ -6107,8 +6126,17 @@ export function formatCleanPeerTitle(peerNameRaw = '', peerIdRaw = '') {
   if (pid === OWNER_BOUND_FISHER_ID || pid === OWNER_SECONDARY_FISHER_ID) {
     return isAdminContourActive() ? 'Владелец («Клёв ПРО»)' : 'Поддержка («Клёв ПРО»)';
   }
-  if (!cleanName || cleanName.toUpperCase() === pid || /^FP_[A-Z0-9_]+$/i.test(cleanName) || /^Рыбак\s+FP_/i.test(cleanName)) {
-    return 'Рыболов';
+  if (!cleanName || cleanName.toUpperCase() === pid || /^FP_[A-Z0-9_]+$/i.test(cleanName) || /^Рыбак\s+FP_/i.test(cleanName) || cleanName === 'Рыболов') {
+    if (pid && _adminDashboardCache && Array.isArray(_adminDashboardCache.users)) {
+      const u = _adminDashboardCache.users.find(x => x && String(x.fisherId || '').toUpperCase() === pid);
+      if (u && (u.login || u.callsign)) {
+        return escapeHtml(`${u.login || u.callsign} (${pid})`);
+      }
+    }
+    return pid && isAdminContourActive() ? escapeHtml(`Рыболов (${pid})`) : 'Рыболов';
+  }
+  if (isAdminContourActive() && pid && !cleanName.includes(pid)) {
+    return escapeHtml(`${cleanName} (${pid})`);
   }
   return escapeHtml(cleanName);
 }
@@ -6174,6 +6202,30 @@ export function renderChatsSubView(s, ident, visibleCrews) {
         existingChan.lastTs = m.ts || 0;
       }
     }
+  }
+  if (activeChatChannelId && activeChatChannelId.startsWith('dm:') && !dmChannelsMap.has(activeChatChannelId)) {
+    const parts = activeChatChannelId.replace(/^dm:/, '').split(':');
+    const peerId = parts.find(p => p && p.toUpperCase() !== ident.fisherId) || parts[0] || OWNER_BOUND_FISHER_ID;
+    const cleanTitle = formatCleanPeerTitle('', peerId);
+    dmChannelsMap.set(activeChatChannelId, {
+      channelId: activeChatChannelId,
+      type: 'dm',
+      peerId,
+      peerName: cleanTitle,
+      title: `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> ${cleanTitle}`,
+      subtitle: 'Новый личный диалог',
+      lastTs: Date.now()
+    });
+  } else if (activeChatChannelId && activeChatChannelId.startsWith('crew:') && !crewChannels.some(c => c.channelId === activeChatChannelId)) {
+    const k = activeChatChannelId.replace(/^crew:/, '').toUpperCase();
+    crewChannels.unshift({
+      channelId: activeChatChannelId,
+      type: 'crew',
+      crewKey: k,
+      title: k.startsWith('REG-') ? `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" stroke="currentColor" stroke-width="1.6"/></svg> Региональный чат РФ (Регион ${k.replace('REG-', '')})` : `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> Экипаж ${k}`,
+      subtitle: 'Чат участников канала',
+      lastTs: Date.now()
+    });
   }
   const dmChannels = Array.from(dmChannelsMap.values()).sort((a, b) => (b.lastTs || 0) - (a.lastTs || 0));
   const allChannels = [...crewChannels, ...dmChannels];
@@ -6244,14 +6296,25 @@ export function renderChatsSubView(s, ident, visibleCrews) {
             <button type="button" class="btn btn-sm btn-accent" id="chatJoinCrewKeyBtn" style="min-height:34px;">Открыть</button>
           </div>
         </div>
-        <div class="card" style="background:var(--card);padding:8px 10px;border:1px solid var(--border);">
-          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:4px;">
+        <div class="card" style="background:var(--card);padding:8px 10px;border:1px solid var(--border);display:flex;flex-direction:column;gap:6px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
             <div style="font-weight:800;font-size:11px;color:var(--good);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> ЛИЧНЫЙ ДИАЛОГ С РЫБАКОМ:</div>
-            <button type="button" class="btn btn-sm" id="chatWriteAdminBtn" style="min-height:28px;padding:2px 8px;font-size:11px;border-color:var(--good);color:var(--good);font-weight:800;"><svg class="k-ico" style="color:#fbbf24;" viewBox="0 0 24 24" fill="none"><path d="M3 18h18l-2-11-5 4-2-6-2 6-5-4-2 11z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Написать Админу</button>
+            ${isAdminContourActive()
+              ? `<span class="pill pill-good" style="font-size:9.5px;">Режим Ответа Супер-Админа</span>`
+              : `<button type="button" class="btn btn-sm" id="chatWriteAdminBtn" style="min-height:28px;padding:2px 8px;font-size:11px;border-color:var(--good);color:var(--good);font-weight:800;"><svg class="k-ico" style="color:#fbbf24;" viewBox="0 0 24 24" fill="none"><path d="M3 18h18l-2-11-5 4-2-6-2 6-5-4-2 11z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Написать Админу</button>`}
           </div>
+          ${isAdminContourActive() && Array.isArray(_adminDashboardCache?.users) && _adminDashboardCache.users.length > 0 ? `
+            <div style="display:flex;gap:6px;">
+              <select id="chatAdminPickUserSelect" class="input" style="flex:1;min-height:36px;font-size:12px;font-weight:800;">
+                <option value="">— Выбрать рыбака из базы D1 (${_adminDashboardCache.users.filter(u => u && !isOwnerFisherId(u.fisherId)).length} чел.) —</option>
+                ${_adminDashboardCache.users.filter(u => u && !isOwnerFisherId(u.fisherId)).map(u => `<option value="${escapeHtml(u.fisherId)}|${escapeHtml(u.login || u.callsign || 'Рыболов')}">${escapeHtml(u.fisherId)} — ${escapeHtml(u.login || u.callsign || 'Гость')} ([${escapeHtml(u.regionCode || '89')}] ${escapeHtml(u.locLabel || '')})</option>`).join('')}
+              </select>
+              <button type="button" class="btn btn-sm btn-accent" id="chatAdminOpenPickedUserBtn" style="min-height:36px;font-weight:900;flex-shrink:0;">Открыть чат</button>
+            </div>
+          ` : ''}
           <div style="display:flex;gap:6px;">
-            <input type="text" id="chatStartDmIdInput" class="input" placeholder="Введите логин или ID собеседника" style="flex:1;min-height:34px;">
-            <button type="button" class="btn btn-sm btn-good" id="chatStartDmBtn" style="min-height:34px;">Написать</button>
+            <input type="text" id="chatStartDmIdInput" class="input" placeholder="Введите логин или ID собеседника (напр. FP_89AAA014)" style="flex:1;min-height:34px;">
+            <button type="button" class="btn btn-sm btn-good" id="chatStartDmBtn" style="min-height:34px;font-weight:800;">Написать</button>
           </div>
         </div>
       </div>
@@ -6620,8 +6683,9 @@ function renderFullScreenChatWindowHtml(s, ident, visibleCrews) {
 }
 
 export function renderChatsSection(customContainer = null) {
-  const container = customContainer || (typeof document !== 'undefined' ? document.getElementById('secChats') : null);
+  const container = customContainer || (typeof document !== 'undefined' ? (document.getElementById('secChats') || document.getElementById('admEmbeddedChatsBox')) : null);
   if (!container) return;
+  const isEmbeddedInAdmin = container.id === 'admEmbeddedChatsBox';
   const s = store.getState();
   const ident = getCurrentFisherIdentity(s);
   const allItems = purgeExpiredCircleItems(s.circleItems || []);
@@ -6631,9 +6695,21 @@ export function renderChatsSection(customContainer = null) {
       document.body.style.overflow = (isFullScreenChatOpen && activeChatChannelId) ? 'hidden' : '';
     }
   } catch (e) {}
-  container.innerHTML = `
+  container.innerHTML = isEmbeddedInAdmin ? `
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      ${renderChatsSubView(s, ident, visibleCrews)}
+    </div>
+    ${renderFullScreenChatWindowHtml(s, ident, visibleCrews)}
+  ` : `
     <div class="card">
-      ${renderCircleChatsHubBar('chats')}
+      ${isAdminContourActive() ? `
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border);">
+          <button type="button" class="btn btn-sm btn-accent" id="chatBackToAdminConsoleBtn" style="min-height:36px;font-weight:900;">
+            ← Вернуться в Консоль Супер-Админа
+          </button>
+          <span class="pill pill-good" style="font-size:10px;">Контур Супер-Админа (${escapeHtml(ident.fisherId)})</span>
+        </div>
+      ` : renderCircleChatsHubBar('chats')}
       <div class="section-head" style="margin-bottom:8px;">
         <div>
           <span class="section-title"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> Чаты Экипажей и Личные диалоги</span>
@@ -6646,7 +6722,14 @@ export function renderChatsSection(customContainer = null) {
     </div>
     ${renderFullScreenChatWindowHtml(s, ident, visibleCrews)}
   `;
-  bindCircleChatsHubBarEvents(container);
+  if (!isEmbeddedInAdmin) bindCircleChatsHubBarEvents(container);
+  container.querySelector('#chatBackToAdminConsoleBtn')?.addEventListener('click', () => {
+    isFullScreenChatOpen = false;
+    activeChatChannelId = '';
+    try { if (typeof document !== 'undefined' && document.body) document.body.style.overflow = ''; } catch (e) {}
+    router.navigate('admin');
+    renderAdminSection();
+  });
   bindChatViewEvents(container);
 }
 /**
@@ -7060,6 +7143,75 @@ export async function fetchSuperAdminDashboardData(forceToast = false) {
         if (data && data.ok && Array.isArray(data.users)) {
           _serverAdminSessionToken = tok;
           _adminDashboardCache = { ...data, authRequired: false };
+          try {
+            const identAdm = getCurrentFisherIdentity(store.getState());
+            const dmPkts = Array.isArray(data.adminDmPackets) ? data.adminDmPackets : [];
+            for (const pkt of dmPkts) {
+              if (!pkt) continue;
+              if (pkt.cipherPayload) {
+                const candKeys = [];
+                if (pkt.senderId) {
+                  candKeys.push([identAdm.fisherId, pkt.senderId].sort().join(':'));
+                  candKeys.push([OWNER_BOUND_FISHER_ID, pkt.senderId].sort().join(':'));
+                  candKeys.push([OWNER_SECONDARY_FISHER_ID, pkt.senderId].sort().join(':'));
+                }
+                if (pkt.peerId) {
+                  candKeys.push([identAdm.fisherId, pkt.peerId].sort().join(':'));
+                  candKeys.push([OWNER_BOUND_FISHER_ID, pkt.peerId].sort().join(':'));
+                  candKeys.push([OWNER_SECONDARY_FISHER_ID, pkt.peerId].sort().join(':'));
+                }
+                if (pkt.channelId && pkt.channelId.startsWith('DM_')) candKeys.push(pkt.channelId.replace(/^DM_/, ''));
+                for (const k of candKeys) {
+                  if (!k) continue;
+                  const msgObj = decryptChatPayload(pkt.cipherPayload, k);
+                  if (msgObj && msgObj.id && !msgObj.kind) {
+                    appendIncomingChatMessage(msgObj, false);
+                    break;
+                  }
+                }
+              } else if (pkt.id && pkt.text) {
+                const peerId = pkt.senderId === identAdm.fisherId ? (pkt.peerId || pkt.targetUserId || '') : (pkt.senderId || '');
+                const dmChan = getCanonicalDmChannelId(identAdm.fisherId, peerId || OWNER_BOUND_FISHER_ID, store.getState().chatMessages || []);
+                appendIncomingChatMessage({
+                  id: pkt.id,
+                  channelId: dmChan,
+                  type: 'dm',
+                  senderId: pkt.senderId || peerId,
+                  senderName: pkt.senderName || 'Рыболов',
+                  peerId: peerId,
+                  text: pkt.text,
+                  ts: pkt.ts || Date.now()
+                }, false);
+              }
+            }
+            if (data.regionalChats && typeof data.regionalChats === 'object') {
+              for (const [regKey, pktArr] of Object.entries(data.regionalChats)) {
+                if (!Array.isArray(pktArr)) continue;
+                const cleanReg = String(regKey || '').replace(/^CREW_/, '').toUpperCase();
+                for (const pkt of pktArr) {
+                  if (!pkt) continue;
+                  if (pkt.cipherPayload) {
+                    const msgObj = decryptChatPayload(pkt.cipherPayload, cleanReg);
+                    if (msgObj && msgObj.id && !msgObj.kind) {
+                      appendIncomingChatMessage(msgObj, false);
+                    }
+                  } else if (pkt.id && pkt.text) {
+                    appendIncomingChatMessage({
+                      id: pkt.id,
+                      channelId: `crew:${cleanReg}`,
+                      type: 'crew',
+                      crewKey: cleanReg,
+                      senderId: pkt.senderId || '',
+                      senderName: pkt.senderName || 'Рыболов',
+                      text: pkt.text,
+                      ts: pkt.ts || Date.now()
+                    }, false);
+                  }
+                }
+              }
+            }
+            pollEncryptedRelayPackets(false).catch(() => {});
+          } catch (_e) {}
           if (data.aiQuota && data.aiQuota.rawApiKey && typeof localStorage !== 'undefined') {
             try {
               if (!localStorage.getItem('klev_gemini_api_key_v2')) {
@@ -8216,7 +8368,17 @@ export function renderAdminSection(customContainer = null) {
       </div>
     `;
 
+    const allChatMsgsCount = Array.isArray(s.chatMessages) ? s.chatMessages.length : 0;
+    const unreadChatMsgsCount = Array.isArray(s.chatMessages) ? s.chatMessages.filter(m => m && m.unread).length : 0;
     tabContentHtml = [
+      renderAdminAccordionCard({
+        id: 'adm_blk_livechats',
+        title: `3.0 Чаты, Обращения рыбаков и Личные диалоги`,
+        subtitle: `Ответы рыбакам от лица Супер-Админа (${escapeHtml(ident.fisherId)}), региональные чаты и Экипажи`,
+        badgeHtml: `<span class="pill ${unreadChatMsgsCount > 0 ? 'pill-bad' : 'pill-good'}" style="font-size:10px;">${unreadChatMsgsCount > 0 ? `Новых: +${unreadChatMsgsCount}` : `Сообщений: ${allChatMsgsCount}`}</span>`,
+        borderColor: 'var(--good)',
+        bodyHtml: `<div id="admEmbeddedChatsBox"></div>`
+      }),
       renderAdminAccordionCard({
         id: 'adm_blk_points',
         title: `3.1 Точки на сервере (Круг, Слипы, SOS)`,
@@ -8430,6 +8592,10 @@ export function renderAdminSection(customContainer = null) {
       ${tabContentHtml}
     </div>
   `;
+  const admChatsBox = container.querySelector('#admEmbeddedChatsBox');
+  if (admChatsBox) {
+    renderChatsSection(admChatsBox);
+  }
   bindAdminSectionEvents(container, users);
 }
 
@@ -8779,15 +8945,39 @@ function bindAdminSectionEvents(container, users) {
   container.querySelectorAll('[data-adm-reply-err-user]').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
-      const targetFid = btn.getAttribute('data-adm-reply-err-user');
-      const targetName = btn.getAttribute('data-adm-reply-err-name') || 'Рыболов';
+      const targetFid = String(btn.getAttribute('data-adm-reply-err-user') || '').trim().toUpperCase();
+      const targetName = (btn.getAttribute('data-adm-reply-err-name') || 'Рыболов').trim();
       if (!targetFid) return;
-      const myFid = getCurrentFisherIdentity().fisherId;
-      const dmChan = getCanonicalDmChannelId(myFid, targetFid, store.getState().chatMessages || []);
+      const identNow = getCurrentFisherIdentity();
+      const myFid = identNow.fisherId || OWNER_BOUND_FISHER_ID;
+      const existingMsgs = store.getState().chatMessages || [];
+      const dmChan = getCanonicalDmChannelId(myFid, targetFid, existingMsgs);
+      store.dispatch({ type: 'RESTORE_CHAT_CHANNEL', payload: dmChan });
+      const hasAny = existingMsgs.some(m => m && (m.channelId === dmChan || (String(m.channelId || '').startsWith('dm:') && getCanonicalDmChannelId(myFid, m.senderId === myFid ? m.peerId : m.senderId, existingMsgs) === dmChan)));
+      if (!hasAny) {
+        appendIncomingChatMessage({
+          id: `sys_adm_${targetFid}_${Date.now()}`,
+          channelId: dmChan,
+          peerId: targetFid,
+          peerName: `${targetName} (${targetFid})`,
+          senderId: myFid,
+          senderName: identNow.callsign || 'Админ',
+          text: `Открыт личный диалог с рыбаком ${targetName} (${targetFid}). Напишите ваше сообщение ниже.`,
+          ts: Date.now(),
+          e2ee: true,
+          unread: false
+        }, false);
+      }
+      storage.saveSettings(store.getState());
       activeChatChannelId = dmChan;
       isFullScreenChatOpen = true;
-      router.navigate('chats');
-      renderChatsSection();
+      if (isAdminContourActive()) {
+        _adminCollapsedSet.delete('adm_blk_livechats');
+        switchAdminWorkspaceTab('moderation', { keepChatOpen: true });
+      } else {
+        router.navigate('chats');
+        renderChatsSection();
+      }
     });
   });
   container.querySelectorAll('[data-switch-owner-fid]').forEach(btn => {
@@ -9906,6 +10096,19 @@ function bindChatViewEvents(container) {
     writeAdminBtn.addEventListener('click', () => {
       if (!requireRegisteredFisherId('обращения к Администратору')) return;
       openOrReuseDirectChat(OWNER_BOUND_FISHER_ID, '<svg class="k-ico" style="color:#fbbf24;" viewBox="0 0 24 24" fill="none"><path d="M3 18h18l-2-11-5 4-2-6-2 6-5-4-2 11z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Админ («Клёв ПРО»)');
+    });
+  }
+  const admPickSel = container.querySelector('#chatAdminPickUserSelect');
+  const admPickOpenBtn = container.querySelector('#chatAdminOpenPickedUserBtn');
+  if (admPickSel && admPickOpenBtn) {
+    admPickOpenBtn.addEventListener('click', () => {
+      const val = admPickSel.value || '';
+      if (!val) {
+        showToast('Выберите рыбака из выпадающего списка базы D1', 'warn');
+        return;
+      }
+      const [fidPart, namePart] = val.split('|');
+      if (fidPart) openOrReuseDirectChat(fidPart.trim(), (namePart || 'Рыболов').trim());
     });
   }
   const startDmBtn = container.querySelector('#chatStartDmBtn');

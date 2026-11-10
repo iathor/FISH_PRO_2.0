@@ -11,6 +11,7 @@ import { RELAY_WORKER_URL, triggerHaptic } from '../../core/telegram.js?v=2.8.3-
 import { workerFetch } from '../circle/circle.module.js?v=2.8.3-r230';
 import { BASIN_CONFIGS } from '../../data/basins.js?v=2.8.3-r230';
 import { FISH_DB } from '../../data/species.js?v=2.8.3-r230';
+import { renderFishVisual } from '../../ui/svg.js?v=2.8.3-r230';
 import { escapeHtml, openModal, closeModal, showToast, flashHighlightElement } from '../../ui/components.js?v=2.8.3-r230';
 /**
  * Коэффициент упитанности Фултона (k) по видам рыб для расчёта веса по длине:
@@ -1694,7 +1695,7 @@ export function openFishPhotoScannerModal(options = {}) {
               </div>
               <div style="display:grid;grid-template-columns:110px 1fr;gap:10px;align-items:center;">
                 <div style="width:110px;height:78px;border-radius:10px;background:var(--card);display:flex;align-items:center;justify-content:center;padding:6px;border:1px solid var(--border);">
-                  <img src="assets/fish/${fish.id}.png" alt="${escapeHtml(fish.name)}" style="max-width:100%;max-height:100%;object-fit:contain;" onerror="this.style.display='none'">
+                  ${renderFishVisual(fish)}
                 </div>
                 <div>
                   <div style="font-size:16px;font-weight:900;color:var(--text);">${escapeHtml(displayTitle)}</div>
@@ -1748,7 +1749,7 @@ ${escapeHtml(fullAnalysisText || activeMatch.reason || fish.idTraits || "")}
                         return `
                           <button type="button" class="btn ${isSel ? "btn-accent" : ""}" data-pick-scanner-match="${idx}" style="width:100%;justify-content:space-between;text-align:left;padding:8px 10px;min-height:42px;display:flex;align-items:center;gap:8px;border:${isSel ? "2px solid var(--accent)" : "1px solid var(--border)"};">
                             <span style="display:flex;align-items:center;gap:8px;min-width:0;flex:1;">
-                              <img src="assets/fish/${m.fish.id}.png" alt="" style="width:36px;height:22px;object-fit:contain;flex-shrink:0;" onerror="this.style.display='none'">
+                              <span style="display:inline-flex;width:36px;height:22px;flex-shrink:0;align-items:center;justify-content:center;">${renderFishVisual(m.fish)}</span>
                               <span style="font-weight:800;font-size:12.5px;white-space:normal;line-height:1.25;">
                                 ${isSel ? "✓ " : ""}${idx + 1}. ${escapeHtml(m.displayTitle || m.fish.name)}${escapeHtml(posTag)}
                               </span>
@@ -1773,7 +1774,7 @@ ${escapeHtml(fullAnalysisText || activeMatch.reason || fish.idTraits || "")}
                       ${activeResult.topMatches.map((m, idx) => `
                         <button type="button" class="btn ${idx === selectedMatchIdx ? "btn-accent" : ""}" data-pick-scanner-match="${idx}" style="width:100%;padding:7px 10px;border-radius:8px;display:flex;justify-content:space-between;align-items:center;gap:8px;text-align:left;">
                           <div style="display:flex;align-items:center;gap:8px;min-width:0;flex:1;">
-                            <img src="assets/fish/${m.fish.id}.png" alt="" style="width:40px;height:24px;object-fit:contain;flex-shrink:0;" onerror="this.style.display='none'">
+                            <span style="display:inline-flex;width:40px;height:24px;flex-shrink:0;align-items:center;justify-content:center;">${renderFishVisual(m.fish)}</span>
                             <div style="min-width:0;flex:1;">
                               <div style="font-weight:800;font-size:12.5px;color:var(--text);">
                                 ${idx + 1}. ${escapeHtml(m.displayTitle || m.fish.name)}
