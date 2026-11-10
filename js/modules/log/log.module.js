@@ -101,22 +101,22 @@ function downloadPhotoCrossPlatform(filename, dataUrl) {
   }
 }
 
-import { isSpeciesInGeoRange } from '../../data/basins.js?v=2.8.3-r229';
-import { RU } from '../../i18n/ru.js?v=2.8.3-r229';
-import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.8.3-r229';
-import { events } from '../../core/events.js?v=2.8.3-r229';
-import { router } from '../../core/router.js?v=2.8.3-r229';
-import { storage } from '../../core/storage.js?v=2.8.3-r229';
-import { store } from '../../core/store.js?v=2.8.3-r229';
-import { setLocation } from '../geo/geo.module.js?v=2.8.3-r229';
-import { formatLocalYYYYMMDD, fmtDeltaPress } from '../../core/format.js?v=2.8.3-r229';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.8.3-r229';
-import { FISH_DB } from '../../data/species.js?v=2.8.3-r229';
-import { escapeHtml, createPill, showToast, openModal, closeModal, openConfirmDeleteModal, downloadFileCrossPlatform, flashHighlightElement } from '../../ui/components.js?v=2.8.3-r229';
+import { isSpeciesInGeoRange } from '../../data/basins.js?v=2.8.3-r230';
+import { RU } from '../../i18n/ru.js?v=2.8.3-r230';
+import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.8.3-r230';
+import { events } from '../../core/events.js?v=2.8.3-r230';
+import { router } from '../../core/router.js?v=2.8.3-r230';
+import { storage } from '../../core/storage.js?v=2.8.3-r230';
+import { store } from '../../core/store.js?v=2.8.3-r230';
+import { setLocation } from '../geo/geo.module.js?v=2.8.3-r230';
+import { formatLocalYYYYMMDD, fmtDeltaPress } from '../../core/format.js?v=2.8.3-r230';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.8.3-r230';
+import { FISH_DB } from '../../data/species.js?v=2.8.3-r230';
+import { escapeHtml, createPill, showToast, openModal, closeModal, openConfirmDeleteModal, downloadFileCrossPlatform, flashHighlightElement } from '../../ui/components.js?v=2.8.3-r230';
 let activeLogTab = 'active'; // 'active' | 'trash'
-import { computeMoon } from '../weather/weather.module.js?v=2.8.3-r229';
-import { calcHourly } from '../forecast/forecast.module.js?v=2.8.3-r229';
-import { openFishPhotoScannerModal, analyzeFishPhotoHybrid, requestAppCameraAndPhotoAccess } from '../fish/scanner.js?v=2.8.3-r229';
+import { computeMoon } from '../weather/weather.module.js?v=2.8.3-r230';
+import { calcHourly } from '../forecast/forecast.module.js?v=2.8.3-r230';
+import { openFishPhotoScannerModal, analyzeFishPhotoHybrid, requestAppCameraAndPhotoAccess } from '../fish/scanner.js?v=2.8.3-r230';
 let currentFilter = { fishId: 'all', cond: 'all' };
 /**
  * Биологические верхние пределы веса (кг) для защиты от накрутки и опечаток

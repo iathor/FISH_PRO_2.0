@@ -1,13 +1,13 @@
-import { MAP_LAYERS, SPOT_CATEGORIES, getCompatibleMethods } from '../../core/config.js?v=2.8.3-r229';
-import { events } from '../../core/events.js?v=2.8.3-r229';
-import { storage, safeJsonParse } from '../../core/storage.js?v=2.8.3-r229';
-import { router } from '../../core/router.js?v=2.8.3-r229';
-import { store } from '../../core/store.js?v=2.8.3-r229';
-import { fetchWithTimeout } from '../../core/http.js?v=2.8.3-r229';
-import { installShortcut, syncInstallButtons } from '../../core/pwa.js?v=2.8.3-r229';
-import { triggerHaptic } from '../../core/telegram.js?v=2.8.3-r229';
-import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.8.3-r229';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.8.3-r229';
+import { MAP_LAYERS, SPOT_CATEGORIES, getCompatibleMethods } from '../../core/config.js?v=2.8.3-r230';
+import { events } from '../../core/events.js?v=2.8.3-r230';
+import { storage, safeJsonParse } from '../../core/storage.js?v=2.8.3-r230';
+import { router } from '../../core/router.js?v=2.8.3-r230';
+import { store } from '../../core/store.js?v=2.8.3-r230';
+import { fetchWithTimeout } from '../../core/http.js?v=2.8.3-r230';
+import { installShortcut, syncInstallButtons } from '../../core/pwa.js?v=2.8.3-r230';
+import { triggerHaptic } from '../../core/telegram.js?v=2.8.3-r230';
+import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.8.3-r230';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.8.3-r230';
 import {
   RUSSIA_CITIES,
   RUSSIA_WATERS,
@@ -15,12 +15,12 @@ import {
   getNearestRussianSettlements,
   getNearestRussianWaters,
   getWaterTypeShortTag
-} from '../../data/russia-waters.js?v=2.8.3-r229';
-import { FISH_DB } from '../../data/species.js?v=2.8.3-r229';
-import { escapeHtml, createPill, showToast, openModal, closeModal, openConfirmDeleteModal, downloadFileCrossPlatform, flashHighlightElement, isGeoDistributionConsentActive, ensureGeoDistributionConsent, setGeoDistributionConsentState } from '../../ui/components.js?v=2.8.3-r229';
-import { fetchWeather } from '../weather/weather.module.js?v=2.8.3-r229';
-import { calcDayBest } from '../forecast/forecast.module.js?v=2.8.3-r229';
-import { computeHexPolygonForCircle, getEffectiveCircleRadiusKm, getCircleHexDecayState, canUserAccessCrewItem, getCurrentFisherIdentity, isUserAdmin, isCurrentUserBetaTester, verifyBetaTesterStatusFromCloud, isCircleItemMine, isCircleItemHidden, openAddThematicMapPointModal } from '../circle/circle.module.js?v=2.8.3-r229';
+} from '../../data/russia-waters.js?v=2.8.3-r230';
+import { FISH_DB } from '../../data/species.js?v=2.8.3-r230';
+import { escapeHtml, createPill, showToast, openModal, closeModal, openConfirmDeleteModal, downloadFileCrossPlatform, flashHighlightElement, isGeoDistributionConsentActive, ensureGeoDistributionConsent, setGeoDistributionConsentState } from '../../ui/components.js?v=2.8.3-r230';
+import { fetchWeather } from '../weather/weather.module.js?v=2.8.3-r230';
+import { calcDayBest } from '../forecast/forecast.module.js?v=2.8.3-r230';
+import { computeHexPolygonForCircle, getEffectiveCircleRadiusKm, getCircleHexDecayState, canUserAccessCrewItem, getCurrentFisherIdentity, isUserAdmin, isCurrentUserBetaTester, verifyBetaTesterStatusFromCloud, isCircleItemMine, isCircleItemHidden, openAddThematicMapPointModal } from '../circle/circle.module.js?v=2.8.3-r230';
 // ============================================================================
 // АВТОНОМНОЕ ЯДРО, РЕПРОЕКТОР EPSG:3395 И ИНСПЕКТОР ПРОВЕРКИ ОФЛАЙН-КАРТ (ФАЗА 1 • v2)
 // Хранение в формате инлайн-DataURL (100% сохранность после перезапуска Android WebView)
@@ -729,7 +729,8 @@ export async function findParentOfflineTileForOverzoom(layerId, targetZ, targetX
     : [layerId];
 
   for (const lyr of candidateLayers) {
-    for (let pz = targetZ - 1; pz >= minSearchZ; pz--) {
+    const startPz = lyr === 'yandex_sat' ? Math.min(targetZ - 1, 13) : (targetZ - 1);
+    for (let pz = startPz; pz >= minSearchZ; pz--) {
       const shift = targetZ - pz;
       const px = targetX >> shift;
       const py = targetY >> shift;
@@ -993,15 +994,11 @@ export function createOfflineAwareLeafletLayer(layerId, urlTemplate, fallbacks =
         return tile;
       }
 
-      // Функция отрисовки офлайн-оверзума (с наложением контуров рек из Схемы при сильном зуме!)
+      // Функция отрисовки офлайн-оверзума (строго сохраняет тип слоя: спутник никогда не подменяется белой схемой)
       const renderOfflineFallbackToTile = async () => {
         try {
           let overzoom = await findParentOfflineTileForOverzoom(storageLayerId, z, x, y, false);
-          let schemeOverlayOz = null;
-          if (storageLayerId === 'yandex_sat') {
-            schemeOverlayOz = await findParentOfflineTileForOverzoom('yandex_map', z, x, y, false);
-          }
-          if (!overzoom) {
+          if (!overzoom && isCurrentlyOffline) {
             const altLayerId = storageLayerId === 'yandex_map' ? 'yandex_sat' : 'yandex_map';
             const altExact = await getOfflineTileRecord(altLayerId, z, x, y, false);
             if (altExact && altExact.dataUrl) {
@@ -1019,7 +1016,7 @@ export function createOfflineAwareLeafletLayer(layerId, urlTemplate, fallbacks =
               overzoom,
               coords,
               false,
-              (storageLayerId === 'yandex_sat' && overzoom.scaleFactor >= 2) ? schemeOverlayOz : null
+              null
             );
             tile.onload = () => finishTileLoad();
             tile.onerror = () => finishTileLoad();
@@ -1027,8 +1024,8 @@ export function createOfflineAwareLeafletLayer(layerId, urlTemplate, fallbacks =
             tile.src = dataUrl;
             return;
           }
-          // Если мы ОНЛАЙН (интернет включён, а сервер спутника вернул 404 на высоком зуме Z14..Z18 в тундре/Чукотке),
-          // НИКОГДА не показываем "ВНЕ ЗОНЫ ОФЛАЙН-КАРТЫ"! Вместо этого подгружаем онлайн-родительский спутник + схему!
+          // Если мы ОНЛАЙН и сервер спутника вернул 404 на высоком зуме Z14..Z18 в северных широтах,
+          // апскейлим родительский спутниковый снимок Z13/Z12 или Esri World Imagery без подмены на белую схему!
           if (!isCurrentlyOffline) {
             const synthesizedOnline = await synthesizeOnlineHighZoomFallbackDataUrl(storageLayerId, z, x, y);
             if (synthesizedOnline) {
@@ -1037,7 +1034,16 @@ export function createOfflineAwareLeafletLayer(layerId, urlTemplate, fallbacks =
               tile.src = synthesizedOnline;
               return;
             }
-            // Прямой резерв на онлайн Яндекс Схему (которая существует на Z7..Z18 по всей РФ)
+            if (storageLayerId === 'yandex_sat') {
+              const pz = Math.min(z - 1, 12);
+              const shift = Math.max(1, z - pz);
+              const px = x >> shift;
+              const py = y >> shift;
+              tile.onload = () => finishTileLoad();
+              tile.onerror = () => finishTileLoad();
+              tile.src = `https://sat01.maps.yandex.net/tiles?l=sat&x=${px}&y=${py}&z=${pz}&lang=ru_RU&_cb=${_tileCacheBustSeq}`;
+              return;
+            }
             tile.onload = () => finishTileLoad();
             tile.onerror = () => finishTileLoad();
             tile.src = `https://core-renderer-tiles.maps.yandex.net/tiles?l=map&v=24.10.30-0&x=${x}&y=${y}&z=${z}&scale=2&lang=ru_RU&_cb=${_tileCacheBustSeq}`;
@@ -1054,9 +1060,10 @@ export function createOfflineAwareLeafletLayer(layerId, urlTemplate, fallbacks =
       };
 
       const exactKey = `${storageLayerId}_${z}_${x}_${y}`;
+      const isHighZoomLegacySat = (storageLayerId === 'yandex_sat' && z >= 14);
 
-      // 1. Сверхбыстрая проверка точного тайла из RAM-кэша (только если ключ реально числится в базе офлайн-карт!)
-      if (_offlineTileKeysSet.has(exactKey) && _ramTileDataUrlCache.has(exactKey)) {
+      // 1. Сверхбыстрая проверка точного тайла из RAM-кэша (для спутника Z>=14 используем чистый оверзум родительского спутника Z13)
+      if (!isHighZoomLegacySat && _offlineTileKeysSet.has(exactKey) && _ramTileDataUrlCache.has(exactKey)) {
         const ramHit = _ramTileDataUrlCache.get(exactKey);
         tile.setAttribute('data-offline-hit', '1');
         tile.setAttribute('data-offline-layer', storageLayerId);
@@ -1067,7 +1074,7 @@ export function createOfflineAwareLeafletLayer(layerId, urlTemplate, fallbacks =
       }
 
       // 2. Если индекс ключей уже в памяти и точного тайла нет, а интернет включён — грузим напрямую по сети!
-      if (_offlineKeysIndexed && !isCurrentlyOffline && !_offlineTileKeysSet.has(exactKey)) {
+      if (_offlineKeysIndexed && !isCurrentlyOffline && (!_offlineTileKeysSet.has(exactKey) || isHighZoomLegacySat)) {
         let fbIdx = 0;
         tile.onload = () => finishTileLoad();
         tile.onerror = () => {
@@ -1090,7 +1097,7 @@ export function createOfflineAwareLeafletLayer(layerId, urlTemplate, fallbacks =
 
       // 3. Читаем точный тайл из IndexedDB
       getOfflineTileRecord(storageLayerId, z, x, y, false).then(async (rec) => {
-        if (rec && rec.dataUrl) {
+        if (rec && rec.dataUrl && (!isHighZoomLegacySat || rec.pureSatV2 === true)) {
           tile.setAttribute('data-offline-hit', '1');
           tile.setAttribute('data-offline-layer', storageLayerId);
           tile.onload = () => finishTileLoad();
@@ -1484,18 +1491,13 @@ async function synthesizeHighZoomHybridOfflineTile(task, attemptSeed = 0) {
       }
     }
 
-    // 2. Получаем чёткий векторный тайл гидрографии/схемы ТОЧНОГО масштаба Z (реки, берега, протоки, острова, дороги на Z12..Z18)
-    const exactMapRes = await fetchAndReprojectEPSG3857ToEPSG3395DataUrl(OFFLINE_LAYER_SOURCES.yandex_map, z, x, y, attemptSeed);
-    if (!parentSatOz && exactMapRes) {
-      return exactMapRes;
-    }
     if (!parentSatOz) return null;
 
     const canvas = document.createElement('canvas');
     canvas.width = 256;
     canvas.height = 256;
     const ctx = canvas.getContext('2d');
-    if (!ctx) return exactMapRes;
+    if (!ctx) return null;
 
     const satImg = await new Promise((res) => {
       const im = new Image();
@@ -1522,30 +1524,13 @@ async function synthesizeHighZoomHybridOfflineTile(task, attemptSeed = 0) {
       applyCanvasSharpenAndContrast(ctx, 256, 256, parentSatOz.scaleFactor);
     }
 
-    if (exactMapRes && exactMapRes.dataUrl) {
-      const mapImg = await new Promise((res) => {
-        const im = new Image();
-        im.onload = () => res(im);
-        im.onerror = () => res(null);
-        im.src = exactMapRes.dataUrl;
-      });
-      if (mapImg) {
-        // Накладываем векторные русла рек, озёра и подписи Z12..Z18 поверх спутниковой подложки,
-        // чтобы на максимальном зуме Z18 были идеально чёткие берега и названия!
-        ctx.save();
-        ctx.globalAlpha = parentSatOz.scaleFactor >= 4 ? 0.52 : 0.36;
-        ctx.drawImage(mapImg, 0, 0, 256, 256);
-        ctx.restore();
-      }
-    }
-
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.91);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
     canvas.width = 0;
     canvas.height = 0;
     if (dataUrl && dataUrl.length > 220) {
-      return { dataUrl, sizeBytes: Math.round(dataUrl.length * 0.74) };
+      return { dataUrl, sizeBytes: Math.round(dataUrl.length * 0.74), pureSatV2: true };
     }
-    return exactMapRes;
+    return null;
   } catch (_e) {
     return null;
   }
@@ -2836,7 +2821,41 @@ export function computeDeduplicatedMapCounts(stateObj = null) {
     totalMapCount: mineMapCount + foreignMapCount
   };
 }
+function ensureDynamicYmapFilterStyles() {
+  if (typeof document === 'undefined') return;
+  if (document.getElementById('klevDynamicYmapFilterStyle')) return;
+  const st = document.createElement('style');
+  st.id = 'klevDynamicYmapFilterStyle';
+  st.textContent = `
+    #mapBox[data-ymap-layer="yandex_dark"] img.klev-base-tile-layer {
+      filter: invert(0.92) hue-rotate(185deg) saturate(1.22) brightness(0.88) contrast(1.16) !important;
+    }
+    #mapBox[data-ymap-layer="yandex_dark"][data-ymap-hydro="1"] img.klev-base-tile-layer {
+      filter: invert(0.92) hue-rotate(185deg) saturate(1.65) brightness(0.90) contrast(1.36) !important;
+    }
+    #mapBox[data-ymap-layer="yandex_dark"][data-ymap-dim="1"] img.klev-base-tile-layer {
+      filter: invert(0.92) hue-rotate(185deg) saturate(1.15) brightness(0.66) contrast(1.20) !important;
+    }
+    #mapBox[data-ymap-layer="yandex_dark"][data-ymap-hydro="1"][data-ymap-dim="1"] img.klev-base-tile-layer {
+      filter: invert(0.92) hue-rotate(185deg) saturate(1.55) brightness(0.68) contrast(1.38) !important;
+    }
+    #mapBox:not([data-ymap-layer="yandex_dark"])[data-ymap-hydro="1"][data-ymap-dim="0"] img.klev-base-tile-layer {
+      filter: contrast(1.38) saturate(1.55) brightness(0.96) !important;
+    }
+    #mapBox:not([data-ymap-layer="yandex_dark"])[data-ymap-hydro="0"][data-ymap-dim="1"] img.klev-base-tile-layer {
+      filter: brightness(0.68) contrast(1.12) saturate(0.90) !important;
+    }
+    #mapBox:not([data-ymap-layer="yandex_dark"])[data-ymap-hydro="1"][data-ymap-dim="1"] img.klev-base-tile-layer {
+      filter: brightness(0.70) contrast(1.42) saturate(1.45) !important;
+    }
+    #mapBox img.klev-labels-tile-layer {
+      filter: drop-shadow(0 1px 2px rgba(0,0,0,0.85)) !important;
+    }
+  `;
+  document.head.appendChild(st);
+}
 function applyYandexTileFiltersToMap() {
+  ensureDynamicYmapFilterStyles();
   if (!mapInstance) return;
   if (typeof mapInstance.getPane === 'function') {
     const tilePane = mapInstance.getPane('tilePane');
@@ -2874,6 +2893,21 @@ function createResilientTileLayer(layerKey = 'yandex_map') {
     return L.layerGroup([baseTl, sklTl]);
   }
   return baseTl;
+}
+function rebuildActiveMapTileLayer() {
+  if (!mapInstance) return;
+  _tileCacheBustSeq++;
+  if (currentTileLayer) {
+    try {
+      if (typeof currentTileLayer.eachLayer === 'function') {
+        currentTileLayer.eachLayer(sub => { try { mapInstance.removeLayer(sub); } catch (_e) {} });
+      }
+      mapInstance.removeLayer(currentTileLayer);
+    } catch (_e) {}
+    currentTileLayer = null;
+  }
+  currentTileLayer = createResilientTileLayer(currentLayerKey).addTo(mapInstance);
+  applyYandexTileFiltersToMap();
 }
 function clamp(val, min, max) {
   return Math.max(min, Math.min(max, val));
@@ -3022,8 +3056,8 @@ export async function setLocation(lat, lon, skipReverseGeo = false, targetZoomOv
   const distFromLastWeatherKm = (Number.isFinite(lastWLat) && Number.isFinite(lastWLon))
     ? calcHaversineKm(rLat, rLon, lastWLat, lastWLon)
     : 9999;
-  // При переключении местоположения на карте: если точка в радиусе до 50 км — не перезапрашиваем сеть принудительно, если дальше 50 км — обновляем в реальном времени
-  if (distFromLastWeatherKm > 50 || !Array.isArray(st.weatherDays) || st.weatherDays.length === 0) {
+  // При переключении местоположения автоматически запрашиваем актуальную погоду и сводку meteoinfo.ru по новой точке
+  if (distFromLastWeatherKm > 0.3 || !Array.isArray(st.weatherDays) || st.weatherDays.length === 0) {
     window.__KLEV_LAST_WEATHER_FETCH_LAT__ = rLat;
     window.__KLEV_LAST_WEATHER_FETCH_LON__ = rLon;
     await fetchWeather(rLat, rLon, true);
@@ -7123,29 +7157,39 @@ function bindGeoEvents(container, showDrawer) {
  }
   container.querySelectorAll('[data-map-layer]').forEach(btn => {
     btn.addEventListener('click', () => {
-      currentLayerKey = btn.getAttribute('data-map-layer') || 'yandex_map';
-      if (mapInstance) {
-        if (currentTileLayer) mapInstance.removeLayer(currentTileLayer);
-        currentTileLayer = createResilientTileLayer(currentLayerKey).addTo(mapInstance);
-        applyYandexTileFiltersToMap();
+      const nextLayer = btn.getAttribute('data-map-layer') || 'yandex_map';
+      currentLayerKey = nextLayer;
+      if (nextLayer === 'yandex_sat' || nextLayer === 'yandex_map' || nextLayer === 'yandex_dark') {
+        yandexMapFilters.labels = false;
+      } else if (nextLayer === 'yandex_hybrid') {
+        yandexMapFilters.labels = true;
       }
+      rebuildActiveMapTileLayer();
       syncFilterButtonsInPlace();
     });
   });
   container.querySelectorAll('[data-ymap-filter]').forEach(btn => {
     btn.addEventListener('click', () => {
       const fKey = btn.getAttribute('data-ymap-filter');
-      if (fKey && fKey in yandexMapFilters) {
-        yandexMapFilters[fKey] = !yandexMapFilters[fKey];
-        if (mapInstance) {
-          if (fKey === 'labels') {
-            if (currentTileLayer) mapInstance.removeLayer(currentTileLayer);
-            currentTileLayer = createResilientTileLayer(currentLayerKey).addTo(mapInstance);
+      if (!fKey || !(fKey in yandexMapFilters)) return;
+      if (fKey === 'labels') {
+        if (currentLayerKey === 'yandex_hybrid') {
+          currentLayerKey = 'yandex_sat';
+          yandexMapFilters.labels = false;
+        } else if (currentLayerKey === 'yandex_sat') {
+          yandexMapFilters.labels = !yandexMapFilters.labels;
+        } else {
+          yandexMapFilters.labels = !yandexMapFilters.labels;
+          if (yandexMapFilters.labels) {
+            currentLayerKey = 'yandex_hybrid';
           }
-          applyYandexTileFiltersToMap();
         }
-        syncFilterButtonsInPlace();
+        rebuildActiveMapTileLayer();
+      } else {
+        yandexMapFilters[fKey] = !yandexMapFilters[fKey];
+        applyYandexTileFiltersToMap();
       }
+      syncFilterButtonsInPlace();
     });
   });
  container.querySelectorAll('[data-water-radius]').forEach(btn => {

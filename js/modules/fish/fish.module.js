@@ -1,15 +1,15 @@
-import { RU } from '../../i18n/ru.js?v=2.8.3-r229';
-import { events } from '../../core/events.js?v=2.8.3-r229';
-import { store } from '../../core/store.js?v=2.8.3-r229';
-import { router } from '../../core/router.js?v=2.8.3-r229';
-import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.8.3-r229';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.8.3-r229';
-import { RUSSIA_CITIES, findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.8.3-r229';
-import { FISH_DB } from '../../data/species.js?v=2.8.3-r229';
-import { renderFishVisual, renderFiveFish } from '../../ui/svg.js?v=2.8.3-r229';
-import { createPill, showToast, openModal, closeModal, openFishLightbox, openUserAgreementModal, isUserAgreementAccepted, requestSystemNotificationsAccess, flashHighlightElement } from '../../ui/components.js?v=2.8.3-r229';
-import { setLocation, detectUserPosition } from '../geo/geo.module.js?v=2.8.3-r229';
-import { installShortcut, isApkOrTmaContainer, isAppInstalledOrShortcutPresent } from '../../core/pwa.js?v=2.8.3-r229';
+import { RU } from '../../i18n/ru.js?v=2.8.3-r230';
+import { events } from '../../core/events.js?v=2.8.3-r230';
+import { store } from '../../core/store.js?v=2.8.3-r230';
+import { router } from '../../core/router.js?v=2.8.3-r230';
+import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.8.3-r230';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.8.3-r230';
+import { RUSSIA_CITIES, findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.8.3-r230';
+import { FISH_DB } from '../../data/species.js?v=2.8.3-r230';
+import { renderFishVisual, renderFiveFish } from '../../ui/svg.js?v=2.8.3-r230';
+import { createPill, showToast, openModal, closeModal, openFishLightbox, openUserAgreementModal, isUserAgreementAccepted, requestSystemNotificationsAccess, flashHighlightElement } from '../../ui/components.js?v=2.8.3-r230';
+import { setLocation, detectUserPosition } from '../geo/geo.module.js?v=2.8.3-r230';
+import { installShortcut, isApkOrTmaContainer, isAppInstalledOrShortcutPresent } from '../../core/pwa.js?v=2.8.3-r230';
 import {
   openAuthAndBackupModal,
   openNotificationsModal,
@@ -20,11 +20,11 @@ import {
   syncCurrentProfileToCloudIfLoggedIn,
   renderSettingsZoneTabsHtml,
   bindSettingsZoneTabs
-} from '../circle/circle.module.js?v=2.8.3-r229';
-import { fetchWeather } from '../weather/weather.module.js?v=2.8.3-r229';
-import { checkForReleaseUpdate, isAndroidWebsiteVisitor, getCachedApkManifest, triggerApkFileDownload } from '../../core/updater.js?v=2.8.3-r229';
-import { calcDayBest } from '../forecast/forecast.module.js?v=2.8.3-r229';
-import { openFishPhotoScannerModal, analyzeFishPhotoHybrid, estimateWeightByLengthAndSpecies, getStoredGeminiApiKey, saveStoredGeminiApiKey, getLocalGeminiQuotaState, incrementLocalGeminiQuotaUsed, callGeminiClientSmart } from './scanner.js?v=2.8.3-r229';
+} from '../circle/circle.module.js?v=2.8.3-r230';
+import { fetchWeather } from '../weather/weather.module.js?v=2.8.3-r230';
+import { checkForReleaseUpdate, isAndroidWebsiteVisitor, getCachedApkManifest, triggerApkFileDownload } from '../../core/updater.js?v=2.8.3-r230';
+import { calcDayBest } from '../forecast/forecast.module.js?v=2.8.3-r230';
+import { openFishPhotoScannerModal, analyzeFishPhotoHybrid, estimateWeightByLengthAndSpecies, getStoredGeminiApiKey, saveStoredGeminiApiKey, getLocalGeminiQuotaState, incrementLocalGeminiQuotaUsed, callGeminiClientSmart } from './scanner.js?v=2.8.3-r230';
 /**
  * Региональные приоритетные виды для каждого бассейна РФ,
  * чтобы самые популярные и характерные для региона виды (например, Елец и Пелядь/Сырок в Новом Уренгое)
@@ -618,9 +618,9 @@ export function openAppParamsModal(onBackToHub = null) {
           `;
         })()}
         <div class="card" style="background:var(--card);padding:10px 12px;border:1px solid var(--border);display:flex;flex-direction:column;gap:8px;">
-          <div style="font-weight:800;font-size:var(--fs-xs);color:var(--accent);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M20 11a8 8 0 0 0-14.5-4.5L4 8m0-5v5h5M4 13a8 8 0 0 0 14.5 4.5L20 16m0 5v-5h-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> ОБНОВЛЕНИЕ ПОГОДЫ И ВЕРСИИ</div>
+          <div style="font-weight:800;font-size:var(--fs-xs);color:var(--accent);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M20 11a8 8 0 0 0-14.5-4.5L4 8m0-5v5h5M4 13a8 8 0 0 0 14.5 4.5L20 16m0 5v-5h-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> ПРОВЕРКА ВЕРСИИ И ПРИЛОЖЕНИЕ</div>
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:6px;">
-            <button type="button" class="btn btn-sm" id="onbRefreshWeatherBtn"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M20 11a8 8 0 0 0-14.5-4.5L4 8m0-5v5h5M4 13a8 8 0 0 0 14.5 4.5L20 16m0 5v-5h-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Обновить погоду</button>
+            ${isCurrentUserBetaTester(s) ? `<button type="button" class="btn btn-sm" id="onbRefreshWeatherBtn"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M20 11a8 8 0 0 0-14.5-4.5L4 8m0-5v5h5M4 13a8 8 0 0 0 14.5 4.5L20 16m0 5v-5h-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Обновить погоду [БЕТА]</button>` : ''}
             <button type="button" class="btn btn-sm" id="onbVersionCheckBtn"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 8l-9-5-9 5v8l9 5 9-5V8z" fill="rgba(56,189,248,0.16)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M3 8l9 5 9-5M12 13v8" stroke="currentColor" stroke-width="1.7"/></svg> Проверить версию</button>
             ${(isApkOrTmaContainer() || isAppInstalledOrShortcutPresent()) ? '' : '<button type="button" class="btn btn-sm" id="onbInstallAppBtn" data-install-app><svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="6" y="2" width="12" height="20" rx="2.5" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="18" r="1.2" fill="#38bdf8"/></svg> На экран</button>'}
           </div>
@@ -632,9 +632,9 @@ export function openAppParamsModal(onBackToHub = null) {
             <div style="padding:8px 10px;background:rgba(16,185,129,0.10);border:1px solid var(--good);border-radius:var(--r-sm);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-top:2px;">
               <div style="min-width:0;flex:1;">
                 <div style="font-weight:800;font-size:11.5px;color:var(--good);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="6" y="2" width="12" height="20" rx="2.5" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="18" r="1.2" fill="#38bdf8"/></svg> Приложение для Android (.APK)</div>
-                <div style="font-size:11px;color:var(--muted);">Доступна версия: <b>v${getCachedApkManifest().version || '2.5.6'}</b> (${getCachedApkManifest().fileSize || '7.9 МБ'})</div>
+                <div style="font-size:11px;color:var(--muted);">Доступна версия: <b>v${getCachedApkManifest().version || '2.8.3'}</b> (${getCachedApkManifest().fileSize || '7.9 МБ'})</div>
               </div>
-              <button type="button" class="btn btn-sm btn-good" id="onbDownloadAndroidApkBtn" style="font-weight:800;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg> Скачать APK (v${getCachedApkManifest().version || '2.5.6'})</button>
+              <button type="button" class="btn btn-sm btn-good" id="onbDownloadAndroidApkBtn" style="font-weight:800;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg> Скачать APK (v${getCachedApkManifest().version || '2.8.3'})</button>
             </div>
           ` : ''}
         </div>

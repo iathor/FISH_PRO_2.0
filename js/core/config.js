@@ -1,43 +1,43 @@
 /**
  * @file config.js
- * @description Конфигурация приложения (Релиз 2.5.6 r216), слои карт без VPN и адаптивные справочники снастей и сезонных наживок
+ * @description Конфигурация приложения (Релиз 2.8.3 r230), слои карт без VPN и адаптивные справочники снастей и сезонных наживок
  */
 export const APP_VERSION = '2.8.3';
-export const APP_BUILD_NUMBER = 229;
-export const APP_REVISION = 'r229';
-export const APP_DISPLAY_VERSION = 'v2.8.3 r229';
+export const APP_BUILD_NUMBER = 230;
+export const APP_REVISION = 'r230';
+export const APP_DISPLAY_VERSION = 'v2.8.3 r230';
 export const STATE_CACHE_KEY = 'klev_pro_state_v2.0';
 export const WEATHER_CACHE_KEY = 'klev_pro_weather_v2.0';
 export const RELEASE_CACHE_KEY = 'klev_pro_release_v2.0';
 export const WEATHER_TTL_MS = 2 * 60 * 60 * 1000;
 export const CURRENT_RELEASE_INFO = {
   "version": "2.8.3",
-  "versionCode": 280229,
-  "buildNumber": 229,
-  "revision": "r229",
-  "displayVersion": "v2.8.3 r229",
-  "date": "9 ноября 2026",
-  "releasedAt": "2026-11-09T12:00:00Z",
+  "versionCode": 280230,
+  "buildNumber": 230,
+  "revision": "r230",
+  "displayVersion": "v2.8.3 r230",
+  "date": "10 ноября 2026",
+  "releasedAt": "2026-11-10T12:00:00Z",
   "apkUrl": "https://klevpro.ru/apk/klev-pro-v2.8.3.apk",
   "fileSize": "38.6 МБ",
-  "title": "Обновление «Клёв ПРО 2.0» (v2.8.3 r229)",
-  "subtitle": "Новый интерактивный загрузочный экран с работающим сонаром для 3 тем, точное голосовое ведение по маршруту и умное обновление кэша без потери данных.",
-  "summary": "Внедрён адаптивный экран загрузки с работающим сонаром и подсветкой целей для смартфонов, планшетов и ПК во всех 3 темах, нативное голосовое сопровождение маршрута и безопасная очистка устаревшего кэша.",
+  "title": "Обновление «Клёв ПРО 2.0» (v2.8.3 r230)",
+  "subtitle": "Улучшена работа слоёв и фильтров карты, настроено автоматическое обновление погоды по местоположению и повышена стабильность приложения.",
+  "summary": "Исправлено переключение слоёв и фильтров карты, добавлено автоматическое обновление погоды при входе и смене точки, доработан интерфейс.",
   "highlights": [
     {
-      "icon": "<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"12\" cy=\"12\" r=\"9\" stroke=\"#38bdf8\" stroke-width=\"1.8\"/><path d=\"M12 12L18 6\" stroke=\"#10b981\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg>",
-      "title": "Новый экран загрузки с живым сонаром (3 темы)",
-      "text": "Адаптивный загрузочный экран с вращающимся лучом сонара, непрерывным малым радаром и подсветкой рыбок для вертикального и горизонтального форматов."
+      "icon": "<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3V6z\" fill=\"rgba(56,189,248,0.18)\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/><path d=\"M9 3v15M15 6v15\" stroke=\"currentColor\" stroke-width=\"1.6\"/></svg>",
+      "title": "Карта водоёмов и светофильтры",
+      "text": "Исправлено мгновенное переключение режимов Схема, Спутник, Гибрид и Ночь, а также работа фильтров контраста русел, антиблика и названий рек."
     },
     {
-      "icon": "<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3V6z\" fill=\"rgba(56,189,248,0.18)\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/><path d=\"M9 3v15M15 6v15\" stroke=\"currentColor\" stroke-width=\"1.6\"/></svg>",
-      "title": "Голосовое ведение и точная привязка к дорогам",
-      "text": "Нативный синтез речи Android TTS в фоне и на экране, экранный переключатель звука в фоне и точная привязка маршрута к улицам и развязкам."
+      "icon": "<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"12\" cy=\"12\" r=\"9\" stroke=\"#38bdf8\" stroke-width=\"1.8\"/><path d=\"M12 12L18 6\" stroke=\"#10b981\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg>",
+      "title": "Автоматическое обновление погоды",
+      "text": "Сводка погоды, температуры воды и ледовой обстановки теперь обновляется автоматически при открытии приложения и при смене точки на карте."
     },
     {
       "icon": "<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"12\" cy=\"12\" r=\"9\" fill=\"rgba(16,185,129,0.22)\" stroke=\"#10b981\" stroke-width=\"1.8\"/><path d=\"M8 12.5l2.7 2.7L16.5 9.5\" stroke=\"#10b981\" stroke-width=\"2.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>",
-      "title": "Контроль версий 2.8.3 и безопасное обновление кэша",
-      "text": "Запрос обновления в APK только при выходе строго более высокой версии, а на сайте и в PWA — бережная очистка кэша и технических куки с полным сохранением всех данных пользователя."
+      "title": "Удобство и стабильность работы",
+      "text": "Интерфейс очищен от лишних служебных уведомлений, повышена плавность работы на смартфонах и планшетах с полным сохранением ваших данных."
     }
   ]
 };

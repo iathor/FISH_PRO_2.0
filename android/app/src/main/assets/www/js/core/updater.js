@@ -1,18 +1,18 @@
-import { store } from './store.js?v=2.8.3-r229';
+import { store } from './store.js?v=2.8.3-r230';
 /**
  * @file updater.js
- * @description Модуль строгого контроля версий (v2.8.3 r229):
+ * @description Модуль строгого контроля версий (v2.8.3 r230):
  * - В Android APK: запрос на обновление выводится ТОЛЬКО если версия/ревизия на сервере СТРОГО ВЫШЕ установленной в APK.
  * - На Сайте и в PWA: проверка выхода новой версии с уведомлением о необходимости обновления кэша
  *   и бережной очисткой устаревшего кэша и технических куки БЕЗ удаления пользовательских данных (точек, журнала, профиля, чатов, офлайн-карт).
  */
-import { APP_VERSION, APP_BUILD_NUMBER, APP_REVISION, APP_DISPLAY_VERSION, RELEASE_CACHE_KEY, CURRENT_RELEASE_INFO } from './config.js?v=2.8.3-r229';
-import { showToast } from '../ui/components.js?v=2.8.3-r229';
+import { APP_VERSION, APP_BUILD_NUMBER, APP_REVISION, APP_DISPLAY_VERSION, RELEASE_CACHE_KEY, CURRENT_RELEASE_INFO } from './config.js?v=2.8.3-r230';
+import { showToast } from '../ui/components.js?v=2.8.3-r230';
 
 export const PUBLIC_SITE_ORIGIN = 'https://klevpro.ru';
 export const APK_MANIFEST_PATH = '/apk/apk-version.json';
 export const DEFAULT_APK_DOWNLOAD_URL = 'https://klevpro.ru/apk/klev-pro-v2.8.3.apk';
-export const APK_BANNER_DISMISSED_KEY = 'klev_pro_hide_apk_banner_v2.8.3_r229';
+export const APK_BANNER_DISMISSED_KEY = 'klev_pro_hide_apk_banner_v2.8.3_r230';
 const WEB_CACHE_SYNCED_VER_KEY = 'klev_pro_web_cache_synced_ver_v2';
 
 let pendingSwRegistration = null;
@@ -111,9 +111,8 @@ export function compareReleaseVersions(verA, revA, verB, revB) {
   if (semCmp !== 0) return semCmp;
   const rA = extractBuildRevisionNumber(revA);
   const rB = extractBuildRevisionNumber(revB);
-  if (rA > 0 && rB > 0) {
-    if (rA > rB) return 1;
-    if (rA < rB) return -1;
+  if (rA !== rB && (rA > 0 || rB > 0)) {
+    return rA > rB ? 1 : -1;
   }
   return 0;
 }
@@ -268,10 +267,10 @@ export async function safeCleanObsoleteCacheAndCookies() {
 }
 
 function normalizeReleaseChanges(info) {
-  const rawList = (Array.isArray(info?.changes) && info.changes.length > 0)
-    ? info.changes
-    : ((Array.isArray(info?.highlights) && info.highlights.length > 0)
-        ? info.highlights
+  const rawList = (Array.isArray(info?.highlights) && info.highlights.length > 0)
+    ? info.highlights
+    : ((Array.isArray(info?.changes) && info.changes.length > 0)
+        ? info.changes
         : ((Array.isArray(info?.changelog) && info.changelog.length > 0)
             ? info.changelog
             : ((Array.isArray(info?.items) && info.items.length > 0)
@@ -499,7 +498,9 @@ export async function fetchServerReleaseInfo() {
   const ts = Date.now();
   const urls = [
     `./version.json?_t=${ts}`,
-    `${PUBLIC_SITE_ORIGIN}/version.json?_t=${ts}`
+    `./apk/apk-version.json?_t=${ts}`,
+    `${PUBLIC_SITE_ORIGIN}/version.json?_t=${ts}`,
+    `${PUBLIC_SITE_ORIGIN}${APK_MANIFEST_PATH}?_t=${ts}`
   ];
   let best = null;
   for (const u of urls) {
@@ -763,12 +764,13 @@ export async function checkForReleaseUpdate({ manual = false } = {}) {
   const lastCacheSyncedKey = (typeof localStorage !== 'undefined') ? localStorage.getItem(WEB_CACHE_SYNCED_VER_KEY) : null;
   const dismissedRev = (typeof localStorage !== 'undefined') ? localStorage.getItem('klev_pro_dismissed_rev') : null;
 
-  // Серверная версия выше запущенного в браузере JS ИЛИ пользователь перешёл со старой версии (напр. 2.5.6 -> 2.8.3) и кэш ещё не синхронизирован
+  // Серверная версия или внутренний релиз (rNNN) выше запущенного в браузере JS ИЛИ кэш браузера остался от предыдущего релиза
   const isServerHigherThanRunningJs = compareReleaseVersions(serverInfo.version, serverInfo.buildNumber, APP_VERSION, APP_BUILD_NUMBER) > 0;
   const isUpgradedFromOlderCachedVersion = Boolean(
-    prevRecord &&
-    compareReleaseVersions(serverInfo.version, serverInfo.buildNumber, prevRecord.version, prevRecord.buildNumber || prevRecord.revision) > 0 &&
-    lastCacheSyncedKey !== targetRevKey
+    lastCacheSyncedKey !== targetRevKey && (
+      (prevRecord && compareReleaseVersions(serverInfo.version, serverInfo.buildNumber, prevRecord.version, prevRecord.buildNumber || prevRecord.revision) > 0) ||
+      (lastCacheSyncedKey && lastCacheSyncedKey !== targetRevKey)
+    )
   );
 
   if (!prevRecord && !isServerHigherThanRunningJs) {
@@ -826,5 +828,17 @@ export function initReleaseUpdater() {
   }, 900);
   setTimeout(() => {
     checkForReleaseUpdate({ manual: false }).catch(() => {});
-  }, 7400);
+  }, 6200);
+  if (typeof document !== 'undefined') {
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        checkForReleaseUpdate({ manual: false }).catch(() => {});
+      }
+    });
+  }
+  if (typeof window !== 'undefined') {
+    setInterval(() => {
+      checkForReleaseUpdate({ manual: false }).catch(() => {});
+    }, 20 * 60 * 1000);
+  }
 }

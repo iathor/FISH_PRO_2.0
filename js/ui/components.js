@@ -1,4 +1,4 @@
-import { svgIcon } from './icons.js?v=2.8.3-r229';
+import { svgIcon } from './icons.js?v=2.8.3-r230';
 /**
  * Экранирует пользовательские строки перед вставкой в HTML (защита от DOM XSS и инъекций тегов)
  */
@@ -310,10 +310,10 @@ export function getRemotePolicyFromClientEnv() {
   const fallback = {
     policyVersion: ACTIVE_POLICY_VERSION_DEFAULT,
     appVersion: ACTIVE_APP_VERSION_DEFAULT,
-    appRevision: 'r229',
+    appRevision: 'r230',
     effectiveDate: '10 ноября 2026 г.',
     title: 'Политика конфиденциальности, Пользовательское соглашение и Правила обработки геоданных «Клёв ПРО 2.0»',
-    summary: 'Редакция v2.8.3 (r229): защита данных в разделе «Данные приложения» Android APK (Context.getFilesDir), единый постоянный ID на всех устройствах, калибровка гидрологии по сводкам Росгидромета (meteoinfo.ru) и динамическое обновление политики без пересборки.',
+    summary: 'Редакция v2.8.3 (r230): защита данных в разделе «Данные приложения» Android APK (Context.getFilesDir), единый постоянный ID на всех устройствах, калибровка гидрологии по сводкам Росгидромета (meteoinfo.ru) и динамическое обновление политики без пересборки.',
     sections: DEFAULT_POLICY_SECTIONS,
     broadcastId: ''
   };
@@ -356,7 +356,7 @@ export function saveRemotePolicyToClientEnv(policyPayload) {
   const updated = {
     policyVersion: String(policyPayload.policyVersion || current.policyVersion || ACTIVE_POLICY_VERSION_DEFAULT).trim(),
     appVersion: String(policyPayload.appVersion || current.appVersion || ACTIVE_APP_VERSION_DEFAULT).trim(),
-    appRevision: String(policyPayload.appRevision || current.appRevision || 'r229').trim(),
+    appRevision: String(policyPayload.appRevision || current.appRevision || 'r230').trim(),
     effectiveDate: String(policyPayload.effectiveDate || current.effectiveDate || '10 ноября 2026 г.').trim(),
     title: String(policyPayload.title || current.title).trim(),
     summary: String(policyPayload.summary || current.summary).trim(),

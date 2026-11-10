@@ -105,7 +105,7 @@ jobs:
 
           # 4. Вычисляем строго возрастающий versionCode для релиза 2.5.6 r194 (чтобы Android всегда обновлял APK поверх старой версии)
           RUN_NUM=${GITHUB_RUN_NUMBER:-0}
-          VER_CODE=$((280229 + RUN_NUM))
+          VER_CODE=$((280230 + RUN_NUM))
           echo "Using versionCode=$VER_CODE"
 
           cat << 'EOF' > "$PROJ_DIR/settings.gradle"
@@ -150,7 +150,7 @@ jobs:
                   minSdk 24
                   targetSdk 34
                   versionCode ${VER_CODE}
-                  versionName "2.8.3-r229"
+                  versionName "2.8.3-r230"
               }
               signingConfigs {
                   release {
@@ -657,7 +657,7 @@ jobs:
 
                   @JavascriptInterface
                   public String getAppVersion() {
-                      return "2.8.3-r229";
+                      return "2.8.3-r230";
                   }
 
                   @JavascriptInterface
@@ -667,7 +667,7 @@ jobs:
 
                   @JavascriptInterface
                   public String getAppRevision() {
-                      return "r229";
+                      return "r230";
                   }
 
                   @JavascriptInterface
@@ -961,7 +961,7 @@ jobs:
                   ws.setCacheMode(WebSettings.LOAD_NO_CACHE);
                             webView.clearCache(true);
                   String baseUa = ws.getUserAgentString();
-                  ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.8.3-r229");
+                  ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.8.3-r230");
 
                   webView.addJavascriptInterface(new NativeBridge(this), "AndroidBridge");
 
@@ -1478,7 +1478,7 @@ jobs:
 
               private void loadEntryUrlFromIntent(Intent intent) {
                   String entryHtml = getPackageName().contains("admin") ? "kp-control-89.html" : "index.html";
-                  String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/" + entryHtml + "?v=2.8.3_r229_" + System.currentTimeMillis();
+                  String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/" + entryHtml + "?v=2.8.3_r230_" + System.currentTimeMillis();
                   if (intent != null && intent.getData() != null) {
                       Uri data = intent.getData();
                       String q = data.getEncodedQuery();

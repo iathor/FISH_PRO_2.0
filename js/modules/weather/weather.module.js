@@ -1,15 +1,15 @@
-import { RU } from '../../i18n/ru.js?v=2.8.3-r229';
-import { events } from '../../core/events.js?v=2.8.3-r229';
-import { storage } from '../../core/storage.js?v=2.8.3-r229';
-import { store } from '../../core/store.js?v=2.8.3-r229';
-import { fetchWithTimeout, fallbackChain } from '../../core/http.js?v=2.8.3-r229';
-import { formatLocalYYYYMMDD, fmtHM, fmtDeltaPress } from '../../core/format.js?v=2.8.3-r229';
-import { WATER_PROFILES } from '../../data/waters.js?v=2.8.3-r229';
-import { createPill, showToast } from '../../ui/components.js?v=2.8.3-r229';
+import { RU } from '../../i18n/ru.js?v=2.8.3-r230';
+import { events } from '../../core/events.js?v=2.8.3-r230';
+import { storage } from '../../core/storage.js?v=2.8.3-r230';
+import { store } from '../../core/store.js?v=2.8.3-r230';
+import { fetchWithTimeout, fallbackChain } from '../../core/http.js?v=2.8.3-r230';
+import { formatLocalYYYYMMDD, fmtHM, fmtDeltaPress } from '../../core/format.js?v=2.8.3-r230';
+import { WATER_PROFILES } from '../../data/waters.js?v=2.8.3-r230';
+import { createPill, showToast } from '../../ui/components.js?v=2.8.3-r230';
 const DIRS = ['С', 'СВ', 'В', 'ЮВ', 'Ю', 'ЮЗ', 'З', 'СЗ'];
 
 /**
- * ── ЯДРО ГИДРОМЕТЦЕНТРА РОССИИ (METEOINFO.RU) • РЕВИЗИЯ 2.8.3 (r229) ──
+ * ── ЯДРО ГИДРОМЕТЦЕНТРА РОССИИ (METEOINFO.RU) • РЕВИЗИЯ 2.8.3 (r230) ──
  * 1. 4 микро-парсера (StationWeatherParser, HydroReviewNLPParser, RoadAndStormAlertParser, SpaceWeatherParser)
  * 2. Геопоиск 3 ближайших опорных метеостанций РФ и интерполяция методом обратных взвешенных расстояний (IDW)
  *    с барометрической и высотной поправкой (dT = -0.0065 * dz, dP = -dz / 11.5)
@@ -715,6 +715,16 @@ export function normalizeOpenMeteo(data, waterType) {
     (todayObj?.hours || []).reduce((s, h) => s + (h.precip || 0), 0)
   );
   const spaceWeather = data._spaceWeather || MeteoInfoRuParsers.parseSpaceWeatherEgmb(data._egmbText || '');
+  if (typeof window !== 'undefined' && (raw._sourceMeteoinfo || raw._hydroAssimilation || raw._spaceWeather || raw._roadHazard)) {
+    window.__KLEV_METEOINFO_LATEST__ = {
+      source: raw._sourceMeteoinfo || 'meteoinfo.ru',
+      hydro: raw._hydroAssimilation || null,
+      spaceWeather: raw._spaceWeather || null,
+      roadHazard: raw._roadHazard || null,
+      station: raw._meteoInfoStation || null,
+      ts: Date.now()
+    };
+  }
   return {
     days,
     archive5Days,
@@ -971,7 +981,7 @@ export async function fetchWeather(lat, lon, forceNetwork = false) {
   const st = store.getState();
   const cached = storage.loadWeatherCache(lat, lon);
   const localArchiveInfo = storage.getArchiveDaysForLocation(lat, lon, 5);
-  if (cached && cached.days && cached.days.length === 12 && !forceNetwork) {
+  if (cached && cached.days && cached.days.length === 12) {
     const mins = cached.ageMinutes || 1;
     const label = mins >= 60 ? `${RU.cachedPrefix} 10 км (${Math.round(mins / 60)} ч назад)` : `${RU.cachedPrefix} 10 км (${mins} мин назад)`;
     const recalc = recalculateIceForWaterType(cached.days, st.water, cached.archive5Days || localArchiveInfo.days);
@@ -986,7 +996,7 @@ export async function fetchWeather(lat, lon, forceNetwork = false) {
       }
     });
     events.emit('weather:updated', store.getState());
-    if (!cached.isExpired) return;
+    if (!forceNetwork && !cached.isExpired) return;
   }
   const gLat = snapCoord10km(lat);
   const gLon = snapCoord10km(lon);
@@ -1121,10 +1131,23 @@ export function getWeatherState() {
     iceThickness: s.iceThickness
   };
 }
+function isWeatherBetaUser(s = null) {
+  try {
+    const st = s || store.getState();
+    const fid = String(st?.userProfile?.fisherId || '').trim().toUpperCase();
+    if (fid === 'FP_89VIP089' || fid === 'FP_FMP089' || st?.userProfile?.ownerUnlocked || st?.userProfile?.isBetaTester) return true;
+    if (typeof window !== 'undefined' && window.__KLEV_ADMIN_CONTOUR__ === true) return true;
+    if (typeof localStorage !== 'undefined' && localStorage.getItem('klev_pro_beta_tester_granted_v1') === '1') return true;
+  } catch (e) {}
+  return false;
+}
 export function subscribeWeather(cb) {
   return store.subscribe(
     s => ({
       route: s.route,
+      lat: s.lat,
+      lon: s.lon,
+      locLabel: s.locLabel,
       days: s.weatherDays,
       archive5Days: s.weatherArchive5Days,
       hasRealArchive: s.hasRealArchive,
@@ -1227,13 +1250,14 @@ export function render(container) {
               <div class="bento-card-title" style="font-size:15px;">
                 <span>${heroTitle}</span>
               </div>
+              ${isWeatherBetaUser(s) ? `
               <div style="display:inline-flex;align-items:center;gap:5px;flex-wrap:wrap;">
-                ${createPill({ text: s.weatherSource || RU.offlineMode, tone: (s.weatherSource || '').includes('Онлайн') ? 'good' : 'warn', icon: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="5" stroke="#38bdf8" stroke-width="1.5"/><path d="M12 12l6-6" stroke="#10b981" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="12" r="1.8" fill="#10b981"/></svg>' })}
-                <button type="button" class="btn btn-sm" id="weatherHeroRefreshBtn" style="min-height:26px;padding:2px 8px;font-size:11px;font-weight:800;" title="Принудительно обновить погоду в реальном времени">
+                <button type="button" class="btn btn-sm" id="weatherHeroRefreshBtn" style="min-height:26px;padding:2px 8px;font-size:11px;font-weight:800;" title="Обновить погоду (Бета-тест)">
                   <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M20 11a8 8 0 0 0-14.5-4.5L4 8m0-5v5h5M4 13a8 8 0 0 0 14.5 4.5L20 16m0 5v-5h-5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                  <span>Обновить погоду</span>
+                  <span>Обновить погоду [БЕТА]</span>
                 </button>
               </div>
+              ` : ''}
             </div>
             <div class="bento-card-sub" style="font-size:11px;margin-top:2px;line-height:1.25;">
               <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#ef4444"/></svg> ${s.locLabel} (${waterTitle} • ${flowLabel}) • ${day.relTitle ? day.relTitle + ' (' + day.label + ')' : day.label}
@@ -1398,7 +1422,6 @@ export function render(container) {
               <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.5" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> Восход ${fmtHM(day.sunriseHr)} • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.5" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> Закат ${fmtHM(day.sunsetHr)} • Приоритет: термика и барометр важнее фазы Луны
             </div>
           </div>
-          <button type="button" class="btn btn-sm" id="weatherCleanArchiveBtn" title="Очистить старый архив погоды, кроме последних 5 дней"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Очистить кэш</button>
         </div>
         <div class="bento-metrics-grid" style="margin-bottom:8px;">
           <div class="bento-metric-tile">
@@ -1410,11 +1433,6 @@ export function render(container) {
             <div class="bento-metric-label"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6" stroke-linejoin="round"/></svg> Малые лунные окна</div>
             <div class="bento-metric-val" style="font-size:14.5px;color:var(--accent);">${m.minorWindows.join(' • ')}</div>
             <div class="bento-metric-sub">Восход и заход Луны над горизонтом</div>
-          </div>
-          <div class="bento-metric-tile">
-            <div class="bento-metric-label"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Метеоархив (радиус 10 км)</div>
-            <div class="bento-metric-val" style="font-size:14.5px;">${archiveStats.localArchiveDays} арх. дн.</div>
-            <div class="bento-metric-sub">${s.hasRealArchive === false ? '<svg class="k-ico" style="color:var(--warn);" viewBox="0 0 24 24" fill="none"><path d="M12 3L2.5 19.5h19L12 3z" fill="rgba(245,158,11,0.24)" stroke="#f59e0b" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9v5M12 17h.01" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/></svg> Накапливается' : '<svg class="k-ico" style="color:var(--good);" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="rgba(16,185,129,0.24)" stroke="#10b981" stroke-width="1.9"/><path d="M8 12.5l2.7 2.7L16.5 9.5" stroke="#10b981" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg> 5-дневный архив активен'} (всего ${archiveStats.totalArchiveDays} дн.)</div>
           </div>
         </div>
         <details style="font-size:12px;color:var(--muted);">
@@ -1445,15 +1463,6 @@ export function render(container) {
       refreshNowBtn.disabled = true;
       refreshNowBtn.textContent = 'Обновление...';
       await fetchWeather(stNow.lat, stNow.lon, true);
-      showToast('Сводка погоды и температуры воды обновлена в реальном времени', 'good');
-      render(container);
-    });
-  }
-  const cleanBtn = container.querySelector('#weatherCleanArchiveBtn');
-  if (cleanBtn) {
-    cleanBtn.addEventListener('click', () => {
-      const res = storage.clearWeatherArchiveKeep5Days();
-      showToast(` Архив погоды очищен: удалено старых записей — ${res.removedCount}, сохранены последние 5 дней архива (${res.keptArchiveCount} дн.)`, 'good');
       render(container);
     });
   }
@@ -1510,8 +1519,28 @@ export function init(container) {
     }
     if (container) container._weatherNeedsRender = false;
     render(container);
+    if (prev && (Math.abs((Number(next.lat) || 0) - (Number(prev.lat) || 0)) > 0.002 || Math.abs((Number(next.lon) || 0) - (Number(prev.lon) || 0)) > 0.002)) {
+      fetchWeather(next.lat, next.lon, true).catch(() => {});
+    }
   });
-  fetchWeather(st.lat, st.lon);
+  events.on('location:changed', (loc) => {
+    if (loc && Number.isFinite(Number(loc.lat)) && Number.isFinite(Number(loc.lon))) {
+      fetchWeather(Number(loc.lat), Number(loc.lon), true).catch(() => {});
+    }
+  });
+  // Динамическое обновление погоды при входе в приложение (в фоне без блокировки экрана)
+  fetchWeather(st.lat, st.lon, true).catch(() => {});
+  if (typeof document !== 'undefined') {
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        const cur = store.getState();
+        const ageMs = Date.now() - (Number(cur.weatherUpdatedAt) || 0);
+        if (ageMs > 15 * 60 * 1000) {
+          fetchWeather(cur.lat, cur.lon, true).catch(() => {});
+        }
+      }
+    });
+  }
 }
 export function destroy() {
   if (unsub) unsub();
