@@ -12,9 +12,6 @@ permissions:
   pages: write
   id-token: write
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
-
 jobs:
   build-apk:
     if: github.event_name == 'workflow_dispatch' || (!startsWith(github.event.head_commit.message, 'chore(apk):') && !startsWith(github.event.head_commit.message, 'chore(release):'))
@@ -32,27 +29,14 @@ jobs:
 
       - name: Auto-Unpack Release ZIP (Mobile Upload Support)
         run: |
-          UNPACKED=0
           for ZFILE in FISH_PRO_2.0_SOURCE.zip FISH_PRO_2.0.zip; do
             if [ -f "$ZFILE" ]; then
               echo "Detected uploaded archive $ZFILE — unpacking into repository root..."
               unzip -q -o "$ZFILE" -d .
               rm -f "$ZFILE"
-              UNPACKED=1
             fi
           done
           rm -rf klev-pro-2 standalone android/app/release-key.jks
-          if [ "$UNPACKED" -eq 1 ]; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add -A
-            if ! git diff --cached --quiet; then
-              git commit -m "chore(release): auto-unpack release archive from mobile upload"
-              git pull --rebase origin "${GITHUB_REF_NAME:-main}" || true
-              git push origin HEAD:"${GITHUB_REF_NAME:-main}"
-              curl -sSL -X POST -H "Accept: application/vnd.github+json" -o /dev/null -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/${GITHUB_REPOSITORY}/pages/builds" || true
-            fi
-          fi
 
       - name: Locate & Self-Heal Android Project (Permanent Keystore & Clean Resources)
         id: locate
@@ -279,6 +263,8 @@ jobs:
           import android.content.ContentValues;
           import android.content.Context;
           import android.content.Intent;
+          import android.content.SharedPreferences;
+          import org.json.JSONObject;
           import android.content.pm.PackageManager;
           import android.graphics.Bitmap;
           import android.graphics.BitmapFactory;
@@ -365,6 +351,221 @@ jobs:
               private Uri pendingCameraPhotoUri = null;
               private long lastRootBackPressMs = 0L;
               private OnBackInvokedCallback backInvokedCallback;
+
+
+              private static final String APPDATA_PREFS_NAME = "klev_pro_appdata_vault_v1";
+              private static final String APPDATA_DIR_NAME = "klev_appdata_vault";
+              private static final Object VAULT_LOCK = new Object();
+
+              private File getPrimaryAppDataVaultDir() {
+                  File dir = new File(getFilesDir(), APPDATA_DIR_NAME);
+                  if (!dir.exists()) {
+                      dir.mkdirs();
+                  }
+                  return dir;
+              }
+
+              private File getMirrorAppDataVaultDir() {
+                  File dir = getDir("klev_userdata_mirror", Context.MODE_PRIVATE);
+                  if (dir != null && !dir.exists()) {
+                      dir.mkdirs();
+                  }
+                  return dir;
+              }
+
+              private static String sanitizeVaultKeyFileName(String key) {
+                  if (key == null) return " empty_key";
+                  return key.trim().replaceAll("[^a-zA-Z0-9._-]", "_") + ".dat";
+              }
+
+              private static void writeFileAtomically(File targetFile, byte[] bytes) throws Exception {
+                  if (targetFile == null) return;
+                  File parent = targetFile.getParentFile();
+                  if (parent != null && !parent.exists()) {
+                      parent.mkdirs();
+                  }
+                  File tmpFile = new File(parent, targetFile.getName() + ".tmp");
+                  try (FileOutputStream fos = new FileOutputStream(tmpFile)) {
+                      fos.write(bytes);
+                      fos.getFD().sync();
+                  }
+                  if (!tmpFile.renameTo(targetFile)) {
+                      try (FileOutputStream fos2 = new FileOutputStream(targetFile)) {
+                          fos2.write(bytes);
+                          fos2.getFD().sync();
+                      }
+                      tmpFile.delete();
+                  }
+              }
+
+              private static String readFileUtf8(File file) {
+                  if (file == null || !file.exists() || !file.isFile()) return null;
+                  try (InputStream is = new java.io.FileInputStream(file);
+                       ByteArrayOutputStream bos = new ByteArrayOutputStream()) {
+                      byte[] buf = new byte[8192];
+                      int r;
+                      while ((r = is.read(buf)) != -1) {
+                          bos.write(buf, 0, r);
+                      }
+                      return new String(bos.toByteArray(), StandardCharsets.UTF_8);
+                  } catch (Exception e) {
+                      return null;
+                  }
+              }
+
+              private boolean saveKeyToNativeAppDataVault(String key, String value) {
+                  if (key == null || key.trim().isEmpty() || value == null) return false;
+                  String cleanKey = key.trim();
+                  synchronized (VAULT_LOCK) {
+                      boolean ok = false;
+                      try {
+                          byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
+                          String fName = sanitizeVaultKeyFileName(cleanKey);
+                          File primaryFile = new File(getPrimaryAppDataVaultDir(), fName);
+                          writeFileAtomically(primaryFile, bytes);
+                          ok = true;
+
+                          File mirrorDir = getMirrorAppDataVaultDir();
+                          if (mirrorDir != null) {
+                              File mirrorFile = new File(mirrorDir, fName);
+                              writeFileAtomically(mirrorFile, bytes);
+                          }
+
+                          // Store index of keys + small/medium values in SharedPreferences (also in App Data, never cleared by Clear Cache)
+                          SharedPreferences prefs = getSharedPreferences(APPDATA_PREFS_NAME, Context.MODE_PRIVATE);
+                          SharedPreferences.Editor ed = prefs.edit();
+                          String rawIndex = prefs.getString("__vault_keys_index__", "{}");
+                          JSONObject idxObj;
+                          try {
+                              idxObj = new JSONObject(rawIndex);
+                          } catch (Exception ex) {
+                              idxObj = new JSONObject();
+                          }
+                          idxObj.put(cleanKey, fName);
+                          ed.putString("__vault_keys_index__", idxObj.toString());
+                          if (value.length() <= 262144) {
+                              ed.putString("k_" + cleanKey, value);
+                          }
+                          ed.apply();
+                      } catch (Exception ignored) {}
+                      return ok;
+                  }
+              }
+
+              private String loadKeyFromNativeAppDataVault(String key) {
+                  if (key == null || key.trim().isEmpty()) return null;
+                  String cleanKey = key.trim();
+                  synchronized (VAULT_LOCK) {
+                      try {
+                          String fName = sanitizeVaultKeyFileName(cleanKey);
+                          File primaryFile = new File(getPrimaryAppDataVaultDir(), fName);
+                          String val = readFileUtf8(primaryFile);
+                          if (val != null && !val.isEmpty()) return val;
+
+                          File mirrorDir = getMirrorAppDataVaultDir();
+                          if (mirrorDir != null) {
+                              File mirrorFile = new File(mirrorDir, fName);
+                              val = readFileUtf8(mirrorFile);
+                              if (val != null && !val.isEmpty()) {
+                                  try {
+                                      writeFileAtomically(primaryFile, val.getBytes(StandardCharsets.UTF_8));
+                                  } catch (Exception ignored) {}
+                                  return val;
+                              }
+                          }
+
+                          SharedPreferences prefs = getSharedPreferences(APPDATA_PREFS_NAME, Context.MODE_PRIVATE);
+                          val = prefs.getString("k_" + cleanKey, null);
+                          if (val != null && !val.isEmpty()) {
+                              try {
+                                  writeFileAtomically(primaryFile, val.getBytes(StandardCharsets.UTF_8));
+                              } catch (Exception ignored) {}
+                              return val;
+                          }
+                      } catch (Exception ignored) {}
+                      return null;
+                  }
+              }
+
+              private boolean removeKeyFromNativeAppDataVault(String key) {
+                  if (key == null || key.trim().isEmpty()) return false;
+                  String cleanKey = key.trim();
+                  synchronized (VAULT_LOCK) {
+                      try {
+                          String fName = sanitizeVaultKeyFileName(cleanKey);
+                          File primaryFile = new File(getPrimaryAppDataVaultDir(), fName);
+                          if (primaryFile.exists()) primaryFile.delete();
+                          File mirrorDir = getMirrorAppDataVaultDir();
+                          if (mirrorDir != null) {
+                              File mirrorFile = new File(mirrorDir, fName);
+                              if (mirrorFile.exists()) mirrorFile.delete();
+                          }
+                          SharedPreferences prefs = getSharedPreferences(APPDATA_PREFS_NAME, Context.MODE_PRIVATE);
+                          SharedPreferences.Editor ed = prefs.edit();
+                          ed.remove("k_" + cleanKey);
+                          String rawIndex = prefs.getString("__vault_keys_index__", "{}");
+                          try {
+                              JSONObject idxObj = new JSONObject(rawIndex);
+                              idxObj.remove(cleanKey);
+                              ed.putString("__vault_keys_index__", idxObj.toString());
+                          } catch (Exception ignored) {}
+                          ed.apply();
+                          return true;
+                      } catch (Exception e) {
+                          return false;
+                      }
+                  }
+              }
+
+              private String loadAllNativeAppDataVaultJson() {
+                  synchronized (VAULT_LOCK) {
+                      JSONObject out = new JSONObject();
+                      try {
+                          SharedPreferences prefs = getSharedPreferences(APPDATA_PREFS_NAME, Context.MODE_PRIVATE);
+                          String rawIndex = prefs.getString("__vault_keys_index__", "{}");
+                          JSONObject idxObj;
+                          try {
+                              idxObj = new JSONObject(rawIndex);
+                          } catch (Exception ex) {
+                              idxObj = new JSONObject();
+                          }
+                          String[] defaultKeys = new String[]{
+                              "klev_pro_state_v2.0",
+                              "klev_pro_weather_v2.0",
+                              "klev_pro_v200_state",
+                              "klev_pro_spots_backup_v2",
+                              "klev_pro_catches_backup_v2",
+                              "klev_pro_phase3_routes_v1",
+                              "klev_pro_phase3_active_track_v1",
+                              "klev_pro_circle_packs_v2",
+                              "klev_pro_circle_chats_v2",
+                              "klev_pro_circle_notifs_v2",
+                              "klev_pro_device_id_v2",
+                              "klev_pro_photo_dhashes_v2",
+                              "klev_pro_geo_weather_archive_v2",
+                              "klev_pro_v259_waters_cache_r196",
+                              "klev_pro_bg_voice_v1",
+                              "klev_pro_voice_nav_v1",
+                              "klev_pro_clean_slate_v2_1_1_r4",
+                              "klev_pro_clean_slate_notice_v2_1_1_r4"
+                          };
+                          for (String dk : defaultKeys) {
+                              if (!idxObj.has(dk)) {
+                                  idxObj.put(dk, sanitizeVaultKeyFileName(dk));
+                              }
+                          }
+                          java.util.Iterator<String> keys = idxObj.keys();
+                          while (keys.hasNext()) {
+                              String k = keys.next();
+                              String val = loadKeyFromNativeAppDataVault(k);
+                              if (val != null && !val.isEmpty()) {
+                                  out.put(k, val);
+                              }
+                          }
+                      } catch (Exception ignored) {}
+                      return out.toString();
+                  }
+              }
 
               public class NativeBridge {
                   private final Context ctx;
@@ -656,13 +857,57 @@ jobs:
                   }
 
                   @JavascriptInterface
+                  public boolean saveAppDataKey(String key, String value) {
+                      return saveKeyToNativeAppDataVault(key, value);
+                  }
+
+                  @JavascriptInterface
+                  public String loadAppDataKey(String key) {
+                      String val = loadKeyFromNativeAppDataVault(key);
+                      return val != null ? val : "";
+                  }
+
+                  @JavascriptInterface
+                  public boolean removeAppDataKey(String key) {
+                      return removeKeyFromNativeAppDataVault(key);
+                  }
+
+                  @JavascriptInterface
+                  public String loadAllAppDataJson() {
+                      return loadAllNativeAppDataVaultJson();
+                  }
+
+                  @JavascriptInterface
+                  public String getAppDataVaultStats() {
+                      try {
+                          File dir = getPrimaryAppDataVaultDir();
+                          File[] files = dir.listFiles();
+                          int count = files != null ? files.length : 0;
+                          long bytes = 0L;
+                          if (files != null) {
+                              for (File f : files) {
+                                  if (f.isFile()) bytes += f.length();
+                              }
+                          }
+                          JSONObject st = new JSONObject();
+                          st.put("storageLocation", "Android Internal AppData (Context.getFilesDir)");
+                          st.put("immuneToClearCache", true);
+                          st.put("filesCount", count);
+                          st.put("totalBytes", bytes);
+                          return st.toString();
+                      } catch (Exception e) {
+                          return "{\"immuneToClearCache\":true}";
+                      }
+                  }
+
+                  @JavascriptInterface
                   public String getAppVersion() {
                       return "2.8.3-r230";
                   }
 
                   @JavascriptInterface
                   public int getAppBuildNumber() {
-                      return 225;
+                      return 230;
                   }
 
                   @JavascriptInterface
@@ -958,8 +1203,8 @@ jobs:
                   ws.setGeolocationEnabled(true);
                   ws.setAllowFileAccess(true);
                   ws.setAllowContentAccess(true);
-                  ws.setCacheMode(WebSettings.LOAD_NO_CACHE);
-                            webView.clearCache(true);
+                  ws.setCacheMode(WebSettings.LOAD_DEFAULT);
+                  // Пользовательские данные защищены в Context.getFilesDir()/klev_appdata_vault; кэш WebView не очищается принудительно
                   String baseUa = ws.getUserAgentString();
                   ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.8.3-r230");
 
@@ -984,6 +1229,52 @@ jobs:
                           Uri uri = request.getUrl();
                           if (uri != null && VIRTUAL_HOST.equalsIgnoreCase(uri.getHost())) {
                               String path = uri.getPath();
+                              if ("/__klev_net_proxy__".equals(path)) {
+                                  String targetUrl = uri.getQueryParameter("url");
+                                  if (targetUrl != null && (targetUrl.startsWith("https://") || targetUrl.startsWith("http://"))) {
+                                      HttpURLConnection conn = null;
+                                      try {
+                                          URL u = new URL(targetUrl);
+                                          String h = u.getHost() != null ? u.getHost().toLowerCase() : "";
+                                          if (h.endsWith("meteoinfo.ru") || h.endsWith("met.no") || h.endsWith("open-meteo.com") || h.endsWith("project-osrm.org") || h.endsWith("openstreetmap.de") || h.endsWith("openstreetmap.org") || h.endsWith("workers.dev") || h.endsWith("klevpro.ru")) {
+                                              conn = (HttpURLConnection) u.openConnection();
+                                              conn.setRequestMethod("GET");
+                                              conn.setConnectTimeout(6500);
+                                              conn.setReadTimeout(7500);
+                                              conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14; KlevPro/2.8.3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36");
+                                              conn.setRequestProperty("Accept", "application/json,text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
+                                              conn.setRequestProperty("Accept-Language", "ru-RU,ru;q=0.9,en;q=0.5");
+                                              int code = conn.getResponseCode();
+                                              if (code >= 200 && code < 300) {
+                                                  InputStream netIn = conn.getInputStream();
+                                                  ByteArrayOutputStream bos = new ByteArrayOutputStream();
+                                                  byte[] buf = new byte[8192];
+                                                  int r;
+                                                  while ((r = netIn.read(buf)) != -1) {
+                                                      bos.write(buf, 0, r);
+                                                  }
+                                                  netIn.close();
+                                                  byte[] data = bos.toByteArray();
+                                                  String cType = conn.getContentType();
+                                                  if (cType == null || cType.isEmpty()) cType = "application/json";
+                                                  String mimeOnly = cType.contains(";") ? cType.split(";")[0].trim() : cType.trim();
+                                                  Map<String, String> corsHeaders = new HashMap<>();
+                                                  corsHeaders.put("Access-Control-Allow-Origin", "*");
+                                                  corsHeaders.put("Cache-Control", "no-store");
+                                                  return new WebResourceResponse(mimeOnly, "UTF-8", 200, "OK", corsHeaders, new ByteArrayInputStream(data));
+                                              }
+                                          }
+                                      } catch (Exception ignored) {
+                                      } finally {
+                                          if (conn != null) {
+                                              try { conn.disconnect(); } catch (Exception ignored) {}
+                                          }
+                                      }
+                                  }
+                                  Map<String, String> errHeaders = new HashMap<>();
+                                  errHeaders.put("Access-Control-Allow-Origin", "*");
+                                  return new WebResourceResponse("application/json", "UTF-8", 502, "Net Proxy Error", errHeaders, new ByteArrayInputStream("{\"ok\":false}".getBytes(StandardCharsets.UTF_8)));
+                              }
                               if ("/__klev_tile_proxy__".equals(path)) {
                                   String targetUrl = uri.getQueryParameter("url");
                                   if (targetUrl != null && targetUrl.startsWith("https://")) {
@@ -1425,6 +1716,11 @@ jobs:
               @Override
               protected void onPause() {
                   isAppInForeground = false;
+                  try {
+                      if (webView != null) {
+                          webView.evaluateJavascript("try{if(window.__klevFlushAllToNativeVault)window.__klevFlushAllToNativeVault();}catch(e){}", null);
+                      }
+                  } catch (Exception ignored) {}
                   super.onPause();
                   try {
                       if (isBgRouteTrackingActive && webView != null) {
@@ -1478,7 +1774,7 @@ jobs:
 
               private void loadEntryUrlFromIntent(Intent intent) {
                   String entryHtml = getPackageName().contains("admin") ? "kp-control-89.html" : "index.html";
-                  String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/" + entryHtml + "?v=2.8.3_r230_" + System.currentTimeMillis();
+                  String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/" + entryHtml + "?v=2.7.0_r225_" + System.currentTimeMillis();
                   if (intent != null && intent.getData() != null) {
                       Uri data = intent.getData();
                       String q = data.getEncodedQuery();
@@ -1831,28 +2127,35 @@ jobs:
           cp -f /tmp/klev-apk-dist/klev-pro-admin-v2.5.6.apk "$REL_DIR/klev-pro-admin-v2.5.6.apk"
           ls -lh /tmp/klev-apk-dist/
 
-      - name: Auto-Save User & Admin APKs to Repository (/apk/)
+      - name: Auto-Save User & Admin APKs and Publish Clean Release to GitHub Pages
         run: |
+          # Clean temporary duplicated Android assets/www and build dirs before committing to Git so GitHub Pages artifact stays fast & compact
+          rm -rf android/app/src/main/assets/www android/build android/app/build android/.gradle FISH_PRO_2.0*.zip
+          touch .nojekyll
           mkdir -p apk
           rm -f apk/*.apk
           if [ -f "/tmp/klev-apk-dist/klev-pro-v2.5.6.apk" ]; then
             cp -f "/tmp/klev-apk-dist/klev-pro-v2.5.6.apk" apk/klev-pro-v2.8.3.apk
-            cp -f "/tmp/klev-apk-dist/klev-pro-v2.5.6.apk" apk/klev-pro-v2.5.6.apk
           fi
           if [ -f "/tmp/klev-apk-dist/klev-pro-admin-v2.5.6.apk" ]; then
             cp -f "/tmp/klev-apk-dist/klev-pro-admin-v2.5.6.apk" apk/klev-pro-admin-v2.8.3.apk
-            cp -f "/tmp/klev-apk-dist/klev-pro-admin-v2.5.6.apk" apk/klev-pro-admin-v2.5.6.apk
           fi
           ls -lh apk/
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A apk/
+          git add -A
           if ! git diff --cached --quiet; then
-            git commit -m "chore(apk): auto-publish user & admin apks v2.5.6"
+            git commit -m "chore(release): publish v2.8.3-r230 web & signed apks"
             git pull --rebase origin "${GITHUB_REF_NAME:-main}" || true
             git push origin HEAD:"${GITHUB_REF_NAME:-main}"
-          curl -sSL -X POST -H "Accept: application/vnd.github+json" -o /dev/null -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/${GITHUB_REPOSITORY}/pages/builds" || true
           fi
+          # Cancel any stuck in_progress/queued pages-build-deployment runs before triggering a clean Pages build
+          STUCK_IDS=$(curl -sSL -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs?per_page=20" | python3 -c "import sys,json; data=json.load(sys.stdin); print(' '.join(str(r['id']) for r in data.get('workflow_runs',[]) if r.get('name')=='pages build and deployment' and r.get('status') in ('in_progress','queued','waiting','pending')))" 2>/dev/null || true)
+          for RID in $STUCK_IDS; do
+            curl -sSL -X POST -H "Accept: application/vnd.github+json" -o /dev/null -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs/$RID/cancel" || true
+          done
+          sleep 3
+          curl -sSL -X POST -H "Accept: application/vnd.github+json" -o /dev/null -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/${GITHUB_REPOSITORY}/pages/builds" || true
 
       - name: Upload Signed User APK Artifact (klev-pro-v2.5.6.apk)
         uses: actions/upload-artifact@v4
