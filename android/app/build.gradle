@@ -1,19 +1,16 @@
 plugins {
     id 'com.android.application'
 }
-
 android {
     namespace 'ru.klevpro.app'
     compileSdk 34
-
     defaultConfig {
-        applicationId System.getenv("KLEV_APP_ID") ?: "ru.klevpro.app"
+        applicationId "ru.klevpro.admin"
         minSdk 24
         targetSdk 34
-        versionCode 290235
-        versionName "2.9.0"
+        versionCode 290521
+        versionName "2.9.0-r233"
     }
-
     signingConfigs {
         release {
             storeFile file("klevpro-release.keystore")
@@ -25,7 +22,6 @@ android {
             enableV3Signing true
         }
     }
-
     buildTypes {
         debug {
             signingConfig signingConfigs.release
@@ -37,21 +33,17 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
-
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
-
     lint {
         checkReleaseBuilds false
         abortOnError false
     }
-
     aaptOptions {
         ignoreAssetsPattern "!.svn:!.git:!.ds_store:!*.scc:.*:<dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"
     }
 }
-
 dependencies {
 }
