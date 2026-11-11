@@ -1,47 +1,47 @@
 /**
  * @file config.js
- * @description Конфигурация приложения (Релиз 2.8.3 r230), слои карт без VPN и адаптивные справочники снастей и сезонных наживок
+ * @description Конфигурация приложения (Релиз 2.9.0 r232), слои карт без VPN и адаптивные справочники снастей и сезонных наживок
  */
-export const APP_VERSION = '2.8.3';
-export const APP_BUILD_NUMBER = 231;
-export const APP_REVISION = 'r231';
-export const APP_DISPLAY_VERSION = 'v2.8.3 r231';
+export const APP_VERSION = '2.9.0';
+export const APP_BUILD_NUMBER = 232;
+export const APP_REVISION = 'r232';
+export const APP_DISPLAY_VERSION = 'v2.9.0 r232';
 export const STATE_CACHE_KEY = 'klev_pro_state_v2.0';
 export const WEATHER_CACHE_KEY = 'klev_pro_weather_v2.0';
 export const RELEASE_CACHE_KEY = 'klev_pro_release_v2.0';
 export const WEATHER_TTL_MS = 2 * 60 * 60 * 1000;
 export const CURRENT_RELEASE_INFO = {
-  "version": "2.8.3",
-  "versionCode": 280231,
-  "buildNumber": 231,
-  "revision": "r231",
-  "displayVersion": "v2.8.3 r231",
-  "date": "10 ноября 2026",
-  "releasedAt": "2026-11-10T12:00:00Z",
-  "apkUrl": "https://klevpro.ru/apk/klev-pro-v2.8.3.apk",
-  "fileSize": "38.6 МБ",
-  "title": "Обновление «Клёв ПРО 2.0» (v2.8.3 r231)",
-  "subtitle": "Улучшена работа слоёв и фильтров карты, настроено автоматическое обновление погоды по местоположению и повышена стабильность приложения.",
-  "summary": "Исправлено переключение слоёв и фильтров карты, добавлено автоматическое обновление погоды при входе и смене точки, доработан интерфейс.",
+  "version": "2.9.0",
+  "versionCode": 290232,
+  "buildNumber": 232,
+  "revision": "r232",
+  "displayVersion": "v2.9.0 r232",
+  "date": "11 ноября 2026",
+  "releasedAt": "2026-11-11T12:00:00Z",
+  "apkUrl": "https://klevpro.ru/apk/klev-pro-v2.9.0.apk",
+  "fileSize": "38.8 МБ",
+  "title": "Обновление «Клёв ПРО 2.0» (v2.9.0 r232)",
+  "subtitle": "Полноэкранная карта «Арка» в стиле жидкого стекла для смартфонов и планшетов, свайпаемые плашки, ведение по маршруту для 5 видов транспорта и плавные переходы между разделами.",
+  "summary": "Обновлён интерфейс карты для мобильных устройств и планшетов, добавлены свайпаемые плашки, прокладка и ведение маршрута для 5 видов транспорта, блок «На что ловим» вынесен в окно прогноза.",
   "highlights": [
     {
       "icon": "<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3V6z\" fill=\"rgba(56,189,248,0.18)\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/><path d=\"M9 3v15M15 6v15\" stroke=\"currentColor\" stroke-width=\"1.6\"/></svg>",
-      "title": "Карта водоёмов и светофильтры",
-      "text": "Исправлено мгновенное переключение режимов Схема, Спутник, Гибрид и Ночь, а также работа фильтров контраста русел, антиблика и названий рек."
+      "title": "Полноэкранная карта «Арка»",
+      "text": "На смартфонах и планшетах карта открывается во весь экран с кнопками в стиле жидкого стекла, полноэкранной погодой и свайпаемыми плашками."
     },
     {
       "icon": "<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"12\" cy=\"12\" r=\"9\" stroke=\"#38bdf8\" stroke-width=\"1.8\"/><path d=\"M12 12L18 6\" stroke=\"#10b981\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg>",
-      "title": "Автоматическое обновление погоды",
-      "text": "Сводка погоды, температуры воды и ледовой обстановки теперь обновляется автоматически при открытии приложения и при смене точки на карте."
+      "title": "Маршруты для 5 видов транспорта",
+      "text": "Построение маршрута по точкам и пальцем с учётом транспорта (Авто, Снегоход, Велосипед, Лодка, Пешком) и голосовым ведением по поворотам."
     },
     {
       "icon": "<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"12\" cy=\"12\" r=\"9\" fill=\"rgba(16,185,129,0.22)\" stroke=\"#10b981\" stroke-width=\"1.8\"/><path d=\"M8 12.5l2.7 2.7L16.5 9.5\" stroke=\"#10b981\" stroke-width=\"2.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>",
-      "title": "Удобство и стабильность работы",
-      "text": "Интерфейс очищен от лишних служебных уведомлений, повышена плавность работы на смартфонах и планшетах с полным сохранением ваших данных."
+      "title": "Блок «На что ловим» и плавный интерфейс",
+      "text": "Автоматический подбор основной снасти вынесен в окно Прогноза, а переключение разделов сопровождается плавной анимацией."
     }
   ]
 };
-export const IMG_SEARCH_DIRS = ['assets/fish/', 'fish/', 'https://klevpro.ru/assets/fish/', 'https://klevpro.ru/fish/'];
+export const IMG_SEARCH_DIRS = [];
 export const MAP_LAYERS = {
   yandex_map: {
     name: 'Яндекс Схема',

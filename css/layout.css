@@ -1909,3 +1909,320 @@ html[data-tg-webapp="1"] .bottom-nav-inner > .nav-tab {
   width: 100% !important;
   justify-content: center !important;
 }
+
+
+/* ==========================================================================
+   11. МЕГА-ПЕРЕРАБОТКА v2.9.0: ПЛАВНАЯ ПРОКРУТКА ВКЛАДОК, ПЛАВНАЯ ПОДСВЕТКА МЕНЮ
+       И ПОЛНОЭКРАННЫЙ МОБИЛЬНЫЙ/ПЛАНШЕТНЫЙ ИНТЕРФЕЙС КАРТЫ «АРКА» (LIQUID GLASS)
+   ========================================================================== */
+
+@keyframes klevSecSlideFromRight {
+  0% {
+    opacity: 0.15;
+    transform: translate3d(36px, 0, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes klevSecSlideFromLeft {
+  0% {
+    opacity: 0.15;
+    transform: translate3d(-36px, 0, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes klevSecSlideFade {
+  0% {
+    opacity: 0.25;
+    transform: translate3d(0, 10px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.klev-sec-slide-right {
+  animation: klevSecSlideFromRight 0.34s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  will-change: transform, opacity;
+}
+
+.klev-sec-slide-left {
+  animation: klevSecSlideFromLeft 0.34s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  will-change: transform, opacity;
+}
+
+.klev-sec-slide-fade {
+  animation: klevSecSlideFade 0.28s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  will-change: transform, opacity;
+}
+
+/* Плавный переход акцентной подсветки кнопок меню в шапке и в подвале (п. 3) */
+.top-nav-item,
+.bottom-nav-inner .nav-tab {
+  transition:
+    background 0.34s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.34s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.34s cubic-bezier(0.22, 1, 0.36, 1),
+    color 0.28s ease,
+    opacity 0.28s ease,
+    transform 0.24s cubic-bezier(0.22, 1, 0.36, 1) !important;
+}
+
+.app-header {
+  transition: transform 0.38s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.30s ease;
+}
+
+.bottom-nav {
+  transition: transform 0.38s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.30s ease;
+}
+
+/* Полноэкранный режим карты «Арка» на смартфонах и планшетах */
+html[data-arc-map-active="1"] body {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  overflow: hidden !important;
+}
+
+html[data-arc-map-active="1"] #androidApkSiteBanner {
+  display: none !important;
+}
+
+html[data-arc-map-active="1"]:not([data-arc-header-open="1"]) .app-header {
+  transform: translate3d(0, -115%, 0) !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+html[data-arc-map-active="1"][data-arc-header-open="1"] .app-header {
+  transform: translate3d(0, 0, 0) !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  z-index: 1250 !important;
+}
+
+html[data-arc-map-active="1"]:not([data-arc-footer-open="1"]) .bottom-nav {
+  transform: translate3d(0, 115%, 0) !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+html[data-arc-map-active="1"][data-arc-footer-open="1"] .bottom-nav {
+  transform: translate3d(0, 0, 0) !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  z-index: 1250 !important;
+}
+
+html[data-arc-map-active="1"] #app.app-main {
+  max-width: none !important;
+  width: 100vw !important;
+  height: 100dvh !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+html[data-arc-map-active="1"] #secGeo {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100dvh !important;
+  z-index: 900 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+}
+
+/* На мобильных и планшетах кнопка Погода перенесена из шапки на карту */
+@media (max-width: 1100px), (pointer: coarse) {
+  .top-section-nav #topNavWeatherBtn {
+    display: none !important;
+  }
+  .top-section-nav:not([data-has-admin="1"]) {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+  .top-section-nav[data-has-admin="1"] {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+}
+
+/* Полноэкранный контейнер карты Арка */
+.klev-arc-map-stage {
+  position: relative;
+  width: 100vw;
+  height: 100dvh;
+  overflow: hidden;
+  background: #07111e;
+}
+
+.klev-arc-map-stage #mapBox {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-height: none !important;
+  border-radius: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+  z-index: 1 !important;
+}
+
+.klev-arc-map-stage.compass-bearing-active #mapBox {
+  width: 184% !important;
+  height: 184% !important;
+  left: -42% !important;
+  top: -42% !important;
+  transition: transform 0.26s ease-out;
+}
+
+/* Стеклянные элементы «Жидкое стекло» (Liquid Glass) на карте */
+.klev-arc-glass {
+  background: linear-gradient(145deg, rgba(22, 38, 60, 0.78) 0%, rgba(10, 21, 36, 0.88) 100%);
+  backdrop-filter: blur(18px) saturate(180%);
+  -webkit-backdrop-filter: blur(18px) saturate(180%);
+  border: 1.5px solid rgba(125, 211, 252, 0.38);
+  box-shadow:
+    inset 0 1.5px 1.5px rgba(255, 255, 255, 0.34),
+    inset 0 -1.5px 3px rgba(0, 0, 0, 0.42),
+    0 10px 28px rgba(2, 8, 18, 0.55);
+  color: var(--text);
+  transition: transform 0.16s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+[data-theme="light"] .klev-arc-glass {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.86) 0%, rgba(232, 243, 254, 0.92) 100%);
+  border-color: rgba(2, 132, 199, 0.35);
+  box-shadow:
+    inset 0 1.5px 1px #ffffff,
+    inset 0 -1px 2px rgba(2, 132, 199, 0.12),
+    0 8px 24px rgba(15, 38, 64, 0.18);
+  color: #0c2136;
+}
+
+[data-theme="contrast"] .klev-arc-glass {
+  background: linear-gradient(145deg, rgba(14, 20, 30, 0.96) 0%, rgba(4, 7, 12, 0.98) 100%);
+  border: 2px solid #fde047;
+  box-shadow: inset 0 1.5px 0 rgba(253, 224, 71, 0.55), 0 10px 28px rgba(0, 0, 0, 0.85);
+  color: #ffffff;
+}
+
+.klev-arc-glass:active {
+  transform: scale(0.96);
+}
+
+.klev-arc-icon-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.klev-arc-icon-btn.active {
+  border-color: var(--accent) !important;
+  box-shadow:
+    inset 0 1.5px 1.5px rgba(255, 255, 255, 0.48),
+    0 0 0 2.5px rgba(56, 189, 248, 0.42),
+    0 8px 22px rgba(2, 132, 199, 0.45) !important;
+}
+
+/* Язычки «Разделы и шапка» (сверху) и «Быстрый доступ» (снизу) */
+.klev-arc-edge-handle {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 950;
+  padding: 4px 16px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.klev-arc-edge-handle:active {
+  transform: translateX(-50%) scale(0.96);
+}
+.klev-arc-edge-handle.top-handle {
+  top: 0;
+  border-top: none;
+  border-radius: 0 0 16px 16px;
+}
+.klev-arc-edge-handle.bottom-handle {
+  bottom: 0;
+  border-bottom: none;
+  border-radius: 16px 16px 0 0;
+}
+
+/* Свайпаемая лента из 3 экранов по 2 плашки */
+.klev-arc-duo-viewport {
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+.klev-arc-duo-track {
+  display: flex;
+  width: 300%;
+  transition: transform 0.36s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
+.klev-arc-duo-page {
+  width: 33.333333%;
+  flex: 0 0 33.333333%;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 2px 2px;
+}
+
+.klev-arc-plaque {
+  border-radius: 20px;
+  padding: 10px 12px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 74px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Раскрытая плашка без кнопки Возврат (закрывается по клику на заголовок, свайпу вниз или клику по карте выше) */
+.klev-arc-expanded-plaque {
+  border-radius: 24px;
+  padding: 12px 14px;
+  max-height: 44dvh;
+  overflow-y: auto;
+  transition: max-height 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.klev-arc-expanded-plaque.swiped-tall {
+  max-height: 74dvh;
+}
+
+.klev-arc-expanded-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 8px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid rgba(125, 211, 252, 0.24);
+  cursor: pointer;
+  font-size: 13.5px;
+  font-weight: 900;
+}

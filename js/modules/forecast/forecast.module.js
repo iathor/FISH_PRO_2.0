@@ -1,19 +1,19 @@
-import { getFilteredFishList, openFishDetail } from '../fish/fish.module.js?v=2.8.3-r231';
-import { logBlankTrip } from '../log/log.module.js?v=2.8.3-r231';
-import { getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.8.3-r231';
-import { RU } from '../../i18n/ru.js?v=2.8.3-r231';
-import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.8.3-r231';
-import { events } from '../../core/events.js?v=2.8.3-r231';
-import { storage } from '../../core/storage.js?v=2.8.3-r231';
-import { store } from '../../core/store.js?v=2.8.3-r231';
-import { formatLocalYYYYMMDD, fmtDeltaPress, fmtHM } from '../../core/format.js?v=2.8.3-r231';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.8.3-r231';
-import { FISH_DB } from '../../data/species.js?v=2.8.3-r231';
-import { renderFiveFish , renderFishVisual } from '../../ui/svg.js?v=2.8.3-r231';
-import { createPill, showToast, openModal, flashHighlightElement } from '../../ui/components.js?v=2.8.3-r231';
-import { computeIceSafetyIndex } from '../weather/weather.module.js?v=2.8.3-r231';
-import { evaluateCircleFieldConfirmation, requireRegisteredFisherId } from '../circle/circle.module.js?v=2.8.3-r231';
-import { isTelegramWebApp, getTelegramUser, shareToTelegramChat, openBotChatInTelegram, buildForecastShareUrls, TELEGRAM_BOT_USERNAME } from '../../core/telegram.js?v=2.8.3-r231';
+import { getFilteredFishList, openFishDetail } from '../fish/fish.module.js?v=2.9.0-r232';
+import { logBlankTrip } from '../log/log.module.js?v=2.9.0-r232';
+import { getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.9.0-r232';
+import { RU } from '../../i18n/ru.js?v=2.9.0-r232';
+import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.9.0-r232';
+import { events } from '../../core/events.js?v=2.9.0-r232';
+import { storage } from '../../core/storage.js?v=2.9.0-r232';
+import { store } from '../../core/store.js?v=2.9.0-r232';
+import { formatLocalYYYYMMDD, fmtDeltaPress, fmtHM } from '../../core/format.js?v=2.9.0-r232';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.9.0-r232';
+import { FISH_DB } from '../../data/species.js?v=2.9.0-r232';
+import { renderFiveFish , renderFishVisual } from '../../ui/svg.js?v=2.9.0-r232';
+import { createPill, showToast, openModal, flashHighlightElement } from '../../ui/components.js?v=2.9.0-r232';
+import { computeIceSafetyIndex } from '../weather/weather.module.js?v=2.9.0-r232';
+import { evaluateCircleFieldConfirmation, requireRegisteredFisherId } from '../circle/circle.module.js?v=2.9.0-r232';
+import { isTelegramWebApp, getTelegramUser, shareToTelegramChat, openBotChatInTelegram, buildForecastShareUrls, TELEGRAM_BOT_USERNAME } from '../../core/telegram.js?v=2.9.0-r232';
 /**
  * Список морских, проходных и полупроходных видов, которые заходят в пресные реки
  * (big_river, small_river) и эстуарии (sea_gulf) при нересте, сезонных миграциях или приливах/отливах.
@@ -1369,7 +1369,7 @@ export function renderExpress(container) {
     <div class="chip-scroll-row bento-top-species-strip" style="padding-bottom:2px;">
       ${top6Species.map(item => `
         <button type="button" class="w-chip ${item.fish.id === fish.id ? 'active' : ''}" data-novice-pick-fish="${item.fish.id}" style="padding:4px 10px;min-height:36px;display:inline-flex;align-items:center;gap:6px;flex-shrink:0;white-space:nowrap;">
-          <img src="assets/fish/${item.fish.id}.png" alt="" style="width:28px;height:15px;object-fit:contain;" onerror="this.style.display='none'">
+          <span style="width:28px;height:15px;display:inline-flex;align-items:center;justify-content:center;">${renderFishVisual(item.fish)}</span>
           <span>${item.fish.name}</span>
           <span style="font-size:10.5px;opacity:0.85;">${item.scDay}%</span>
         </button>
@@ -1400,7 +1400,7 @@ export function renderExpress(container) {
               <span>Ихтиологический Прогноз Клёва</span>
             </div>
             <div class="bento-card-sub">
-              ${s.locLabel} (${nearWaterTitle}) • ${activeDayForTackle.relTitle || activeDayForTackle.label || 'Сегодня'} • <span style="color:var(--accent);">⇄ свайп рыбы</span>
+              ${s.locLabel} (${nearWaterTitle}) • ${activeDayForTackle.relTitle || activeDayForTackle.label || 'Сегодня'}
             </div>
           </div>
           <div style="display:flex;align-items:center;gap:4px;">
@@ -1413,7 +1413,7 @@ export function renderExpress(container) {
           <div class="bento-hero-left">
             <div class="bento-active-status-row">
               <div class="bento-splash-fish-box" data-open-fish-zoom="${fish.id}" style="cursor:zoom-in;position:relative;" title="Нажмите для увеличения иллюстрации и паспорта рыбы">
-                <img src="assets/fish/${fish.id}.png" alt="${fish.name}" onerror="this.style.display='none'">
+                ${renderFishVisual(fish)}
                 <span style="position:absolute;bottom:1px;right:3px;font-size:9px;opacity:0.75;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="2"/><path d="M16 16l4.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>
               </div>
               <div>
@@ -1427,7 +1427,7 @@ export function renderExpress(container) {
             <div class="bento-top3-row">
               ${top3Bento.map((item, rankIdx) => `
                 <button type="button" class="bento-top3-item ${item.fish.id === fish.id ? 'active' : ''}" data-novice-pick-fish="${item.fish.id}" title="Выбрать рыбу «${item.fish.name}» (${rankIdx + 1}-е место сегодня)">
-                  <img src="assets/fish/${item.fish.id}.png" alt="${item.fish.name}" onerror="this.style.display='none'">
+                  <span style="width:54px;height:26px;display:inline-flex;align-items:center;justify-content:center;">${renderFishVisual(item.fish)}</span>
                   <span class="bento-top3-name">${rankIdx + 1}-е место • ${item.fish.name}</span>
                   <span class="bento-top3-pct">${item.scDay}%</span>
                 </button>
@@ -1488,7 +1488,7 @@ export function renderExpress(container) {
             <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M3 3v18h18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M7 15l4-5 4 3 5-7" stroke="#38bdf8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
             <span>Почасовой график клёва</span>
           </div>
-          <span id="bentoChartTimeRangeLabel" style="font-size:11.5px;font-weight:800;color:var(--muted);">00:00–24:00 • ведите по шкале</span>
+          <span id="bentoChartTimeRangeLabel" style="font-size:11.5px;font-weight:800;color:var(--muted);">00:00–24:00</span>
         </div>
         <div style="width:100%;overflow:hidden;">
           <div class="bento-chart-stage" id="bentoWaveChartStage" style="position:relative;width:100%;height:122px;">
@@ -1614,17 +1614,24 @@ export function renderExpress(container) {
           </div>
         </div>
       </div>
-      <!-- Панель выбора снасти, приманки с цветовыми кружками и быстрых действий (Я поймал / Чек-лист / Поделиться) -->
-      <div class="bento-card bento-tackle-controls-card" id="fcTackleControlsCard" style="padding:11px 13px;border:1px solid var(--border);">
-        <div class="controls-grid" style="grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px;margin-bottom:9px;">
+      <!-- Блок п. 9: «На что ловим» — основная снасть (полуавтоматически по рыбе и сезону) ниже основных данных в окне Прогноз -->
+      <div class="bento-card bento-tackle-controls-card" id="fcTackleControlsCard" style="padding:12px 14px;border:1px solid var(--border);">
+        <div class="bento-card-head" style="margin-bottom:8px;">
+          <div class="bento-card-title" style="font-size:14.5px;">
+            <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="#38bdf8" stroke-width="2.1" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#94a3b8" stroke-width="1.7" stroke-linecap="round"/><circle cx="14" cy="16" r="2.4" fill="#10b981"/></svg></span>
+            <span>На что ловим: <b style="color:var(--accent);">${shortMethodName}</b></span>
+          </div>
+          <span class="pill pill-good" style="font-size:11px;font-weight:800;">${rigTop.weight} • ${s.depth.toFixed(1)} м</span>
+        </div>
+        <div class="controls-grid" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin-bottom:9px;">
           <div>
-            <label for="fcTopMethodSelect" style="display:block;font-size:11px;color:var(--muted);font-weight:800;margin-bottom:3px;">1. ВЫБОР СНАСТИ И СПОСОБА ЛОВЛИ:</label>
+            <label for="fcTopMethodSelect" style="display:block;font-size:11px;color:var(--muted);font-weight:800;margin-bottom:3px;">ОСНОВНАЯ СНАСТЬ:</label>
             <select id="fcTopMethodSelect" style="width:100%;min-height:42px;">
               ${compatibleMethodsTop.map(m => `<option value="${m.val}" ${m.val === s.method ? 'selected' : ''}>${String(m.text || '').replace(/<[^>]+>/g, '').trim()}</option>`).join('')}
             </select>
           </div>
           <div>
-            <label for="fcTopBaitSelect" style="display:block;font-size:11px;color:var(--muted);font-weight:800;margin-bottom:3px;">2. СЕЗОННАЯ ПРИМАНКА / НАСАДКА (<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> ${effWaterTempForTackle}°C):</label>
+            <label for="fcTopBaitSelect" style="display:block;font-size:11px;color:var(--muted);font-weight:800;margin-bottom:3px;">ПРИМАНКА / НАСАДКА:</label>
             <select id="fcTopBaitSelect" style="width:100%;min-height:42px;">
               ${seasonalBaitsTop.map(b => `<option value="${b}" ${b === activeBaitTop ? 'selected' : ''}>${b}</option>`).join('')}
             </select>

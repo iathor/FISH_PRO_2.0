@@ -1,6 +1,6 @@
-import { store } from './store.js?v=2.8.3-r231';
-import { renderMap } from '../modules/geo/geo.module.js?v=2.8.3-r231';
-import { closeModal } from '../ui/components.js?v=2.8.3-r231';
+import { store } from './store.js?v=2.9.0-r232';
+import { renderMap } from '../modules/geo/geo.module.js?v=2.9.0-r232';
+import { closeModal } from '../ui/components.js?v=2.9.0-r232';
 const VALID_ROUTES = ['geo', 'weather', 'fish', 'forecast', 'circle', 'chats', 'log', 'calendar', 'admin'];
 const DEFAULT_ROUTE = (typeof window !== 'undefined' && window.__KLEV_ADMIN_CONTOUR__ === true) ? 'admin' : 'forecast';
 const routeHistoryStack = [DEFAULT_ROUTE];
@@ -172,7 +172,7 @@ export const router = {
       } catch (e) {}
     }
     if (prevRoute !== target && typeof window !== 'undefined' && typeof window.scrollTo === 'function') {
-      try { window.scrollTo(0, 0); } catch (e) {}
+      try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) {}
     }
     this.applyVisibility(target);
     store.dispatch({ type: 'SET_ROUTE', payload: target });
@@ -181,20 +181,52 @@ export const router = {
     }
   },
   applyVisibility(route) {
+    const ROUTE_ORDER = ['weather', 'fish', 'calendar', 'geo', 'chats', 'circle', 'forecast', 'log', 'admin'];
+    const prevRoute = this._lastVisibleRoute || store.getState().route || 'forecast';
+    const prevIdx = ROUTE_ORDER.indexOf(prevRoute);
+    const nextIdx = ROUTE_ORDER.indexOf(route);
+    const slideDir = (prevRoute !== route && prevIdx !== -1 && nextIdx !== -1)
+      ? (nextIdx > prevIdx ? 'right' : 'left')
+      : 'fade';
+    this._lastVisibleRoute = route;
+
     if (typeof document !== 'undefined' && document.body) {
       document.body.style.overflow = '';
       if (route !== 'chats' && route !== 'admin' && typeof window !== 'undefined' && typeof window.__KLEV_CLOSE_FULLSCREEN_CHAT__ === 'function') {
         try { window.__KLEV_CLOSE_FULLSCREEN_CHAT__(); } catch (_e) { /* ignore */ }
       }
+      const rootEl = document.documentElement;
+      const isArcMobile = typeof window.__KLEV_IS_MOBILE_MAP_MODE__ === 'function'
+        ? window.__KLEV_IS_MOBILE_MAP_MODE__()
+        : (window.innerWidth <= 1100);
+      if (route === 'geo' && isArcMobile && !window.__KLEV_ADMIN_CONTOUR__) {
+        rootEl.setAttribute('data-arc-map-active', '1');
+        rootEl.setAttribute('data-arc-header-open', '0');
+        rootEl.setAttribute('data-arc-footer-open', '0');
+      } else {
+        rootEl.setAttribute('data-arc-map-active', '0');
+        rootEl.setAttribute('data-arc-header-open', '0');
+        rootEl.setAttribute('data-arc-footer-open', '0');
+      }
     }
+
     document.querySelectorAll('[data-route-section]').forEach(sec => {
       const secName = sec.getAttribute('data-route-section');
       if (secName === route) {
         sec.style.display = '';
+        sec.classList.remove('klev-sec-slide-right', 'klev-sec-slide-left', 'klev-sec-slide-fade');
+        void sec.offsetWidth;
+        sec.classList.add(
+          slideDir === 'right'
+            ? 'klev-sec-slide-right'
+            : (slideDir === 'left' ? 'klev-sec-slide-left' : 'klev-sec-slide-fade')
+        );
       } else {
         sec.style.display = 'none';
+        sec.classList.remove('klev-sec-slide-right', 'klev-sec-slide-left', 'klev-sec-slide-fade');
       }
     });
+
     document.querySelectorAll('[data-nav-tab]').forEach(btn => {
       const tabAttr = btn.getAttribute('data-nav-tab');
       if (btn.id === 'navCircleChatsHubBtn') {
@@ -203,6 +235,7 @@ export const router = {
         btn.classList.toggle('active', tabAttr === route);
       }
     });
+
     if (typeof window.syncFishDockState === 'function') {
       window.syncFishDockState(false, route);
     }
