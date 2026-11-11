@@ -3,24 +3,24 @@
  * @description Конфигурация приложения (Релиз 2.8.3 r230), слои карт без VPN и адаптивные справочники снастей и сезонных наживок
  */
 export const APP_VERSION = '2.8.3';
-export const APP_BUILD_NUMBER = 230;
-export const APP_REVISION = 'r230';
-export const APP_DISPLAY_VERSION = 'v2.8.3 r230';
+export const APP_BUILD_NUMBER = 231;
+export const APP_REVISION = 'r231';
+export const APP_DISPLAY_VERSION = 'v2.8.3 r231';
 export const STATE_CACHE_KEY = 'klev_pro_state_v2.0';
 export const WEATHER_CACHE_KEY = 'klev_pro_weather_v2.0';
 export const RELEASE_CACHE_KEY = 'klev_pro_release_v2.0';
 export const WEATHER_TTL_MS = 2 * 60 * 60 * 1000;
 export const CURRENT_RELEASE_INFO = {
   "version": "2.8.3",
-  "versionCode": 280230,
-  "buildNumber": 230,
-  "revision": "r230",
-  "displayVersion": "v2.8.3 r230",
+  "versionCode": 280231,
+  "buildNumber": 231,
+  "revision": "r231",
+  "displayVersion": "v2.8.3 r231",
   "date": "10 ноября 2026",
   "releasedAt": "2026-11-10T12:00:00Z",
   "apkUrl": "https://klevpro.ru/apk/klev-pro-v2.8.3.apk",
   "fileSize": "38.6 МБ",
-  "title": "Обновление «Клёв ПРО 2.0» (v2.8.3 r230)",
+  "title": "Обновление «Клёв ПРО 2.0» (v2.8.3 r231)",
   "subtitle": "Улучшена работа слоёв и фильтров карты, настроено автоматическое обновление погоды по местоположению и повышена стабильность приложения.",
   "summary": "Исправлено переключение слоёв и фильтров карты, добавлено автоматическое обновление погоды при входе и смене точки, доработан интерфейс.",
   "highlights": [

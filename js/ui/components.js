@@ -1,4 +1,4 @@
-import { svgIcon } from './icons.js?v=2.8.3-r230';
+import { svgIcon } from './icons.js?v=2.8.3-r231';
 /**
  * Экранирует пользовательские строки перед вставкой в HTML (защита от DOM XSS и инъекций тегов)
  */
@@ -52,7 +52,8 @@ export function createSkeleton(lines = 3) {
   }
   return out + '</div>';
 }
-export function showToast(message, tone = 'info') {
+export function showToast(message, tone = 'info', options = {}) {
+  if (typeof document === 'undefined' || !document.body) return null;
   let box = document.getElementById('toastContainer');
   if (!box) {
     box = document.createElement('div');
@@ -60,20 +61,171 @@ export function showToast(message, tone = 'info') {
     box.className = 'toast-container';
     box.setAttribute('aria-live', 'polite');
     document.body.appendChild(box);
+  } else if (box.parentElement === document.body && box.nextElementSibling) {
+    document.body.appendChild(box);
   }
-  const item = document.createElement('div');
-  item.className = 'toast';
-  if (tone === 'bad') item.style.borderColor = 'var(--bad)';
-  if (tone === 'good') item.style.borderColor = 'var(--good)';
-  if (tone === 'warn') item.style.borderColor = 'var(--warn)';
   const cleanText = String(message || '').replace(/<svg[\s\S]*?<\/svg>/gi, '').replace(/<[^>]+>/g, '').trim();
+  if (!cleanText) return null;
+
+  const onClickFn = options && typeof options.onClick === 'function' ? options.onClick : null;
+  const actionLabel = options && options.actionLabel ? String(options.actionLabel).trim() : (onClickFn ? 'Открыть' : '');
+  const durationMs = Math.max(1800, Number(options && options.durationMs) || (onClickFn ? 6200 : 4000));
+  const dedupKey = String((options && options.dedupKey) || cleanText);
+
+  // If identical toast is already visible, remove old one so fresh one takes its place cleanly
+  Array.from(box.querySelectorAll('.toast')).forEach(existing => {
+    if (existing.getAttribute('data-toast-key') === dedupKey) {
+      if (existing._klevToastCleanup) existing._klevToastCleanup(true);
+      else existing.remove();
+    }
+  });
+
+  // Cap stack at max 3 visible toasts so they never pile up and block the screen
+  const activeToasts = Array.from(box.querySelectorAll('.toast:not(.toast-dismissing)'));
+  while (activeToasts.length >= 3) {
+    const oldest = activeToasts.shift();
+    if (oldest) {
+      if (oldest._klevToastCleanup) oldest._klevToastCleanup(false);
+      else oldest.remove();
+    }
+  }
+
+  const item = document.createElement('div');
+  item.className = `toast${onClickFn ? ' toast-clickable' : ''}`;
+  item.setAttribute('data-toast-key', dedupKey);
+  const accentCol = tone === 'good' ? 'var(--good)' : (tone === 'bad' ? 'var(--bad)' : (tone === 'warn' ? 'var(--warn)' : 'var(--accent)'));
+  item.style.borderColor = accentCol;
   const icoName = tone === 'good' ? 'check' : (tone === 'bad' || tone === 'warn' ? 'warn' : 'info');
-  const icoColor = tone === 'good' ? 'var(--good)' : (tone === 'bad' ? 'var(--bad)' : (tone === 'warn' ? 'var(--warn)' : 'var(--accent)'));
-  item.innerHTML = `${svgIcon(icoName, icoColor)}<span>${escapeHtml(cleanText)}</span>`;
+
+  item.innerHTML = `
+    <div class="toast-body" data-toast-body="1">
+      <span style="flex-shrink:0;display:inline-flex;align-items:center;">${svgIcon(icoName, accentCol)}</span>
+      <span style="flex:1;min-width:0;">${escapeHtml(cleanText)}</span>
+      ${actionLabel ? `<span class="pill" style="font-size:10px;padding:2px 7px;border-color:${accentCol};color:${accentCol};font-weight:900;flex-shrink:0;">${escapeHtml(actionLabel)} →</span>` : ''}
+    </div>
+    <button type="button" class="toast-close-btn" data-toast-close="1" aria-label="Закрыть уведомление" title="Закрыть">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+    </button>
+    <div class="toast-progress-track">
+      <div class="toast-progress-bar" style="background:${accentCol};width:100%;"></div>
+    </div>
+  `;
   box.appendChild(item);
-  setTimeout(() => {
-    item.remove();
-  }, 3800);
+
+  const progBar = item.querySelector('.toast-progress-bar');
+  let remainingMs = durationMs;
+  let lastTick = Date.now();
+  let paused = false;
+  let dismissed = false;
+
+  const dismissToast = (immediate = false, swipeDir = 0) => {
+    if (dismissed) return;
+    dismissed = true;
+    if (timerId) clearInterval(timerId);
+    if (immediate) {
+      item.remove();
+      return;
+    }
+    item.classList.add('toast-dismissing');
+    if (swipeDir !== 0) {
+      item.style.transform = `translateX(${swipeDir > 0 ? '120%' : '-120%'}) scale(0.95)`;
+    }
+    setTimeout(() => {
+      try { item.remove(); } catch (_e) {}
+    }, 220);
+  };
+  item._klevToastCleanup = dismissToast;
+
+  const timerId = setInterval(() => {
+    if (dismissed) {
+      clearInterval(timerId);
+      return;
+    }
+    const now = Date.now();
+    if (!paused) {
+      remainingMs -= (now - lastTick);
+      const pct = Math.max(0, Math.min(100, (remainingMs / durationMs) * 100));
+      if (progBar) progBar.style.width = `${pct.toFixed(1)}%`;
+      if (remainingMs <= 0) {
+        dismissToast(false);
+      }
+    }
+    lastTick = now;
+  }, 50);
+
+  const closeBtn = item.querySelector('[data-toast-close]');
+  if (closeBtn) {
+    closeBtn.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      dismissToast(false);
+    });
+  }
+
+  let startX = 0;
+  let startY = 0;
+  let curDx = 0;
+  let curDy = 0;
+  let dragging = false;
+  let swiped = false;
+
+  const onStart = (x, y) => {
+    paused = true;
+    startX = x;
+    startY = y;
+    curDx = 0;
+    curDy = 0;
+    dragging = true;
+    swiped = false;
+    item.style.transition = 'none';
+  };
+  const onMove = (x, y) => {
+    if (!dragging) return;
+    curDx = x - startX;
+    curDy = y - startY;
+    if (Math.abs(curDx) > 8 || curDy < -8) {
+      swiped = true;
+      const tx = curDx;
+      const ty = curDy < 0 ? curDy * 0.6 : 0;
+      const op = Math.max(0.25, 1 - Math.abs(curDx) / 220);
+      item.style.transform = `translate(${tx.toFixed(0)}px, ${ty.toFixed(0)}px)`;
+      item.style.opacity = String(op.toFixed(2));
+    }
+  };
+  const onEnd = () => {
+    if (!dragging) return;
+    dragging = false;
+    paused = false;
+    lastTick = Date.now();
+    item.style.transition = 'transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.2s ease';
+    if (Math.abs(curDx) > 52 || curDy < -36) {
+      dismissToast(false, curDx >= 0 ? 1 : -1);
+    } else {
+      item.style.transform = '';
+      item.style.opacity = '1';
+    }
+  };
+
+  item.addEventListener('touchstart', (e) => {
+    if (e.touches && e.touches[0]) onStart(e.touches[0].clientX, e.touches[0].clientY);
+  }, { passive: true });
+  item.addEventListener('touchmove', (e) => {
+    if (e.touches && e.touches[0]) onMove(e.touches[0].clientX, e.touches[0].clientY);
+  }, { passive: true });
+  item.addEventListener('touchend', onEnd, { passive: true });
+  item.addEventListener('touchcancel', onEnd, { passive: true });
+  item.addEventListener('mouseenter', () => { paused = true; });
+  item.addEventListener('mouseleave', () => { paused = false; lastTick = Date.now(); });
+
+  if (onClickFn) {
+    item.addEventListener('click', (ev) => {
+      if (swiped) return;
+      if (ev.target && ev.target.closest && ev.target.closest('[data-toast-close]')) return;
+      dismissToast(true);
+      try { onClickFn(); } catch (_e) {}
+    });
+  }
+  return item;
 }
 /**
  * Автокопирование Рыболовного ID (FP_FMP089 / FP_89AAA001) или ключа Экипажа (KP-XXXX) в буфер обмена
@@ -139,7 +291,10 @@ export function openModal(title, contentHtml, onMount = null, canClose = true, o
     backdrop.id = 'appModalBackdrop';
     backdrop.className = 'modal-backdrop';
     document.body.appendChild(backdrop);
+  } else if (backdrop.parentElement === document.body && backdrop.nextElementSibling) {
+    document.body.appendChild(backdrop);
   }
+  backdrop.style.zIndex = '11500';
   backdrop.onclick = (e) => {
     if (canClose && e.target === backdrop) closeModal();
   };
@@ -321,7 +476,7 @@ function normalizePolicyEnvRecord(rec, fallback) {
       out.title = fallback.title;
     }
   } else if (typeof out.summary === 'string' && /\(r22[0-9]\)/.test(out.summary) && out.policyVersion === fallback.policyVersion) {
-    out.summary = out.summary.replace(/v2\.8\.[0-3]\s*\(r22[0-9]\)/g, 'v2.8.3 (r230)').replace(/\(r22[0-9]\)/g, '(r230)');
+    out.summary = out.summary.replace(/v2\.8\.[0-3]\s*\(r22[0-9]\)/g, 'v2.8.3 (r231)').replace(/\(r22[0-9]\)/g, '(r230)');
   }
   return out;
 }
@@ -330,10 +485,10 @@ export function getRemotePolicyFromClientEnv() {
   const fallback = {
     policyVersion: ACTIVE_POLICY_VERSION_DEFAULT,
     appVersion: ACTIVE_APP_VERSION_DEFAULT,
-    appRevision: 'r230',
+    appRevision: 'r231',
     effectiveDate: '10 ноября 2026 г.',
     title: 'Политика конфиденциальности, Пользовательское соглашение и Правила обработки геоданных «Клёв ПРО 2.0»',
-    summary: 'Редакция v2.8.3 (r230): сохранность пользовательских данных при очистке кэша, единый постоянный ID рыбака на всех устройствах по логину и паролю, расчёт гидрологии и льда по данным Росгидромета (meteoinfo.ru), правила гостевого доступа и Бета-теста.',
+    summary: 'Редакция v2.8.3 (r231): сохранность пользовательских данных при очистке кэша, единый постоянный ID рыбака на всех устройствах по логину и паролю, расчёт гидрологии и льда по данным Росгидромета (meteoinfo.ru), правила гостевого доступа и Бета-теста.',
     sections: DEFAULT_POLICY_SECTIONS,
     broadcastId: ''
   };
@@ -367,7 +522,7 @@ export function saveRemotePolicyToClientEnv(policyPayload) {
   const updated = {
     policyVersion: String(policyPayload.policyVersion || current.policyVersion || ACTIVE_POLICY_VERSION_DEFAULT).trim(),
     appVersion: String(policyPayload.appVersion || current.appVersion || ACTIVE_APP_VERSION_DEFAULT).trim(),
-    appRevision: String(policyPayload.appRevision || current.appRevision || 'r230').trim(),
+    appRevision: String(policyPayload.appRevision || current.appRevision || 'r231').trim(),
     effectiveDate: String(policyPayload.effectiveDate || current.effectiveDate || '10 ноября 2026 г.').trim(),
     title: String(policyPayload.title || current.title).trim(),
     summary: String(policyPayload.summary || current.summary).trim(),
@@ -825,35 +980,44 @@ export function downloadFileCrossPlatform(filename, content, mimeType = 'applica
 /**
  * Отправляет системное уведомление в шторку Android (через AndroidBridge) или через Web Notification API / Service Worker.
  */
-export function triggerSystemNotificationCrossPlatform(title, body, category = 'alerts') {
+export function triggerSystemNotificationCrossPlatform(title, body, category = 'alerts', actionPayload = null) {
   if (typeof document !== 'undefined' && (document.documentElement.getAttribute('data-tg-miniapp') === '1' || document.documentElement.getAttribute('data-tg-webapp') === '1')) {
-    // В Telegram Mini App уведомления работают только внутри запущенного приложения (без системных фоновых Push)
     return false;
   }
   const cleanTitle = String(title || 'Клёв ПРО 2.0').trim();
   const cleanBody = String(body || '').trim();
+  const actionJson = actionPayload && typeof actionPayload === 'object' ? JSON.stringify(actionPayload) : '';
   try {
-    if (typeof window !== 'undefined' && window.AndroidBridge && typeof window.AndroidBridge.showSystemNotification === 'function') {
-      window.AndroidBridge.showSystemNotification(cleanTitle, cleanBody, String(category || 'alerts'));
-      return true;
+    if (typeof window !== 'undefined' && window.AndroidBridge) {
+      if (actionJson && typeof window.AndroidBridge.showSystemNotificationWithAction === 'function') {
+        window.AndroidBridge.showSystemNotificationWithAction(cleanTitle, cleanBody, String(category || 'alerts'), actionJson);
+        return true;
+      }
+      if (typeof window.AndroidBridge.showSystemNotification === 'function') {
+        window.AndroidBridge.showSystemNotification(cleanTitle, cleanBody, String(category || 'alerts'));
+        return true;
+      }
     }
   } catch (e) {}
   try {
     if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-      if ('serviceWorker' in navigator && navigator.serviceWorker.ready) {
-        navigator.serviceWorker.ready.then(reg => {
-          if (reg && typeof reg.showNotification === 'function') {
-            reg.showNotification(cleanTitle, {
-              body: cleanBody,
-              icon: 'icon-192.png',
-              badge: 'icon-192.png',
-              tag: `klev_${category}_${Date.now()}`
-            });
+      const notifData = actionPayload && typeof actionPayload === 'object' ? actionPayload : { category: String(category || 'alerts') };
+      const n = new Notification(cleanTitle, {
+        body: cleanBody,
+        icon: 'icon-192.png',
+        badge: 'icon-192.png',
+        tag: `klev_${category}_${Date.now()}`,
+        data: notifData
+      });
+      n.onclick = () => {
+        try {
+          window.focus();
+          if (actionPayload && typeof window.__KLEV_HANDLE_NOTIFICATION_TAP__ === 'function') {
+            window.__KLEV_HANDLE_NOTIFICATION_TAP__(actionPayload);
           }
-        }).catch(() => {});
-        return true;
-      }
-      new Notification(cleanTitle, { body: cleanBody, icon: 'icon-192.png' });
+          n.close();
+        } catch (_e) {}
+      };
       return true;
     }
   } catch (e) {}

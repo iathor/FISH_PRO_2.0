@@ -99,6 +99,7 @@ public class MainActivity extends Activity {
     private GnssStatus.Callback gnssStatusCallback;
     private boolean pendingCameraLaunchAfterPerm = false;
     private Uri pendingCameraPhotoUri = null;
+    private volatile String pendingNotifActionJson = null;
     private long lastRootBackPressMs = 0L;
     private OnBackInvokedCallback backInvokedCallback;
 
@@ -652,17 +653,17 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String getAppVersion() {
-            return "2.8.3-r230";
+            return "2.8.3-r231";
         }
 
         @JavascriptInterface
         public int getAppBuildNumber() {
-            return 230;
+            return 231;
         }
 
         @JavascriptInterface
         public String getAppRevision() {
-            return "r230";
+            return "r231";
         }
 
         @JavascriptInterface
@@ -743,7 +744,19 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public String consumePendingNotificationAction() {
+            String act = pendingNotifActionJson;
+            pendingNotifActionJson = null;
+            return act != null ? act : "";
+        }
+
+        @JavascriptInterface
         public void showSystemNotification(String title, String body, String category) {
+            showSystemNotificationWithAction(title, body, category, "");
+        }
+
+        @JavascriptInterface
+        public void showSystemNotificationWithAction(String title, String body, String category, String actionJson) {
             try {
                 initNotificationChannels();
                 NotificationManager nm = (NotificationManager) ctx.getSystemService(Context.NOTIFICATION_SERVICE);
@@ -752,14 +765,18 @@ public class MainActivity extends Activity {
                     return;
                 }
 
+                int notifId = NOTIF_ID_SEQ.incrementAndGet();
                 String chanId = "files".equalsIgnoreCase(category) ? CHANNEL_FILES : CHANNEL_ALERTS;
                 Intent tapIntent = new Intent(ctx, MainActivity.class);
                 tapIntent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                if (actionJson != null && !actionJson.trim().isEmpty()) {
+                    tapIntent.putExtra("klev_notif_action_json", actionJson.trim());
+                }
                 int piFlags = PendingIntent.FLAG_UPDATE_CURRENT;
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                     piFlags |= PendingIntent.FLAG_IMMUTABLE;
                 }
-                PendingIntent pi = PendingIntent.getActivity(ctx, 0, tapIntent, piFlags);
+                PendingIntent pi = PendingIntent.getActivity(ctx, notifId, tapIntent, piFlags);
 
                 Notification.Builder builder;
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -782,7 +799,7 @@ public class MainActivity extends Activity {
                     builder.setColor(Color.parseColor("#0284c7"));
                 }
 
-                nm.notify(NOTIF_ID_SEQ.incrementAndGet(), builder.build());
+                nm.notify(notifId, builder.build());
             } catch (Exception ignored) {}
         }
 
@@ -956,7 +973,7 @@ public class MainActivity extends Activity {
         ws.setCacheMode(WebSettings.LOAD_DEFAULT);
         // Пользовательские данные защищены в Context.getFilesDir()/klev_appdata_vault; кэш WebView не очищается принудительно
         String baseUa = ws.getUserAgentString();
-        ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.8.3-r230");
+        ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.8.3-r231");
 
         webView.addJavascriptInterface(new NativeBridge(this), "AndroidBridge");
 
@@ -1517,14 +1534,42 @@ public class MainActivity extends Activity {
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         setIntent(intent);
+        if (intent != null && intent.hasExtra("klev_notif_action_json")) {
+            final String actJson = intent.getStringExtra("klev_notif_action_json");
+            intent.removeExtra("klev_notif_action_json");
+            if (actJson != null && !actJson.trim().isEmpty()) {
+                pendingNotifActionJson = actJson.trim();
+                if (webView != null) {
+                    webView.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            try {
+                                String quoted = org.json.JSONObject.quote(actJson.trim());
+                                webView.evaluateJavascript(
+                                    "if(typeof window.__KLEV_HANDLE_NOTIFICATION_TAP__==='function'){window.__KLEV_HANDLE_NOTIFICATION_TAP__(" + quoted + ");}",
+                                    null
+                                );
+                            } catch (Exception ignored) {}
+                        }
+                    });
+                }
+                return;
+            }
+        }
         if (intent != null && intent.getData() != null) {
             loadEntryUrlFromIntent(intent);
         }
     }
 
     private void loadEntryUrlFromIntent(Intent intent) {
+        if (intent != null && intent.hasExtra("klev_notif_action_json")) {
+            String actJson = intent.getStringExtra("klev_notif_action_json");
+            if (actJson != null && !actJson.trim().isEmpty()) {
+                pendingNotifActionJson = actJson.trim();
+            }
+        }
         String entryHtml = getPackageName().contains("admin") ? "kp-control-89.html" : "index.html";
-        String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/" + entryHtml + "?v=2.7.0_r225_" + System.currentTimeMillis();
+        String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/" + entryHtml + "?v=2.8.3_r231_" + System.currentTimeMillis();
         if (intent != null && intent.getData() != null) {
             Uri data = intent.getData();
             String q = data.getEncodedQuery();

@@ -1,7 +1,7 @@
 // @file bot/cloudflare-worker-bot.js — @KlevProClubBot (V.2.1.1)
 // Компактная сборка для Cloudflare Workers (115 рыб, 491 водоём, 609 городов РФ + Triple-Engine $0 DB + E2EE Relay + Обмен точками Круга/Экипажа/SOS + Уникальные Региональные ID FP_89AAA001 & Эксклюзивный VIP ID владельца FP_89VIP089 + Секретная Серверная Консоль Супер-Админа)
 
-const WORKER_VERSION = '2.8.3-r230';
+const WORKER_VERSION = '2.8.3-r231';
 const RESERVE_ID_TTL_MS = 24 * 60 * 60 * 1000; // Временный резервный ID живёт строго не более 24 часов (суток)
 const deletedFisherIdsSet = new Set(); // Удалённые вручную через Админ-панель ID (защита от повторной фоновой вставки)
 const rateBuckets = new Map();
@@ -6679,12 +6679,12 @@ const DEFAULT_WORKER_POLICY_SECTIONS = [{"id": "general_and_platforms", "title":
 const policyStateStore = {
  policyVersion: '2026.11.10-v2.8.3',
  appVersion: '2.8.3',
- appRevision: 'r230',
+ appRevision: 'r231',
  effectiveDate: '10 ноября 2026 г.',
  title: 'Политика конфиденциальности, Пользовательское соглашение и Правила обработки геоданных «Клёв ПРО 2.0»',
  updatedAt: '2026-11-10T03:35:00Z',
  broadcastId: 'POL_BC_INIT_283',
- summary: 'Редакция v2.8.3 (r230): защита пользовательских данных в разделе «Данные приложения» Android APK (Context.getFilesDir), единая привязка постоянного ID к логину и паролю на всех устройствах, калибровка гидрологии по сводкам Росгидромета (meteoinfo.ru) и динамическая рассылка политики без пересборки.',
+ summary: 'Редакция v2.8.3 (r231): защита пользовательских данных в разделе «Данные приложения» Android APK (Context.getFilesDir), единая привязка постоянного ID к логину и паролю на всех устройствах, калибровка гидрологии по сводкам Росгидромета (meteoinfo.ru) и динамическая рассылка политики без пересборки.',
  sections: DEFAULT_WORKER_POLICY_SECTIONS
 };
 const userConsentsStore = new Map();

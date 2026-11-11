@@ -9,16 +9,16 @@
  * - Выделенная вкладка « Чаты» на нижней панели навигации + отправка карточки улова прямо в чат.
  * - Закрытый режим Супер-Админа (только для Владельца + управляемая База Администраторов с синхронизацией).
  */
-import { events } from '../../core/events.js?v=2.8.3-r230';
-import { store } from '../../core/store.js?v=2.8.3-r230';
-import { storage, calcGeoDistanceKm, safeJsonParse } from '../../core/storage.js?v=2.8.3-r230';
-import { router } from '../../core/router.js?v=2.8.3-r230';
-import { APP_VERSION, APP_REVISION, APP_DISPLAY_VERSION, getSeasonalBaitsForContext, SPOT_CATEGORIES } from '../../core/config.js?v=2.8.3-r230';
-import { detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.8.3-r230';
-import { findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.8.3-r230';
-import { WATER_PROFILES } from '../../data/waters.js?v=2.8.3-r230';
-import { FISH_DB } from '../../data/species.js?v=2.8.3-r230';
-import { escapeHtml, isAnonymousCallsignValid, createPill, showToast, openModal, closeModal, copyFisherIdToClipboard, openConfirmDeleteModal, openUserAgreementModal, isUserAgreementAccepted, downloadFileCrossPlatform, triggerSystemNotificationCrossPlatform, requestSystemNotificationsAccess, flashHighlightElement, isPolicyVersionAccepted, getSavedPolicyConsentMeta, POLICY_CONSENT_META_KEY, ACTIVE_POLICY_VERSION_DEFAULT, ACTIVE_APP_VERSION_DEFAULT, saveRemotePolicyToClientEnv, getRemotePolicyFromClientEnv, parsePolicySectionsFromEditableText, formatPolicySectionsToEditableText, DEFAULT_POLICY_SECTIONS, isGeoDistributionConsentActive, ensureGeoDistributionConsent, setGeoDistributionConsentState } from '../../ui/components.js?v=2.8.3-r230';
+import { events } from '../../core/events.js?v=2.8.3-r231';
+import { store } from '../../core/store.js?v=2.8.3-r231';
+import { storage, calcGeoDistanceKm, safeJsonParse } from '../../core/storage.js?v=2.8.3-r231';
+import { router } from '../../core/router.js?v=2.8.3-r231';
+import { APP_VERSION, APP_REVISION, APP_DISPLAY_VERSION, getSeasonalBaitsForContext, SPOT_CATEGORIES } from '../../core/config.js?v=2.8.3-r231';
+import { detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.8.3-r231';
+import { findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.8.3-r231';
+import { WATER_PROFILES } from '../../data/waters.js?v=2.8.3-r231';
+import { FISH_DB } from '../../data/species.js?v=2.8.3-r231';
+import { escapeHtml, isAnonymousCallsignValid, createPill, showToast, openModal, closeModal, copyFisherIdToClipboard, openConfirmDeleteModal, openUserAgreementModal, isUserAgreementAccepted, downloadFileCrossPlatform, triggerSystemNotificationCrossPlatform, requestSystemNotificationsAccess, flashHighlightElement, isPolicyVersionAccepted, getSavedPolicyConsentMeta, POLICY_CONSENT_META_KEY, ACTIVE_POLICY_VERSION_DEFAULT, ACTIVE_APP_VERSION_DEFAULT, saveRemotePolicyToClientEnv, getRemotePolicyFromClientEnv, parsePolicySectionsFromEditableText, formatPolicySectionsToEditableText, DEFAULT_POLICY_SECTIONS, isGeoDistributionConsentActive, ensureGeoDistributionConsent, setGeoDistributionConsentState } from '../../ui/components.js?v=2.8.3-r231';
 import {
   RELAY_WORKER_URL,
   buildShareUrls,
@@ -31,9 +31,9 @@ import {
   syncToTelegramCloud,
   readFromTelegramCloud,
   triggerHaptic
-} from '../../core/telegram.js?v=2.8.3-r230';
-import { setLocation } from '../geo/geo.module.js?v=2.8.3-r230';
-import { calcDynamicRig } from '../forecast/forecast.module.js?v=2.8.3-r230';
+} from '../../core/telegram.js?v=2.8.3-r231';
+import { setLocation } from '../geo/geo.module.js?v=2.8.3-r231';
+import { calcDynamicRig } from '../forecast/forecast.module.js?v=2.8.3-r231';
 export const CREW_TTL_MS = 72 * 60 * 60 * 1000;
 /**
  * Вычисляет точное время окончания действия ссылки на длинную экспедицию:
@@ -348,6 +348,10 @@ let activeCategoryFilter = 'all'; // 'all' | 'sos' | 'crew' | 'circle' | 'worksh
 const expandedCompactIds = new Set();
 let activeChatChannelId = ''; // 'crew:KP-XXXX' | 'dm:FP_XXXX:FP_YYYY'
 let isFullScreenChatOpen = false;
+let _selectedChatMsgId = '';
+let _isChatAttachSheetOpen = false;
+let _chatComposerDraftText = '';
+export const CHAT_MSG_EDIT_MAX_AGE_MS = 3 * 60 * 60 * 1000; // 3 часа
 let _cloudSessionVerified = false;
 let relayPollTimer = null;
 let _relayPollInFlight = false;
@@ -2352,6 +2356,7 @@ export async function syncNearbyCirclePointsFromServer(showFeedbackToast = false
               title: `<svg class="k-ico" style="color:var(--bad);" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9.5" fill="#dc2626" stroke="#fca5a5" stroke-width="1.8"/><text x="12" y="15" text-anchor="middle" fill="#fff" font-size="7.5" font-weight="900" font-family="sans-serif">SOS</text></svg> СИГНАЛ SOS НА ВОДЕ (${itemCopy.wn || itemCopy.lb})`,
               body: `Координаты: ${Number(itemCopy.lat).toFixed(4)}°N, ${Number(itemCopy.lon).toFixed(4)}°E • От ${itemCopy.fid}`,
               subTab: 'radar',
+              itemId: itemCopy.id || '',
               lat: itemCopy.lat,
               lon: itemCopy.lon,
               silentToast: false
@@ -3090,7 +3095,86 @@ export function syncCircleNavBadge() {
     applyBadgeToTab('chats', 'chatsNavBadge', unreadChats);
   } catch (e) {}
 }
-export function pushAppNotification({ category = 'circle', title = '', body = '', subTab = 'radar', channelId = '', lat = null, lon = null, silentToast = false }) {
+export function navigateToNotificationTarget(rawPayload) {
+  if (!rawPayload) return false;
+  let payload = rawPayload;
+  if (typeof rawPayload === 'string') {
+    try { payload = JSON.parse(rawPayload); } catch (_e) { return false; }
+  }
+  if (!payload || typeof payload !== 'object') return false;
+  const cat = String(payload.category || payload.action || '').toLowerCase();
+  const subTab = String(payload.subTab || '').toLowerCase();
+  const chanId = String(payload.channelId || '').trim();
+  const isChatTarget = Boolean(chanId && (subTab === 'chats' || cat === 'dm' || cat === 'crew' || cat === 'chat'));
+  const isSosTarget = Boolean(cat === 'sos');
+
+  if (isChatTarget) {
+    closeModal();
+    store.dispatch({ type: 'RESTORE_CHAT_CHANNEL', payload: chanId });
+    if (chanId.startsWith('crew:')) {
+      const cKey = chanId.replace(/^crew:/i, '').trim().toUpperCase();
+      if (cKey) store.dispatch({ type: 'UNLOCK_CREW_KEY', payload: cKey });
+    }
+    const curMsgs = Array.isArray(store.getState().chatMessages) ? store.getState().chatMessages : [];
+    if (curMsgs.some(m => m && m.channelId === chanId && m.unread)) {
+      const marked = curMsgs.map(m => (m && m.channelId === chanId && m.unread) ? { ...m, unread: false } : m);
+      storage.saveChatMessages(marked);
+      store.dispatch({ type: 'SET_CHAT_MESSAGES', payload: marked });
+    }
+    storage.saveSettings(store.getState());
+    activeChatChannelId = chanId;
+    isFullScreenChatOpen = true;
+    _selectedChatMsgId = '';
+    _isChatAttachSheetOpen = false;
+    syncCircleNavBadge();
+    if (isAdminContourActive()) {
+      router.navigate('admin');
+      switchAdminWorkspaceTab('moderation', { keepChatOpen: true });
+    } else {
+      router.navigate('chats');
+      renderChatsSection();
+    }
+    setTimeout(() => {
+      const portal = typeof document !== 'undefined' ? document.getElementById('klevFullScreenChatPortal') : null;
+      const scrollBox = portal?.querySelector('#chatMessagesScrollBox') || (typeof document !== 'undefined' ? document.getElementById('chatMessagesScrollBox') : null);
+      if (scrollBox) scrollBox.scrollTop = scrollBox.scrollHeight;
+    }, 60);
+    return true;
+  }
+
+  if (isSosTarget) {
+    closeModal();
+    isFullScreenChatOpen = false;
+    activeChatChannelId = '';
+    _selectedChatMsgId = '';
+    _isChatAttachSheetOpen = false;
+    mountFullScreenChatOverlayPortal('');
+    const lat = Number(payload.lat);
+    const lon = Number(payload.lon);
+    const itemId = String(payload.itemId || '').trim();
+    if (Number.isFinite(lat) && Number.isFinite(lon)) {
+      setLocation(lat, lon, true);
+    }
+    if (isAdminContourActive()) {
+      router.navigate('admin');
+      switchAdminWorkspaceTab('moderation');
+      flashHighlightElement('#secAdmin', { scroll: true, block: 'start', delayMs: 120 });
+    } else {
+      router.navigate('geo');
+      if (typeof window !== 'undefined' && typeof window.__KLEV_FOCUS_MAP_CIRCLE__ === 'function' && itemId && Number.isFinite(lat) && Number.isFinite(lon)) {
+        window.__KLEV_FOCUS_MAP_CIRCLE__(itemId, lat, lon);
+      } else {
+        flashHighlightElement('#mapBox', { scroll: true, block: 'center', delayMs: 140 });
+      }
+    }
+    return true;
+  }
+  return false;
+}
+if (typeof window !== 'undefined') {
+  window.__KLEV_HANDLE_NOTIFICATION_TAP__ = navigateToNotificationTarget;
+}
+export function pushAppNotification({ category = 'circle', title = '', body = '', subTab = 'radar', channelId = '', itemId = '', lat = null, lon = null, silentToast = false }) {
   title = String(title || '').replace(/<svg[\s\S]*?<\/svg>/gi, '').replace(/<[^>]+>/g, '').trim();
   body = String(body || '').replace(/<svg[\s\S]*?<\/svg>/gi, '').replace(/<[^>]+>/g, '').trim();
   const s = store.getState();
@@ -3108,6 +3192,7 @@ export function pushAppNotification({ category = 'circle', title = '', body = ''
     body: body || '',
     subTab,
     channelId,
+    itemId,
     lat,
     lon,
     ts: Date.now(),
@@ -3122,21 +3207,31 @@ export function pushAppNotification({ category = 'circle', title = '', body = ''
     syncCircleNavBadge();
     return notif;
   }
+  const isChatNotif = Boolean(channelId && (subTab === 'chats' || category === 'dm' || category === 'crew'));
+  const isSosNotif = Boolean(category === 'sos');
+  const actionPayload = isChatNotif
+    ? { category, subTab: 'chats', channelId }
+    : (isSosNotif ? { category: 'sos', itemId: itemId || '', lat, lon } : null);
+
   playNotificationPing(category === 'sos' ? 'sos' : 'normal');
   triggerHaptic(category === 'sos' ? 'error' : 'light');
   if (!isTmaEnv) {
-    triggerSystemNotificationCrossPlatform(notif.title, notif.body, category);
+    triggerSystemNotificationCrossPlatform(notif.title, notif.body, category, actionPayload);
   }
   syncCircleNavBadge();
   if (!silentToast) {
     const tone = category === 'sos' ? 'bad' : (category === 'crew' || category === 'dm' ? 'good' : 'info');
-    showToast(` ${notif.title}: ${notif.body}`, tone);
-  }
-  try {
-    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-      new Notification(notif.title, { body: notif.body, icon: 'icon-192.png' });
+    if (isChatNotif || isSosNotif) {
+      showToast(`${notif.title}: ${notif.body}`, tone, {
+        onClick: () => navigateToNotificationTarget(actionPayload),
+        actionLabel: isSosNotif ? 'На карту' : 'Открыть',
+        durationMs: 6500,
+        dedupKey: isChatNotif ? `chat_${channelId}_${notif.body.slice(0, 24)}` : `sos_${lat}_${lon}`
+      });
+    } else {
+      showToast(`${notif.title}: ${notif.body}`, tone);
     }
-  } catch (e) {}
+  }
   return notif;
 }
 export const CIRCLE_HEX_TTL_HOURS = 72;
@@ -4144,6 +4239,8 @@ export async function pollEncryptedRelayPackets(manual = false) {
             const admChatsBox = document.getElementById('admEmbeddedChatsBox');
             if (admChatsBox) {
               renderChatsSection(admChatsBox);
+            } else if (isFullScreenChatOpen) {
+              renderChatsSection();
             }
           }
         }
@@ -4220,7 +4317,7 @@ export function appendIncomingChatMessage(msgObj, notifyIfExternal = true) {
       title: isCrew ? `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> Сообщение в Экипаже (${msgObj.crewKey || 'Экипаж'})` : `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> Сообщение от ${msgObj.senderName || msgObj.senderId}`,
       body: `${msgObj.senderName || 'Рыболов'}: ${msgObj.text.slice(0, 65)}`,
       subTab: 'chats',
-      channelId: msgObj.channelId
+      channelId: normalizedChanId
     });
   }
   return true;
@@ -4515,6 +4612,7 @@ export async function importSharePackToken(rawInput, silent = false, unlockCrewO
         title: `<svg class="k-ico" style="color:var(--bad);" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9.5" fill="#dc2626" stroke="#fca5a5" stroke-width="1.8"/><text x="12" y="15" text-anchor="middle" fill="#fff" font-size="7.5" font-weight="900" font-family="sans-serif">SOS</text></svg> СИГНАЛ SOS НА ВОДЕ (${decoded.wn || decoded.lb})`,
         body: `Координаты: ${Number(decoded.lat).toFixed(4)}°N, ${Number(decoded.lon).toFixed(4)}°E • От ${decoded.fid || decoded.au}`,
         subTab: 'radar',
+        itemId: decoded.id || '',
         lat: decoded.lat,
         lon: decoded.lon,
         silentToast: !silent
@@ -4525,6 +4623,7 @@ export async function importSharePackToken(rawInput, silent = false, unlockCrewO
         title: `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> Новая точка Экипажа (${decoded.crewKey || '72ч'})`,
         body: `${decoded.wn || decoded.lb}: ${decoded.fn} (~${decoded.dp} м) • От ${decoded.fid}`,
         subTab: 'radar',
+        itemId: decoded.id || '',
         lat: decoded.lat,
         lon: decoded.lon,
         silentToast: !silent
@@ -4535,6 +4634,7 @@ export async function importSharePackToken(rawInput, silent = false, unlockCrewO
         title: `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3.5" fill="rgba(56,189,248,0.25)" stroke="currentColor" stroke-width="1.8"/><path d="M3 19c0-3.2 2.7-5.5 6-5.5s6 2.3 6 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="17" cy="9" r="2.8" stroke="currentColor" stroke-width="1.6"/><path d="M16 14c2.6.3 4.8 2 5 4.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg> Сводка Круга рядом (${Math.round(distKm)} км)`,
         body: `${decoded.wn || decoded.lb}: ${decoded.fn} на «${decoded.bt || 'по сезону'}» • ${decoded.fid}`,
         subTab: 'radar',
+        itemId: decoded.id || '',
         lat: decoded.lat,
         lon: decoded.lon,
         silentToast: !silent
@@ -5378,13 +5478,11 @@ export function openNotificationsModal(onBackToHub = null) {
         const target = (store.getState().notifications || []).find(x => x.id === nid);
         closeModal();
         if (target) {
-          if (target.subTab === 'chats') {
-            if (target.channelId) activeChatChannelId = target.channelId;
-            router.navigate('chats');
-            renderChatsSection();
-          } else if (Number.isFinite(target.lat) && Number.isFinite(target.lon)) {
-            setLocation(target.lat, target.lon, true);
-            router.navigate('geo');
+          if (!navigateToNotificationTarget(target)) {
+            if (Number.isFinite(target.lat) && Number.isFinite(target.lon)) {
+              setLocation(target.lat, target.lon, true);
+              router.navigate('geo');
+            }
           }
         }
       });
@@ -6639,19 +6737,30 @@ function renderFullScreenChatWindowHtml(s, ident, visibleCrews) {
           ` : activeMsgs.filter(m => m && !_explicitlyDeletedLocalIds.has(m.id)).map(m => {
             const isMe = m.senderId === ident.fisherId;
             const senderDisplay = isMe ? 'Вы' : formatCleanPeerTitle(m.senderName, m.senderId);
-            const timeStr = new Date(m.ts || Date.now()).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+            const msgTs = Number(m.ts) || Date.now();
+            const timeStr = new Date(msgTs).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
             const editedBadge = m.editedAt ? ' <span style="opacity:0.78;font-style:italic;">(изм.)</span>' : '';
-            const canEditMsg = isMe && !isAutoGeneratedShareChatMessage(m);
+            const msgAgeMs = Math.max(0, Date.now() - msgTs);
+            const canEditMsg = isMe && !isAutoGeneratedShareChatMessage(m) && (msgAgeMs <= CHAT_MSG_EDIT_MAX_AGE_MS);
+            const isSelected = _selectedChatMsgId === m.id;
             const tokenMatch = String(m.text || '').match(/KP1_[A-Za-z0-9_-]+/);
             const packTok = m.catchMeta?.token || (tokenMatch ? tokenMatch[0] : '');
             return `
-              <div data-chat-msg-bubble="${escapeHtml(m.id)}" style="align-self:${isMe ? 'flex-end' : 'flex-start'};max-width:86%;padding:9px 12px;border-radius:12px;background:${isMe ? 'rgba(56,189,248,0.16)' : 'var(--card)'};border:1px solid ${isMe ? 'var(--accent)' : 'var(--border)'};font-size:var(--fs-xs);flex-shrink:0;">
+              <div data-chat-msg-bubble="${escapeHtml(m.id)}" data-msg-ts="${msgTs}" data-msg-mine="${isMe ? '1' : '0'}" data-msg-autoshare="${isAutoGeneratedShareChatMessage(m) ? '1' : '0'}" style="align-self:${isMe ? 'flex-end' : 'flex-start'};max-width:86%;padding:9px 12px;border-radius:12px;background:${isMe ? 'rgba(56,189,248,0.16)' : 'var(--card)'};border:1px solid ${isSelected ? 'var(--accent)' : (isMe ? 'var(--accent)' : 'var(--border)' )};box-shadow:${isSelected ? '0 0 0 2px var(--accent)' : 'none'};font-size:var(--fs-xs);flex-shrink:0;user-select:none;-webkit-user-select:none;transition:box-shadow 0.15s ease;">
                 <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap;">
                   <b style="color:${isMe ? 'var(--accent)' : 'var(--good)'};">${senderDisplay}</b>
                   <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
                     <span style="font-size:10px;color:var(--muted);">${timeStr}${editedBadge}</span>
-                    ${canEditMsg ? `<button type="button" class="btn btn-sm" data-edit-chat-msg="${escapeHtml(m.id)}" title="Редактировать сообщение" style="min-height:22px;padding:1px 7px;font-size:10px;font-weight:800;">Изм.</button>` : ''}
-                    <button type="button" class="btn btn-sm" data-del-chat-msg="${escapeHtml(m.id)}" title="${isMe ? 'Удалить сообщение (у себя или у всех)' : 'Удалить сообщение у себя'}" style="min-height:22px;padding:1px 7px;font-size:10px;color:var(--bad);border-color:rgba(239,68,68,0.35);">Удал.</button>
+                    <span data-chat-msg-actions="${escapeHtml(m.id)}" style="display:${isSelected ? 'inline-flex' : 'none'};align-items:center;gap:5px;">
+                      ${canEditMsg ? `
+                        <button type="button" class="btn btn-sm" data-edit-chat-msg="${escapeHtml(m.id)}" title="Редактировать сообщение (доступно 3 ч)" aria-label="Редактировать сообщение" style="width:28px;height:28px;min-height:28px;padding:0;border-radius:7px;justify-content:center;color:var(--accent);border-color:var(--accent);">
+                          <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        </button>
+                      ` : ''}
+                      <button type="button" class="btn btn-sm" data-del-chat-msg="${escapeHtml(m.id)}" title="${isMe ? 'Удалить сообщение (у себя или у всех)' : 'Удалить сообщение у себя'}" aria-label="Удалить сообщение" style="width:28px;height:28px;min-height:28px;padding:0;border-radius:7px;justify-content:center;color:var(--bad);border-color:rgba(239,68,68,0.45);">
+                        <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14zM10 11v6M14 11v6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                      </button>
+                    </span>
                   </div>
                 </div>
                 <div data-chat-msg-text="${escapeHtml(m.id)}" style="white-space:pre-wrap;line-height:1.45;color:var(--text);word-break:break-word;">${escapeHtml(String(m.text || '').replace(/<svg[\s\S]*?<\/svg>/gi, '').replace(/<[^>]+>/g, '').trim())}</div>
@@ -6664,20 +6773,39 @@ function renderFullScreenChatWindowHtml(s, ident, visibleCrews) {
             `;
           }).join('')}
         </div>
-        <!-- Нижняя панель кнопок и ввода сообщения (всегда видна!) -->
-        <div style="display:flex;flex-direction:column;gap:8px;padding:10px 12px;background:var(--panel);border-top:1px solid var(--border);flex-shrink:0;">
-          <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;width:100%;">
-            <button type="button" class="btn btn-sm" id="chatShareLocationBtn" title="Поделиться текущим местоположением" style="min-height:36px;width:100%;justify-content:center;border-color:var(--accent);color:var(--accent);font-weight:800;">
-              <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#ef4444"/></svg> Отправить геопозицию
-            </button>
-            <button type="button" class="btn btn-sm btn-good" id="chatAttachCatchBtn" title="Прикрепить карточку улова" style="min-height:36px;width:100%;justify-content:center;font-weight:800;">
-              <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg> Прикрепить улов
-            </button>
+        <!-- Нижняя панель с раскрывающимся меню вложений (+) и многострочным полем ввода (до 5 строк со скроллом) -->
+        <div style="position:relative;display:flex;flex-direction:column;gap:8px;padding:8px 10px;background:var(--panel);border-top:1px solid var(--border);flex-shrink:0;">
+          <!-- Выдвижная панель вложений (по кнопке + / скрепке, как в Telegram / Gemini) -->
+          <div id="chatAttachBottomSheet" style="display:${_isChatAttachSheetOpen ? 'flex' : 'none'};flex-direction:column;gap:10px;padding:12px 14px;background:var(--card);border:1.5px solid var(--accent);border-radius:16px;box-shadow:0 -8px 28px rgba(0,0,0,0.45);">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-size:12px;font-weight:900;color:var(--text);">Прикрепить к сообщению</span>
+              <button type="button" class="btn btn-sm" id="chatAttachSheetCloseBtn" title="Закрыть меню вложений" aria-label="Закрыть меню вложений" style="width:28px;height:28px;min-height:28px;padding:0;border-radius:50%;justify-content:center;">
+                <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+              </button>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;">
+              <button type="button" class="btn" id="chatShareLocationBtn" title="Поделиться текущим местоположением" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:12px 10px;border-radius:14px;background:var(--panel);border:1px solid var(--border);">
+                <span style="width:44px;height:44px;border-radius:50%;background:rgba(239,68,68,0.16);border:1.5px solid #ef4444;display:inline-flex;align-items:center;justify-content:center;color:#ef4444;">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(239,68,68,0.22)" stroke="currentColor" stroke-width="1.9"/><circle cx="12" cy="11" r="2.5" fill="currentColor"/></svg>
+                </span>
+                <span style="font-size:12px;font-weight:800;color:var(--text);">Геопозиция</span>
+              </button>
+              <button type="button" class="btn" id="chatAttachCatchBtn" title="Прикрепить карточку улова" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:12px 10px;border-radius:14px;background:var(--panel);border:1px solid var(--border);">
+                <span style="width:44px;height:44px;border-radius:50%;background:rgba(16,185,129,0.16);border:1.5px solid #10b981;display:inline-flex;align-items:center;justify-content:center;color:#10b981;">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.4" fill="currentColor"/></svg>
+                </span>
+                <span style="font-size:12px;font-weight:800;color:var(--text);">Улов</span>
+              </button>
+            </div>
           </div>
-          <div style="display:flex;gap:8px;align-items:center;width:100%;">
-            <input type="text" id="chatComposeInput" class="input" placeholder="${ident.isRegistered ? 'Напишите сообщение...' : 'Войдите в профиль для отправки...'}" style="flex:1;min-width:0;min-height:42px;">
-            <button type="button" class="btn btn-accent" id="chatSendMsgBtn" style="min-height:42px;padding:0 16px;flex-shrink:0;font-weight:900;">
-              <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Отправить
+          <!-- Строка ввода: кнопка вложений (+), авторасширяющееся поле до 5 строк и круглая кнопка отправки -->
+          <div style="display:flex;gap:8px;align-items:flex-end;width:100%;">
+            <button type="button" class="btn ${_isChatAttachSheetOpen ? 'btn-accent' : ''}" id="chatAttachMenuToggleBtn" title="Прикрепить геопозицию или улов" aria-label="Прикрепить геопозицию или улов" style="width:42px;height:42px;min-height:42px;padding:0;border-radius:50%;flex-shrink:0;justify-content:center;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style="transition:transform 0.2s ease;transform:${_isChatAttachSheetOpen ? 'rotate(45deg)' : 'none'};"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+            </button>
+            <textarea id="chatComposeInput" class="input" rows="1" placeholder="${ident.isRegistered ? 'Сообщение...' : 'Войдите в профиль для отправки...'}" style="flex:1;min-width:0;min-height:42px;max-height:118px;padding:10px 14px;font-size:14px;line-height:1.42;border-radius:20px;resize:none;overflow-y:auto;box-sizing:border-box;">${escapeHtml(_chatComposerDraftText)}</textarea>
+            <button type="button" class="btn btn-accent" id="chatSendMsgBtn" title="Отправить сообщение" aria-label="Отправить сообщение" style="width:42px;height:42px;min-height:42px;padding:0;border-radius:50%;flex-shrink:0;justify-content:center;">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </button>
           </div>
         </div>
@@ -6699,6 +6827,10 @@ export function mountFullScreenChatOverlayPortal(html = '') {
     }
     return null;
   }
+  const activeEl = document.activeElement;
+  const wasComposeFocused = Boolean(activeEl && activeEl.id === 'chatComposeInput');
+  const prevSelStart = wasComposeFocused ? activeEl.selectionStart : null;
+  const prevSelEnd = wasComposeFocused ? activeEl.selectionEnd : null;
   if (!portal) {
     portal = document.createElement('div');
     portal.id = 'klevFullScreenChatPortal';
@@ -6706,6 +6838,17 @@ export function mountFullScreenChatOverlayPortal(html = '') {
   }
   portal.style.display = 'block';
   portal.innerHTML = html;
+  if (wasComposeFocused) {
+    const nextInp = portal.querySelector('#chatComposeInput');
+    if (nextInp) {
+      try {
+        nextInp.focus();
+        if (typeof prevSelStart === 'number' && typeof prevSelEnd === 'number') {
+          nextInp.setSelectionRange(prevSelStart, prevSelEnd);
+        }
+      } catch (_e) {}
+    }
+  }
   return portal;
 }
 
@@ -7432,8 +7575,8 @@ function resolveLatestAdminPolicyState(db = {}) {
   const baseline = {
     policyVersion: ACTIVE_POLICY_VERSION_DEFAULT || '2026.11.10-v2.8.3',
     appVersion: ACTIVE_APP_VERSION_DEFAULT || APP_VERSION || '2.8.3',
-    appRevision: APP_REVISION || 'r230',
-    summary: 'Редакция v2.8.3 (r230): сохранность пользовательских данных при очистке кэша, единый постоянный ID рыбака на всех устройствах по логину и паролю, расчёт гидрологии и льда по данным Росгидромета (meteoinfo.ru), правила гостевого доступа и Бета-теста.',
+    appRevision: APP_REVISION || 'r231',
+    summary: 'Редакция v2.8.3 (r231): сохранность пользовательских данных при очистке кэша, единый постоянный ID рыбака на всех устройствах по логину и паролю, расчёт гидрологии и льда по данным Росгидромета (meteoinfo.ru), правила гостевого доступа и Бета-теста.',
     sections: DEFAULT_POLICY_SECTIONS
   };
   let locPol = null;
@@ -7456,7 +7599,7 @@ function resolveLatestAdminPolicyState(db = {}) {
   const resolved = {
     policyVersion: best.policyVersion || baseline.policyVersion,
     appVersion: (best.appVersion && best.appVersion !== '2.5.6') ? best.appVersion : baseline.appVersion,
-    appRevision: best.appRevision || APP_REVISION || 'r230',
+    appRevision: best.appRevision || APP_REVISION || 'r231',
     summary: (best.summary && !/v2\.5\.6|\(r22[0-9]\)/i.test(best.summary)) ? best.summary : baseline.summary,
     sections: (Array.isArray(best.sections) && best.sections.length > 0) ? best.sections : DEFAULT_POLICY_SECTIONS,
     broadcastId: best.broadcastId || '',
@@ -8916,7 +9059,7 @@ function bindAdminSectionEvents(container, users) {
     const newPolObj = {
       policyVersion: pVer,
       appVersion: aVer,
-      appRevision: APP_REVISION || 'r230',
+      appRevision: APP_REVISION || 'r231',
       effectiveDate: new Date(nowMs).toLocaleDateString('ru-RU'),
       summary: pSum,
       sections: parsedSecs,
@@ -9845,6 +9988,7 @@ function openDeleteChatMessageModal(msgId, container) {
           })
         }, 4500, 1).catch(() => {});
       }
+      _selectedChatMsgId = '';
       closeModal();
       showToast(scopeAll && isMe ? 'Сообщение удалено у всех участников' : 'Сообщение удалено у вас', 'info');
       renderChatsSection(container);
@@ -9863,6 +10007,11 @@ function openEditChatMessageModal(msgId, container) {
   if (!targetMsg || targetMsg.senderId !== ident.fisherId) return;
   if (isAutoGeneratedShareChatMessage(targetMsg)) {
     showToast('Автоматически сформированные карточки геопозиции и улова не редактируются', 'warn');
+    return;
+  }
+  const msgAgeMs = Math.max(0, Date.now() - (Number(targetMsg.ts) || 0));
+  if (msgAgeMs > CHAT_MSG_EDIT_MAX_AGE_MS) {
+    showToast('Редактирование сообщений доступно только в течение 3 часов после отправки', 'warn');
     return;
   }
   const cleanCurrent = String(targetMsg.text || '').replace(/<[^>]+>/g, '').trim();
@@ -9917,6 +10066,7 @@ function openEditChatMessageModal(msgId, container) {
         crewKey: isCrew ? encKey : '',
         peerId: !isCrew ? String(targetMsg.peerId || '').toUpperCase() : ''
       }).catch(() => {});
+      _selectedChatMsgId = '';
       closeModal();
       showToast('Сообщение изменено', 'good');
       renderChatsSection(container);
@@ -9932,16 +10082,64 @@ function bindChatViewEvents(container) {
     ...Array.from(container.querySelectorAll(sel)),
     ...(getPortal() ? Array.from(getPortal().querySelectorAll(sel)) : [])
   ];
+
+  const syncAttachSheetDom = (openState) => {
+    _isChatAttachSheetOpen = Boolean(openState);
+    const sheet = q('#chatAttachBottomSheet');
+    const toggleBtn = q('#chatAttachMenuToggleBtn');
+    if (sheet) sheet.style.display = _isChatAttachSheetOpen ? 'flex' : 'none';
+    if (toggleBtn) {
+      toggleBtn.classList.toggle('btn-accent', _isChatAttachSheetOpen);
+      const svgEl = toggleBtn.querySelector('svg');
+      if (svgEl) svgEl.style.transform = _isChatAttachSheetOpen ? 'rotate(45deg)' : 'none';
+    }
+  };
+
+  const selectChatMessageBubble = (targetMsgId = '') => {
+    _selectedChatMsgId = String(targetMsgId || '');
+    const nowTs = Date.now();
+    qAll('[data-chat-msg-bubble]').forEach(bubble => {
+      const mid = bubble.getAttribute('data-chat-msg-bubble') || '';
+      const isSel = Boolean(_selectedChatMsgId && mid === _selectedChatMsgId);
+      const isMine = bubble.getAttribute('data-msg-mine') === '1';
+      const isAuto = bubble.getAttribute('data-msg-autoshare') === '1';
+      const msgTs = Number(bubble.getAttribute('data-msg-ts')) || 0;
+      const canEditNow = isMine && !isAuto && (nowTs - msgTs <= CHAT_MSG_EDIT_MAX_AGE_MS);
+      bubble.style.boxShadow = isSel ? '0 0 0 2px var(--accent)' : 'none';
+      const actSpan = bubble.querySelector(`[data-chat-msg-actions="${mid}"]`) || bubble.querySelector('[data-chat-msg-actions]');
+      if (actSpan) {
+        actSpan.style.display = isSel ? 'inline-flex' : 'none';
+        const editBtn = actSpan.querySelector('[data-edit-chat-msg]');
+        if (editBtn) {
+          editBtn.style.display = canEditNow ? 'inline-flex' : 'none';
+        }
+      }
+    });
+  };
+
+  q('#chatAttachMenuToggleBtn')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    syncAttachSheetDom(!_isChatAttachSheetOpen);
+  });
+  q('#chatAttachSheetCloseBtn')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    syncAttachSheetDom(false);
+  });
+
   q('#chatAddThematicSpotBtn')?.addEventListener('click', () => {
     openAddThematicMapPointModal('slip');
   });
   q('#chatShareCatchTopBtn')?.addEventListener('click', () => {
     openShareCatchToChatModal(null);
   });
-  q('#chatAttachCatchBtn')?.addEventListener('click', () => {
+  q('#chatAttachCatchBtn')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    syncAttachSheetDom(false);
     openShareCatchToChatModal(null);
   });
-  q('#chatShareLocationBtn')?.addEventListener('click', async () => {
+  q('#chatShareLocationBtn')?.addEventListener('click', async (e) => {
+    if (e && e.stopPropagation) e.stopPropagation();
+    syncAttachSheetDom(false);
     if (!requireRegisteredFisherId('отправки местоположения в чат')) return;
     if (!activeChatChannelId) return;
     if (!isGeoDistributionConsentActive()) {
@@ -9979,6 +10177,8 @@ function bindChatViewEvents(container) {
   const closeFullScreenChat = () => {
     isFullScreenChatOpen = false;
     activeChatChannelId = '';
+    _selectedChatMsgId = '';
+    _isChatAttachSheetOpen = false;
     mountFullScreenChatOverlayPortal('');
     renderChatsSection(container);
   };
@@ -9989,6 +10189,87 @@ function bindChatViewEvents(container) {
       closeFullScreenChat();
     }
   });
+  q('#klevFullScreenChatDialogCard')?.addEventListener('click', (ev) => {
+    const t = ev.target;
+    if (!t || typeof t.closest !== 'function') return;
+    if (_isChatAttachSheetOpen && !t.closest('#chatAttachBottomSheet') && !t.closest('#chatAttachMenuToggleBtn')) {
+      syncAttachSheetDom(false);
+    }
+    if (_selectedChatMsgId && !t.closest('[data-edit-chat-msg]') && !t.closest('[data-del-chat-msg]') && !t.closest('[data-chat-msg-bubble]')) {
+      selectChatMessageBubble('');
+    }
+  });
+  qAll('[data-chat-msg-bubble]').forEach(bubble => {
+    const mid = bubble.getAttribute('data-chat-msg-bubble') || '';
+    if (!mid) return;
+    let holdTimer = null;
+    let startX = 0;
+    let startY = 0;
+    let longPressTriggered = false;
+    const clearHold = () => {
+      if (holdTimer) {
+        clearTimeout(holdTimer);
+        holdTimer = null;
+      }
+    };
+    const startHold = (x, y) => {
+      clearHold();
+      startX = x;
+      startY = y;
+      longPressTriggered = false;
+      holdTimer = setTimeout(() => {
+        holdTimer = null;
+        longPressTriggered = true;
+        triggerHaptic('light');
+        selectChatMessageBubble(_selectedChatMsgId === mid ? '' : mid);
+      }, 380);
+    };
+    bubble.addEventListener('touchstart', (ev) => {
+      if (ev.target && ev.target.closest && (ev.target.closest('[data-edit-chat-msg]') || ev.target.closest('[data-del-chat-msg]') || ev.target.closest('[data-chat-import-pack]'))) return;
+      const touch = ev.touches && ev.touches[0];
+      if (touch) startHold(touch.clientX, touch.clientY);
+    }, { passive: true });
+    bubble.addEventListener('touchmove', (ev) => {
+      if (!holdTimer) return;
+      const touch = ev.touches && ev.touches[0];
+      if (touch && (Math.abs(touch.clientX - startX) > 10 || Math.abs(touch.clientY - startY) > 10)) {
+        clearHold();
+      }
+    }, { passive: true });
+    bubble.addEventListener('touchend', clearHold, { passive: true });
+    bubble.addEventListener('touchcancel', clearHold, { passive: true });
+    bubble.addEventListener('mousedown', (ev) => {
+      if (ev.button !== 0) return;
+      if (ev.target && ev.target.closest && (ev.target.closest('[data-edit-chat-msg]') || ev.target.closest('[data-del-chat-msg]') || ev.target.closest('[data-chat-import-pack]'))) return;
+      startHold(ev.clientX, ev.clientY);
+    });
+    bubble.addEventListener('mousemove', (ev) => {
+      if (!holdTimer) return;
+      if (Math.abs(ev.clientX - startX) > 10 || Math.abs(ev.clientY - startY) > 10) {
+        clearHold();
+      }
+    });
+    bubble.addEventListener('mouseup', clearHold);
+    bubble.addEventListener('mouseleave', clearHold);
+    bubble.addEventListener('contextmenu', (ev) => {
+      if (ev.target && ev.target.closest && (ev.target.closest('[data-edit-chat-msg]') || ev.target.closest('[data-del-chat-msg]') || ev.target.closest('[data-chat-import-pack]'))) return;
+      ev.preventDefault();
+      clearHold();
+      longPressTriggered = true;
+      triggerHaptic('light');
+      selectChatMessageBubble(_selectedChatMsgId === mid ? '' : mid);
+    });
+    bubble.addEventListener('click', (ev) => {
+      if (ev.target && ev.target.closest && (ev.target.closest('[data-edit-chat-msg]') || ev.target.closest('[data-del-chat-msg]') || ev.target.closest('[data-chat-import-pack]'))) return;
+      if (longPressTriggered) {
+        longPressTriggered = false;
+        return;
+      }
+      if (_selectedChatMsgId) {
+        selectChatMessageBubble('');
+      }
+    });
+  });
   qAll('[data-select-chat-chan]').forEach(el => {
     el.addEventListener('click', (e) => {
       if (e.target.closest('[data-del-chat-chan]')) return;
@@ -9997,6 +10278,8 @@ function bindChatViewEvents(container) {
       if (!chanId) return;
       activeChatChannelId = chanId;
       isFullScreenChatOpen = true;
+      _selectedChatMsgId = '';
+      _isChatAttachSheetOpen = false;
       if (typeof window !== 'undefined' && typeof window.__KLEV_PUSH_BACK_GUARD__ === 'function') {
         window.__KLEV_PUSH_BACK_GUARD__('chatFullScreen');
       }
@@ -10015,6 +10298,7 @@ function bindChatViewEvents(container) {
   });
   qAll('[data-del-chat-msg]').forEach(btn => {
     btn.addEventListener('click', (e) => {
+      e.preventDefault();
       e.stopPropagation();
       const msgId = btn.getAttribute('data-del-chat-msg');
       openDeleteChatMessageModal(msgId, container);
@@ -10022,6 +10306,7 @@ function bindChatViewEvents(container) {
   });
   qAll('[data-edit-chat-msg]').forEach(btn => {
     btn.addEventListener('click', (e) => {
+      e.preventDefault();
       e.stopPropagation();
       const msgId = btn.getAttribute('data-edit-chat-msg');
       openEditChatMessageModal(msgId, container);
@@ -10218,11 +10503,28 @@ function bindChatViewEvents(container) {
   const chatInput = q('#chatComposeInput');
   const chatSendBtn = q('#chatSendMsgBtn');
   if (chatInput && chatSendBtn) {
+    const syncComposerHeight = () => {
+      chatInput.style.height = 'auto';
+      const maxH = 118; // ~5 строк с прокруткой
+      const nextH = Math.min(maxH, Math.max(42, chatInput.scrollHeight || 42));
+      chatInput.style.height = `${nextH}px`;
+      chatInput.style.overflowY = (chatInput.scrollHeight || 0) > maxH ? 'auto' : 'hidden';
+    };
+    syncComposerHeight();
+    chatInput.addEventListener('input', () => {
+      _chatComposerDraftText = chatInput.value || '';
+      syncComposerHeight();
+    });
+    chatInput.addEventListener('focus', () => {
+      if (_isChatAttachSheetOpen) syncAttachSheetDom(false);
+    });
     const triggerSend = async () => {
       if (!requireRegisteredFisherId('отправки сообщения')) return;
       const val = (chatInput.value || '').trim();
       if (!val || !activeChatChannelId) return;
       chatInput.value = '';
+      _chatComposerDraftText = '';
+      syncComposerHeight();
       if (activeChatChannelId.startsWith('crew:')) {
         const cKey = activeChatChannelId.replace(/^crew:/, '');
         await sendFishermanChatMessage({ channelId: activeChatChannelId, text: val, crewKey: cKey });
@@ -10238,7 +10540,7 @@ function bindChatViewEvents(container) {
     };
     chatSendBtn.addEventListener('click', triggerSend);
     chatInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
         triggerSend();
       }
@@ -10605,6 +10907,29 @@ export async function init(container, chatsContainer = null, adminContainer = nu
       });
     }
   }
+  setTimeout(() => {
+    try {
+      if (typeof window !== 'undefined' && window.AndroidBridge && typeof window.AndroidBridge.consumePendingNotificationAction === 'function') {
+        const rawAct = window.AndroidBridge.consumePendingNotificationAction();
+        if (rawAct && String(rawAct).trim()) {
+          navigateToNotificationTarget(String(rawAct).trim());
+        }
+      }
+      if (typeof window !== 'undefined' && window.location && window.location.search && window.location.search.includes('notif_action=') ) {
+        const params = new URLSearchParams(window.location.search);
+        const navAct = params.get('notif_action');
+        if (navAct) navigateToNotificationTarget(navAct);
+      }
+      if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator && !window.__KLEV_SW_NOTIF_BOUND__) {
+        window.__KLEV_SW_NOTIF_BOUND__ = true;
+        navigator.serviceWorker.addEventListener('message', (ev) => {
+          if (ev.data && ev.data.type === 'KLEV_NOTIFICATION_CLICK' && ev.data.payload) {
+            navigateToNotificationTarget(ev.data.payload);
+          }
+        });
+      }
+    } catch (_e) {}
+  }, 320);
   syncAdminWhitelistWithCloud(null).then(() => {
     const stNow = store.getState();
     const curFid = stNow?.userProfile?.fisherId || '';

@@ -1,11 +1,11 @@
-import { RU } from '../../i18n/ru.js?v=2.8.3-r230';
-import { events } from '../../core/events.js?v=2.8.3-r230';
-import { storage } from '../../core/storage.js?v=2.8.3-r230';
-import { store } from '../../core/store.js?v=2.8.3-r230';
-import { fetchWithTimeout, fallbackChain } from '../../core/http.js?v=2.8.3-r230';
-import { formatLocalYYYYMMDD, fmtHM, fmtDeltaPress } from '../../core/format.js?v=2.8.3-r230';
-import { WATER_PROFILES } from '../../data/waters.js?v=2.8.3-r230';
-import { createPill, showToast } from '../../ui/components.js?v=2.8.3-r230';
+import { RU } from '../../i18n/ru.js?v=2.8.3-r231';
+import { events } from '../../core/events.js?v=2.8.3-r231';
+import { storage } from '../../core/storage.js?v=2.8.3-r231';
+import { store } from '../../core/store.js?v=2.8.3-r231';
+import { fetchWithTimeout, fallbackChain } from '../../core/http.js?v=2.8.3-r231';
+import { formatLocalYYYYMMDD, fmtHM, fmtDeltaPress } from '../../core/format.js?v=2.8.3-r231';
+import { WATER_PROFILES } from '../../data/waters.js?v=2.8.3-r231';
+import { createPill, showToast } from '../../ui/components.js?v=2.8.3-r231';
 const DIRS = ['С', 'СВ', 'В', 'ЮВ', 'Ю', 'ЮЗ', 'З', 'СЗ'];
 
 /**

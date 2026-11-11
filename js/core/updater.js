@@ -1,18 +1,18 @@
-import { store } from './store.js?v=2.8.3-r230';
+import { store } from './store.js?v=2.8.3-r231';
 /**
  * @file updater.js
- * @description Модуль строгого контроля версий (v2.8.3 r230):
+ * @description Модуль строгого контроля версий (v2.8.3 r231):
  * - В Android APK: запрос на обновление выводится ТОЛЬКО если версия/ревизия на сервере СТРОГО ВЫШЕ установленной в APK.
  * - На Сайте и в PWA: проверка выхода новой версии с уведомлением о необходимости обновления кэша
  *   и бережной очисткой устаревшего кэша и технических куки БЕЗ удаления пользовательских данных (точек, журнала, профиля, чатов, офлайн-карт).
  */
-import { APP_VERSION, APP_BUILD_NUMBER, APP_REVISION, APP_DISPLAY_VERSION, RELEASE_CACHE_KEY, CURRENT_RELEASE_INFO } from './config.js?v=2.8.3-r230';
-import { showToast } from '../ui/components.js?v=2.8.3-r230';
+import { APP_VERSION, APP_BUILD_NUMBER, APP_REVISION, APP_DISPLAY_VERSION, RELEASE_CACHE_KEY, CURRENT_RELEASE_INFO } from './config.js?v=2.8.3-r231';
+import { showToast } from '../ui/components.js?v=2.8.3-r231';
 
 export const PUBLIC_SITE_ORIGIN = 'https://klevpro.ru';
 export const APK_MANIFEST_PATH = '/apk/apk-version.json';
 export const DEFAULT_APK_DOWNLOAD_URL = 'https://klevpro.ru/apk/klev-pro-v2.8.3.apk';
-export const APK_BANNER_DISMISSED_KEY = 'klev_pro_hide_apk_banner_v2.8.3_r230';
+export const APK_BANNER_DISMISSED_KEY = 'klev_pro_hide_apk_banner_v2.8.3_r231';
 const WEB_CACHE_SYNCED_VER_KEY = 'klev_pro_web_cache_synced_ver_v2';
 
 let pendingSwRegistration = null;
