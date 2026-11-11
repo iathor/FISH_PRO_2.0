@@ -1,7 +1,7 @@
 // @file bot/cloudflare-worker-bot.js — @KlevProClubBot (V.2.1.1)
 // Компактная сборка для Cloudflare Workers (115 рыб, 491 водоём, 609 городов РФ + Triple-Engine $0 DB + E2EE Relay + Обмен точками Круга/Экипажа/SOS + Уникальные Региональные ID FP_89AAA001 & Эксклюзивный VIP ID владельца FP_89VIP089 + Секретная Серверная Консоль Супер-Админа)
 
-const WORKER_VERSION = '2.9.0-r234';
+const WORKER_VERSION = '2.9.0-r235';
 const RESERVE_ID_TTL_MS = 24 * 60 * 60 * 1000; // Временный резервный ID живёт строго не более 24 часов (суток)
 const deletedFisherIdsSet = new Set(); // Удалённые вручную через Админ-панель ID (защита от повторной фоновой вставки)
 const rateBuckets = new Map();
@@ -2027,8 +2027,8 @@ const BOT_WATERS_DB = [
 ["р. Юрюзань","Юрюзань",2,0,0,2.1,55.38,57.9,230],
 ["р. Ик (Октябрьский / Туймазы)","Ик",2,0,0,2.4,54.48,53.47,231],
 ["оз. Аслыкуль (Башкортостан)","Озеро Аслыкуль",2,2,4,5.5,54.31,54.58,232],
-["оз. Кандрыкуль (Башкортостан)","Озеро Кандрыкуль",2,2,4,6.5,54.5,54.05,234],
-["оз. Банное (Якты-Куль)","Озеро Банное",2,2,4,10,53.59,58.63,234],
+["оз. Кандрыкуль (Башкортостан)","Озеро Кандрыкуль",2,2,4,6.5,54.5,54.05,235],
+["оз. Банное (Якты-Куль)","Озеро Банное",2,2,4,10,53.59,58.63,235],
 ["Нугушское вдхр.","",2,2,8,9,53.05,56.45,235],["Юмагузинское вдхр.","",2,2,8,12,52.96,56.55,236],
 ["Кармановское вдхр. (ГРЭС)","Кармановское вдхр.",2,4,6,5.5,56.22,54.33,237],
 ["оз. Шамсутдин (Бирск)","Озеро Шамсутдин",2,3,16,3.2,55.44,55.48,238],
@@ -2310,7 +2310,7 @@ const BOT_CITIES_DB = [
 ["Новоаганск", 61.946, 76.663, 1],
 ["Когалым", 62.264, 74.482, 1],
 ["Нефтеюганск", 61.099, 72.603, 1],
-["Пойковский", 61.234, 71.883, 1],
+["Пойковский", 61.235, 71.883, 1],
 ["Пыть-Ях", 60.75, 72.858, 1],
 ["Салым", 60.062, 71.478, 1],
 ["Ханты-Мансийск", 61, 69.02, 1],
@@ -4620,12 +4620,12 @@ function computeFishScoreForWeather(fishObj, w) {
 
 function makeAppButton(text, deepAppUrl, isPrivateChat = true) {
  let finalUrl = String(deepAppUrl || 'https://klevpro.ru/');
- if (!finalUrl.includes('v=r234')) {
+ if (!finalUrl.includes('v=r235')) {
   const hashIdx = finalUrl.indexOf('#');
   const basePart = hashIdx >= 0 ? finalUrl.slice(0, hashIdx) : finalUrl;
   const hashPart = hashIdx >= 0 ? finalUrl.slice(hashIdx) : '';
   const sep = basePart.includes('?') ? '&' : '?';
-  finalUrl = `${basePart}${sep}v=r234&tma=1${hashPart}`;
+  finalUrl = `${basePart}${sep}v=r235&tma=1${hashPart}`;
  }
  if (isPrivateChat) {
   return { text, web_app: { url: finalUrl } };
@@ -6679,12 +6679,12 @@ const DEFAULT_WORKER_POLICY_SECTIONS = [{"id": "general_and_platforms", "title":
 const policyStateStore = {
  policyVersion: '2026.11.10-v2.8.3',
  appVersion: '2.8.3',
- appRevision: 'r234',
+ appRevision: 'r235',
  effectiveDate: '10 ноября 2026 г.',
  title: 'Политика конфиденциальности, Пользовательское соглашение и Правила обработки геоданных «Клёв ПРО 2.0»',
  updatedAt: '2026-11-10T03:35:00Z',
  broadcastId: 'POL_BC_INIT_283',
- summary: 'Редакция v2.8.3 (r234): защита пользовательских данных в разделе «Данные приложения» Android APK (Context.getFilesDir), единая привязка постоянного ID к логину и паролю на всех устройствах, калибровка гидрологии по сводкам Росгидромета (meteoinfo.ru) и динамическая рассылка политики без пересборки.',
+ summary: 'Редакция v2.8.3 (r235): защита пользовательских данных в разделе «Данные приложения» Android APK (Context.getFilesDir), единая привязка постоянного ID к логину и паролю на всех устройствах, калибровка гидрологии по сводкам Росгидромета (meteoinfo.ru) и динамическая рассылка политики без пересборки.',
  sections: DEFAULT_WORKER_POLICY_SECTIONS
 };
 const userConsentsStore = new Map();

@@ -38,3 +38,7 @@ button:focus-visible, select:focus-visible, input:focus-visible {
     scroll-behavior: auto !important;
   }
 }
+
+html, body, .app-main, [data-route-section] {
+  overflow-anchor: none;
+}

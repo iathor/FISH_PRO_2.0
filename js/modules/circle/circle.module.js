@@ -9,16 +9,16 @@
  * - Выделенная вкладка « Чаты» на нижней панели навигации + отправка карточки улова прямо в чат.
  * - Закрытый режим Супер-Админа (только для Владельца + управляемая База Администраторов с синхронизацией).
  */
-import { events } from '../../core/events.js?v=2.9.0-r234';
-import { store } from '../../core/store.js?v=2.9.0-r234';
-import { storage, calcGeoDistanceKm, safeJsonParse } from '../../core/storage.js?v=2.9.0-r234';
-import { router } from '../../core/router.js?v=2.9.0-r234';
-import { APP_VERSION, APP_REVISION, APP_DISPLAY_VERSION, getSeasonalBaitsForContext, SPOT_CATEGORIES } from '../../core/config.js?v=2.9.0-r234';
-import { detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.9.0-r234';
-import { findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.9.0-r234';
-import { WATER_PROFILES } from '../../data/waters.js?v=2.9.0-r234';
-import { FISH_DB } from '../../data/species.js?v=2.9.0-r234';
-import { escapeHtml, isAnonymousCallsignValid, createPill, showToast, openModal, closeModal, copyFisherIdToClipboard, openConfirmDeleteModal, openUserAgreementModal, isUserAgreementAccepted, downloadFileCrossPlatform, triggerSystemNotificationCrossPlatform, requestSystemNotificationsAccess, flashHighlightElement, isPolicyVersionAccepted, getSavedPolicyConsentMeta, POLICY_CONSENT_META_KEY, ACTIVE_POLICY_VERSION_DEFAULT, ACTIVE_APP_VERSION_DEFAULT, saveRemotePolicyToClientEnv, getRemotePolicyFromClientEnv, parsePolicySectionsFromEditableText, formatPolicySectionsToEditableText, DEFAULT_POLICY_SECTIONS, isGeoDistributionConsentActive, ensureGeoDistributionConsent, setGeoDistributionConsentState } from '../../ui/components.js?v=2.9.0-r234';
+import { events } from '../../core/events.js?v=2.9.0-r235';
+import { store } from '../../core/store.js?v=2.9.0-r235';
+import { storage, calcGeoDistanceKm, safeJsonParse } from '../../core/storage.js?v=2.9.0-r235';
+import { router } from '../../core/router.js?v=2.9.0-r235';
+import { APP_VERSION, APP_REVISION, APP_DISPLAY_VERSION, getSeasonalBaitsForContext, SPOT_CATEGORIES } from '../../core/config.js?v=2.9.0-r235';
+import { detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.9.0-r235';
+import { findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.9.0-r235';
+import { WATER_PROFILES } from '../../data/waters.js?v=2.9.0-r235';
+import { FISH_DB } from '../../data/species.js?v=2.9.0-r235';
+import { escapeHtml, isAnonymousCallsignValid, createPill, showToast, openModal, closeModal, copyFisherIdToClipboard, openConfirmDeleteModal, openUserAgreementModal, isUserAgreementAccepted, downloadFileCrossPlatform, triggerSystemNotificationCrossPlatform, requestSystemNotificationsAccess, flashHighlightElement, isPolicyVersionAccepted, getSavedPolicyConsentMeta, POLICY_CONSENT_META_KEY, ACTIVE_POLICY_VERSION_DEFAULT, ACTIVE_APP_VERSION_DEFAULT, saveRemotePolicyToClientEnv, getRemotePolicyFromClientEnv, parsePolicySectionsFromEditableText, formatPolicySectionsToEditableText, DEFAULT_POLICY_SECTIONS, isGeoDistributionConsentActive, ensureGeoDistributionConsent, setGeoDistributionConsentState } from '../../ui/components.js?v=2.9.0-r235';
 import {
   RELAY_WORKER_URL,
   buildShareUrls,
@@ -31,9 +31,9 @@ import {
   syncToTelegramCloud,
   readFromTelegramCloud,
   triggerHaptic
-} from '../../core/telegram.js?v=2.9.0-r234';
-import { setLocation } from '../geo/geo.module.js?v=2.9.0-r234';
-import { calcDynamicRig } from '../forecast/forecast.module.js?v=2.9.0-r234';
+} from '../../core/telegram.js?v=2.9.0-r235';
+import { setLocation } from '../geo/geo.module.js?v=2.9.0-r235';
+import { calcDynamicRig } from '../forecast/forecast.module.js?v=2.9.0-r235';
 export const CREW_TTL_MS = 72 * 60 * 60 * 1000;
 /**
  * Вычисляет точное время окончания действия ссылки на длинную экспедицию:
@@ -7569,8 +7569,8 @@ function resolveLatestAdminPolicyState(db = {}) {
   const baseline = {
     policyVersion: ACTIVE_POLICY_VERSION_DEFAULT || '2026.11.10-v2.8.3',
     appVersion: ACTIVE_APP_VERSION_DEFAULT || APP_VERSION || '2.8.3',
-    appRevision: APP_REVISION || 'r234',
-    summary: 'Редакция v2.8.3 (r234): сохранность пользовательских данных при очистке кэша, единый постоянный ID рыбака на всех устройствах по логину и паролю, расчёт гидрологии и льда по данным Росгидромета (meteoinfo.ru), правила гостевого доступа и Бета-теста.',
+    appRevision: APP_REVISION || 'r235',
+    summary: 'Редакция v2.8.3 (r235): сохранность пользовательских данных при очистке кэша, единый постоянный ID рыбака на всех устройствах по логину и паролю, расчёт гидрологии и льда по данным Росгидромета (meteoinfo.ru), правила гостевого доступа и Бета-теста.',
     sections: DEFAULT_POLICY_SECTIONS
   };
   let locPol = null;
@@ -7593,7 +7593,7 @@ function resolveLatestAdminPolicyState(db = {}) {
   const resolved = {
     policyVersion: best.policyVersion || baseline.policyVersion,
     appVersion: (best.appVersion && best.appVersion !== '2.5.6') ? best.appVersion : baseline.appVersion,
-    appRevision: best.appRevision || APP_REVISION || 'r234',
+    appRevision: best.appRevision || APP_REVISION || 'r235',
     summary: (best.summary && !/v2\.5\.6|\(r22[0-9]\)/i.test(best.summary)) ? best.summary : baseline.summary,
     sections: (Array.isArray(best.sections) && best.sections.length > 0) ? best.sections : DEFAULT_POLICY_SECTIONS,
     broadcastId: best.broadcastId || '',
@@ -9053,7 +9053,7 @@ function bindAdminSectionEvents(container, users) {
     const newPolObj = {
       policyVersion: pVer,
       appVersion: aVer,
-      appRevision: APP_REVISION || 'r234',
+      appRevision: APP_REVISION || 'r235',
       effectiveDate: new Date(nowMs).toLocaleDateString('ru-RU'),
       summary: pSum,
       sections: parsedSecs,

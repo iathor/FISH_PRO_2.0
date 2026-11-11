@@ -1,19 +1,19 @@
-import { getFilteredFishList, openFishDetail } from '../fish/fish.module.js?v=2.9.0-r234';
-import { logBlankTrip } from '../log/log.module.js?v=2.9.0-r234';
-import { getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.9.0-r234';
-import { RU } from '../../i18n/ru.js?v=2.9.0-r234';
-import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.9.0-r234';
-import { events } from '../../core/events.js?v=2.9.0-r234';
-import { storage } from '../../core/storage.js?v=2.9.0-r234';
-import { store } from '../../core/store.js?v=2.9.0-r234';
-import { formatLocalYYYYMMDD, fmtDeltaPress, fmtHM } from '../../core/format.js?v=2.9.0-r234';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.9.0-r234';
-import { FISH_DB } from '../../data/species.js?v=2.9.0-r234';
-import { renderFiveFish , renderFishVisual } from '../../ui/svg.js?v=2.9.0-r234';
-import { createPill, showToast, openModal, flashHighlightElement } from '../../ui/components.js?v=2.9.0-r234';
-import { computeIceSafetyIndex } from '../weather/weather.module.js?v=2.9.0-r234';
-import { evaluateCircleFieldConfirmation, requireRegisteredFisherId } from '../circle/circle.module.js?v=2.9.0-r234';
-import { isTelegramWebApp, getTelegramUser, shareToTelegramChat, openBotChatInTelegram, buildForecastShareUrls, TELEGRAM_BOT_USERNAME } from '../../core/telegram.js?v=2.9.0-r234';
+import { getFilteredFishList, openFishDetail } from '../fish/fish.module.js?v=2.9.0-r235';
+import { logBlankTrip } from '../log/log.module.js?v=2.9.0-r235';
+import { getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.9.0-r235';
+import { RU } from '../../i18n/ru.js?v=2.9.0-r235';
+import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.9.0-r235';
+import { events } from '../../core/events.js?v=2.9.0-r235';
+import { storage } from '../../core/storage.js?v=2.9.0-r235';
+import { store } from '../../core/store.js?v=2.9.0-r235';
+import { formatLocalYYYYMMDD, fmtDeltaPress, fmtHM } from '../../core/format.js?v=2.9.0-r235';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.9.0-r235';
+import { FISH_DB } from '../../data/species.js?v=2.9.0-r235';
+import { renderFiveFish , renderFishVisual } from '../../ui/svg.js?v=2.9.0-r235';
+import { createPill, showToast, openModal, flashHighlightElement } from '../../ui/components.js?v=2.9.0-r235';
+import { computeIceSafetyIndex } from '../weather/weather.module.js?v=2.9.0-r235';
+import { evaluateCircleFieldConfirmation, requireRegisteredFisherId } from '../circle/circle.module.js?v=2.9.0-r235';
+import { isTelegramWebApp, getTelegramUser, shareToTelegramChat, openBotChatInTelegram, buildForecastShareUrls, TELEGRAM_BOT_USERNAME } from '../../core/telegram.js?v=2.9.0-r235';
 /**
  * Список морских, проходных и полупроходных видов, которые заходят в пресные реки
  * (big_river, small_river) и эстуарии (sea_gulf) при нересте, сезонных миграциях или приливах/отливах.
@@ -2045,7 +2045,9 @@ export function render(container) {
       store.dispatch({ type: 'SET_DAY', payload: 2 });
     }
   }
-  const savedWinScrollY = typeof window !== 'undefined' ? window.scrollY : 0;
+  const splashEl = typeof document !== 'undefined' ? document.getElementById('appSplashScreen') : null;
+  const isSplashActive = Boolean(splashEl && !splashEl.classList.contains('splash-hide'));
+  const savedWinScrollY = (typeof window !== 'undefined' && !isSplashActive) ? window.scrollY : 0;
   const savedWeekScroll = container.querySelector('.week-strip')?.scrollLeft || 0;
   const savedHourlyScroll = container.querySelector('.bite-timeline')?.scrollLeft || 0;
   if (!container.querySelector('#fcWeekBox') || !container.querySelector('#fcStickySpeciesBar')) {
@@ -2068,8 +2070,12 @@ export function render(container) {
     const hs = container.querySelector('.bite-timeline');
     if (hs) hs.scrollLeft = savedHourlyScroll;
   }
-  if (typeof window !== 'undefined' && savedWinScrollY > 0 && Math.abs(window.scrollY - savedWinScrollY) > 4) {
-    window.scrollTo({ top: savedWinScrollY, behavior: 'instant' });
+  if (typeof window !== 'undefined') {
+    if (isSplashActive) {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    } else if (savedWinScrollY > 0 && Math.abs(window.scrollY - savedWinScrollY) > 4) {
+      window.scrollTo({ top: savedWinScrollY, behavior: 'instant' });
+    }
   }
 }
 function updateLiveWeightLabelsAndScores(container) {

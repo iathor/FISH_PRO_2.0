@@ -1,14 +1,14 @@
-import { renderFishVisual } from '../../ui/svg.js?v=2.9.0-r234';
-import { MAP_LAYERS, SPOT_CATEGORIES, getCompatibleMethods } from '../../core/config.js?v=2.9.0-r234';
-import { events } from '../../core/events.js?v=2.9.0-r234';
-import { storage, safeJsonParse } from '../../core/storage.js?v=2.9.0-r234';
-import { router } from '../../core/router.js?v=2.9.0-r234';
-import { store } from '../../core/store.js?v=2.9.0-r234';
-import { fetchWithTimeout } from '../../core/http.js?v=2.9.0-r234';
-import { installShortcut, syncInstallButtons } from '../../core/pwa.js?v=2.9.0-r234';
-import { triggerHaptic } from '../../core/telegram.js?v=2.9.0-r234';
-import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.9.0-r234';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.9.0-r234';
+import { renderFishVisual } from '../../ui/svg.js?v=2.9.0-r235';
+import { MAP_LAYERS, SPOT_CATEGORIES, getCompatibleMethods } from '../../core/config.js?v=2.9.0-r235';
+import { events } from '../../core/events.js?v=2.9.0-r235';
+import { storage, safeJsonParse } from '../../core/storage.js?v=2.9.0-r235';
+import { router } from '../../core/router.js?v=2.9.0-r235';
+import { store } from '../../core/store.js?v=2.9.0-r235';
+import { fetchWithTimeout } from '../../core/http.js?v=2.9.0-r235';
+import { installShortcut, syncInstallButtons } from '../../core/pwa.js?v=2.9.0-r235';
+import { triggerHaptic } from '../../core/telegram.js?v=2.9.0-r235';
+import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.9.0-r235';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.9.0-r235';
 import {
   RUSSIA_CITIES,
   RUSSIA_WATERS,
@@ -16,12 +16,12 @@ import {
   getNearestRussianSettlements,
   getNearestRussianWaters,
   getWaterTypeShortTag
-} from '../../data/russia-waters.js?v=2.9.0-r234';
-import { FISH_DB } from '../../data/species.js?v=2.9.0-r234';
-import { escapeHtml, createPill, showToast, openModal, closeModal, openConfirmDeleteModal, downloadFileCrossPlatform, flashHighlightElement, isGeoDistributionConsentActive, ensureGeoDistributionConsent, setGeoDistributionConsentState } from '../../ui/components.js?v=2.9.0-r234';
-import { fetchWeather, weatherModule } from '../weather/weather.module.js?v=2.9.0-r234';
-import { calcDayBest } from '../forecast/forecast.module.js?v=2.9.0-r234';
-import { computeHexPolygonForCircle, getEffectiveCircleRadiusKm, getCircleHexDecayState, canUserAccessCrewItem, getCurrentFisherIdentity, isUserAdmin, isCurrentUserBetaTester, verifyBetaTesterStatusFromCloud, isCircleItemMine, isCircleItemHidden, openAddThematicMapPointModal } from '../circle/circle.module.js?v=2.9.0-r234';
+} from '../../data/russia-waters.js?v=2.9.0-r235';
+import { FISH_DB } from '../../data/species.js?v=2.9.0-r235';
+import { escapeHtml, createPill, showToast, openModal, closeModal, openConfirmDeleteModal, downloadFileCrossPlatform, flashHighlightElement, isGeoDistributionConsentActive, ensureGeoDistributionConsent, setGeoDistributionConsentState } from '../../ui/components.js?v=2.9.0-r235';
+import { fetchWeather, weatherModule } from '../weather/weather.module.js?v=2.9.0-r235';
+import { calcDayBest } from '../forecast/forecast.module.js?v=2.9.0-r235';
+import { computeHexPolygonForCircle, getEffectiveCircleRadiusKm, getCircleHexDecayState, canUserAccessCrewItem, getCurrentFisherIdentity, isUserAdmin, isCurrentUserBetaTester, verifyBetaTesterStatusFromCloud, isCircleItemMine, isCircleItemHidden, openAddThematicMapPointModal } from '../circle/circle.module.js?v=2.9.0-r235';
 // ============================================================================
 // АВТОНОМНОЕ ЯДРО, РЕПРОЕКТОР EPSG:3395 И ИНСПЕКТОР ПРОВЕРКИ ОФЛАЙН-КАРТ (ФАЗА 1 • v2)
 // Хранение в формате инлайн-DataURL (100% сохранность после перезапуска Android WebView)
@@ -3343,15 +3343,23 @@ export async function searchPlaceByQuery(query) {
     })
   ) : null;
 
-  const exactCityMatch = !isExplicitWaterQuery ? RUSSIA_CITIES.find(c => {
-    const cn = c.name.toLowerCase().replace(/ё/g, 'е');
-    if (cn.includes('озеро ') || cn.includes('оз.')) return false;
-    return cn === qLower || cn === qClean;
-  }) : null;
+  const exactCityMatch = !isExplicitWaterQuery ? (
+    RUSSIA_CITIES.find(c => {
+      const cn = c.name.toLowerCase().replace(/ё/g, 'е');
+      if (cn.includes('озеро ') || cn.includes('оз.')) return false;
+      const cnBase = cn.split('(')[0].replace(/^(поселок|пгт|село|с\.|город|г\.)\s+/i, '').trim();
+      return cn === qLower || cn === qClean || cnBase === qLower || cnBase === qClean;
+    }) ||
+    RUSSIA_CITIES.find(c => {
+      const cn = c.name.toLowerCase().replace(/ё/g, 'е');
+      if (cn.includes('озеро ') || cn.includes('оз.')) return false;
+      const cnBase = cn.split('(')[0].trim();
+      return qClean.length >= 3 && (cnBase.startsWith(qClean) || qClean.endsWith(cnBase));
+    })
+  ) : null;
 
   if (matchedWater && (isExplicitWaterQuery || !exactCityMatch)) {
     const exactCoords = await resolveExactWaterCoordinates(matchedWater, q);
-    await setLocation(exactCoords.lat, exactCoords.lon, true, 12);
     store.dispatch({
       type: 'SET_LOCATION_LABELS',
       payload: {
@@ -3370,6 +3378,7 @@ export async function searchPlaceByQuery(query) {
       }
     });
     showToast(`Выбран водоём: ${matchedWater.name} (${exactCoords.lat.toFixed(4)}°N, ${exactCoords.lon.toFixed(4)}°E)`, 'good');
+    await setLocation(exactCoords.lat, exactCoords.lon, true, 12);
     return;
   }
 
@@ -3384,7 +3393,7 @@ export async function searchPlaceByQuery(query) {
     return cn.includes(qClean) || qClean.includes(cn.split('(')[0].trim());
   });
   if (matchedCity) {
-    await setLocation(matchedCity.lat, matchedCity.lon, true, 11);
+    const nearW = getNearestRussianWaters(matchedCity.lat, matchedCity.lon, detectBasinByCoords(matchedCity.lat, matchedCity.lon), false, 5, 80);
     store.dispatch({
       type: 'SET_LOCATION_LABELS',
       payload: {
@@ -3394,7 +3403,18 @@ export async function searchPlaceByQuery(query) {
         locLabel: matchedCity.name
       }
     });
+    if (nearW && nearW[0]) {
+      store.dispatch({
+        type: 'SET_WATER',
+        payload: {
+          water: nearW[0].wType || 'big_river',
+          depth: nearW[0].defDepth || 3.0,
+          selectedWaterName: nearW[0].name || matchedCity.name
+        }
+      });
+    }
     showToast(`Переход к населённому пункту: ${matchedCity.name}`, 'good');
+    await setLocation(matchedCity.lat, matchedCity.lon, true, 11);
     return;
   }
   try {
@@ -4694,6 +4714,7 @@ export function noteUserMapTouchInteraction() {
   _lastUserMapTouchTs = Date.now();
 }
 
+let _startupHomeCoords = null;
 export function getTrueUserGpsCoords(stateObj = null) {
   if (_liveGpsFix && _liveGpsFix.hasRealFix && Number.isFinite(_liveGpsFix.lat) && Number.isFinite(_liveGpsFix.lon)) {
     return { lat: _liveGpsFix.lat, lon: _liveGpsFix.lon, acc: _liveGpsFix.acc || 10, isRealGps: true };
@@ -4702,7 +4723,20 @@ export function getTrueUserGpsCoords(stateObj = null) {
     return { lat: _lastRealUserGps.lat, lon: _lastRealUserGps.lon, acc: _lastRealUserGps.acc || 15, isRealGps: true };
   }
   const s = stateObj || store.getState();
-  return { lat: Number(s.lat || 66.0833), lon: Number(s.lon || 76.6333), acc: 25, isRealGps: false };
+  if (Array.isArray(s?.savedSpots) && s.savedSpots.length > 0) {
+    const homeSpot = s.savedSpots.find(sp => sp && /дом|база|работа/i.test(String(sp.name || '')) && Number.isFinite(Number(sp.lat)) && Number.isFinite(Number(sp.lon)))
+      || s.savedSpots.find(sp => sp && Number.isFinite(Number(sp.lat)) && Number.isFinite(Number(sp.lon)));
+    if (homeSpot) {
+      return { lat: Number(homeSpot.lat), lon: Number(homeSpot.lon), acc: 20, isRealGps: false };
+    }
+  }
+  if (!_startupHomeCoords && Number.isFinite(Number(s?.lat)) && Number.isFinite(Number(s?.lon))) {
+    _startupHomeCoords = { lat: Number(s.lat), lon: Number(s.lon) };
+  }
+  if (_startupHomeCoords) {
+    return { lat: _startupHomeCoords.lat, lon: _startupHomeCoords.lon, acc: 25, isRealGps: false };
+  }
+  return { lat: 66.0845, lon: 76.6809, acc: 25, isRealGps: false };
 }
 
 function _saveRealUserGpsCoords(lat, lon, acc = 12) {
@@ -6290,6 +6324,9 @@ export function renderMap(mapBoxEl) {
       try { mapInstance.remove(); } catch (e) {}
     }
     overlayLayerGroup = null;
+    _arcRouteDraftLayerGroup = null;
+    _riverArrowsLayerGroup = null;
+    _liveUserGpsMarker = null;
     const yandexCrs = getYandexEPSG3395CRS();
     mapInstance = L.map(mapBoxEl, { ...(yandexCrs ? { crs: yandexCrs } : {}), minZoom: 4, maxZoom: 18 }).setView([targetLat, targetLon], targetZoom);
     _lastMapBoxW = boxW;
@@ -6766,18 +6803,22 @@ const ARC_TRANSPORT_MODES = {
   }
 };
 
-// Встроенный гидрографический каркас ключевых рек ЯНАО / ХМАО (р. Седэяха, р. Евояха, р. Тамчара-Яха, р. Пур, р. Хадуттэ, р. Таз, р. Надым, р. Обь)
-// Гарантирует 100% водную маршрутизацию лодки по руслам рек даже при переходах между притоками и магистральными реками
+// Встроенный высокоточный гидрографический каркас рек ЯНАО / ХМАО (р. Седэяха, р. Тамчара-Яха, р. Варенга-Яха, р. Евояха, р. Пур, р. Хадуттэ, р. Надым, р. Таз)
+// С плотной детализацией изгибов русел внутри Нового Уренгоя, Коротчаево и Уренгоя для 100% водной маршрутизации лодки
 const BUILTIN_RIVER_HYDRO_WAYS = [
   {
     id: 'hydro_sedeyakha',
     type: 'river',
     name: 'р. Седэяха',
     pts: [
-      [66.1180, 76.4800], [66.1125, 76.5350], [66.1060, 76.5820], [66.0985, 76.6210],
-      [66.0910, 76.6480], [66.0855, 76.6720], [66.0825, 76.6950], [66.0802, 76.7210],
-      [66.0775, 76.7480], [66.0740, 76.7790], [66.0695, 76.8120], [66.0630, 76.8490],
-      [66.0565, 76.8850], [66.0490, 76.9220], [66.0410, 76.9560]
+      [66.1180, 76.4800], [66.1145, 76.5120], [66.1110, 76.5410], [66.1072, 76.5690],
+      [66.1030, 76.5940], [66.0985, 76.6150], [66.0942, 76.6310], [66.0902, 76.6435],
+      [66.0872, 76.6525], [66.0852, 76.6605], [66.0840, 76.6685], [66.0832, 76.6765],
+      [66.0825, 76.6845], [66.0818, 76.6925], [66.0812, 76.7010], [66.0806, 76.7105],
+      [66.0798, 76.7205], [66.0788, 76.7310], [66.0778, 76.7420], [66.0765, 76.7540],
+      [66.0750, 76.7665], [66.0732, 76.7800], [66.0712, 76.7950], [66.0690, 76.8110],
+      [66.0660, 76.8290], [66.0628, 76.8480], [66.0595, 76.8670], [66.0560, 76.8860],
+      [66.0522, 76.9050], [66.0485, 76.9240], [66.0448, 76.9410], [66.0410, 76.9560]
     ]
   },
   {
@@ -6785,8 +6826,18 @@ const BUILTIN_RIVER_HYDRO_WAYS = [
     type: 'river',
     name: 'р. Тамчара-Яха',
     pts: [
-      [66.0450, 76.5800], [66.0560, 76.6150], [66.0660, 76.6480], [66.0750, 76.6780],
-      [66.0825, 76.6950]
+      [66.0450, 76.5800], [66.0510, 76.5980], [66.0570, 76.6160], [66.0625, 76.6330],
+      [66.0675, 76.6490], [66.0720, 76.6625], [66.0760, 76.6735], [66.0795, 76.6805],
+      [66.0825, 76.6845]
+    ]
+  },
+  {
+    id: 'hydro_varengayakha',
+    type: 'river',
+    name: 'р. Варенга-Яха',
+    pts: [
+      [66.1280, 76.6250], [66.1190, 76.6520], [66.1100, 76.6780], [66.1010, 76.7020],
+      [66.0925, 76.7210], [66.0850, 76.7330], [66.0778, 76.7420]
     ]
   },
   {
@@ -6794,11 +6845,12 @@ const BUILTIN_RIVER_HYDRO_WAYS = [
     type: 'river',
     name: 'р. Евояха',
     pts: [
-      [65.9400, 76.6200], [65.9720, 76.7100], [66.0020, 76.8050], [66.0240, 76.8850],
-      [66.0410, 76.9560], [66.0385, 77.0150], [66.0340, 77.0850], [66.0280, 77.1650],
-      [66.0210, 77.2500], [66.0130, 77.3450], [66.0040, 77.4400], [65.9950, 77.5350],
-      [65.9860, 77.6300], [65.9780, 77.7250], [65.9710, 77.8150], [65.9660, 77.9050],
-      [65.9620, 77.9850], [65.9590, 78.0650], [65.9560, 78.1350], [65.9540, 78.1850]
+      [65.9400, 76.6200], [65.9600, 76.6750], [65.9800, 76.7350], [66.0000, 76.7980],
+      [66.0160, 76.8550], [66.0290, 76.9080], [66.0410, 76.9560], [66.0395, 76.9950],
+      [66.0365, 77.0450], [66.0325, 77.1050], [66.0280, 77.1650], [66.0210, 77.2500],
+      [66.0130, 77.3450], [66.0040, 77.4400], [65.9950, 77.5350], [65.9860, 77.6300],
+      [65.9780, 77.7250], [65.9710, 77.8150], [65.9660, 77.9050], [65.9620, 77.9850],
+      [65.9590, 78.0650], [65.9560, 78.1350], [65.9540, 78.1850]
     ]
   },
   {
@@ -6808,9 +6860,11 @@ const BUILTIN_RIVER_HYDRO_WAYS = [
     pts: [
       [64.9200, 77.8200], [65.0800, 77.8600], [65.2400, 77.9100], [65.4000, 77.9600],
       [65.5500, 78.0200], [65.6800, 78.0750], [65.7800, 78.1150], [65.8500, 78.1450],
-      [65.9050, 78.1680], [65.9540, 78.1850], [66.0050, 78.2020], [66.0580, 78.2150],
-      [66.1150, 78.2280], [66.1750, 78.2420], [66.2400, 78.2600], [66.3200, 78.2850],
-      [66.4200, 78.3100], [66.5400, 78.3300], [66.6800, 78.3400], [66.8200, 78.3200]
+      [65.8900, 78.1600], [65.9180, 78.1720], [65.9380, 78.1790], [65.9540, 78.1850],
+      [65.9680, 78.1920], [65.9850, 78.1980], [66.0050, 78.2020], [66.0320, 78.2090],
+      [66.0580, 78.2150], [66.0880, 78.2220], [66.1150, 78.2280], [66.1750, 78.2420],
+      [66.2400, 78.2600], [66.3200, 78.2850], [66.4200, 78.3100], [66.5400, 78.3300],
+      [66.6800, 78.3400], [66.8200, 78.3200]
     ]
   },
   {
@@ -6841,13 +6895,109 @@ const BUILTIN_RIVER_HYDRO_WAYS = [
   }
 ];
 
+// Встроенный каркас объездных дорог, зимников и периметральных магистралей (Новый Уренгой — Коротчаево — Уренгой)
+// Исключает проезд снегохода, велосипеда или авто сквозь дома даже при отсутствии ответа внешних серверов OSRM/Overpass
+const BUILTIN_SNOWMOBILE_BYPASS_WAYS = [
+  {
+    id: 'bypass_north_ring',
+    hw: 'track',
+    pts: [
+      [66.0920, 76.6320], [66.0922, 76.6480], [66.0915, 76.6650], [66.0912, 76.6820],
+      [66.0908, 76.7010], [66.0900, 76.7250], [66.0885, 76.7520], [66.0860, 76.7820]
+    ]
+  },
+  {
+    id: 'street_26_kpss',
+    hw: 'secondary',
+    pts: [
+      [66.0858, 76.6320], [66.0860, 76.6480], [66.0862, 76.6565], [66.0865, 76.6680],
+      [66.0868, 76.6805], [66.0872, 76.6950], [66.0875, 76.7120]
+    ]
+  },
+  {
+    id: 'street_leningradsky',
+    hw: 'primary',
+    pts: [
+      [66.0808, 76.6350], [66.0810, 76.6480], [66.0812, 76.6565], [66.0814, 76.6680],
+      [66.0816, 76.6805], [66.0818, 76.6950]
+    ]
+  },
+  {
+    id: 'street_geologorazvedchikov',
+    hw: 'tertiary',
+    pts: [
+      [66.0762, 76.6380], [66.0764, 76.6565], [66.0766, 76.6680], [66.0768, 76.6805],
+      [66.0770, 76.6950], [66.0765, 76.7150]
+    ]
+  },
+  {
+    id: 'bypass_south_taezhnaya',
+    hw: 'track',
+    pts: [
+      [66.0715, 76.6320], [66.0718, 76.6565], [66.0720, 76.6680], [66.0722, 76.6805],
+      [66.0725, 76.6950], [66.0720, 76.7200], [66.0700, 76.7500], [66.0665, 76.7820]
+    ]
+  },
+  {
+    id: 'meridian_west_obyezdnaya',
+    hw: 'track',
+    pts: [
+      [66.0715, 76.6320], [66.0762, 76.6380], [66.0808, 76.6350], [66.0858, 76.6320], [66.0920, 76.6320]
+    ]
+  },
+  {
+    id: 'meridian_yubileynaya',
+    hw: 'secondary',
+    pts: [
+      [66.0718, 76.6565], [66.0764, 76.6565], [66.0812, 76.6565], [66.0862, 76.6565], [66.0915, 76.6650]
+    ]
+  },
+  {
+    id: 'meridian_molodezhnaya',
+    hw: 'tertiary',
+    pts: [
+      [66.0720, 76.6680], [66.0766, 76.6680], [66.0814, 76.6680], [66.0865, 76.6680], [66.0915, 76.6650]
+    ]
+  },
+  {
+    id: 'meridian_internatsionalnaya',
+    hw: 'secondary',
+    pts: [
+      [66.0722, 76.6805], [66.0768, 76.6805], [66.0816, 76.6805], [66.0868, 76.6805], [66.0912, 76.6820]
+    ]
+  },
+  {
+    id: 'meridian_east_industrial',
+    hw: 'track',
+    pts: [
+      [66.0725, 76.6950], [66.0770, 76.6950], [66.0818, 76.6950], [66.0872, 76.6950], [66.0908, 76.7010]
+    ]
+  },
+  {
+    id: 'meridian_far_east_zimnik',
+    hw: 'track',
+    pts: [
+      [66.0665, 76.7820], [66.0732, 76.7800], [66.0800, 76.7810], [66.0860, 76.7820]
+    ]
+  },
+  {
+    id: 'highway_nur_korotchaevo_urengoy',
+    hw: 'track',
+    pts: [
+      [66.0725, 76.6950], [66.0665, 76.7820], [66.0580, 76.9200], [66.0480, 77.1200],
+      [66.0350, 77.3500], [66.0150, 77.6000], [65.9900, 77.8500], [65.9650, 78.0500],
+      [65.9470, 78.1490], [65.9550, 78.2500], [65.9630, 78.3690]
+    ]
+  }
+];
+
 function _getBuiltinRiverWaysNear(minLat, minLon, maxLat, maxLon) {
   return BUILTIN_RIVER_HYDRO_WAYS.filter(w =>
     w.pts.some(p => p[0] >= minLat - 0.35 && p[0] <= maxLat + 0.35 && p[1] >= minLon - 0.55 && p[1] <= maxLon + 0.55)
   );
 }
 
-async function _queryOverpassJson(queryStr, timeoutMs = 5500) {
+async function _queryOverpassJson(queryStr, timeoutMs = 4500) {
   if (_forceOfflineTestMode || (typeof navigator !== 'undefined' && navigator.onLine === false)) return null;
   const isApk = typeof window !== 'undefined' && Boolean(window.AndroidBridge);
   const wrapApkProxy = (u) => isApk ? `https://appassets.androidplatform.net/__klev_net_proxy__?url=${encodeURIComponent(u)}` : u;
@@ -6870,11 +7020,13 @@ async function _queryOverpassJson(queryStr, timeoutMs = 5500) {
   return null;
 }
 
-// П. 5: Загрузка реальных водных путей из OpenStreetMap и отрисовка стрелочек течения СТРОГО по руслам рек
+const _osmRiverInFlightByKey = new Set();
+
+// П. 5: Загрузка реальных водных путей из OpenStreetMap и отрисовка стрелочек течения СТРОГО по руслам рек (без возможности рекурсивного зацикливания!)
 async function fetchStrictRiverWaysForMapBounds(lat, lon) {
   const key = `${Number(lat).toFixed(1)}_${Number(lon).toFixed(1)}`;
-  const builtinNear = _getBuiltinRiverWaysNear(lat - 0.25, lon - 0.45, lat + 0.25, lon + 0.45);
   if (_osmRiverWaysCache.has(key)) return _osmRiverWaysCache.get(key);
+  const builtinNear = _getBuiltinRiverWaysNear(lat - 0.25, lon - 0.45, lat + 0.25, lon + 0.45);
   try {
     const rawSaved = localStorage.getItem(`klev_osm_river_ways_${key}`);
     if (rawSaved) {
@@ -6887,16 +7039,19 @@ async function fetchStrictRiverWaysForMapBounds(lat, lon) {
     }
   } catch (_e) {}
 
-  if (_osmRiverFetchInFlight || _forceOfflineTestMode || (typeof navigator !== 'undefined' && !navigator.onLine)) {
-    return _osmRiverWaysCache.get(key) || builtinNear;
+  // Сразу записываем базовый набор в кэш до сетевого запроса, чтобы повторные вызовы renderStrictRiverFlowArrowsOnMap НИКОГДА не входили в цикл!
+  _osmRiverWaysCache.set(key, builtinNear);
+
+  if (_osmRiverInFlightByKey.has(key) || _forceOfflineTestMode || (typeof navigator !== 'undefined' && !navigator.onLine)) {
+    return builtinNear;
   }
-  _osmRiverFetchInFlight = true;
+  _osmRiverInFlightByKey.add(key);
   try {
     const dLat = 0.14;
     const dLon = 0.26;
     const bbox = `${(lat - dLat).toFixed(3)},${(lon - dLon).toFixed(3)},${(lat + dLat).toFixed(3)},${(lon + dLon).toFixed(3)}`;
-    const q = `[out:json][timeout:8];way["waterway"~"^(river|stream|canal)$"](${bbox});out geom;`;
-    const data = await _queryOverpassJson(q, 5500);
+    const q = `[out:json][timeout:6];way["waterway"~"^(river|stream|canal)$"](${bbox});out geom;`;
+    const data = await _queryOverpassJson(q, 4500);
     if (data && Array.isArray(data.elements)) {
       const ways = [];
       for (const el of data.elements) {
@@ -6912,22 +7067,21 @@ async function fetchStrictRiverWaysForMapBounds(lat, lon) {
       const merged = [...ways, ...builtinNear];
       _osmRiverWaysCache.set(key, merged);
       try {
-        localStorage.setItem(`klev_osm_river_ways_${key}`, JSON.stringify(ways.slice(0, 60)));
+        if (ways.length > 0) {
+          localStorage.setItem(`klev_osm_river_ways_${key}`, JSON.stringify(ways.slice(0, 50)));
+        }
       } catch (_e) {}
-      _osmRiverFetchInFlight = false;
+      _osmRiverInFlightByKey.delete(key);
       return merged;
     }
   } catch (_e) {}
-  _osmRiverFetchInFlight = false;
-  if (builtinNear.length > 0) {
-    _osmRiverWaysCache.set(key, builtinNear);
-  }
+  _osmRiverInFlightByKey.delete(key);
   return builtinNear;
 }
 
-function renderStrictRiverFlowArrowsOnMap() {
+function renderStrictRiverFlowArrowsOnMap(allowNetworkFetch = true) {
   if (!mapInstance || typeof L === 'undefined') return;
-  if (!_riverArrowsLayerGroup) {
+  if (!_riverArrowsLayerGroup || _riverArrowsLayerGroup._map !== mapInstance) {
     _riverArrowsLayerGroup = L.layerGroup().addTo(mapInstance);
   } else {
     _riverArrowsLayerGroup.clearLayers();
@@ -6940,19 +7094,26 @@ function renderStrictRiverFlowArrowsOnMap() {
   const key = `${Number(center.lat).toFixed(1)}_${Number(center.lng).toFixed(1)}`;
   const cachedWays = _osmRiverWaysCache.get(key);
   if (!cachedWays) {
-    fetchStrictRiverWaysForMapBounds(center.lat, center.lng).then((ways) => {
-      if (ways && ways.length > 0 && mapInstance) renderStrictRiverFlowArrowsOnMap();
-    }).catch(() => {});
+    if (allowNetworkFetch) {
+      fetchStrictRiverWaysForMapBounds(center.lat, center.lng).then((ways) => {
+        if (ways && ways.length > 0 && mapInstance) {
+          renderStrictRiverFlowArrowsOnMap(false);
+        }
+      }).catch(() => {});
+    }
     return;
   }
 
   const bounds = typeof mapInstance.getBounds === 'function' ? mapInstance.getBounds() : null;
-  const stepNodes = zoom >= 14 ? 4 : (zoom >= 12 ? 7 : 11);
+  const stepNodes = zoom >= 14 ? 4 : (zoom >= 12 ? 7 : 10);
+  let arrowsAdded = 0;
 
   for (const w of cachedWays) {
+    if (arrowsAdded >= 48) break;
     const pts = w.pts;
     if (!Array.isArray(pts) || pts.length < 3) continue;
     for (let i = 1; i < pts.length - 1; i += stepNodes) {
+      if (arrowsAdded >= 48) break;
       const p1 = pts[i];
       const p2 = pts[i + 1];
       if (!p1 || !p2) continue;
@@ -6977,14 +7138,15 @@ function renderStrictRiverFlowArrowsOnMap() {
         })
       });
       _riverArrowsLayerGroup.addLayer(arrowMarker);
+      arrowsAdded++;
     }
   }
 }
 
-// Отрисовка черновика точек маршрута (НЕ соединяются до нажатия «Закончить и построить маршрут»!) и построенного маршрута
+// Отрисовка черновика точек маршрута и построенного маршрута с цветовой индикацией способа передвижения
 function renderArcRouteDraftAndActiveOnMap() {
   if (!mapInstance || typeof L === 'undefined') return;
-  if (!_arcRouteDraftLayerGroup) {
+  if (!_arcRouteDraftLayerGroup || _arcRouteDraftLayerGroup._map !== mapInstance) {
     _arcRouteDraftLayerGroup = L.layerGroup().addTo(mapInstance);
   } else {
     _arcRouteDraftLayerGroup.clearLayers();
@@ -7020,16 +7182,27 @@ function renderArcRouteDraftAndActiveOnMap() {
     });
   }
 
-  // 3. Построенный маршрут (после нажатия «Закончить и построить маршрут» / «Завершить»)
+  // 3. Построенный маршрут (с мгновенным обновлением при смене способа передвижения!)
   if (_arcBuiltRoute && Array.isArray(_arcBuiltRoute.points) && _arcBuiltRoute.points.length >= 2) {
-    const col = _arcBuiltRoute.transport === 'boat' ? '#06b6d4' : (_arcBuiltRoute.transport === 'snowmobile' ? '#f59e0b' : '#0ea5e9');
-    const line = L.polyline(_arcBuiltRoute.points, {
+    const tr = _arcBuiltRoute.transport || _arcTransportMode || 'car';
+    const colorByTransport = {
+      car: '#0ea5e9',
+      snowmobile: '#f59e0b',
+      bike: '#10b981',
+      boat: '#06b6d4',
+      walk: '#a855f7'
+    };
+    const col = colorByTransport[tr] || '#0ea5e9';
+    const dashByTransport = tr === 'walk' ? '6, 6' : (tr === 'snowmobile' ? '10, 5' : null);
+    const lineOpts = {
       color: col,
       weight: 5.5,
-      opacity: 0.94,
+      opacity: 0.95,
       lineJoin: 'round',
       lineCap: 'round'
-    });
+    };
+    if (dashByTransport) lineOpts.dashArray = dashByTransport;
+    const line = L.polyline(_arcBuiltRoute.points, lineOpts);
     _arcRouteDraftLayerGroup.addLayer(line);
 
     const endPt = _arcBuiltRoute.points[_arcBuiltRoute.points.length - 1];
@@ -7038,7 +7211,7 @@ function renderArcRouteDraftAndActiveOnMap() {
         className: 'klev-arc-finish-pin',
         iconSize: [26, 26],
         iconAnchor: [13, 13],
-        html: `<div style="width:26px;height:26px;border-radius:999px;background:#10b981;border:2.5px solid #ffffff;color:#ffffff;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(0,0,0,0.6);">
+        html: `<div style="width:26px;height:26px;border-radius:999px;background:${col};border:2.5px solid #ffffff;color:#ffffff;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(0,0,0,0.6);">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M5 3v18M5 4h13l-2.5 4.5L18 13H5" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>`
       })
@@ -7047,8 +7220,8 @@ function renderArcRouteDraftAndActiveOnMap() {
   }
 }
 
-// Интерполяция длинных сегментов полилинии для плотного графа рек и зимников
-function _densifyWayGeometry(pts, maxStepKm = 0.85) {
+// Плотная интерполяция сегментов рек (шаг 50 м для лодки) и зимников
+function _densifyWayGeometry(pts, maxStepKm = 0.06) {
   if (!Array.isArray(pts) || pts.length < 2) return pts || [];
   const out = [pts[0]];
   for (let i = 0; i < pts.length - 1; i++) {
@@ -7056,7 +7229,7 @@ function _densifyWayGeometry(pts, maxStepKm = 0.85) {
     const p2 = pts[i + 1];
     const d = calcHaversineKm(p1[0], p1[1], p2[0], p2[1]);
     if (d > maxStepKm) {
-      const steps = Math.min(40, Math.ceil(d / maxStepKm));
+      const steps = Math.min(80, Math.ceil(d / maxStepKm));
       for (let s = 1; s < steps; s++) {
         const t = s / steps;
         out.push([p1[0] + (p2[0] - p1[0]) * t, p1[1] + (p2[1] - p1[1]) * t]);
@@ -7067,15 +7240,18 @@ function _densifyWayGeometry(pts, maxStepKm = 0.85) {
   return out;
 }
 
-// Построение связного графа рек (для лодки), объездных дорог/зимников с обходом домов и воды (для снегохода), велодорожек и троп
+// Построение связного графа:
+// - для лодки (boat): СТРОГО по руслам рек и протокам (шаг 50 м + связка притоков), без привязки к автомобильным дорогам!
+// - для снегохода (snowmobile): по объездным дорогам, зимникам, просекам и тропам в обход домов и с избеганием открытых водоёмов!
+// - для велосипеда (bike) и пешком (walk): по тропам, велодорожкам и дорогам.
 async function _buildOsmNetworkPathBetween(a, b, transportMode = 'car') {
   try {
     const spanLat = Math.abs(a[0] - b[0]);
     const spanLon = Math.abs(a[1] - b[1]);
     if (spanLat > 2.6 || spanLon > 4.2) return null;
 
-    const padLat = transportMode === 'boat' ? Math.max(0.08, spanLat * 0.28) : Math.max(0.035, spanLat * 0.22);
-    const padLon = transportMode === 'boat' ? Math.max(0.14, spanLon * 0.28) : Math.max(0.055, spanLon * 0.22);
+    const padLat = transportMode === 'boat' ? Math.max(0.06, spanLat * 0.25) : Math.max(0.025, spanLat * 0.20);
+    const padLon = transportMode === 'boat' ? Math.max(0.10, spanLon * 0.25) : Math.max(0.040, spanLon * 0.20);
     const minLat = Math.min(a[0], b[0]) - padLat;
     const maxLat = Math.max(a[0], b[0]) + padLat;
     const minLon = Math.min(a[1], b[1]) - padLon;
@@ -7086,20 +7262,18 @@ async function _buildOsmNetworkPathBetween(a, b, transportMode = 'car') {
     if (!_forceOfflineTestMode && (typeof navigator === 'undefined' || navigator.onLine !== false)) {
       let q = '';
       if (transportMode === 'boat') {
-        q = `[out:json][timeout:8];way["waterway"~"^(river|stream|canal|fairway)$"](${bbox});out geom;`;
+        q = `[out:json][timeout:6];way["waterway"~"^(river|stream|canal|fairway)$"](${bbox});out geom;`;
       } else if (transportMode === 'snowmobile') {
-        const includeBuildings = (spanLat < 0.25 && spanLon < 0.35);
-        q = includeBuildings
-          ? `[out:json][timeout:8];(way["highway"~"^(track|path|service|unclassified|residential|tertiary|secondary|primary|trunk|living_street|footway|cycleway|winter_road)$"](${bbox});way["building"](${bbox});way["natural"="water"](${bbox}););out geom;`
-          : `[out:json][timeout:8];(way["highway"~"^(track|path|service|unclassified|residential|tertiary|secondary|primary|trunk|winter_road)$"](${bbox});way["natural"="water"](${bbox}););out geom;`;
+        // Не запрашиваем way["building"], чтобы не вызывать таймаут Overpass на городах; дороги и тропы в OSM всегда огибают дома!
+        q = `[out:json][timeout:6];way["highway"~"^(track|path|footway|cycleway|service|unclassified|residential|living_street|tertiary|secondary|primary|trunk|winter_road)$"](${bbox});out geom;`;
       } else if (transportMode === 'walk') {
-        q = `[out:json][timeout:7];way["highway"~"^(footway|path|track|pedestrian|steps|residential|service|living_street|unclassified|tertiary|secondary|cycleway)$"](${bbox});out geom;`;
+        q = `[out:json][timeout:6];way["highway"~"^(footway|path|track|pedestrian|steps|residential|service|living_street|unclassified|tertiary|secondary|cycleway)$"](${bbox});out geom;`;
       } else if (transportMode === 'bike') {
-        q = `[out:json][timeout:7];way["highway"~"^(cycleway|path|track|residential|service|living_street|unclassified|tertiary|secondary|primary)$"](${bbox});out geom;`;
+        q = `[out:json][timeout:6];way["highway"~"^(cycleway|path|track|residential|service|living_street|unclassified|tertiary|secondary|primary)$"](${bbox});out geom;`;
       } else {
-        q = `[out:json][timeout:7];way["highway"~"^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|service|track|living_street)$"](${bbox});out geom;`;
+        q = `[out:json][timeout:6];way["highway"~"^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|service|track|living_street)$"](${bbox});out geom;`;
       }
-      const data = await _queryOverpassJson(q, 5800);
+      const data = await _queryOverpassJson(q, 4200);
       if (data && Array.isArray(data.elements)) {
         elements = data.elements;
       }
@@ -7126,18 +7300,40 @@ async function _buildOsmNetworkPathBetween(a, b, transportMode = 'car') {
     };
 
     const wayEndpoints = [];
-    const buildingBoxes = [];
-    const waterBoxes = [];
 
-    // Для лодки всегда включаем встроенный гидрографический каркас рек + кэш рек
-    if (transportMode === 'boat') {
-      const builtinWays = _getBuiltinRiverWaysNear(minLat, minLon, maxLat, maxLon);
-      for (const bw of builtinWays) {
-        const densePts = _densifyWayGeometry(bw.pts, 0.75);
+    // Для сухопутных режимов (снегоход, велосипед, пешком, авто) подключаем опорную сеть объездных дорог, зимников и улиц в обход домов
+    if (transportMode !== 'boat') {
+      for (const rw of BUILTIN_SNOWMOBILE_BYPASS_WAYS) {
+        if (!rw.pts.some(p => p[0] >= minLat - 0.35 && p[0] <= maxLat + 0.35 && p[1] >= minLon - 0.55 && p[1] <= maxLon + 0.55)) continue;
+        const densePts = _densifyWayGeometry(rw.pts, 0.08);
+        let wFactor = 1.0;
+        if (transportMode === 'snowmobile') {
+          wFactor = rw.hw === 'track' ? 0.48 : 0.95;
+        } else if (transportMode === 'car') {
+          wFactor = rw.hw === 'track' ? 1.35 : 0.72;
+        } else if (transportMode === 'bike') {
+          wFactor = rw.hw === 'tertiary' || rw.hw === 'track' ? 0.68 : 0.92;
+        } else if (transportMode === 'walk') {
+          wFactor = rw.hw === 'tertiary' || rw.hw === 'secondary' ? 0.65 : 0.95;
+        }
         let prevNode = null;
         for (let i = 0; i < densePts.length; i++) {
           const curNode = getOrAddNode(densePts[i][0], densePts[i][1]);
-          if (prevNode) addEdge(prevNode, curNode, 0.92);
+          if (prevNode) addEdge(prevNode, curNode, wFactor);
+          prevNode = curNode;
+        }
+      }
+    }
+
+    // Для лодки всегда включаем встроенный гидрографический каркас рек + кэш рек с шагом 50 метров (0.05 км)
+    if (transportMode === 'boat') {
+      const builtinWays = _getBuiltinRiverWaysNear(minLat, minLon, maxLat, maxLon);
+      for (const bw of builtinWays) {
+        const densePts = _densifyWayGeometry(bw.pts, 0.05);
+        let prevNode = null;
+        for (let i = 0; i < densePts.length; i++) {
+          const curNode = getOrAddNode(densePts[i][0], densePts[i][1]);
+          if (prevNode) addEdge(prevNode, curNode, 0.90);
           if (i === 0 || i === densePts.length - 1) wayEndpoints.push(curNode);
           prevNode = curNode;
         }
@@ -7146,11 +7342,11 @@ async function _buildOsmNetworkPathBetween(a, b, transportMode = 'car') {
         if (!Array.isArray(cachedList)) return;
         for (const cw of cachedList) {
           if (!Array.isArray(cw.pts) || cw.pts.length < 2) continue;
-          const densePts = _densifyWayGeometry(cw.pts, 0.75);
+          const densePts = _densifyWayGeometry(cw.pts, 0.05);
           let prevNode = null;
           for (let i = 0; i < densePts.length; i++) {
             const curNode = getOrAddNode(densePts[i][0], densePts[i][1]);
-            if (prevNode) addEdge(prevNode, curNode, 0.95);
+            if (prevNode) addEdge(prevNode, curNode, 0.92);
             if (i === 0 || i === densePts.length - 1) wayEndpoints.push(curNode);
             prevNode = curNode;
           }
@@ -7158,47 +7354,31 @@ async function _buildOsmNetworkPathBetween(a, b, transportMode = 'car') {
       });
     }
 
+    const stepKm = transportMode === 'boat' ? 0.05 : 0.15;
     for (const el of elements) {
       if (el.type !== 'way' || !Array.isArray(el.geometry) || el.geometry.length < 2) continue;
-      if (el.tags?.building) {
-        let bMinLat = 90, bMaxLat = -90, bMinLon = 180, bMaxLon = -180;
-        for (const g of el.geometry) {
-          if (g.lat < bMinLat) bMinLat = g.lat;
-          if (g.lat > bMaxLat) bMaxLat = g.lat;
-          if (g.lon < bMinLon) bMinLon = g.lon;
-          if (g.lon > bMaxLon) bMaxLon = g.lon;
-        }
-        buildingBoxes.push([bMinLat - 0.00018, bMinLon - 0.00028, bMaxLat + 0.00018, bMaxLon + 0.00028]);
-        continue;
-      }
-      if (el.tags?.natural === 'water' || el.tags?.waterway === 'riverbank') {
-        let wMinLat = 90, wMaxLat = -90, wMinLon = 180, wMaxLon = -180;
-        for (const g of el.geometry) {
-          if (g.lat < wMinLat) wMinLat = g.lat;
-          if (g.lat > wMaxLat) wMaxLat = g.lat;
-          if (g.lon < wMinLon) wMinLon = g.lon;
-          if (g.lon > wMaxLon) wMaxLon = g.lon;
-        }
-        waterBoxes.push([wMinLat, wMinLon, wMaxLat, wMaxLon]);
-        continue;
-      }
-
       const hw = String(el.tags?.highway || el.tags?.waterway || '');
+      const isBridge = Boolean(el.tags?.bridge && el.tags.bridge !== 'no');
       let wFactor = 1.0;
       if (transportMode === 'boat') {
-        wFactor = hw === 'river' ? 0.92 : 1.0;
+        wFactor = hw === 'river' ? 0.90 : 0.98;
       } else if (transportMode === 'snowmobile') {
-        if (/^(track|path|winter_road|unclassified|service)$/.test(hw)) wFactor = 0.68;
-        else if (/^(tertiary|secondary|residential|living_street)$/.test(hw)) wFactor = 0.88;
-        else wFactor = 1.05;
-      } else if (transportMode === 'walk' && /^(footway|path|track|pedestrian|steps)$/.test(hw)) {
-        wFactor = 0.82;
-      } else if (transportMode === 'bike' && /^(cycleway|path|track|residential|service)$/.test(hw)) {
-        wFactor = 0.85;
+        // Снегоход выбирает объездные дороги, просёлки, зимники и тропы (0.48), избегая жилых дворов (1.45) и мостов/пересечений воды (2.8)
+        if (/^(track|path|winter_road|unclassified|cycleway|footway)$/.test(hw)) wFactor = 0.48;
+        else if (/^(tertiary|secondary|trunk|primary)$/.test(hw)) wFactor = 0.78;
+        else if (/^(service|residential|living_street)$/.test(hw)) wFactor = 1.45;
+        if (isBridge) wFactor *= 2.8;
+      } else if (transportMode === 'walk') {
+        if (/^(footway|path|pedestrian|steps|track)$/.test(hw)) wFactor = 0.65;
+        else if (/^(residential|service|living_street)$/.test(hw)) wFactor = 0.90;
+        else wFactor = 1.25;
+      } else if (transportMode === 'bike') {
+        if (/^(cycleway|path|track|service|residential)$/.test(hw)) wFactor = 0.68;
+        else wFactor = 1.15;
       }
 
       const rawPts = el.geometry.map(g => [Number(g.lat), Number(g.lon)]);
-      const densePts = _densifyWayGeometry(rawPts, transportMode === 'boat' ? 0.75 : 0.45);
+      const densePts = _densifyWayGeometry(rawPts, stepKm);
       let prevNode = null;
       for (let i = 0; i < densePts.length; i++) {
         const curNode = getOrAddNode(densePts[i][0], densePts[i][1]);
@@ -7210,8 +7390,7 @@ async function _buildOsmNetworkPathBetween(a, b, transportMode = 'car') {
       }
     }
 
-    // Для лодки: сшиваем концы притоков и сегментов рек с ближайшими узлами других рек (в радиусе до 2.2 км),
-    // чтобы маршрут непрерывно шёл из притока (например, р. Седэяха) в р. Евояха и далее в р. Пур
+    // Для лодки: сшиваем устья притоков с основными реками (в радиусе до 2.2 км)
     if (transportMode === 'boat' && nodes.size >= 2) {
       const allNodesArr = Array.from(nodes.values());
       for (const ep of wayEndpoints) {
@@ -7220,98 +7399,15 @@ async function _buildOsmNetworkPathBetween(a, b, transportMode = 'car') {
         for (const cand of allNodesArr) {
           if (cand.key === ep.key || ep.adj.has(cand.key)) continue;
           const d = calcHaversineKm(ep.lat, ep.lon, cand.lat, cand.lon);
-          if (d <= 0.45) {
-            addEdge(ep, cand, 1.15);
+          if (d <= 0.35) {
+            addEdge(ep, cand, 1.10);
           } else if (d < bestDist) {
             bestDist = d;
             bestOther = cand;
           }
         }
         if (bestOther && bestDist <= 2.2) {
-          addEdge(ep, bestOther, 1.35);
-        }
-      }
-    }
-
-    // Для снегохода: если между полевыми дорогами/просеками и точкой назначения есть разрыв по тундре/снегу,
-    // добавляем обходную сетку манёвра, которая СТРОГО обходит дома (buildingBoxes) и избегает открытых водоёмов (waterBoxes)
-    if (transportMode === 'snowmobile') {
-      const ptInBoxes = (lat, lon, boxes) => {
-        for (let i = 0; i < boxes.length; i++) {
-          const bx = boxes[i];
-          if (lat >= bx[0] && lat <= bx[2] && lon >= bx[1] && lon <= bx[3]) return true;
-        }
-        return false;
-      };
-      const segHitsBuildings = (lat1, lon1, lat2, lon2) => {
-        if (!buildingBoxes.length) return false;
-        for (let s = 1; s <= 5; s++) {
-          const t = s / 6;
-          if (ptInBoxes(lat1 + (lat2 - lat1) * t, lon1 + (lon2 - lon1) * t, buildingBoxes)) return true;
-        }
-        return false;
-      };
-      const segCrossesWater = (lat1, lon1, lat2, lon2) => {
-        for (let s = 1; s <= 3; s++) {
-          const t = s / 4;
-          const pLat = lat1 + (lat2 - lat1) * t;
-          const pLon = lon1 + (lon2 - lon1) * t;
-          if (ptInBoxes(pLat, pLon, waterBoxes)) return true;
-          for (const rw of BUILTIN_RIVER_HYDRO_WAYS) {
-            for (const rp of rw.pts) {
-              if (calcHaversineKm(pLat, pLon, rp[0], rp[1]) < 0.14) return true;
-            }
-          }
-        }
-        return false;
-      };
-
-      const gridSteps = 14;
-      const dLatStep = (maxLat - minLat) / gridSteps;
-      const dLonStep = (maxLon - minLon) / gridSteps;
-      const gridNodes = [];
-      for (let r = 0; r <= gridSteps; r++) {
-        const row = [];
-        for (let c = 0; c <= gridSteps; c++) {
-          const gLat = minLat + r * dLatStep;
-          const gLon = minLon + c * dLonStep;
-          if (ptInBoxes(gLat, gLon, buildingBoxes)) {
-            row.push(null);
-            continue;
-          }
-          const gn = getOrAddNode(gLat, gLon);
-          row.push(gn);
-        }
-        gridNodes.push(row);
-      }
-      for (let r = 0; r <= gridSteps; r++) {
-        for (let c = 0; c <= gridSteps; c++) {
-          const cur = gridNodes[r]?.[c];
-          if (!cur) continue;
-          const dirs = [[0, 1], [1, 0], [1, 1], [1, -1]];
-          for (const [dr, dc] of dirs) {
-            const nbr = gridNodes[r + dr]?.[c + dc];
-            if (!nbr) continue;
-            if (segHitsBuildings(cur.lat, cur.lon, nbr.lat, nbr.lon)) continue;
-            const waterPenalty = segCrossesWater(cur.lat, cur.lon, nbr.lat, nbr.lon) ? 4.5 : 1.55;
-            addEdge(cur, nbr, waterPenalty);
-          }
-        }
-      }
-      // Связываем узлы дорог/зимников с ближайшими узлами снегоходной сетки без пересечения зданий
-      const allNodesList = Array.from(nodes.values());
-      const connectRadiusKm = Math.max(0.65, calcHaversineKm(minLat, minLon, minLat + dLatStep, minLon + dLonStep) * 1.15);
-      for (let i = 0; i < allNodesList.length; i++) {
-        const n1 = allNodesList[i];
-        if (n1.adj.size > 2) continue;
-        for (let j = 0; j < allNodesList.length; j++) {
-          if (i === j) continue;
-          const n2 = allNodesList[j];
-          const d = calcHaversineKm(n1.lat, n1.lon, n2.lat, n2.lon);
-          if (d <= connectRadiusKm && !segHitsBuildings(n1.lat, n1.lon, n2.lat, n2.lon)) {
-            const wPen = segCrossesWater(n1.lat, n1.lon, n2.lat, n2.lon) ? 4.2 : 1.45;
-            addEdge(n1, n2, wPen);
-          }
+          addEdge(ep, bestOther, 1.25);
         }
       }
     }
@@ -7327,13 +7423,30 @@ async function _buildOsmNetworkPathBetween(a, b, transportMode = 'car') {
       if (db < minEndD) { minEndD = db; endNode = n; }
     });
 
-    const maxSnapDistKm = transportMode === 'boat' ? 12.0 : (transportMode === 'snowmobile' ? 8.0 : 4.5);
+    const maxSnapDistKm = transportMode === 'boat' ? 15.0 : 4.5;
     if (!startNode || !endNode || minStartD > maxSnapDistKm || minEndD > maxSnapDistKm) return null;
+
+    // Если точки старта и финиша оказались рядом с одним узлом реки, берём соседний узел по руслу реки
+    if (startNode.key === endNode.key && startNode.adj.size > 0) {
+      let bestNbr = null;
+      let bestNbrDist = Infinity;
+      startNode.adj.forEach((_, nbrKey) => {
+        const cand = nodes.get(nbrKey);
+        if (cand) {
+          const d = calcHaversineKm(b[0], b[1], cand.lat, cand.lon);
+          if (d < bestNbrDist) {
+            bestNbrDist = d;
+            bestNbr = cand;
+          }
+        }
+      });
+      if (bestNbr) endNode = bestNbr;
+    }
     if (startNode.key === endNode.key) return [a, [startNode.lat, startNode.lon], b];
 
     // Алгоритм A* по графу русел рек / объездных дорог и зимников / велодорожек и троп
     const gScore = new Map([[startNode.key, 0]]);
-    const fScore = new Map([[startNode.key, calcHaversineKm(startNode.lat, startNode.lon, endNode.lat, endNode.lon) * 0.65]]);
+    const fScore = new Map([[startNode.key, calcHaversineKm(startNode.lat, startNode.lon, endNode.lat, endNode.lon) * 0.45]]);
     const cameFrom = new Map();
     const openSet = new Set([startNode.key]);
     let visitedCount = 0;
@@ -7371,7 +7484,7 @@ async function _buildOsmNetworkPathBetween(a, b, transportMode = 'car') {
           cameFrom.set(nbrKey, currentKey);
           gScore.set(nbrKey, tentativeG);
           const nbrNode = nodes.get(nbrKey);
-          fScore.set(nbrKey, tentativeG + calcHaversineKm(nbrNode.lat, nbrNode.lon, endNode.lat, endNode.lon) * 0.65);
+          fScore.set(nbrKey, tentativeG + calcHaversineKm(nbrNode.lat, nbrNode.lon, endNode.lat, endNode.lon) * 0.45);
           openSet.add(nbrKey);
         }
       });
@@ -7386,10 +7499,10 @@ async function _fetchRoutedSegmentForTransport(a, b, transportMode = 'car') {
   const wrapApkProxy = (u) => isApk ? `https://appassets.androidplatform.net/__klev_net_proxy__?url=${encodeURIComponent(u)}` : u;
 
   if (!_forceOfflineTestMode && (typeof navigator === 'undefined' || navigator.onLine !== false)) {
-    // Для снегохода сначала строим маршрут по объездным дорогам/зимникам/тропам с обходом домов и открытой воды
+    // Для снегохода сначала строим маршрут по графу объездных дорог/зимников/троп в обход жилых домов и мостов
     if (transportMode === 'snowmobile') {
       const snowSeg = await _buildOsmNetworkPathBetween(a, b, 'snowmobile');
-      if (Array.isArray(snowSeg) && snowSeg.length >= 2) {
+      if (Array.isArray(snowSeg) && snowSeg.length >= 3) {
         return snowSeg;
       }
     }
@@ -7402,26 +7515,27 @@ async function _fetchRoutedSegmentForTransport(a, b, transportMode = 'car') {
         `https://router.project-osrm.org/route/v1/driving/${coordPair}?overview=full&geometries=geojson&steps=true&continue_straight=true`
       ];
     } else if (transportMode === 'bike') {
-      // На велосипеде и пешком никогда не срезаем по прямой сквозь чащу и болота: каскад bike -> foot -> car
       urls = [
         `https://routing.openstreetmap.de/routed-bike/route/v1/driving/${coordPair}?overview=full&geometries=geojson&steps=true&continue_straight=true`,
-        `https://routing.openstreetmap.de/routed-foot/route/v1/driving/${coordPair}?overview=full&geometries=geojson&steps=true&continue_straight=true`,
         `https://router.project-osrm.org/route/v1/bike/${coordPair}?overview=full&geometries=geojson&steps=true`,
+        `https://routing.openstreetmap.de/routed-foot/route/v1/driving/${coordPair}?overview=full&geometries=geojson&steps=true&continue_straight=true`,
         `https://routing.openstreetmap.de/routed-car/route/v1/driving/${coordPair}?overview=full&geometries=geojson&steps=true`,
         `https://router.project-osrm.org/route/v1/driving/${coordPair}?overview=full&geometries=geojson&steps=true`
       ];
     } else if (transportMode === 'walk') {
       urls = [
         `https://routing.openstreetmap.de/routed-foot/route/v1/driving/${coordPair}?overview=full&geometries=geojson&steps=true&continue_straight=true`,
-        `https://routing.openstreetmap.de/routed-bike/route/v1/driving/${coordPair}?overview=full&geometries=geojson&steps=true&continue_straight=true`,
         `https://router.project-osrm.org/route/v1/foot/${coordPair}?overview=full&geometries=geojson&steps=true`,
+        `https://routing.openstreetmap.de/routed-bike/route/v1/driving/${coordPair}?overview=full&geometries=geojson&steps=true&continue_straight=true`,
         `https://routing.openstreetmap.de/routed-car/route/v1/driving/${coordPair}?overview=full&geometries=geojson&steps=true`,
         `https://router.project-osrm.org/route/v1/driving/${coordPair}?overview=full&geometries=geojson&steps=true`
       ];
     } else if (transportMode === 'snowmobile') {
+      // Резервный роутинг снегохода по тропам и объездным дорожкам (никогда не по прямой сквозь дома!)
       urls = [
+        `https://routing.openstreetmap.de/routed-bike/route/v1/driving/${coordPair}?overview=full&geometries=geojson&steps=true&alternatives=true`,
         `https://routing.openstreetmap.de/routed-foot/route/v1/driving/${coordPair}?overview=full&geometries=geojson&steps=true`,
-        `https://routing.openstreetmap.de/routed-bike/route/v1/driving/${coordPair}?overview=full&geometries=geojson&steps=true`,
+        `https://router.project-osrm.org/route/v1/bike/${coordPair}?overview=full&geometries=geojson&steps=true`,
         `https://routing.openstreetmap.de/routed-car/route/v1/driving/${coordPair}?overview=full&geometries=geojson&steps=true`,
         `https://router.project-osrm.org/route/v1/driving/${coordPair}?overview=full&geometries=geojson&steps=true`
       ];
@@ -7430,12 +7544,14 @@ async function _fetchRoutedSegmentForTransport(a, b, transportMode = 'car') {
     for (const rawUrl of urls) {
       try {
         const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-        const timer = ctrl ? setTimeout(() => ctrl.abort(), 4500) : null;
+        const timer = ctrl ? setTimeout(() => ctrl.abort(), 4200) : null;
         const res = await fetch(wrapApkProxy(rawUrl), { signal: ctrl?.signal }).catch(() => null);
         if (timer) clearTimeout(timer);
         if (!res || !res.ok) continue;
         const data = await res.json().catch(() => null);
-        const coords = data?.routes?.[0]?.geometry?.coordinates;
+        // Для снегохода при наличии альтернативного (объездного) маршрута выбираем объездной вариант
+        const routeIdx = (transportMode === 'snowmobile' && Array.isArray(data?.routes) && data.routes.length > 1) ? 1 : 0;
+        const coords = data?.routes?.[routeIdx]?.geometry?.coordinates;
         if (Array.isArray(coords) && coords.length >= 2) {
           const pts = coords.map(c => [Number(c[1]), Number(c[0])]);
           if (calcHaversineKm(a[0], a[1], pts[0][0], pts[0][1]) > 0.03) pts.unshift(a);
@@ -7445,22 +7561,21 @@ async function _fetchRoutedSegmentForTransport(a, b, transportMode = 'car') {
       } catch (_e) {}
     }
 
-    // Резервный расчёт по локальному графу дорог/троп/русел рек OpenStreetMap Overpass
-    const osmGraphSeg = await _buildOsmNetworkPathBetween(a, b, transportMode);
-    if (Array.isArray(osmGraphSeg) && osmGraphSeg.length >= 2) {
-      return osmGraphSeg;
-    }
+  }
+  // Расчёт по графу объездных дорог/зимников/троп/русел рек (работает и онлайн через Overpass, и офлайн по встроенному каркасу!)
+  const osmGraphSeg = await _buildOsmNetworkPathBetween(a, b, transportMode);
+  if (Array.isArray(osmGraphSeg) && osmGraphSeg.length >= 2) {
+    return osmGraphSeg;
   }
   return null;
 }
 
-// Построение маршрута в зависимости от выбранного способа передвижения строго от геопозиции пользователя (Замечание 2 и 4)
+// Построение маршрута в зависимости от выбранного способа передвижения строго от геопозиции пользователя
 export async function computeSmartTransportRoute(waypointsList, transportMode = 'car') {
   const s = store.getState();
-  // Старт маршрута берётся СТРОГО от реальной геопозиции пользователя!
   let realUserGps = getTrueUserGpsCoords(s);
   if (!realUserGps.isRealGps) {
-    const fresh = await acquireFreshHighAccuracyGpsFix(2800).catch(() => null);
+    const fresh = await acquireFreshHighAccuracyGpsFix(2200).catch(() => null);
     if (fresh && fresh.hasRealFix) {
       realUserGps = { lat: fresh.lat, lon: fresh.lon, acc: fresh.acc, isRealGps: true };
     }
@@ -7469,7 +7584,6 @@ export async function computeSmartTransportRoute(waypointsList, transportMode = 
   const rawTargets = (Array.isArray(waypointsList) ? waypointsList : []).map(p => Array.isArray(p) ? [Number(p[0]), Number(p[1])] : [Number(p.lat), Number(p.lon)]);
   if (rawTargets.length === 0) return null;
 
-  // Для режима «Нарисовать пальцем» (если передано много точек мазка) сохраняем точный контур мазка (до 24 опорных точек)
   let effectiveTargets = rawTargets;
   if (rawTargets.length > 24) {
     const sampled = [rawTargets[0]];
@@ -7485,11 +7599,15 @@ export async function computeSmartTransportRoute(waypointsList, transportMode = 
   let finalPoly = [];
 
   if (transportMode === 'boat') {
-    // Лодка — СТРОГО по руслам рек и протокам (гидрографический граф рек OSM + встроенный каркас рек региона)
-    finalPoly = [chain[0]];
-    for (let i = 0; i < chain.length - 1; i++) {
-      const a = chain[i];
-      const b = chain[i + 1];
+    // Лодка — СТРОГО по руслам рек и протокам (НИКОГДА не вызываем автомобильный роутер 'car'!)
+    // Если пользователь нарисовал много точек пальцем, берём старт и ключевые речные точки
+    const boatChain = chain.length > 6
+      ? [chain[0], chain[Math.floor(chain.length / 2)], chain[chain.length - 1]]
+      : chain;
+    finalPoly = [boatChain[0]];
+    for (let i = 0; i < boatChain.length - 1; i++) {
+      const a = boatChain[i];
+      const b = boatChain[i + 1];
       let waterSeg = await _buildOsmNetworkPathBetween(a, b, 'boat');
       if (!waterSeg || waterSeg.length < 2) {
         const midLat = (a[0] + b[0]) / 2;
@@ -7497,42 +7615,34 @@ export async function computeSmartTransportRoute(waypointsList, transportMode = 
         const ways = await fetchStrictRiverWaysForMapBounds(midLat, midLon);
         for (const w of (ways || [])) {
           if (!Array.isArray(w.pts) || w.pts.length < 2) continue;
+          const denseW = _densifyWayGeometry(w.pts, 0.05);
           let idxA = -1, dA = 999, idxB = -1, dB = 999;
-          w.pts.forEach((rp, idx) => {
+          denseW.forEach((rp, idx) => {
             const da = calcHaversineKm(a[0], a[1], rp[0], rp[1]);
             const db = calcHaversineKm(b[0], b[1], rp[0], rp[1]);
             if (da < dA) { dA = da; idxA = idx; }
             if (db < dB) { dB = db; idxB = idx; }
           });
-          if (dA <= 8.0 && dB <= 8.0 && idxA !== -1 && idxB !== -1 && idxA !== idxB) {
-            const slice = idxA < idxB ? w.pts.slice(idxA, idxB + 1) : w.pts.slice(idxB, idxA + 1).reverse();
+          if (dA <= 15.0 && dB <= 15.0 && idxA !== -1 && idxB !== -1) {
+            if (idxA === idxB && denseW.length >= 2) {
+              idxB = Math.min(denseW.length - 1, idxA + 1);
+            }
+            const slice = idxA <= idxB ? denseW.slice(idxA, idxB + 1) : denseW.slice(idxB, idxA + 1).reverse();
             waterSeg = [a, ...slice, b];
             break;
           }
         }
       }
       if (waterSeg && waterSeg.length >= 2) {
-        // Если от стартовой точки на берегу до спуска на воду есть сухопутный подъезд > 350 м, доводим до реки по дорожке
-        if (i === 0 && waterSeg.length >= 3 && calcHaversineKm(a[0], a[1], waterSeg[1][0], waterSeg[1][1]) > 0.35) {
-          const approachSeg = await _fetchRoutedSegmentForTransport(a, waterSeg[1], 'car').catch(() => null);
-          if (Array.isArray(approachSeg) && approachSeg.length >= 2) {
-            finalPoly.push(...approachSeg.slice(1), ...waterSeg.slice(2));
-            continue;
-          }
-        }
         finalPoly.push(...waterSeg.slice(1));
       } else {
         finalPoly.push(b);
       }
     }
   } else if (transportMode === 'snowmobile' || transportMode === 'car' || transportMode === 'bike' || transportMode === 'walk') {
-    // Для Снегохода (объездные дороги/зимники/просеки без проезда сквозь дома и открытую воду), Авто, Велосипеда и Пешехода
-    // Если пользователь рисовал подробную линию пальцем (> 8 точек в режиме freehand) для снегохода — привязываем ключевые узлы к обходным дорогам
-    const routeChain = (transportMode === 'snowmobile' && chain.length > 8)
-      ? [chain[0], chain[Math.floor(chain.length / 3)], chain[Math.floor((chain.length * 2) / 3)], chain[chain.length - 1]]
-      : (chain.length > 8
-          ? [chain[0], chain[Math.floor(chain.length / 2)], chain[chain.length - 1]]
-          : chain);
+    const routeChain = chain.length > 6
+      ? [chain[0], chain[Math.floor(chain.length / 2)], chain[chain.length - 1]]
+      : chain;
     finalPoly = [routeChain[0]];
     for (let i = 0; i < routeChain.length - 1; i++) {
       const a = routeChain[i];
@@ -7573,6 +7683,7 @@ export async function computeSmartTransportRoute(waypointsList, transportMode = 
   return {
     mode: _arcRouteBuilderMode || 'waypoints',
     transport: transportMode,
+    targetWaypoints: effectiveTargets,
     points: finalPoly,
     distKm: Math.max(0.05, totalKm),
     etaMin,
@@ -7990,7 +8101,8 @@ function renderArcMobileMap(container, s, prevLiveMapBox) {
       <div class="klev-arc-glass" id="arcPopoverSearch" style="display:${_arcActivePopover === 'search' ? 'flex' : 'none'};position:absolute;top:84px;left:10px;right:10px;z-index:940;border-radius:22px;padding:12px;flex-direction:column;gap:8px;">
         <div style="display:flex;gap:6px;">
           <input type="search" id="arcSearchInput" class="input" style="flex:1;min-height:38px;" placeholder="Река, озеро, город РФ...">
-          <button type="button" class="btn btn-sm btn-accent" id="arcSearchSubmitBtn" style="min-height:38px;padding:0 14px;font-weight:800;">Найти</button>
+          <button type="button" class="btn btn-sm btn-accent" id="arcSearchSubmitBtn" style="min-height:38px;padding:0 12px;font-weight:800;">Найти</button>
+          <button type="button" class="btn btn-sm btn-good" id="arcSearchGoHomeBtn" style="min-height:38px;padding:0 10px;font-weight:900;" title="Вернуться домой к моей геопозиции">Домой</button>
         </div>
         ${(() => {
           const rawPlaces = (s.nearbyPlaces && s.nearbyPlaces.length) ? [...s.nearbyPlaces] : getNearestRussianSettlements(s.lat, s.lon, 20, 180);
@@ -8195,11 +8307,13 @@ function renderArcMobileMap(container, s, prevLiveMapBox) {
 
   bindArcMobileMapEvents(container);
   updateLiveUserGpsMarkerOnMap();
+  renderArcRouteDraftAndActiveOnMap();
   setTimeout(() => {
     const box = container.querySelector('#mapBox');
     if (box && box.offsetParent !== null) {
       renderMap(box);
-      if (mapInstance) mapInstance.invalidateSize();
+      if (mapInstance) mapInstance.invalidateSize({ pan: false, animate: false });
+      renderArcRouteDraftAndActiveOnMap();
     }
   }, 40);
 }
@@ -8326,6 +8440,25 @@ function bindArcMobileMapEvents(container) {
     }
   });
 
+  container.querySelector('#arcSearchInput')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const q = e.currentTarget?.value?.trim();
+      if (q) {
+        _arcActivePopover = null;
+        searchPlaceByQuery(q);
+      }
+    }
+  });
+
+  container.querySelector('#arcSearchGoHomeBtn')?.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    _arcActivePopover = null;
+    const realPos = getTrueUserGpsCoords(s);
+    await setLocation(realPos.lat, realPos.lon, false, 13);
+    showToast('Возврат домой к вашей геопозиции', 'good');
+  });
+
   container.querySelector('#arcNearbyPlaceSelect')?.addEventListener('change', (e) => {
     const parts = String(e.target.value || '').split(',');
     const pLat = parseFloat(parts[0]);
@@ -8359,18 +8492,39 @@ function bindArcMobileMapEvents(container) {
   });
 
   container.querySelectorAll('[data-arc-transport]').forEach(btn => {
-    btn.addEventListener('click', (e) => {
+    btn.addEventListener('click', async (e) => {
       e.stopPropagation();
       const tm = btn.getAttribute('data-arc-transport') || 'car';
       _arcTransportMode = tm;
       _arcActivePopover = null;
-      if (_arcBuiltRoute && _arcWaypointsDraft.length > 0) {
-        computeSmartTransportRoute(_arcWaypointsDraft, _arcTransportMode).then(rt => {
-          if (rt) _arcBuiltRoute = rt;
+
+      let savedTargets = null;
+      if (_arcBuiltRoute && Array.isArray(_arcBuiltRoute.targetWaypoints) && _arcBuiltRoute.targetWaypoints.length > 0) {
+        savedTargets = _arcBuiltRoute.targetWaypoints;
+      } else if (_arcWaypointsDraft.length > 0) {
+        savedTargets = _arcWaypointsDraft;
+      } else if (_arcFreehandStrokes.length > 0) {
+        const flat = [];
+        _arcFreehandStrokes.forEach(st => { if (Array.isArray(st)) flat.push(...st); });
+        if (flat.length >= 2) savedTargets = flat;
+      } else if (_arcBuiltRoute && Array.isArray(_arcBuiltRoute.points) && _arcBuiltRoute.points.length >= 2) {
+        savedTargets = [_arcBuiltRoute.points[_arcBuiltRoute.points.length - 1]];
+      }
+
+      render(container);
+
+      if (savedTargets && savedTargets.length > 0) {
+        const wasStarted = Boolean(_arcBuiltRoute && _arcBuiltRoute.started);
+        const wasPaused = Boolean(_arcBuiltRoute && _arcBuiltRoute.paused);
+        const rt = await computeSmartTransportRoute(savedTargets, _arcTransportMode);
+        if (rt) {
+          rt.started = wasStarted;
+          rt.paused = wasPaused;
+          _arcBuiltRoute = rt;
+          renderArcRouteDraftAndActiveOnMap();
           render(container);
-        });
-      } else {
-        render(container);
+          renderArcRouteDraftAndActiveOnMap();
+        }
       }
     });
   });
@@ -8387,8 +8541,12 @@ function bindArcMobileMapEvents(container) {
     const c = mapInstance ? mapInstance.getCenter() : { lat: realPos.lat, lng: realPos.lon };
     const distToRealGpsKm = calcHaversineKm(realPos.lat, realPos.lon, c.lat, c.lng);
 
-    if (distToRealGpsKm > 0.18 || _arcGpsCompassState === 'off') {
+    const distStoreToRealKm = calcHaversineKm(realPos.lat, realPos.lon, Number(s.lat || 0), Number(s.lon || 0));
+    if (distToRealGpsKm > 0.18 || distStoreToRealKm > 0.5 || _arcGpsCompassState === 'off') {
       _arcGpsCompassState = 'centered';
+      if (distStoreToRealKm > 0.5) {
+        setLocation(realPos.lat, realPos.lon, false, 14);
+      }
       if (mapInstance) {
         mapInstance.setView([realPos.lat, realPos.lon], Math.max(14, mapInstance.getZoom() || 14));
       }

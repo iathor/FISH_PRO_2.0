@@ -1,11 +1,11 @@
-import { storage } from './core/storage.js?v=2.9.0-r234';
-import { svgIcon } from './ui/icons.js?v=2.9.0-r234';
-import { initReleaseUpdater, checkForReleaseUpdate } from './core/updater.js?v=2.9.0-r234';
-import { RU } from './i18n/ru.js?v=2.9.0-r234';
-import { events } from './core/events.js?v=2.9.0-r234';
-import { store } from './core/store.js?v=2.9.0-r234';
-import { router } from './core/router.js?v=2.9.0-r234';
-import { installShortcut, initPwa } from './core/pwa.js?v=2.9.0-r234';
+import { storage } from './core/storage.js?v=2.9.0-r235';
+import { svgIcon } from './ui/icons.js?v=2.9.0-r235';
+import { initReleaseUpdater, checkForReleaseUpdate } from './core/updater.js?v=2.9.0-r235';
+import { RU } from './i18n/ru.js?v=2.9.0-r235';
+import { events } from './core/events.js?v=2.9.0-r235';
+import { store } from './core/store.js?v=2.9.0-r235';
+import { router } from './core/router.js?v=2.9.0-r235';
+import { installShortcut, initPwa } from './core/pwa.js?v=2.9.0-r235';
 import {
   initTelegramMiniApp,
   extractIncomingDeepLinkParams,
@@ -15,17 +15,17 @@ import {
   syncTelegramTheme,
   syncTelegramBackButton,
   getTelegramUser
-} from './core/telegram.js?v=2.9.0-r234';
-import { FISH_DB } from './data/species.js?v=2.9.0-r234';
-import { WATER_PROFILES } from './data/waters.js?v=2.9.0-r234';
-import { showToast, openModal, closeModal } from './ui/components.js?v=2.9.0-r234';
-import { weatherModule } from './modules/weather/weather.module.js?v=2.9.0-r234';
-import { geoModule } from './modules/geo/geo.module.js?v=2.9.0-r234';
-import { fishModule } from './modules/fish/fish.module.js?v=2.9.0-r234';
-import { forecastModule } from './modules/forecast/forecast.module.js?v=2.9.0-r234';
-import { calendarModule } from './modules/calendar/calendar.module.js?v=2.9.0-r234';
-import { logModule } from './modules/log/log.module.js?v=2.9.0-r234';
-import { circleModule } from './modules/circle/circle.module.js?v=2.9.0-r234';
+} from './core/telegram.js?v=2.9.0-r235';
+import { FISH_DB } from './data/species.js?v=2.9.0-r235';
+import { WATER_PROFILES } from './data/waters.js?v=2.9.0-r235';
+import { showToast, openModal, closeModal } from './ui/components.js?v=2.9.0-r235';
+import { weatherModule } from './modules/weather/weather.module.js?v=2.9.0-r235';
+import { geoModule } from './modules/geo/geo.module.js?v=2.9.0-r235';
+import { fishModule } from './modules/fish/fish.module.js?v=2.9.0-r235';
+import { forecastModule } from './modules/forecast/forecast.module.js?v=2.9.0-r235';
+import { calendarModule } from './modules/calendar/calendar.module.js?v=2.9.0-r235';
+import { logModule } from './modules/log/log.module.js?v=2.9.0-r235';
+import { circleModule } from './modules/circle/circle.module.js?v=2.9.0-r235';
 if (typeof window !== 'undefined') {
   window.__KLEV_BOOTSTRAPPED__ = true;
   window.__KLEV_STORE__ = store;
@@ -142,7 +142,7 @@ export function recordClientErrorTelemetry(type, message, sourceOrStack = '') {
       msg: msgStr,
       src: String(sourceOrStack || '').slice(0, 220),
       route: String(window.location?.hash || '#/forecast'),
-      ver: '2.9.0-r234',
+      ver: '2.9.0-r235',
       env: envLabel,
       fisherId: uInfo.fisherId,
       login: uInfo.login,
@@ -757,6 +757,13 @@ function bootstrapApp() {
   if (earlyDeepLink) {
     applyIncomingDeepLinkToStore(earlyDeepLink, false);
   }
+  try {
+    if ('scrollRestoration' in window.history) {
+      window.history.scrollRestoration = 'manual';
+    }
+    window.scrollTo(0, 0);
+  } catch (_e) {}
+  safeInit('router', () => { router.init(); window.__KLEV_NAVIGATE_SECTION__ = (r) => router.navigate(r); });
   safeInit('pwa', () => initPwa());
   safeInit('shellEvents', () => bindGlobalShellEvents());
   safeInit('weather', () => weatherModule.init(document.getElementById('secWeather')));
@@ -766,7 +773,11 @@ function bootstrapApp() {
   safeInit('circle', () => circleModule.init(document.getElementById('secCircle'), document.getElementById('secChats'), document.getElementById('secAdmin')));
   safeInit('calendar', () => calendarModule.init(document.getElementById('secCalendar')));
   safeInit('log', () => logModule.init(document.getElementById('secLog')));
-  safeInit('router', () => { router.init(); window.__KLEV_NAVIGATE_SECTION__ = (r) => router.navigate(r); });
+  try {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    document.documentElement.scrollTop = 0;
+    if (document.body) document.body.scrollTop = 0;
+  } catch (_e) {}
   safeInit('telegram', () => {
     initTelegramMiniApp(
       async (incomingToken) => {
