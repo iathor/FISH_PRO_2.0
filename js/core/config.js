@@ -3,24 +3,24 @@
  * @description Конфигурация приложения (Релиз 2.9.0 r232), слои карт без VPN и адаптивные справочники снастей и сезонных наживок
  */
 export const APP_VERSION = '2.9.0';
-export const APP_BUILD_NUMBER = 232;
-export const APP_REVISION = 'r232';
-export const APP_DISPLAY_VERSION = 'v2.9.0 r232';
+export const APP_BUILD_NUMBER = 233;
+export const APP_REVISION = 'r233';
+export const APP_DISPLAY_VERSION = 'v2.9.0 r233';
 export const STATE_CACHE_KEY = 'klev_pro_state_v2.0';
 export const WEATHER_CACHE_KEY = 'klev_pro_weather_v2.0';
 export const RELEASE_CACHE_KEY = 'klev_pro_release_v2.0';
 export const WEATHER_TTL_MS = 2 * 60 * 60 * 1000;
 export const CURRENT_RELEASE_INFO = {
   "version": "2.9.0",
-  "versionCode": 290232,
-  "buildNumber": 232,
-  "revision": "r232",
-  "displayVersion": "v2.9.0 r232",
+  "versionCode": 290233,
+  "buildNumber": 233,
+  "revision": "r233",
+  "displayVersion": "v2.9.0 r233",
   "date": "11 ноября 2026",
   "releasedAt": "2026-11-11T12:00:00Z",
   "apkUrl": "https://klevpro.ru/apk/klev-pro-v2.9.0.apk",
   "fileSize": "38.8 МБ",
-  "title": "Обновление «Клёв ПРО 2.0» (v2.9.0 r232)",
+  "title": "Обновление «Клёв ПРО 2.0» (v2.9.0 r233)",
   "subtitle": "Полноэкранная карта «Арка» в стиле жидкого стекла для смартфонов и планшетов, свайпаемые плашки, ведение по маршруту для 5 видов транспорта и плавные переходы между разделами.",
   "summary": "Обновлён интерфейс карты для мобильных устройств и планшетов, добавлены свайпаемые плашки, прокладка и ведение маршрута для 5 видов транспорта, блок «На что ловим» вынесен в окно прогноза.",
   "highlights": [
@@ -41,7 +41,8 @@ export const CURRENT_RELEASE_INFO = {
     }
   ]
 };
-export const IMG_SEARCH_DIRS = [];
+// СТРОГОЕ ПРАВИЛО: Никогда не очищать IMG_SEARCH_DIRS! Пользовательские PNG рыб подгружаются первыми.
+export const IMG_SEARCH_DIRS = ['assets/fish/', 'fish/', 'https://klevpro.ru/assets/fish/', 'https://klevpro.ru/fish/'];
 export const MAP_LAYERS = {
   yandex_map: {
     name: 'Яндекс Схема',

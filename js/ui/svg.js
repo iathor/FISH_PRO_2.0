@@ -1,6 +1,6 @@
-import { APP_VERSION, IMG_SEARCH_DIRS } from '../core/config.js?v=2.9.0-r232';
-import { getRatingWord } from '../core/format.js?v=2.9.0-r232';
-import { FISH_DB } from '../data/species.js?v=2.9.0-r232';
+import { APP_VERSION, IMG_SEARCH_DIRS } from '../core/config.js?v=2.9.0-r233';
+import { getRatingWord } from '../core/format.js?v=2.9.0-r233';
+import { FISH_DB } from '../data/species.js?v=2.9.0-r233';
 let clipSeq = 0;
 /**
  * Кеш статуса внешних PNG-изображений рыб:
@@ -8,7 +8,7 @@ let clipSeq = 0;
  * - 'missing': PNG отсутствует по всем путям (показываем детальный векторный атлас без повторных 404)
  */
 const pngStatusCache = new Map();
-const PNG_CACHE_STORAGE_KEY = 'klev_pro_png_status_v2_230';
+const PNG_CACHE_STORAGE_KEY = 'klev_pro_png_status_v2_233';
 try {
   if (typeof sessionStorage !== 'undefined') {
     const raw = sessionStorage.getItem(PNG_CACHE_STORAGE_KEY);
@@ -40,12 +40,17 @@ function savePngStatus(fid, status) {
 export function renderFishVisual(f) {
   const fish = f || { id: 'pike', name: 'Рыба' };
   const fid = fish.id || 'pike';
+  const dirs = (Array.isArray(IMG_SEARCH_DIRS) && IMG_SEARCH_DIRS.length > 0)
+    ? IMG_SEARCH_DIRS
+    : ['assets/fish/', 'fish/', 'https://klevpro.ru/assets/fish/', 'https://klevpro.ru/fish/'];
   const status = pngStatusCache.get(fid);
-  if (status === 'missing' || !IMG_SEARCH_DIRS || IMG_SEARCH_DIRS.length === 0) {
+  if (status === 'missing') {
     return getFishCustomSVG(fish);
   }
-  const firstSrc = `${IMG_SEARCH_DIRS[0]}${fid}.png?v=${APP_VERSION}`;
+  const firstSrc = `${dirs[0]}${fid}.png?v=${APP_VERSION}`;
+  const fallbackSvg = getFishCustomSVG(fish);
   return `<div class="fish-visual-hybrid has-png" data-fid="${fid}" style="position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;">` +
+    `<div class="fish-visual-svg-layer" style="width:100%;height:100%;display:none;align-items:center;justify-content:center;">${fallbackSvg}</div>` +
     `<img class="fish-visual-img" src="${firstSrc}" alt="${fish.name || fid}" loading="lazy" decoding="async" data-fid="${fid}" data-try="0" ` +
     `style="width:100%;height:100%;max-width:100%;max-height:100%;object-fit:contain;display:block;margin:0 auto;opacity:1;" ` +
     `onload="window.handleFishImgLoad && window.handleFishImgLoad(this)" ` +

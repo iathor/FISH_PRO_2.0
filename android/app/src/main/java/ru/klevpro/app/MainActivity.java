@@ -653,7 +653,7 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String getAppVersion() {
-            return "2.9.0-r232";
+            return "2.8.3-r231";
         }
 
         @JavascriptInterface
@@ -973,7 +973,7 @@ public class MainActivity extends Activity {
         ws.setCacheMode(WebSettings.LOAD_DEFAULT);
         // Пользовательские данные защищены в Context.getFilesDir()/klev_appdata_vault; кэш WebView не очищается принудительно
         String baseUa = ws.getUserAgentString();
-        ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.9.0-r232");
+        ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.8.3-r231");
 
         webView.addJavascriptInterface(new NativeBridge(this), "AndroidBridge");
 

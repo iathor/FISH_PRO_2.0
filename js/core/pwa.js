@@ -1,4 +1,4 @@
-import { showToast } from '../ui/components.js?v=2.9.0-r232';
+import { showToast } from '../ui/components.js?v=2.9.0-r233';
 export const PWA_INSTALLED_KEY = 'klev_pro_pwa_installed';
 let deferredInstallPrompt = null;
 export function generateFloatIconDataURL(size = 512) {

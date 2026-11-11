@@ -9,16 +9,16 @@
  * - Выделенная вкладка « Чаты» на нижней панели навигации + отправка карточки улова прямо в чат.
  * - Закрытый режим Супер-Админа (только для Владельца + управляемая База Администраторов с синхронизацией).
  */
-import { events } from '../../core/events.js?v=2.9.0-r232';
-import { store } from '../../core/store.js?v=2.9.0-r232';
-import { storage, calcGeoDistanceKm, safeJsonParse } from '../../core/storage.js?v=2.9.0-r232';
-import { router } from '../../core/router.js?v=2.9.0-r232';
-import { APP_VERSION, APP_REVISION, APP_DISPLAY_VERSION, getSeasonalBaitsForContext, SPOT_CATEGORIES } from '../../core/config.js?v=2.9.0-r232';
-import { detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.9.0-r232';
-import { findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.9.0-r232';
-import { WATER_PROFILES } from '../../data/waters.js?v=2.9.0-r232';
-import { FISH_DB } from '../../data/species.js?v=2.9.0-r232';
-import { escapeHtml, isAnonymousCallsignValid, createPill, showToast, openModal, closeModal, copyFisherIdToClipboard, openConfirmDeleteModal, openUserAgreementModal, isUserAgreementAccepted, downloadFileCrossPlatform, triggerSystemNotificationCrossPlatform, requestSystemNotificationsAccess, flashHighlightElement, isPolicyVersionAccepted, getSavedPolicyConsentMeta, POLICY_CONSENT_META_KEY, ACTIVE_POLICY_VERSION_DEFAULT, ACTIVE_APP_VERSION_DEFAULT, saveRemotePolicyToClientEnv, getRemotePolicyFromClientEnv, parsePolicySectionsFromEditableText, formatPolicySectionsToEditableText, DEFAULT_POLICY_SECTIONS, isGeoDistributionConsentActive, ensureGeoDistributionConsent, setGeoDistributionConsentState } from '../../ui/components.js?v=2.9.0-r232';
+import { events } from '../../core/events.js?v=2.9.0-r233';
+import { store } from '../../core/store.js?v=2.9.0-r233';
+import { storage, calcGeoDistanceKm, safeJsonParse } from '../../core/storage.js?v=2.9.0-r233';
+import { router } from '../../core/router.js?v=2.9.0-r233';
+import { APP_VERSION, APP_REVISION, APP_DISPLAY_VERSION, getSeasonalBaitsForContext, SPOT_CATEGORIES } from '../../core/config.js?v=2.9.0-r233';
+import { detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.9.0-r233';
+import { findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.9.0-r233';
+import { WATER_PROFILES } from '../../data/waters.js?v=2.9.0-r233';
+import { FISH_DB } from '../../data/species.js?v=2.9.0-r233';
+import { escapeHtml, isAnonymousCallsignValid, createPill, showToast, openModal, closeModal, copyFisherIdToClipboard, openConfirmDeleteModal, openUserAgreementModal, isUserAgreementAccepted, downloadFileCrossPlatform, triggerSystemNotificationCrossPlatform, requestSystemNotificationsAccess, flashHighlightElement, isPolicyVersionAccepted, getSavedPolicyConsentMeta, POLICY_CONSENT_META_KEY, ACTIVE_POLICY_VERSION_DEFAULT, ACTIVE_APP_VERSION_DEFAULT, saveRemotePolicyToClientEnv, getRemotePolicyFromClientEnv, parsePolicySectionsFromEditableText, formatPolicySectionsToEditableText, DEFAULT_POLICY_SECTIONS, isGeoDistributionConsentActive, ensureGeoDistributionConsent, setGeoDistributionConsentState } from '../../ui/components.js?v=2.9.0-r233';
 import {
   RELAY_WORKER_URL,
   buildShareUrls,
@@ -31,9 +31,9 @@ import {
   syncToTelegramCloud,
   readFromTelegramCloud,
   triggerHaptic
-} from '../../core/telegram.js?v=2.9.0-r232';
-import { setLocation } from '../geo/geo.module.js?v=2.9.0-r232';
-import { calcDynamicRig } from '../forecast/forecast.module.js?v=2.9.0-r232';
+} from '../../core/telegram.js?v=2.9.0-r233';
+import { setLocation } from '../geo/geo.module.js?v=2.9.0-r233';
+import { calcDynamicRig } from '../forecast/forecast.module.js?v=2.9.0-r233';
 export const CREW_TTL_MS = 72 * 60 * 60 * 1000;
 /**
  * Вычисляет точное время окончания действия ссылки на длинную экспедицию:
@@ -5067,6 +5067,10 @@ export function openAddThematicMapPointModal(initialCat = 'slip') {
   });
 }
 export function openShareModalForCurrentContext(initialMode = 'circle', overrideCatch = null) {
+  if (initialMode === 'sos' && typeof window !== 'undefined' && typeof window.__KLEV_IS_MOBILE_MAP_MODE__ === 'function' && !window.__KLEV_IS_MOBILE_MAP_MODE__()) {
+    showToast('Отправка сигнала SOS доступна только с мобильных устройств. На ПК сигналы SOS доступны для просмотра на карте и в ленте.', 'info');
+    return;
+  }
   if (initialMode === 'spot') {
     openAddThematicMapPointModal('slip');
     return;

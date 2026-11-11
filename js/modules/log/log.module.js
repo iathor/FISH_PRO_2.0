@@ -101,22 +101,22 @@ function downloadPhotoCrossPlatform(filename, dataUrl) {
   }
 }
 
-import { isSpeciesInGeoRange } from '../../data/basins.js?v=2.9.0-r232';
-import { RU } from '../../i18n/ru.js?v=2.9.0-r232';
-import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.9.0-r232';
-import { events } from '../../core/events.js?v=2.9.0-r232';
-import { router } from '../../core/router.js?v=2.9.0-r232';
-import { storage } from '../../core/storage.js?v=2.9.0-r232';
-import { store } from '../../core/store.js?v=2.9.0-r232';
-import { setLocation } from '../geo/geo.module.js?v=2.9.0-r232';
-import { formatLocalYYYYMMDD, fmtDeltaPress } from '../../core/format.js?v=2.9.0-r232';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.9.0-r232';
-import { FISH_DB } from '../../data/species.js?v=2.9.0-r232';
-import { escapeHtml, createPill, showToast, openModal, closeModal, openConfirmDeleteModal, downloadFileCrossPlatform, flashHighlightElement } from '../../ui/components.js?v=2.9.0-r232';
+import { isSpeciesInGeoRange } from '../../data/basins.js?v=2.9.0-r233';
+import { RU } from '../../i18n/ru.js?v=2.9.0-r233';
+import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.9.0-r233';
+import { events } from '../../core/events.js?v=2.9.0-r233';
+import { router } from '../../core/router.js?v=2.9.0-r233';
+import { storage } from '../../core/storage.js?v=2.9.0-r233';
+import { store } from '../../core/store.js?v=2.9.0-r233';
+import { setLocation } from '../geo/geo.module.js?v=2.9.0-r233';
+import { formatLocalYYYYMMDD, fmtDeltaPress } from '../../core/format.js?v=2.9.0-r233';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.9.0-r233';
+import { FISH_DB } from '../../data/species.js?v=2.9.0-r233';
+import { escapeHtml, createPill, showToast, openModal, closeModal, openConfirmDeleteModal, downloadFileCrossPlatform, flashHighlightElement } from '../../ui/components.js?v=2.9.0-r233';
 let activeLogTab = 'active'; // 'active' | 'trash'
-import { computeMoon } from '../weather/weather.module.js?v=2.9.0-r232';
-import { calcHourly } from '../forecast/forecast.module.js?v=2.9.0-r232';
-import { openFishPhotoScannerModal, analyzeFishPhotoHybrid, requestAppCameraAndPhotoAccess } from '../fish/scanner.js?v=2.9.0-r232';
+import { computeMoon } from '../weather/weather.module.js?v=2.9.0-r233';
+import { calcHourly } from '../forecast/forecast.module.js?v=2.9.0-r233';
+import { openFishPhotoScannerModal, analyzeFishPhotoHybrid, requestAppCameraAndPhotoAccess } from '../fish/scanner.js?v=2.9.0-r233';
 let currentFilter = { fishId: 'all', cond: 'all' };
 /**
  * Биологические верхние пределы веса (кг) для защиты от накрутки и опечаток
@@ -491,7 +491,19 @@ export function getPersonalStats(fishId) {
  * Окно записи улова « Я поймал» с обычным календарём (<input type="date">),
  * быстрыми кнопками выбора за предыдущие 5 дней (и Сегодня) и автоматической подгрузкой почасового прогноза из кэша 10 км!
  */
+function isDesktopLogViewOnlyMode() {
+  if (typeof window === 'undefined') return false;
+  if (typeof window.__KLEV_IS_MOBILE_MAP_MODE__ === 'function') {
+    return !window.__KLEV_IS_MOBILE_MAP_MODE__();
+  }
+  return false;
+}
+
 export function openCatchWizard(prefill = {}) {
+  if (isDesktopLogViewOnlyMode()) {
+    showToast('На компьютере журнал уловов работает в режиме просмотра. Запись уловов доступна на смартфонах и в приложении.', 'info');
+    return;
+  }
   const s = store.getState();
   const todayDt = new Date();
   todayDt.setHours(0, 0, 0, 0);
@@ -1032,6 +1044,7 @@ export function openCatchWizard(prefill = {}) {
 }
 if (typeof window !== 'undefined') {
   window.__KLEV_OPEN_CATCH_WIZARD__ = openCatchWizard;
+  window.__KLEV_RENDER_LOG__ = renderLog;
 }
 export function renderLog(container) {
   if (!container) return;
@@ -1041,6 +1054,10 @@ export function renderLog(container) {
   const activeRecords = allRecords.filter(c => c && !c.markedForDeletion);
   const trashRecords = allRecords.filter(c => c && c.markedForDeletion);
   const filtered = getCatches(currentFilter);
+  const isDesktopViewOnly = isDesktopLogViewOnlyMode();
+  if (isDesktopViewOnly && activeLogTab === 'trash') {
+    activeLogTab = 'active';
+  }
   const statsAll = getPersonalStats('all');
   const statsFish = getPersonalStats(activeFish.id);
   container.innerHTML = `
@@ -1048,7 +1065,7 @@ export function renderLog(container) {
       <div class="section-head">
         <div>
           <span class="section-title"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="5" y="3" width="14" height="18" rx="2.5" fill="rgba(56,189,248,0.16)" stroke="currentColor" stroke-width="1.8"/><path d="M9 7h6M9 11h6M9 15h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Журнал уловов и личная калибровка прогноза</span>
-          <div style="font-size:var(--fs-xs);color:var(--muted);">Вносите уловы за сегодня и за прошлые 5 дней (или отмечайте «Выезд без улова (0 поклёвок)», если не клевало) — алгоритм автоматически калибрует прогноз под ваш водоём.</div>
+          <div style="font-size:var(--fs-xs);color:var(--muted);">${isDesktopViewOnly ? "Режим просмотра журнала уловов и аналитики на ПК (добавление и редактирование записей доступно на мобильных устройствах)." : "Вносите уловы за сегодня и за прошлые 5 дней (или отмечайте «Выезд без улова (0 поклёвок)», если не клевало) — алгоритм автоматически калибрует прогноз под ваш водоём."}</div>
         </div>
         <div class="toolbar-row" style="display:flex;gap:6px;flex-wrap:wrap;">
           <button type="button" class="btn btn-sm btn-good" id="logOpenWizardBtn"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg> + Записать улов</button>
@@ -1056,7 +1073,7 @@ export function renderLog(container) {
           <button type="button" class="btn btn-sm" id="logBlankTripBtn" style="border-color:var(--warn);color:var(--warn);" title="Если рыбалка прошла без поклёвок — нажмите, чтобы алгоритм учёл бесклёвье при этой погоде"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="4.5" stroke="#38bdf8" stroke-width="1.6"/><circle cx="12" cy="12" r="1.8" fill="#10b981"/></svg> Выезд без улова (0 поклёвок)</button>
           <button type="button" class="btn btn-sm" id="logExportJsonBtn" title="Сохранить полный архив Журнала (с фотографиями) и всех личных точек карты в .JSON"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 15V3m0 0L8 7m4-4l4 4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg> Сохранить архив (.JSON с фото и точками)</button>
           <button type="button" class="btn btn-sm" id="logExportCsvBtn" title="Выгрузить таблицу уловов в .CSV (для Excel)"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M3 3v18h18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M7 15l4-5 4 3 5-7" stroke="#38bdf8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg> .CSV</button>
-          <label class="btn btn-sm btn-accent" style="cursor:pointer;margin:0;" title="Загрузить записи уловов из файла .JSON или .CSV">
+          <label class="btn btn-sm btn-accent" id="logImportFileLabel" style="cursor:pointer;margin:0;" title="Загрузить записи уловов из файла .JSON или .CSV">
             <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg> Загрузить с устройства
             <input type="file" id="logImportFileInput" accept=".json,.csv,application/json,text/csv,*/*" style="display:none;">
           </label>
@@ -1485,6 +1502,7 @@ let unsubEvent = null;
 export async function init(container) {
   if (typeof window !== 'undefined') {
     window.__KLEV_OPEN_CATCH_WIZARD__ = openCatchWizard;
+  window.__KLEV_RENDER_LOG__ = renderLog;
   }
   const localCatches = storage.getLocalBackup ? storage.getLocalBackup('catches') : [];
   if (Array.isArray(localCatches) && localCatches.length > 0) {

@@ -1,4 +1,4 @@
-import { store } from './store.js?v=2.9.0-r232';
+import { store } from './store.js?v=2.9.0-r233';
 /**
  * @file updater.js
  * @description Модуль строгого контроля версий (v2.9.0 r232):
@@ -6,8 +6,8 @@ import { store } from './store.js?v=2.9.0-r232';
  * - На Сайте и в PWA: проверка выхода новой версии с уведомлением о необходимости обновления кэша
  *   и бережной очисткой устаревшего кэша и технических куки БЕЗ удаления пользовательских данных (точек, журнала, профиля, чатов, офлайн-карт).
  */
-import { APP_VERSION, APP_BUILD_NUMBER, APP_REVISION, APP_DISPLAY_VERSION, RELEASE_CACHE_KEY, CURRENT_RELEASE_INFO } from './config.js?v=2.9.0-r232';
-import { showToast } from '../ui/components.js?v=2.9.0-r232';
+import { APP_VERSION, APP_BUILD_NUMBER, APP_REVISION, APP_DISPLAY_VERSION, RELEASE_CACHE_KEY, CURRENT_RELEASE_INFO } from './config.js?v=2.9.0-r233';
+import { showToast } from '../ui/components.js?v=2.9.0-r233';
 
 export const PUBLIC_SITE_ORIGIN = 'https://klevpro.ru';
 export const APK_MANIFEST_PATH = '/apk/apk-version.json';

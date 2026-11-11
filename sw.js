@@ -1,9 +1,9 @@
 /**
  * @file sw.js
- * @description Service Worker для PWA «Клёв ПРО 2.0: Круг» (Ревизия 2.9.0 r232).
+ * @description Service Worker для PWA «Клёв ПРО 2.0: Круг» (Ревизия 2.9.0 r233).
  */
 
-const CACHE_VERSION = 'klev-pro-v2.9.0-r232';
+const CACHE_VERSION = 'klev-pro-v2.9.0-r233';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 
 const CORE_ASSETS = [
@@ -11,37 +11,37 @@ const CORE_ASSETS = [
   './index.html',
   './manifest.json',
   './version.json',
-  './css/tokens.css?v=2.9.0-r232',
-  './css/base.css?v=2.9.0-r232',
-  './css/components.css?v=2.9.0-r232',
-  './css/layout.css?v=2.9.0-r232',
-  './js/app.js?v=2.9.0-r232',
-  './js/core/config.js?v=2.9.0-r232',
-  './js/core/events.js?v=2.9.0-r232',
-  './js/core/format.js?v=2.9.0-r232',
-  './js/core/http.js?v=2.9.0-r232',
-  './js/core/pwa.js?v=2.9.0-r232',
-  './js/core/router.js?v=2.9.0-r232',
-  './js/core/storage.js?v=2.9.0-r232',
-  './js/core/store.js?v=2.9.0-r232',
-  './js/core/telegram.js?v=2.9.0-r232',
-  './js/core/updater.js?v=2.9.0-r232',
-  './js/data/basins.js?v=2.9.0-r232',
-  './js/data/russia-waters.js?v=2.9.0-r232',
-  './js/data/species.js?v=2.9.0-r232',
-  './js/data/waters.js?v=2.9.0-r232',
-  './js/i18n/ru.js?v=2.9.0-r232',
-  './js/modules/calendar/calendar.module.js?v=2.9.0-r232',
-  './js/modules/circle/circle.module.js?v=2.9.0-r232',
-  './js/modules/fish/fish.module.js?v=2.9.0-r232',
-  './js/modules/fish/scanner.js?v=2.9.0-r232',
-  './js/modules/forecast/forecast.module.js?v=2.9.0-r232',
-  './js/modules/geo/geo.module.js?v=2.9.0-r232',
-  './js/modules/log/log.module.js?v=2.9.0-r232',
-  './js/modules/weather/weather.module.js?v=2.9.0-r232',
-  './js/ui/components.js?v=2.9.0-r232',
-  './js/ui/icons.js?v=2.9.0-r232',
-  './js/ui/svg.js?v=2.9.0-r232'
+  './css/tokens.css?v=2.9.0-r233',
+  './css/base.css?v=2.9.0-r233',
+  './css/components.css?v=2.9.0-r233',
+  './css/layout.css?v=2.9.0-r233',
+  './js/app.js?v=2.9.0-r233',
+  './js/core/config.js?v=2.9.0-r233',
+  './js/core/events.js?v=2.9.0-r233',
+  './js/core/format.js?v=2.9.0-r233',
+  './js/core/http.js?v=2.9.0-r233',
+  './js/core/pwa.js?v=2.9.0-r233',
+  './js/core/router.js?v=2.9.0-r233',
+  './js/core/storage.js?v=2.9.0-r233',
+  './js/core/store.js?v=2.9.0-r233',
+  './js/core/telegram.js?v=2.9.0-r233',
+  './js/core/updater.js?v=2.9.0-r233',
+  './js/data/basins.js?v=2.9.0-r233',
+  './js/data/russia-waters.js?v=2.9.0-r233',
+  './js/data/species.js?v=2.9.0-r233',
+  './js/data/waters.js?v=2.9.0-r233',
+  './js/i18n/ru.js?v=2.9.0-r233',
+  './js/modules/calendar/calendar.module.js?v=2.9.0-r233',
+  './js/modules/circle/circle.module.js?v=2.9.0-r233',
+  './js/modules/fish/fish.module.js?v=2.9.0-r233',
+  './js/modules/fish/scanner.js?v=2.9.0-r233',
+  './js/modules/forecast/forecast.module.js?v=2.9.0-r233',
+  './js/modules/geo/geo.module.js?v=2.9.0-r233',
+  './js/modules/log/log.module.js?v=2.9.0-r233',
+  './js/modules/weather/weather.module.js?v=2.9.0-r233',
+  './js/ui/components.js?v=2.9.0-r233',
+  './js/ui/icons.js?v=2.9.0-r233',
+  './js/ui/svg.js?v=2.9.0-r233'
 ];
 
 function isMapTileHostname(hostname = '') {

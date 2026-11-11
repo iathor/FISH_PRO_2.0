@@ -1,11 +1,11 @@
-import { storage } from './core/storage.js?v=2.9.0-r232';
-import { svgIcon } from './ui/icons.js?v=2.9.0-r232';
-import { initReleaseUpdater, checkForReleaseUpdate } from './core/updater.js?v=2.9.0-r232';
-import { RU } from './i18n/ru.js?v=2.9.0-r232';
-import { events } from './core/events.js?v=2.9.0-r232';
-import { store } from './core/store.js?v=2.9.0-r232';
-import { router } from './core/router.js?v=2.9.0-r232';
-import { installShortcut, initPwa } from './core/pwa.js?v=2.9.0-r232';
+import { storage } from './core/storage.js?v=2.9.0-r233';
+import { svgIcon } from './ui/icons.js?v=2.9.0-r233';
+import { initReleaseUpdater, checkForReleaseUpdate } from './core/updater.js?v=2.9.0-r233';
+import { RU } from './i18n/ru.js?v=2.9.0-r233';
+import { events } from './core/events.js?v=2.9.0-r233';
+import { store } from './core/store.js?v=2.9.0-r233';
+import { router } from './core/router.js?v=2.9.0-r233';
+import { installShortcut, initPwa } from './core/pwa.js?v=2.9.0-r233';
 import {
   initTelegramMiniApp,
   extractIncomingDeepLinkParams,
@@ -15,17 +15,17 @@ import {
   syncTelegramTheme,
   syncTelegramBackButton,
   getTelegramUser
-} from './core/telegram.js?v=2.9.0-r232';
-import { FISH_DB } from './data/species.js?v=2.9.0-r232';
-import { WATER_PROFILES } from './data/waters.js?v=2.9.0-r232';
-import { showToast, openModal, closeModal } from './ui/components.js?v=2.9.0-r232';
-import { weatherModule } from './modules/weather/weather.module.js?v=2.9.0-r232';
-import { geoModule } from './modules/geo/geo.module.js?v=2.9.0-r232';
-import { fishModule } from './modules/fish/fish.module.js?v=2.9.0-r232';
-import { forecastModule } from './modules/forecast/forecast.module.js?v=2.9.0-r232';
-import { calendarModule } from './modules/calendar/calendar.module.js?v=2.9.0-r232';
-import { logModule } from './modules/log/log.module.js?v=2.9.0-r232';
-import { circleModule } from './modules/circle/circle.module.js?v=2.9.0-r232';
+} from './core/telegram.js?v=2.9.0-r233';
+import { FISH_DB } from './data/species.js?v=2.9.0-r233';
+import { WATER_PROFILES } from './data/waters.js?v=2.9.0-r233';
+import { showToast, openModal, closeModal } from './ui/components.js?v=2.9.0-r233';
+import { weatherModule } from './modules/weather/weather.module.js?v=2.9.0-r233';
+import { geoModule } from './modules/geo/geo.module.js?v=2.9.0-r233';
+import { fishModule } from './modules/fish/fish.module.js?v=2.9.0-r233';
+import { forecastModule } from './modules/forecast/forecast.module.js?v=2.9.0-r233';
+import { calendarModule } from './modules/calendar/calendar.module.js?v=2.9.0-r233';
+import { logModule } from './modules/log/log.module.js?v=2.9.0-r233';
+import { circleModule } from './modules/circle/circle.module.js?v=2.9.0-r233';
 if (typeof window !== 'undefined') {
   window.__KLEV_BOOTSTRAPPED__ = true;
   window.__KLEV_STORE__ = store;
@@ -537,6 +537,10 @@ function bindGlobalShellEvents() {
   const sosQuickBtn = document.getElementById('bottomQuickSosBtn');
   if (sosQuickBtn) {
     sosQuickBtn.addEventListener('click', () => {
+      if (typeof window !== 'undefined' && typeof window.__KLEV_IS_MOBILE_MAP_MODE__ === 'function' && !window.__KLEV_IS_MOBILE_MAP_MODE__()) {
+        showToast('Подача сигнала SOS доступна только с мобильных устройств. На ПК сигналы SOS доступны для просмотра на карте.', 'info');
+        return;
+      }
       triggerHaptic('warning');
       if (circleModule && typeof circleModule.isMobileGuestRestricted === 'function' && circleModule.isMobileGuestRestricted()) {
         circleModule.promptMobileGuestAuth('Сначала войдите в аккаунт — отправка экстренного сигнала SOS и работа с Экипажем доступны после авторизации');

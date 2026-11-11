@@ -2075,11 +2075,36 @@ html[data-arc-map-active="1"] #secGeo {
 }
 
 .klev-arc-map-stage.compass-bearing-active #mapBox {
-  width: 184% !important;
-  height: 184% !important;
-  left: -42% !important;
-  top: -42% !important;
-  transition: transform 0.26s ease-out;
+  width: 100% !important;
+  height: 100% !important;
+  left: 0 !important;
+  top: 0 !important;
+  transform: none !important;
+}
+
+/* Ограничения десктопной версии сайта (Замечание 7):
+   На ПК скрыты скачивание офлайн-карт, ведение/рисование/запись маршрутов,
+   запись/редактирование уловов в журнале (только просмотр) и подача сигнала SOS (только просмотр на карте) */
+html[data-desktop-web="1"] #bottomQuickSosBtn,
+html[data-desktop-web="1"] #geoOpenOfflineMapsBtn,
+html[data-desktop-web="1"] #geoOpenPhase3RoutesBtn,
+html[data-desktop-web="1"] #geoQuickLogCatchBtn,
+html[data-desktop-web="1"] [data-popup-nav-spot],
+html[data-desktop-web="1"] [data-share-mode="sos"],
+html[data-desktop-web="1"] #logOpenWizardBtn,
+html[data-desktop-web="1"] #logOpenAiScannerBtn,
+html[data-desktop-web="1"] #logBlankTripBtn,
+html[data-desktop-web="1"] #logImportFileLabel,
+html[data-desktop-web="1"] #logTabTrashBtn,
+html[data-desktop-web="1"] #logPurgeAllTrashBtn,
+html[data-desktop-web="1"] [data-del-catch],
+html[data-desktop-web="1"] [data-restore-catch],
+html[data-desktop-web="1"] [data-purge-catch] {
+  display: none !important;
+}
+
+html[data-desktop-web="1"] .bottom-nav {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
 }
 
 /* Стеклянные элементы «Жидкое стекло» (Liquid Glass) на карте */

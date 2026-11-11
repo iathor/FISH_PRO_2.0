@@ -1,14 +1,14 @@
-import { renderFishVisual } from '../../ui/svg.js?v=2.9.0-r232';
-import { MAP_LAYERS, SPOT_CATEGORIES, getCompatibleMethods } from '../../core/config.js?v=2.9.0-r232';
-import { events } from '../../core/events.js?v=2.9.0-r232';
-import { storage, safeJsonParse } from '../../core/storage.js?v=2.9.0-r232';
-import { router } from '../../core/router.js?v=2.9.0-r232';
-import { store } from '../../core/store.js?v=2.9.0-r232';
-import { fetchWithTimeout } from '../../core/http.js?v=2.9.0-r232';
-import { installShortcut, syncInstallButtons } from '../../core/pwa.js?v=2.9.0-r232';
-import { triggerHaptic } from '../../core/telegram.js?v=2.9.0-r232';
-import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.9.0-r232';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.9.0-r232';
+import { renderFishVisual } from '../../ui/svg.js?v=2.9.0-r233';
+import { MAP_LAYERS, SPOT_CATEGORIES, getCompatibleMethods } from '../../core/config.js?v=2.9.0-r233';
+import { events } from '../../core/events.js?v=2.9.0-r233';
+import { storage, safeJsonParse } from '../../core/storage.js?v=2.9.0-r233';
+import { router } from '../../core/router.js?v=2.9.0-r233';
+import { store } from '../../core/store.js?v=2.9.0-r233';
+import { fetchWithTimeout } from '../../core/http.js?v=2.9.0-r233';
+import { installShortcut, syncInstallButtons } from '../../core/pwa.js?v=2.9.0-r233';
+import { triggerHaptic } from '../../core/telegram.js?v=2.9.0-r233';
+import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.9.0-r233';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.9.0-r233';
 import {
   RUSSIA_CITIES,
   RUSSIA_WATERS,
@@ -16,12 +16,12 @@ import {
   getNearestRussianSettlements,
   getNearestRussianWaters,
   getWaterTypeShortTag
-} from '../../data/russia-waters.js?v=2.9.0-r232';
-import { FISH_DB } from '../../data/species.js?v=2.9.0-r232';
-import { escapeHtml, createPill, showToast, openModal, closeModal, openConfirmDeleteModal, downloadFileCrossPlatform, flashHighlightElement, isGeoDistributionConsentActive, ensureGeoDistributionConsent, setGeoDistributionConsentState } from '../../ui/components.js?v=2.9.0-r232';
-import { fetchWeather, weatherModule } from '../weather/weather.module.js?v=2.9.0-r232';
-import { calcDayBest } from '../forecast/forecast.module.js?v=2.9.0-r232';
-import { computeHexPolygonForCircle, getEffectiveCircleRadiusKm, getCircleHexDecayState, canUserAccessCrewItem, getCurrentFisherIdentity, isUserAdmin, isCurrentUserBetaTester, verifyBetaTesterStatusFromCloud, isCircleItemMine, isCircleItemHidden, openAddThematicMapPointModal } from '../circle/circle.module.js?v=2.9.0-r232';
+} from '../../data/russia-waters.js?v=2.9.0-r233';
+import { FISH_DB } from '../../data/species.js?v=2.9.0-r233';
+import { escapeHtml, createPill, showToast, openModal, closeModal, openConfirmDeleteModal, downloadFileCrossPlatform, flashHighlightElement, isGeoDistributionConsentActive, ensureGeoDistributionConsent, setGeoDistributionConsentState } from '../../ui/components.js?v=2.9.0-r233';
+import { fetchWeather, weatherModule } from '../weather/weather.module.js?v=2.9.0-r233';
+import { calcDayBest } from '../forecast/forecast.module.js?v=2.9.0-r233';
+import { computeHexPolygonForCircle, getEffectiveCircleRadiusKm, getCircleHexDecayState, canUserAccessCrewItem, getCurrentFisherIdentity, isUserAdmin, isCurrentUserBetaTester, verifyBetaTesterStatusFromCloud, isCircleItemMine, isCircleItemHidden, openAddThematicMapPointModal } from '../circle/circle.module.js?v=2.9.0-r233';
 // ============================================================================
 // АВТОНОМНОЕ ЯДРО, РЕПРОЕКТОР EPSG:3395 И ИНСПЕКТОР ПРОВЕРКИ ОФЛАЙН-КАРТ (ФАЗА 1 • v2)
 // Хранение в формате инлайн-DataURL (100% сохранность после перезапуска Android WebView)
@@ -3075,6 +3075,7 @@ export async function autoDetectStartupLocation() {
       if (perm && perm.state === 'granted' && navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           pos => {
+            _updateLiveGpsTelemetryFromPosition(pos);
             if (!store.getState().hasUserLocation) {
               setLocation(pos.coords.latitude, pos.coords.longitude);
             }
@@ -3530,6 +3531,7 @@ export function requestGPS(container) {
   navigator.geolocation.getCurrentPosition(
     pos => {
       inlineGpsHint = '';
+      _updateLiveGpsTelemetryFromPosition(pos);
       setLocation(pos.coords.latitude, pos.coords.longitude);
     },
     err => {
@@ -3539,6 +3541,7 @@ export function requestGPS(container) {
         navigator.geolocation.getCurrentPosition(
           pos2 => {
             inlineGpsHint = '';
+            _updateLiveGpsTelemetryFromPosition(pos2);
             setLocation(pos2.coords.latitude, pos2.coords.longitude);
           },
           err2 => {
@@ -3942,16 +3945,66 @@ async function _importSpotsXmlOrJson(fileText) {
 // ФАЗА 3: ЗАПИСЬ МАРШРУТА В ФОНЕ, ВОЗВРАТ ПО МАРШРУТУ И РЕЖИМ «Я ПОТЕРЯЛСЯ»
 // ============================================================================
 const PHASE3_SAVED_ROUTES_KEY = 'klev_pro_phase3_routes_v1';
-const PHASE3_ACTIVE_TRACK_KEY = 'klev_pro_phase3_active_track_v1';
+const PHASE3_ACTIVE_TRACK_KEY = 'klev_pro_phase3_active_track_v2';
+const LAST_REAL_USER_GPS_KEY = 'klev_pro_last_real_gps_v1';
 let _phase3WatchId = null;
 let _phase3WakeLock = null;
 let _phase3RouteLayerGroup = null;
 let _phase3ActiveTrack = null;
+let _lastUserMapTouchTs = 0;
+let _lastAutoZoomAdjustTs = 0;
+let _isProgrammaticAutoZoom = false;
+let _liveUserGpsMarker = null;
+let _lastRealUserGps = null;
+
+function _isCorruptedIndoorJitterTrack(trk) {
+  if (!trk || !Array.isArray(trk.points)) return false;
+  if (trk.points.length < 25) return false;
+  let minLat = 90, maxLat = -90, minLon = 180, maxLon = -180;
+  for (const p of trk.points) {
+    if (!p || !Number.isFinite(p.lat) || !Number.isFinite(p.lon)) continue;
+    if (p.lat < minLat) minLat = p.lat;
+    if (p.lat > maxLat) maxLat = p.lat;
+    if (p.lon < minLon) minLon = p.lon;
+    if (p.lon > maxLon) maxLon = p.lon;
+  }
+  const bboxDiagKm = calcHaversineKm(minLat, minLon, maxLat, maxLon);
+  const distKm = Number(trk.totalDistKm || trk.recordedDistKm || 0);
+  // Если диагональ разброса точек < 0.75 км (вокруг дома/микрорайона), а намотано > 2.2 км — это комнатный дрейф GPS
+  return bboxDiagKm < 0.75 && distKm > 2.2;
+}
 
 try {
   if (typeof localStorage !== 'undefined') {
+    // Безусловно удаляем старый фантомный фоновый трек v1 (рисовавший прямоугольную сетку вокруг дома)
+    localStorage.removeItem('klev_pro_phase3_active_track_v1');
+    const rawSavedGps = localStorage.getItem(LAST_REAL_USER_GPS_KEY);
+    if (rawSavedGps) {
+      const parsedGps = JSON.parse(rawSavedGps);
+      if (parsedGps && Number.isFinite(parsedGps.lat) && Number.isFinite(parsedGps.lon)) {
+        _lastRealUserGps = parsedGps;
+      }
+    }
+    const rawRoutes = localStorage.getItem(PHASE3_SAVED_ROUTES_KEY);
+    if (rawRoutes) {
+      const parsedRoutes = JSON.parse(rawRoutes);
+      if (Array.isArray(parsedRoutes)) {
+        const cleanedRoutes = parsedRoutes.filter(r => r && !_isCorruptedIndoorJitterTrack(r));
+        if (cleanedRoutes.length !== parsedRoutes.length) {
+          localStorage.setItem(PHASE3_SAVED_ROUTES_KEY, JSON.stringify(cleanedRoutes));
+        }
+      }
+    }
     const rawAct = localStorage.getItem(PHASE3_ACTIVE_TRACK_KEY);
-    if (rawAct) _phase3ActiveTrack = JSON.parse(rawAct);
+    if (rawAct) {
+      const candidate = JSON.parse(rawAct);
+      const ageMs = Date.now() - Number(candidate?.startedAt || 0);
+      if (candidate && candidate.explicitlyConfirmed === true && ageMs < 6 * 3600 * 1000 && !_isCorruptedIndoorJitterTrack(candidate)) {
+        _phase3ActiveTrack = candidate;
+      } else {
+        localStorage.removeItem(PHASE3_ACTIVE_TRACK_KEY);
+      }
+    }
   }
 } catch (e) {}
 
@@ -4310,7 +4363,7 @@ export async function buildRoadOrTrailRouteBetween(startLat, startLon, destLat, 
     `https://router.project-osrm.org/route/v1/foot/${startLon.toFixed(6)},${startLat.toFixed(6)};${destLon.toFixed(6)},${destLat.toFixed(6)}?overview=full&geometries=geojson&steps=true&continue_straight=true`,
     `https://routing.openstreetmap.de/routed-foot/route/v1/driving/${startLon.toFixed(6)},${startLat.toFixed(6)};${destLon.toFixed(6)},${destLat.toFixed(6)}?overview=full&geometries=geojson&steps=true&continue_straight=true`
   ];
-  for (const rawUrl of routeCandidates) {
+  for (const rawUrl of [routeCandidates[1], routeCandidates[0], routeCandidates[3], routeCandidates[2]]) {
     try {
       const url = wrapApkProxy(rawUrl);
       const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
@@ -4637,35 +4690,76 @@ function _estimateSatellitesFromAccuracy(accMeters, hasFix) {
   return { used: 3, visible: 7 };
 }
 
-function _updateLiveGpsTelemetryFromPosition(pos) {
+export function noteUserMapTouchInteraction() {
+  _lastUserMapTouchTs = Date.now();
+}
+
+export function getTrueUserGpsCoords(stateObj = null) {
+  if (_liveGpsFix && _liveGpsFix.hasRealFix && Number.isFinite(_liveGpsFix.lat) && Number.isFinite(_liveGpsFix.lon)) {
+    return { lat: _liveGpsFix.lat, lon: _liveGpsFix.lon, acc: _liveGpsFix.acc || 10, isRealGps: true };
+  }
+  if (_lastRealUserGps && Number.isFinite(_lastRealUserGps.lat) && Number.isFinite(_lastRealUserGps.lon)) {
+    return { lat: _lastRealUserGps.lat, lon: _lastRealUserGps.lon, acc: _lastRealUserGps.acc || 15, isRealGps: true };
+  }
+  const s = stateObj || store.getState();
+  return { lat: Number(s.lat || 66.0833), lon: Number(s.lon || 76.6333), acc: 25, isRealGps: false };
+}
+
+function _saveRealUserGpsCoords(lat, lon, acc = 12) {
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+  _lastRealUserGps = { lat: Number(lat), lon: Number(lon), acc: Math.round(Number(acc) || 12), ts: Date.now() };
   try {
-    const spMs = Number(pos?.coords?.speed);
-    if (Number.isFinite(spMs) && spMs >= 0 && mapInstance && isMobileOrTabletMapMode()) {
-      const kmh = spMs * 3.6;
-      _arcLastSpeedKmh = kmh;
-      const targetZ = kmh <= 2.5 ? 16 : (kmh <= 9 ? 15 : (kmh <= 28 ? 14 : 12));
-      if (Math.abs((mapInstance.getZoom() || 14) - targetZ) >= 2) {
-        mapInstance.setZoom(targetZ);
-      }
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(LAST_REAL_USER_GPS_KEY, JSON.stringify(_lastRealUserGps));
     }
   } catch (_e) {}
+}
+
+function _updateLiveGpsTelemetryFromPosition(pos) {
   if (!pos || !pos.coords) return;
   const lat = Number(pos.coords.latitude);
   const lon = Number(pos.coords.longitude);
   const acc = Math.max(1, Math.round(Number(pos.coords.accuracy) || 15));
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
   const sats = _estimateSatellitesFromAccuracy(acc, true);
+  const spMs = Number.isFinite(Number(pos.coords.speed)) ? Math.max(0, Number(pos.coords.speed)) : 0;
+  const hdg = Number.isFinite(Number(pos.coords.heading)) && Number(pos.coords.heading) >= 0 ? Number(pos.coords.heading) : _arcCompassHeadingDeg;
   _liveGpsFix = {
     lat,
     lon,
     acc,
     satellitesUsed: sats.used,
     satellitesVisible: sats.visible,
-    speedMps: Number.isFinite(Number(pos.coords.speed)) ? Math.max(0, Number(pos.coords.speed)) : 0,
-    headingDeg: Number.isFinite(Number(pos.coords.heading)) ? Number(pos.coords.heading) : 0,
+    speedMps: spMs,
+    headingDeg: hdg,
     ts: Date.now(),
     hasRealFix: true
   };
+  _saveRealUserGpsCoords(lat, lon, acc);
+  try { updateLiveUserGpsMarkerOnMap(); } catch (_e) {}
+
+  // Замечание 1: Автозум срабатывает ТОЛЬКО при активном ведении по маршруту
+  // и СТРОГО с задержкой не менее 10 секунд (10000 мс) после последнего касания карты!
+  try {
+    const now = Date.now();
+    const isRouteGuidanceActive = Boolean(
+      (_arcBuiltRoute && _arcBuiltRoute.started && !_arcBuiltRoute.paused) ||
+      (_phase3ActiveTrack && (_phase3ActiveTrack.status === 'returning' || _phase3ActiveTrack.status === 'navigating_to_spot'))
+    );
+    const touchCooldownElapsed = (now - _lastUserMapTouchTs) >= 10000;
+    const autoZoomCooldownElapsed = (now - _lastAutoZoomAdjustTs) >= 10000;
+    if (isRouteGuidanceActive && touchCooldownElapsed && autoZoomCooldownElapsed && mapInstance && isMobileOrTabletMapMode()) {
+      const kmh = spMs * 3.6;
+      _arcLastSpeedKmh = kmh;
+      const targetZ = kmh <= 2.5 ? 16 : (kmh <= 9 ? 15 : (kmh <= 28 ? 14 : 12));
+      if (Math.abs((mapInstance.getZoom() || 14) - targetZ) >= 2) {
+        _lastAutoZoomAdjustTs = now;
+        _isProgrammaticAutoZoom = true;
+        mapInstance.setZoom(targetZ);
+        setTimeout(() => { _isProgrammaticAutoZoom = false; }, 450);
+      }
+    }
+  } catch (_e) {}
 }
 
 export function acquireFreshHighAccuracyGpsFix(timeoutMs = 5500) {
@@ -4930,6 +5024,7 @@ export function startPhase3RouteRecording(customTitle = '', emergencyLost = fals
       startLabel: `Мой GPS старт (${realStartLat.toFixed(5)}°N, ${realStartLon.toFixed(5)}°E)`,
       status: emergencyLost ? 'returning' : 'recording',
       returnMode: emergencyLost ? 'lost_emergency' : 'normal',
+      explicitlyConfirmed: true,
       alreadySaved: false,
       totalDistKm: 0,
       rawGpsTrace: [
@@ -5051,9 +5146,10 @@ function _processIncomingPhase3GpsFix(pos) {
     }
   }
 
-  // 1. РЕЖИМ ЗАПИСИ МАРШРУТА: без разрывов в фоне и с точной привязкой к поворотам дорог
+  // 1. РЕЖИМ ЗАПИСИ МАРШРУТА: защита от комнатного дрейфа (точность <= 25 м, шаг >= 12 м, уход от кластера >= 15 м)
   if (_phase3ActiveTrack.status === 'recording') {
-    if (acc > 95 && (_phase3ActiveTrack.points?.length || 0) >= 1) {
+    if (!_phase3ActiveTrack.explicitlyConfirmed) return;
+    if (acc > 25 && (_phase3ActiveTrack.points?.length || 0) >= 1) {
       return;
     }
     const pts = _phase3ActiveTrack.points || [];
@@ -5063,9 +5159,18 @@ function _processIncomingPhase3GpsFix(pos) {
     const stepKm = lastPt ? calcHaversineKm(lastPt.lat, lastPt.lon, lat, lon) : 0;
     const dtSec = lastPt ? Math.max(0.5, (now - (lastPt.ts || now)) / 1000) : 1;
     const speedMps = (stepKm * 1000) / dtSec;
-    if (lastPt && speedMps > 60) return;
+    if (lastPt && speedMps > 55) return;
 
-    if (!lastPt || stepKm >= 0.0025) {
+    // Анти-дрейф фильтр: проверяем смещение от центра тяжести последних 4 точек (>= 15 м), чтобы стоя на месте не рисовалась сетка
+    let clusterDriftKm = stepKm;
+    if (pts.length >= 3) {
+      const tailCluster = pts.slice(-4);
+      const meanLat = tailCluster.reduce((a, b) => a + b.lat, 0) / tailCluster.length;
+      const meanLon = tailCluster.reduce((a, b) => a + b.lon, 0) / tailCluster.length;
+      clusterDriftKm = calcHaversineKm(meanLat, meanLon, lat, lon);
+    }
+
+    if (!lastPt || (stepKm >= 0.012 && clusterDriftKm >= 0.015)) {
       pts.push({ lat, lon, ts: now, acc: Math.round(acc) });
       _phase3ActiveTrack.points = _smoothRecordedTrackPoints(pts).slice(-4000);
       let sumKm = 0;
@@ -5901,7 +6006,7 @@ function renderMapOverlays() {
         } else if (showDepth || showClip) {
           detailLine = `<span class="klev-popup-detail">${showDepth ? `Глубина: ${pt.depth} м` : ''}${showDepth && showClip ? ' • ' : ''}${showClip ? `Клипса: ${pt.clipMeters} м` : ''}</span><br>`;
         }
-        const navRouteBtn = `<button type="button" data-popup-nav-spot="1" data-nav-lat="${pt.lat}" data-nav-lon="${pt.lon}" data-nav-title="${escapeHtml(pt.name)}" data-nav-cat="${escapeHtml(catObj.short)}" style="margin-top:5px;margin-right:5px;padding:3px 9px;border-radius:5px;border:1px solid #10b981;background:#10b981;color:#fff;font-size:10.5px;font-weight:800;cursor:pointer;">Маршрут до точки</button>`;
+        const navRouteBtn = isMobileOrTabletMapMode() ? `<button type="button" data-popup-nav-spot="1" data-nav-lat="${pt.lat}" data-nav-lon="${pt.lon}" data-nav-title="${escapeHtml(pt.name)}" data-nav-cat="${escapeHtml(catObj.short)}" style="margin-top:5px;margin-right:5px;padding:3px 9px;border-radius:5px;border:1px solid #10b981;background:#10b981;color:#fff;font-size:10.5px;font-weight:800;cursor:pointer;">Маршрут до точки</button>` : "";
         if (_bathymetryLayerEnabled && Number(pt.depth) > 0 && (pt.catKey === 'bite' || pt.catKey === 'snag' || pt.isBathymetryPoint)) {
           const dVal = Number(pt.depth);
           const bathyCol = dVal >= 8 ? '#1d4ed8' : (dVal >= 4 ? '#0284c7' : '#38bdf8');
@@ -6058,7 +6163,7 @@ function renderMapOverlays() {
         `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.5 2" stroke="#38bdf8" stroke-width="1.9" stroke-linecap="round"/></svg> Статус: <b>${item.isExpedition && item.expStart && item.expEnd ? `Экспедиция (${escapeHtml(item.expStart)}..${escapeHtml(item.expEnd)}) • Сохранено навсегда` : (isLinkActive ? `Ссылка активна ~${hrsLeft} ч • Точка сохранена навсегда` : 'Точка экипажа сохранена навсегда')}</b><br>` +
         (item.nt ? `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> «${escapeHtml(item.nt)}»<br>` : "") +
         (cKey ? `<button type="button" data-popup-crew-chat="${cKey}" style="margin-top:6px;padding:3px 9px;border-radius:5px;border:1px solid #10b981;background:#10b981;color:#fff;font-size:11px;font-weight:800;cursor:pointer;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> Чат экипажа (${cKey})</button><br>` : "") +
-        `<button type="button" data-popup-nav-spot="1" data-nav-lat="${item.lat}" data-nav-lon="${item.lon}" data-nav-title="${escapeHtml(item.wn || item.lb || 'Точка экипажа')}" data-nav-cat="Экипаж" style="margin-top:5px;margin-right:5px;padding:3px 8px;border-radius:5px;border:1px solid #0284c7;background:#0284c7;color:#fff;font-size:11px;font-weight:800;cursor:pointer;">Маршрут до точки</button>${actionBtnHtml}</div>`;
+        (isMobileOrTabletMapMode() ? `<button type="button" data-popup-nav-spot="1" data-nav-lat="${item.lat}" data-nav-lon="${item.lon}" data-nav-title="${escapeHtml(item.wn || item.lb || 'Точка экипажа')}" data-nav-cat="Экипаж" style="margin-top:5px;margin-right:5px;padding:3px 8px;border-radius:5px;border:1px solid #0284c7;background:#0284c7;color:#fff;font-size:11px;font-weight:800;cursor:pointer;">Маршрут до точки</button>` : "") + `${actionBtnHtml}</div>`;
       crewZone.bindPopup(crewPopupHtml);
       crewMarker.bindPopup(crewPopupHtml);
       overlayLayerGroup.addLayer(crewZone);
@@ -6160,7 +6265,8 @@ if (typeof window !== "undefined") {
 }
 export function renderMap(mapBoxEl) {
   if (typeof window !== 'undefined') window.__KLEV_RENDER_MAP__ = renderMap;
-  if (!mapBoxEl || typeof L === 'undefined') return;
+  if (!mapBoxEl) return;
+  if (typeof L === 'undefined') { updateLiveUserGpsMarkerOnMap(); return; }
   const s = store.getState();
   const storeCoordKey = `${Number(s.lat || 0).toFixed(4)}_${Number(s.lon || 0).toFixed(4)}`;
   const storeLocChanged = _lastMapStoreCoordKey !== storeCoordKey;
@@ -6182,15 +6288,135 @@ export function renderMap(mapBoxEl) {
     currentTileLayer = createResilientTileLayer(currentLayerKey).addTo(mapInstance);
     applyYandexTileFiltersToMap();
     mapMarker = L.marker([s.lat, s.lon]).addTo(mapInstance);
-    mapInstance.on('click', (e) => {
+    updateLiveUserGpsMarkerOnMap();
+
+    // Замечание 1: Фиксируем любое касание/жест пользователя по карте для 10-секундной задержки автозума
+    mapInstance.on('dragstart', () => { noteUserMapTouchInteraction(); });
+    mapInstance.on('zoomstart', () => {
+      if (!_isProgrammaticAutoZoom) noteUserMapTouchInteraction();
+    });
+
+    // Замечание 3: Защита от фантомных нажатий!
+    // Короткий тап НЕ меняет точку на карте (только сворачивает открытые меню/плашки).
+    // Смена точки на карте (setLocation) выполняется ТОЛЬКО при удержании от 0.25 сек (>= 250 мс) одним пальцем без сдвига!
+    let _holdTimer = null;
+    let _holdStartPt = null;
+    let _holdLatLng = null;
+    let _holdMultiTouch = false;
+
+    const cancelMapHold = () => {
+      if (_holdTimer) {
+        clearTimeout(_holdTimer);
+        _holdTimer = null;
+      }
+      _holdStartPt = null;
+      _holdLatLng = null;
+    };
+
+    const applyDeliberateMapPointSelect = (lat, lng) => {
+      if (_arcRouteBuilderMode) return;
+      if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+        try { navigator.vibrate(18); } catch (_e) {}
+      }
       if (inspectMode) {
-        inspectWhatBitesHere(e.latlng.lat, e.latlng.lng);
+        inspectWhatBitesHere(lat, lng);
         const secGeo = document.getElementById('secGeo');
         if (secGeo) render(secGeo);
       } else {
-        setLocation(e.latlng.lat, e.latlng.lng);
+        setLocation(lat, lng);
+      }
+    };
+
+    mapInstance.on('mousedown', (e) => {
+      noteUserMapTouchInteraction();
+      if (_arcRouteBuilderMode) return;
+      const origEv = e.originalEvent;
+      if (origEv && origEv.touches && origEv.touches.length > 1) {
+        _holdMultiTouch = true;
+        cancelMapHold();
+        return;
+      }
+      _holdMultiTouch = false;
+      _holdLatLng = e.latlng;
+      _holdStartPt = e.containerPoint;
+      if (_holdTimer) clearTimeout(_holdTimer);
+      _holdTimer = setTimeout(() => {
+        _holdTimer = null;
+        if (!_holdMultiTouch && _holdLatLng) {
+          applyDeliberateMapPointSelect(_holdLatLng.lat, _holdLatLng.lng);
+        }
+      }, 250);
+    });
+
+    mapInstance.on('mousemove', (e) => {
+      if (!_holdStartPt || !e.containerPoint) return;
+      const dx = e.containerPoint.x - _holdStartPt.x;
+      const dy = e.containerPoint.y - _holdStartPt.y;
+      if (Math.hypot(dx, dy) > 10) {
+        cancelMapHold();
       }
     });
+
+    mapInstance.on('mouseup', cancelMapHold);
+    mapInstance.on('dragstart', cancelMapHold);
+    mapInstance.on('movestart', cancelMapHold);
+    mapInstance.on('zoomstart', cancelMapHold);
+
+    // Дополнительно поддерживаем touchstart/touchmove/touchend напрямую на контейнере карты для мобильных браузеров и APK
+    mapBoxEl.addEventListener('touchstart', (ev) => {
+      noteUserMapTouchInteraction();
+      if (_arcRouteBuilderMode) return;
+      if (!ev.touches || ev.touches.length !== 1) {
+        _holdMultiTouch = true;
+        cancelMapHold();
+        return;
+      }
+      const t = ev.touches[0];
+      if (t.target && t.target.closest && t.target.closest('.leaflet-control, .leaflet-popup, .leaflet-marker-icon, button, a')) {
+        cancelMapHold();
+        return;
+      }
+      _holdMultiTouch = false;
+      const rect = mapBoxEl.getBoundingClientRect();
+      const px = [t.clientX - rect.left, t.clientY - rect.top];
+      _holdStartPt = { x: px[0], y: px[1] };
+      if (mapInstance && typeof mapInstance.containerPointToLatLng === 'function') {
+        _holdLatLng = mapInstance.containerPointToLatLng(px);
+      }
+      if (_holdTimer) clearTimeout(_holdTimer);
+      _holdTimer = setTimeout(() => {
+        _holdTimer = null;
+        if (!_holdMultiTouch && _holdLatLng) {
+          applyDeliberateMapPointSelect(_holdLatLng.lat, _holdLatLng.lng);
+        }
+      }, 250);
+    }, { passive: true });
+
+    mapBoxEl.addEventListener('touchmove', (ev) => {
+      noteUserMapTouchInteraction();
+      if (!ev.touches || ev.touches.length !== 1) {
+        _holdMultiTouch = true;
+        cancelMapHold();
+        return;
+      }
+      if (_holdStartPt) {
+        const rect = mapBoxEl.getBoundingClientRect();
+        const dx = (ev.touches[0].clientX - rect.left) - _holdStartPt.x;
+        const dy = (ev.touches[0].clientY - rect.top) - _holdStartPt.y;
+        if (Math.hypot(dx, dy) > 10) {
+          cancelMapHold();
+        }
+      }
+    }, { passive: true });
+
+    mapBoxEl.addEventListener('touchend', () => {
+      noteUserMapTouchInteraction();
+      cancelMapHold();
+    }, { passive: true });
+
+    mapBoxEl.addEventListener('touchcancel', cancelMapHold, { passive: true });
+    mapBoxEl.addEventListener('wheel', () => { noteUserMapTouchInteraction(); cancelMapHold(); }, { passive: true });
+
     if (typeof mapInstance.on === 'function') {
       mapInstance.on('zoomend', () => {
         renderMapOverlays();
@@ -6206,6 +6432,7 @@ export function renderMap(mapBoxEl) {
   } else {
     mapInstance.invalidateSize();
     if (mapMarker) mapMarker.setLatLng([s.lat, s.lon]);
+    updateLiveUserGpsMarkerOnMap();
     applyYandexTileFiltersToMap();
   }
   renderMapOverlays();
@@ -6227,7 +6454,7 @@ export function getMethodOptions(iceState, waterType) {
 let _arcUiOverride = null; // null | 'mobile' | 'desktop'
 let _arcActivePopover = null; // null | 'layers' | 'spotGrid' | 'transport' | 'search'
 let _arcTransportMode = 'car'; // 'car' (по умолчанию) | 'snowmobile' | 'bike' | 'boat' | 'walk'
-let _arcGpsCompassState = 'centered'; // 'off' | 'centered' | 'compass'
+let _arcGpsCompassState = 'off'; // 'off' | 'centered' | 'compass'
 let _arcCompassHeadingDeg = 0;
 let _arcLastSpeedKmh = 0;
 let _arcRiverFlowEnabled = true;
@@ -6257,16 +6484,100 @@ let _arcRouteDraftLayerGroup = null;
 
 export function isMobileOrTabletMapMode() {
   if (typeof window === 'undefined') return false;
-  if (_arcUiOverride === 'desktop' || window.__KLEV_MAP_UI_OVERRIDE__ === 'desktop') return false;
-  if (_arcUiOverride === 'mobile' || window.__KLEV_MAP_UI_OVERRIDE__ === 'mobile') return true;
-  if (window.__KLEV_ADMIN_CONTOUR__ === true) return false;
-  const w = window.innerWidth || document.documentElement?.clientWidth || 1024;
-  const ua = navigator.userAgent || '';
-  const isTouchDevice = /Android|iPhone|iPad|iPod|Mobile|Tablet|KlevProAPK/i.test(ua) ||
-    Boolean(window.AndroidBridge) ||
-    Boolean(window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData) ||
-    Boolean(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
-  return w <= 1100 || isTouchDevice;
+  let res = false;
+  if (_arcUiOverride === 'desktop' || window.__KLEV_MAP_UI_OVERRIDE__ === 'desktop') {
+    res = false;
+  } else if (_arcUiOverride === 'mobile' || window.__KLEV_MAP_UI_OVERRIDE__ === 'mobile') {
+    res = true;
+  } else if (window.__KLEV_ADMIN_CONTOUR__ === true) {
+    res = false;
+  } else {
+    const w = window.innerWidth || document.documentElement?.clientWidth || 1024;
+    const ua = navigator.userAgent || '';
+    const isTouchDevice = /Android|iPhone|iPad|iPod|Mobile|Tablet|KlevProAPK/i.test(ua) ||
+      Boolean(window.AndroidBridge) ||
+      Boolean(window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData) ||
+      Boolean(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+    res = w <= 1100 || isTouchDevice;
+  }
+  try {
+    if (typeof document !== 'undefined' && document.documentElement) {
+      document.documentElement.setAttribute('data-desktop-web', res ? '0' : '1');
+    }
+  } catch (_e) {}
+  return res;
+}
+
+// Отрисовка и обновление маркера реальной геопозиции пользователя с лучом «взгляда» по компасу (Замечание 6)
+function buildLiveUserGpsDivIconHtml(headingDeg = 0, showCone = false) {
+  const rot = Number.isFinite(Number(headingDeg)) ? Math.round(Number(headingDeg)) : 0;
+  return `
+    <div class="klev-live-user-gps-marker klev-live-user-gps-wrap" style="position:relative;width:64px;height:64px;display:flex;align-items:center;justify-content:center;pointer-events:none;">
+      <div id="klevLiveGpsViewCone" style="position:absolute;inset:0;display:${showCone ? 'flex' : 'none'};opacity:${showCone ? '0.95' : '0'};align-items:center;justify-content:center;transform:rotate(${rot}deg);transition:transform 0.15s linear;">
+        <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+          <defs>
+            <radialGradient id="klevCompassConeGrad" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#10b981" stop-opacity="0.58"/>
+              <stop offset="100%" stop-color="#38bdf8" stop-opacity="0.0"/>
+            </radialGradient>
+          </defs>
+          <path d="M32 32 L14 4 A32 32 0 0 1 50 4 Z" fill="url(#klevCompassConeGrad)"/>
+          <polygon points="32,5 36.5,16 32,13.5 27.5,16" fill="#10b981" stroke="#ffffff" stroke-width="1"/>
+        </svg>
+      </div>
+      <div style="width:18px;height:18px;border-radius:999px;background:#10b981;border:3px solid #ffffff;box-shadow:0 0 0 5px rgba(16,185,129,0.28), 0 2px 8px rgba(0,0,0,0.65);position:relative;z-index:2;"></div>
+    </div>
+  `;
+}
+
+export function updateLiveUserGpsMarkerOnMap() {
+  const realPos = getTrueUserGpsCoords();
+  if (!Number.isFinite(realPos.lat) || !Number.isFinite(realPos.lon)) return;
+  const showCone = _arcGpsCompassState === 'compass' || Boolean(_arcBuiltRoute && _arcBuiltRoute.started);
+  if (!mapInstance || typeof L === 'undefined') {
+    const mapBox = document.getElementById('mapBox');
+    if (mapBox) {
+      let fb = document.getElementById('klevLiveGpsFallbackMarker');
+      if (!fb) {
+        fb = document.createElement('div');
+        fb.id = 'klevLiveGpsFallbackMarker';
+        fb.style.cssText = 'position:absolute;left:50%;top:50%;width:64px;height:64px;transform:translate(-50%,-50%);pointer-events:none;z-index:450;';
+        mapBox.appendChild(fb);
+      }
+      fb.innerHTML = buildLiveUserGpsDivIconHtml(_arcCompassHeadingDeg, showCone);
+    }
+    return;
+  }
+  const fbOld = document.getElementById('klevLiveGpsFallbackMarker');
+  if (fbOld) fbOld.remove();
+  const html = buildLiveUserGpsDivIconHtml(_arcCompassHeadingDeg, showCone);
+  const existingWrap = (mapInstance._container || document).querySelector('.klev-live-user-gps-wrap');
+  const hasLayerOk = _liveUserGpsMarker && (typeof mapInstance.hasLayer === 'function' ? mapInstance.hasLayer(_liveUserGpsMarker) : Boolean(existingWrap));
+  if (!_liveUserGpsMarker || !hasLayerOk) {
+    _liveUserGpsMarker = L.marker([realPos.lat, realPos.lon], {
+      interactive: false,
+      keyboard: false,
+      zIndexOffset: 1850,
+      icon: L.divIcon({
+        className: 'klev-live-user-gps-marker',
+        html,
+        iconSize: [64, 64],
+        iconAnchor: [32, 32]
+      })
+    }).addTo(mapInstance);
+  } else {
+    if (typeof _liveUserGpsMarker.setLatLng === 'function') {
+      _liveUserGpsMarker.setLatLng([realPos.lat, realPos.lon]);
+    }
+    const cone = (mapInstance._container || document).querySelector('#klevLiveGpsViewCone');
+    if (cone) {
+      cone.style.display = showCone ? 'flex' : 'none';
+      cone.style.opacity = showCone ? '0.95' : '0';
+      cone.style.transform = `rotate(${Math.round(_arcCompassHeadingDeg)}deg)`;
+    } else if (existingWrap && existingWrap.parentElement) {
+      existingWrap.parentElement.innerHTML = html;
+    }
+  }
 }
 
 if (typeof window !== 'undefined') {
@@ -6275,10 +6586,14 @@ if (typeof window !== 'undefined') {
     _arcUiOverride = mode;
     window.__KLEV_MAP_UI_OVERRIDE__ = mode;
     const rootEl = document.documentElement;
-    const isArc = isMobileOrTabletMapMode() && (store.getState().route === 'geo');
+    const isMob = isMobileOrTabletMapMode();
+    rootEl.setAttribute('data-desktop-web', isMob ? '0' : '1');
+    const isArc = isMob && (store.getState().route === 'geo');
     rootEl.setAttribute('data-arc-map-active', isArc ? '1' : '0');
     const secGeo = document.getElementById('secGeo');
     if (secGeo) render(secGeo);
+    const secLog = document.getElementById('secLog');
+    if (secLog && typeof window.__KLEV_RENDER_LOG__ === 'function') window.__KLEV_RENDER_LOG__(secLog);
   };
 }
 
@@ -6488,80 +6803,281 @@ function renderArcRouteDraftAndActiveOnMap() {
   }
 }
 
-// Построение маршрута в зависимости от выбранного способа передвижения (п. 8.2.2)
+// Построение связного графа дорог/троп/русел рек из Overpass OSM и поиск кратчайшего пути A*/Дейкстры (Замечание 2 и 4)
+async function _buildOsmNetworkPathBetween(a, b, transportMode = 'car') {
+  if (_forceOfflineTestMode || (typeof navigator !== 'undefined' && !navigator.onLine)) return null;
+  try {
+    const minLat = Math.min(a[0], b[0]) - 0.035;
+    const maxLat = Math.max(a[0], b[0]) + 0.035;
+    const minLon = Math.min(a[1], b[1]) - 0.055;
+    const maxLon = Math.max(a[1], b[1]) + 0.055;
+    if ((maxLat - minLat) > 0.85 || (maxLon - minLon) > 1.35) return null;
+    const bbox = `${minLat.toFixed(4)},${minLon.toFixed(4)},${maxLat.toFixed(4)},${maxLon.toFixed(4)}`;
+    let q = '';
+    if (transportMode === 'boat') {
+      q = `[out:json][timeout:7];way["waterway"~"^(river|stream|canal|fairway)$"](${bbox});out geom;`;
+    } else if (transportMode === 'walk') {
+      q = `[out:json][timeout:7];way["highway"~"^(footway|path|track|pedestrian|steps|residential|service|living_street|unclassified|tertiary|secondary|cycleway)$"](${bbox});out geom;`;
+    } else if (transportMode === 'bike') {
+      q = `[out:json][timeout:7];way["highway"~"^(cycleway|path|track|residential|service|living_street|unclassified|tertiary|secondary|primary)$"](${bbox});out geom;`;
+    } else {
+      q = `[out:json][timeout:7];way["highway"~"^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|service|track|living_street)$"](${bbox});out geom;`;
+    }
+    const isApk = typeof window !== 'undefined' && Boolean(window.AndroidBridge);
+    const rawOverpassUrl = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(q)}`;
+    const url = isApk ? `https://appassets.androidplatform.net/__klev_net_proxy__?url=${encodeURIComponent(rawOverpassUrl)}` : rawOverpassUrl;
+    const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timer = ctrl ? setTimeout(() => ctrl.abort(), 5200) : null;
+    const res = await fetch(url, { signal: ctrl?.signal }).catch(() => null);
+    if (timer) clearTimeout(timer);
+    if (!res || !res.ok) return null;
+    const data = await res.json().catch(() => null);
+    const elements = Array.isArray(data?.elements) ? data.elements : [];
+    if (!elements.length) return null;
+
+    // Строим граф узлов
+    const nodes = new Map(); // key -> { id, lat, lon, adj: Map<key, distKm> }
+    const getOrAddNode = (lat, lon) => {
+      const k = `${lat.toFixed(5)}_${lon.toFixed(5)}`;
+      let n = nodes.get(k);
+      if (!n) {
+        n = { key: k, lat, lon, adj: new Map() };
+        nodes.set(k, n);
+      }
+      return n;
+    };
+    const addEdge = (n1, n2, weightFactor = 1.0) => {
+      if (n1.key === n2.key) return;
+      const d = calcHaversineKm(n1.lat, n1.lon, n2.lat, n2.lon) * weightFactor;
+      const prev1 = n1.adj.get(n2.key);
+      if (prev1 === undefined || d < prev1) {
+        n1.adj.set(n2.key, d);
+        n2.adj.set(n1.key, d);
+      }
+    };
+
+    const wayEndpoints = [];
+    for (const el of elements) {
+      if (el.type !== 'way' || !Array.isArray(el.geometry) || el.geometry.length < 2) continue;
+      const hw = String(el.tags?.highway || el.tags?.waterway || '');
+      // Для пешехода и велосипеда отдаём приоритет тропам, велодорожкам и просёлкам
+      let wFactor = 1.0;
+      if (transportMode === 'walk' && /^(footway|path|track|pedestrian|steps)$/.test(hw)) wFactor = 0.82;
+      if (transportMode === 'bike' && /^(cycleway|path|track|residential|service)$/.test(hw)) wFactor = 0.85;
+      let prevNode = null;
+      for (let i = 0; i < el.geometry.length; i++) {
+        const g = el.geometry[i];
+        const curNode = getOrAddNode(Number(g.lat), Number(g.lon));
+        if (prevNode) addEdge(prevNode, curNode, wFactor);
+        if (i === 0 || i === el.geometry.length - 1) {
+          wayEndpoints.push(curNode);
+        }
+        prevNode = curNode;
+      }
+    }
+
+    if (nodes.size < 2) return null;
+
+    // Для водных маршрутов (boat) соединяем близкие устья/протоки рек в радиусе 280 м
+    if (transportMode === 'boat' && wayEndpoints.length >= 2) {
+      for (let i = 0; i < wayEndpoints.length; i++) {
+        for (let j = i + 1; j < wayEndpoints.length; j++) {
+          const d = calcHaversineKm(wayEndpoints[i].lat, wayEndpoints[i].lon, wayEndpoints[j].lat, wayEndpoints[j].lon);
+          if (d <= 0.28) addEdge(wayEndpoints[i], wayEndpoints[j], 1.25);
+        }
+      }
+    }
+
+    // Находим ближайшие узлы к точке старта a и финиша b
+    let startNode = null, minStartD = Infinity;
+    let endNode = null, minEndD = Infinity;
+    nodes.forEach(n => {
+      const da = calcHaversineKm(a[0], a[1], n.lat, n.lon);
+      const db = calcHaversineKm(b[0], b[1], n.lat, n.lon);
+      if (da < minStartD) { minStartD = da; startNode = n; }
+      if (db < minEndD) { minEndD = db; endNode = n; }
+    });
+
+    const maxSnapDistKm = transportMode === 'boat' ? 2.5 : 1.5;
+    if (!startNode || !endNode || minStartD > maxSnapDistKm || minEndD > maxSnapDistKm) return null;
+    if (startNode.key === endNode.key) return [a, [startNode.lat, startNode.lon], b];
+
+    // Алгоритм A* по графу дорог/троп/русел рек
+    const gScore = new Map([[startNode.key, 0]]);
+    const fScore = new Map([[startNode.key, calcHaversineKm(startNode.lat, startNode.lon, endNode.lat, endNode.lon)]]);
+    const cameFrom = new Map();
+    const openSet = new Set([startNode.key]);
+    let visitedCount = 0;
+
+    while (openSet.size > 0 && visitedCount < 12000) {
+      visitedCount++;
+      let currentKey = null;
+      let bestF = Infinity;
+      openSet.forEach(k => {
+        const fVal = fScore.get(k) ?? Infinity;
+        if (fVal < bestF) { bestF = fVal; currentKey = k; }
+      });
+      if (!currentKey) break;
+      if (currentKey === endNode.key) {
+        const path = [];
+        let cur = currentKey;
+        while (cur) {
+          const nd = nodes.get(cur);
+          if (nd) path.push([nd.lat, nd.lon]);
+          cur = cameFrom.get(cur);
+        }
+        path.reverse();
+        const fullSeg = [];
+        if (calcHaversineKm(a[0], a[1], path[0][0], path[0][1]) > 0.015) fullSeg.push(a);
+        fullSeg.push(...path);
+        if (calcHaversineKm(b[0], b[1], path[path.length - 1][0], path[path.length - 1][1]) > 0.015) fullSeg.push(b);
+        return fullSeg.length >= 2 ? fullSeg : null;
+      }
+      openSet.delete(currentKey);
+      const curNode = nodes.get(currentKey);
+      const curG = gScore.get(currentKey) ?? Infinity;
+      curNode.adj.forEach((edgeDist, nbrKey) => {
+        const tentativeG = curG + edgeDist;
+        if (tentativeG < (gScore.get(nbrKey) ?? Infinity)) {
+          cameFrom.set(nbrKey, currentKey);
+          gScore.set(nbrKey, tentativeG);
+          const nbrNode = nodes.get(nbrKey);
+          fScore.set(nbrKey, tentativeG + calcHaversineKm(nbrNode.lat, nbrNode.lon, endNode.lat, endNode.lon) * 0.8);
+          openSet.add(nbrKey);
+        }
+      });
+    }
+  } catch (_e) {}
+  return null;
+}
+
+// Каскадный запрос маршрута по дорогам, велодорожкам и тропам (FOSSGIS + OSRM + граф Overpass OSM)
+async function _fetchRoutedSegmentForTransport(a, b, transportMode = 'car') {
+  const isApk = typeof window !== 'undefined' && Boolean(window.AndroidBridge);
+  const wrapApkProxy = (u) => isApk ? `https://appassets.androidplatform.net/__klev_net_proxy__?url=${encodeURIComponent(u)}` : u;
+
+  if (!_forceOfflineTestMode && (typeof navigator === 'undefined' || navigator.onLine !== false)) {
+    const coordPair = `${a[1].toFixed(6)},${a[0].toFixed(6)};${b[1].toFixed(6)},${b[0].toFixed(6)}`;
+    let urls = [];
+    if (transportMode === 'car') {
+      urls = [
+        `https://routing.openstreetmap.de/routed-car/route/v1/driving/${coordPair}?overview=full&geometries=geojson&steps=true&continue_straight=true`,
+        `https://router.project-osrm.org/route/v1/driving/${coordPair}?overview=full&geometries=geojson&steps=true&continue_straight=true`
+      ];
+    } else if (transportMode === 'bike') {
+      urls = [
+        `https://routing.openstreetmap.de/routed-bike/route/v1/driving/${coordPair}?overview=full&geometries=geojson&steps=true&continue_straight=true`,
+        `https://router.project-osrm.org/route/v1/bike/${coordPair}?overview=full&geometries=geojson&steps=true&exclude=motorway`
+      ];
+    } else if (transportMode === 'walk') {
+      urls = [
+        `https://routing.openstreetmap.de/routed-foot/route/v1/driving/${coordPair}?overview=full&geometries=geojson&steps=true&continue_straight=true`,
+        `https://router.project-osrm.org/route/v1/foot/${coordPair}?overview=full&geometries=geojson&steps=true`
+      ];
+    }
+
+    for (const rawUrl of urls) {
+      try {
+        const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+        const timer = ctrl ? setTimeout(() => ctrl.abort(), 4200) : null;
+        const res = await fetch(wrapApkProxy(rawUrl), { signal: ctrl?.signal }).catch(() => null);
+        if (timer) clearTimeout(timer);
+        if (!res || !res.ok) continue;
+        const data = await res.json().catch(() => null);
+        const coords = data?.routes?.[0]?.geometry?.coordinates;
+        if (Array.isArray(coords) && coords.length >= 2) {
+          const pts = coords.map(c => [Number(c[1]), Number(c[0])]);
+          if (calcHaversineKm(a[0], a[1], pts[0][0], pts[0][1]) > 0.03) pts.unshift(a);
+          if (calcHaversineKm(b[0], b[1], pts[pts.length - 1][0], pts[pts.length - 1][1]) > 0.03) pts.push(b);
+          return pts;
+        }
+      } catch (_e) {}
+    }
+
+    // Резервный расчёт по локальному графу дорог/троп/русел рек OpenStreetMap Overpass
+    const osmGraphSeg = await _buildOsmNetworkPathBetween(a, b, transportMode);
+    if (Array.isArray(osmGraphSeg) && osmGraphSeg.length >= 2) {
+      return osmGraphSeg;
+    }
+  }
+  return null;
+}
+
+// Построение маршрута в зависимости от выбранного способа передвижения строго от геопозиции пользователя (Замечание 2 и 4)
 export async function computeSmartTransportRoute(waypointsList, transportMode = 'car') {
   const s = store.getState();
-  const startPt = [Number(s.lat), Number(s.lon)];
+  // Замечание 4: Старт маршрута берётся СТРОГО от реальной геопозиции пользователя, а не от передвинутой метки водоёма!
+  let realUserGps = getTrueUserGpsCoords(s);
+  if (!realUserGps.isRealGps) {
+    const fresh = await acquireFreshHighAccuracyGpsFix(2800).catch(() => null);
+    if (fresh && fresh.hasRealFix) {
+      realUserGps = { lat: fresh.lat, lon: fresh.lon, acc: fresh.acc, isRealGps: true };
+    }
+  }
+  const startPt = [Number(realUserGps.lat), Number(realUserGps.lon)];
   const rawTargets = (Array.isArray(waypointsList) ? waypointsList : []).map(p => Array.isArray(p) ? [Number(p[0]), Number(p[1])] : [Number(p.lat), Number(p.lon)]);
   if (rawTargets.length === 0) return null;
 
-  const chain = [startPt, ...rawTargets];
+  // Для режима «Нарисовать пальцем» (если передано много точек мазка) прореживаем до ключевых опорных точек и соединяем от реального GPS до последней точки
+  let effectiveTargets = rawTargets;
+  if (rawTargets.length > 6) {
+    const sampled = [rawTargets[0]];
+    const step = Math.max(1, Math.floor(rawTargets.length / 4));
+    for (let i = step; i < rawTargets.length - 1; i += step) {
+      sampled.push(rawTargets[i]);
+    }
+    sampled.push(rawTargets[rawTargets.length - 1]);
+    effectiveTargets = sampled;
+  }
+
+  const chain = [startPt, ...effectiveTargets];
   let finalPoly = [];
 
   if (transportMode === 'snowmobile') {
-    // Снегоход / Мотособака — строго по прямой через точки
+    // Снегоход / Мотособака — строго по прямой через точки от реальной геопозиции пользователя
     finalPoly = chain;
   } else if (transportMode === 'boat') {
-    // Лодка — по акватории рек/озёр/водохранилищ (привязка к узлам рек OSM waterway, если они рядом)
-    const center = mapInstance ? mapInstance.getCenter() : { lat: s.lat, lng: s.lon };
-    const ways = await fetchStrictRiverWaysForMapBounds(center.lat, center.lng);
+    // Лодка — по акватории рек/озёр/водохранилищ (граф OSM waterway + кэш рек)
     finalPoly = [chain[0]];
     for (let i = 0; i < chain.length - 1; i++) {
       const a = chain[i];
       const b = chain[i + 1];
-      let snappedRiverSegment = null;
-      for (const w of (ways || [])) {
-        if (!Array.isArray(w.pts) || w.pts.length < 2) continue;
-        let idxA = -1, dA = 999, idxB = -1, dB = 999;
-        w.pts.forEach((rp, idx) => {
-          const da = calcHaversineKm(a[0], a[1], rp[0], rp[1]);
-          const db = calcHaversineKm(b[0], b[1], rp[0], rp[1]);
-          if (da < dA) { dA = da; idxA = idx; }
-          if (db < dB) { dB = db; idxB = idx; }
-        });
-        if (dA <= 1.2 && dB <= 1.2 && idxA !== -1 && idxB !== -1 && idxA !== idxB) {
-          const slice = idxA < idxB ? w.pts.slice(idxA, idxB + 1) : w.pts.slice(idxB, idxA + 1).reverse();
-          snappedRiverSegment = slice;
-          break;
+      let waterSeg = await _buildOsmNetworkPathBetween(a, b, 'boat');
+      if (!waterSeg || waterSeg.length < 2) {
+        const midLat = (a[0] + b[0]) / 2;
+        const midLon = (a[1] + b[1]) / 2;
+        const ways = await fetchStrictRiverWaysForMapBounds(midLat, midLon);
+        for (const w of (ways || [])) {
+          if (!Array.isArray(w.pts) || w.pts.length < 2) continue;
+          let idxA = -1, dA = 999, idxB = -1, dB = 999;
+          w.pts.forEach((rp, idx) => {
+            const da = calcHaversineKm(a[0], a[1], rp[0], rp[1]);
+            const db = calcHaversineKm(b[0], b[1], rp[0], rp[1]);
+            if (da < dA) { dA = da; idxA = idx; }
+            if (db < dB) { dB = db; idxB = idx; }
+          });
+          if (dA <= 2.0 && dB <= 2.0 && idxA !== -1 && idxB !== -1 && idxA !== idxB) {
+            const slice = idxA < idxB ? w.pts.slice(idxA, idxB + 1) : w.pts.slice(idxB, idxA + 1).reverse();
+            waterSeg = [a, ...slice, b];
+            break;
+          }
         }
       }
-      if (snappedRiverSegment && snappedRiverSegment.length >= 2) {
-        finalPoly.push(...snappedRiverSegment);
+      if (waterSeg && waterSeg.length >= 2) {
+        finalPoly.push(...waterSeg.slice(1));
       } else {
         finalPoly.push(b);
       }
     }
   } else if (transportMode === 'car' || transportMode === 'bike' || transportMode === 'walk') {
-    // Для Авто (дороги и просёлки), Велосипеда (велодорожки, тропы, дороги без автострад) и Пешехода (тропы/дорожки, обход водоёмов и болот)
+    // Для Авто (дороги и просёлки), Велосипеда (велодорожки, тропы, дороги без автострад) и Пешехода (тропы/дорожки, обход водоёмов)
     finalPoly = [chain[0]];
     for (let i = 0; i < chain.length - 1; i++) {
       const a = chain[i];
       const b = chain[i + 1];
-      let seg = null;
-      if (!_forceOfflineTestMode && typeof navigator !== 'undefined' && navigator.onLine) {
-        try {
-          const prof = transportMode === 'car' ? 'driving' : (transportMode === 'bike' ? 'bike' : 'foot');
-          const excludeParam = transportMode === 'bike' ? '&exclude=motorway' : '';
-          const url = `https://router.project-osrm.org/route/v1/${prof}/${a[1].toFixed(5)},${a[0].toFixed(5)};${b[1].toFixed(5)},${b[0].toFixed(5)}?overview=full&geometries=geojson${excludeParam}`;
-          const res = await fetchWithTimeout(url, {}, 3800);
-          if (res && res.ok) {
-            const data = await res.json();
-            const coords = data?.routes?.[0]?.geometry?.coordinates;
-            if (Array.isArray(coords) && coords.length >= 2) {
-              seg = coords.map(c => [Number(c[1]), Number(c[0])]);
-            }
-          }
-        } catch (_e) {}
-      }
+      let seg = await _fetchRoutedSegmentForTransport(a, b, transportMode);
       if (!seg || seg.length < 2) {
-        if (transportMode === 'walk') {
-          // Для пешехода вне дорог: строим по прямой, но огибаем водные русла/болота, если отрезок пересекает реку без моста
-          const midLat = (a[0] + b[0]) / 2;
-          const midLon = (a[1] + b[1]) / 2;
-          seg = [a, [midLat + 0.0008, midLon - 0.0008], b];
-        } else {
-          seg = [a, b];
-        }
+        seg = [a, b];
       }
       finalPoly.push(...seg.slice(1));
     }
@@ -7225,6 +7741,7 @@ function renderArcMobileMap(container, s, prevLiveMapBox) {
   }
 
   bindArcMobileMapEvents(container);
+  updateLiveUserGpsMarkerOnMap();
   setTimeout(() => {
     const box = container.querySelector('#mapBox');
     if (box && box.offsetParent !== null) {
@@ -7405,39 +7922,87 @@ function bindArcMobileMapEvents(container) {
     });
   });
 
-  // П. 2.5: Кнопка GPS / Компас
-  container.querySelector('#arcBtnGpsCompass')?.addEventListener('click', (e) => {
+  // П. 2.5 и Замечание 6: Кнопка GPS / Компас
+  // 1) Всегда возвращает карту к РЕАЛЬНОЙ геопозиции пользователя (getTrueUserGpsCoords), а не к передвинутой точке просмотра водоёма!
+  // 2) В режиме компаса не переворачивает контейнер #mapBox вверх ногами на 180° и не обрезает углы карты, а вращает стрелку компаса и луч «взгляда» на GPS-маркере пользователя.
+  container.querySelector('#arcBtnGpsCompass')?.addEventListener('click', async (e) => {
     e.stopPropagation();
-    if (!mapInstance) return;
-    const c = mapInstance.getCenter();
-    const dist = calcHaversineKm(s.lat, s.lon, c.lat, c.lng);
-    if (dist > 0.25 || _arcGpsCompassState === 'off') {
+    const boxEl = container.querySelector('#mapBox');
+    if (boxEl) boxEl.style.transform = 'none';
+
+    const realPos = getTrueUserGpsCoords(s);
+    const c = mapInstance ? mapInstance.getCenter() : { lat: realPos.lat, lng: realPos.lon };
+    const distToRealGpsKm = calcHaversineKm(realPos.lat, realPos.lon, c.lat, c.lng);
+
+    if (distToRealGpsKm > 0.18 || _arcGpsCompassState === 'off') {
       _arcGpsCompassState = 'centered';
-      mapInstance.setView([s.lat, s.lon], Math.max(13, mapInstance.getZoom() || 13));
-      const boxEl = container.querySelector('#mapBox');
-      if (boxEl) boxEl.style.transform = 'none';
-      requestGPS();
-    } else if (_arcGpsCompassState === 'centered') {
+      if (mapInstance) {
+        mapInstance.setView([realPos.lat, realPos.lon], Math.max(14, mapInstance.getZoom() || 14));
+      }
+      updateLiveUserGpsMarkerOnMap();
+      render(container);
+      // Дополнительно запрашиваем свежий GPS-фикс и центрируем строго на реальном положении пользователя
+      const fresh = await acquireFreshHighAccuracyGpsFix(4500).catch(() => null);
+      if (fresh && fresh.hasRealFix && mapInstance) {
+        mapInstance.setView([fresh.lat, fresh.lon], Math.max(14, mapInstance.getZoom() || 14));
+        updateLiveUserGpsMarkerOnMap();
+      }
+      return;
+    }
+
+    if (_arcGpsCompassState === 'centered') {
       _arcGpsCompassState = 'compass';
+      if (mapInstance) {
+        mapInstance.setView([realPos.lat, realPos.lon], Math.max(14, mapInstance.getZoom() || 14));
+      }
+      if (typeof window !== 'undefined' && typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+        try { await DeviceOrientationEvent.requestPermission(); } catch (_e) {}
+      }
       if (typeof window !== 'undefined' && !window.__KLEV_ARC_COMPASS_BOUND__) {
         window.__KLEV_ARC_COMPASS_BOUND__ = true;
-        window.addEventListener('deviceorientation', (ev) => {
-          const hdg = Number.isFinite(ev.webkitCompassHeading)
-            ? ev.webkitCompassHeading
-            : (Number.isFinite(ev.alpha) ? (360 - ev.alpha) % 360 : 0);
-          _arcCompassHeadingDeg = Math.round(hdg);
-          if (_arcGpsCompassState === 'compass') {
-            const bEl = document.getElementById('mapBox');
-            if (bEl) bEl.style.transform = `rotate(${-_arcCompassHeadingDeg}deg)`;
+        let _compassZeroOffset = null;
+        const handleOrientationEvent = (ev) => {
+          if (!ev) return;
+          const scrAngle = (typeof window.screen !== 'undefined' && window.screen.orientation && Number.isFinite(window.screen.orientation.angle))
+            ? window.screen.orientation.angle
+            : (Number.isFinite(window.orientation) ? Number(window.orientation) : 0);
+          let hdg = null;
+          if (Number.isFinite(ev.webkitCompassHeading) && ev.webkitCompassHeading >= 0) {
+            hdg = (ev.webkitCompassHeading + scrAngle + 360) % 360;
+          } else if (ev.absolute === true && Number.isFinite(ev.alpha)) {
+            hdg = ((360 - ev.alpha) + scrAngle + 360) % 360;
+          } else if (Number.isFinite(ev.alpha)) {
+            // Для относительного датчика deviceorientation на Android компенсируем начальный 180-градусный сдвиг
+            if (_compassZeroOffset === null) {
+              _compassZeroOffset = ev.alpha;
+            }
+            const rel = (ev.alpha - _compassZeroOffset + 360) % 360;
+            hdg = ((360 - rel) + scrAngle + 360) % 360;
           }
-        }, { passive: true });
+          if (hdg === null) return;
+          _arcCompassHeadingDeg = Math.round(hdg) % 360;
+          if (_arcGpsCompassState === 'compass') {
+            updateLiveUserGpsMarkerOnMap();
+            const btnNeedle = document.querySelector('#arcBtnGpsCompass svg');
+            if (btnNeedle) {
+              btnNeedle.style.transform = `rotate(${-_arcCompassHeadingDeg}deg)`;
+            }
+          }
+        };
+        if ('ondeviceorientationabsolute' in window) {
+          window.addEventListener('deviceorientationabsolute', handleOrientationEvent, { passive: true });
+        }
+        window.addEventListener('deviceorientation', handleOrientationEvent, { passive: true });
       }
     } else {
       _arcGpsCompassState = 'centered';
-      const boxEl = container.querySelector('#mapBox');
-      if (boxEl) boxEl.style.transform = 'none';
+      if (mapInstance) {
+        mapInstance.setView([realPos.lat, realPos.lon], Math.max(14, mapInstance.getZoom() || 14));
+      }
     }
+    updateLiveUserGpsMarkerOnMap();
     render(container);
+    updateLiveUserGpsMarkerOnMap();
   });
 
   // П. 2.7: Кнопка Точка (плитка 2x3 -> переход в окно «Добавить точку на карту» с выбранным типом точки)
@@ -7705,15 +8270,38 @@ function bindArcMobileMapEvents(container) {
   });
 
   // Ведение по построенному маршруту: кнопка Старт/Пауза и кнопка Стоп с удержанием 1.5 сек и круговым заполнением
+  // Замечание 5 и 9: Никогда не запускаем запись трека автоматически в фоне без явного согласия пользователя!
   container.querySelector('#arcNavStartPauseBtn')?.addEventListener('click', (e) => {
     e.stopPropagation();
     if (!_arcBuiltRoute) return;
     if (!_arcBuiltRoute.started) {
       _arcBuiltRoute.started = true;
       _arcBuiltRoute.paused = false;
+      updateLiveUserGpsMarkerOnMap();
       speakRouteGuidanceRu(`Маршрут построен. Дистанция ${_arcBuiltRoute.distKm.toFixed(1)} километра. Начинаем движение.`);
-      if (canAccessPhase3Routes(s) && !_phase3ActiveTrack) {
-        try { startPhase3RouteRecording(); } catch (_e) {}
+      if (canAccessPhase3Routes(s) && !_phase3ActiveTrack && !_arcBuiltRoute.recordingAsked) {
+        _arcBuiltRoute.recordingAsked = true;
+        const askHtml = `
+          <div style="display:flex;flex-direction:column;gap:10px;font-size:var(--fs-sm);line-height:1.45;">
+            <div style="padding:10px 12px;background:var(--card);border:1px solid var(--border);border-radius:10px;">
+              Включить параллельную запись вашего трека для обратного возврата («Я потерялся»)?
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+              <button type="button" class="btn btn-good" id="arcConfirmRecordRouteYesBtn" style="min-height:42px;font-weight:900;">Да, записывать</button>
+              <button type="button" class="btn" id="arcConfirmRecordRouteNoBtn" style="min-height:42px;font-weight:800;">Нет, только ведение</button>
+            </div>
+          </div>
+        `;
+        openModal('Запись маршрута', askHtml, (bEl) => {
+          bEl.querySelector('#arcConfirmRecordRouteYesBtn')?.addEventListener('click', () => {
+            closeModal();
+            try { startPhase3RouteRecording('', false, getTrueUserGpsCoords(s)); } catch (_e) {}
+            render(container);
+          });
+          bEl.querySelector('#arcConfirmRecordRouteNoBtn')?.addEventListener('click', () => {
+            closeModal();
+          });
+        });
       }
     } else {
       _arcBuiltRoute.paused = !_arcBuiltRoute.paused;
@@ -7739,7 +8327,11 @@ function bindArcMobileMapEvents(container) {
           _arcBuiltRoute = null;
           _arcWaypointsDraft = [];
           _arcFreehandStrokes = [];
+          if (_phase3ActiveTrack) {
+            try { stopAndSavePhase3Route(false); } catch (_e) {}
+          }
           renderArcRouteDraftAndActiveOnMap();
+          updateLiveUserGpsMarkerOnMap();
           speakRouteGuidanceRu('Ведение по маршруту завершено');
           render(container);
           return;
@@ -7765,7 +8357,11 @@ function bindArcMobileMapEvents(container) {
     _arcBuiltRoute = null;
     _arcWaypointsDraft = [];
     _arcFreehandStrokes = [];
+    if (_phase3ActiveTrack) {
+      try { stopAndSavePhase3Route(false); } catch (_e) {}
+    }
     renderArcRouteDraftAndActiveOnMap();
+    updateLiveUserGpsMarkerOnMap();
     render(container);
   });
 
