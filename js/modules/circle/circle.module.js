@@ -9,16 +9,16 @@
  * - Выделенная вкладка « Чаты» на нижней панели навигации + отправка карточки улова прямо в чат.
  * - Закрытый режим Супер-Админа (только для Владельца + управляемая База Администраторов с синхронизацией).
  */
-import { events } from '../../core/events.js?v=2.9.0-r233';
-import { store } from '../../core/store.js?v=2.9.0-r233';
-import { storage, calcGeoDistanceKm, safeJsonParse } from '../../core/storage.js?v=2.9.0-r233';
-import { router } from '../../core/router.js?v=2.9.0-r233';
-import { APP_VERSION, APP_REVISION, APP_DISPLAY_VERSION, getSeasonalBaitsForContext, SPOT_CATEGORIES } from '../../core/config.js?v=2.9.0-r233';
-import { detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.9.0-r233';
-import { findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.9.0-r233';
-import { WATER_PROFILES } from '../../data/waters.js?v=2.9.0-r233';
-import { FISH_DB } from '../../data/species.js?v=2.9.0-r233';
-import { escapeHtml, isAnonymousCallsignValid, createPill, showToast, openModal, closeModal, copyFisherIdToClipboard, openConfirmDeleteModal, openUserAgreementModal, isUserAgreementAccepted, downloadFileCrossPlatform, triggerSystemNotificationCrossPlatform, requestSystemNotificationsAccess, flashHighlightElement, isPolicyVersionAccepted, getSavedPolicyConsentMeta, POLICY_CONSENT_META_KEY, ACTIVE_POLICY_VERSION_DEFAULT, ACTIVE_APP_VERSION_DEFAULT, saveRemotePolicyToClientEnv, getRemotePolicyFromClientEnv, parsePolicySectionsFromEditableText, formatPolicySectionsToEditableText, DEFAULT_POLICY_SECTIONS, isGeoDistributionConsentActive, ensureGeoDistributionConsent, setGeoDistributionConsentState } from '../../ui/components.js?v=2.9.0-r233';
+import { events } from '../../core/events.js?v=2.9.0-r234';
+import { store } from '../../core/store.js?v=2.9.0-r234';
+import { storage, calcGeoDistanceKm, safeJsonParse } from '../../core/storage.js?v=2.9.0-r234';
+import { router } from '../../core/router.js?v=2.9.0-r234';
+import { APP_VERSION, APP_REVISION, APP_DISPLAY_VERSION, getSeasonalBaitsForContext, SPOT_CATEGORIES } from '../../core/config.js?v=2.9.0-r234';
+import { detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.9.0-r234';
+import { findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.9.0-r234';
+import { WATER_PROFILES } from '../../data/waters.js?v=2.9.0-r234';
+import { FISH_DB } from '../../data/species.js?v=2.9.0-r234';
+import { escapeHtml, isAnonymousCallsignValid, createPill, showToast, openModal, closeModal, copyFisherIdToClipboard, openConfirmDeleteModal, openUserAgreementModal, isUserAgreementAccepted, downloadFileCrossPlatform, triggerSystemNotificationCrossPlatform, requestSystemNotificationsAccess, flashHighlightElement, isPolicyVersionAccepted, getSavedPolicyConsentMeta, POLICY_CONSENT_META_KEY, ACTIVE_POLICY_VERSION_DEFAULT, ACTIVE_APP_VERSION_DEFAULT, saveRemotePolicyToClientEnv, getRemotePolicyFromClientEnv, parsePolicySectionsFromEditableText, formatPolicySectionsToEditableText, DEFAULT_POLICY_SECTIONS, isGeoDistributionConsentActive, ensureGeoDistributionConsent, setGeoDistributionConsentState } from '../../ui/components.js?v=2.9.0-r234';
 import {
   RELAY_WORKER_URL,
   buildShareUrls,
@@ -31,9 +31,9 @@ import {
   syncToTelegramCloud,
   readFromTelegramCloud,
   triggerHaptic
-} from '../../core/telegram.js?v=2.9.0-r233';
-import { setLocation } from '../geo/geo.module.js?v=2.9.0-r233';
-import { calcDynamicRig } from '../forecast/forecast.module.js?v=2.9.0-r233';
+} from '../../core/telegram.js?v=2.9.0-r234';
+import { setLocation } from '../geo/geo.module.js?v=2.9.0-r234';
+import { calcDynamicRig } from '../forecast/forecast.module.js?v=2.9.0-r234';
 export const CREW_TTL_MS = 72 * 60 * 60 * 1000;
 /**
  * Вычисляет точное время окончания действия ссылки на длинную экспедицию:
@@ -6964,9 +6964,7 @@ export function render(container) {
               <div style="font-weight:900;font-size:var(--fs-sm);color:var(--warn);">
                 <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(245,158,11,0.22)" stroke="#f59e0b" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#f59e0b"/></svg> Точка на карту (6 категорий)
               </div>
-              <div style="font-size:11px;color:var(--muted);margin-top:2px;">
-                Отметьте слип, коряжник, стоянку, рабочую яму, опасность или магазин (лично или для рыбаков региона)
-              </div>
+
             </div>
             <span class="pill pill-warn" style="font-size:10px;">Кластер &lt; 1 км/см</span>
           </div>
@@ -7029,11 +7027,7 @@ export function render(container) {
                     ? `<svg class="k-ico" style="color:var(--good);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg> Профиль активен: «${escapeHtml(ident.login || ident.callsign)}»`
                     : `<svg class="k-ico" style="color:var(--warn);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg> Гостевой режим (только просмотр)`)}
             </div>
-            <div style="font-size:11px;color:var(--muted);margin-top:2px;">
-              ${ident.isRegistered
-                ? 'Публикуйте сводки в Круг (±5 км), создавайте Экипажи (72 ч) и принимайте сигналы SOS'
-                : 'Войдите или зарегистрируйтесь в профиле для публикации своих точек и общения в чатах'}
-            </div>
+
           </div>
           <div class="circle-profile-actions-grid" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;width:100%;">
             ${ident.isOwner ? `
@@ -7055,18 +7049,14 @@ export function render(container) {
               <span style="font-weight:900;font-size:var(--fs-sm);color:var(--good);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3.5" fill="rgba(56,189,248,0.25)" stroke="currentColor" stroke-width="1.8"/><path d="M3 19c0-3.2 2.7-5.5 6-5.5s6 2.3 6 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="17" cy="9" r="2.8" stroke="currentColor" stroke-width="1.6"/><path d="M16 14c2.6.3 4.8 2 5 4.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg> Сводка в Круг (±5 км)</span>
               <span class="pill pill-good" style="font-size:10px;">Приватно</span>
             </div>
-            <div style="font-size:11px;color:var(--muted);line-height:1.35;">
-              Поделиться клёвом в радиусе 35 км со скрытием точного места (±5 км)
-            </div>
+
           </button>
           <button type="button" class="card" data-quick-share="crew" style="text-align:left;cursor:pointer;padding:10px 12px;background:var(--card);border:1.5px solid var(--accent);display:flex;flex-direction:column;gap:4px;">
             <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;">
               <span style="font-weight:900;font-size:var(--fs-sm);color:var(--accent);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> Экипаж (72 ч)</span>
               <span class="pill pill-ice" style="font-size:10px;">По ключу</span>
             </div>
-            <div style="font-size:11px;color:var(--muted);line-height:1.35;">
-              Точные координаты стоянки и общий чат только для напарников по ключу KP-XXXX
-            </div>
+
           </button>
         </div>
         <!-- 3. Панель фильтрации радара (Принадлежность + Тип сигнала без обрезки кнопок) -->
@@ -7579,8 +7569,8 @@ function resolveLatestAdminPolicyState(db = {}) {
   const baseline = {
     policyVersion: ACTIVE_POLICY_VERSION_DEFAULT || '2026.11.10-v2.8.3',
     appVersion: ACTIVE_APP_VERSION_DEFAULT || APP_VERSION || '2.8.3',
-    appRevision: APP_REVISION || 'r231',
-    summary: 'Редакция v2.8.3 (r231): сохранность пользовательских данных при очистке кэша, единый постоянный ID рыбака на всех устройствах по логину и паролю, расчёт гидрологии и льда по данным Росгидромета (meteoinfo.ru), правила гостевого доступа и Бета-теста.',
+    appRevision: APP_REVISION || 'r234',
+    summary: 'Редакция v2.8.3 (r234): сохранность пользовательских данных при очистке кэша, единый постоянный ID рыбака на всех устройствах по логину и паролю, расчёт гидрологии и льда по данным Росгидромета (meteoinfo.ru), правила гостевого доступа и Бета-теста.',
     sections: DEFAULT_POLICY_SECTIONS
   };
   let locPol = null;
@@ -7603,7 +7593,7 @@ function resolveLatestAdminPolicyState(db = {}) {
   const resolved = {
     policyVersion: best.policyVersion || baseline.policyVersion,
     appVersion: (best.appVersion && best.appVersion !== '2.5.6') ? best.appVersion : baseline.appVersion,
-    appRevision: best.appRevision || APP_REVISION || 'r231',
+    appRevision: best.appRevision || APP_REVISION || 'r234',
     summary: (best.summary && !/v2\.5\.6|\(r22[0-9]\)/i.test(best.summary)) ? best.summary : baseline.summary,
     sections: (Array.isArray(best.sections) && best.sections.length > 0) ? best.sections : DEFAULT_POLICY_SECTIONS,
     broadcastId: best.broadcastId || '',
@@ -9063,7 +9053,7 @@ function bindAdminSectionEvents(container, users) {
     const newPolObj = {
       policyVersion: pVer,
       appVersion: aVer,
-      appRevision: APP_REVISION || 'r231',
+      appRevision: APP_REVISION || 'r234',
       effectiveDate: new Date(nowMs).toLocaleDateString('ru-RU'),
       summary: pSum,
       sections: parsedSecs,

@@ -5,11 +5,11 @@
  * выделенная вкладка « Чаты» с отправкой улова, автопривязка и автокопирование ID рыбака FP-XXXXX,
  * закрытый Супер-Админ + управляемая База Администраторов) (Ревизия 2.1.1)
  */
-import { DEFAULT_STATE, getCompatibleMethods, getSeasonalBaitsForContext } from './config.js?v=2.9.0-r233';
-import { storage } from './storage.js?v=2.9.0-r233';
-import { detectBasinByCoords, BASIN_CONFIGS, isCoastalInBasin, getSpotEcoregion } from '../data/basins.js?v=2.9.0-r233';
-import { findNearestRussianSettlement } from '../data/russia-waters.js?v=2.9.0-r233';
-import { FISH_DB } from '../data/species.js?v=2.9.0-r233';
+import { DEFAULT_STATE, getCompatibleMethods, getSeasonalBaitsForContext } from './config.js?v=2.9.0-r234';
+import { storage } from './storage.js?v=2.9.0-r234';
+import { detectBasinByCoords, BASIN_CONFIGS, isCoastalInBasin, getSpotEcoregion } from '../data/basins.js?v=2.9.0-r234';
+import { findNearestRussianSettlement } from '../data/russia-waters.js?v=2.9.0-r234';
+import { FISH_DB } from '../data/species.js?v=2.9.0-r234';
 function getActiveDaySeasonContext(state, overrideDays = null, overrideDayIdx = null, overrideIceState = null) {
   const rawDays = overrideDays ?? state?.weatherDays;
   const days = Array.isArray(rawDays) ? rawDays : [];

@@ -1,5 +1,5 @@
-import { STATE_CACHE_KEY, WEATHER_CACHE_KEY, WEATHER_TTL_MS } from './config.js?v=2.9.0-r233';
-import { formatLocalYYYYMMDD } from './format.js?v=2.9.0-r233';
+import { STATE_CACHE_KEY, WEATHER_CACHE_KEY, WEATHER_TTL_MS } from './config.js?v=2.9.0-r234';
+import { formatLocalYYYYMMDD } from './format.js?v=2.9.0-r234';
 const DB_NAME = 'KlevProDB_v2_1_1';
 export const CLEAN_SLATE_FLAG_KEY = 'klev_pro_clean_slate_v2_1_1_r4';
 export const CLEAN_SLATE_NOTICE_KEY = 'klev_pro_clean_slate_notice_v2_1_1_r4';
@@ -144,8 +144,8 @@ hydrateFromAndroidAppDataVault();
  * с автоматическим восстановлением эксклюзивного ID Владельца (iAthor -> FP_89VIP089)
  */
 export function runCleanSlateMigrationV2100() {
-  if (typeof localStorage === 'undefined') return false;
   try {
+    if (typeof localStorage === 'undefined') return false;
     if (localStorage.getItem(CLEAN_SLATE_FLAG_KEY) === '1' || loadKeyFromNativeAppData(CLEAN_SLATE_FLAG_KEY) === '1') {
       try { localStorage.setItem(CLEAN_SLATE_FLAG_KEY, '1'); } catch (_) {}
       return false;

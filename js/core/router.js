@@ -1,6 +1,6 @@
-import { store } from './store.js?v=2.9.0-r233';
-import { renderMap } from '../modules/geo/geo.module.js?v=2.9.0-r233';
-import { closeModal } from '../ui/components.js?v=2.9.0-r233';
+import { store } from './store.js?v=2.9.0-r234';
+import { renderMap } from '../modules/geo/geo.module.js?v=2.9.0-r234';
+import { closeModal } from '../ui/components.js?v=2.9.0-r234';
 const VALID_ROUTES = ['geo', 'weather', 'fish', 'forecast', 'circle', 'chats', 'log', 'calendar', 'admin'];
 const DEFAULT_ROUTE = (typeof window !== 'undefined' && window.__KLEV_ADMIN_CONTOUR__ === true) ? 'admin' : 'forecast';
 const routeHistoryStack = [DEFAULT_ROUTE];

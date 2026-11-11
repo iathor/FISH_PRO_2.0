@@ -1,15 +1,15 @@
-import { RU } from '../../i18n/ru.js?v=2.9.0-r233';
-import { events } from '../../core/events.js?v=2.9.0-r233';
-import { storage } from '../../core/storage.js?v=2.9.0-r233';
-import { store } from '../../core/store.js?v=2.9.0-r233';
-import { fetchWithTimeout, fallbackChain } from '../../core/http.js?v=2.9.0-r233';
-import { formatLocalYYYYMMDD, fmtHM, fmtDeltaPress } from '../../core/format.js?v=2.9.0-r233';
-import { WATER_PROFILES } from '../../data/waters.js?v=2.9.0-r233';
-import { createPill, showToast } from '../../ui/components.js?v=2.9.0-r233';
+import { RU } from '../../i18n/ru.js?v=2.9.0-r234';
+import { events } from '../../core/events.js?v=2.9.0-r234';
+import { storage } from '../../core/storage.js?v=2.9.0-r234';
+import { store } from '../../core/store.js?v=2.9.0-r234';
+import { fetchWithTimeout, fallbackChain } from '../../core/http.js?v=2.9.0-r234';
+import { formatLocalYYYYMMDD, fmtHM, fmtDeltaPress } from '../../core/format.js?v=2.9.0-r234';
+import { WATER_PROFILES } from '../../data/waters.js?v=2.9.0-r234';
+import { createPill, showToast } from '../../ui/components.js?v=2.9.0-r234';
 const DIRS = ['С', 'СВ', 'В', 'ЮВ', 'Ю', 'ЮЗ', 'З', 'СЗ'];
 
 /**
- * ── ЯДРО ГИДРОМЕТЦЕНТРА РОССИИ (METEOINFO.RU) • РЕВИЗИЯ 2.8.3 (r230) ──
+ * ── ЯДРО ГИДРОМЕТЦЕНТРА РОССИИ (METEOINFO.RU) • РЕВИЗИЯ 2.8.3 (r234) ──
  * 1. 4 микро-парсера (StationWeatherParser, HydroReviewNLPParser, RoadAndStormAlertParser, SpaceWeatherParser)
  * 2. Геопоиск 3 ближайших опорных метеостанций РФ и интерполяция методом обратных взвешенных расстояний (IDW)
  *    с барометрической и высотной поправкой (dT = -0.0065 * dz, dP = -dz / 11.5)
@@ -1419,7 +1419,7 @@ export function render(container) {
               <span>Луна: ${m.phaseName} (${m.moonDay} л.д., освещённость ${m.illum}%)</span>
             </div>
             <div class="bento-card-sub">
-              <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.5" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> Восход ${fmtHM(day.sunriseHr)} • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.5" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> Закат ${fmtHM(day.sunsetHr)} • Приоритет: термика и барометр важнее фазы Луны
+              <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.5" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> Восход ${fmtHM(day.sunriseHr)} • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.5" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> Закат ${fmtHM(day.sunsetHr)}
             </div>
           </div>
         </div>

@@ -462,11 +462,11 @@ input[type="checkbox"], input[type="radio"] {
 }
 
 .factor-row {
-  display: grid;
-  grid-template-columns: 175px 1fr 56px;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 5px;
+  padding: 7px 0;
   border-bottom: 1px dashed var(--border);
   font-size: var(--fs-sm);
 }

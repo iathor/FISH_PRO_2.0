@@ -1192,7 +1192,7 @@ body {
 }
 
 @media (max-width: 720px) {
-  .factor-row { grid-template-columns: 135px 1fr 50px; font-size: var(--fs-xs); }
+  .factor-row { display: flex !important; flex-direction: column !important; align-items: stretch !important; gap: 5px !important; font-size: var(--fs-xs); }
   .nav-tab { font-size: 10.5px; padding: 3px 1px; }
 }
 
@@ -2216,13 +2216,16 @@ html[data-desktop-web="1"] .bottom-nav {
 }
 
 .klev-arc-plaque {
-  border-radius: 20px;
+  border-radius: 22px;
   padding: 10px 12px;
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  min-height: 74px;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 4px;
+  min-height: 78px;
   position: relative;
   overflow: hidden;
 }

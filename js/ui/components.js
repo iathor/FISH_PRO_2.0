@@ -1,4 +1,4 @@
-import { svgIcon } from './icons.js?v=2.9.0-r233';
+import { svgIcon } from './icons.js?v=2.9.0-r234';
 /**
  * Экранирует пользовательские строки перед вставкой в HTML (защита от DOM XSS и инъекций тегов)
  */
@@ -476,7 +476,7 @@ function normalizePolicyEnvRecord(rec, fallback) {
       out.title = fallback.title;
     }
   } else if (typeof out.summary === 'string' && /\(r22[0-9]\)/.test(out.summary) && out.policyVersion === fallback.policyVersion) {
-    out.summary = out.summary.replace(/v2\.8\.[0-3]\s*\(r22[0-9]\)/g, 'v2.8.3 (r231)').replace(/\(r22[0-9]\)/g, '(r230)');
+    out.summary = out.summary.replace(/v2\.8\.[0-3]\s*\(r22[0-9]\)/g, 'v2.8.3 (r234)').replace(/\(r22[0-9]\)/g, '(r234)');
   }
   return out;
 }
@@ -485,10 +485,10 @@ export function getRemotePolicyFromClientEnv() {
   const fallback = {
     policyVersion: ACTIVE_POLICY_VERSION_DEFAULT,
     appVersion: ACTIVE_APP_VERSION_DEFAULT,
-    appRevision: 'r231',
+    appRevision: 'r234',
     effectiveDate: '10 ноября 2026 г.',
     title: 'Политика конфиденциальности, Пользовательское соглашение и Правила обработки геоданных «Клёв ПРО 2.0»',
-    summary: 'Редакция v2.8.3 (r231): сохранность пользовательских данных при очистке кэша, единый постоянный ID рыбака на всех устройствах по логину и паролю, расчёт гидрологии и льда по данным Росгидромета (meteoinfo.ru), правила гостевого доступа и Бета-теста.',
+    summary: 'Редакция v2.8.3 (r234): сохранность пользовательских данных при очистке кэша, единый постоянный ID рыбака на всех устройствах по логину и паролю, расчёт гидрологии и льда по данным Росгидромета (meteoinfo.ru), правила гостевого доступа и Бета-теста.',
     sections: DEFAULT_POLICY_SECTIONS,
     broadcastId: ''
   };
@@ -522,7 +522,7 @@ export function saveRemotePolicyToClientEnv(policyPayload) {
   const updated = {
     policyVersion: String(policyPayload.policyVersion || current.policyVersion || ACTIVE_POLICY_VERSION_DEFAULT).trim(),
     appVersion: String(policyPayload.appVersion || current.appVersion || ACTIVE_APP_VERSION_DEFAULT).trim(),
-    appRevision: String(policyPayload.appRevision || current.appRevision || 'r231').trim(),
+    appRevision: String(policyPayload.appRevision || current.appRevision || 'r234').trim(),
     effectiveDate: String(policyPayload.effectiveDate || current.effectiveDate || '10 ноября 2026 г.').trim(),
     title: String(policyPayload.title || current.title).trim(),
     summary: String(policyPayload.summary || current.summary).trim(),

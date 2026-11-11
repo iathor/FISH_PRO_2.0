@@ -1,14 +1,14 @@
-import { renderFishVisual } from '../../ui/svg.js?v=2.9.0-r233';
-import { MAP_LAYERS, SPOT_CATEGORIES, getCompatibleMethods } from '../../core/config.js?v=2.9.0-r233';
-import { events } from '../../core/events.js?v=2.9.0-r233';
-import { storage, safeJsonParse } from '../../core/storage.js?v=2.9.0-r233';
-import { router } from '../../core/router.js?v=2.9.0-r233';
-import { store } from '../../core/store.js?v=2.9.0-r233';
-import { fetchWithTimeout } from '../../core/http.js?v=2.9.0-r233';
-import { installShortcut, syncInstallButtons } from '../../core/pwa.js?v=2.9.0-r233';
-import { triggerHaptic } from '../../core/telegram.js?v=2.9.0-r233';
-import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.9.0-r233';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.9.0-r233';
+import { renderFishVisual } from '../../ui/svg.js?v=2.9.0-r234';
+import { MAP_LAYERS, SPOT_CATEGORIES, getCompatibleMethods } from '../../core/config.js?v=2.9.0-r234';
+import { events } from '../../core/events.js?v=2.9.0-r234';
+import { storage, safeJsonParse } from '../../core/storage.js?v=2.9.0-r234';
+import { router } from '../../core/router.js?v=2.9.0-r234';
+import { store } from '../../core/store.js?v=2.9.0-r234';
+import { fetchWithTimeout } from '../../core/http.js?v=2.9.0-r234';
+import { installShortcut, syncInstallButtons } from '../../core/pwa.js?v=2.9.0-r234';
+import { triggerHaptic } from '../../core/telegram.js?v=2.9.0-r234';
+import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.9.0-r234';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.9.0-r234';
 import {
   RUSSIA_CITIES,
   RUSSIA_WATERS,
@@ -16,12 +16,12 @@ import {
   getNearestRussianSettlements,
   getNearestRussianWaters,
   getWaterTypeShortTag
-} from '../../data/russia-waters.js?v=2.9.0-r233';
-import { FISH_DB } from '../../data/species.js?v=2.9.0-r233';
-import { escapeHtml, createPill, showToast, openModal, closeModal, openConfirmDeleteModal, downloadFileCrossPlatform, flashHighlightElement, isGeoDistributionConsentActive, ensureGeoDistributionConsent, setGeoDistributionConsentState } from '../../ui/components.js?v=2.9.0-r233';
-import { fetchWeather, weatherModule } from '../weather/weather.module.js?v=2.9.0-r233';
-import { calcDayBest } from '../forecast/forecast.module.js?v=2.9.0-r233';
-import { computeHexPolygonForCircle, getEffectiveCircleRadiusKm, getCircleHexDecayState, canUserAccessCrewItem, getCurrentFisherIdentity, isUserAdmin, isCurrentUserBetaTester, verifyBetaTesterStatusFromCloud, isCircleItemMine, isCircleItemHidden, openAddThematicMapPointModal } from '../circle/circle.module.js?v=2.9.0-r233';
+} from '../../data/russia-waters.js?v=2.9.0-r234';
+import { FISH_DB } from '../../data/species.js?v=2.9.0-r234';
+import { escapeHtml, createPill, showToast, openModal, closeModal, openConfirmDeleteModal, downloadFileCrossPlatform, flashHighlightElement, isGeoDistributionConsentActive, ensureGeoDistributionConsent, setGeoDistributionConsentState } from '../../ui/components.js?v=2.9.0-r234';
+import { fetchWeather, weatherModule } from '../weather/weather.module.js?v=2.9.0-r234';
+import { calcDayBest } from '../forecast/forecast.module.js?v=2.9.0-r234';
+import { computeHexPolygonForCircle, getEffectiveCircleRadiusKm, getCircleHexDecayState, canUserAccessCrewItem, getCurrentFisherIdentity, isUserAdmin, isCurrentUserBetaTester, verifyBetaTesterStatusFromCloud, isCircleItemMine, isCircleItemHidden, openAddThematicMapPointModal } from '../circle/circle.module.js?v=2.9.0-r234';
 // ============================================================================
 // АВТОНОМНОЕ ЯДРО, РЕПРОЕКТОР EPSG:3395 И ИНСПЕКТОР ПРОВЕРКИ ОФЛАЙН-КАРТ (ФАЗА 1 • v2)
 // Хранение в формате инлайн-DataURL (100% сохранность после перезапуска Android WebView)
@@ -6263,10 +6263,18 @@ if (typeof window !== "undefined") {
     if (mapInstance) mapInstance.invalidateSize();
   }, { passive: true });
 }
+let _lastMapBoxW = 0;
+let _lastMapBoxH = 0;
 export function renderMap(mapBoxEl) {
   if (typeof window !== 'undefined') window.__KLEV_RENDER_MAP__ = renderMap;
   if (!mapBoxEl) return;
+  _ensureArcCompassSensorStarted();
   if (typeof L === 'undefined') { updateLiveUserGpsMarkerOnMap(); return; }
+  const boxW = mapBoxEl.clientWidth || 0;
+  const boxH = mapBoxEl.clientHeight || 0;
+  if (mapBoxEl.offsetParent === null || boxW < 40 || boxH < 40) {
+    return;
+  }
   const s = store.getState();
   const storeCoordKey = `${Number(s.lat || 0).toFixed(4)}_${Number(s.lon || 0).toFixed(4)}`;
   const storeLocChanged = _lastMapStoreCoordKey !== storeCoordKey;
@@ -6284,6 +6292,8 @@ export function renderMap(mapBoxEl) {
     overlayLayerGroup = null;
     const yandexCrs = getYandexEPSG3395CRS();
     mapInstance = L.map(mapBoxEl, { ...(yandexCrs ? { crs: yandexCrs } : {}), minZoom: 4, maxZoom: 18 }).setView([targetLat, targetLon], targetZoom);
+    _lastMapBoxW = boxW;
+    _lastMapBoxH = boxH;
     mapInstance.attributionControl.setPrefix(false);
     currentTileLayer = createResilientTileLayer(currentLayerKey).addTo(mapInstance);
     applyYandexTileFiltersToMap();
@@ -6430,7 +6440,19 @@ export function renderMap(mapBoxEl) {
       });
     }
   } else {
-    mapInstance.invalidateSize();
+    const sizeChanged = Math.abs(boxW - _lastMapBoxW) > 4 || Math.abs(boxH - _lastMapBoxH) > 4;
+    if (sizeChanged) {
+      const keepCenter = mapInstance.getCenter();
+      const keepZoom = mapInstance.getZoom();
+      _lastMapBoxW = boxW;
+      _lastMapBoxH = boxH;
+      mapInstance.invalidateSize({ pan: false, animate: false });
+      if (keepCenter && Number.isFinite(keepCenter.lat) && Number.isFinite(keepCenter.lng)) {
+        mapInstance.setView([keepCenter.lat, keepCenter.lng], keepZoom, { animate: false });
+      }
+    } else {
+      mapInstance.invalidateSize({ pan: false, animate: false });
+    }
     if (mapMarker) mapMarker.setLatLng([s.lat, s.lon]);
     updateLiveUserGpsMarkerOnMap();
     applyYandexTileFiltersToMap();
@@ -6530,10 +6552,121 @@ function buildLiveUserGpsDivIconHtml(headingDeg = 0, showCone = false) {
   `;
 }
 
+let _compassSmoothSin = 0;
+let _compassSmoothCos = 1;
+let _compassHasSample = false;
+let _compassBestSource = ''; // 'native' | 'sensor_api' | 'abs' | 'rel'
+let _compassNativePollTimer = null;
+
+function _applyNewCompassHeading(rawDeg, sourceTag = 'rel') {
+  if (!Number.isFinite(rawDeg)) return;
+  const rank = { native: 4, sensor_api: 3, abs: 2, rel: 1 };
+  const curRank = rank[_compassBestSource] || 0;
+  const newRank = rank[sourceTag] || 1;
+  if (newRank < curRank) return;
+  _compassBestSource = sourceTag;
+
+  const normDeg = ((rawDeg % 360) + 360) % 360;
+  const rad = (normDeg * Math.PI) / 180;
+  if (!_compassHasSample) {
+    _compassSmoothSin = Math.sin(rad);
+    _compassSmoothCos = Math.cos(rad);
+    _compassHasSample = true;
+  } else {
+    const alpha = 0.35;
+    _compassSmoothSin = _compassSmoothSin * (1 - alpha) + Math.sin(rad) * alpha;
+    _compassSmoothCos = _compassSmoothCos * (1 - alpha) + Math.cos(rad) * alpha;
+  }
+  const smoothed = ((Math.atan2(_compassSmoothSin, _compassSmoothCos) * 180) / Math.PI + 360) % 360;
+  _arcCompassHeadingDeg = Math.round(smoothed) % 360;
+
+  if (typeof document !== 'undefined') {
+    document.querySelectorAll('#klevLiveGpsViewCone').forEach(cone => {
+      cone.style.display = 'flex';
+      cone.style.opacity = '0.96';
+      cone.style.transform = `rotate(${_arcCompassHeadingDeg}deg)`;
+    });
+    const btnNeedle = document.querySelector('#arcBtnGpsCompass svg[data-compass-needle="1"]');
+    if (btnNeedle) {
+      btnNeedle.style.transform = `rotate(${-_arcCompassHeadingDeg}deg)`;
+    }
+  }
+}
+
+function _ensureArcCompassSensorStarted() {
+  if (typeof window === 'undefined') return;
+  window.__KLEV_ON_NATIVE_COMPASS__ = (deg) => {
+    _applyNewCompassHeading(Number(deg), 'native');
+  };
+  if (window.AndroidBridge && typeof window.AndroidBridge.getCompassHeadingDeg === 'function' && !_compassNativePollTimer) {
+    _compassNativePollTimer = setInterval(() => {
+      try {
+        const d = Number(window.AndroidBridge.getCompassHeadingDeg());
+        if (Number.isFinite(d) && d >= 0) {
+          _applyNewCompassHeading(d, 'native');
+        }
+      } catch (_e) {}
+    }, 180);
+  }
+  if (window.__KLEV_ARC_COMPASS_BOUND__) return;
+  window.__KLEV_ARC_COMPASS_BOUND__ = true;
+
+  // 1. Generic Sensor API (AbsoluteOrientationSensor / RelativeOrientationSensor — использует аппаратный гироскоп + вектор вращения)
+  try {
+    const SensorCtor = window.AbsoluteOrientationSensor || window.RelativeOrientationSensor;
+    if (typeof SensorCtor === 'function') {
+      const sensor = new SensorCtor({ frequency: 30, referenceFrame: 'device' });
+      sensor.addEventListener('reading', () => {
+        const q = sensor.quaternion;
+        if (!Array.isArray(q) || q.length < 4) return;
+        const [x, y, z, w] = q;
+        const siny_cosp = 2 * (w * z + x * y);
+        const cosy_cosp = 1 - 2 * (y * y + z * z);
+        const yawDeg = (Math.atan2(siny_cosp, cosy_cosp) * 180) / Math.PI;
+        const scrAngle = (window.screen?.orientation && Number.isFinite(window.screen.orientation.angle))
+          ? window.screen.orientation.angle
+          : (Number.isFinite(window.orientation) ? Number(window.orientation) : 0);
+        const heading = ((360 - yawDeg) + scrAngle + 360) % 360;
+        _applyNewCompassHeading(heading, 'sensor_api');
+      });
+      sensor.addEventListener('error', () => {});
+      sensor.start();
+    }
+  } catch (_e) {}
+
+  // 2. События ориентации браузера / WebView (без вычитания начального угла и без конфликта двух слушателей)
+  const extractHeadingFromEvent = (ev) => {
+    if (!ev) return null;
+    const scrAngle = (window.screen?.orientation && Number.isFinite(window.screen.orientation.angle))
+      ? window.screen.orientation.angle
+      : (Number.isFinite(window.orientation) ? Number(window.orientation) : 0);
+    if (Number.isFinite(ev.webkitCompassHeading) && ev.webkitCompassHeading >= 0) {
+      return (ev.webkitCompassHeading + scrAngle + 360) % 360;
+    }
+    if (Number.isFinite(ev.alpha)) {
+      return ((360 - ev.alpha) + scrAngle + 360) % 360;
+    }
+    return null;
+  };
+
+  if ('ondeviceorientationabsolute' in window) {
+    window.addEventListener('deviceorientationabsolute', (ev) => {
+      const h = extractHeadingFromEvent(ev);
+      if (h !== null) _applyNewCompassHeading(h, 'abs');
+    }, { passive: true });
+  }
+  window.addEventListener('deviceorientation', (ev) => {
+    const h = extractHeadingFromEvent(ev);
+    if (h !== null) _applyNewCompassHeading(h, ev.absolute ? 'abs' : 'rel');
+  }, { passive: true });
+}
+
 export function updateLiveUserGpsMarkerOnMap() {
+  _ensureArcCompassSensorStarted();
   const realPos = getTrueUserGpsCoords();
   if (!Number.isFinite(realPos.lat) || !Number.isFinite(realPos.lon)) return;
-  const showCone = _arcGpsCompassState === 'compass' || Boolean(_arcBuiltRoute && _arcBuiltRoute.started);
+  // Зелёный сектор («луч взгляда» по компасу) всегда активен на точке геолокации пользователя
+  const showCone = true;
   if (!mapInstance || typeof L === 'undefined') {
     const mapBox = document.getElementById('mapBox');
     if (mapBox) {
@@ -6541,7 +6674,7 @@ export function updateLiveUserGpsMarkerOnMap() {
       if (!fb) {
         fb = document.createElement('div');
         fb.id = 'klevLiveGpsFallbackMarker';
-        fb.style.cssText = 'position:absolute;left:50%;top:50%;width:64px;height:64px;transform:translate(-50%,-50%);pointer-events:none;z-index:450;';
+        fb.style.cssText = 'position:absolute;left:50%;top:50%;width:64px;height:64px;transform:translate(-50%,-50%);pointer-events:none;z-index:680;';
         mapBox.appendChild(fb);
       }
       fb.innerHTML = buildLiveUserGpsDivIconHtml(_arcCompassHeadingDeg, showCone);
@@ -6557,7 +6690,7 @@ export function updateLiveUserGpsMarkerOnMap() {
     _liveUserGpsMarker = L.marker([realPos.lat, realPos.lon], {
       interactive: false,
       keyboard: false,
-      zIndexOffset: 1850,
+      zIndexOffset: 2800,
       icon: L.divIcon({
         className: 'klev-live-user-gps-marker',
         html,
@@ -6569,10 +6702,13 @@ export function updateLiveUserGpsMarkerOnMap() {
     if (typeof _liveUserGpsMarker.setLatLng === 'function') {
       _liveUserGpsMarker.setLatLng([realPos.lat, realPos.lon]);
     }
+    if (typeof _liveUserGpsMarker.setZIndexOffset === 'function') {
+      _liveUserGpsMarker.setZIndexOffset(2800);
+    }
     const cone = (mapInstance._container || document).querySelector('#klevLiveGpsViewCone');
     if (cone) {
-      cone.style.display = showCone ? 'flex' : 'none';
-      cone.style.opacity = showCone ? '0.95' : '0';
+      cone.style.display = 'flex';
+      cone.style.opacity = '0.96';
       cone.style.transform = `rotate(${Math.round(_arcCompassHeadingDeg)}deg)`;
     } else if (existingWrap && existingWrap.parentElement) {
       existingWrap.parentElement.innerHTML = html;
@@ -6630,23 +6766,129 @@ const ARC_TRANSPORT_MODES = {
   }
 };
 
+// Встроенный гидрографический каркас ключевых рек ЯНАО / ХМАО (р. Седэяха, р. Евояха, р. Тамчара-Яха, р. Пур, р. Хадуттэ, р. Таз, р. Надым, р. Обь)
+// Гарантирует 100% водную маршрутизацию лодки по руслам рек даже при переходах между притоками и магистральными реками
+const BUILTIN_RIVER_HYDRO_WAYS = [
+  {
+    id: 'hydro_sedeyakha',
+    type: 'river',
+    name: 'р. Седэяха',
+    pts: [
+      [66.1180, 76.4800], [66.1125, 76.5350], [66.1060, 76.5820], [66.0985, 76.6210],
+      [66.0910, 76.6480], [66.0855, 76.6720], [66.0825, 76.6950], [66.0802, 76.7210],
+      [66.0775, 76.7480], [66.0740, 76.7790], [66.0695, 76.8120], [66.0630, 76.8490],
+      [66.0565, 76.8850], [66.0490, 76.9220], [66.0410, 76.9560]
+    ]
+  },
+  {
+    id: 'hydro_tamcharayakha',
+    type: 'river',
+    name: 'р. Тамчара-Яха',
+    pts: [
+      [66.0450, 76.5800], [66.0560, 76.6150], [66.0660, 76.6480], [66.0750, 76.6780],
+      [66.0825, 76.6950]
+    ]
+  },
+  {
+    id: 'hydro_evoyakha',
+    type: 'river',
+    name: 'р. Евояха',
+    pts: [
+      [65.9400, 76.6200], [65.9720, 76.7100], [66.0020, 76.8050], [66.0240, 76.8850],
+      [66.0410, 76.9560], [66.0385, 77.0150], [66.0340, 77.0850], [66.0280, 77.1650],
+      [66.0210, 77.2500], [66.0130, 77.3450], [66.0040, 77.4400], [65.9950, 77.5350],
+      [65.9860, 77.6300], [65.9780, 77.7250], [65.9710, 77.8150], [65.9660, 77.9050],
+      [65.9620, 77.9850], [65.9590, 78.0650], [65.9560, 78.1350], [65.9540, 78.1850]
+    ]
+  },
+  {
+    id: 'hydro_pur',
+    type: 'river',
+    name: 'р. Пур',
+    pts: [
+      [64.9200, 77.8200], [65.0800, 77.8600], [65.2400, 77.9100], [65.4000, 77.9600],
+      [65.5500, 78.0200], [65.6800, 78.0750], [65.7800, 78.1150], [65.8500, 78.1450],
+      [65.9050, 78.1680], [65.9540, 78.1850], [66.0050, 78.2020], [66.0580, 78.2150],
+      [66.1150, 78.2280], [66.1750, 78.2420], [66.2400, 78.2600], [66.3200, 78.2850],
+      [66.4200, 78.3100], [66.5400, 78.3300], [66.6800, 78.3400], [66.8200, 78.3200]
+    ]
+  },
+  {
+    id: 'hydro_khadutte',
+    type: 'river',
+    name: 'р. Хадуттэ',
+    pts: [
+      [66.4800, 76.7500], [66.4650, 77.0500], [66.4500, 77.3800], [66.4350, 77.7200],
+      [66.4250, 78.0200], [66.4200, 78.3100]
+    ]
+  },
+  {
+    id: 'hydro_nadym',
+    type: 'river',
+    name: 'р. Надым',
+    pts: [
+      [65.3500, 72.6500], [65.4600, 72.5800], [65.5400, 72.5300], [65.6500, 72.4800],
+      [65.8000, 72.3800], [66.0000, 72.2200], [66.1800, 72.0500]
+    ]
+  },
+  {
+    id: 'hydro_taz',
+    type: 'river',
+    name: 'р. Таз',
+    pts: [
+      [66.8500, 79.2500], [67.0500, 79.0500], [67.2500, 78.9200], [67.4700, 78.7300]
+    ]
+  }
+];
+
+function _getBuiltinRiverWaysNear(minLat, minLon, maxLat, maxLon) {
+  return BUILTIN_RIVER_HYDRO_WAYS.filter(w =>
+    w.pts.some(p => p[0] >= minLat - 0.35 && p[0] <= maxLat + 0.35 && p[1] >= minLon - 0.55 && p[1] <= maxLon + 0.55)
+  );
+}
+
+async function _queryOverpassJson(queryStr, timeoutMs = 5500) {
+  if (_forceOfflineTestMode || (typeof navigator !== 'undefined' && navigator.onLine === false)) return null;
+  const isApk = typeof window !== 'undefined' && Boolean(window.AndroidBridge);
+  const wrapApkProxy = (u) => isApk ? `https://appassets.androidplatform.net/__klev_net_proxy__?url=${encodeURIComponent(u)}` : u;
+  const mirrors = [
+    `https://maps.mail.ru/osm/tools/overpass/api/interpreter?data=${encodeURIComponent(queryStr)}`,
+    `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(queryStr)}`,
+    `https://overpass.kumi.systems/api/interpreter?data=${encodeURIComponent(queryStr)}`
+  ];
+  for (const rawUrl of mirrors) {
+    try {
+      const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      const timer = ctrl ? setTimeout(() => ctrl.abort(), timeoutMs) : null;
+      const res = await fetch(wrapApkProxy(rawUrl), { signal: ctrl?.signal }).catch(() => null);
+      if (timer) clearTimeout(timer);
+      if (!res || !res.ok) continue;
+      const data = await res.json().catch(() => null);
+      if (data && Array.isArray(data.elements)) return data;
+    } catch (_e) {}
+  }
+  return null;
+}
+
 // П. 5: Загрузка реальных водных путей из OpenStreetMap и отрисовка стрелочек течения СТРОГО по руслам рек
 async function fetchStrictRiverWaysForMapBounds(lat, lon) {
   const key = `${Number(lat).toFixed(1)}_${Number(lon).toFixed(1)}`;
+  const builtinNear = _getBuiltinRiverWaysNear(lat - 0.25, lon - 0.45, lat + 0.25, lon + 0.45);
   if (_osmRiverWaysCache.has(key)) return _osmRiverWaysCache.get(key);
   try {
     const rawSaved = localStorage.getItem(`klev_osm_river_ways_${key}`);
     if (rawSaved) {
       const parsed = JSON.parse(rawSaved);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        _osmRiverWaysCache.set(key, parsed);
-        return parsed;
+        const merged = [...parsed, ...builtinNear];
+        _osmRiverWaysCache.set(key, merged);
+        return merged;
       }
     }
   } catch (_e) {}
 
   if (_osmRiverFetchInFlight || _forceOfflineTestMode || (typeof navigator !== 'undefined' && !navigator.onLine)) {
-    return _osmRiverWaysCache.get(key) || [];
+    return _osmRiverWaysCache.get(key) || builtinNear;
   }
   _osmRiverFetchInFlight = true;
   try {
@@ -6654,11 +6896,10 @@ async function fetchStrictRiverWaysForMapBounds(lat, lon) {
     const dLon = 0.26;
     const bbox = `${(lat - dLat).toFixed(3)},${(lon - dLon).toFixed(3)},${(lat + dLat).toFixed(3)},${(lon + dLon).toFixed(3)}`;
     const q = `[out:json][timeout:8];way["waterway"~"^(river|stream|canal)$"](${bbox});out geom;`;
-    const res = await fetchWithTimeout(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(q)}`, {}, 6500);
-    if (res && res.ok) {
-      const data = await res.json();
+    const data = await _queryOverpassJson(q, 5500);
+    if (data && Array.isArray(data.elements)) {
       const ways = [];
-      for (const el of (data.elements || [])) {
+      for (const el of data.elements) {
         if (el.type === 'way' && Array.isArray(el.geometry) && el.geometry.length >= 3) {
           ways.push({
             id: el.id,
@@ -6668,16 +6909,20 @@ async function fetchStrictRiverWaysForMapBounds(lat, lon) {
           });
         }
       }
-      _osmRiverWaysCache.set(key, ways);
+      const merged = [...ways, ...builtinNear];
+      _osmRiverWaysCache.set(key, merged);
       try {
         localStorage.setItem(`klev_osm_river_ways_${key}`, JSON.stringify(ways.slice(0, 60)));
       } catch (_e) {}
       _osmRiverFetchInFlight = false;
-      return ways;
+      return merged;
     }
   } catch (_e) {}
   _osmRiverFetchInFlight = false;
-  return [];
+  if (builtinNear.length > 0) {
+    _osmRiverWaysCache.set(key, builtinNear);
+  }
+  return builtinNear;
 }
 
 function renderStrictRiverFlowArrowsOnMap() {
@@ -6707,7 +6952,6 @@ function renderStrictRiverFlowArrowsOnMap() {
   for (const w of cachedWays) {
     const pts = w.pts;
     if (!Array.isArray(pts) || pts.length < 3) continue;
-    // Ставим стрелочки ТОЛЬКО во внутренних узлах реальной линии реки (way.geometry), чтобы они на 100% лежали внутри голубого русла реки
     for (let i = 1; i < pts.length - 1; i += stepNodes) {
       const p1 = pts[i];
       const p2 = pts[i + 1];
@@ -6761,14 +7005,14 @@ function renderArcRouteDraftAndActiveOnMap() {
     });
   }
 
-  // 2. В режиме «Нарисовать пальцем» показываем нарисованные мазки
+  // 2. В режиме «Нарисовать пальцем» показываем нарисованные мазки непосредственно на карте
   if (_arcRouteBuilderMode === 'freehand' && _arcFreehandStrokes.length > 0) {
     _arcFreehandStrokes.forEach((stroke) => {
       if (Array.isArray(stroke) && stroke.length >= 2) {
         const poly = L.polyline(stroke, {
           color: '#38bdf8',
           weight: 4.5,
-          opacity: 0.88,
+          opacity: 0.92,
           dashArray: '6, 5'
         });
         _arcRouteDraftLayerGroup.addLayer(poly);
@@ -6803,42 +7047,67 @@ function renderArcRouteDraftAndActiveOnMap() {
   }
 }
 
-// Построение связного графа дорог/троп/русел рек из Overpass OSM и поиск кратчайшего пути A*/Дейкстры (Замечание 2 и 4)
-async function _buildOsmNetworkPathBetween(a, b, transportMode = 'car') {
-  if (_forceOfflineTestMode || (typeof navigator !== 'undefined' && !navigator.onLine)) return null;
-  try {
-    const minLat = Math.min(a[0], b[0]) - 0.035;
-    const maxLat = Math.max(a[0], b[0]) + 0.035;
-    const minLon = Math.min(a[1], b[1]) - 0.055;
-    const maxLon = Math.max(a[1], b[1]) + 0.055;
-    if ((maxLat - minLat) > 0.85 || (maxLon - minLon) > 1.35) return null;
-    const bbox = `${minLat.toFixed(4)},${minLon.toFixed(4)},${maxLat.toFixed(4)},${maxLon.toFixed(4)}`;
-    let q = '';
-    if (transportMode === 'boat') {
-      q = `[out:json][timeout:7];way["waterway"~"^(river|stream|canal|fairway)$"](${bbox});out geom;`;
-    } else if (transportMode === 'walk') {
-      q = `[out:json][timeout:7];way["highway"~"^(footway|path|track|pedestrian|steps|residential|service|living_street|unclassified|tertiary|secondary|cycleway)$"](${bbox});out geom;`;
-    } else if (transportMode === 'bike') {
-      q = `[out:json][timeout:7];way["highway"~"^(cycleway|path|track|residential|service|living_street|unclassified|tertiary|secondary|primary)$"](${bbox});out geom;`;
-    } else {
-      q = `[out:json][timeout:7];way["highway"~"^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|service|track|living_street)$"](${bbox});out geom;`;
+// Интерполяция длинных сегментов полилинии для плотного графа рек и зимников
+function _densifyWayGeometry(pts, maxStepKm = 0.85) {
+  if (!Array.isArray(pts) || pts.length < 2) return pts || [];
+  const out = [pts[0]];
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p1 = pts[i];
+    const p2 = pts[i + 1];
+    const d = calcHaversineKm(p1[0], p1[1], p2[0], p2[1]);
+    if (d > maxStepKm) {
+      const steps = Math.min(40, Math.ceil(d / maxStepKm));
+      for (let s = 1; s < steps; s++) {
+        const t = s / steps;
+        out.push([p1[0] + (p2[0] - p1[0]) * t, p1[1] + (p2[1] - p1[1]) * t]);
+      }
     }
-    const isApk = typeof window !== 'undefined' && Boolean(window.AndroidBridge);
-    const rawOverpassUrl = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(q)}`;
-    const url = isApk ? `https://appassets.androidplatform.net/__klev_net_proxy__?url=${encodeURIComponent(rawOverpassUrl)}` : rawOverpassUrl;
-    const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-    const timer = ctrl ? setTimeout(() => ctrl.abort(), 5200) : null;
-    const res = await fetch(url, { signal: ctrl?.signal }).catch(() => null);
-    if (timer) clearTimeout(timer);
-    if (!res || !res.ok) return null;
-    const data = await res.json().catch(() => null);
-    const elements = Array.isArray(data?.elements) ? data.elements : [];
-    if (!elements.length) return null;
+    out.push(p2);
+  }
+  return out;
+}
 
-    // Строим граф узлов
-    const nodes = new Map(); // key -> { id, lat, lon, adj: Map<key, distKm> }
+// Построение связного графа рек (для лодки), объездных дорог/зимников с обходом домов и воды (для снегохода), велодорожек и троп
+async function _buildOsmNetworkPathBetween(a, b, transportMode = 'car') {
+  try {
+    const spanLat = Math.abs(a[0] - b[0]);
+    const spanLon = Math.abs(a[1] - b[1]);
+    if (spanLat > 2.6 || spanLon > 4.2) return null;
+
+    const padLat = transportMode === 'boat' ? Math.max(0.08, spanLat * 0.28) : Math.max(0.035, spanLat * 0.22);
+    const padLon = transportMode === 'boat' ? Math.max(0.14, spanLon * 0.28) : Math.max(0.055, spanLon * 0.22);
+    const minLat = Math.min(a[0], b[0]) - padLat;
+    const maxLat = Math.max(a[0], b[0]) + padLat;
+    const minLon = Math.min(a[1], b[1]) - padLon;
+    const maxLon = Math.max(a[1], b[1]) + padLon;
+    const bbox = `${minLat.toFixed(4)},${minLon.toFixed(4)},${maxLat.toFixed(4)},${maxLon.toFixed(4)}`;
+
+    let elements = [];
+    if (!_forceOfflineTestMode && (typeof navigator === 'undefined' || navigator.onLine !== false)) {
+      let q = '';
+      if (transportMode === 'boat') {
+        q = `[out:json][timeout:8];way["waterway"~"^(river|stream|canal|fairway)$"](${bbox});out geom;`;
+      } else if (transportMode === 'snowmobile') {
+        const includeBuildings = (spanLat < 0.25 && spanLon < 0.35);
+        q = includeBuildings
+          ? `[out:json][timeout:8];(way["highway"~"^(track|path|service|unclassified|residential|tertiary|secondary|primary|trunk|living_street|footway|cycleway|winter_road)$"](${bbox});way["building"](${bbox});way["natural"="water"](${bbox}););out geom;`
+          : `[out:json][timeout:8];(way["highway"~"^(track|path|service|unclassified|residential|tertiary|secondary|primary|trunk|winter_road)$"](${bbox});way["natural"="water"](${bbox}););out geom;`;
+      } else if (transportMode === 'walk') {
+        q = `[out:json][timeout:7];way["highway"~"^(footway|path|track|pedestrian|steps|residential|service|living_street|unclassified|tertiary|secondary|cycleway)$"](${bbox});out geom;`;
+      } else if (transportMode === 'bike') {
+        q = `[out:json][timeout:7];way["highway"~"^(cycleway|path|track|residential|service|living_street|unclassified|tertiary|secondary|primary)$"](${bbox});out geom;`;
+      } else {
+        q = `[out:json][timeout:7];way["highway"~"^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|service|track|living_street)$"](${bbox});out geom;`;
+      }
+      const data = await _queryOverpassJson(q, 5800);
+      if (data && Array.isArray(data.elements)) {
+        elements = data.elements;
+      }
+    }
+
+    const nodes = new Map();
     const getOrAddNode = (lat, lon) => {
-      const k = `${lat.toFixed(5)}_${lon.toFixed(5)}`;
+      const k = `${lat.toFixed(4)}_${lon.toFixed(4)}`;
       let n = nodes.get(k);
       if (!n) {
         n = { key: k, lat, lon, adj: new Map() };
@@ -6847,7 +7116,7 @@ async function _buildOsmNetworkPathBetween(a, b, transportMode = 'car') {
       return n;
     };
     const addEdge = (n1, n2, weightFactor = 1.0) => {
-      if (n1.key === n2.key) return;
+      if (!n1 || !n2 || n1.key === n2.key) return;
       const d = calcHaversineKm(n1.lat, n1.lon, n2.lat, n2.lon) * weightFactor;
       const prev1 = n1.adj.get(n2.key);
       if (prev1 === undefined || d < prev1) {
@@ -6857,38 +7126,198 @@ async function _buildOsmNetworkPathBetween(a, b, transportMode = 'car') {
     };
 
     const wayEndpoints = [];
+    const buildingBoxes = [];
+    const waterBoxes = [];
+
+    // Для лодки всегда включаем встроенный гидрографический каркас рек + кэш рек
+    if (transportMode === 'boat') {
+      const builtinWays = _getBuiltinRiverWaysNear(minLat, minLon, maxLat, maxLon);
+      for (const bw of builtinWays) {
+        const densePts = _densifyWayGeometry(bw.pts, 0.75);
+        let prevNode = null;
+        for (let i = 0; i < densePts.length; i++) {
+          const curNode = getOrAddNode(densePts[i][0], densePts[i][1]);
+          if (prevNode) addEdge(prevNode, curNode, 0.92);
+          if (i === 0 || i === densePts.length - 1) wayEndpoints.push(curNode);
+          prevNode = curNode;
+        }
+      }
+      _osmRiverWaysCache.forEach((cachedList) => {
+        if (!Array.isArray(cachedList)) return;
+        for (const cw of cachedList) {
+          if (!Array.isArray(cw.pts) || cw.pts.length < 2) continue;
+          const densePts = _densifyWayGeometry(cw.pts, 0.75);
+          let prevNode = null;
+          for (let i = 0; i < densePts.length; i++) {
+            const curNode = getOrAddNode(densePts[i][0], densePts[i][1]);
+            if (prevNode) addEdge(prevNode, curNode, 0.95);
+            if (i === 0 || i === densePts.length - 1) wayEndpoints.push(curNode);
+            prevNode = curNode;
+          }
+        }
+      });
+    }
+
     for (const el of elements) {
       if (el.type !== 'way' || !Array.isArray(el.geometry) || el.geometry.length < 2) continue;
+      if (el.tags?.building) {
+        let bMinLat = 90, bMaxLat = -90, bMinLon = 180, bMaxLon = -180;
+        for (const g of el.geometry) {
+          if (g.lat < bMinLat) bMinLat = g.lat;
+          if (g.lat > bMaxLat) bMaxLat = g.lat;
+          if (g.lon < bMinLon) bMinLon = g.lon;
+          if (g.lon > bMaxLon) bMaxLon = g.lon;
+        }
+        buildingBoxes.push([bMinLat - 0.00018, bMinLon - 0.00028, bMaxLat + 0.00018, bMaxLon + 0.00028]);
+        continue;
+      }
+      if (el.tags?.natural === 'water' || el.tags?.waterway === 'riverbank') {
+        let wMinLat = 90, wMaxLat = -90, wMinLon = 180, wMaxLon = -180;
+        for (const g of el.geometry) {
+          if (g.lat < wMinLat) wMinLat = g.lat;
+          if (g.lat > wMaxLat) wMaxLat = g.lat;
+          if (g.lon < wMinLon) wMinLon = g.lon;
+          if (g.lon > wMaxLon) wMaxLon = g.lon;
+        }
+        waterBoxes.push([wMinLat, wMinLon, wMaxLat, wMaxLon]);
+        continue;
+      }
+
       const hw = String(el.tags?.highway || el.tags?.waterway || '');
-      // Для пешехода и велосипеда отдаём приоритет тропам, велодорожкам и просёлкам
       let wFactor = 1.0;
-      if (transportMode === 'walk' && /^(footway|path|track|pedestrian|steps)$/.test(hw)) wFactor = 0.82;
-      if (transportMode === 'bike' && /^(cycleway|path|track|residential|service)$/.test(hw)) wFactor = 0.85;
+      if (transportMode === 'boat') {
+        wFactor = hw === 'river' ? 0.92 : 1.0;
+      } else if (transportMode === 'snowmobile') {
+        if (/^(track|path|winter_road|unclassified|service)$/.test(hw)) wFactor = 0.68;
+        else if (/^(tertiary|secondary|residential|living_street)$/.test(hw)) wFactor = 0.88;
+        else wFactor = 1.05;
+      } else if (transportMode === 'walk' && /^(footway|path|track|pedestrian|steps)$/.test(hw)) {
+        wFactor = 0.82;
+      } else if (transportMode === 'bike' && /^(cycleway|path|track|residential|service)$/.test(hw)) {
+        wFactor = 0.85;
+      }
+
+      const rawPts = el.geometry.map(g => [Number(g.lat), Number(g.lon)]);
+      const densePts = _densifyWayGeometry(rawPts, transportMode === 'boat' ? 0.75 : 0.45);
       let prevNode = null;
-      for (let i = 0; i < el.geometry.length; i++) {
-        const g = el.geometry[i];
-        const curNode = getOrAddNode(Number(g.lat), Number(g.lon));
+      for (let i = 0; i < densePts.length; i++) {
+        const curNode = getOrAddNode(densePts[i][0], densePts[i][1]);
         if (prevNode) addEdge(prevNode, curNode, wFactor);
-        if (i === 0 || i === el.geometry.length - 1) {
+        if (i === 0 || i === densePts.length - 1) {
           wayEndpoints.push(curNode);
         }
         prevNode = curNode;
       }
     }
 
-    if (nodes.size < 2) return null;
-
-    // Для водных маршрутов (boat) соединяем близкие устья/протоки рек в радиусе 280 м
-    if (transportMode === 'boat' && wayEndpoints.length >= 2) {
-      for (let i = 0; i < wayEndpoints.length; i++) {
-        for (let j = i + 1; j < wayEndpoints.length; j++) {
-          const d = calcHaversineKm(wayEndpoints[i].lat, wayEndpoints[i].lon, wayEndpoints[j].lat, wayEndpoints[j].lon);
-          if (d <= 0.28) addEdge(wayEndpoints[i], wayEndpoints[j], 1.25);
+    // Для лодки: сшиваем концы притоков и сегментов рек с ближайшими узлами других рек (в радиусе до 2.2 км),
+    // чтобы маршрут непрерывно шёл из притока (например, р. Седэяха) в р. Евояха и далее в р. Пур
+    if (transportMode === 'boat' && nodes.size >= 2) {
+      const allNodesArr = Array.from(nodes.values());
+      for (const ep of wayEndpoints) {
+        let bestOther = null;
+        let bestDist = 2.2;
+        for (const cand of allNodesArr) {
+          if (cand.key === ep.key || ep.adj.has(cand.key)) continue;
+          const d = calcHaversineKm(ep.lat, ep.lon, cand.lat, cand.lon);
+          if (d <= 0.45) {
+            addEdge(ep, cand, 1.15);
+          } else if (d < bestDist) {
+            bestDist = d;
+            bestOther = cand;
+          }
+        }
+        if (bestOther && bestDist <= 2.2) {
+          addEdge(ep, bestOther, 1.35);
         }
       }
     }
 
-    // Находим ближайшие узлы к точке старта a и финиша b
+    // Для снегохода: если между полевыми дорогами/просеками и точкой назначения есть разрыв по тундре/снегу,
+    // добавляем обходную сетку манёвра, которая СТРОГО обходит дома (buildingBoxes) и избегает открытых водоёмов (waterBoxes)
+    if (transportMode === 'snowmobile') {
+      const ptInBoxes = (lat, lon, boxes) => {
+        for (let i = 0; i < boxes.length; i++) {
+          const bx = boxes[i];
+          if (lat >= bx[0] && lat <= bx[2] && lon >= bx[1] && lon <= bx[3]) return true;
+        }
+        return false;
+      };
+      const segHitsBuildings = (lat1, lon1, lat2, lon2) => {
+        if (!buildingBoxes.length) return false;
+        for (let s = 1; s <= 5; s++) {
+          const t = s / 6;
+          if (ptInBoxes(lat1 + (lat2 - lat1) * t, lon1 + (lon2 - lon1) * t, buildingBoxes)) return true;
+        }
+        return false;
+      };
+      const segCrossesWater = (lat1, lon1, lat2, lon2) => {
+        for (let s = 1; s <= 3; s++) {
+          const t = s / 4;
+          const pLat = lat1 + (lat2 - lat1) * t;
+          const pLon = lon1 + (lon2 - lon1) * t;
+          if (ptInBoxes(pLat, pLon, waterBoxes)) return true;
+          for (const rw of BUILTIN_RIVER_HYDRO_WAYS) {
+            for (const rp of rw.pts) {
+              if (calcHaversineKm(pLat, pLon, rp[0], rp[1]) < 0.14) return true;
+            }
+          }
+        }
+        return false;
+      };
+
+      const gridSteps = 14;
+      const dLatStep = (maxLat - minLat) / gridSteps;
+      const dLonStep = (maxLon - minLon) / gridSteps;
+      const gridNodes = [];
+      for (let r = 0; r <= gridSteps; r++) {
+        const row = [];
+        for (let c = 0; c <= gridSteps; c++) {
+          const gLat = minLat + r * dLatStep;
+          const gLon = minLon + c * dLonStep;
+          if (ptInBoxes(gLat, gLon, buildingBoxes)) {
+            row.push(null);
+            continue;
+          }
+          const gn = getOrAddNode(gLat, gLon);
+          row.push(gn);
+        }
+        gridNodes.push(row);
+      }
+      for (let r = 0; r <= gridSteps; r++) {
+        for (let c = 0; c <= gridSteps; c++) {
+          const cur = gridNodes[r]?.[c];
+          if (!cur) continue;
+          const dirs = [[0, 1], [1, 0], [1, 1], [1, -1]];
+          for (const [dr, dc] of dirs) {
+            const nbr = gridNodes[r + dr]?.[c + dc];
+            if (!nbr) continue;
+            if (segHitsBuildings(cur.lat, cur.lon, nbr.lat, nbr.lon)) continue;
+            const waterPenalty = segCrossesWater(cur.lat, cur.lon, nbr.lat, nbr.lon) ? 4.5 : 1.55;
+            addEdge(cur, nbr, waterPenalty);
+          }
+        }
+      }
+      // Связываем узлы дорог/зимников с ближайшими узлами снегоходной сетки без пересечения зданий
+      const allNodesList = Array.from(nodes.values());
+      const connectRadiusKm = Math.max(0.65, calcHaversineKm(minLat, minLon, minLat + dLatStep, minLon + dLonStep) * 1.15);
+      for (let i = 0; i < allNodesList.length; i++) {
+        const n1 = allNodesList[i];
+        if (n1.adj.size > 2) continue;
+        for (let j = 0; j < allNodesList.length; j++) {
+          if (i === j) continue;
+          const n2 = allNodesList[j];
+          const d = calcHaversineKm(n1.lat, n1.lon, n2.lat, n2.lon);
+          if (d <= connectRadiusKm && !segHitsBuildings(n1.lat, n1.lon, n2.lat, n2.lon)) {
+            const wPen = segCrossesWater(n1.lat, n1.lon, n2.lat, n2.lon) ? 4.2 : 1.45;
+            addEdge(n1, n2, wPen);
+          }
+        }
+      }
+    }
+
+    if (nodes.size < 2) return null;
+
     let startNode = null, minStartD = Infinity;
     let endNode = null, minEndD = Infinity;
     nodes.forEach(n => {
@@ -6898,18 +7327,18 @@ async function _buildOsmNetworkPathBetween(a, b, transportMode = 'car') {
       if (db < minEndD) { minEndD = db; endNode = n; }
     });
 
-    const maxSnapDistKm = transportMode === 'boat' ? 2.5 : 1.5;
+    const maxSnapDistKm = transportMode === 'boat' ? 12.0 : (transportMode === 'snowmobile' ? 8.0 : 4.5);
     if (!startNode || !endNode || minStartD > maxSnapDistKm || minEndD > maxSnapDistKm) return null;
     if (startNode.key === endNode.key) return [a, [startNode.lat, startNode.lon], b];
 
-    // Алгоритм A* по графу дорог/троп/русел рек
+    // Алгоритм A* по графу русел рек / объездных дорог и зимников / велодорожек и троп
     const gScore = new Map([[startNode.key, 0]]);
-    const fScore = new Map([[startNode.key, calcHaversineKm(startNode.lat, startNode.lon, endNode.lat, endNode.lon)]]);
+    const fScore = new Map([[startNode.key, calcHaversineKm(startNode.lat, startNode.lon, endNode.lat, endNode.lon) * 0.65]]);
     const cameFrom = new Map();
     const openSet = new Set([startNode.key]);
     let visitedCount = 0;
 
-    while (openSet.size > 0 && visitedCount < 12000) {
+    while (openSet.size > 0 && visitedCount < 25000) {
       visitedCount++;
       let currentKey = null;
       let bestF = Infinity;
@@ -6942,7 +7371,7 @@ async function _buildOsmNetworkPathBetween(a, b, transportMode = 'car') {
           cameFrom.set(nbrKey, currentKey);
           gScore.set(nbrKey, tentativeG);
           const nbrNode = nodes.get(nbrKey);
-          fScore.set(nbrKey, tentativeG + calcHaversineKm(nbrNode.lat, nbrNode.lon, endNode.lat, endNode.lon) * 0.8);
+          fScore.set(nbrKey, tentativeG + calcHaversineKm(nbrNode.lat, nbrNode.lon, endNode.lat, endNode.lon) * 0.65);
           openSet.add(nbrKey);
         }
       });
@@ -6951,12 +7380,20 @@ async function _buildOsmNetworkPathBetween(a, b, transportMode = 'car') {
   return null;
 }
 
-// Каскадный запрос маршрута по дорогам, велодорожкам и тропам (FOSSGIS + OSRM + граф Overpass OSM)
+// Каскадный запрос маршрута по дорогам, объездным путям, велодорожкам и тропам (FOSSGIS + OSRM + граф Overpass OSM)
 async function _fetchRoutedSegmentForTransport(a, b, transportMode = 'car') {
   const isApk = typeof window !== 'undefined' && Boolean(window.AndroidBridge);
   const wrapApkProxy = (u) => isApk ? `https://appassets.androidplatform.net/__klev_net_proxy__?url=${encodeURIComponent(u)}` : u;
 
   if (!_forceOfflineTestMode && (typeof navigator === 'undefined' || navigator.onLine !== false)) {
+    // Для снегохода сначала строим маршрут по объездным дорогам/зимникам/тропам с обходом домов и открытой воды
+    if (transportMode === 'snowmobile') {
+      const snowSeg = await _buildOsmNetworkPathBetween(a, b, 'snowmobile');
+      if (Array.isArray(snowSeg) && snowSeg.length >= 2) {
+        return snowSeg;
+      }
+    }
+
     const coordPair = `${a[1].toFixed(6)},${a[0].toFixed(6)};${b[1].toFixed(6)},${b[0].toFixed(6)}`;
     let urls = [];
     if (transportMode === 'car') {
@@ -6965,21 +7402,35 @@ async function _fetchRoutedSegmentForTransport(a, b, transportMode = 'car') {
         `https://router.project-osrm.org/route/v1/driving/${coordPair}?overview=full&geometries=geojson&steps=true&continue_straight=true`
       ];
     } else if (transportMode === 'bike') {
+      // На велосипеде и пешком никогда не срезаем по прямой сквозь чащу и болота: каскад bike -> foot -> car
       urls = [
         `https://routing.openstreetmap.de/routed-bike/route/v1/driving/${coordPair}?overview=full&geometries=geojson&steps=true&continue_straight=true`,
-        `https://router.project-osrm.org/route/v1/bike/${coordPair}?overview=full&geometries=geojson&steps=true&exclude=motorway`
+        `https://routing.openstreetmap.de/routed-foot/route/v1/driving/${coordPair}?overview=full&geometries=geojson&steps=true&continue_straight=true`,
+        `https://router.project-osrm.org/route/v1/bike/${coordPair}?overview=full&geometries=geojson&steps=true`,
+        `https://routing.openstreetmap.de/routed-car/route/v1/driving/${coordPair}?overview=full&geometries=geojson&steps=true`,
+        `https://router.project-osrm.org/route/v1/driving/${coordPair}?overview=full&geometries=geojson&steps=true`
       ];
     } else if (transportMode === 'walk') {
       urls = [
         `https://routing.openstreetmap.de/routed-foot/route/v1/driving/${coordPair}?overview=full&geometries=geojson&steps=true&continue_straight=true`,
-        `https://router.project-osrm.org/route/v1/foot/${coordPair}?overview=full&geometries=geojson&steps=true`
+        `https://routing.openstreetmap.de/routed-bike/route/v1/driving/${coordPair}?overview=full&geometries=geojson&steps=true&continue_straight=true`,
+        `https://router.project-osrm.org/route/v1/foot/${coordPair}?overview=full&geometries=geojson&steps=true`,
+        `https://routing.openstreetmap.de/routed-car/route/v1/driving/${coordPair}?overview=full&geometries=geojson&steps=true`,
+        `https://router.project-osrm.org/route/v1/driving/${coordPair}?overview=full&geometries=geojson&steps=true`
+      ];
+    } else if (transportMode === 'snowmobile') {
+      urls = [
+        `https://routing.openstreetmap.de/routed-foot/route/v1/driving/${coordPair}?overview=full&geometries=geojson&steps=true`,
+        `https://routing.openstreetmap.de/routed-bike/route/v1/driving/${coordPair}?overview=full&geometries=geojson&steps=true`,
+        `https://routing.openstreetmap.de/routed-car/route/v1/driving/${coordPair}?overview=full&geometries=geojson&steps=true`,
+        `https://router.project-osrm.org/route/v1/driving/${coordPair}?overview=full&geometries=geojson&steps=true`
       ];
     }
 
     for (const rawUrl of urls) {
       try {
         const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-        const timer = ctrl ? setTimeout(() => ctrl.abort(), 4200) : null;
+        const timer = ctrl ? setTimeout(() => ctrl.abort(), 4500) : null;
         const res = await fetch(wrapApkProxy(rawUrl), { signal: ctrl?.signal }).catch(() => null);
         if (timer) clearTimeout(timer);
         if (!res || !res.ok) continue;
@@ -7006,7 +7457,7 @@ async function _fetchRoutedSegmentForTransport(a, b, transportMode = 'car') {
 // Построение маршрута в зависимости от выбранного способа передвижения строго от геопозиции пользователя (Замечание 2 и 4)
 export async function computeSmartTransportRoute(waypointsList, transportMode = 'car') {
   const s = store.getState();
-  // Замечание 4: Старт маршрута берётся СТРОГО от реальной геопозиции пользователя, а не от передвинутой метки водоёма!
+  // Старт маршрута берётся СТРОГО от реальной геопозиции пользователя!
   let realUserGps = getTrueUserGpsCoords(s);
   if (!realUserGps.isRealGps) {
     const fresh = await acquireFreshHighAccuracyGpsFix(2800).catch(() => null);
@@ -7018,11 +7469,11 @@ export async function computeSmartTransportRoute(waypointsList, transportMode = 
   const rawTargets = (Array.isArray(waypointsList) ? waypointsList : []).map(p => Array.isArray(p) ? [Number(p[0]), Number(p[1])] : [Number(p.lat), Number(p.lon)]);
   if (rawTargets.length === 0) return null;
 
-  // Для режима «Нарисовать пальцем» (если передано много точек мазка) прореживаем до ключевых опорных точек и соединяем от реального GPS до последней точки
+  // Для режима «Нарисовать пальцем» (если передано много точек мазка) сохраняем точный контур мазка (до 24 опорных точек)
   let effectiveTargets = rawTargets;
-  if (rawTargets.length > 6) {
+  if (rawTargets.length > 24) {
     const sampled = [rawTargets[0]];
-    const step = Math.max(1, Math.floor(rawTargets.length / 4));
+    const step = Math.max(1, Math.floor(rawTargets.length / 22));
     for (let i = step; i < rawTargets.length - 1; i += step) {
       sampled.push(rawTargets[i]);
     }
@@ -7033,11 +7484,8 @@ export async function computeSmartTransportRoute(waypointsList, transportMode = 
   const chain = [startPt, ...effectiveTargets];
   let finalPoly = [];
 
-  if (transportMode === 'snowmobile') {
-    // Снегоход / Мотособака — строго по прямой через точки от реальной геопозиции пользователя
-    finalPoly = chain;
-  } else if (transportMode === 'boat') {
-    // Лодка — по акватории рек/озёр/водохранилищ (граф OSM waterway + кэш рек)
+  if (transportMode === 'boat') {
+    // Лодка — СТРОГО по руслам рек и протокам (гидрографический граф рек OSM + встроенный каркас рек региона)
     finalPoly = [chain[0]];
     for (let i = 0; i < chain.length - 1; i++) {
       const a = chain[i];
@@ -7056,7 +7504,7 @@ export async function computeSmartTransportRoute(waypointsList, transportMode = 
             if (da < dA) { dA = da; idxA = idx; }
             if (db < dB) { dB = db; idxB = idx; }
           });
-          if (dA <= 2.0 && dB <= 2.0 && idxA !== -1 && idxB !== -1 && idxA !== idxB) {
+          if (dA <= 8.0 && dB <= 8.0 && idxA !== -1 && idxB !== -1 && idxA !== idxB) {
             const slice = idxA < idxB ? w.pts.slice(idxA, idxB + 1) : w.pts.slice(idxB, idxA + 1).reverse();
             waterSeg = [a, ...slice, b];
             break;
@@ -7064,17 +7512,31 @@ export async function computeSmartTransportRoute(waypointsList, transportMode = 
         }
       }
       if (waterSeg && waterSeg.length >= 2) {
+        // Если от стартовой точки на берегу до спуска на воду есть сухопутный подъезд > 350 м, доводим до реки по дорожке
+        if (i === 0 && waterSeg.length >= 3 && calcHaversineKm(a[0], a[1], waterSeg[1][0], waterSeg[1][1]) > 0.35) {
+          const approachSeg = await _fetchRoutedSegmentForTransport(a, waterSeg[1], 'car').catch(() => null);
+          if (Array.isArray(approachSeg) && approachSeg.length >= 2) {
+            finalPoly.push(...approachSeg.slice(1), ...waterSeg.slice(2));
+            continue;
+          }
+        }
         finalPoly.push(...waterSeg.slice(1));
       } else {
         finalPoly.push(b);
       }
     }
-  } else if (transportMode === 'car' || transportMode === 'bike' || transportMode === 'walk') {
-    // Для Авто (дороги и просёлки), Велосипеда (велодорожки, тропы, дороги без автострад) и Пешехода (тропы/дорожки, обход водоёмов)
-    finalPoly = [chain[0]];
-    for (let i = 0; i < chain.length - 1; i++) {
-      const a = chain[i];
-      const b = chain[i + 1];
+  } else if (transportMode === 'snowmobile' || transportMode === 'car' || transportMode === 'bike' || transportMode === 'walk') {
+    // Для Снегохода (объездные дороги/зимники/просеки без проезда сквозь дома и открытую воду), Авто, Велосипеда и Пешехода
+    // Если пользователь рисовал подробную линию пальцем (> 8 точек в режиме freehand) для снегохода — привязываем ключевые узлы к обходным дорогам
+    const routeChain = (transportMode === 'snowmobile' && chain.length > 8)
+      ? [chain[0], chain[Math.floor(chain.length / 3)], chain[Math.floor((chain.length * 2) / 3)], chain[chain.length - 1]]
+      : (chain.length > 8
+          ? [chain[0], chain[Math.floor(chain.length / 2)], chain[chain.length - 1]]
+          : chain);
+    finalPoly = [routeChain[0]];
+    for (let i = 0; i < routeChain.length - 1; i++) {
+      const a = routeChain[i];
+      const b = routeChain[i + 1];
       let seg = await _fetchRoutedSegmentForTransport(a, b, transportMode);
       if (!seg || seg.length < 2) {
         seg = [a, b];
@@ -7262,7 +7724,7 @@ function renderArcMobileMap(container, s, prevLiveMapBox) {
   const catches120Count = countCatchesIn120KmSquare(s);
 
   const gpsIconSvg = _arcGpsCompassState === 'compass'
-    ? `<svg class="k-ico" style="width:22px;height:22px;transform:rotate(${-_arcCompassHeadingDeg}deg);transition:transform 0.18s linear;" viewBox="0 0 24 24" fill="none">
+    ? `<svg class="k-ico" data-compass-needle="1" style="width:22px;height:22px;transform:rotate(${-_arcCompassHeadingDeg}deg);transition:transform 0.14s linear;" viewBox="0 0 24 24" fill="none">
          <polygon points="12,2 15.5,12 8.5,12" fill="#ef4444"/>
          <polygon points="12,22 15.5,12 8.5,12" fill="#cbd5e1"/>
          <circle cx="12" cy="12" r="2.2" fill="#ffffff"/>
@@ -7559,8 +8021,12 @@ function renderArcMobileMap(container, s, prevLiveMapBox) {
         </svg>
       </div>
 
-      <!-- П. 8.2.3: Холст для рисования маршрута пальцем (несколько мазков) -->
-      <canvas id="arcFreehandCanvas" style="display:${_arcRouteBuilderMode === 'freehand' ? 'block' : 'none'};position:absolute;inset:0;width:100%;height:100%;z-index:916;touch-action:none;cursor:crosshair;"></canvas>
+      <!-- П. 8.2.3: Подсказка режима рисования пальцем (1 палец — линия по карте, 2 пальца — сдвиг/зум карты) -->
+      ${_arcRouteBuilderMode === 'freehand' ? `
+        <div class="klev-arc-glass" style="position:absolute;top:34px;left:50%;transform:translateX(-50%);z-index:935;border-radius:999px;padding:6px 14px;font-size:11.5px;font-weight:800;white-space:nowrap;pointer-events:none;">
+          1 палец — рисовать • 2 пальца — двигать карту
+        </div>
+      ` : ''}
 
       <!-- Панель управления в нижней части экрана для режимов «Маршрут по точкам» (п. 8.2.2) и «Нарисовать пальцем» (п. 8.2.3) -->
       ${_arcRouteBuilderMode === 'waypoints' ? `
@@ -7613,35 +8079,28 @@ function renderArcMobileMap(container, s, prevLiveMapBox) {
         ${_arcExpandedPlaqueId ? expandedPlaqueHtml : `
           <div class="klev-arc-duo-viewport" id="arcDuoSwipeViewport">
             <div class="klev-arc-duo-track" id="arcDuoSwipeTrack" style="transform:translate3d(-${_arcSwipePage * 33.333333}%, 0, 0);">
-              <!-- ЭКРАН 1: 8.1 Что здесь клюёт? + 8.2 До ближайшей базы км -->
+              <!-- ЭКРАН 1: 8.1 Клёв / ТОП-10 рыб + 8.2 База / Маршруты (без верхнего заголовка до раскрытия, укрупнено и отцентровано) -->
               <div class="klev-arc-duo-page">
                 <div class="klev-arc-glass klev-arc-plaque" data-arc-open-plaque="8.1">
-                  <div style="font-size:11px;font-weight:800;color:var(--muted);">Что здесь клюёт?</div>
                   ${chosenFishObj ? `
-                    <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:4px;">
-                      <div style="display:flex;align-items:center;gap:6px;min-width:0;">
-                        <span class="arc-fish-svg-slot" style="width:34px;height:18px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">${renderFishVisual(chosenFishObj)}</span>
-                        <span style="font-size:12.5px;font-weight:900;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(chosenFishObj.name)}</span>
-                      </div>
-                      <span style="font-size:18px;font-weight:900;color:var(--good);">${chosenFishScore}%</span>
+                    <div class="klev-arc-plaque-metric" style="color:var(--good);">${chosenFishScore}%</div>
+                    <div class="klev-arc-plaque-sub">
+                      <span class="arc-fish-svg-slot" style="width:28px;height:15px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">${renderFishVisual(chosenFishObj)}</span>
+                      <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:110px;">${escapeHtml(chosenFishObj.name)}</span>
                     </div>
                   ` : `
-                    <div style="display:flex;align-items:baseline;justify-content:space-between;margin-top:4px;">
-                      <span style="font-size:21px;font-weight:900;color:var(--good);">${avgScore}%</span>
-                      <span style="font-size:10.5px;font-weight:800;color:var(--accent);">ТОП-10 рыб</span>
-                    </div>
+                    <div class="klev-arc-plaque-metric" style="color:var(--good);">${avgScore}%</div>
+                    <div class="klev-arc-plaque-sub" style="color:var(--accent);">Клёв • ТОП-10 рыб</div>
                   `}
                 </div>
 
                 <div class="klev-arc-glass klev-arc-plaque" data-arc-open-plaque="8.2">
-                  <div style="font-size:11px;font-weight:800;color:var(--muted);">До ближайшей базы км</div>
                   ${nearestBase ? `
-                    <div style="display:flex;align-items:baseline;justify-content:space-between;margin-top:4px;">
-                      <span style="font-size:20px;font-weight:900;color:var(--accent);">${nearestBase.distKm.toFixed(1).replace('.', ',')} км</span>
-                      <span style="font-size:10.5px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:85px;">${escapeHtml(nearestBase.name)}</span>
-                    </div>
+                    <div class="klev-arc-plaque-metric" style="color:var(--accent);">${nearestBase.distKm.toFixed(1).replace('.', ',')} км</div>
+                    <div class="klev-arc-plaque-sub" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px;">${escapeHtml(nearestBase.name)} • Маршрут</div>
                   ` : `
-                    <div style="font-size:11px;font-weight:800;color:var(--warn);margin-top:4px;line-height:1.25;">Укажите место на карте, я посчитаю</div>
+                    <div class="klev-arc-plaque-metric" style="font-size:19px;color:var(--warn);">Маршрут</div>
+                    <div class="klev-arc-plaque-sub">Укажите базу на карте</div>
                   `}
                 </div>
               </div>
@@ -7649,45 +8108,39 @@ function renderArcMobileMap(container, s, prevLiveMapBox) {
               <!-- ЭКРАН 2: 8.3 Точки на карте + 8.4 Офлайн карты -->
               <div class="klev-arc-duo-page">
                 <div class="klev-arc-glass klev-arc-plaque" data-arc-open-plaque="8.3">
-                  <div style="font-size:11px;font-weight:800;color:var(--muted);">Точки на карте</div>
-                  <div style="display:flex;align-items:baseline;justify-content:space-between;margin-top:4px;">
-                    <span style="font-size:21px;font-weight:900;">${totalMapPoints}</span>
-                    <span style="font-size:10.5px;font-weight:800;color:var(--accent);">Фильтр</span>
-                  </div>
+                  <div class="klev-arc-plaque-metric">${totalMapPoints}</div>
+                  <div class="klev-arc-plaque-sub" style="color:var(--accent);">Точки • Фильтр</div>
                 </div>
 
                 <div class="klev-arc-glass klev-arc-plaque" data-arc-open-plaque="8.4">
-                  <div style="font-size:11px;font-weight:800;color:var(--muted);">Офлайн карты</div>
-                  <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px;">
-                    <svg class="k-ico" style="width:24px;height:24px;color:${hasOfflineHere ? '#10b981' : '#ef4444'};" viewBox="0 0 24 24" fill="none">
-                      <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/>
-                      <circle cx="12" cy="12" r="4" fill="currentColor"/>
+                  <div style="display:flex;align-items:center;justify-content:center;gap:8px;">
+                    <svg class="k-ico" style="width:28px;height:28px;color:${hasOfflineHere ? '#10b981' : '#ef4444'};" viewBox="0 0 24 24" fill="none">
+                      <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2.2"/>
+                      <circle cx="12" cy="12" r="4.2" fill="currentColor"/>
                     </svg>
-                    <span style="font-size:11.5px;font-weight:900;color:${hasOfflineHere ? 'var(--good)' : 'var(--bad)'};">${hasOfflineHere ? '50/120 км ОК' : 'Скачать'}</span>
+                    <span class="klev-arc-plaque-metric" style="font-size:18px;color:${hasOfflineHere ? 'var(--good)' : 'var(--bad)'};">${hasOfflineHere ? '50/120 ОК' : 'Офлайн'}</span>
                   </div>
+                  <div class="klev-arc-plaque-sub">${hasOfflineHere ? 'Карта в памяти' : 'Скачать 50 / 120 км'}</div>
                 </div>
               </div>
 
               <!-- ЭКРАН 3: 8.5 Глубины + 8.6 Улов -->
               <div class="klev-arc-duo-page">
                 <div class="klev-arc-glass klev-arc-plaque" data-arc-open-plaque="8.5">
-                  <div style="font-size:11px;font-weight:800;color:var(--muted);">Глубины</div>
-                  <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px;">
-                    <svg class="k-ico" style="width:24px;height:24px;color:${hasBathyHere ? '#10b981' : '#ef4444'};" viewBox="0 0 24 24" fill="none">
-                      <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/>
-                      <path d="M12 12l5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  <div style="display:flex;align-items:center;justify-content:center;gap:7px;">
+                    <svg class="k-ico" style="width:26px;height:26px;color:${hasBathyHere ? '#10b981' : '#ef4444'};" viewBox="0 0 24 24" fill="none">
+                      <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2.2"/>
+                      <path d="M12 12l5-5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
                       <circle cx="12" cy="12" r="2.2" fill="currentColor"/>
                     </svg>
-                    <span style="font-size:12px;font-weight:900;">~${s.depth.toFixed(1)} м</span>
+                    <span class="klev-arc-plaque-metric" style="font-size:21px;">~${s.depth.toFixed(1)} м</span>
                   </div>
+                  <div class="klev-arc-plaque-sub">Глубины • Изобаты</div>
                 </div>
 
                 <div class="klev-arc-glass klev-arc-plaque" data-arc-open-plaque="8.6">
-                  <div style="font-size:11px;font-weight:800;color:var(--muted);">Улов</div>
-                  <div style="display:flex;align-items:baseline;justify-content:space-between;margin-top:4px;">
-                    <span style="font-size:21px;font-weight:900;color:var(--good);">${catches120Count}</span>
-                    <span style="font-size:10.5px;font-weight:800;color:var(--accent);">120 км</span>
-                  </div>
+                  <div class="klev-arc-plaque-metric" style="color:var(--good);">${catches120Count}</div>
+                  <div class="klev-arc-plaque-sub" style="color:var(--accent);">Уловы • 120 км</div>
                 </div>
               </div>
             </div>
@@ -7958,42 +8411,7 @@ function bindArcMobileMapEvents(container) {
       if (typeof window !== 'undefined' && typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
         try { await DeviceOrientationEvent.requestPermission(); } catch (_e) {}
       }
-      if (typeof window !== 'undefined' && !window.__KLEV_ARC_COMPASS_BOUND__) {
-        window.__KLEV_ARC_COMPASS_BOUND__ = true;
-        let _compassZeroOffset = null;
-        const handleOrientationEvent = (ev) => {
-          if (!ev) return;
-          const scrAngle = (typeof window.screen !== 'undefined' && window.screen.orientation && Number.isFinite(window.screen.orientation.angle))
-            ? window.screen.orientation.angle
-            : (Number.isFinite(window.orientation) ? Number(window.orientation) : 0);
-          let hdg = null;
-          if (Number.isFinite(ev.webkitCompassHeading) && ev.webkitCompassHeading >= 0) {
-            hdg = (ev.webkitCompassHeading + scrAngle + 360) % 360;
-          } else if (ev.absolute === true && Number.isFinite(ev.alpha)) {
-            hdg = ((360 - ev.alpha) + scrAngle + 360) % 360;
-          } else if (Number.isFinite(ev.alpha)) {
-            // Для относительного датчика deviceorientation на Android компенсируем начальный 180-градусный сдвиг
-            if (_compassZeroOffset === null) {
-              _compassZeroOffset = ev.alpha;
-            }
-            const rel = (ev.alpha - _compassZeroOffset + 360) % 360;
-            hdg = ((360 - rel) + scrAngle + 360) % 360;
-          }
-          if (hdg === null) return;
-          _arcCompassHeadingDeg = Math.round(hdg) % 360;
-          if (_arcGpsCompassState === 'compass') {
-            updateLiveUserGpsMarkerOnMap();
-            const btnNeedle = document.querySelector('#arcBtnGpsCompass svg');
-            if (btnNeedle) {
-              btnNeedle.style.transform = `rotate(${-_arcCompassHeadingDeg}deg)`;
-            }
-          }
-        };
-        if ('ondeviceorientationabsolute' in window) {
-          window.addEventListener('deviceorientationabsolute', handleOrientationEvent, { passive: true });
-        }
-        window.addEventListener('deviceorientation', handleOrientationEvent, { passive: true });
-      }
+      _ensureArcCompassSensorStarted();
     } else {
       _arcGpsCompassState = 'centered';
       if (mapInstance) {
@@ -8176,73 +8594,188 @@ function bindArcMobileMapEvents(container) {
     render(container);
   });
 
-  const fhCanvas = container.querySelector('#arcFreehandCanvas');
-  if (fhCanvas && _arcRouteBuilderMode === 'freehand') {
-    const rect = fhCanvas.getBoundingClientRect();
-    fhCanvas.width = rect.width || window.innerWidth;
-    fhCanvas.height = rect.height || window.innerHeight;
-    let isDrawing = false;
-    let curPixels = [];
+  // В режиме «Нарисовать пальцем»:
+  // - 1 палец (или зажатая мышь): рисует линию непосредственно в координатах карты L.polyline без малейшего смещения!
+  // - 2 пальца: свободно двигают (панорамируют) и масштабируют (щипок/зум) карту!
+  if (mapBoxEl) {
+    if (_arcRouteBuilderMode === 'freehand') {
+      mapBoxEl.style.touchAction = 'none';
+      if (mapInstance && mapInstance.dragging) {
+        try { mapInstance.dragging.disable(); } catch (_e) {}
+      }
+    } else {
+      mapBoxEl.style.touchAction = '';
+      if (mapInstance && mapInstance.dragging) {
+        try { mapInstance.dragging.enable(); } catch (_e) {}
+      }
+    }
 
-    const startStroke = (x, y) => {
-      isDrawing = true;
-      curPixels = [[x, y]];
-    };
-    const moveStroke = (x, y) => {
-      if (!isDrawing) return;
-      curPixels.push([x, y]);
-      const ctx = fhCanvas.getContext('2d');
-      ctx.clearRect(0, 0, fhCanvas.width, fhCanvas.height);
-      ctx.beginPath();
-      ctx.strokeStyle = '#38bdf8';
-      ctx.lineWidth = 4.5;
-      ctx.lineCap = 'round';
-      curPixels.forEach((p, idx) => (idx === 0 ? ctx.moveTo(p[0], p[1]) : ctx.lineTo(p[0], p[1])));
-      ctx.stroke();
-    };
-    const endStroke = () => {
-      if (!isDrawing) return;
-      isDrawing = false;
-      const ctx = fhCanvas.getContext('2d');
-      ctx.clearRect(0, 0, fhCanvas.width, fhCanvas.height);
-      if (curPixels.length >= 3 && mapInstance) {
-        const step = Math.max(1, Math.floor(curPixels.length / 8));
-        const latLngStroke = [];
-        for (let i = 0; i < curPixels.length; i += step) {
-          const ll = mapInstance.containerPointToLatLng([curPixels[i][0], curPixels[i][1]]);
-          latLngStroke.push([ll.lat, ll.lng]);
+    if (!mapBoxEl.__klevFreehandDirectBound) {
+      mapBoxEl.__klevFreehandDirectBound = true;
+      let isDrawing1Finger = false;
+      let curLatLngs = [];
+      let livePolyline = null;
+      let twoFingerPrevMid = null;
+      let twoFingerPrevDist = 0;
+
+      const clientXYToLatLng = (clientX, clientY) => {
+        if (!mapInstance) return null;
+        const r = mapBoxEl.getBoundingClientRect();
+        if (r.width >= 40 && r.height >= 40 && (Math.abs(r.width - _lastMapBoxW) > 4 || Math.abs(r.height - _lastMapBoxH) > 4)) {
+          _lastMapBoxW = r.width;
+          _lastMapBoxH = r.height;
+          mapInstance.invalidateSize({ pan: false, animate: false });
         }
-        const lastPx = curPixels[curPixels.length - 1];
-        const lastLl = mapInstance.containerPointToLatLng([lastPx[0], lastPx[1]]);
-        latLngStroke.push([lastLl.lat, lastLl.lng]);
-        _arcFreehandStrokes.push(latLngStroke);
-        renderArcRouteDraftAndActiveOnMap();
-        render(container);
-      }
-    };
+        const pt = [clientX - r.left, clientY - r.top];
+        const ll = mapInstance.containerPointToLatLng(pt);
+        return ll && Number.isFinite(ll.lat) && Number.isFinite(ll.lng) ? [ll.lat, ll.lng] : null;
+      };
 
-    fhCanvas.addEventListener('mousedown', (ev) => startStroke(ev.offsetX, ev.offsetY));
-    fhCanvas.addEventListener('mousemove', (ev) => moveStroke(ev.offsetX, ev.offsetY));
-    window.addEventListener('mouseup', endStroke, { once: true });
-    fhCanvas.addEventListener('touchstart', (ev) => {
-      if (ev.touches.length === 1) {
-        const r = fhCanvas.getBoundingClientRect();
-        startStroke(ev.touches[0].clientX - r.left, ev.touches[0].clientY - r.top);
-      }
-    }, { passive: true });
-    fhCanvas.addEventListener('touchmove', (ev) => {
-      if (ev.touches.length === 1 && isDrawing) {
-        const r = fhCanvas.getBoundingClientRect();
-        moveStroke(ev.touches[0].clientX - r.left, ev.touches[0].clientY - r.top);
-      }
-    }, { passive: true });
-    fhCanvas.addEventListener('touchend', endStroke, { passive: true });
+      const cancelLiveStroke = () => {
+        isDrawing1Finger = false;
+        curLatLngs = [];
+        if (livePolyline && mapInstance) {
+          try { mapInstance.removeLayer(livePolyline); } catch (_e) {}
+        }
+        livePolyline = null;
+      };
+
+      const commitLiveStroke = () => {
+        if (!isDrawing1Finger) return;
+        isDrawing1Finger = false;
+        if (livePolyline && mapInstance) {
+          try { mapInstance.removeLayer(livePolyline); } catch (_e) {}
+        }
+        livePolyline = null;
+        if (curLatLngs.length >= 2) {
+          const step = Math.max(1, Math.floor(curLatLngs.length / 18));
+          const sampled = [];
+          for (let i = 0; i < curLatLngs.length; i += step) {
+            sampled.push(curLatLngs[i]);
+          }
+          const lastPt = curLatLngs[curLatLngs.length - 1];
+          if (sampled[sampled.length - 1] !== lastPt) sampled.push(lastPt);
+          _arcFreehandStrokes.push(sampled);
+          renderArcRouteDraftAndActiveOnMap();
+          const undoBtn = document.getElementById('arcFhUndoStrokeBtn');
+          if (undoBtn) {
+            undoBtn.textContent = `Отменить последнее действие (${_arcFreehandStrokes.length})`;
+          }
+        }
+        curLatLngs = [];
+      };
+
+      mapBoxEl.addEventListener('touchstart', (ev) => {
+        if (_arcRouteBuilderMode !== 'freehand' || !mapInstance) return;
+        if (ev.touches.length >= 2) {
+          cancelLiveStroke();
+          const t0 = ev.touches[0];
+          const t1 = ev.touches[1];
+          twoFingerPrevMid = [(t0.clientX + t1.clientX) / 2, (t0.clientY + t1.clientY) / 2];
+          twoFingerPrevDist = Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
+          return;
+        }
+        if (ev.touches.length === 1) {
+          twoFingerPrevMid = null;
+          const t = ev.touches[0];
+          const ll = clientXYToLatLng(t.clientX, t.clientY);
+          if (!ll) return;
+          isDrawing1Finger = true;
+          curLatLngs = [ll];
+          livePolyline = L.polyline(curLatLngs, {
+            color: '#38bdf8',
+            weight: 5,
+            opacity: 0.95,
+            lineCap: 'round',
+            lineJoin: 'round'
+          }).addTo(mapInstance);
+        }
+      }, { passive: true });
+
+      mapBoxEl.addEventListener('touchmove', (ev) => {
+        if (_arcRouteBuilderMode !== 'freehand' || !mapInstance) return;
+        if (ev.touches.length >= 2) {
+          if (isDrawing1Finger) cancelLiveStroke();
+          const t0 = ev.touches[0];
+          const t1 = ev.touches[1];
+          const mid = [(t0.clientX + t1.clientX) / 2, (t0.clientY + t1.clientY) / 2];
+          const dist = Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
+          if (twoFingerPrevMid) {
+            const dx = twoFingerPrevMid[0] - mid[0];
+            const dy = twoFingerPrevMid[1] - mid[1];
+            if (Math.hypot(dx, dy) > 1.5) {
+              mapInstance.panBy([dx, dy], { animate: false });
+            }
+          }
+          if (twoFingerPrevDist > 25 && Math.abs(dist - twoFingerPrevDist) > 28) {
+            const curZ = mapInstance.getZoom() || 12;
+            const nextZ = dist > twoFingerPrevDist ? Math.min(18, curZ + 1) : Math.max(4, curZ - 1);
+            if (nextZ !== curZ) {
+              mapInstance.setZoom(nextZ, { animate: false });
+            }
+            twoFingerPrevDist = dist;
+          }
+          twoFingerPrevMid = mid;
+          return;
+        }
+        if (ev.touches.length === 1 && isDrawing1Finger) {
+          const t = ev.touches[0];
+          const ll = clientXYToLatLng(t.clientX, t.clientY);
+          if (!ll) return;
+          curLatLngs.push(ll);
+          if (livePolyline) livePolyline.setLatLngs(curLatLngs);
+        }
+      }, { passive: true });
+
+      mapBoxEl.addEventListener('touchend', (ev) => {
+        if (_arcRouteBuilderMode !== 'freehand') return;
+        if (!ev.touches || ev.touches.length < 2) {
+          twoFingerPrevMid = null;
+          twoFingerPrevDist = 0;
+        }
+        if (!ev.touches || ev.touches.length === 0) {
+          commitLiveStroke();
+        }
+      }, { passive: true });
+
+      mapBoxEl.addEventListener('mousedown', (ev) => {
+        if (_arcRouteBuilderMode !== 'freehand' || !mapInstance || ev.button !== 0) return;
+        const ll = clientXYToLatLng(ev.clientX, ev.clientY);
+        if (!ll) return;
+        isDrawing1Finger = true;
+        curLatLngs = [ll];
+        livePolyline = L.polyline(curLatLngs, {
+          color: '#38bdf8',
+          weight: 5,
+          opacity: 0.95,
+          lineCap: 'round',
+          lineJoin: 'round'
+        }).addTo(mapInstance);
+      });
+
+      mapBoxEl.addEventListener('mousemove', (ev) => {
+        if (_arcRouteBuilderMode !== 'freehand' || !isDrawing1Finger || !mapInstance) return;
+        const ll = clientXYToLatLng(ev.clientX, ev.clientY);
+        if (!ll) return;
+        curLatLngs.push(ll);
+        if (livePolyline) livePolyline.setLatLngs(curLatLngs);
+      });
+
+      window.addEventListener('mouseup', () => {
+        if (_arcRouteBuilderMode === 'freehand' && isDrawing1Finger) {
+          commitLiveStroke();
+        }
+      });
+    }
   }
 
   container.querySelector('#arcFhBackBtn')?.addEventListener('click', (e) => {
     e.stopPropagation();
     _arcRouteBuilderMode = null;
     _arcFreehandStrokes = [];
+    if (mapInstance && mapInstance.dragging) {
+      try { mapInstance.dragging.enable(); } catch (_e) {}
+    }
     renderArcRouteDraftAndActiveOnMap();
     render(container);
   });
@@ -8251,7 +8784,10 @@ function bindArcMobileMapEvents(container) {
     e.stopPropagation();
     _arcFreehandStrokes.pop();
     renderArcRouteDraftAndActiveOnMap();
-    render(container);
+    const undoBtn = container.querySelector('#arcFhUndoStrokeBtn');
+    if (undoBtn) {
+      undoBtn.textContent = `Отменить последнее действие (${_arcFreehandStrokes.length})`;
+    }
   });
 
   container.querySelector('#arcFhFinishBuildBtn')?.addEventListener('click', async (e) => {
@@ -8260,11 +8796,14 @@ function bindArcMobileMapEvents(container) {
     _arcFreehandStrokes.forEach(st => {
       if (Array.isArray(st)) flatPts.push(...st);
     });
+    _arcRouteBuilderMode = null;
+    if (mapInstance && mapInstance.dragging) {
+      try { mapInstance.dragging.enable(); } catch (_e) {}
+    }
     if (flatPts.length >= 2) {
       const built = await computeSmartTransportRoute(flatPts, _arcTransportMode);
       _arcBuiltRoute = built;
     }
-    _arcRouteBuilderMode = null;
     renderArcRouteDraftAndActiveOnMap();
     render(container);
   });

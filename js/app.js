@@ -1,11 +1,11 @@
-import { storage } from './core/storage.js?v=2.9.0-r233';
-import { svgIcon } from './ui/icons.js?v=2.9.0-r233';
-import { initReleaseUpdater, checkForReleaseUpdate } from './core/updater.js?v=2.9.0-r233';
-import { RU } from './i18n/ru.js?v=2.9.0-r233';
-import { events } from './core/events.js?v=2.9.0-r233';
-import { store } from './core/store.js?v=2.9.0-r233';
-import { router } from './core/router.js?v=2.9.0-r233';
-import { installShortcut, initPwa } from './core/pwa.js?v=2.9.0-r233';
+import { storage } from './core/storage.js?v=2.9.0-r234';
+import { svgIcon } from './ui/icons.js?v=2.9.0-r234';
+import { initReleaseUpdater, checkForReleaseUpdate } from './core/updater.js?v=2.9.0-r234';
+import { RU } from './i18n/ru.js?v=2.9.0-r234';
+import { events } from './core/events.js?v=2.9.0-r234';
+import { store } from './core/store.js?v=2.9.0-r234';
+import { router } from './core/router.js?v=2.9.0-r234';
+import { installShortcut, initPwa } from './core/pwa.js?v=2.9.0-r234';
 import {
   initTelegramMiniApp,
   extractIncomingDeepLinkParams,
@@ -15,17 +15,17 @@ import {
   syncTelegramTheme,
   syncTelegramBackButton,
   getTelegramUser
-} from './core/telegram.js?v=2.9.0-r233';
-import { FISH_DB } from './data/species.js?v=2.9.0-r233';
-import { WATER_PROFILES } from './data/waters.js?v=2.9.0-r233';
-import { showToast, openModal, closeModal } from './ui/components.js?v=2.9.0-r233';
-import { weatherModule } from './modules/weather/weather.module.js?v=2.9.0-r233';
-import { geoModule } from './modules/geo/geo.module.js?v=2.9.0-r233';
-import { fishModule } from './modules/fish/fish.module.js?v=2.9.0-r233';
-import { forecastModule } from './modules/forecast/forecast.module.js?v=2.9.0-r233';
-import { calendarModule } from './modules/calendar/calendar.module.js?v=2.9.0-r233';
-import { logModule } from './modules/log/log.module.js?v=2.9.0-r233';
-import { circleModule } from './modules/circle/circle.module.js?v=2.9.0-r233';
+} from './core/telegram.js?v=2.9.0-r234';
+import { FISH_DB } from './data/species.js?v=2.9.0-r234';
+import { WATER_PROFILES } from './data/waters.js?v=2.9.0-r234';
+import { showToast, openModal, closeModal } from './ui/components.js?v=2.9.0-r234';
+import { weatherModule } from './modules/weather/weather.module.js?v=2.9.0-r234';
+import { geoModule } from './modules/geo/geo.module.js?v=2.9.0-r234';
+import { fishModule } from './modules/fish/fish.module.js?v=2.9.0-r234';
+import { forecastModule } from './modules/forecast/forecast.module.js?v=2.9.0-r234';
+import { calendarModule } from './modules/calendar/calendar.module.js?v=2.9.0-r234';
+import { logModule } from './modules/log/log.module.js?v=2.9.0-r234';
+import { circleModule } from './modules/circle/circle.module.js?v=2.9.0-r234';
 if (typeof window !== 'undefined') {
   window.__KLEV_BOOTSTRAPPED__ = true;
   window.__KLEV_STORE__ = store;
@@ -142,7 +142,7 @@ export function recordClientErrorTelemetry(type, message, sourceOrStack = '') {
       msg: msgStr,
       src: String(sourceOrStack || '').slice(0, 220),
       route: String(window.location?.hash || '#/forecast'),
-      ver: '2.9.0-r232',
+      ver: '2.9.0-r234',
       env: envLabel,
       fisherId: uInfo.fisherId,
       login: uInfo.login,

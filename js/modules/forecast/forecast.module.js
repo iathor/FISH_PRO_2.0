@@ -1,19 +1,19 @@
-import { getFilteredFishList, openFishDetail } from '../fish/fish.module.js?v=2.9.0-r233';
-import { logBlankTrip } from '../log/log.module.js?v=2.9.0-r233';
-import { getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.9.0-r233';
-import { RU } from '../../i18n/ru.js?v=2.9.0-r233';
-import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.9.0-r233';
-import { events } from '../../core/events.js?v=2.9.0-r233';
-import { storage } from '../../core/storage.js?v=2.9.0-r233';
-import { store } from '../../core/store.js?v=2.9.0-r233';
-import { formatLocalYYYYMMDD, fmtDeltaPress, fmtHM } from '../../core/format.js?v=2.9.0-r233';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.9.0-r233';
-import { FISH_DB } from '../../data/species.js?v=2.9.0-r233';
-import { renderFiveFish , renderFishVisual } from '../../ui/svg.js?v=2.9.0-r233';
-import { createPill, showToast, openModal, flashHighlightElement } from '../../ui/components.js?v=2.9.0-r233';
-import { computeIceSafetyIndex } from '../weather/weather.module.js?v=2.9.0-r233';
-import { evaluateCircleFieldConfirmation, requireRegisteredFisherId } from '../circle/circle.module.js?v=2.9.0-r233';
-import { isTelegramWebApp, getTelegramUser, shareToTelegramChat, openBotChatInTelegram, buildForecastShareUrls, TELEGRAM_BOT_USERNAME } from '../../core/telegram.js?v=2.9.0-r233';
+import { getFilteredFishList, openFishDetail } from '../fish/fish.module.js?v=2.9.0-r234';
+import { logBlankTrip } from '../log/log.module.js?v=2.9.0-r234';
+import { getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.9.0-r234';
+import { RU } from '../../i18n/ru.js?v=2.9.0-r234';
+import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.9.0-r234';
+import { events } from '../../core/events.js?v=2.9.0-r234';
+import { storage } from '../../core/storage.js?v=2.9.0-r234';
+import { store } from '../../core/store.js?v=2.9.0-r234';
+import { formatLocalYYYYMMDD, fmtDeltaPress, fmtHM } from '../../core/format.js?v=2.9.0-r234';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.9.0-r234';
+import { FISH_DB } from '../../data/species.js?v=2.9.0-r234';
+import { renderFiveFish , renderFishVisual } from '../../ui/svg.js?v=2.9.0-r234';
+import { createPill, showToast, openModal, flashHighlightElement } from '../../ui/components.js?v=2.9.0-r234';
+import { computeIceSafetyIndex } from '../weather/weather.module.js?v=2.9.0-r234';
+import { evaluateCircleFieldConfirmation, requireRegisteredFisherId } from '../circle/circle.module.js?v=2.9.0-r234';
+import { isTelegramWebApp, getTelegramUser, shareToTelegramChat, openBotChatInTelegram, buildForecastShareUrls, TELEGRAM_BOT_USERNAME } from '../../core/telegram.js?v=2.9.0-r234';
 /**
  * Список морских, проходных и полупроходных видов, которые заходят в пресные реки
  * (big_river, small_river) и эстуарии (sea_gulf) при нересте, сезонных миграциях или приливах/отливах.
@@ -1666,7 +1666,7 @@ export function renderExpress(container) {
                 <span style="font-size:var(--fs-xs);font-weight:800;color:var(--accent);"><svg class="k-ico" style="color:var(--bad);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg> ПАНЕЛЬ ПРОФИ: РУЧНАЯ КАЛИБРОВКА ВЕСОВ 8-ФАКТОРНОЙ МОДЕЛИ</span>
                 <div style="font-size:11px;color:var(--good);font-weight:700;margin-top:2px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="4.5" stroke="#38bdf8" stroke-width="1.6"/><circle cx="12" cy="12" r="1.8" fill="#10b981"/></svg> ${val30.label}</div>
                 <div id="proCalibLiveSummary" style="font-size:11.5px;color:var(--accent);font-weight:800;margin-top:3px;">
-                  <svg class="k-ico" viewBox="0 0 24 24" fill="none"><polygon points="13,2 4,14 11,14 10,22 20,10 13,10" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.5" stroke-linejoin="round"/></svg> Активность «${fish.name}» с текущей калибровкой весов: <b>${calScoreNow}%</b> (двигайте ползунки для живого пересчёта прогноза)
+                  <svg class="k-ico" viewBox="0 0 24 24" fill="none"><polygon points="13,2 4,14 11,14 10,22 20,10 13,10" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.5" stroke-linejoin="round"/></svg> Активность «${fish.name}» с текущей калибровкой весов: <b>${calScoreNow}%</b>
                 </div>
               </div>
               <div style="display:flex;gap:6px;">
@@ -1723,7 +1723,7 @@ export function renderWeek(container) {
       <div class="bento-card-head">
         <div>
           <div class="bento-card-title"><span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="3" fill="rgba(56,189,248,0.14)" stroke="currentColor" stroke-width="1.8"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="7" y="13" width="3" height="3" rx="0.8" fill="#38bdf8"/><rect x="14" y="13" width="3" height="3" rx="0.8" fill="#10b981"/></svg></span><span>Календарь клёва по дням (10 дней + Архив) • ${fish.name}</span></div>
-          <div class="bento-card-sub">Нажмите на любой день для пересчёта дашборда и почасового графика (Позавчера/Вчера — запись архивного улова)</div>
+
         </div>
         <button type="button" class="btn btn-sm" id="fcCleanArchiveBtn" title="Очистить старый архив погоды, кроме последних 5 дней"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Очистить кэш</button>
       </div>
@@ -1818,7 +1818,7 @@ export function renderHourly(container) {
       <div class="bento-card-head">
         <div>
           <div class="bento-card-title"><span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.5 2" stroke="#38bdf8" stroke-width="1.9" stroke-linecap="round"/></svg></span><span>Почасовой разбор и 8 факторов (${day.relTitle ? day.relTitle + ' • ' + day.label : day.label})</span></div>
-          <div class="bento-card-sub"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.5" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> Зорьки и <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.5" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> лунные окна отмечены значками • Выберите любой час (00:00–23:00)</div>
+
         </div>
       </div>
       ${fish.legal === 'redbook' ? `
@@ -1893,15 +1893,15 @@ export function renderHourly(container) {
             const col = isPos ? 'var(--good)' : 'var(--bad)';
             const widthPct = Math.min(100, Math.max(8, Math.abs(f.val) * 3));
             return `
-              <div class="factor-row">
-                <div>
-                  <div style="font-weight:700;">${f.name}</div>
-                  <div style="font-size:var(--fs-xs);color:var(--muted);">${f.note}</div>
+              <div class="factor-row" style="display:flex;flex-direction:column;align-items:stretch;gap:5px;padding:7px 0;border-bottom:1px dashed var(--border);">
+                <div style="width:100%;display:flex;justify-content:space-between;align-items:baseline;gap:8px;">
+                  <div style="font-weight:800;font-size:var(--fs-sm);color:var(--text);">${f.name}</div>
+                  <div style="font-weight:900;font-size:13px;color:${col};flex-shrink:0;">${isPos ? '+' + f.val : f.val}%</div>
                 </div>
-                <div class="factor-bar-track">
+                <div style="width:100%;font-size:var(--fs-xs);color:var(--muted);line-height:1.35;">${f.note}</div>
+                <div class="factor-bar-track" style="width:100%;height:8px;">
                   <div class="factor-bar-fill" style="width:${widthPct}%;background:${col};"></div>
                 </div>
-                <div style="text-align:right;font-weight:800;color:${col};">${isPos ? '+' + f.val : f.val}%</div>
               </div>
             `;
           }).join('')}
@@ -1918,10 +1918,7 @@ export function renderHourly(container) {
           <div class="guide-block"><h4>Кормовая база и рабочие приманки</h4><div>${guides.baitAdvice}</div></div>
         </div>
       </div>
-      <!-- Пункт 23: Вероятностный дисклеймер под прогнозом -->
-      <div style="margin-top:12px;padding:8px 11px;background:var(--card);border:1px dashed var(--border);border-radius:var(--r-sm);font-size:11.5px;color:var(--muted);line-height:1.4;">
-        ⓘ <b>Вероятностный биофизический индекс:</b> прогноз оценивает совокупность гидрометеорологических условий водоёма (термику воды, барический градиент, кислородный режим и солунарную фазу), но не является гарантией улова. Учитывайте локальный рельеф и правила безопасности на воде и льду.
-      </div>
+
     </div>
   `;
   if (prevScroll > 0) {
@@ -2099,7 +2096,7 @@ function updateLiveWeightLabelsAndScores(container) {
     const calScoreNow = calcDayBest(fish, activeDayObj, s.method, s.water, s.depth, s.normPress, s.iceState);
     const sumEl = container.querySelector('#proCalibLiveSummary');
     if (sumEl) {
-      sumEl.innerHTML = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><polygon points="13,2 4,14 11,14 10,22 20,10 13,10" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.5" stroke-linejoin="round"/></svg> Активность «${fish.name}» с текущей калибровкой весов: <b>${calScoreNow}%</b> (двигайте ползунки для живого пересчёта прогноза)`;
+      sumEl.innerHTML = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><polygon points="13,2 4,14 11,14 10,22 20,10 13,10" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.5" stroke-linejoin="round"/></svg> Активность «${fish.name}» с текущей калибровкой весов: <b>${calScoreNow}%</b>`;
     }
   }
   const savedWinScrollY = typeof window !== 'undefined' ? window.scrollY : 0;

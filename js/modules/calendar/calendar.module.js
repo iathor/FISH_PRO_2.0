@@ -1,9 +1,9 @@
-import { RU } from '../../i18n/ru.js?v=2.9.0-r233';
-import { store } from '../../core/store.js?v=2.9.0-r233';
-import { generateSpawnICS } from '../../core/format.js?v=2.9.0-r233';
-import { BASIN_CONFIGS, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.9.0-r233';
-import { FISH_DB } from '../../data/species.js?v=2.9.0-r233';
-import { showToast, downloadFileCrossPlatform, flashHighlightElement } from '../../ui/components.js?v=2.9.0-r233';
+import { RU } from '../../i18n/ru.js?v=2.9.0-r234';
+import { store } from '../../core/store.js?v=2.9.0-r234';
+import { generateSpawnICS } from '../../core/format.js?v=2.9.0-r234';
+import { BASIN_CONFIGS, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.9.0-r234';
+import { FISH_DB } from '../../data/species.js?v=2.9.0-r234';
+import { showToast, downloadFileCrossPlatform, flashHighlightElement } from '../../ui/components.js?v=2.9.0-r234';
 const COMPARE_COLORS = ['#10b981', '#38bdf8', '#a855f7'];
 export function getSpawnWindows(fishId, basinCode) {
   const fish = FISH_DB.find(f => f.id === fishId) || FISH_DB[0];
@@ -109,10 +109,7 @@ export function renderCalendar(container, fishId) {
   `;
   const compared = compareSpecies(s.compareSpeciesIds);
   const compareHtml = `
-    <!-- Пояснение формирования списка видов (Point 5) -->
-    <div style="padding:8px 10px;background:var(--card);border-radius:var(--r-sm);margin-bottom:10px;font-size:var(--fs-xs);color:var(--muted);">
-      <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="rgba(56,189,248,0.18)" stroke="#38bdf8" stroke-width="1.8"/><path d="M12 11v5M12 8h.01" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> <b>Формирование списка:</b> в выборке представлены только виды, обитающие в вашем регионе ловли (<b>${s.basinName}</b>) и разрешённые к любительскому вылову. Красная книга исключена из сравнения.
-    </div>
+
     <div style="margin-bottom:10px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
       <span style="font-size:var(--fs-xs);color:var(--muted);font-weight:700;">Сравнить до 3 видов рыб:</span>
       ${(() => {

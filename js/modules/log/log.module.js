@@ -101,22 +101,22 @@ function downloadPhotoCrossPlatform(filename, dataUrl) {
   }
 }
 
-import { isSpeciesInGeoRange } from '../../data/basins.js?v=2.9.0-r233';
-import { RU } from '../../i18n/ru.js?v=2.9.0-r233';
-import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.9.0-r233';
-import { events } from '../../core/events.js?v=2.9.0-r233';
-import { router } from '../../core/router.js?v=2.9.0-r233';
-import { storage } from '../../core/storage.js?v=2.9.0-r233';
-import { store } from '../../core/store.js?v=2.9.0-r233';
-import { setLocation } from '../geo/geo.module.js?v=2.9.0-r233';
-import { formatLocalYYYYMMDD, fmtDeltaPress } from '../../core/format.js?v=2.9.0-r233';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.9.0-r233';
-import { FISH_DB } from '../../data/species.js?v=2.9.0-r233';
-import { escapeHtml, createPill, showToast, openModal, closeModal, openConfirmDeleteModal, downloadFileCrossPlatform, flashHighlightElement } from '../../ui/components.js?v=2.9.0-r233';
+import { isSpeciesInGeoRange } from '../../data/basins.js?v=2.9.0-r234';
+import { RU } from '../../i18n/ru.js?v=2.9.0-r234';
+import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.9.0-r234';
+import { events } from '../../core/events.js?v=2.9.0-r234';
+import { router } from '../../core/router.js?v=2.9.0-r234';
+import { storage } from '../../core/storage.js?v=2.9.0-r234';
+import { store } from '../../core/store.js?v=2.9.0-r234';
+import { setLocation } from '../geo/geo.module.js?v=2.9.0-r234';
+import { formatLocalYYYYMMDD, fmtDeltaPress } from '../../core/format.js?v=2.9.0-r234';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.9.0-r234';
+import { FISH_DB } from '../../data/species.js?v=2.9.0-r234';
+import { escapeHtml, createPill, showToast, openModal, closeModal, openConfirmDeleteModal, downloadFileCrossPlatform, flashHighlightElement } from '../../ui/components.js?v=2.9.0-r234';
 let activeLogTab = 'active'; // 'active' | 'trash'
-import { computeMoon } from '../weather/weather.module.js?v=2.9.0-r233';
-import { calcHourly } from '../forecast/forecast.module.js?v=2.9.0-r233';
-import { openFishPhotoScannerModal, analyzeFishPhotoHybrid, requestAppCameraAndPhotoAccess } from '../fish/scanner.js?v=2.9.0-r233';
+import { computeMoon } from '../weather/weather.module.js?v=2.9.0-r234';
+import { calcHourly } from '../forecast/forecast.module.js?v=2.9.0-r234';
+import { openFishPhotoScannerModal, analyzeFishPhotoHybrid, requestAppCameraAndPhotoAccess } from '../fish/scanner.js?v=2.9.0-r234';
 let currentFilter = { fishId: 'all', cond: 'all' };
 /**
  * Биологические верхние пределы веса (кг) для защиты от накрутки и опечаток
@@ -1065,7 +1065,7 @@ export function renderLog(container) {
       <div class="section-head">
         <div>
           <span class="section-title"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="5" y="3" width="14" height="18" rx="2.5" fill="rgba(56,189,248,0.16)" stroke="currentColor" stroke-width="1.8"/><path d="M9 7h6M9 11h6M9 15h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Журнал уловов и личная калибровка прогноза</span>
-          <div style="font-size:var(--fs-xs);color:var(--muted);">${isDesktopViewOnly ? "Режим просмотра журнала уловов и аналитики на ПК (добавление и редактирование записей доступно на мобильных устройствах)." : "Вносите уловы за сегодня и за прошлые 5 дней (или отмечайте «Выезд без улова (0 поклёвок)», если не клевало) — алгоритм автоматически калибрует прогноз под ваш водоём."}</div>
+
         </div>
         <div class="toolbar-row" style="display:flex;gap:6px;flex-wrap:wrap;">
           <button type="button" class="btn btn-sm btn-good" id="logOpenWizardBtn"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg> + Записать улов</button>
@@ -1124,28 +1124,29 @@ export function renderLog(container) {
           </div>
         `}
       ` : `
-        <!-- Пункты 11 и 12 (v2.5.0): Личная аналитика Ваших уловов, лучшее давление/вода и Топ-3 приманок -->
         <div class="bento-metrics-grid" style="margin-bottom:12px;">
-          <div class="bento-metric-tile">
-            <div class="bento-metric-label"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M3 3v18h18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M7 15l4-5 4 3 5-7" stroke="#38bdf8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg> Выезды и Точность прогноза</div>
-            <div class="bento-metric-val" style="color:var(--good);font-size:16px;">
-              ${statsAll.matchRate !== null ? `Точность: ${statsAll.matchRate}%` : 'Пока нет записей'}
+          <div class="bento-metric-tile" style="display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:12px 10px;gap:4px;">
+            <div class="bento-metric-val" style="color:var(--good);font-size:19px;font-weight:900;">
+              ${statsAll.matchRate !== null ? `${statsAll.matchRate}%` : `${statsAll.successCount} / ${statsAll.blankCount}`}
             </div>
-            <div class="bento-metric-sub">
-              С уловом: <b>${statsAll.successCount}</b> • Без улова (0 поклёвок): <b>${statsAll.blankCount}</b>
+            <div class="bento-metric-sub" style="font-size:11.5px;font-weight:800;color:var(--muted);">
+              Уловов: <b>${statsAll.successCount}</b> • Пустых: <b>${statsAll.blankCount}</b>
             </div>
           </div>
-          <div class="bento-metric-tile">
-            <div class="bento-metric-label"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><polygon points="16,8 13.5,13.5 8,16 10.5,10.5" fill="#38bdf8" stroke="currentColor" stroke-width="1.3"/></svg> Ваше уловистое давление и вода (${activeFish.name})</div>
-            <div class="bento-metric-val" style="font-size:15.5px;">
-              ${statsFish.count ? `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><polygon points="16,8 13.5,13.5 8,16 10.5,10.5" fill="#38bdf8" stroke="currentColor" stroke-width="1.3"/></svg> ~${statsFish.avgPress} мм • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> ~${statsFish.avgWaterTemp}°C` : 'Добавьте первый улов'}
+          <div class="bento-metric-tile" style="display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:12px 10px;gap:4px;">
+            <div class="bento-metric-val" style="font-size:17px;font-weight:900;color:var(--accent);">
+              ${statsFish.count ? `~${statsFish.avgPress} мм • ~${statsFish.avgWaterTemp}°` : activeFish.name}
             </div>
-            <div class="bento-metric-sub">Оптимум по вашей личной статистике</div>
+            <div class="bento-metric-sub" style="font-size:11.5px;font-weight:800;color:var(--muted);">
+              ${statsFish.count ? escapeHtml(activeFish.name) : 'Нет записей по рыбе'}
+            </div>
           </div>
-          <div class="bento-metric-tile">
-            <div class="bento-metric-label"><svg class="k-ico" style="color:#fbbf24;" viewBox="0 0 24 24" fill="none"><path d="M7 4h10v5a5 5 0 0 1-10 0V4z" fill="rgba(251,191,36,0.28)" stroke="#fbbf24" stroke-width="1.8"/><path d="M7 6H4v2a3 3 0 0 0 3 3M17 6h3v2a3 3 0 0 1-3 3M12 14v4M8 20h8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> Топ-3 ваших уловистых приманок</div>
-            <div class="bento-metric-val" style="font-size:12.5px;color:var(--accent);line-height:1.35;">
-              ${statsAll.top3Baits.length > 0 ? statsAll.top3Baits.join('<br>') : 'Пока нет данных по приманкам'}
+          <div class="bento-metric-tile" style="display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:12px 10px;gap:4px;">
+            <div class="bento-metric-val" style="font-size:14px;font-weight:900;color:#fbbf24;line-height:1.3;">
+              ${statsAll.top3Baits.length > 0 ? statsAll.top3Baits.join(' • ') : 'Приманки'}
+            </div>
+            <div class="bento-metric-sub" style="font-size:11.5px;font-weight:800;color:var(--muted);">
+              ${statsAll.top3Baits.length > 0 ? 'Топ-3 по уловам' : 'Нет данных'}
             </div>
           </div>
         </div>
