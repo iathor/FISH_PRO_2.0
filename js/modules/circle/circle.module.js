@@ -9,16 +9,16 @@
  * - Выделенная вкладка « Чаты» на нижней панели навигации + отправка карточки улова прямо в чат.
  * - Закрытый режим Супер-Админа (только для Владельца + управляемая База Администраторов с синхронизацией).
  */
-import { events } from '../../core/events.js?v=2.9.0-r235';
-import { store } from '../../core/store.js?v=2.9.0-r235';
-import { storage, calcGeoDistanceKm, safeJsonParse } from '../../core/storage.js?v=2.9.0-r235';
-import { router } from '../../core/router.js?v=2.9.0-r235';
-import { APP_VERSION, APP_REVISION, APP_DISPLAY_VERSION, getSeasonalBaitsForContext, SPOT_CATEGORIES } from '../../core/config.js?v=2.9.0-r235';
-import { detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.9.0-r235';
-import { findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.9.0-r235';
-import { WATER_PROFILES } from '../../data/waters.js?v=2.9.0-r235';
-import { FISH_DB } from '../../data/species.js?v=2.9.0-r235';
-import { escapeHtml, isAnonymousCallsignValid, createPill, showToast, openModal, closeModal, copyFisherIdToClipboard, openConfirmDeleteModal, openUserAgreementModal, isUserAgreementAccepted, downloadFileCrossPlatform, triggerSystemNotificationCrossPlatform, requestSystemNotificationsAccess, flashHighlightElement, isPolicyVersionAccepted, getSavedPolicyConsentMeta, POLICY_CONSENT_META_KEY, ACTIVE_POLICY_VERSION_DEFAULT, ACTIVE_APP_VERSION_DEFAULT, saveRemotePolicyToClientEnv, getRemotePolicyFromClientEnv, parsePolicySectionsFromEditableText, formatPolicySectionsToEditableText, DEFAULT_POLICY_SECTIONS, isGeoDistributionConsentActive, ensureGeoDistributionConsent, setGeoDistributionConsentState } from '../../ui/components.js?v=2.9.0-r235';
+import { events } from '../../core/events.js?v=2.9.1-r236';
+import { store } from '../../core/store.js?v=2.9.1-r236';
+import { storage, calcGeoDistanceKm, safeJsonParse } from '../../core/storage.js?v=2.9.1-r236';
+import { router } from '../../core/router.js?v=2.9.1-r236';
+import { APP_VERSION, APP_REVISION, APP_DISPLAY_VERSION, getSeasonalBaitsForContext, SPOT_CATEGORIES } from '../../core/config.js?v=2.9.1-r236';
+import { detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.9.1-r236';
+import { findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.9.1-r236';
+import { WATER_PROFILES } from '../../data/waters.js?v=2.9.1-r236';
+import { FISH_DB } from '../../data/species.js?v=2.9.1-r236';
+import { escapeHtml, isAnonymousCallsignValid, createPill, showToast, openModal, closeModal, copyFisherIdToClipboard, openConfirmDeleteModal, openUserAgreementModal, isUserAgreementAccepted, downloadFileCrossPlatform, triggerSystemNotificationCrossPlatform, requestSystemNotificationsAccess, flashHighlightElement, isPolicyVersionAccepted, getSavedPolicyConsentMeta, POLICY_CONSENT_META_KEY, ACTIVE_POLICY_VERSION_DEFAULT, ACTIVE_APP_VERSION_DEFAULT, saveRemotePolicyToClientEnv, getRemotePolicyFromClientEnv, parsePolicySectionsFromEditableText, formatPolicySectionsToEditableText, DEFAULT_POLICY_SECTIONS, isGeoDistributionConsentActive, ensureGeoDistributionConsent, setGeoDistributionConsentState } from '../../ui/components.js?v=2.9.1-r236';
 import {
   RELAY_WORKER_URL,
   buildShareUrls,
@@ -31,9 +31,9 @@ import {
   syncToTelegramCloud,
   readFromTelegramCloud,
   triggerHaptic
-} from '../../core/telegram.js?v=2.9.0-r235';
-import { setLocation } from '../geo/geo.module.js?v=2.9.0-r235';
-import { calcDynamicRig } from '../forecast/forecast.module.js?v=2.9.0-r235';
+} from '../../core/telegram.js?v=2.9.1-r236';
+import { setLocation } from '../geo/geo.module.js?v=2.9.1-r236';
+import { calcDynamicRig } from '../forecast/forecast.module.js?v=2.9.1-r236';
 export const CREW_TTL_MS = 72 * 60 * 60 * 1000;
 /**
  * Вычисляет точное время окончания действия ссылки на длинную экспедицию:
@@ -4893,8 +4893,7 @@ export function openAddThematicMapPointModal(initialCat = 'slip') {
     <div style="display:flex;flex-direction:column;gap:12px;font-size:var(--fs-sm);">
       <div style="padding:9px 11px;background:rgba(56,189,248,0.10);border:1px solid var(--accent);border-radius:var(--r-sm);font-size:var(--fs-xs);line-height:1.42;">
         <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#ef4444"/></svg>
-        <b>Координаты точки:</b> ${Number(s.lat).toFixed(4)}°N, ${Number(s.lon).toFixed(4)}°E (${escapeHtml(wTitle)})<br>
-        <span style="color:var(--muted);">Показатели и ориентиры ниже автоматически подстраиваются под выбранный тип точки (глубина — только для ям и коряжника, клипса — только для слипа).</span>
+        <b>Координаты точки:</b> ${Number(s.lat).toFixed(4)}°N, ${Number(s.lon).toFixed(4)}°E (${escapeHtml(wTitle)})
       </div>
       <div>
         <label style="display:block;font-size:11.5px;font-weight:800;color:var(--muted);margin-bottom:6px;">1. ВЫБЕРИТЕ ТЕМАТИКУ ТОЧКИ НА КАРТЕ:</label>
@@ -4914,11 +4913,11 @@ export function openAddThematicMapPointModal(initialCat = 'slip') {
         <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
           <button type="button" class="btn btn-sm ${chosenScope === 'private' ? 'btn-good' : ''}" data-pick-tscope="private" style="min-height:42px;flex-direction:column;gap:2px;width:100%;">
             <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="5" y="11" width="14" height="10" rx="2.5" fill="rgba(251,191,36,0.22)" stroke="#fbbf24" stroke-width="1.8"/><path d="M8 11V7a4 4 0 0 1 8 0v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Личная закладка</span>
-            <span style="font-size:10px;opacity:0.85;">100% приватно на устройстве</span>
+            
           </button>
           <button type="button" class="btn btn-sm ${chosenScope === 'shared' ? 'btn-accent' : ''}" data-pick-tscope="shared" style="min-height:42px;flex-direction:column;gap:2px;width:100%;">
             <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" stroke="currentColor" stroke-width="1.6"/></svg> Общая точка региона</span>
-            <span style="font-size:10px;opacity:0.85;">Видна рыбакам региона</span>
+            
           </button>
         </div>
       </div>
@@ -6272,7 +6271,7 @@ export function renderChatsSubView(s, ident, visibleCrews) {
       type: 'crew',
       crewKey: k,
       title: k.startsWith('REG-') ? `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" stroke="currentColor" stroke-width="1.6"/></svg> Региональный чат РФ (Регион ${k.replace('REG-', '')})` : `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> Экипаж ${k}${matchingCrew ? ` • ${matchingCrew.wn || matchingCrew.lb}` : ''}`,
-      subtitle: lastMsg ? `${String(lastMsg.senderName || 'Рыболов').replace(/<[^>]+>/g, '').trim()}: ${String(lastMsg.text || '').replace(/<svg[\s\S]*?<\/svg>/gi, '').replace(/<[^>]+>/g, '').trim().slice(0, 55)}` : 'Чат участников экипажа по ключу',
+      subtitle: lastMsg ? `${String(lastMsg.senderName || 'Рыболов').replace(/<[^>]+>/g, '').trim()}: ${String(lastMsg.text || '').replace(/<svg[\s\S]*?<\/svg>/gi, '').replace(/<[^>]+>/g, '').trim().slice(0, 55)}` : '',
       lastTs: lastMsg?.ts || matchingCrew?.ca || 0
     });
   }
@@ -6375,7 +6374,7 @@ export function renderChatsSubView(s, ident, visibleCrews) {
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
           <div>
             <div style="font-weight:900;font-size:13.5px;color:var(--text);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" stroke="currentColor" stroke-width="1.6"/></svg> Общие региональные чаты рыбаков РФ</div>
-            <div style="font-size:11px;color:var(--muted);">Выберите регион из раскрывающегося списка или введите код региона (например: 89, 86, 72, 30)</div>
+            
           </div>
           <button type="button" class="btn btn-sm btn-good" data-open-regional-chat="REG-${curRegCode}" style="min-height:34px;font-weight:900;">
             <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#ef4444"/></svg> Чат моего региона (${curRegCode})
@@ -6894,14 +6893,7 @@ export function renderChatsSection(customContainer = null) {
           <span class="pill pill-good" style="font-size:10px;">Контур Супер-Админа (${escapeHtml(ident.fisherId)})</span>
         </div>
       ` : renderCircleChatsHubBar('chats')}
-      <div class="section-head" style="margin-bottom:8px;">
-        <div>
-          <span class="section-title"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> Чаты Экипажей и Личные диалоги</span>
-          <div style="font-size:var(--fs-xs);color:var(--muted);margin-top:2px;">
-            Общение с экипажем по ключу <code>KP-XXXX</code> или личная переписка с рыбаками
-          </div>
-        </div>
-      </div>
+
       ${subViewHtml}
     </div>
   `;
@@ -7569,7 +7561,7 @@ function resolveLatestAdminPolicyState(db = {}) {
   const baseline = {
     policyVersion: ACTIVE_POLICY_VERSION_DEFAULT || '2026.11.10-v2.8.3',
     appVersion: ACTIVE_APP_VERSION_DEFAULT || APP_VERSION || '2.8.3',
-    appRevision: APP_REVISION || 'r235',
+    appRevision: APP_REVISION || 'r236',
     summary: 'Редакция v2.8.3 (r235): сохранность пользовательских данных при очистке кэша, единый постоянный ID рыбака на всех устройствах по логину и паролю, расчёт гидрологии и льда по данным Росгидромета (meteoinfo.ru), правила гостевого доступа и Бета-теста.',
     sections: DEFAULT_POLICY_SECTIONS
   };
@@ -7593,7 +7585,7 @@ function resolveLatestAdminPolicyState(db = {}) {
   const resolved = {
     policyVersion: best.policyVersion || baseline.policyVersion,
     appVersion: (best.appVersion && best.appVersion !== '2.5.6') ? best.appVersion : baseline.appVersion,
-    appRevision: best.appRevision || APP_REVISION || 'r235',
+    appRevision: best.appRevision || APP_REVISION || 'r236',
     summary: (best.summary && !/v2\.5\.6|\(r22[0-9]\)/i.test(best.summary)) ? best.summary : baseline.summary,
     sections: (Array.isArray(best.sections) && best.sections.length > 0) ? best.sections : DEFAULT_POLICY_SECTIONS,
     broadcastId: best.broadcastId || '',
@@ -9053,7 +9045,7 @@ function bindAdminSectionEvents(container, users) {
     const newPolObj = {
       policyVersion: pVer,
       appVersion: aVer,
-      appRevision: APP_REVISION || 'r235',
+      appRevision: APP_REVISION || 'r236',
       effectiveDate: new Date(nowMs).toLocaleDateString('ru-RU'),
       summary: pSum,
       sections: parsedSecs,

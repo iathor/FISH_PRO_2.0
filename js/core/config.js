@@ -1,43 +1,43 @@
 /**
  * @file config.js
- * @description Конфигурация приложения (Релиз 2.9.0 r235), слои карт без VPN и адаптивные справочники снастей и сезонных наживок
+ * @description Конфигурация приложения (Релиз 2.9.1 r236), слои карт без VPN и адаптивные справочники снастей и сезонных наживок
  */
-export const APP_VERSION = '2.9.0';
-export const APP_BUILD_NUMBER = 235;
-export const APP_REVISION = 'r235';
-export const APP_DISPLAY_VERSION = 'v2.9.0 r235';
+export const APP_VERSION = '2.9.1';
+export const APP_BUILD_NUMBER = 236;
+export const APP_REVISION = 'r236';
+export const APP_DISPLAY_VERSION = 'v2.9.1 r236';
 export const STATE_CACHE_KEY = 'klev_pro_state_v2.0';
 export const WEATHER_CACHE_KEY = 'klev_pro_weather_v2.0';
 export const RELEASE_CACHE_KEY = 'klev_pro_release_v2.0';
 export const WEATHER_TTL_MS = 2 * 60 * 60 * 1000;
 export const CURRENT_RELEASE_INFO = {
-  "version": "2.9.0",
-  "versionCode": 290235,
-  "buildNumber": 235,
-  "revision": "r235",
-  "displayVersion": "v2.9.0 r235",
-  "date": "11 ноября 2026",
-  "releasedAt": "2026-11-11T12:00:00Z",
-  "apkUrl": "https://klevpro.ru/apk/klev-pro-v2.9.0.apk",
+  "version": "2.9.1",
+  "versionCode": 291236,
+  "buildNumber": 236,
+  "revision": "r236",
+  "displayVersion": "v2.9.1 r236",
+  "date": "12 ноября 2026",
+  "releasedAt": "2026-11-12T12:00:00Z",
+  "apkUrl": "https://klevpro.ru/apk/klev-pro-v2.9.1.apk",
   "fileSize": "38.8 МБ",
-  "title": "Обновление «Клёв ПРО 2.0» (v2.9.0 r235)",
-  "subtitle": "Полноэкранная карта «Арка» в стиле жидкого стекла для смартфонов и планшетов, свайпаемые плашки, ведение по маршруту для 5 видов транспорта и плавные переходы между разделами.",
-  "summary": "Обновлён интерфейс карты для мобильных устройств и планшетов, добавлены свайпаемые плашки, прокладка и ведение маршрута для 5 видов транспорта, блок «На что ловим» вынесен в окно прогноза.",
+  "title": "Обновление «Клёв ПРО 2.0» (v2.9.1 r236)",
+  "subtitle": "Калибровка толщины льда (река и озеро), сводка дорожной и штормовой обстановки с передачей в маршрут, почасовая волна и точная запись трека.",
+  "summary": "Уточнён расчёт толщины льда по регионам для рек и стоячих водоёмов, добавлена сводка гололедицы и штормов с предупреждением на маршруте, почасовая волна для открытой большой воды и высокоточная запись маршрута.",
   "highlights": [
     {
-      "icon": "<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3V6z\" fill=\"rgba(56,189,248,0.18)\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/><path d=\"M9 3v15M15 6v15\" stroke=\"currentColor\" stroke-width=\"1.6\"/></svg>",
-      "title": "Полноэкранная карта «Арка»",
-      "text": "На смартфонах и планшетах карта открывается во весь экран с кнопками в стиле жидкого стекла, полноэкранной погодой и свайпаемыми плашками."
+      "icon": "<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M12 2v20M4.93 4.93l14.14 14.14M2 12h20M4.93 19.07L19.07 4.93\" stroke=\"#38bdf8\" stroke-width=\"1.8\" stroke-linecap=\"round\"/></svg>",
+      "title": "Точный лёд, дорожная сводка и волна",
+      "text": "Раздельный расчёт льда для рек и озёр, сводка гололедицы и штормов с передачей в маршрут и почасовая волна на большой воде."
     },
     {
       "icon": "<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"12\" cy=\"12\" r=\"9\" stroke=\"#38bdf8\" stroke-width=\"1.8\"/><path d=\"M12 12L18 6\" stroke=\"#10b981\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg>",
-      "title": "Маршруты для 5 видов транспорта",
-      "text": "Построение маршрута по точкам и пальцем с учётом транспорта (Авто, Снегоход, Велосипед, Лодка, Пешком) и голосовым ведением по поворотам."
+      "title": "Чистая запись трека и маршрут лодки",
+      "text": "Высокоточная запись пешего хода без привязки к автодорогам, сохранение по кнопке Стоп и лодочный маршрут строго по руслу реки."
     },
     {
-      "icon": "<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"12\" cy=\"12\" r=\"9\" fill=\"rgba(16,185,129,0.22)\" stroke=\"#10b981\" stroke-width=\"1.8\"/><path d=\"M8 12.5l2.7 2.7L16.5 9.5\" stroke=\"#10b981\" stroke-width=\"2.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>",
-      "title": "Блок «На что ловим» и плавный интерфейс",
-      "text": "Автоматический подбор основной снасти вынесен в окно Прогноза, а переключение разделов сопровождается плавной анимацией."
+      "icon": "<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3V6z\" fill=\"rgba(56,189,248,0.18)\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/></svg>",
+      "title": "Автовосстановление карты после VPN",
+      "text": "Автоматическая перезагрузка тайлов карты при отключении VPN или переключении сети без перезапуска приложения."
     }
   ]
 };

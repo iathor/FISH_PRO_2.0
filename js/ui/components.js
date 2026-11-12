@@ -1,4 +1,4 @@
-import { svgIcon } from './icons.js?v=2.9.0-r235';
+import { svgIcon } from './icons.js?v=2.9.1-r236';
 /**
  * Экранирует пользовательские строки перед вставкой в HTML (защита от DOM XSS и инъекций тегов)
  */
@@ -485,7 +485,7 @@ export function getRemotePolicyFromClientEnv() {
   const fallback = {
     policyVersion: ACTIVE_POLICY_VERSION_DEFAULT,
     appVersion: ACTIVE_APP_VERSION_DEFAULT,
-    appRevision: 'r235',
+    appRevision: 'r236',
     effectiveDate: '10 ноября 2026 г.',
     title: 'Политика конфиденциальности, Пользовательское соглашение и Правила обработки геоданных «Клёв ПРО 2.0»',
     summary: 'Редакция v2.8.3 (r235): сохранность пользовательских данных при очистке кэша, единый постоянный ID рыбака на всех устройствах по логину и паролю, расчёт гидрологии и льда по данным Росгидромета (meteoinfo.ru), правила гостевого доступа и Бета-теста.',
@@ -522,7 +522,7 @@ export function saveRemotePolicyToClientEnv(policyPayload) {
   const updated = {
     policyVersion: String(policyPayload.policyVersion || current.policyVersion || ACTIVE_POLICY_VERSION_DEFAULT).trim(),
     appVersion: String(policyPayload.appVersion || current.appVersion || ACTIVE_APP_VERSION_DEFAULT).trim(),
-    appRevision: String(policyPayload.appRevision || current.appRevision || 'r235').trim(),
+    appRevision: String(policyPayload.appRevision || current.appRevision || 'r236').trim(),
     effectiveDate: String(policyPayload.effectiveDate || current.effectiveDate || '10 ноября 2026 г.').trim(),
     title: String(policyPayload.title || current.title).trim(),
     summary: String(policyPayload.summary || current.summary).trim(),

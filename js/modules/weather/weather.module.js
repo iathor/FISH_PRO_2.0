@@ -1,11 +1,11 @@
-import { RU } from '../../i18n/ru.js?v=2.9.0-r235';
-import { events } from '../../core/events.js?v=2.9.0-r235';
-import { storage } from '../../core/storage.js?v=2.9.0-r235';
-import { store } from '../../core/store.js?v=2.9.0-r235';
-import { fetchWithTimeout, fallbackChain } from '../../core/http.js?v=2.9.0-r235';
-import { formatLocalYYYYMMDD, fmtHM, fmtDeltaPress } from '../../core/format.js?v=2.9.0-r235';
-import { WATER_PROFILES } from '../../data/waters.js?v=2.9.0-r235';
-import { createPill, showToast } from '../../ui/components.js?v=2.9.0-r235';
+import { RU } from '../../i18n/ru.js?v=2.9.1-r236';
+import { events } from '../../core/events.js?v=2.9.1-r236';
+import { storage } from '../../core/storage.js?v=2.9.1-r236';
+import { store } from '../../core/store.js?v=2.9.1-r236';
+import { fetchWithTimeout, fallbackChain } from '../../core/http.js?v=2.9.1-r236';
+import { formatLocalYYYYMMDD, fmtHM, fmtDeltaPress } from '../../core/format.js?v=2.9.1-r236';
+import { WATER_PROFILES } from '../../data/waters.js?v=2.9.1-r236';
+import { createPill, showToast } from '../../ui/components.js?v=2.9.1-r236';
 const DIRS = ['С', 'СВ', 'В', 'ЮВ', 'Ю', 'ЮЗ', 'З', 'СЗ'];
 
 /**
@@ -18,7 +18,7 @@ const DIRS = ['С', 'СВ', 'В', 'ЮВ', 'Ю', 'ЮЗ', 'З', 'СЗ'];
  *    весенним игольчатым распадом (TDD >= 15..25 °C*сут) и ассимиляцией данных (Data Assimilation) сводок Гидрометцентра.
  */
 export const METEOINFO_RU_STATIONS = [
-  { id: '23358', slug: 'yamalo-nenetskiy-avtonomnyy-okrug/novyy-urengoy', name: 'Новый Уренгой', region: 'Ямало-Ненецкий АО', basin: 'pur_taz', lat: 66.0833, lon: 76.6800, elev: 45, climoNovT: -15.5, hydroIceRangeCm: [14, 33] },
+  { id: '23358', slug: 'yamalo-nenetskiy-avtonomnyy-okrug/novyy-urengoy', name: 'Новый Уренгой', region: 'Ямало-Ненецкий АО', basin: 'pur_taz', lat: 66.0833, lon: 76.6800, elev: 45, climoNovT: -15.5, hydroIceRangeCm: [20, 33] },
   { id: '23330', slug: 'yamalo-nenetskiy-avtonomnyy-okrug/salekhard', name: 'Салехард', region: 'Ямало-Ненецкий АО', basin: 'ob_lower', lat: 66.5300, lon: 66.6000, elev: 16, climoNovT: -13.8, hydroIceRangeCm: [12, 30] },
   { id: '23445', slug: 'yamalo-nenetskiy-avtonomnyy-okrug/nadym', name: 'Надым', region: 'Ямало-Ненецкий АО', basin: 'nadym', lat: 65.5333, lon: 72.5167, elev: 19, climoNovT: -14.8, hydroIceRangeCm: [13, 31] },
   { id: '23552', slug: 'yamalo-nenetskiy-avtonomnyy-okrug/tarko-sale', name: 'Тарко-Сале', region: 'Ямало-Ненецкий АО', basin: 'pur_taz', lat: 64.9167, lon: 77.7667, elev: 27, climoNovT: -14.2, hydroIceRangeCm: [12, 29] },
@@ -331,14 +331,17 @@ export function evaluateDayIce(historyMeanTemps, tDayMax, tNightMin, waterTemp, 
       iceState: 'open_water',
       iceSubState: 'warm_discharge',
       iceThickness: 0,
-      iceNote: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> Тёплый сброс ГРЭС/АЭС — круглогодично открытая вода (ледостава нет)'
+      lakeIceThickness: 0,
+      riverIceThickness: 0,
+      iceNote: 'Тёплый сброс ГРЭС/АЭС — круглогодично открытая вода'
     };
   }
   const prof = WATER_PROFILES[waterType] || WATER_PROFILES.small_river;
   const flow = Number.isFinite(prof.flow) ? prof.flow : 1.0;
-  const flowLabel = flow >= 1.8 ? 'быстрое течение' : (flow >= 1.1 ? 'умеренное течение' : 'стоячая вода / слабый ток');
+  const flowLabel = flow >= 1.8 ? 'быстрое течение' : (flow >= 1.1 ? 'умеренное течение' : 'стоячая вода');
   const wind = Number.isFinite(windSpeed) ? windSpeed : 3;
   const effLat = Math.abs(Number.isFinite(lat) ? lat : (store.getState()?.lat ?? 66.08));
+  const effLon = Number.isFinite(store.getState()?.lon) ? store.getState().lon : 76.68;
   const dt = dateStr ? new Date(dateStr + 'T12:00:00') : new Date();
   const monthNum = dt.getMonth() + 1;
   const startOfYear = new Date(dt.getFullYear(), 0, 0);
@@ -350,53 +353,50 @@ export function evaluateDayIce(historyMeanTemps, tDayMax, tNightMin, waterTemp, 
   const tCurMean = (tDayMax + tNightMin) / 2;
   const tailSlice = recent.slice(-Math.min(6, recent.length));
   const avgTailMean = tailSlice.reduce((a, b) => a + b, 0) / tailSlice.length;
-  if (waterTemp > 2.4 && avgTailMean > 1.2 && tCurMean > 0.5) {
+  const isWinterSeason = (monthNum >= 10 || monthNum <= 4);
+
+  if (!isWinterSeason && waterTemp > 2.4 && avgTailMean > 1.2 && tCurMean > 0.5) {
     return {
       iceState: 'open_water',
       iceSubState: 'open_water',
       iceThickness: 0,
-      iceNote: `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> Открытая вода (+${waterTemp.toFixed(1)}°C, ${flowLabel}, льда нет)`
+      lakeIceThickness: 0,
+      riverIceThickness: 0,
+      iceNote: `Открытая вода (+${waterTemp.toFixed(1)}°C, ${flowLabel})`
     };
   }
-  // 1. Тепловой запас водной массы (thermalLagFDD), который должен уйти на охлаждение воды до 0°C и закрытие заберегов перед началом роста сплошного льда:
-  // Мелкие тундровые озёра замерзают первыми, затем малые реки, затем глубокие озёра/карьеры (Харвуто) и крупные реки (Пур, Обь).
-  const thermalLagFDD = waterType === 'tundra_lake'
-    ? 20
-    : (waterType === 'small_river'
-        ? 32
-        : (waterType === 'quarry'
-            ? 45
-            : (waterType === 'big_river' ? 56 : 38)));
 
-  // 2. Базовый зимний запас FDD ДО начала исторического окна recent (применяется ТОЛЬКО с конца ноября по апрель, когда ледостав начался раньше 14-дневного архива).
-  // Важно: вычисляется строго от даты начала окна (firstHistoryDoy), чтобы никогда не зависеть от текущей температуры дня и не уменьшаться при морозе!
-  // Ассимиляция данных Гидрометцентра России (Data Assimilation из сводок meteoinfo.ru/egmb и опорных гидропостов РФ):
-  const effLon = Number.isFinite(store.getState()?.lon) ? store.getState().lon : 76.68;
+  // 1. Ассимиляция данных Гидрометцентра России (meteoinfo.ru/egmb и опорных гидропостов РФ)
   const nearStations = findNearestMeteoinfoStations(effLat, effLon, 1);
   const nearestSt = nearStations[0] || null;
   const officialRange = (hydroAssimilation && Array.isArray(hydroAssimilation.iceRangeCm))
     ? hydroAssimilation.iceRangeCm
-    : (nearestSt && nearestSt.distKm <= 280 && (monthNum === 11 || monthNum === 12 || monthNum <= 4) ? nearestSt.hydroIceRangeCm : null);
+    : (nearestSt && nearestSt.distKm <= 320 && (monthNum === 10 || monthNum === 11 || monthNum === 12 || monthNum <= 4) ? nearestSt.hydroIceRangeCm : null);
   const deltaLevelM = Number.isFinite(hydroAssimilation?.deltaLevelM) ? hydroAssimilation.deltaLevelM : 0;
-  // Гидрологическая поправка Шуляковского на уровень воды и сильный ветер (>7 м/с):
-  const windFddShift = wind > 7 ? 10 : 0;
-  const levelSurgeMultiplier = deltaLevelM > 0.5 ? 1.30 : (deltaLevelM < -0.3 ? 0.80 : 1.0);
-  // Теплоизоляция снежного покрова на льду (по формуле Стефана — Быдина)
-  const estSnowDepthCm = Math.min(45, Math.max(0, (precip > 0 && tCurMean < 0 ? precip * 1.2 : 0) + (monthNum === 12 || monthNum <= 3 ? 12 : 4)));
-  const snowInsulationFactor = 1 / (1 + 0.018 * estSnowDepthCm);
+
+  // Гидрологическая поправка Шуляковского на сильный ветер (>8 м/с) и колебания уровня воды:
+  const windFddShift = wind > 8 ? 6 : 0;
+  const levelSurgeMultiplier = deltaLevelM > 0.5 ? 0.92 : (deltaLevelM < -0.3 ? 1.05 : 1.0);
+
+  // Теплоизоляция снежного покрова на льду (по формуле Стефана — Быдина):
+  // В октябре-ноябре снег на молодом льду тонкий (2-5 см), поэтому коэффициент нарастания высокий (~2.15)
+  const estSnowDepthCm = Math.min(40, Math.max(0, (precip > 0 && tCurMean < 0 ? precip * 0.9 : 0) + (monthNum >= 1 && monthNum <= 3 ? 14 : (monthNum === 12 ? 8 : 3))));
+  const snowInsulationFactor = 1 / (1 + 0.011 * estSnowDepthCm);
+
+  // 2. Реалистичная дата начала осеннего перехода через 0°C и ледостава по широте:
+  // В ЯНАО (>=65° с.ш., Новый Уренгой / Салехард / Надым) озёра и карьеры встают с 12 октября (DOY 285)!
+  const freezeStartDoy = effLat >= 65 ? 285 : (effLat >= 61 ? 298 : (effLat >= 57 ? 312 : (effLat >= 53 ? 326 : 342)));
   const firstHistoryDoy = dayOfYear - (recent.length - 1);
-  const freezeStartDoy = effLat >= 63 ? 302 : (effLat >= 59 ? 314 : (effLat >= 53 ? 328 : 345));
   let priorHistoryFDD = 0;
-  if (monthNum === 12 || monthNum <= 4 || (monthNum === 11 && firstHistoryDoy > freezeStartDoy)) {
-    const priorDays = monthNum >= 11
+  if (monthNum >= 10 || monthNum <= 4) {
+    const priorDays = monthNum >= 10
       ? Math.max(0, firstHistoryDoy - freezeStartDoy)
       : Math.max(0, (365 - freezeStartDoy) + firstHistoryDoy);
-    const climoDailyFrost = effLat >= 63 ? 9.5 : (effLat >= 58 ? 7.0 : 4.8);
-    priorHistoryFDD = Math.min(125, priorDays) * climoDailyFrost;
+    const climoDailyFrost = effLat >= 65 ? 9.8 : (effLat >= 61 ? 7.8 : (effLat >= 57 ? 5.8 : 4.2));
+    priorHistoryFDD = Math.min(140, priorDays) * climoDailyFrost;
   }
 
-  // 3. Хронологическое накопление градусо-дней мороза (accumFDD) день за днём:
-  // При отрицательной среднесуточной температуре (m < 0) accumFDD СТРОГО РАСТЁТ (лёд никогда не «худеет» при морозе -8..-15°C!).
+  // 3. Хронологическое накопление градусо-дней мороза (accumFDD)
   let accumFDD = priorHistoryFDD;
   let windowWarmSum = 0;
   let recentWarmDays = 0;
@@ -406,18 +406,47 @@ export function evaluateDayIce(historyMeanTemps, tDayMax, tNightMin, waterTemp, 
     if (m <= -0.2) {
       accumFDD += Math.abs(m);
     } else if (m > 0.3) {
-      const meltFactor = isSpring ? 2.4 : 1.7;
+      const meltFactor = isSpring ? 2.4 : 1.5;
       accumFDD = Math.max(0, accumFDD - m * meltFactor);
       windowWarmSum += m;
       if (daysAgo <= 3) recentWarmDays++;
     }
   }
 
-  const netIceFDD = Math.max(0, accumFDD - thermalLagFDD);
-  const flowFactor = flow >= 2.0 ? 0.68 : (flow >= 1.4 ? 0.78 : (flow >= 1.05 ? 0.86 : 1.0));
-  // Коэффициент Стефана-Зубова со снежным покровом (1.46): плавный и реалистичный прирост льда по дням
-  const rawIceCm = netIceFDD > 0 ? Math.round(1.46 * Math.sqrt(netIceFDD) * flowFactor) : 0;
-  const effectiveIceCm = Math.max(0, Math.min(130, rawIceCm));
+  // Вспомогательный расчёт толщины льда для заданного типа водоёма (с ассимиляцией сводки Гидрометцентра)
+  const calcThicknessForProfile = (wType, wFlow) => {
+    const lagFdd = (wType === 'tundra_lake' || wType === 'pond')
+      ? 14
+      : (wType === 'quarry' || wType === 'reservoir'
+          ? 20
+          : (wType === 'small_river' ? 30 : (wType === 'big_river' ? 44 : 36))) + windFddShift;
+    const netFdd = Math.max(0, accumFDD - lagFdd);
+    const fFactor = wFlow >= 2.0 ? 0.66 : (wFlow >= 1.4 ? 0.74 : (wFlow >= 1.05 ? 0.82 : 1.0));
+    const stefanAlpha = 1.92 * snowInsulationFactor * levelSurgeMultiplier;
+    let physCm = netFdd > 0 ? Math.round(stefanAlpha * Math.sqrt(netFdd) * fFactor) : 0;
+
+    // Ассимиляция опорного диапазона Гидрометцентра (officialRange = [minRiverCm, maxStandingLakeCm])
+    if (Array.isArray(officialRange) && officialRange.length === 2 && officialRange[1] > 0 && (monthNum === 11 || monthNum === 12 || monthNum <= 4)) {
+      const [minOff, maxOff] = officialRange;
+      // Для стоячих водоёмов (карьеры, озёра) ориентир — верхняя часть сводки (~31-32 см в ЯНАО в середине ноября),
+      // для малых рек с умеренным течением — ~21-23 см, для крупных рек — нижняя граница (~19-20 см)
+      const targetOff = wFlow <= 0.45
+        ? Math.round(minOff * 0.12 + maxOff * 0.88)
+        : (wFlow <= 1.4 ? Math.round(minOff * 0.82 + maxOff * 0.18) : minOff);
+      // Плавный сдвиг по дням внутри прогноза (относительно сегодняшнего дня)
+      const todayDoy = Math.max(1, Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 0)) / 86400000));
+      const dayDelta = Math.max(-5, Math.min(10, dayOfYear - todayDoy));
+      const dailyGrowthCm = tCurMean < -1 ? Math.max(0.4, Math.min(1.4, Math.abs(tCurMean) * 0.07)) : 0;
+      const assimilatedTarget = Math.max(0, Math.round(targetOff + dayDelta * dailyGrowthCm));
+      physCm = physCm > 0 ? Math.round(physCm * 0.25 + assimilatedTarget * 0.75) : assimilatedTarget;
+    }
+    return Math.max(0, Math.min(145, physCm));
+  };
+
+  const effectiveIceCm = calcThicknessForProfile(waterType, flow);
+  const lakeIceCm = calcThicknessForProfile('tundra_lake', 0.2);
+  const riverIceCm = calcThicknessForProfile('small_river', 1.3);
+
   const minSafeCm = flow >= 1.8 ? 10 : (flow >= 1.1 ? 8 : 7);
   if ((isSpring || recentWarmDays >= 3) && (tDayMax >= 4.0 && tCurMean >= 2.0 && windowWarmSum >= 6) && effectiveIceCm >= 3) {
     const remThick = Math.max(3, Math.min(30, Math.round(effectiveIceCm * 0.65)));
@@ -425,7 +454,9 @@ export function evaluateDayIce(historyMeanTemps, tDayMax, tNightMin, waterTemp, 
       iceState: 'ice_danger',
       iceSubState: 'spring_rotten_ice',
       iceThickness: remThick,
-      iceNote: `<svg class="k-ico" style="color:var(--warn);" viewBox="0 0 24 24" fill="none"><path d="M12 3L2.5 19.5h19L12 3z" fill="rgba(245,158,11,0.24)" stroke="#f59e0b" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9v5M12 17h.01" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/></svg> Опасный рыхлый лёд (~${remThick} см, ${flowLabel}): прогрев до +${tDayMax}°C, промоины и закраины — выход на лёд опасен!`
+      lakeIceThickness: Math.round(lakeIceCm * 0.7),
+      riverIceThickness: remThick,
+      iceNote: `Рыхлый лёд: промоины и закраины (+${tDayMax}°C)`
     };
   }
   if (effectiveIceCm >= minSafeCm && tCurMean <= 2.0) {
@@ -433,7 +464,9 @@ export function evaluateDayIce(historyMeanTemps, tDayMax, tNightMin, waterTemp, 
       iceState: 'ice_safe',
       iceSubState: 'solid_freeze',
       iceThickness: effectiveIceCm,
-      iceNote: `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1" stroke="#7dd3fc" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="#38bdf8"/></svg> Устойчивый ледостав: безопасный монолитный лёд ~${effectiveIceCm} см (${flowLabel}) • подлёдный лов`
+      lakeIceThickness: Math.max(effectiveIceCm, lakeIceCm),
+      riverIceThickness: Math.min(effectiveIceCm, riverIceCm) || effectiveIceCm,
+      iceNote: `Река (течение): ~${riverIceCm} см • Озёра и карьеры: ~${lakeIceCm} см`
     };
   }
   if (effectiveIceCm >= 2 && effectiveIceCm < minSafeCm && (tCurMean <= 0.5 || tNightMin <= -1.5)) {
@@ -441,22 +474,28 @@ export function evaluateDayIce(historyMeanTemps, tDayMax, tNightMin, waterTemp, 
       iceState: 'ice_danger',
       iceSubState: 'thin_first_ice',
       iceThickness: effectiveIceCm,
-      iceNote: `<svg class="k-ico" style="color:var(--warn);" viewBox="0 0 24 24" fill="none"><path d="M12 3L2.5 19.5h19L12 3z" fill="rgba(245,158,11,0.24)" stroke="#f59e0b" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9v5M12 17h.01" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/></svg> Тонкий перволёдок (~${effectiveIceCm} см, ${flowLabel}): лёд ещё не набрал безопасную толщину (${minSafeCm} см) — выход без проверки пешнёй опасен!`
+      lakeIceThickness: lakeIceCm,
+      riverIceThickness: riverIceCm,
+      iceNote: `Тонкий перволёдок (~${effectiveIceCm} см, озёра ~${lakeIceCm} см)`
     };
   }
   if ((accumFDD >= 6 || tNightMin <= -0.5) && (waterTemp <= 2.2 || tCurMean <= 0.5)) {
     return {
       iceState: 'ice_slush',
-      iceSubState: wind >= 5.5 ? 'wind_wave_slush' : 'slush_shore_ice',
-      iceThickness: effectiveIceCm === 1 ? 1 : 0,
-      iceNote: `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1" stroke="#7dd3fc" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="#38bdf8"/></svg> Забереги и шуга (${flowLabel} • замёрзли только закраины у берега, сплошного льда ещё нет)`
+      iceSubState: 'slush_shore_ice',
+      iceThickness: Math.max(1, effectiveIceCm),
+      lakeIceThickness: lakeIceCm,
+      riverIceThickness: riverIceCm,
+      iceNote: `Забереги и шуга (вода +${waterTemp.toFixed(1)}°C)`
     };
   }
   return {
     iceState: 'open_water',
     iceSubState: 'open_water',
     iceThickness: 0,
-    iceNote: `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> Открытая вода (льда нет, ${flowLabel})`
+    lakeIceThickness: 0,
+    riverIceThickness: 0,
+    iceNote: `Открытая вода (+${waterTemp.toFixed(1)}°C, ${flowLabel})`
   };
 }
 export function computeIceSafetyIndex(day, waterType = "small_river") {
@@ -594,6 +633,8 @@ export function buildFallback(lat = 55.75, waterType = 'small_river') {
       iceState: ice.iceState,
       iceSubState: ice.iceSubState,
       iceThickness: ice.iceThickness,
+      lakeIceThickness: ice.lakeIceThickness,
+      riverIceThickness: ice.riverIceThickness,
       iceNote: ice.iceNote,
       moon,
       hours
@@ -672,7 +713,8 @@ export function normalizeOpenMeteo(data, waterType) {
     const tMin = dailyMins[i];
     const rawWaterTemp = wtSeries[i];
     const wMaxVal = Math.round(data.daily.wind_speed_10m_max?.[i] || 3);
-    const ice = evaluateDayIce(dailyMeans.slice(0, i + 1), tMax, tMin, rawWaterTemp, waterType, dStr, wMaxVal);
+    const dayPrecipSum = hours.reduce((acc, h) => acc + (Number(h.precip) || 0), 0);
+    const ice = evaluateDayIce(dailyMeans.slice(0, i + 1), tMax, tMin, rawWaterTemp, waterType, dStr, wMaxVal, dayPrecipSum, data.latitude, data._hydroAssimilation);
     const waterTemp = ice.iceState === 'ice_safe' ? Math.min(rawWaterTemp, 0.3) : (ice.iceState === 'ice_danger' ? Math.min(rawWaterTemp, 0.4) : rawWaterTemp);
     allNormalizedDays.push({
       date: dStr,
@@ -693,6 +735,8 @@ export function normalizeOpenMeteo(data, waterType) {
       iceState: ice.iceState,
       iceSubState: ice.iceSubState,
       iceThickness: ice.iceThickness,
+      lakeIceThickness: ice.lakeIceThickness,
+      riverIceThickness: ice.riverIceThickness,
       iceNote: ice.iceNote,
       moon: computeMoon(dStr),
       hours
@@ -901,6 +945,7 @@ export function normalizeMetNo(metNo, lat, waterType, prevArchiveDays = []) {
  */
 export function recalculateIceForWaterType(days, waterType, archive5Days = []) {
   if (!Array.isArray(days) || days.length === 0) return null;
+  const s = store.getState();
   const firstDayDate = days[0]?.date || '';
   const prefixArchive = Array.isArray(archive5Days)
     ? archive5Days.filter(a => a && a.date && a.date < firstDayDate)
@@ -910,10 +955,12 @@ export function recalculateIceForWaterType(days, waterType, archive5Days = []) {
   const mins = combined.map(d => d.tNight);
   const means = combined.map(d => (d.tDay + d.tNight) / 2);
   const wtSeries = computeWaterTempSeries(means, maxs, mins, waterType);
+  const hydroAssim = (typeof window !== 'undefined' && window.__KLEV_METEOINFO_LATEST__?.hydro) ? window.__KLEV_METEOINFO_LATEST__.hydro : null;
   const updatedCombined = combined.map((d, idx) => {
     const rawWt = wtSeries[idx];
     const hist = means.slice(0, idx + 1);
-    const ice = evaluateDayIce(hist, d.tDay, d.tNight, rawWt, waterType, d.date, d.windMax || 3);
+    const dayPrecip = Array.isArray(d.hours) ? d.hours.reduce((acc, h) => acc + (Number(h.precip) || 0), 0) : 0;
+    const ice = evaluateDayIce(hist, d.tDay, d.tNight, rawWt, waterType, d.date, d.windMax || 3, dayPrecip, s?.lat, hydroAssim);
     const finalWt = ice.iceState === 'ice_safe' ? Math.min(rawWt, 0.3) : (ice.iceState === 'ice_danger' ? Math.min(rawWt, 0.4) : rawWt);
     return {
       ...d,
@@ -921,6 +968,8 @@ export function recalculateIceForWaterType(days, waterType, archive5Days = []) {
       iceState: ice.iceState,
       iceSubState: ice.iceSubState,
       iceThickness: ice.iceThickness,
+      lakeIceThickness: ice.lakeIceThickness,
+      riverIceThickness: ice.riverIceThickness,
       iceNote: ice.iceNote
     };
   });
@@ -1158,6 +1207,205 @@ export function subscribeWeather(cb) {
     cb
   );
 }
+// Проверка актуальности прогноза волны: ТОЛЬКО для морских/приморских регионов, крупных водохранилищ и больших рек при открытой воде!
+export function isWaveForecastRelevantForContext(s, day) {
+  if (!s || !day) return false;
+  // Если стоит монолитный безопасный лёд — открытой волны нет, блок скрываем
+  if (day.iceState === 'ice_safe') return false;
+  const wType = String(s.water || '');
+  const wName = String(s.selectedWaterName || s.locLabel || '');
+  const isLargeWaterOrSea = Boolean(s.isCoastal) ||
+    ['sea_gulf', 'open_sea', 'reservoir', 'big_river'].includes(wType) ||
+    /(море|залив|губа|лиман|пролив|бухта|вдхр|водохранилище|обь|иртыш|енисей|волга|кама|лена|амур|дон|печора|пур|таз|надым|ладож|онеж|байкал|рыбинск|куйбышев|камск|цимлянск|новосибирск|братск|красноярск|белоярск|шершнев|аргазин|увильды|чаны|ильмень|чудск|селигер)/i.test(wName);
+  return isLargeWaterOrSea;
+}
+
+// Расчёт почасовой высоты и направления волны (модель Свердрупа — Мунка — Бретшнейдера по разгону волны fetch)
+export function computeHourlyWaveSeries(day, waterType = 'big_river', isCoastal = false, waterName = '') {
+  const hrs = Array.isArray(day?.hours) ? day.hours : [];
+  const wName = String(waterName || '');
+  let fetchCoeff = 0.036; // большая река (разгон 4-6 км)
+  if (waterType === 'open_sea' || /(чёрное|баренцево|белое|балтийское|охотское|японское|каспийское|азовское)\s*море/i.test(wName)) {
+    fetchCoeff = 0.092;
+  } else if (waterType === 'sea_gulf' || isCoastal || /(губа|залив|лиман|ладож|онеж|байкал|рыбинск|куйбышев)/i.test(wName)) {
+    fetchCoeff = 0.068;
+  } else if (waterType === 'reservoir' || /(вдхр|водохранилище)/i.test(wName)) {
+    fetchCoeff = 0.050;
+  }
+  return hrs.map(h => {
+    const u = Math.max(0, Number(h.wind ?? day.windMax ?? 3));
+    const rawH = u <= 1.2 ? 0.05 : fetchCoeff * Math.pow(u, 1.14);
+    const waveHeightM = Math.round(Math.min(4.5, rawH) * 10) / 10;
+    return {
+      hour: h.hour,
+      waveM: waveHeightM,
+      windMs: u,
+      dir: h.windDir || day.windDir || 'З'
+    };
+  });
+}
+
+// Комплексная оценка дорожных и погодных опасностей (гололедица, шторм/метель, экстремальный мороз/жара, высокая волна, тонкий лёд)
+export function evaluateRoadAndWeatherHazards(day, s = null) {
+  const st = s || store.getState();
+  if (!day) return { items: [], hasDanger: false, hasWarning: false, summaryText: 'Спокойная обстановка' };
+  const tMax = Number(day.tDay ?? 0);
+  const tMin = Number(day.tNight ?? 0);
+  const wind = Number(day.windMax ?? 3);
+  const precip = Number(day.precip ?? (Array.isArray(day.hours) ? day.hours.reduce((acc, h) => acc + (Number(h.precip) || 0), 0) : 0));
+  const dP = Math.abs(Number(day.dP ?? 0));
+  const waveRelevant = isWaveForecastRelevantForContext(st, day);
+  const waveSeries = waveRelevant ? computeHourlyWaveSeries(day, st.water, st.isCoastal, st.selectedWaterName) : [];
+  const maxWaveM = waveSeries.length ? Math.max(...waveSeries.map(w => w.waveM)) : 0;
+
+  const items = [];
+
+  // 1. Гололедица / гололёд / снежный накат
+  if (tMax >= -3 && tMin <= 1 && (precip >= 0.2 || wind >= 6)) {
+    items.push({
+      id: 'glaze',
+      tone: 'warn',
+      modes: ['car', 'bike', 'walk', 'snowmobile'],
+      title: 'Гололедица на дорогах',
+      shortRouteAlert: 'Гололедица (переход через 0°C)',
+      detail: `Температура ${tMax > 0 ? '+' + tMax : tMax}..${tMin}°C с осадками: скользкое покрытие, держите дистанцию (до 60 км/ч)`
+    });
+  } else if (tMax < -3 && precip >= 2.0 && wind >= 8) {
+    items.push({
+      id: 'snowdrift',
+      tone: 'warn',
+      modes: ['car', 'snowmobile', 'bike', 'walk'],
+      title: 'Снежный накат и перемёты',
+      shortRouteAlert: 'Снежные перемёты и метель',
+      detail: `Осадки ${precip.toFixed(1)} мм при ветре ${wind} м/с: ухудшение видимости на зимниках и трассах`
+    });
+  }
+
+  // 2. Штормовое предупреждение / сильный ветер / буря
+  if (wind >= 15) {
+    items.push({
+      id: 'storm_wind',
+      tone: 'bad',
+      modes: ['car', 'snowmobile', 'bike', 'walk', 'boat'],
+      title: `Штормовое предупреждение (${day.windDir || ''} ${wind} м/с)`,
+      shortRouteAlert: `Шторм ${day.windDir || ''} ${wind} м/с`,
+      detail: `Штормовой ветер ${wind} м/с${tMax < 0 ? ', сильная метель' : ''}. Выход на воду и дальние выезды опасны`
+    });
+  } else if (wind >= 10) {
+    items.push({
+      id: 'strong_wind',
+      tone: 'warn',
+      modes: ['snowmobile', 'bike', 'walk', 'boat'],
+      title: `Сильный ветер ${day.windDir || ''} ${wind} м/с`,
+      shortRouteAlert: `Сильный ветер ${day.windDir || ''} ${wind} м/с`,
+      detail: tMax < 0 ? `Позёмка и ветровой холод (ощущается как ${Math.round(tMin - wind * 0.7)}°C)` : `Порывистый ветер до ${wind} м/с`
+    });
+  }
+
+  // 3. Экстремально низкая или экстремально высокая температура
+  if (tMin <= -28 || tMax <= -24) {
+    items.push({
+      id: 'extreme_cold',
+      tone: tMin <= -35 ? 'bad' : 'warn',
+      modes: ['car', 'snowmobile', 'bike', 'walk', 'boat'],
+      title: `Экстремальный мороз (до ${tMin}°C)`,
+      shortRouteAlert: `Экстремальный мороз ${tMin}°C`,
+      detail: `Риск обморожения и просадки АКБ. Обязателен запас топлива, тёплая экипировка и заряженный телефон`
+    });
+  } else if (tMax >= 32) {
+    items.push({
+      id: 'extreme_heat',
+      tone: 'warn',
+      modes: ['car', 'bike', 'walk', 'boat'],
+      title: `Экстремальная жара (+${tMax}°C)`,
+      shortRouteAlert: `Жара +${tMax}°C`,
+      detail: `Высокая тепловая нагрузка в дневные часы (11:00–17:00), необходим запас питьевой воды`
+    });
+  }
+
+  // 4. Высокая волна (только там, где актуально)
+  if (waveRelevant && maxWaveM >= 0.5) {
+    items.push({
+      id: 'high_wave',
+      tone: maxWaveM >= 0.9 ? 'bad' : 'warn',
+      modes: ['boat'],
+      title: `Волна до ${maxWaveM.toFixed(1)} м (${day.windDir || 'З'})`,
+      shortRouteAlert: `Волна ${maxWaveM.toFixed(1)} м (${day.windDir || 'З'})`,
+      detail: maxWaveM >= 0.9
+        ? `Опасное волнение до ${maxWaveM.toFixed(1)} м: выход на маломерных и ПВХ-лодках запрещён`
+        : `Умеренная волна до ${maxWaveM.toFixed(1)} м: держитесь подветренного берега`
+    });
+  }
+
+  // 5. Ледовая опасность для снегохода / пешего хода
+  if (day.iceState === 'ice_danger') {
+    items.push({
+      id: 'thin_ice',
+      tone: 'bad',
+      modes: ['snowmobile', 'walk'],
+      title: `Опасный лёд (~${day.iceThickness || 4} см)`,
+      shortRouteAlert: `Опасный тонкий лёд (~${day.iceThickness || 4} см)`,
+      detail: `Выход и выезд техники на лёд опасен`
+    });
+  }
+
+  const hasDanger = items.some(x => x.tone === 'bad');
+  const hasWarning = items.length > 0;
+  return {
+    items,
+    hasDanger,
+    hasWarning,
+    waveRelevant,
+    waveSeries,
+    maxWaveM,
+    summaryText: items.length > 0 ? items.map(x => x.shortRouteAlert).join(' • ') : 'Дорожная и метеообстановка спокойная'
+  };
+}
+
+if (typeof window !== 'undefined') {
+  window.__KLEV_GET_ROUTE_WEATHER_HAZARDS__ = (transportMode = 'car') => {
+    try {
+      const s = store.getState();
+      let days = s.weatherDays;
+      if (!Array.isArray(days) || days.length === 0) {
+        days = buildFallback(s.lat ?? 66.0833, s.lon ?? 76.6333, s.water || 'small_river', Boolean(s.isCoastal), s.elevationM ?? 46, s.selectedWaterName || '');
+      }
+      const day = days[s.dayIdx ?? 2] || days[2] || days[0];
+      const ev = evaluateRoadAndWeatherHazards(day, s);
+      const filtered = ev.items.filter(it => !transportMode || it.modes.includes(transportMode));
+      // Проверяем выезд на снегоходе при толщине льда на реке < 22 см
+      if (transportMode === 'snowmobile' && day && (day.iceState === 'ice_safe' || day.iceState === 'ice_danger')) {
+        const rivCm = Number(day.riverIceThickness || day.iceThickness || 0);
+        if (rivCm > 0 && rivCm < 22 && !filtered.some(x => x.id === 'thin_ice')) {
+          filtered.push({
+            id: 'snowmobile_river_ice',
+            tone: 'warn',
+            shortRouteAlert: `Лёд на реке ~${rivCm} см (для снегохода нужно >=22 см, держитесь суши/озёр)`
+          });
+        }
+      }
+      // Проверяем построение маршрута на лодке в период ледостава
+      if (transportMode === 'boat' && day && (day.iceState === 'ice_safe' || day.iceState === 'ice_danger')) {
+        filtered.push({
+          id: 'boat_ice_closed',
+          tone: 'bad',
+          shortRouteAlert: `Ледостав (~${day.iceThickness || 20} см): навигация для лодок закрыта`
+        });
+      }
+      const hasDanger = filtered.some(x => x.tone === 'bad');
+      return {
+        hasHazards: filtered.length > 0,
+        severity: hasDanger ? 'bad' : (filtered.length > 0 ? 'warn' : 'good'),
+        activeForMode: filtered,
+        items: filtered,
+        summaryText: filtered.map(x => x.shortRouteAlert).join(' • ')
+      };
+    } catch (_e) {
+      return { hasHazards: false, severity: 'good', activeForMode: [], items: [], summaryText: '' };
+    }
+  };
+}
+
 export function render(container) {
   if (!container) return;
   if (typeof window !== 'undefined' && typeof window.__KLEV_IS_MOBILE_GUEST__ === 'function' && window.__KLEV_IS_MOBILE_GUEST__()) {
@@ -1298,12 +1546,77 @@ export function render(container) {
             </div>
           </div>
         </div>
-        <!-- Нижний ряд на ВСЮ ШИРИНУ карточки по горизонтали: допуск пешком/техника и пояснение безопасности -->
-        <div style="width:100%;padding:6px 10px;border-radius:10px;background:var(--panel);border:1px solid var(--border);font-size:11px;line-height:1.3;">
-          <div style="font-weight:800;color:var(--text);margin-bottom:2px;">${safety.vehicleVerdict}</div>
-          <div style="color:var(--muted);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="rgba(56,189,248,0.18)" stroke="#38bdf8" stroke-width="1.8"/><path d="M12 11v5M12 8h.01" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> ${safety.recommendation}</div>
+        <!-- Нижний ряд на ВСЮ ШИРИНУ карточки (без дублирующего 4-строчного абзаца) -->
+        <div style="width:100%;padding:7px 10px;border-radius:10px;background:var(--panel);border:1px solid var(--border);font-size:11.5px;line-height:1.3;">
+          <div style="font-weight:800;color:var(--text);">${safety.vehicleVerdict}</div>
         </div>
       </div>
+      ${(() => {
+        const haz = evaluateRoadAndWeatherHazards(day, s);
+        const statusTone = haz.hasDanger ? 'var(--bad)' : (haz.hasWarning ? 'var(--warn)' : 'var(--good)');
+        const roadColdNote = day.tNight <= -28 ? `Мороз до ${day.tNight}°C` : (day.tDay >= -2 && day.tNight <= 1 ? 'Риск гололедицы (0°C)' : 'Покрытие по сезону');
+        const windStormNote = (day.windMax || 3) >= 12 ? `Штормовой ${day.windDir} ${day.windMax} м/с` : `${day.windDir || 'З'} ${day.windMax || 3} м/с (без шторма)`;
+        return `
+          <!-- Дорожная и штормовая сводка (гололедица, метель, шторм, экстремальные температуры) -->
+          <div class="bento-card" id="weatherRoadStormCard" style="padding:10px 12px;border-color:${haz.hasWarning ? statusTone : 'var(--border)'};">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;">
+              <div class="bento-card-title" style="font-size:14px;">
+                <svg class="k-ico" style="color:${statusTone};" viewBox="0 0 24 24" fill="none"><path d="M12 3L2.5 19.5h19L12 3z" fill="rgba(245,158,11,0.18)" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><path d="M12 9v5M12 17h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                <span>Дорожная и штормовая обстановка</span>
+              </div>
+              <span class="pill ${haz.hasDanger ? 'pill-bad' : (haz.hasWarning ? 'pill-warn' : 'pill-good')}" style="font-size:10.5px;">
+                ${haz.hasDanger ? 'Шторм / Опасно' : (haz.hasWarning ? 'Внимание в пути' : 'Без угроз')}
+              </span>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;">
+              <div style="padding:7px 9px;border-radius:10px;background:var(--panel);border:1px solid var(--border);">
+                <div style="font-size:10.5px;color:var(--muted);font-weight:800;">Трасса и зимники</div>
+                <div style="font-size:12.5px;font-weight:900;color:var(--text);margin-top:2px;">${roadColdNote}</div>
+              </div>
+              <div style="padding:7px 9px;border-radius:10px;background:var(--panel);border:1px solid var(--border);">
+                <div style="font-size:10.5px;color:var(--muted);font-weight:800;">Ветер и метель</div>
+                <div style="font-size:12.5px;font-weight:900;color:var(--text);margin-top:2px;">${windStormNote}</div>
+              </div>
+            </div>
+            ${haz.items.length > 0 ? `
+              <div style="display:flex;flex-direction:column;gap:5px;margin-top:7px;">
+                ${haz.items.map(it => `
+                  <div style="padding:6px 9px;border-radius:9px;background:${it.tone === 'bad' ? 'rgba(239,68,68,0.14)' : 'rgba(245,158,11,0.14)'};border:1px solid ${it.tone === 'bad' ? 'var(--bad)' : 'var(--warn)'};font-size:11.5px;font-weight:800;color:var(--text);">
+                    <span style="color:${it.tone === 'bad' ? 'var(--bad)' : 'var(--warn)'};">${it.title}:</span> ${it.detail}
+                  </div>
+                `).join('')}
+              </div>
+            ` : ''}
+          </div>
+          ${haz.waveRelevant ? `
+            <!-- Почасовая высота и направление волны (выводится ТОЛЬКО для морских/приморских зон, водохранилищ и крупных рек при открытой воде) -->
+            <div class="bento-card" id="weatherHourlyWaveCard" style="padding:10px 12px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;">
+                <div class="bento-card-title" style="font-size:14px;">
+                  <svg class="k-ico" style="color:#38bdf8;" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                  <span>Волна по часам (высота и направление)</span>
+                </div>
+                <span class="pill ${haz.maxWaveM >= 0.8 ? 'pill-bad' : (haz.maxWaveM >= 0.45 ? 'pill-warn' : 'pill-good')}" style="font-size:10.5px;">
+                  Макс. ${haz.maxWaveM.toFixed(1)} м
+                </span>
+              </div>
+              <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;">
+                ${[0, 3, 6, 9, 12, 15, 18, 21].map(hIdx => {
+                  const wSlot = haz.waveSeries[hIdx] || haz.waveSeries[0] || { hour: hIdx, waveM: 0.2, dir: day.windDir || 'З', windMs: 3 };
+                  const wCol = wSlot.waveM >= 0.8 ? 'var(--bad)' : (wSlot.waveM >= 0.45 ? 'var(--warn)' : 'var(--good)');
+                  return `
+                    <div style="padding:6px 4px;border-radius:10px;background:var(--panel);border:1px solid var(--border);display:flex;flex-direction:column;align-items:center;gap:2px;">
+                      <span style="font-size:10px;font-weight:800;color:var(--muted);">${String(hIdx).padStart(2, '0')}:00</span>
+                      <span style="font-size:14px;font-weight:900;color:${wCol};">${wSlot.waveM.toFixed(1)} м</span>
+                      <span style="font-size:10.5px;font-weight:800;color:var(--accent);">${wSlot.dir} • ${Math.round(wSlot.windMs)} м/с</span>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+          ` : ''}
+        `;
+      })()}
       <!-- КАРТОЧКА 2 (Двойной Bento-ряд 50% / 50%): Температура + Давление и Ветер -->
       <div class="bento-bottom-duo">
         <div class="bento-card bento-weather-card" style="cursor:default;">
@@ -1344,7 +1657,7 @@ export function render(container) {
               </div>
               <div class="bento-temp-water-box">
                 <div style="font-size:14px;font-weight:900;color:var(--good);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> ${day.windDir} ${day.windMax} м/с</div>
-                <div style="font-size:10.5px;color:var(--muted);font-weight:700;">Ветер и волна</div>
+                <div style="font-size:10.5px;color:var(--muted);font-weight:700;">${isWaveForecastRelevantForContext(s, day) ? "Ветер и волна" : "Направление и скорость"}</div>
               </div>
             </div>
             <div class="bento-weather-item-row">

@@ -1,7 +1,7 @@
 // @file bot/cloudflare-worker-bot.js — @KlevProClubBot (V.2.1.1)
 // Компактная сборка для Cloudflare Workers (115 рыб, 491 водоём, 609 городов РФ + Triple-Engine $0 DB + E2EE Relay + Обмен точками Круга/Экипажа/SOS + Уникальные Региональные ID FP_89AAA001 & Эксклюзивный VIP ID владельца FP_89VIP089 + Секретная Серверная Консоль Супер-Админа)
 
-const WORKER_VERSION = '2.9.0-r235';
+const WORKER_VERSION = '2.9.1-r236';
 const RESERVE_ID_TTL_MS = 24 * 60 * 60 * 1000; // Временный резервный ID живёт строго не более 24 часов (суток)
 const deletedFisherIdsSet = new Set(); // Удалённые вручную через Админ-панель ID (защита от повторной фоновой вставки)
 const rateBuckets = new Map();
@@ -4620,12 +4620,12 @@ function computeFishScoreForWeather(fishObj, w) {
 
 function makeAppButton(text, deepAppUrl, isPrivateChat = true) {
  let finalUrl = String(deepAppUrl || 'https://klevpro.ru/');
- if (!finalUrl.includes('v=r235')) {
+ if (!finalUrl.includes('v=r236')) {
   const hashIdx = finalUrl.indexOf('#');
   const basePart = hashIdx >= 0 ? finalUrl.slice(0, hashIdx) : finalUrl;
   const hashPart = hashIdx >= 0 ? finalUrl.slice(hashIdx) : '';
   const sep = basePart.includes('?') ? '&' : '?';
-  finalUrl = `${basePart}${sep}v=r235&tma=1${hashPart}`;
+  finalUrl = `${basePart}${sep}v=r236&tma=1${hashPart}`;
  }
  if (isPrivateChat) {
   return { text, web_app: { url: finalUrl } };
@@ -6679,7 +6679,7 @@ const DEFAULT_WORKER_POLICY_SECTIONS = [{"id": "general_and_platforms", "title":
 const policyStateStore = {
  policyVersion: '2026.11.10-v2.8.3',
  appVersion: '2.8.3',
- appRevision: 'r235',
+ appRevision: 'r236',
  effectiveDate: '10 ноября 2026 г.',
  title: 'Политика конфиденциальности, Пользовательское соглашение и Правила обработки геоданных «Клёв ПРО 2.0»',
  updatedAt: '2026-11-10T03:35:00Z',

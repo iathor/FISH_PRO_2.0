@@ -1,15 +1,15 @@
-import { RU } from '../../i18n/ru.js?v=2.9.0-r235';
-import { events } from '../../core/events.js?v=2.9.0-r235';
-import { store } from '../../core/store.js?v=2.9.0-r235';
-import { router } from '../../core/router.js?v=2.9.0-r235';
-import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.9.0-r235';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.9.0-r235';
-import { RUSSIA_CITIES, findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.9.0-r235';
-import { FISH_DB } from '../../data/species.js?v=2.9.0-r235';
-import { renderFishVisual, renderFiveFish } from '../../ui/svg.js?v=2.9.0-r235';
-import { createPill, showToast, openModal, closeModal, openFishLightbox, openUserAgreementModal, isUserAgreementAccepted, requestSystemNotificationsAccess, flashHighlightElement } from '../../ui/components.js?v=2.9.0-r235';
-import { setLocation, detectUserPosition } from '../geo/geo.module.js?v=2.9.0-r235';
-import { installShortcut, isApkOrTmaContainer, isAppInstalledOrShortcutPresent } from '../../core/pwa.js?v=2.9.0-r235';
+import { RU } from '../../i18n/ru.js?v=2.9.1-r236';
+import { events } from '../../core/events.js?v=2.9.1-r236';
+import { store } from '../../core/store.js?v=2.9.1-r236';
+import { router } from '../../core/router.js?v=2.9.1-r236';
+import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.9.1-r236';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.9.1-r236';
+import { RUSSIA_CITIES, findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.9.1-r236';
+import { FISH_DB } from '../../data/species.js?v=2.9.1-r236';
+import { renderFishVisual, renderFiveFish } from '../../ui/svg.js?v=2.9.1-r236';
+import { createPill, showToast, openModal, closeModal, openFishLightbox, openUserAgreementModal, isUserAgreementAccepted, requestSystemNotificationsAccess, flashHighlightElement } from '../../ui/components.js?v=2.9.1-r236';
+import { setLocation, detectUserPosition } from '../geo/geo.module.js?v=2.9.1-r236';
+import { installShortcut, isApkOrTmaContainer, isAppInstalledOrShortcutPresent } from '../../core/pwa.js?v=2.9.1-r236';
 import {
   openAuthAndBackupModal,
   openNotificationsModal,
@@ -21,11 +21,11 @@ import {
   syncCurrentProfileToCloudIfLoggedIn,
   renderSettingsZoneTabsHtml,
   bindSettingsZoneTabs
-} from '../circle/circle.module.js?v=2.9.0-r235';
-import { fetchWeather } from '../weather/weather.module.js?v=2.9.0-r235';
-import { checkForReleaseUpdate, isAndroidWebsiteVisitor, getCachedApkManifest, triggerApkFileDownload } from '../../core/updater.js?v=2.9.0-r235';
-import { calcDayBest } from '../forecast/forecast.module.js?v=2.9.0-r235';
-import { openFishPhotoScannerModal, analyzeFishPhotoHybrid, estimateWeightByLengthAndSpecies, getStoredGeminiApiKey, saveStoredGeminiApiKey, getLocalGeminiQuotaState, incrementLocalGeminiQuotaUsed, callGeminiClientSmart } from './scanner.js?v=2.9.0-r235';
+} from '../circle/circle.module.js?v=2.9.1-r236';
+import { fetchWeather } from '../weather/weather.module.js?v=2.9.1-r236';
+import { checkForReleaseUpdate, isAndroidWebsiteVisitor, getCachedApkManifest, triggerApkFileDownload } from '../../core/updater.js?v=2.9.1-r236';
+import { calcDayBest } from '../forecast/forecast.module.js?v=2.9.1-r236';
+import { openFishPhotoScannerModal, analyzeFishPhotoHybrid, estimateWeightByLengthAndSpecies, getStoredGeminiApiKey, saveStoredGeminiApiKey, getLocalGeminiQuotaState, incrementLocalGeminiQuotaUsed, callGeminiClientSmart } from './scanner.js?v=2.9.1-r236';
 /**
  * Региональные приоритетные виды для каждого бассейна РФ,
  * чтобы самые популярные и характерные для региона виды (например, Елец и Пелядь/Сырок в Новом Уренгое)
