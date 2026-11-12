@@ -1,4 +1,4 @@
-import { svgIcon } from './icons.js?v=2.9.1-r236';
+import { svgIcon } from './icons.js?v=2.9.2-r237';
 /**
  * Экранирует пользовательские строки перед вставкой в HTML (защита от DOM XSS и инъекций тегов)
  */
@@ -82,10 +82,10 @@ export function showToast(message, tone = 'info', options = {}) {
 
   // Cap stack at max 3 visible toasts so they never pile up and block the screen
   const activeToasts = Array.from(box.querySelectorAll('.toast:not(.toast-dismissing)'));
-  while (activeToasts.length >= 3) {
+  while (activeToasts.length >= 1) {
     const oldest = activeToasts.shift();
     if (oldest) {
-      if (oldest._klevToastCleanup) oldest._klevToastCleanup(false);
+      if (oldest._klevToastCleanup) oldest._klevToastCleanup(true);
       else oldest.remove();
     }
   }
@@ -485,7 +485,7 @@ export function getRemotePolicyFromClientEnv() {
   const fallback = {
     policyVersion: ACTIVE_POLICY_VERSION_DEFAULT,
     appVersion: ACTIVE_APP_VERSION_DEFAULT,
-    appRevision: 'r236',
+    appRevision: 'r237',
     effectiveDate: '10 ноября 2026 г.',
     title: 'Политика конфиденциальности, Пользовательское соглашение и Правила обработки геоданных «Клёв ПРО 2.0»',
     summary: 'Редакция v2.8.3 (r235): сохранность пользовательских данных при очистке кэша, единый постоянный ID рыбака на всех устройствах по логину и паролю, расчёт гидрологии и льда по данным Росгидромета (meteoinfo.ru), правила гостевого доступа и Бета-теста.',
@@ -522,7 +522,7 @@ export function saveRemotePolicyToClientEnv(policyPayload) {
   const updated = {
     policyVersion: String(policyPayload.policyVersion || current.policyVersion || ACTIVE_POLICY_VERSION_DEFAULT).trim(),
     appVersion: String(policyPayload.appVersion || current.appVersion || ACTIVE_APP_VERSION_DEFAULT).trim(),
-    appRevision: String(policyPayload.appRevision || current.appRevision || 'r236').trim(),
+    appRevision: String(policyPayload.appRevision || current.appRevision || 'r237').trim(),
     effectiveDate: String(policyPayload.effectiveDate || current.effectiveDate || '10 ноября 2026 г.').trim(),
     title: String(policyPayload.title || current.title).trim(),
     summary: String(policyPayload.summary || current.summary).trim(),

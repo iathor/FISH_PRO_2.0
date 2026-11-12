@@ -5,14 +5,14 @@
  * - Единый прямой промпт без рамок/точек/квадратов на фото: «Определи, что за рыба на фото, примерный размер и вес»
  * - Автоматическая подстановка ответа нейросети (вид, размер, вес в г/кг, диагностические признаки и разбор нескольких рыб в кадре) в карточку Атласа РФ
  */
-import { store } from '../../core/store.js?v=2.9.1-r236';
-import { router } from '../../core/router.js?v=2.9.1-r236';
-import { RELAY_WORKER_URL, triggerHaptic } from '../../core/telegram.js?v=2.9.1-r236';
-import { workerFetch } from '../circle/circle.module.js?v=2.9.1-r236';
-import { BASIN_CONFIGS } from '../../data/basins.js?v=2.9.1-r236';
-import { FISH_DB } from '../../data/species.js?v=2.9.1-r236';
-import { renderFishVisual } from '../../ui/svg.js?v=2.9.1-r236';
-import { escapeHtml, openModal, closeModal, showToast, flashHighlightElement } from '../../ui/components.js?v=2.9.1-r236';
+import { store } from '../../core/store.js?v=2.9.2-r237';
+import { router } from '../../core/router.js?v=2.9.2-r237';
+import { RELAY_WORKER_URL, triggerHaptic } from '../../core/telegram.js?v=2.9.2-r237';
+import { workerFetch } from '../circle/circle.module.js?v=2.9.2-r237';
+import { BASIN_CONFIGS } from '../../data/basins.js?v=2.9.2-r237';
+import { FISH_DB } from '../../data/species.js?v=2.9.2-r237';
+import { renderFishVisual } from '../../ui/svg.js?v=2.9.2-r237';
+import { escapeHtml, openModal, closeModal, showToast, flashHighlightElement } from '../../ui/components.js?v=2.9.2-r237';
 /**
  * Коэффициент упитанности Фултона (k) по видам рыб для расчёта веса по длине:
  * W (кг) = (k * L_см^3) / 100000

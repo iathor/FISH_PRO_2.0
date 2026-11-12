@@ -1,15 +1,15 @@
-import { RU } from '../../i18n/ru.js?v=2.9.1-r236';
-import { events } from '../../core/events.js?v=2.9.1-r236';
-import { store } from '../../core/store.js?v=2.9.1-r236';
-import { router } from '../../core/router.js?v=2.9.1-r236';
-import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.9.1-r236';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.9.1-r236';
-import { RUSSIA_CITIES, findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.9.1-r236';
-import { FISH_DB } from '../../data/species.js?v=2.9.1-r236';
-import { renderFishVisual, renderFiveFish } from '../../ui/svg.js?v=2.9.1-r236';
-import { createPill, showToast, openModal, closeModal, openFishLightbox, openUserAgreementModal, isUserAgreementAccepted, requestSystemNotificationsAccess, flashHighlightElement } from '../../ui/components.js?v=2.9.1-r236';
-import { setLocation, detectUserPosition } from '../geo/geo.module.js?v=2.9.1-r236';
-import { installShortcut, isApkOrTmaContainer, isAppInstalledOrShortcutPresent } from '../../core/pwa.js?v=2.9.1-r236';
+import { RU } from '../../i18n/ru.js?v=2.9.2-r237';
+import { events } from '../../core/events.js?v=2.9.2-r237';
+import { store } from '../../core/store.js?v=2.9.2-r237';
+import { router } from '../../core/router.js?v=2.9.2-r237';
+import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.9.2-r237';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.9.2-r237';
+import { RUSSIA_CITIES, findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.9.2-r237';
+import { FISH_DB } from '../../data/species.js?v=2.9.2-r237';
+import { renderFishVisual, renderFiveFish } from '../../ui/svg.js?v=2.9.2-r237';
+import { createPill, showToast, openModal, closeModal, openFishLightbox, openUserAgreementModal, isUserAgreementAccepted, requestSystemNotificationsAccess, flashHighlightElement } from '../../ui/components.js?v=2.9.2-r237';
+import { setLocation, detectUserPosition } from '../geo/geo.module.js?v=2.9.2-r237';
+import { installShortcut, isApkOrTmaContainer, isAppInstalledOrShortcutPresent } from '../../core/pwa.js?v=2.9.2-r237';
 import {
   openAuthAndBackupModal,
   openNotificationsModal,
@@ -21,11 +21,11 @@ import {
   syncCurrentProfileToCloudIfLoggedIn,
   renderSettingsZoneTabsHtml,
   bindSettingsZoneTabs
-} from '../circle/circle.module.js?v=2.9.1-r236';
-import { fetchWeather } from '../weather/weather.module.js?v=2.9.1-r236';
-import { checkForReleaseUpdate, isAndroidWebsiteVisitor, getCachedApkManifest, triggerApkFileDownload } from '../../core/updater.js?v=2.9.1-r236';
-import { calcDayBest } from '../forecast/forecast.module.js?v=2.9.1-r236';
-import { openFishPhotoScannerModal, analyzeFishPhotoHybrid, estimateWeightByLengthAndSpecies, getStoredGeminiApiKey, saveStoredGeminiApiKey, getLocalGeminiQuotaState, incrementLocalGeminiQuotaUsed, callGeminiClientSmart } from './scanner.js?v=2.9.1-r236';
+} from '../circle/circle.module.js?v=2.9.2-r237';
+import { fetchWeather } from '../weather/weather.module.js?v=2.9.2-r237';
+import { checkForReleaseUpdate, isAndroidWebsiteVisitor, getCachedApkManifest, triggerApkFileDownload } from '../../core/updater.js?v=2.9.2-r237';
+import { calcDayBest } from '../forecast/forecast.module.js?v=2.9.2-r237';
+import { openFishPhotoScannerModal, analyzeFishPhotoHybrid, estimateWeightByLengthAndSpecies, getStoredGeminiApiKey, saveStoredGeminiApiKey, getLocalGeminiQuotaState, incrementLocalGeminiQuotaUsed, callGeminiClientSmart } from './scanner.js?v=2.9.2-r237';
 /**
  * Региональные приоритетные виды для каждого бассейна РФ,
  * чтобы самые популярные и характерные для региона виды (например, Елец и Пелядь/Сырок в Новом Уренгое)
@@ -621,7 +621,7 @@ export function openAppParamsModal(onBackToHub = null) {
         <div class="card" style="background:var(--card);padding:10px 12px;border:1px solid var(--border);display:flex;flex-direction:column;gap:8px;">
           <div style="font-weight:800;font-size:var(--fs-xs);color:var(--accent);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M20 11a8 8 0 0 0-14.5-4.5L4 8m0-5v5h5M4 13a8 8 0 0 0 14.5 4.5L20 16m0 5v-5h-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> ПРОВЕРКА ВЕРСИИ И ПРИЛОЖЕНИЕ</div>
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:6px;">
-            ${(isUserAdmin(s) || isCurrentUserBetaTester(s)) ? `<button type="button" class="btn btn-sm" id="onbRefreshWeatherBtn"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M20 11a8 8 0 0 0-14.5-4.5L4 8m0-5v5h5M4 13a8 8 0 0 0 14.5 4.5L20 16m0 5v-5h-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Обновить погоду [БЕТА]</button>` : ''}
+            ${(isUserAdmin(s) || isCurrentUserBetaTester(s)) ? `<button type="button" class="btn btn-sm" id="onbRefreshWeatherBtn"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M20 11a8 8 0 0 0-14.5-4.5L4 8m0-5v5h5M4 13a8 8 0 0 0 14.5 4.5L20 16m0 5v-5h-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Обновить погоду</button>` : ''}
             <button type="button" class="btn btn-sm" id="onbVersionCheckBtn"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 8l-9-5-9 5v8l9 5 9-5V8z" fill="rgba(56,189,248,0.16)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M3 8l9 5 9-5M12 13v8" stroke="currentColor" stroke-width="1.7"/></svg> Проверить версию</button>
             ${(isApkOrTmaContainer() || isAppInstalledOrShortcutPresent()) ? '' : '<button type="button" class="btn btn-sm" id="onbInstallAppBtn" data-install-app><svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="6" y="2" width="12" height="20" rx="2.5" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="18" r="1.2" fill="#38bdf8"/></svg> На экран</button>'}
           </div>

@@ -2254,3 +2254,19 @@ html[data-desktop-web="1"] .bottom-nav {
   font-size: 13.5px;
   font-weight: 900;
 }
+
+
+/* v2.9.2 (r237): Скрываем стандартные кнопки +/- Leaflet в мобильном режиме Арки, чтобы они не торчали из-под кнопки Слои (1000137330.jpg) */
+html[data-arc-map-active="1"] .leaflet-control-zoom {
+  display: none !important;
+}
+/* Скрываем язычки Разделы и шапка / Быстрый доступ, когда открыто модальное окно или активна другая вкладка (1000137338.jpg, 1000137332.mp4) */
+html:not([data-arc-map-active="1"]) .klev-arc-edge-handle,
+body:has(#appModalBackdrop.open) .klev-arc-edge-handle {
+  display: none !important;
+  pointer-events: none !important;
+}
+/* Светлый фон подложки карты для дневной схемы, чтобы при зуме не мигал тёмно-синий квадрат вокруг офлайн-карты (1000137332.mp4, 1000137336.mp4) */
+#mapBox:not([data-ymap-layer="yandex_sat"]):not([data-ymap-layer="yandex_hybrid"]):not([data-ymap-layer="yandex_dark"]) {
+  background: #e4eef7 !important;
+}

@@ -1,19 +1,19 @@
-import { getFilteredFishList, openFishDetail } from '../fish/fish.module.js?v=2.9.1-r236';
-import { logBlankTrip } from '../log/log.module.js?v=2.9.1-r236';
-import { getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.9.1-r236';
-import { RU } from '../../i18n/ru.js?v=2.9.1-r236';
-import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.9.1-r236';
-import { events } from '../../core/events.js?v=2.9.1-r236';
-import { storage } from '../../core/storage.js?v=2.9.1-r236';
-import { store } from '../../core/store.js?v=2.9.1-r236';
-import { formatLocalYYYYMMDD, fmtDeltaPress, fmtHM } from '../../core/format.js?v=2.9.1-r236';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.9.1-r236';
-import { FISH_DB } from '../../data/species.js?v=2.9.1-r236';
-import { renderFiveFish , renderFishVisual } from '../../ui/svg.js?v=2.9.1-r236';
-import { createPill, showToast, openModal, flashHighlightElement } from '../../ui/components.js?v=2.9.1-r236';
-import { computeIceSafetyIndex } from '../weather/weather.module.js?v=2.9.1-r236';
-import { evaluateCircleFieldConfirmation, requireRegisteredFisherId } from '../circle/circle.module.js?v=2.9.1-r236';
-import { isTelegramWebApp, getTelegramUser, shareToTelegramChat, openBotChatInTelegram, buildForecastShareUrls, TELEGRAM_BOT_USERNAME } from '../../core/telegram.js?v=2.9.1-r236';
+import { getFilteredFishList, openFishDetail } from '../fish/fish.module.js?v=2.9.2-r237';
+import { logBlankTrip } from '../log/log.module.js?v=2.9.2-r237';
+import { getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.9.2-r237';
+import { RU } from '../../i18n/ru.js?v=2.9.2-r237';
+import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.9.2-r237';
+import { events } from '../../core/events.js?v=2.9.2-r237';
+import { storage } from '../../core/storage.js?v=2.9.2-r237';
+import { store } from '../../core/store.js?v=2.9.2-r237';
+import { formatLocalYYYYMMDD, fmtDeltaPress, fmtHM } from '../../core/format.js?v=2.9.2-r237';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.9.2-r237';
+import { FISH_DB } from '../../data/species.js?v=2.9.2-r237';
+import { renderFiveFish , renderFishVisual } from '../../ui/svg.js?v=2.9.2-r237';
+import { createPill, showToast, openModal, flashHighlightElement } from '../../ui/components.js?v=2.9.2-r237';
+import { computeIceSafetyIndex } from '../weather/weather.module.js?v=2.9.2-r237';
+import { evaluateCircleFieldConfirmation, requireRegisteredFisherId } from '../circle/circle.module.js?v=2.9.2-r237';
+import { isTelegramWebApp, getTelegramUser, shareToTelegramChat, openBotChatInTelegram, buildForecastShareUrls, TELEGRAM_BOT_USERNAME } from '../../core/telegram.js?v=2.9.2-r237';
 /**
  * Список морских, проходных и полупроходных видов, которые заходят в пресные реки
  * (big_river, small_river) и эстуарии (sea_gulf) при нересте, сезонных миграциях или приливах/отливах.

@@ -1,14 +1,14 @@
-import { renderFishVisual } from '../../ui/svg.js?v=2.9.1-r236';
-import { MAP_LAYERS, SPOT_CATEGORIES, getCompatibleMethods } from '../../core/config.js?v=2.9.1-r236';
-import { events } from '../../core/events.js?v=2.9.1-r236';
-import { storage, safeJsonParse } from '../../core/storage.js?v=2.9.1-r236';
-import { router } from '../../core/router.js?v=2.9.1-r236';
-import { store } from '../../core/store.js?v=2.9.1-r236';
-import { fetchWithTimeout } from '../../core/http.js?v=2.9.1-r236';
-import { installShortcut, syncInstallButtons } from '../../core/pwa.js?v=2.9.1-r236';
-import { triggerHaptic } from '../../core/telegram.js?v=2.9.1-r236';
-import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.9.1-r236';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.9.1-r236';
+import { renderFishVisual } from '../../ui/svg.js?v=2.9.2-r237';
+import { MAP_LAYERS, SPOT_CATEGORIES, getCompatibleMethods } from '../../core/config.js?v=2.9.2-r237';
+import { events } from '../../core/events.js?v=2.9.2-r237';
+import { storage, safeJsonParse } from '../../core/storage.js?v=2.9.2-r237';
+import { router } from '../../core/router.js?v=2.9.2-r237';
+import { store } from '../../core/store.js?v=2.9.2-r237';
+import { fetchWithTimeout } from '../../core/http.js?v=2.9.2-r237';
+import { installShortcut, syncInstallButtons } from '../../core/pwa.js?v=2.9.2-r237';
+import { triggerHaptic } from '../../core/telegram.js?v=2.9.2-r237';
+import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.9.2-r237';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.9.2-r237';
 import {
   RUSSIA_CITIES,
   RUSSIA_WATERS,
@@ -16,12 +16,12 @@ import {
   getNearestRussianSettlements,
   getNearestRussianWaters,
   getWaterTypeShortTag
-} from '../../data/russia-waters.js?v=2.9.1-r236';
-import { FISH_DB } from '../../data/species.js?v=2.9.1-r236';
-import { escapeHtml, createPill, showToast, openModal, closeModal, openConfirmDeleteModal, downloadFileCrossPlatform, flashHighlightElement, isGeoDistributionConsentActive, ensureGeoDistributionConsent, setGeoDistributionConsentState } from '../../ui/components.js?v=2.9.1-r236';
-import { fetchWeather, weatherModule } from '../weather/weather.module.js?v=2.9.1-r236';
-import { calcDayBest } from '../forecast/forecast.module.js?v=2.9.1-r236';
-import { computeHexPolygonForCircle, getEffectiveCircleRadiusKm, getCircleHexDecayState, canUserAccessCrewItem, getCurrentFisherIdentity, isUserAdmin, isCurrentUserBetaTester, verifyBetaTesterStatusFromCloud, isCircleItemMine, isCircleItemHidden, openAddThematicMapPointModal } from '../circle/circle.module.js?v=2.9.1-r236';
+} from '../../data/russia-waters.js?v=2.9.2-r237';
+import { FISH_DB } from '../../data/species.js?v=2.9.2-r237';
+import { escapeHtml, createPill, showToast, openModal, closeModal, openConfirmDeleteModal, downloadFileCrossPlatform, flashHighlightElement, isGeoDistributionConsentActive, ensureGeoDistributionConsent, setGeoDistributionConsentState } from '../../ui/components.js?v=2.9.2-r237';
+import { fetchWeather, weatherModule } from '../weather/weather.module.js?v=2.9.2-r237';
+import { calcDayBest } from '../forecast/forecast.module.js?v=2.9.2-r237';
+import { computeHexPolygonForCircle, getEffectiveCircleRadiusKm, getCircleHexDecayState, canUserAccessCrewItem, getCurrentFisherIdentity, isUserAdmin, isCurrentUserBetaTester, verifyBetaTesterStatusFromCloud, isCircleItemMine, isCircleItemHidden, openAddThematicMapPointModal } from '../circle/circle.module.js?v=2.9.2-r237';
 // ============================================================================
 // АВТОНОМНОЕ ЯДРО, РЕПРОЕКТОР EPSG:3395 И ИНСПЕКТОР ПРОВЕРКИ ОФЛАЙН-КАРТ (ФАЗА 1 • v2)
 // Хранение в формате инлайн-DataURL (100% сохранность после перезапуска Android WebView)
@@ -41,6 +41,24 @@ let _cachedPacksList = [];
 let _selectedPackIdsForBatchDelete = new Set();
 let _showOfflinePerimetersOnMap = true;
 let _forceOfflineTestMode = false;
+let _offlineMapsEnabledOnMap = true;
+try {
+  if (typeof localStorage !== 'undefined') {
+    const savedOffEn = localStorage.getItem('klev_pro_offline_maps_enabled_v1');
+    if (savedOffEn !== null) _offlineMapsEnabledOnMap = savedOffEn !== '0';
+  }
+} catch (_e) {}
+export function isOfflineMapLayerEnabled() {
+  return Boolean(_offlineMapsEnabledOnMap);
+}
+export function setOfflineMapLayerEnabled(enabled) {
+  _offlineMapsEnabledOnMap = Boolean(enabled);
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('klev_pro_offline_maps_enabled_v1', _offlineMapsEnabledOnMap ? '1' : '0');
+    }
+  } catch (_e) {}
+}
 let _inspectedPackIdInModal = null;
 let _nativeApkTileProxyState = 'untested'; // 'untested' | 'ok' | 'unavailable'
 let _nativeApkFailStreak = 0;
@@ -1098,6 +1116,27 @@ export function createOfflineAwareLeafletLayer(layerId, urlTemplate, fallbacks =
       const exactKey = `${storageLayerId}_${z}_${x}_${y}`;
       const isHighZoomLegacySat = (storageLayerId === 'yandex_sat' && z >= 14);
 
+      // Если пользователь выключил отображение загруженных офлайн-карт тумблером на плашке (и есть интернет), грузим живую онлайн-карту!
+      if (!_offlineMapsEnabledOnMap && !isCurrentlyOffline) {
+        let fbIdx = 0;
+        tile.onload = () => finishTileLoad();
+        tile.onerror = () => {
+          if (fbIdx < fallbacks.length) {
+            const sub = subdomains[Math.abs(x + y) % subdomains.length] || '1';
+            const fbUrl = fallbacks[fbIdx++]
+              .replace('{s}', sub)
+              .replace('{z}', String(z))
+              .replace('{x}', String(x))
+              .replace('{y}', String(y));
+            tile.src = fbUrl + (fbUrl.includes('?') ? `&_cb=${_tileCacheBustSeq}` : `?_cb=${_tileCacheBustSeq}`);
+            return;
+          }
+          finishTileLoad();
+        };
+        tile.src = netUrl;
+        return tile;
+      }
+
       // 1. Сверхбыстрая проверка точного тайла из RAM-кэша (для спутника Z>=14 используем чистый оверзум родительского спутника Z13)
       if (!isHighZoomLegacySat && _offlineTileKeysSet.has(exactKey) && _ramTileDataUrlCache.has(exactKey)) {
         const ramHit = _ramTileDataUrlCache.get(exactKey);
@@ -1183,7 +1222,7 @@ export function createOfflineAwareLeafletLayer(layerId, urlTemplate, fallbacks =
     className: tileClassName,
     updateWhenIdle: true,
     updateWhenZooming: false,
-    keepBuffer: 1
+    keepBuffer: 3
   });
 }
 
@@ -1770,7 +1809,15 @@ export async function startOfflinePackDownload({
   waterPoints = [],
   viewportBounds = null,
   onProgress = null
-}) {
+} = {}) {
+  const stFallback = store.getState();
+  const mcFallback = (mapInstance && typeof mapInstance.getCenter === 'function') ? mapInstance.getCenter() : null;
+  if (!Number.isFinite(Number(centerLat))) {
+    centerLat = (mcFallback && Number.isFinite(mcFallback.lat)) ? mcFallback.lat : Number(stFallback.lat || 66.0833);
+  }
+  if (!Number.isFinite(Number(centerLon))) {
+    centerLon = (mcFallback && Number.isFinite(mcFallback.lng)) ? mcFallback.lng : Number(stFallback.lon || 76.6333);
+  }
   if (_activeDownloadJob && !_activeDownloadJob.cancelled) {
     showToast('Загрузка офлайн-карты уже выполняется', 'warn');
     return null;
@@ -2152,16 +2199,57 @@ export function renderOfflinePackPerimetersOnMap(mapInst, overlayGroup) {
   });
 }
 
-export async function openOfflineMapsManagerModal({
-  centerLat,
-  centerLon,
-  locationTitle = 'Выбранный водоём',
-  waterPoints = [],
-  viewportBounds = null,
-  onSelectPackLocation = null,
-  onAfterChange = null
-} = {}) {
-  let chosenRadiusKm = 50;
+export async function openOfflineMapsManagerModal(rawOpts = {}) {
+  const opts = (typeof rawOpts === 'number') ? { initialRadiusKm: rawOpts } : (rawOpts || {});
+  const stNow = store.getState();
+  const mcNow = (mapInstance && typeof mapInstance.getCenter === 'function') ? mapInstance.getCenter() : null;
+  const centerLat = Number.isFinite(Number(opts.centerLat))
+    ? Number(opts.centerLat)
+    : ((mcNow && Number.isFinite(mcNow.lat)) ? mcNow.lat : Number(stNow.lat || 66.0833));
+  const centerLon = Number.isFinite(Number(opts.centerLon))
+    ? Number(opts.centerLon)
+    : ((mcNow && Number.isFinite(mcNow.lng)) ? mcNow.lng : Number(stNow.lon || 76.6333));
+  const locationTitle = opts.locationTitle || stNow.selectedWaterName || stNow.locLabel || 'Выбранный водоём';
+  const waterPoints = Array.isArray(opts.waterPoints) && opts.waterPoints.length > 0
+    ? opts.waterPoints
+    : [
+        { lat: centerLat, lon: centerLon, isPrioritySpot: true },
+        ...((stNow.savedSpots || []).map(sp => ({ lat: Number(sp.lat), lon: Number(sp.lon), isPrioritySpot: true }))),
+        ...((stNow.nearbyWaters || []))
+      ];
+  let viewportBounds = opts.viewportBounds || null;
+  if (!viewportBounds && mapInstance && typeof mapInstance.getBounds === 'function') {
+    try {
+      const b = mapInstance.getBounds();
+      if (b) viewportBounds = { north: b.getNorth(), south: b.getSouth(), east: b.getEast(), west: b.getWest() };
+    } catch (_e) {}
+  }
+  const onSelectPackLocation = typeof opts.onSelectPackLocation === 'function'
+    ? opts.onSelectPackLocation
+    : (pack) => {
+        if (!pack) return;
+        const pLat = Number.isFinite(Number(pack.centerLat)) ? Number(pack.centerLat) : Number(stNow.lat || 66.0833);
+        const pLon = Number.isFinite(Number(pack.centerLon)) ? Number(pack.centerLon) : Number(stNow.lon || 76.6333);
+        _offlineMapsEnabledOnMap = true;
+        setOfflineMapLayerEnabled(true);
+        if (pack.layerMode === 'satellite' && currentLayerKey === 'yandex_map') currentLayerKey = 'yandex_hybrid';
+        else if (pack.layerMode === 'scheme' && currentLayerKey !== 'yandex_map') currentLayerKey = 'yandex_map';
+        rebuildActiveMapTileLayer();
+        setLocation(pLat, pLon, false, pack.radiusKm >= 100 ? 11 : 13);
+        renderMapOverlays();
+        const secGeo = typeof document !== 'undefined' ? document.getElementById('secGeo') : null;
+        if (secGeo) render(secGeo);
+        showToast(`Переход к офлайн-карте: ${pack.title} (${pack.radiusKm} км)`, 'good');
+      };
+  const onAfterChange = typeof opts.onAfterChange === 'function'
+    ? opts.onAfterChange
+    : () => {
+        rebuildActiveMapTileLayer();
+        renderMapOverlays();
+        const secGeo = typeof document !== 'undefined' ? document.getElementById('secGeo') : null;
+        if (secGeo) render(secGeo);
+      };
+  let chosenRadiusKm = Number(opts.initialRadiusKm) === 120 ? 120 : 50;
   let chosenLayerMode = 'satellite';
   let smartHydroZ15 = true;
   let customAreaTitle = String(locationTitle || 'Район рыбалки').trim();
@@ -5766,7 +5854,7 @@ export function openPhase3RoutesModal(container = null) {
         <div style="padding:12px;background:${trk?.returnMode === 'lost_emergency' ? 'rgba(239,68,68,0.18)' : 'rgba(245,158,11,0.10)'};border:1.5px solid ${trk?.returnMode === 'lost_emergency' ? 'var(--bad)' : 'var(--warn)'};border-radius:var(--r-sm);">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
             <span style="font-weight:900;font-size:14px;color:${trk?.returnMode === 'lost_emergency' ? 'var(--bad)' : 'var(--warn)'};">
-              ${trk?.returnMode === 'lost_emergency' ? 'АКТИВЕН РЕЖИМ «Я ПОТЕРЯЛСЯ — ВОЗВРАТ К СТАРТУ»' : 'Фаза 3: Запись пути в фоне и возврат по следу'}
+              ${trk?.returnMode === 'lost_emergency' ? 'АКТИВЕН РЕЖИМ «Я ПОТЕРЯЛСЯ — ВОЗВРАТ К СТАРТУ»' : 'Запись маршрута в фоне и возврат по следу'}
             </span>
             <span class="pill ${trk ? 'pill-good' : 'pill-neutral'}" style="font-size:10.5px;">
               ${trk ? (isRet ? 'Ведение назад по тропе' : 'Идёт запись (шаг 1.5 м)') : 'Ожидание'}
@@ -6006,7 +6094,7 @@ export function openPhase3RoutesModal(container = null) {
     });
   };
 
-  openModal('Фаза 3: Маршруты, Возврат по следу и «Я потерялся»', '<div id="p3ModalMount"></div>', (bEl) => {
+  openModal('Маршруты, Возврат по следу и «Я потерялся»', '<div id="p3ModalMount"></div>', (bEl) => {
     renderModalContent(bEl);
     acquireFreshHighAccuracyGpsFix(4000).then(() => {
       if (document.body.contains(bEl)) renderModalContent(bEl);
@@ -6095,7 +6183,7 @@ function renderMapOverlays() {
     });
   }
   if (thematicCandidates.length > 0) {
-    if (curZoom >= 12) {
+    if (curZoom >= 10) {
       thematicCandidates.forEach(pt => {
         const catObj = SPOT_CATEGORIES[pt.catKey] || SPOT_CATEGORIES.slip;
         const delOrHideBtn = pt.isSavedSpot
@@ -7346,7 +7434,608 @@ function _densifyWayGeometry(pts, maxStepKm = 0.06) {
 // - для лодки (boat): СТРОГО по руслам рек и протокам (шаг 50 м + связка притоков), без привязки к автомобильным дорогам!
 // - для снегохода (snowmobile): по объездным дорогам, зимникам, просекам и тропам в обход домов и с избеганием открытых водоёмов!
 // - для велосипеда (bike) и пешком (walk): по тропам, велодорожкам и дорогам.
+
+// ============================================================================
+// ЭПИК: ДВИЖОК ВОДНОЙ МАРШРУТИЗАЦИИ WATER NAVMESH ENGINE (ЗАДАЧИ 1–4)
+// 1. Формирование 2D водного графа (NavMesh) внутри водных полигонов (natural=water, waterway=riverbank)
+//    и гибридных русловых коридоров (waterway=river|stream|canal|fairway) с вырезанием островов (role=inner).
+// 2. Поиск пути A* / Дейкстры строго по воде с гарантированным обходом островов, кос и мысов.
+// 3. Приоритизация фарватера (k = 0.68 на центральной линии русла) и штраф прибрежной отмели (k = 2.65),
+//    исключающий срезание углов по мелководью внутренних радиусов излучин.
+// 4. Динамический учёт вектора течения без перестроения сетки NavMesh: вычисление угла между вектором ребра
+//    и вектором течения реки (против течения угол > 90° -> вес увеличивается, по течению -> уменьшается).
+// ============================================================================
+
+const BUILTIN_RIVER_ISLANDS = [
+  {
+    id: 'island_pur_urengoy_1',
+    riverId: 'hydro_pur',
+    name: 'о. Пурский (Уренгой)',
+    // Остров в русле р. Пур между 65.9540 и 65.9690
+    ring: [
+      [65.9565, 78.1845],
+      [65.9595, 78.1895],
+      [65.9635, 78.1905],
+      [65.9655, 78.1870],
+      [65.9620, 78.1835],
+      [65.9565, 78.1845]
+    ]
+  },
+  {
+    id: 'island_pur_limbiyakha_2',
+    riverId: 'hydro_pur',
+    name: 'о. Коса Пурская',
+    ring: [
+      [65.9935, 78.1765],
+      [65.9965, 78.1835],
+      [66.0005, 78.1885],
+      [66.0015, 78.1850],
+      [65.9975, 78.1780],
+      [65.9935, 78.1765]
+    ]
+  },
+  {
+    id: 'island_sedeyakha_1',
+    riverId: 'hydro_sedeyakha',
+    name: 'о. Седэяхинский',
+    ring: [
+      [66.0836, 76.6745],
+      [66.0842, 76.6780],
+      [66.0830, 76.6815],
+      [66.0823, 76.6780],
+      [66.0836, 76.6745]
+    ]
+  }
+];
+
+const _waterNavMeshCache = new Map();
+
+function _isPointInPolygonRing(lat, lon, ring) {
+  if (!Array.isArray(ring) || ring.length < 3) return false;
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const yi = ring[i][0], xi = ring[i][1];
+    const yj = ring[j][0], xj = ring[j][1];
+    const intersect = ((yi > lat) !== (yj > lat)) &&
+      (lon < (xj - xi) * (lat - yi) / ((yj - yi) || 1e-12) + xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
+function _ccwOrient(ax, ay, bx, by, cx, cy) {
+  return (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
+}
+
+function _segmentsStrictlyIntersect(a1, a2, b1, b2) {
+  const ay1 = a1[0], ax1 = a1[1], ay2 = a2[0], ax2 = a2[1];
+  const by1 = b1[0], bx1 = b1[1], by2 = b2[0], bx2 = b2[1];
+  const d1 = _ccwOrient(ax1, ay1, ax2, ay2, bx1, by1);
+  const d2 = _ccwOrient(ax1, ay1, ax2, ay2, bx2, by2);
+  const d3 = _ccwOrient(bx1, by1, bx2, by2, ax1, ay1);
+  const d4 = _ccwOrient(bx1, by1, bx2, by2, ax2, ay2);
+  if (((d1 > 1e-11 && d2 < -1e-11) || (d1 < -1e-11 && d2 > 1e-11)) &&
+      ((d3 > 1e-11 && d4 < -1e-11) || (d3 < -1e-11 && d4 > 1e-11))) {
+    return true;
+  }
+  return false;
+}
+
+function _doesSegmentIntersectPolygonRing(p1, p2, ring) {
+  if (!Array.isArray(ring) || ring.length < 2) return false;
+  const mid = [(p1[0] + p2[0]) * 0.5, (p1[1] + p2[1]) * 0.5];
+  if (_isPointInPolygonRing(mid[0], mid[1], ring)) return true;
+  for (let i = 0; i < ring.length - 1; i++) {
+    if (_segmentsStrictlyIntersect(p1, p2, ring[i], ring[i + 1])) return true;
+  }
+  return false;
+}
+
+function _pointToSegmentDistKm(lat, lon, aLat, aLon, bLat, bLon) {
+  const cosLat = Math.cos((lat * Math.PI) / 180) || 0.5;
+  const dx = (bLon - aLon) * cosLat;
+  const dy = bLat - aLat;
+  const lenSq = dx * dx + dy * dy;
+  let t = 0;
+  if (lenSq > 1e-12) {
+    t = ((lon - aLon) * cosLat * dx + (lat - aLat) * dy) / lenSq;
+    t = Math.max(0, Math.min(1, t));
+  }
+  const projLat = aLat + t * dy;
+  const projLon = aLon + t * (bLon - aLon);
+  return calcHaversineKm(lat, lon, projLat, projLon);
+}
+
+function _minDistToRingKm(lat, lon, ring) {
+  if (!Array.isArray(ring) || ring.length < 2) return Infinity;
+  let minD = Infinity;
+  for (let i = 0; i < ring.length - 1; i++) {
+    const d = _pointToSegmentDistKm(lat, lon, ring[i][0], ring[i][1], ring[i + 1][0], ring[i + 1][1]);
+    if (d < minD) minD = d;
+  }
+  return minD;
+}
+
+/**
+ * Задача 1: Построение 2D навигационной сетки (NavMesh) по водным полигонам (natural=water, waterway=riverbank)
+ * и русловым линиям (waterway=river|stream|canal|fairway) с вырезанием островов (role=inner).
+ */
+export async function buildWaterNavMesh(minLat, minLon, maxLat, maxLon, options = {}) {
+  const bboxKey = `${minLat.toFixed(3)}_${minLon.toFixed(3)}_${maxLat.toFixed(3)}_${maxLon.toFixed(3)}`;
+  if (!options.forceRebuild && _waterNavMeshCache.has(bboxKey)) {
+    const cached = _waterNavMeshCache.get(bboxKey);
+    if (options.flowSpeedMps !== undefined || options.boatSpeedKmh !== undefined) {
+      applyDynamicHydrologyWeights(cached, options);
+    }
+    return cached;
+  }
+
+  const bbox = `${minLat.toFixed(4)},${minLon.toFixed(4)},${maxLat.toFixed(4)},${maxLon.toFixed(4)}`;
+  const centerlines = [];
+  const waterOuterRings = [];
+  const islandInnerRings = [];
+
+  // 1. Встроенные острова и русла рек (работают мгновенно даже в полном офлайне)
+  const builtinRivers = _getBuiltinRiverWaysNear(minLat, minLon, maxLat, maxLon);
+  for (const br of builtinRivers) {
+    const isBig = /пур|обь|таз|надым|енисей|волга|кама|иртыш/i.test(br.name || '');
+    centerlines.push({
+      id: br.id,
+      name: br.name || 'Река',
+      halfWidthKm: isBig ? 0.16 : 0.045,
+      pts: br.pts
+    });
+  }
+  for (const isl of BUILTIN_RIVER_ISLANDS) {
+    if (isl.ring.some(p => p[0] >= minLat - 0.1 && p[0] <= maxLat + 0.1 && p[1] >= minLon - 0.15 && p[1] <= maxLon + 0.15)) {
+      islandInnerRings.push(isl.ring);
+    }
+  }
+  _osmRiverWaysCache.forEach((cachedList) => {
+    if (!Array.isArray(cachedList)) return;
+    for (const cw of cachedList) {
+      if (Array.isArray(cw.pts) && cw.pts.length >= 2) {
+        centerlines.push({
+          id: cw.id || 'osm_cached',
+          name: cw.name || '',
+          halfWidthKm: cw.type === 'river' ? 0.08 : 0.03,
+          pts: cw.pts
+        });
+      }
+    }
+  });
+
+  // 2. Если переданы пользовательские острова/полигоны (например, для тестирования или из кэша)
+  if (Array.isArray(options.customIslands)) {
+    for (const ci of options.customIslands) {
+      if (Array.isArray(ci) && ci.length >= 3) islandInnerRings.push(ci);
+    }
+  }
+  if (Array.isArray(options.customWaterPolygons)) {
+    for (const wp of options.customWaterPolygons) {
+      if (Array.isArray(wp) && wp.length >= 3) waterOuterRings.push(wp);
+    }
+  }
+
+  // 3. Запрос водных полигонов (natural=water, waterway=riverbank) и фарватеров (waterway=river|fairway) из Overpass API
+  if (!options.skipNetwork && !_forceOfflineTestMode && (typeof navigator === 'undefined' || navigator.onLine !== false)) {
+    const q = `[out:json][timeout:6];(way["waterway"~"^(river|stream|canal|fairway|riverbank)$"](${bbox});way["natural"="water"](${bbox});relation["natural"="water"](${bbox}););out geom(${bbox});`;
+    const data = await _queryOverpassJson(q, 4200).catch(() => null);
+    if (data && Array.isArray(data.elements)) {
+      for (const el of data.elements) {
+        if (el.type === 'way' && Array.isArray(el.geometry) && el.geometry.length >= 2) {
+          const pts = el.geometry.map(g => [Number(g.lat), Number(g.lon)]);
+          const ww = String(el.tags?.waterway || '');
+          const nat = String(el.tags?.natural || '');
+          const isClosed = pts.length >= 4 && calcHaversineKm(pts[0][0], pts[0][1], pts[pts.length - 1][0], pts[pts.length - 1][1]) <= 0.03;
+          if (nat === 'water' || ww === 'riverbank' || isClosed) {
+            waterOuterRings.push(pts);
+          } else if (/^(river|stream|canal|fairway)$/.test(ww)) {
+            const wMeters = parseFloat(el.tags?.width) || (ww === 'river' ? 110 : (ww === 'fairway' ? 140 : 35));
+            centerlines.push({
+              id: `way_${el.id}`,
+              name: el.tags?.name || '',
+              halfWidthKm: Math.max(0.02, Math.min(0.45, (wMeters * 0.5) / 1000)),
+              pts
+            });
+          }
+        } else if (el.type === 'relation' && Array.isArray(el.members)) {
+          for (const mb of el.members) {
+            if (mb.type === 'way' && Array.isArray(mb.geometry) && mb.geometry.length >= 3) {
+              const ring = mb.geometry.map(g => [Number(g.lat), Number(g.lon)]);
+              if (mb.role === 'inner') {
+                islandInnerRings.push(ring);
+              } else if (mb.role === 'outer' || !mb.role) {
+                waterOuterRings.push(ring);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // 4. Формируем узлы и рёбра 2D NavMesh (5 параллельных ходовых полос поперёк русла: 0 = фарватер, ±1 = свал, ±2 = береговая кромка)
+  const nodes = new Map();
+  const baseEdges = []; // { fromKey, toKey, distKm, avgShorePenalty, dirUx, dirUy, flowUx, flowUy, laneWeight }
+
+  const addNode = (lat, lon, meta = {}) => {
+    // Исключаем узлы, попадающие внутрь любого острова (role=inner)
+    for (const isl of islandInnerRings) {
+      if (_isPointInPolygonRing(lat, lon, isl)) return null;
+    }
+    const k = `${lat.toFixed(5)}_${lon.toFixed(5)}`;
+    let existing = nodes.get(k);
+    if (!existing) {
+      // Проверяем близость к границе полигона / береговой линии или острову
+      let minBankKm = meta.bankDistKm ?? 0.08;
+      for (const isl of islandInnerRings) {
+        const dIsl = _minDistToRingKm(lat, lon, isl);
+        if (dIsl < minBankKm) minBankKm = dIsl;
+      }
+      for (const outRing of waterOuterRings) {
+        const dOut = _minDistToRingKm(lat, lon, outRing);
+        if (dOut < minBankKm) minBankKm = dOut;
+      }
+      // Задача 3: понижающий коэффициент 0.68 для фарватера (lane === 0), штраф 2.65 для прибрежной отмели (< 25 м от берега или lane === ±2)
+      let shorePenalty = 1.0;
+      if (meta.lane === 0 && minBankKm >= 0.022) {
+        shorePenalty = 0.68; // Приоритет фарватера (центральной линии водоёма)
+      } else if (Math.abs(meta.lane || 0) === 1 && minBankKm >= 0.018) {
+        shorePenalty = 0.94; // Рабочий русловой свал
+      } else if (Math.abs(meta.lane || 0) >= 2 || minBankKm < 0.022) {
+        shorePenalty = 2.65; // Штраф мелководья у берега / внутреннего радиуса поворота
+      }
+
+      existing = {
+        key: k,
+        lat,
+        lon,
+        lane: meta.lane ?? 0,
+        shorePenalty,
+        flowUx: meta.flowUx ?? 0,
+        flowUy: meta.flowUy ?? 0,
+        flowFactor: meta.lane === 0 ? 1.0 : (Math.abs(meta.lane || 0) === 1 ? 0.78 : 0.48),
+        adj: new Map()
+      };
+      nodes.set(k, existing);
+    } else if ((meta.lane === 0) && existing.shorePenalty > 0.70) {
+      existing.shorePenalty = 0.68;
+      existing.lane = 0;
+    }
+    return existing;
+  };
+
+  const tryConnectNodes = (n1, n2) => {
+    if (!n1 || !n2 || n1.key === n2.key) return;
+    const p1 = [n1.lat, n1.lon];
+    const p2 = [n2.lat, n2.lon];
+    // Задача 1 и 2: Строго запрещаем рёбра, пересекающие контур любого острова (inner) или береговую линию (outer)
+    for (const isl of islandInnerRings) {
+      if (_doesSegmentIntersectPolygonRing(p1, p2, isl)) return;
+    }
+    for (const outRing of waterOuterRings) {
+      // Если оба узла внутри внешнего водного полигона, проверяем, не перерезает ли ребро береговой мыс/излучину
+      if (outRing.length >= 4 && _segmentsStrictlyIntersectList(p1, p2, outRing)) return;
+    }
+    const distKm = calcHaversineKm(n1.lat, n1.lon, n2.lat, n2.lon);
+    if (distKm <= 0.0001 || distKm > 1.8) return;
+    const cosLat = Math.cos(((n1.lat + n2.lat) * 0.5 * Math.PI) / 180) || 0.5;
+    const dx = (n2.lon - n1.lon) * cosLat;
+    const dy = n2.lat - n1.lat;
+    const len = Math.hypot(dx, dy) || 1e-9;
+    const dirUx = dx / len;
+    const dirUy = dy / len;
+    const avgShorePenalty = (n1.shorePenalty + n2.shorePenalty) * 0.5;
+    const flowUx = (n1.flowUx + n2.flowUx) * 0.5;
+    const flowUy = (n1.flowUy + n2.flowUy) * 0.5;
+
+    baseEdges.push({
+      fromKey: n1.key,
+      toKey: n2.key,
+      distKm,
+      avgShorePenalty,
+      dirUx,
+      dirUy,
+      flowUx,
+      flowUy,
+      flowFactor: (n1.flowFactor + n2.flowFactor) * 0.5
+    });
+    baseEdges.push({
+      fromKey: n2.key,
+      toKey: n1.key,
+      distKm,
+      avgShorePenalty,
+      dirUx: -dirUx,
+      dirUy: -dirUy,
+      flowUx,
+      flowUy,
+      flowFactor: (n1.flowFactor + n2.flowFactor) * 0.5
+    });
+  };
+
+  // Строим 5-полосную 2D навигационную сетку вдоль каждого русла реки с обходом островов
+  const laneOffsets = [
+    { lane: 0, frac: 0.0 },
+    { lane: -1, frac: -0.42 },
+    { lane: 1, frac: 0.42 },
+    { lane: -2, frac: -0.82 },
+    { lane: 2, frac: 0.82 }
+  ];
+
+  const crossSectionTerminalSlices = [];
+
+  for (const cl of centerlines) {
+    if (!Array.isArray(cl.pts) || cl.pts.length < 2) continue;
+    const dense = _densifyWayGeometry(cl.pts, 0.045); // Шаг сечений 45 м
+    const halfW = cl.halfWidthKm || 0.08;
+    let prevSlice = null;
+
+    for (let i = 0; i < dense.length; i++) {
+      const cur = dense[i];
+      const prev = dense[Math.max(0, i - 1)];
+      const next = dense[Math.min(dense.length - 1, i + 1)];
+      const cosLat = Math.cos((cur[0] * Math.PI) / 180) || 0.5;
+      const tx = (next[1] - prev[1]) * cosLat;
+      const ty = next[0] - prev[0];
+      const tLen = Math.hypot(tx, ty) || 1e-9;
+      // Единичный вектор течения (в OSM реки ориентированы от истока к устью)
+      const flowUx = tx / tLen;
+      const flowUy = ty / tLen;
+      // Перпендикуляр (нормаль к руслу от левого берега к правому)
+      const nx = -flowUy;
+      const ny = flowUx;
+
+      const curSlice = {};
+      for (const lo of laneOffsets) {
+        const offsetKm = halfW * lo.frac;
+        const dLat = (ny * offsetKm) / 111.132;
+        const dLon = (nx * offsetKm) / (111.32 * cosLat);
+        const nLat = cur[0] + dLat;
+        const nLon = cur[1] + dLon;
+        const bankDistKm = Math.max(0.008, halfW * (1 - Math.abs(lo.frac)));
+        const nd = addNode(nLat, nLon, {
+          lane: lo.lane,
+          bankDistKm,
+          flowUx,
+          flowUy
+        });
+        if (nd) curSlice[lo.lane] = nd;
+      }
+
+      // Поперечные связи внутри текущего створа (между соседними полосами: -2 <-> -1 <-> 0 <-> 1 <-> 2)
+      const orderedLanes = [-2, -1, 0, 1, 2];
+      for (let li = 0; li < orderedLanes.length - 1; li++) {
+        const nA = curSlice[orderedLanes[li]];
+        const nB = curSlice[orderedLanes[li + 1]];
+        if (nA && nB) tryConnectNodes(nA, nB);
+      }
+      // Если центральный фарватер (0) перекрыт островом, соединяем обходные протоки (-1 и +1) перед/за островом
+      if (!curSlice[0] && curSlice[-1] && curSlice[1]) {
+        tryConnectNodes(curSlice[-1], curSlice[1]);
+      }
+
+      // Продольные и диагональные связи с предыдущим створом (формируют триангулированную 2D-сетку NavMesh)
+      if (prevSlice) {
+        for (const lCur of orderedLanes) {
+          const nodeCur = curSlice[lCur];
+          if (!nodeCur) continue;
+          for (const lPrev of [lCur, lCur - 1, lCur + 1]) {
+            const nodePrev = prevSlice[lPrev];
+            if (nodePrev) tryConnectNodes(nodePrev, nodeCur);
+          }
+        }
+      }
+
+      if (i === 0 || i === dense.length - 1) {
+        crossSectionTerminalSlices.push(curSlice);
+      }
+      prevSlice = curSlice;
+    }
+  }
+
+  // Сшиваем устья притоков с основным руслом (в радиусе до 2.2 км без пересечения островов)
+  const allNodesList = Array.from(nodes.values());
+  for (const slice of crossSectionTerminalSlices) {
+    const centerNode = slice[0] || slice[-1] || slice[1];
+    if (!centerNode) continue;
+    let bestTarget = null;
+    let bestD = 2.2;
+    for (const cand of allNodesList) {
+      if (cand.key === centerNode.key || centerNode.adj.has(cand.key)) continue;
+      const d = calcHaversineKm(centerNode.lat, centerNode.lon, cand.lat, cand.lon);
+      if (d <= 0.28) {
+        tryConnectNodes(centerNode, cand);
+      } else if (d < bestD) {
+        bestD = d;
+        bestTarget = cand;
+      }
+    }
+    if (bestTarget && bestD <= 2.2) {
+      tryConnectNodes(centerNode, bestTarget);
+    }
+  }
+
+  const mesh = {
+    bboxKey,
+    nodes,
+    baseEdges,
+    waterOuterRings,
+    islandInnerRings,
+    hydrologyParams: { flowSpeedMps: 0.5, boatSpeedKmh: 20 }
+  };
+
+  // Задача 4: Инициализируем динамические веса рёбер с учётом вектора течения
+  applyDynamicHydrologyWeights(mesh, options);
+  _waterNavMeshCache.set(bboxKey, mesh);
+  return mesh;
+}
+
+function _segmentsStrictlyIntersectList(p1, p2, ring) {
+  for (let i = 0; i < ring.length - 1; i++) {
+    if (_segmentsStrictlyIntersect(p1, p2, ring[i], ring[i + 1])) return true;
+  }
+  return false;
+}
+
+/**
+ * Задача 4: Динамическое обновление весов рёбер графа NavMesh на лету (по вектору течения и скорости лодки)
+ * без необходимости перестроения самой навигационной сетки!
+ */
+export function applyDynamicHydrologyWeights(mesh, { flowSpeedMps = null, boatSpeedKmh = null } = {}) {
+  if (!mesh || !mesh.nodes || !Array.isArray(mesh.baseEdges)) return mesh;
+  const s = store.getState();
+  const profFlow = WATER_PROFILES[s?.water]?.flow ?? 1.0;
+  // Скорость течения в м/с (например, 0.65 м/с = 2.34 км/ч на реке)
+  const effFlowMps = Number.isFinite(Number(flowSpeedMps))
+    ? Math.max(0, Number(flowSpeedMps))
+    : Math.max(0, (profFlow - 0.3) * 0.55);
+  const effBoatKmh = Number.isFinite(Number(boatSpeedKmh)) && Number(boatSpeedKmh) > 0
+    ? Number(boatSpeedKmh)
+    : (ARC_TRANSPORT_MODES.boat?.avgSpeedKmh || 20);
+
+  mesh.hydrologyParams = { flowSpeedMps: effFlowMps, boatSpeedKmh: effBoatKmh };
+
+  // Очищаем старые веса в списках смежности без пересоздания узлов
+  mesh.nodes.forEach(nd => nd.adj.clear());
+
+  const flowKmhBase = effFlowMps * 3.6;
+
+  for (const edge of mesh.baseEdges) {
+    const fromNode = mesh.nodes.get(edge.fromKey);
+    if (!fromNode) continue;
+
+    // Косинус угла между единичным вектором ребра (dirUx, dirUy) и единичным вектором течения (flowUx, flowUy):
+    // cosTheta = +1 (попутное течение, угол 0°), cosTheta = -1 (против течения, угол 180° > 90°)
+    const fLen = Math.hypot(edge.flowUx, edge.flowUy);
+    const cosTheta = fLen > 1e-6 ? ((edge.dirUx * edge.flowUx + edge.dirUy * edge.flowUy) / fLen) : 0;
+    const localFlowKmh = flowKmhBase * (edge.flowFactor || 1.0);
+
+    // Эффективная путевая скорость лодки относительно дна (км/ч)
+    const groundSpeedKmh = Math.max(1.8, effBoatKmh + localFlowKmh * cosTheta);
+    // Модификатор сопротивления течения: при движении против течения (угол > 90°, cosTheta < 0)
+    // отношение effBoatKmh / groundSpeedKmh > 1 (вес пропорционально растёт); по течению < 1 (вес снижается)
+    const currentResistanceFactor = effBoatKmh / groundSpeedKmh;
+
+    const dynamicWeight = edge.distKm * edge.avgShorePenalty * currentResistanceFactor;
+    const prevW = fromNode.adj.get(edge.toKey);
+    if (prevW === undefined || dynamicWeight < prevW) {
+      fromNode.adj.set(edge.toKey, dynamicWeight);
+    }
+  }
+  return mesh;
+}
+
+/**
+ * Задача 2 и 3: Поиск пути A* по 2D сетке WaterNavMesh с обходом островов, приоритетом фарватера и учётом течения
+ */
+export async function findWaterNavMeshPath(a, b, options = {}) {
+  const spanLat = Math.abs(a[0] - b[0]);
+  const spanLon = Math.abs(a[1] - b[1]);
+  if (spanLat > 2.6 || spanLon > 4.2) return null;
+
+  const padLat = Math.max(0.05, spanLat * 0.25);
+  const padLon = Math.max(0.08, spanLon * 0.25);
+  const mesh = await buildWaterNavMesh(
+    Math.min(a[0], b[0]) - padLat,
+    Math.min(a[1], b[1]) - padLon,
+    Math.max(a[0], b[0]) + padLat,
+    Math.max(a[1], b[1]) + padLon,
+    options
+  );
+  if (!mesh || mesh.nodes.size < 2) return null;
+
+  let startNode = null, minStartScore = Infinity;
+  let endNode = null, minEndScore = Infinity;
+
+  mesh.nodes.forEach(n => {
+    const da = calcHaversineKm(a[0], a[1], n.lat, n.lon) * (n.lane === 0 ? 0.85 : 1.0);
+    const db = calcHaversineKm(b[0], b[1], n.lat, n.lon) * (n.lane === 0 ? 0.85 : 1.0);
+    if (da < minStartScore) { minStartScore = da; startNode = n; }
+    if (db < minEndScore) { minEndScore = db; endNode = n; }
+  });
+
+  if (!startNode || !endNode || minStartScore > 15.0 || minEndScore > 15.0) return null;
+
+  if (startNode.key === endNode.key && startNode.adj.size > 0) {
+    let bestNbr = null, bestD = Infinity;
+    startNode.adj.forEach((_, nbrKey) => {
+      const cand = mesh.nodes.get(nbrKey);
+      if (cand) {
+        const d = calcHaversineKm(b[0], b[1], cand.lat, cand.lon);
+        if (d < bestD) { bestD = d; bestNbr = cand; }
+      }
+    });
+    if (bestNbr) endNode = bestNbr;
+  }
+
+  // Алгоритм A* с допустимой эвристикой (0.45 * физическое расстояние)
+  const gScore = new Map([[startNode.key, 0]]);
+  const fScore = new Map([[startNode.key, calcHaversineKm(startNode.lat, startNode.lon, endNode.lat, endNode.lon) * 0.45]]);
+  const cameFrom = new Map();
+  const openSet = new Set([startNode.key]);
+  let visited = 0;
+
+  while (openSet.size > 0 && visited < 35000) {
+    visited++;
+    let currentKey = null;
+    let bestF = Infinity;
+    openSet.forEach(k => {
+      const fv = fScore.get(k) ?? Infinity;
+      if (fv < bestF) { bestF = fv; currentKey = k; }
+    });
+    if (!currentKey) break;
+    if (currentKey === endNode.key) {
+      const pathNodes = [];
+      let cur = currentKey;
+      while (cur) {
+        const nd = mesh.nodes.get(cur);
+        if (nd) pathNodes.push(nd);
+        cur = cameFrom.get(cur);
+      }
+      pathNodes.reverse();
+      const coords = pathNodes.map(nd => [nd.lat, nd.lon]);
+      return {
+        points: coords,
+        nodes: pathNodes,
+        totalCost: gScore.get(endNode.key) || 0,
+        mesh
+      };
+    }
+    openSet.delete(currentKey);
+    const curNode = mesh.nodes.get(currentKey);
+    const curG = gScore.get(currentKey) ?? Infinity;
+    curNode.adj.forEach((edgeWeight, nbrKey) => {
+      const tentativeG = curG + edgeWeight;
+      if (tentativeG < (gScore.get(nbrKey) ?? Infinity)) {
+        cameFrom.set(nbrKey, currentKey);
+        gScore.set(nbrKey, tentativeG);
+        const nbrNode = mesh.nodes.get(nbrKey);
+        fScore.set(nbrKey, tentativeG + calcHaversineKm(nbrNode.lat, nbrNode.lon, endNode.lat, endNode.lon) * 0.45);
+        openSet.add(nbrKey);
+      }
+    });
+  }
+  return null;
+}
+
+if (typeof window !== 'undefined') {
+  window.__KLEV_WATER_NAVMESH_ENGINE__ = {
+    buildWaterNavMesh,
+    applyDynamicHydrologyWeights,
+    findWaterNavMeshPath,
+    isPointInIsland: (lat, lon) => BUILTIN_RIVER_ISLANDS.some(isl => _isPointInPolygonRing(lat, lon, isl.ring)),
+    getBuiltinIslands: () => BUILTIN_RIVER_ISLANDS
+  };
+}
+
 async function _buildOsmNetworkPathBetween(a, b, transportMode = 'car') {
+  if (transportMode === 'boat') {
+    const navRes = await findWaterNavMeshPath(a, b);
+    if (navRes && Array.isArray(navRes.points) && navRes.points.length >= 2) {
+      return navRes.points;
+    }
+  }
   try {
     const spanLat = Math.abs(a[0] - b[0]);
     const spanLon = Math.abs(a[1] - b[1]);
@@ -8065,40 +8754,59 @@ function renderArcMobileMap(container, s, prevLiveMapBox) {
       pTitle = `Точки на карте (${totalMapPoints})`;
       const allCatsList = Object.values(SPOT_CATEGORIES);
       const selCats = visibleMapLayers.selectedCategories instanceof Set ? visibleMapLayers.selectedCategories : new Set(allCatsList.map(c => c.id));
+      const filteredSpotItems = (mapCounts.uniqueSpots || []).filter(u => {
+        if (!visibleMapLayers.mySpots) return false;
+        if (u.mine && !visibleMapLayers.showMine) return false;
+        if (!u.mine && !visibleMapLayers.showForeign) return false;
+        if (!selCats.has(u.catKey)) return false;
+        return true;
+      });
+      const offStyle = 'opacity:0.48;border-style:dashed;';
       pBody = `
         <div style="display:flex;flex-direction:column;gap:8px;">
           <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;">
-            <button type="button" class="btn btn-sm ${visibleMapLayers.mySpots ? 'btn-accent' : ''}" data-arc-filter-src="mySpots" style="min-height:34px;font-size:11px;font-weight:800;">Ориентиры (${mapCounts.thematicCount})</button>
-            <button type="button" class="btn btn-sm ${visibleMapLayers.circleBlur ? 'btn-accent' : ''}" data-arc-filter-src="circleBlur" style="min-height:34px;font-size:11px;font-weight:800;">Круг (${mapCounts.circleBlurCount})</button>
-            <button type="button" class="btn btn-sm ${visibleMapLayers.crewExact ? 'btn-accent' : ''}" data-arc-filter-src="crewExact" style="min-height:34px;font-size:11px;font-weight:800;">Экипаж (${mapCounts.crewExactCount})</button>
+            <button type="button" class="btn btn-sm ${visibleMapLayers.mySpots ? 'btn-accent' : ''}" data-arc-filter-src="mySpots" style="min-height:34px;font-size:11px;font-weight:800;${visibleMapLayers.mySpots ? '' : offStyle}">Ориентиры (${mapCounts.thematicCount})</button>
+            <button type="button" class="btn btn-sm ${visibleMapLayers.circleBlur ? 'btn-accent' : ''}" data-arc-filter-src="circleBlur" style="min-height:34px;font-size:11px;font-weight:800;${visibleMapLayers.circleBlur ? '' : offStyle}">Круг (${mapCounts.circleBlurCount})</button>
+            <button type="button" class="btn btn-sm ${visibleMapLayers.crewExact ? 'btn-accent' : ''}" data-arc-filter-src="crewExact" style="min-height:34px;font-size:11px;font-weight:800;${visibleMapLayers.crewExact ? '' : offStyle}">Экипаж (${mapCounts.crewExactCount})</button>
           </div>
           <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;">
-            <button type="button" class="btn btn-sm ${visibleMapLayers.showMine ? 'btn-good' : ''}" data-arc-filter-own="mine" style="min-height:34px;font-size:11px;font-weight:800;">Мои (${mapCounts.mineMapCount})</button>
-            <button type="button" class="btn btn-sm ${visibleMapLayers.showForeign ? 'btn-accent' : ''}" data-arc-filter-own="foreign" style="min-height:34px;font-size:11px;font-weight:800;">Чужие (${mapCounts.foreignMapCount})</button>
+            <button type="button" class="btn btn-sm ${visibleMapLayers.showMine ? 'btn-good' : ''}" data-arc-filter-own="mine" style="min-height:34px;font-size:11px;font-weight:800;${visibleMapLayers.showMine ? '' : offStyle}">Мои (${mapCounts.mineMapCount})</button>
+            <button type="button" class="btn btn-sm ${visibleMapLayers.showForeign ? 'btn-accent' : ''}" data-arc-filter-own="foreign" style="min-height:34px;font-size:11px;font-weight:800;${visibleMapLayers.showForeign ? '' : offStyle}">Чужие (${mapCounts.foreignMapCount})</button>
           </div>
           <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;">
-            ${allCatsList.map(cat => `
-              <button type="button" class="btn btn-sm ${selCats.has(cat.id) ? 'btn-accent' : ''}" data-arc-filter-cat="${cat.id}" style="min-height:34px;font-size:11px;font-weight:800;gap:4px;">
-                ${cat.icon} <span>${escapeHtml(cat.short)}</span>
-              </button>
-            `).join('')}
+            ${allCatsList.map(cat => {
+              const isCatOn = selCats.has(cat.id);
+              return `
+                <button type="button" class="btn btn-sm ${isCatOn ? 'btn-accent' : ''}" data-arc-filter-cat="${cat.id}" style="min-height:34px;font-size:11px;font-weight:800;gap:4px;${isCatOn ? '' : offStyle}">
+                  ${cat.icon} <span>${escapeHtml(cat.short)}</span>
+                </button>
+              `;
+            }).join('')}
           </div>
-          ${(s.savedSpots && s.savedSpots.length) ? `
-            <div style="display:flex;flex-direction:column;gap:5px;padding-top:6px;border-top:1px solid rgba(125,211,252,0.2);">
-              ${s.savedSpots.slice(0, 20).map(sp => `
-                <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;padding:5px 8px;border-radius:10px;background:rgba(15,23,42,0.35);">
-                  <button type="button" data-load-spot="${sp.id}" style="background:none;border:none;color:var(--text);font-weight:800;font-size:11.5px;text-align:left;cursor:pointer;flex:1;">
-                    ${(SPOT_CATEGORIES[sp.category] || SPOT_CATEGORIES.bite).icon} ${escapeHtml(sp.name)}
-                  </button>
-                  <button type="button" data-del-spot="${sp.id}" style="background:none;border:none;color:var(--bad);cursor:pointer;padding:2px 6px;font-weight:900;">&times;</button>
-                </div>
-              `).join('')}
+          ${filteredSpotItems.length > 0 ? `
+            <div style="display:flex;flex-direction:column;gap:5px;padding-top:6px;border-top:1px solid rgba(125,211,252,0.2);max-height:150px;overflow-y:auto;">
+              ${filteredSpotItems.slice(0, 25).map(u => {
+                const spTitle = u.source === 'saved' ? (u.raw?.name || 'Точка') : (u.raw?.wn || u.raw?.fn || u.raw?.lb || 'Точка');
+                return `
+                  <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;padding:5px 8px;border-radius:10px;background:var(--panel);border:1px solid var(--border);">
+                    <button type="button" data-load-spot="${escapeHtml(u.id)}" data-load-spot-lat="${u.lat}" data-load-spot-lon="${u.lon}" style="background:none;border:none;color:var(--text);font-weight:800;font-size:11.5px;text-align:left;cursor:pointer;flex:1;display:flex;align-items:center;gap:6px;">
+                      ${(SPOT_CATEGORIES[u.catKey] || SPOT_CATEGORIES.bite).icon} <span>${escapeHtml(spTitle)}</span>
+                    </button>
+                    <button type="button" data-del-spot="${escapeHtml(u.id)}" style="background:none;border:none;color:var(--bad);cursor:pointer;padding:2px 6px;font-weight:900;">&times;</button>
+                  </div>
+                `;
+              }).join('')}
             </div>
-          ` : ''}
+          ` : `
+            <div style="font-size:11px;color:var(--muted);text-align:center;padding:4px 0;">
+              Точки выбранных категорий скрыты фильтром выше (нажмите на кнопку фильтра для включения)
+            </div>
+          `}
         </div>
       `;
     } else if (_arcExpandedPlaqueId === '8.4') {
-      pTitle = 'Офлайн карты';
+      const savedPacksCount = (_cachedPacksList || []).length;
+      pTitle = `Офлайн карты (${savedPacksCount})`;
       if (_arcOfflinePromptRadiusKm) {
         pBody = `
           <div style="display:flex;flex-direction:column;gap:8px;">
@@ -8111,9 +8819,22 @@ function renderArcMobileMap(container, s, prevLiveMapBox) {
         `;
       } else {
         pBody = `
-          <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
-            <button type="button" class="btn btn-sm btn-accent" data-arc-offline-radius="50" style="min-height:44px;font-weight:900;">Скачать квадрат 50 км</button>
-            <button type="button" class="btn btn-sm btn-good" data-arc-offline-radius="120" style="min-height:44px;font-weight:900;">Скачать квадрат 120 км</button>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <button type="button" class="klev-arc-glass klev-arc-icon-btn ${_offlineMapsEnabledOnMap ? 'active' : ''}" id="arcOfflineToggleLayerBtn" title="Вкл/Выкл загруженные офлайн-карты на карте" style="width:46px;height:46px;flex-shrink:0;">
+                <svg class="k-ico" style="width:22px;height:22px;color:${_offlineMapsEnabledOnMap ? '#10b981' : '#ef4444'};" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2.2"/>
+                  <circle cx="12" cy="12" r="4.2" fill="currentColor"/>
+                </svg>
+              </button>
+              <button type="button" class="btn btn-sm btn-accent" id="arcOpenOfflineManagerModalBtn" style="flex:1;min-height:46px;font-weight:900;">
+                Загруженные карты (${savedPacksCount})
+              </button>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
+              <button type="button" class="btn btn-sm btn-accent" data-arc-offline-radius="50" style="min-height:42px;font-weight:900;">Скачать квадрат 50 км</button>
+              <button type="button" class="btn btn-sm btn-good" data-arc-offline-radius="120" style="min-height:42px;font-weight:900;">Скачать квадрат 120 км</button>
+            </div>
           </div>
         `;
       }
@@ -8408,13 +9129,13 @@ function renderArcMobileMap(container, s, prevLiveMapBox) {
 
                 <div class="klev-arc-glass klev-arc-plaque" data-arc-open-plaque="8.4">
                   <div style="display:flex;align-items:center;justify-content:center;gap:8px;">
-                    <svg class="k-ico" style="width:28px;height:28px;color:${hasOfflineHere ? '#10b981' : '#ef4444'};" viewBox="0 0 24 24" fill="none">
+                    <svg class="k-ico" style="width:28px;height:28px;color:${(hasOfflineHere && _offlineMapsEnabledOnMap) ? '#10b981' : '#ef4444'};" viewBox="0 0 24 24" fill="none">
                       <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2.2"/>
                       <circle cx="12" cy="12" r="4.2" fill="currentColor"/>
                     </svg>
-                    <span class="klev-arc-plaque-metric" style="font-size:18px;color:${hasOfflineHere ? 'var(--good)' : 'var(--bad)'};">${hasOfflineHere ? '50/120 ОК' : 'Офлайн'}</span>
+                    <span class="klev-arc-plaque-metric" style="font-size:18px;color:${(hasOfflineHere && _offlineMapsEnabledOnMap) ? 'var(--good)' : 'var(--bad)'};">${hasOfflineHere ? (_offlineMapsEnabledOnMap ? '50/120 ОК' : 'ВЫКЛ') : 'Офлайн'}</span>
                   </div>
-                  <div class="klev-arc-plaque-sub">${hasOfflineHere ? 'Карта в памяти' : 'Скачать 50 / 120 км'}</div>
+                  <div class="klev-arc-plaque-sub">${hasOfflineHere ? (_offlineMapsEnabledOnMap ? 'Карта в памяти' : 'Офлайн-слой скрыт') : 'Скачать 50 / 120 км'}</div>
                 </div>
               </div>
 
@@ -8477,6 +9198,10 @@ function renderArcMobileMap(container, s, prevLiveMapBox) {
     const newSlot = container.querySelector('#mapBox');
     if (newSlot && newSlot.parentNode) {
       newSlot.parentNode.replaceChild(prevLiveMapBox, newSlot);
+      if (mapInstance) {
+        try { mapInstance.invalidateSize({ pan: false, animate: false }); } catch (_e) {}
+        try { renderMapOverlays(); } catch (_e) {}
+      }
     }
   }
 
@@ -9280,13 +10005,32 @@ function bindArcMobileMapEvents(container) {
   });
 
   container.querySelectorAll('[data-load-spot]').forEach(btn => {
-    btn.addEventListener('click', (e) => {
+    btn.addEventListener('click', async (e) => {
       e.stopPropagation();
       const id = btn.getAttribute('data-load-spot');
-      const sp = (s.savedSpots || []).find(x => x.id === id);
-      if (sp) {
+      const sp = (s.savedSpots || []).find(x => x && x.id === id) ||
+                 (s.circleItems || []).find(x => x && x.id === id);
+      const lat = sp ? Number(sp.lat) : parseFloat(btn.getAttribute('data-load-spot-lat'));
+      const lon = sp ? Number(sp.lon) : parseFloat(btn.getAttribute('data-load-spot-lon'));
+      if (Number.isFinite(lat) && Number.isFinite(lon)) {
+        visibleMapLayers.mySpots = true;
+        visibleMapLayers.showMine = true;
+        if (sp) {
+          const catKey = normalizeSpotCatKey(sp.category || sp.cat || 'bite');
+          if (visibleMapLayers.selectedCategories instanceof Set) {
+            visibleMapLayers.selectedCategories.add(catKey);
+          }
+        }
         _arcExpandedPlaqueId = null;
-        setLocation(sp.lat, sp.lon, true);
+        await setLocation(lat, lon, true, 15);
+        renderMapOverlays();
+        render(container);
+        setTimeout(() => {
+          if (id && _circleLayersMap.has(id)) {
+            const m = _circleLayersMap.get(id);
+            if (m && typeof m.openPopup === 'function') m.openPopup();
+          }
+        }, 120);
       }
     });
   });
@@ -9295,11 +10039,31 @@ function bindArcMobileMapEvents(container) {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const id = btn.getAttribute('data-del-spot');
-      deleteSpot(id).then(() => render(container));
+      deleteSpot(id).then(() => {
+        renderMapOverlays();
+        render(container);
+      });
     });
   });
 
-  // П. 8.4: Офлайн-карты (квадрат 50 км и 120 км с настройками по умолчанию Спутник+гибрид Z18 или Выбрать вручную)
+  // П. 8.4: Офлайн-карты (тумблер Вкл/Выкл, кнопка окна управления загруженными картами, скачивание 50 км и 120 км)
+  container.querySelector('#arcOfflineToggleLayerBtn')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    setOfflineMapLayerEnabled(!_offlineMapsEnabledOnMap);
+    rebuildActiveMapTileLayer();
+    renderMapOverlays();
+    render(container);
+    showToast(_offlineMapsEnabledOnMap ? 'Загруженные офлайн-карты на карте ВКЛЮЧЕНЫ' : 'Офлайн-карты скрыты (включён онлайн-режим)', 'info');
+  });
+
+  container.querySelector('#arcOpenOfflineManagerModalBtn')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    _arcOfflinePromptRadiusKm = null;
+    _arcExpandedPlaqueId = null;
+    render(container);
+    openOfflineMapsManagerModal({ initialRadiusKm: 50 });
+  });
+
   container.querySelectorAll('[data-arc-offline-radius]').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -9311,15 +10075,24 @@ function bindArcMobileMapEvents(container) {
   container.querySelector('#arcOfflineConfirmDefaultBtn')?.addEventListener('click', (e) => {
     e.stopPropagation();
     const rad = parseInt(e.currentTarget.getAttribute('data-rad'), 10) || 50;
+    const mc = (mapInstance && typeof mapInstance.getCenter === 'function') ? mapInstance.getCenter() : null;
+    const cLat = (mc && Number.isFinite(mc.lat)) ? mc.lat : Number(s.lat || 66.0833);
+    const cLon = (mc && Number.isFinite(mc.lng)) ? mc.lng : Number(s.lon || 76.6333);
     _arcOfflinePromptRadiusKm = null;
     _arcExpandedPlaqueId = null;
+    setOfflineMapLayerEnabled(true);
     render(container);
     startOfflinePackDownload({
+      centerLat: cLat,
+      centerLon: cLon,
       radiusKm: rad,
-      layerKey: 'yandex_hybrid',
-      maxZoom: 18,
-      smartHydroCorridor: true,
+      layerMode: 'satellite',
+      smartHydroZ15: true,
       title: `${s.locLabel || 'Квадрат'} (${rad} км • Спутник+гибрид Z18)`
+    }).then(() => {
+      rebuildActiveMapTileLayer();
+      renderMapOverlays();
+      render(container);
     });
   });
 
@@ -9329,7 +10102,7 @@ function bindArcMobileMapEvents(container) {
     _arcOfflinePromptRadiusKm = null;
     _arcExpandedPlaqueId = null;
     render(container);
-    openOfflineMapsManagerModal(rad);
+    openOfflineMapsManagerModal({ initialRadiusKm: rad });
   });
 
   // П. 8.5: Глубины (значок Вкл/Выкл и Загрузить карту глубин)
@@ -9439,7 +10212,7 @@ export function render(container) {
             <svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>
             <span>Офлайн-карты 50/120 км${getCachedOfflineMapPacksSync().length > 0 ? ` (${getCachedOfflineMapPacksSync().length})` : ''}</span>
           </button>
-          <button type="button" class="btn btn-sm geo-auth-only-block" id="geoOpenPhase3RoutesBtn" style="width:100%;min-height:40px;padding:6px 10px;font-size:11.5px;font-weight:900;justify-content:center;border-color:${_phase3ActiveTrack ? 'var(--bad)' : 'var(--warn)'};color:${_phase3ActiveTrack ? 'var(--bad)' : 'var(--warn)'};background:${_phase3ActiveTrack ? 'rgba(239,68,68,0.14)' : 'rgba(245,158,11,0.10)'};" title="Фаза 3: Запись маршрута в фоне, возврат по маршруту и аварийный режим Я потерялся">
+          <button type="button" class="btn btn-sm geo-auth-only-block" id="geoOpenPhase3RoutesBtn" style="width:100%;min-height:40px;padding:6px 10px;font-size:11.5px;font-weight:900;justify-content:center;border-color:${_phase3ActiveTrack ? 'var(--bad)' : 'var(--warn)'};color:${_phase3ActiveTrack ? 'var(--bad)' : 'var(--warn)'};background:${_phase3ActiveTrack ? 'rgba(239,68,68,0.14)' : 'rgba(245,158,11,0.10)'};" title="Запись маршрута в фоне, возврат по следу и аварийный режим Я потерялся">
             <svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"12\" cy=\"12\" r=\"9\" stroke=\"currentColor\" stroke-width=\"1.8\"/><polygon points=\"16,8 13.5,13.5 8,16 10.5,10.5\" fill=\"currentColor\"/></svg>
             <span>${_phase3ActiveTrack ? (_phase3ActiveTrack.status === 'returning' ? 'Возврат по следу ВКЛ' : `Маршрут: ${(_phase3ActiveTrack.totalDistKm || 0).toFixed(1)} км`) : 'Маршруты • Я потерялся'}</span>
           </button>

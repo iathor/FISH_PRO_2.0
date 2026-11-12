@@ -1,43 +1,43 @@
 /**
  * @file config.js
- * @description Конфигурация приложения (Релиз 2.9.1 r236), слои карт без VPN и адаптивные справочники снастей и сезонных наживок
+ * @description Конфигурация приложения (Релиз 2.9.2 r237), слои карт без VPN и адаптивные справочники снастей и сезонных наживок
  */
-export const APP_VERSION = '2.9.1';
-export const APP_BUILD_NUMBER = 236;
-export const APP_REVISION = 'r236';
-export const APP_DISPLAY_VERSION = 'v2.9.1 r236';
+export const APP_VERSION = '2.9.2';
+export const APP_BUILD_NUMBER = 237;
+export const APP_REVISION = 'r237';
+export const APP_DISPLAY_VERSION = 'v2.9.2 r237';
 export const STATE_CACHE_KEY = 'klev_pro_state_v2.0';
 export const WEATHER_CACHE_KEY = 'klev_pro_weather_v2.0';
 export const RELEASE_CACHE_KEY = 'klev_pro_release_v2.0';
 export const WEATHER_TTL_MS = 2 * 60 * 60 * 1000;
 export const CURRENT_RELEASE_INFO = {
-  "version": "2.9.1",
-  "versionCode": 291236,
-  "buildNumber": 236,
-  "revision": "r236",
-  "displayVersion": "v2.9.1 r236",
+  "version": "2.9.2",
+  "versionCode": 292237,
+  "buildNumber": 237,
+  "revision": "r237",
+  "displayVersion": "v2.9.2 r237",
   "date": "12 ноября 2026",
-  "releasedAt": "2026-11-12T12:00:00Z",
-  "apkUrl": "https://klevpro.ru/apk/klev-pro-v2.9.1.apk",
+  "releasedAt": "2026-11-12T13:30:00Z",
+  "apkUrl": "https://klevpro.ru/apk/klev-pro-v2.9.2.apk",
   "fileSize": "38.8 МБ",
-  "title": "Обновление «Клёв ПРО 2.0» (v2.9.1 r236)",
-  "subtitle": "Калибровка толщины льда (река и озеро), сводка дорожной и штормовой обстановки с передачей в маршрут, почасовая волна и точная запись трека.",
-  "summary": "Уточнён расчёт толщины льда по регионам для рек и стоячих водоёмов, добавлена сводка гололедицы и штормов с предупреждением на маршруте, почасовая волна для открытой большой воды и высокоточная запись маршрута.",
+  "title": "Обновление «Клёв ПРО 2.0» (v2.9.2 r237)",
+  "subtitle": "Водный движок NavMesh (обход островов, приоритет фарватера и учёт течения), управление офлайн-картами с плашки и фильтрация точек.",
+  "summary": "Внедрён 2D-движок водной маршрутизации NavMesh с обходом островов, приоритетом фарватера и учётом вектора течения, в плашку офлайн-карт добавлены тумблер Вкл/Выкл и управление загруженными картами, синхронизированы фильтры точек.",
   "highlights": [
     {
-      "icon": "<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M12 2v20M4.93 4.93l14.14 14.14M2 12h20M4.93 19.07L19.07 4.93\" stroke=\"#38bdf8\" stroke-width=\"1.8\" stroke-linecap=\"round\"/></svg>",
-      "title": "Точный лёд, дорожная сводка и волна",
-      "text": "Раздельный расчёт льда для рек и озёр, сводка гололедицы и штормов с передачей в маршрут и почасовая волна на большой воде."
+      "icon": "<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M3 14l3 4h12l3-4-9-2-9 2z\" stroke=\"#38bdf8\" stroke-width=\"1.9\" stroke-linejoin=\"round\"/><path d=\"M12 6v6m0-6l4 4h-4\" stroke=\"#10b981\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>",
+      "title": "Водный движок NavMesh",
+      "text": "Маршруты для лодки огибают острова и косы, держатся фарватера и учитывают направление и скорость течения."
     },
     {
-      "icon": "<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"12\" cy=\"12\" r=\"9\" stroke=\"#38bdf8\" stroke-width=\"1.8\"/><path d=\"M12 12L18 6\" stroke=\"#10b981\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg>",
-      "title": "Чистая запись трека и маршрут лодки",
-      "text": "Высокоточная запись пешего хода без привязки к автодорогам, сохранение по кнопке Стоп и лодочный маршрут строго по руслу реки."
+      "icon": "<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"12\" cy=\"12\" r=\"9\" stroke=\"#10b981\" stroke-width=\"2\"/><circle cx=\"12\" cy=\"12\" r=\"4\" fill=\"#10b981\"/></svg>",
+      "title": "Управление офлайн-картами",
+      "text": "На плашке офлайн-карт доступны тумблер Вкл/Выкл загруженного слоя и быстрый переход к списку карт в памяти."
     },
     {
-      "icon": "<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3V6z\" fill=\"rgba(56,189,248,0.18)\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/></svg>",
-      "title": "Автовосстановление карты после VPN",
-      "text": "Автоматическая перезагрузка тайлов карты при отключении VPN или переключении сети без перезапуска приложения."
+      "icon": "<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z\" fill=\"rgba(56,189,248,0.22)\" stroke=\"#38bdf8\" stroke-width=\"1.9\"/><circle cx=\"12\" cy=\"11\" r=\"2.3\" fill=\"#38bdf8\"/></svg>",
+      "title": "Фильтры точек и точная вёрстка",
+      "text": "Синхронизация списка точек с фильтрами на карте, ровные поля в модальном окне точки и чистые уведомления."
     }
   ]
 };

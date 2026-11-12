@@ -1,11 +1,11 @@
-import { RU } from '../../i18n/ru.js?v=2.9.1-r236';
-import { events } from '../../core/events.js?v=2.9.1-r236';
-import { storage } from '../../core/storage.js?v=2.9.1-r236';
-import { store } from '../../core/store.js?v=2.9.1-r236';
-import { fetchWithTimeout, fallbackChain } from '../../core/http.js?v=2.9.1-r236';
-import { formatLocalYYYYMMDD, fmtHM, fmtDeltaPress } from '../../core/format.js?v=2.9.1-r236';
-import { WATER_PROFILES } from '../../data/waters.js?v=2.9.1-r236';
-import { createPill, showToast } from '../../ui/components.js?v=2.9.1-r236';
+import { RU } from '../../i18n/ru.js?v=2.9.2-r237';
+import { events } from '../../core/events.js?v=2.9.2-r237';
+import { storage } from '../../core/storage.js?v=2.9.2-r237';
+import { store } from '../../core/store.js?v=2.9.2-r237';
+import { fetchWithTimeout, fallbackChain } from '../../core/http.js?v=2.9.2-r237';
+import { formatLocalYYYYMMDD, fmtHM, fmtDeltaPress } from '../../core/format.js?v=2.9.2-r237';
+import { WATER_PROFILES } from '../../data/waters.js?v=2.9.2-r237';
+import { createPill, showToast } from '../../ui/components.js?v=2.9.2-r237';
 const DIRS = ['С', 'СВ', 'В', 'ЮВ', 'Ю', 'ЮЗ', 'З', 'СЗ'];
 
 /**
@@ -1500,9 +1500,9 @@ export function render(container) {
               </div>
               ${isWeatherBetaUser(s) ? `
               <div style="display:inline-flex;align-items:center;gap:5px;flex-wrap:wrap;">
-                <button type="button" class="btn btn-sm" id="weatherHeroRefreshBtn" style="min-height:26px;padding:2px 8px;font-size:11px;font-weight:800;" title="Обновить погоду (Бета-тест)">
+                <button type="button" class="btn btn-sm" id="weatherHeroRefreshBtn" style="min-height:26px;padding:2px 8px;font-size:11px;font-weight:800;" title="Обновить погоду">
                   <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M20 11a8 8 0 0 0-14.5-4.5L4 8m0-5v5h5M4 13a8 8 0 0 0 14.5 4.5L20 16m0 5v-5h-5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                  <span>Обновить погоду [БЕТА]</span>
+                  <span>Обновить погоду</span>
                 </button>
               </div>
               ` : ''}

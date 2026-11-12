@@ -9,16 +9,16 @@
  * - Выделенная вкладка « Чаты» на нижней панели навигации + отправка карточки улова прямо в чат.
  * - Закрытый режим Супер-Админа (только для Владельца + управляемая База Администраторов с синхронизацией).
  */
-import { events } from '../../core/events.js?v=2.9.1-r236';
-import { store } from '../../core/store.js?v=2.9.1-r236';
-import { storage, calcGeoDistanceKm, safeJsonParse } from '../../core/storage.js?v=2.9.1-r236';
-import { router } from '../../core/router.js?v=2.9.1-r236';
-import { APP_VERSION, APP_REVISION, APP_DISPLAY_VERSION, getSeasonalBaitsForContext, SPOT_CATEGORIES } from '../../core/config.js?v=2.9.1-r236';
-import { detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.9.1-r236';
-import { findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.9.1-r236';
-import { WATER_PROFILES } from '../../data/waters.js?v=2.9.1-r236';
-import { FISH_DB } from '../../data/species.js?v=2.9.1-r236';
-import { escapeHtml, isAnonymousCallsignValid, createPill, showToast, openModal, closeModal, copyFisherIdToClipboard, openConfirmDeleteModal, openUserAgreementModal, isUserAgreementAccepted, downloadFileCrossPlatform, triggerSystemNotificationCrossPlatform, requestSystemNotificationsAccess, flashHighlightElement, isPolicyVersionAccepted, getSavedPolicyConsentMeta, POLICY_CONSENT_META_KEY, ACTIVE_POLICY_VERSION_DEFAULT, ACTIVE_APP_VERSION_DEFAULT, saveRemotePolicyToClientEnv, getRemotePolicyFromClientEnv, parsePolicySectionsFromEditableText, formatPolicySectionsToEditableText, DEFAULT_POLICY_SECTIONS, isGeoDistributionConsentActive, ensureGeoDistributionConsent, setGeoDistributionConsentState } from '../../ui/components.js?v=2.9.1-r236';
+import { events } from '../../core/events.js?v=2.9.2-r237';
+import { store } from '../../core/store.js?v=2.9.2-r237';
+import { storage, calcGeoDistanceKm, safeJsonParse } from '../../core/storage.js?v=2.9.2-r237';
+import { router } from '../../core/router.js?v=2.9.2-r237';
+import { APP_VERSION, APP_REVISION, APP_DISPLAY_VERSION, getSeasonalBaitsForContext, SPOT_CATEGORIES } from '../../core/config.js?v=2.9.2-r237';
+import { detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.9.2-r237';
+import { findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.9.2-r237';
+import { WATER_PROFILES } from '../../data/waters.js?v=2.9.2-r237';
+import { FISH_DB } from '../../data/species.js?v=2.9.2-r237';
+import { escapeHtml, isAnonymousCallsignValid, createPill, showToast, openModal, closeModal, copyFisherIdToClipboard, openConfirmDeleteModal, openUserAgreementModal, isUserAgreementAccepted, downloadFileCrossPlatform, triggerSystemNotificationCrossPlatform, requestSystemNotificationsAccess, flashHighlightElement, isPolicyVersionAccepted, getSavedPolicyConsentMeta, POLICY_CONSENT_META_KEY, ACTIVE_POLICY_VERSION_DEFAULT, ACTIVE_APP_VERSION_DEFAULT, saveRemotePolicyToClientEnv, getRemotePolicyFromClientEnv, parsePolicySectionsFromEditableText, formatPolicySectionsToEditableText, DEFAULT_POLICY_SECTIONS, isGeoDistributionConsentActive, ensureGeoDistributionConsent, setGeoDistributionConsentState } from '../../ui/components.js?v=2.9.2-r237';
 import {
   RELAY_WORKER_URL,
   buildShareUrls,
@@ -31,9 +31,9 @@ import {
   syncToTelegramCloud,
   readFromTelegramCloud,
   triggerHaptic
-} from '../../core/telegram.js?v=2.9.1-r236';
-import { setLocation } from '../geo/geo.module.js?v=2.9.1-r236';
-import { calcDynamicRig } from '../forecast/forecast.module.js?v=2.9.1-r236';
+} from '../../core/telegram.js?v=2.9.2-r237';
+import { setLocation } from '../geo/geo.module.js?v=2.9.2-r237';
+import { calcDynamicRig } from '../forecast/forecast.module.js?v=2.9.2-r237';
 export const CREW_TTL_MS = 72 * 60 * 60 * 1000;
 /**
  * Вычисляет точное время окончания действия ссылки на длинную экспедицию:
@@ -2896,7 +2896,7 @@ export function renderSettingsZoneTabsHtml(activeZone = 'auth') {
     { id: 'auth', icon: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="5" y="11" width="14" height="10" rx="2.5" fill="rgba(251,191,36,0.22)" stroke="#fbbf24" stroke-width="1.8"/><path d="M8 11V7a4 4 0 0 1 8 0v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>', label: '1. Профиль и ID', locked: false },
     { id: 'fishing', icon: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg>', label: '2. Рыбалка и Калибровка', locked: false },
     { id: 'app', icon: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3.2" stroke="currentColor" stroke-width="1.9"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.6.77 1.05 1.41 1.19H21a2 2 0 1 1 0 4h-.09c-.64.14-1.15.59-1.51 1.21z" stroke="currentColor" stroke-width="1.6"/></svg>', label: '3. Приложение и Звук', locked: false },
-    { id: 'offgrid', icon: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5M19.1 4.9C23 8.8 23 15.2 19.1 19.1" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="#ef4444"/></svg>', label: betaOrAdmin ? '4. Фаза 2 и 3 (Бета ВКЛ)' : '4. Фаза 2 и 3 (Бета-тест)', locked: !betaOrAdmin }
+    { id: 'offgrid', icon: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5M19.1 4.9C23 8.8 23 15.2 19.1 19.1" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="#ef4444"/></svg>', label: '4. Автономная связь и Авто-SOS', locked: !betaOrAdmin }
   ];
   return `
     <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:4px;" role="tablist" aria-label="Зоны настроек">
@@ -4855,7 +4855,7 @@ export function openAddThematicMapPointModal(initialCat = 'slip') {
           <label for="thematicSpotTitleInp" style="display:block;font-size:11px;font-weight:800;color:var(--muted);margin-bottom:3px;">${cfg.titleLabel}</label>
           <input type="text" id="thematicSpotTitleInp" class="input" maxlength="72" value="${escapeHtml(defaultTitle)}" placeholder="${escapeHtml(cfg.titlePlaceholder)}">
         </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;">
+        <div style="display:grid;grid-template-columns:1fr;gap:8px;">
           ${cfg.meta1Label ? `
             <div>
               <label for="thematicSpotMeta1Inp" style="display:block;font-size:11px;font-weight:800;color:var(--muted);margin-bottom:3px;">${cfg.meta1Label}</label>
@@ -5104,7 +5104,7 @@ export function openShareModalForCurrentContext(initialMode = 'circle', override
             <span class="fisher-id-copy-badge" data-copy-fisher-id="${ident.fisherId}" title="Нажмите для автокопирования ID"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> ${ident.fisherId} <svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="9" y="9" width="11" height="11" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
           </div>
           ${currentMode === 'sos'
-            ? '<svg class="k-ico" style="color:var(--bad);" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9.5" fill="#dc2626" stroke="#fca5a5" stroke-width="1.8"/><text x="12" y="15" text-anchor="middle" fill="#fff" font-size="7.5" font-weight="900" font-family="sans-serif">SOS</text></svg> <span class="pill pill-warn" style="font-size:10px;padding:1px 6px;margin-right:4px;">[БЕТА-ТЕСТ]</span><b>Вспомогательный сигнал SOS для рыболовов поблизости:</b> виден на карте и в Круге при наличии связи. <b>Обязательно дублируйте вызов экстренной помощи по номеру 112 или по морской/речной рации!</b>'
+            ? '<svg class="k-ico" style="color:var(--bad);" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9.5" fill="#dc2626" stroke="#fca5a5" stroke-width="1.8"/><text x="12" y="15" text-anchor="middle" fill="#fff" font-size="7.5" font-weight="900" font-family="sans-serif">SOS</text></svg> <b>Вспомогательный сигнал SOS для рыболовов поблизости:</b> виден на карте и в Круге при наличии связи. <b>Обязательно дублируйте вызов экстренной помощи по номеру 112 или по морской/речной рации!</b>'
             : (currentMode === 'crew'
                 ? `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="8" cy="15" r="4.5" fill="rgba(251,191,36,0.22)" stroke="#fbbf24" stroke-width="1.8"/><path d="M11.5 11.5L20 3m-3 3l2.5 2.5M14.5 8.5L17 11" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> <b>Закрытый Экипаж (${pack.packObj.crewKey}):</b> точные координаты и чат экипажа увидят ТОЛЬКО участники с ключом (и Админы из базы).`
                 : '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2.5l7 3.2v5.8c0 5-3 9.3-7 10.8-4-1.5-7-5.8-7-10.8V5.7l7-3.2z" fill="rgba(56,189,248,0.22)" stroke="#38bdf8" stroke-width="1.8" stroke-linejoin="round"/></svg> <b>Ультракороткая бинарная упаковка V3:</b> вся ссылка занимает ~54 символа (<code>#p=KP1_...</code>) со встроенным ID рыбака и гексагоном ±5/10 км.')}
@@ -5119,7 +5119,7 @@ export function openShareModalForCurrentContext(initialMode = 'circle', override
             <span style="font-size:10px;opacity:0.85;">По ключу ${pack.packObj.crewKey || ''}</span>
           </button>
           <button type="button" class="btn btn-sm ${currentMode === 'sos' ? 'btn-good' : ''}" data-share-mode="sos" style="min-height:44px;flex-direction:column;gap:2px;border-color:var(--bad);color:${currentMode === 'sos' ? '#fff' : 'var(--bad)'};background:${currentMode === 'sos' ? 'var(--bad)' : 'var(--card)'};">
-            <span><svg class="k-ico" style="color:var(--bad);" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9.5" fill="#dc2626" stroke="#fca5a5" stroke-width="1.8"/><text x="12" y="15" text-anchor="middle" fill="#fff" font-size="7.5" font-weight="900" font-family="sans-serif">SOS</text></svg> SOS [БЕТА-ТЕСТ]</span>
+            <span><svg class="k-ico" style="color:var(--bad);" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9.5" fill="#dc2626" stroke="#fca5a5" stroke-width="1.8"/><text x="12" y="15" text-anchor="middle" fill="#fff" font-size="7.5" font-weight="900" font-family="sans-serif">SOS</text></svg> SOS</span>
             <span style="font-size:10px;opacity:0.9;">Дублируйте по 112 / рации</span>
           </button>
         </div>
@@ -7561,7 +7561,7 @@ function resolveLatestAdminPolicyState(db = {}) {
   const baseline = {
     policyVersion: ACTIVE_POLICY_VERSION_DEFAULT || '2026.11.10-v2.8.3',
     appVersion: ACTIVE_APP_VERSION_DEFAULT || APP_VERSION || '2.8.3',
-    appRevision: APP_REVISION || 'r236',
+    appRevision: APP_REVISION || 'r237',
     summary: 'Редакция v2.8.3 (r235): сохранность пользовательских данных при очистке кэша, единый постоянный ID рыбака на всех устройствах по логину и паролю, расчёт гидрологии и льда по данным Росгидромета (meteoinfo.ru), правила гостевого доступа и Бета-теста.',
     sections: DEFAULT_POLICY_SECTIONS
   };
@@ -7585,7 +7585,7 @@ function resolveLatestAdminPolicyState(db = {}) {
   const resolved = {
     policyVersion: best.policyVersion || baseline.policyVersion,
     appVersion: (best.appVersion && best.appVersion !== '2.5.6') ? best.appVersion : baseline.appVersion,
-    appRevision: best.appRevision || APP_REVISION || 'r236',
+    appRevision: best.appRevision || APP_REVISION || 'r237',
     summary: (best.summary && !/v2\.5\.6|\(r22[0-9]\)/i.test(best.summary)) ? best.summary : baseline.summary,
     sections: (Array.isArray(best.sections) && best.sections.length > 0) ? best.sections : DEFAULT_POLICY_SECTIONS,
     broadcastId: best.broadcastId || '',
@@ -9045,7 +9045,7 @@ function bindAdminSectionEvents(container, users) {
     const newPolObj = {
       policyVersion: pVer,
       appVersion: aVer,
-      appRevision: APP_REVISION || 'r236',
+      appRevision: APP_REVISION || 'r237',
       effectiveDate: new Date(nowMs).toLocaleDateString('ru-RU'),
       summary: pSum,
       sections: parsedSecs,
