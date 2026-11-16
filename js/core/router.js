@@ -1,6 +1,6 @@
-import { store } from './store.js?v=2.9.3-r238';
-import { renderMap } from '../modules/geo/geo.module.js?v=2.9.3-r238';
-import { closeModal } from '../ui/components.js?v=2.9.3-r238';
+import { store } from './store.js?v=2.9.3-r239';
+import { renderMap } from '../modules/geo/geo.module.js?v=2.9.3-r239';
+import { closeModal } from '../ui/components.js?v=2.9.3-r239';
 const VALID_ROUTES = ['geo', 'weather', 'fish', 'forecast', 'circle', 'chats', 'log', 'calendar', 'admin'];
 const DEFAULT_ROUTE = (typeof window !== 'undefined' && window.__KLEV_ADMIN_CONTOUR__ === true) ? 'admin' : 'forecast';
 const routeHistoryStack = [DEFAULT_ROUTE];
@@ -180,7 +180,7 @@ export const router = {
       window.syncFishDockState(true, target);
     }
   },
-  syncNavGliders(route) {
+  syncNavGliders(route, forceMeasure = false) {
     if (typeof document === 'undefined') return;
     const syncBarGlider = (barEl, gliderId) => {
       if (!barEl) return;
@@ -191,35 +191,63 @@ export const router = {
         glider.className = 'klev-nav-glider';
         barEl.prepend(glider);
       }
+      barEl.classList.add('has-liquid-glider');
       const activeBtn = barEl.querySelector('.active');
       if (!activeBtn || activeBtn.offsetParent === null) {
         glider.style.opacity = '0';
+        glider._prevBtn = null;
         return;
       }
+      const btnChanged = glider._prevBtn !== activeBtn;
+      if (!btnChanged && !forceMeasure && glider.style.opacity === '1') {
+        return;
+      }
+      const barW = barEl.clientWidth || barEl.offsetWidth || 360;
       const left = activeBtn.offsetLeft;
       const top = activeBtn.offsetTop;
       const width = activeBtn.offsetWidth;
       const height = activeBtn.offsetHeight;
+      const right = Math.max(0, barW - (left + width));
       if (width > 4 && height > 4) {
-        glider.style.width = `${width}px`;
+        const hadPrev = typeof glider._prevLeft === 'number' && glider._prevBtn !== null && glider._prevBtn !== undefined;
+        const prevLeft = hadPrev ? glider._prevLeft : left;
+        if (!hadPrev) {
+          glider.setAttribute('data-glide-dir', 'init');
+        } else if (left > prevLeft + 2) {
+          glider.setAttribute('data-glide-dir', 'right');
+        } else if (left < prevLeft - 2) {
+          glider.setAttribute('data-glide-dir', 'left');
+        }
+        glider._prevLeft = left;
+        glider._prevBtn = activeBtn;
+        glider.style.top = `${top}px`;
         glider.style.height = `${height}px`;
-        glider.style.transform = `translate3d(${left}px, ${top}px, 0)`;
+        glider.style.left = `${left}px`;
+        glider.style.right = `${right}px`;
         glider.style.opacity = '1';
+        if (hadPrev && btnChanged) {
+          glider.classList.remove('glider-liquid-bulge');
+          void glider.offsetWidth;
+          glider.classList.add('glider-liquid-bulge');
+          const ico = activeBtn.querySelector('.top-nav-ico, .dock-ico');
+          if (ico) {
+            ico.classList.remove('klev-tab-ico-pop');
+            void ico.offsetWidth;
+            ico.classList.add('klev-tab-ico-pop');
+          }
+        }
       }
     };
-    const runSync = () => {
-      syncBarGlider(document.getElementById('topSectionNavBar'), 'topNavGlider');
-      syncBarGlider(document.querySelector('.bottom-nav-inner'), 'bottomNavGlider');
-      syncBarGlider(document.getElementById('adminTopTabBar'), 'admTopNavGlider');
-      syncBarGlider(document.querySelector('.adm-sec-tabs'), 'admNavGlider');
-    };
-    runSync();
-    if (typeof requestAnimationFrame === 'function') {
-      requestAnimationFrame(runSync);
-    }
-    setTimeout(runSync, 90);
+    syncBarGlider(document.getElementById('topSectionNavBar'), 'topNavGlider');
+    syncBarGlider(document.querySelector('.bottom-nav-inner'), 'bottomNavGlider');
+    syncBarGlider(document.getElementById('adminTopTabBar'), 'admTopNavGlider');
+    syncBarGlider(document.querySelector('.adm-sec-tabs'), 'admNavGlider');
   },
   applyVisibility(route) {
+    if (this._lastAppliedDomRoute === route) {
+      this.syncNavGliders(route, false);
+      return;
+    }
     const ROUTE_ORDER = ['weather', 'fish', 'calendar', 'geo', 'chats', 'circle', 'forecast', 'log', 'admin'];
     const prevRoute = this._lastVisibleRoute || store.getState().route || 'forecast';
     const prevIdx = ROUTE_ORDER.indexOf(prevRoute);
@@ -227,13 +255,13 @@ export const router = {
     const slideDir = (prevRoute !== route && prevIdx !== -1 && nextIdx !== -1)
       ? (nextIdx > prevIdx ? 'right' : 'left')
       : 'fade';
-    const isRouteChanged = prevRoute !== route && Boolean(this._lastVisibleRoute);
     this._lastVisibleRoute = route;
+    this._lastAppliedDomRoute = route;
 
     if (typeof document !== 'undefined' && document.body) {
       document.body.style.overflow = '';
       if (route !== 'chats' && route !== 'admin' && typeof window !== 'undefined' && typeof window.__KLEV_CLOSE_FULLSCREEN_CHAT__ === 'function') {
-        try { window.__KLEV_CLOSE_FULLSCREEN_CHAT__(); } catch (_e) { /* ignore */ }
+        try { window.__KLEV_CLOSE_FULLSCREEN_CHAT__(); } catch (_e) {}
       }
       const rootEl = document.documentElement;
       const isArcMobile = typeof window.__KLEV_IS_MOBILE_MAP_MODE__ === 'function'
@@ -250,47 +278,24 @@ export const router = {
       }
     }
 
-    if (this._flipCleanupTimer) {
-      clearTimeout(this._flipCleanupTimer);
-      this._flipCleanupTimer = null;
-    }
-    const appMain = document.getElementById('app');
-    if (appMain && isRouteChanged && route !== 'geo' && prevRoute !== 'geo') {
-      appMain.classList.add('klev-flip-stage-active');
-    }
     document.querySelectorAll('[data-route-section]').forEach(sec => {
       const secName = sec.getAttribute('data-route-section');
-      sec.classList.remove('klev-sec-flip-out-left', 'klev-sec-flip-out-right');
       if (secName === route) {
         sec.style.display = '';
         sec.classList.remove('klev-sec-slide-right', 'klev-sec-slide-left', 'klev-sec-slide-fade');
-        void sec.offsetWidth;
-        sec.classList.add(
-          slideDir === 'right'
-            ? 'klev-sec-slide-right'
-            : (slideDir === 'left' ? 'klev-sec-slide-left' : 'klev-sec-slide-fade')
-        );
-      } else if (isRouteChanged && secName === prevRoute && route !== 'geo' && prevRoute !== 'geo') {
-        sec.style.display = '';
-        sec.classList.remove('klev-sec-slide-right', 'klev-sec-slide-left', 'klev-sec-slide-fade');
-        sec.classList.add(slideDir === 'right' ? 'klev-sec-flip-out-left' : 'klev-sec-flip-out-right');
+        if (route !== 'geo') {
+          void sec.offsetWidth;
+          sec.classList.add(
+            slideDir === 'right'
+              ? 'klev-sec-slide-right'
+              : (slideDir === 'left' ? 'klev-sec-slide-left' : 'klev-sec-slide-fade')
+          );
+        }
       } else {
         sec.style.display = 'none';
         sec.classList.remove('klev-sec-slide-right', 'klev-sec-slide-left', 'klev-sec-slide-fade');
       }
     });
-    if (isRouteChanged) {
-      this._flipCleanupTimer = setTimeout(() => {
-        document.querySelectorAll('[data-route-section]').forEach(sec => {
-          const secName = sec.getAttribute('data-route-section');
-          if (secName !== (this._lastVisibleRoute || route)) {
-            sec.style.display = 'none';
-            sec.classList.remove('klev-sec-flip-out-left', 'klev-sec-flip-out-right');
-          }
-        });
-        if (appMain) appMain.classList.remove('klev-flip-stage-active');
-      }, 360);
-    }
 
     document.querySelectorAll('[data-nav-tab]').forEach(btn => {
       const tabAttr = btn.getAttribute('data-nav-tab');
@@ -300,11 +305,10 @@ export const router = {
         btn.classList.toggle('active', tabAttr === route);
       }
     });
-    this.syncNavGliders(route);
+    this.syncNavGliders(route, false);
     if (typeof document !== 'undefined' && document.documentElement) {
       document.documentElement.setAttribute('data-scroll-compact', '0');
     }
-
     if (typeof window.syncFishDockState === 'function') {
       window.syncFishDockState(false, route);
     }
@@ -318,4 +322,4 @@ export const router = {
     }
   }
 };
-if (typeof window !== 'undefined') { window.__KLEV_SYNC_NAV_GLIDERS__ = () => router.syncNavGliders(store.getState().route); }
+if (typeof window !== 'undefined') { window.__KLEV_SYNC_NAV_GLIDERS__ = () => router.syncNavGliders(store.getState().route, true); }

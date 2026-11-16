@@ -1450,7 +1450,7 @@ html[data-liquid-glass="0"] .bottom-nav-inner {
 }
 
 
-/* v2.9.3 (r238): П. 1, 6, 7, 10 — Единый стандарт типографики, компактные кнопки при увеличенном системном шрифте, удаление SVG из заголовков, лайтбокс поверх модалок */
+/* v2.9.3 (r239): Крупные читаемые заголовки (17px) и тексты (13–15px), единый шрифт, удаление SVG из заголовков, лайтбокс поверх модалок */
 .fish-lightbox-backdrop {
   z-index: 14500 !important;
 }
@@ -1477,7 +1477,7 @@ html[data-liquid-glass="0"] .bottom-nav-inner {
   font-family: var(--font-ui) !important;
   font-size: var(--fs-md) !important;
   font-weight: 800 !important;
-  line-height: 1.24 !important;
+  line-height: 1.26 !important;
   letter-spacing: -0.01em !important;
 }
 
@@ -1486,7 +1486,7 @@ html[data-liquid-glass="0"] .bottom-nav-inner {
   font-family: var(--font-ui) !important;
   font-size: var(--fs-xs) !important;
   font-weight: 600 !important;
-  line-height: 1.32 !important;
+  line-height: 1.35 !important;
 }
 
 .btn,
@@ -1495,19 +1495,6 @@ html[data-liquid-glass="0"] .bottom-nav-inner {
 .bottom-nav-inner .nav-tab,
 .adm-sec-tab {
   font-family: var(--font-ui) !important;
-  font-size: calc(12px * var(--sys-font-comp, 1)) !important;
-  line-height: 1.15 !important;
   -webkit-text-size-adjust: 100% !important;
   text-size-adjust: 100% !important;
-}
-
-.btn {
-  min-height: 36px;
-  padding: 5px 11px;
-}
-
-.btn.btn-sm {
-  min-height: 30px;
-  padding: 3px 9px;
-  font-size: calc(11.5px * var(--sys-font-comp, 1)) !important;
 }

@@ -1,19 +1,19 @@
-import { getFilteredFishList, openFishDetail } from '../fish/fish.module.js?v=2.9.3-r238';
-import { logBlankTrip } from '../log/log.module.js?v=2.9.3-r238';
-import { getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.9.3-r238';
-import { RU } from '../../i18n/ru.js?v=2.9.3-r238';
-import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.9.3-r238';
-import { events } from '../../core/events.js?v=2.9.3-r238';
-import { storage } from '../../core/storage.js?v=2.9.3-r238';
-import { store } from '../../core/store.js?v=2.9.3-r238';
-import { formatLocalYYYYMMDD, fmtDeltaPress, fmtHM } from '../../core/format.js?v=2.9.3-r238';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.9.3-r238';
-import { FISH_DB } from '../../data/species.js?v=2.9.3-r238';
-import { renderFiveFish , renderFishVisual } from '../../ui/svg.js?v=2.9.3-r238';
-import { createPill, showToast, openModal, openFishLightbox, flashHighlightElement } from '../../ui/components.js?v=2.9.3-r238';
-import { computeIceSafetyIndex } from '../weather/weather.module.js?v=2.9.3-r238';
-import { evaluateCircleFieldConfirmation, requireRegisteredFisherId } from '../circle/circle.module.js?v=2.9.3-r238';
-import { isTelegramWebApp, getTelegramUser, shareToTelegramChat, openBotChatInTelegram, buildForecastShareUrls, TELEGRAM_BOT_USERNAME } from '../../core/telegram.js?v=2.9.3-r238';
+import { getFilteredFishList, openFishDetail } from '../fish/fish.module.js?v=2.9.3-r239';
+import { logBlankTrip } from '../log/log.module.js?v=2.9.3-r239';
+import { getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.9.3-r239';
+import { RU } from '../../i18n/ru.js?v=2.9.3-r239';
+import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.9.3-r239';
+import { events } from '../../core/events.js?v=2.9.3-r239';
+import { storage } from '../../core/storage.js?v=2.9.3-r239';
+import { store } from '../../core/store.js?v=2.9.3-r239';
+import { formatLocalYYYYMMDD, fmtDeltaPress, fmtHM } from '../../core/format.js?v=2.9.3-r239';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.9.3-r239';
+import { FISH_DB } from '../../data/species.js?v=2.9.3-r239';
+import { renderFiveFish , renderFishVisual } from '../../ui/svg.js?v=2.9.3-r239';
+import { createPill, showToast, openModal, openFishLightbox, flashHighlightElement } from '../../ui/components.js?v=2.9.3-r239';
+import { computeIceSafetyIndex } from '../weather/weather.module.js?v=2.9.3-r239';
+import { evaluateCircleFieldConfirmation, requireRegisteredFisherId } from '../circle/circle.module.js?v=2.9.3-r239';
+import { isTelegramWebApp, getTelegramUser, shareToTelegramChat, openBotChatInTelegram, buildForecastShareUrls, TELEGRAM_BOT_USERNAME } from '../../core/telegram.js?v=2.9.3-r239';
 /**
  * Список морских, проходных и полупроходных видов, которые заходят в пресные реки
  * (big_river, small_river) и эстуарии (sea_gulf) при нересте, сезонных миграциях или приливах/отливах.
@@ -556,8 +556,8 @@ export function computeHourFactors(fish, day, hrObj, method, water, depth, normP
   const dtMonthIdx = day._mIdx !== undefined ? day._mIdx : (day._mIdx = (parseInt(String(day.date || '2026-06').slice(5, 7), 10) - 1) || 0);
   const curMonthNum = dtMonthIdx + 1;
   const mAct = (fish.monthActivity && fish.monthActivity[dtMonthIdx]) ?? 2;
-  let seasonDelta = mAct === 3 ? +12 : (mAct === 2 ? +4 : (mAct === 1 ? -8 : -24));
-  let seasonGate = mAct === 3 ? 1.04 : (mAct === 2 ? 0.94 : (mAct === 1 ? 0.68 : 0.22));
+  let seasonDelta = mAct === 3 ? +12 : (mAct === 2 ? +5 : (mAct === 1 ? -5 : (isDormantWinterFish ? -26 : -10)));
+  let seasonGate = mAct === 3 ? 1.05 : (mAct === 2 ? 0.96 : (mAct === 1 ? 0.82 : (isDormantWinterFish ? 0.12 : 0.72)));
   const runInfo = RIVER_ENTERING_SPECIES[fid];
   const isRiverWater = water === 'big_river' || water === 'small_river';
   const isSeaWater = water === 'sea_gulf' || water === 'open_sea';
@@ -794,14 +794,27 @@ export function computeHourFactors(fish, day, hrObj, method, water, depth, normP
   let rawAdditive = baseScore + tempDelta + pressDelta + weightedArchiveDelta + windDelta + seasonDelta + gearDelta + moonDelta + logInsight.val + circleDelta;
   rawAdditive = Math.max(0, rawAdditive);
 
-  // Мультипликативный закон минимума Либиха — Шелфорда:
-  // Если хотя бы один критический фактор (ночная темнота для зрительного хищника, барический скачок +8 мм,
-  // зимнее оцепенение теплолюбивого вида или шторм) блокирует питание, итоговая вероятность стремится к 0–18%!
-  const bioLimitMult = Math.max(0, Math.min(1.25,
-    thermalGate * baricGate * windWaveGate * seasonGate * depthGate * lightGate * lunarTidalGate
-  ));
+  // Закон лимитирующего фактора Либиха — Шелфорда без экспоненциального перемножения 6 дробных коэффициентов:
+  // 1) Жёсткие биологические гейты: освещённость (lightGate: ночью у дневных рыб 0.03–0.08 -> 0–5%) и зимний анабиоз (thermalGate <= 0.10 -> 0–4%).
+  // 2) Погодно-барический коэффициент (envWeatherMult): взвешенный композит барики, ветра, сезона, глубины и Луны.
+  let envWeatherMult = (
+    0.38 * baricGate +
+    0.24 * windWaveGate +
+    0.16 * seasonGate +
+    0.12 * depthGate +
+    0.10 * lunarTidalGate
+  );
+  // При жёстком барическом ударе (|dP| >= 6.5 мм или |dp3h| >= 1.4 мм) или зимней оттепели со штормом усиливаем подавление для закрыто/открытопузырных рыб
+  if (guild !== 'predator_nocturnal_cold' && bio.bladderType !== 'aphysoclist') {
+    if (absDailyDP >= 6.5 || absDp3h >= 1.4) {
+      envWeatherMult = Math.min(envWeatherMult, bio.bladderType === 'physoclist' ? 0.28 : 0.34);
+    } else if (absDailyDP >= 4.5 && isUnseasonalWinterThaw) {
+      envWeatherMult = Math.min(envWeatherMult, 0.38);
+    }
+  }
+  const bioLimitMult = Math.max(0, Math.min(1.25, thermalGate * lightGate * envWeatherMult));
 
-  const baseForGate = (lightGate <= 0.12 || thermalGate <= 0.10) ? rawAdditive : Math.max(38, rawAdditive);
+  const baseForGate = (lightGate <= 0.12 || thermalGate <= 0.10) ? rawAdditive : Math.max(46, rawAdditive);
   let gatedScore = baseForGate * bioLimitMult;
   if (lightGate <= 0.10) {
     gatedScore = Math.min(gatedScore, lightGate * 65);
@@ -2403,30 +2416,17 @@ export function render(container) {
   const savedWinScrollY = (typeof window !== 'undefined' && !isSplashActive) ? window.scrollY : 0;
   const savedWeekScroll = container.querySelector('.week-strip')?.scrollLeft || 0;
   const savedHourlyScroll = container.querySelector('.bite-timeline')?.scrollLeft || 0;
-  if (!container.querySelector('#fcWeekBox') || !container.querySelector('#fcStickySpeciesBar') || !container.querySelector('#fcArchiveBox')) {
+  if (!container.querySelector('#fcWeekBox') || !container.querySelector('#fcStickySpeciesBar')) {
     container.innerHTML = `
       <div id="fcStickySpeciesBar" class="fc-sticky-species-bar"></div>
       <div id="fcExpressBox"></div>
       <div id="fcWeekBox" style="margin-top:14px;"></div>
       <div id="fcHourlyBox" style="margin-top:14px;"></div>
-      <div id="fcArchiveBox" style="margin-top:14px;"></div>
     `;
   }
   renderExpress(container.querySelector('#fcExpressBox'));
   renderWeek(container.querySelector('#fcWeekBox'));
   renderHourly(container.querySelector('#fcHourlyBox'));
-  const stArch = store.getState();
-  const curDayArch = stArch.weatherDays?.[stArch.dayIdx];
-  const archBoxEl = container.querySelector('#fcArchiveBox');
-  if (archBoxEl) {
-    if (curDayArch && curDayArch.isArchive) {
-      archBoxEl.innerHTML = '';
-    } else {
-      const curFishArch = FISH_DB.find(f => f.id === stArch.fishId) || FISH_DB[0];
-      const yestDay = (stArch.weatherDays || [])[1] || (stArch.weatherDays || [])[0];
-      renderArchiveDayLogger(archBoxEl, stArch, yestDay, curFishArch);
-    }
-  }
   bindForecastEvents(container);
   if (savedWeekScroll > 0) {
     const ws = container.querySelector('.week-strip');
@@ -2723,13 +2723,7 @@ function bindForecastEvents(container) {
       const dStr = archQuickBtn.getAttribute('data-arch-quick-date');
       if (dStr) {
         selectedArchiveDateOverride = dStr;
-        const stNow = store.getState();
-        const fNow = FISH_DB.find(f => f.id === stNow.fishId) || FISH_DB[0];
-        if (stNow.weatherDays?.[stNow.dayIdx]?.isArchive) {
-          renderHourly(container.querySelector('#fcHourlyBox'));
-        } else {
-          renderArchiveDayLogger(container.querySelector('#fcArchiveBox'), stNow, stNow.weatherDays?.[1], fNow);
-        }
+        renderHourly(container.querySelector('#fcHourlyBox'));
       }
       return;
     }

@@ -1,11 +1,11 @@
-import { RU } from '../../i18n/ru.js?v=2.9.3-r238';
-import { events } from '../../core/events.js?v=2.9.3-r238';
-import { storage } from '../../core/storage.js?v=2.9.3-r238';
-import { store } from '../../core/store.js?v=2.9.3-r238';
-import { fetchWithTimeout, fallbackChain } from '../../core/http.js?v=2.9.3-r238';
-import { formatLocalYYYYMMDD, fmtHM, fmtDeltaPress } from '../../core/format.js?v=2.9.3-r238';
-import { WATER_PROFILES } from '../../data/waters.js?v=2.9.3-r238';
-import { createPill, showToast } from '../../ui/components.js?v=2.9.3-r238';
+import { RU } from '../../i18n/ru.js?v=2.9.3-r239';
+import { events } from '../../core/events.js?v=2.9.3-r239';
+import { storage } from '../../core/storage.js?v=2.9.3-r239';
+import { store } from '../../core/store.js?v=2.9.3-r239';
+import { fetchWithTimeout, fallbackChain } from '../../core/http.js?v=2.9.3-r239';
+import { formatLocalYYYYMMDD, fmtHM, fmtDeltaPress } from '../../core/format.js?v=2.9.3-r239';
+import { WATER_PROFILES } from '../../data/waters.js?v=2.9.3-r239';
+import { createPill, showToast } from '../../ui/components.js?v=2.9.3-r239';
 const DIRS = ['С', 'СВ', 'В', 'ЮВ', 'Ю', 'ЮЗ', 'З', 'СЗ'];
 
 /**
@@ -1697,14 +1697,14 @@ export function render(container) {
             <span>Барометр, Ветер и Осадки</span>
           </div>
           <div class="bento-weather-rows">
-            <div class="bento-temp-split">
-              <div>
-                <div class="bento-temp-air" style="font-size:20px;white-space:nowrap;">${day.pressAvg} <span style="font-size:12px;font-weight:700;">мм</span></div>
-                <div style="font-size:11px;color:var(--muted);font-weight:700;white-space:nowrap;">Тренд: ${fmtDeltaPress(day.dP)}</div>
+            <div class="bento-temp-split" style="gap:6px;">
+              <div style="min-width:0;">
+                <div class="bento-temp-air" style="font-size:19px;white-space:nowrap;">${day.pressAvg} <span style="font-size:12px;font-weight:700;">мм</span></div>
+                <div style="font-size:11.5px;color:var(--muted);font-weight:700;white-space:nowrap;">Тренд: ${fmtDeltaPress(day.dP)}</div>
               </div>
-              <div class="bento-temp-water-box">
-                <div style="font-size:14px;font-weight:900;color:var(--good);white-space:nowrap;">${day.windDir} ${day.windMax} м/с</div>
-                <div style="font-size:11px;color:var(--muted);font-weight:700;">${isWaveForecastRelevantForContext(s, day) ? "Ветер и волна" : "Ветер"}</div>
+              <div class="bento-temp-water-box" style="min-width:0;text-align:right;">
+                <div style="font-size:13.5px;font-weight:900;color:var(--good);white-space:nowrap;">${day.windDir} ${day.windMax} м/с</div>
+                <div style="font-size:11.5px;color:var(--muted);font-weight:700;white-space:nowrap;">${isWaveForecastRelevantForContext(s, day) ? "Волна" : "Ветер"}</div>
               </div>
             </div>
             <div class="bento-weather-item-row">

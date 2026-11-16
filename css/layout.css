@@ -2278,16 +2278,30 @@ body:has(#appModalBackdrop.open) .klev-arc-edge-handle {
 }
 
 
-/* v2.9.3 (r238): П. 8, 9, 11 — Скрытие лишней плашки «Быстрый доступ», плавное перелистывание разделов, перетекающая подсветка меню и припрятывание верхнего/нижнего меню при скролле */
+/* v2.9.3 (r239): Исправление полосы видов (#fcStickySpeciesBar), двухпружинная анимация переключения меню «Two springs, not one» (Видео 2–4) и плавная работа без фризов */
 .quick-dock-tab-label {
   display: none !important;
 }
 
-/* П. 8: Читаемый текст поверх приглушённой тонкой дуги прогноза */
+/* Полоса выбора рыб в Прогнозе: строго в потоке вверху экрана, никогда не висит посреди карточек при прокрутке (исправление Фото 2 — 1000137811.jpg) */
+.fc-sticky-species-bar,
+#fcStickySpeciesBar {
+  position: relative !important;
+  top: auto !important;
+  z-index: 2 !important;
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: none !important;
+  padding: 0 0 4px 0 !important;
+  margin-bottom: 4px !important;
+}
+
+/* П. 8: Читаемый крупный текст поверх приглушённой тонкой дуги прогноза */
 .bento-gauge-svg-box {
   position: relative;
-  width: 152px;
-  height: 88px;
+  width: 154px;
+  height: 90px;
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -2301,152 +2315,180 @@ body:has(#appModalBackdrop.open) .klev-arc-edge-handle {
   flex-direction: column;
   align-items: center;
   justify-content: flex-end;
-  line-height: 1.08;
+  line-height: 1.1;
   pointer-events: none;
-  text-shadow: 0 1px 6px rgba(4, 9, 18, 0.72);
+  text-shadow: 0 1px 6px rgba(4, 9, 18, 0.75);
 }
 [data-theme="light"] .bento-gauge-center-text {
   text-shadow: 0 1px 4px rgba(255, 255, 255, 0.92);
 }
 .bento-gauge-sub {
-  font-size: calc(10.5px * var(--sys-font-comp, 1)) !important;
+  font-size: 11.5px !important;
   font-weight: 700 !important;
   color: var(--muted);
 }
 .bento-gauge-lvl {
-  font-size: calc(12px * var(--sys-font-comp, 1)) !important;
+  font-size: 13px !important;
   font-weight: 800 !important;
   margin-top: 1px;
 }
 .bento-gauge-pct {
-  font-size: calc(22px * var(--sys-font-comp, 1)) !important;
+  font-size: 24px !important;
   font-weight: 900 !important;
   margin-top: 1px;
 }
 
-/* П. 9: Перетекающая подсветка (glider) в верхнем и нижнем меню */
+/* Видео 2–4 («Two springs, not one» — Sliding Pill + Liquid Bulge + Icon Pop):
+   Передний край капсулы летит быстрой пружиной (0.20s), задний край догоняет более мягкой пружиной (0.42s),
+   за счёт чего капсула подсветки физически растягивается между кнопками и плавно собирается на выбранной вкладке! */
 .top-section-nav,
 .bottom-nav-inner,
 .adm-sec-tabs {
   position: relative !important;
 }
+
 .klev-nav-glider {
   position: absolute;
   top: 0;
   left: 0;
+  right: auto;
+  width: auto !important;
   z-index: 0;
   border-radius: 13px;
   pointer-events: none;
-  background: radial-gradient(circle at 50% 15%, rgba(56, 189, 248, 0.34), rgba(2, 132, 199, 0.24) 75%);
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.36) 0%, rgba(14, 165, 233, 0.24) 55%, rgba(16, 185, 129, 0.22) 100%);
   border: 1.5px solid var(--accent);
-  box-shadow: 0 0 16px rgba(0, 229, 255, 0.28), inset 0 1px 2px rgba(255, 255, 255, 0.42);
-  transition:
-    transform 0.38s cubic-bezier(0.22, 1, 0.36, 1),
-    width 0.38s cubic-bezier(0.22, 1, 0.36, 1),
-    height 0.38s cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 0.24s ease;
+  box-shadow:
+    0 0 18px rgba(0, 229, 255, 0.34),
+    inset 0 1.5px 2px rgba(255, 255, 255, 0.48),
+    inset 0 -1.5px 3px rgba(2, 132, 199, 0.28);
   opacity: 0;
+  will-change: left, right, transform;
+  transition:
+    left 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    right 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    top 0.24s ease,
+    height 0.24s ease,
+    opacity 0.2s ease;
 }
+
+/* Движение вправо: правый (передний) край быстрый (0.20s), левый (задний) край тягучий (0.42s) -> растяжение капсулы! */
+.klev-nav-glider[data-glide-dir="right"] {
+  transition:
+    right 0.20s cubic-bezier(0.16, 1.14, 0.30, 1),
+    left 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+    top 0.24s ease,
+    height 0.24s ease,
+    opacity 0.2s ease !important;
+}
+
+/* Движение влево: левый (передний) край быстрый (0.20s), правый (задний) край тягучий (0.42s) -> растяжение капсулы! */
+.klev-nav-glider[data-glide-dir="left"] {
+  transition:
+    left 0.20s cubic-bezier(0.16, 1.14, 0.30, 1),
+    right 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+    top 0.24s ease,
+    height 0.24s ease,
+    opacity 0.2s ease !important;
+}
+
 .bottom-nav-inner > .klev-nav-glider {
   border-radius: 16px;
 }
+
+@keyframes klevGliderLiquidBulge {
+  0% {
+    filter: brightness(1);
+    transform: scaleY(1);
+  }
+  42% {
+    filter: brightness(1.22);
+    transform: scaleY(1.06);
+  }
+  100% {
+    filter: brightness(1);
+    transform: scaleY(1);
+  }
+}
+
+.klev-nav-glider.glider-liquid-bulge {
+  animation: klevGliderLiquidBulge 0.38s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes klevTabIconPop {
+  0% {
+    transform: scale(1) translateY(0);
+  }
+  45% {
+    transform: scale(1.22) translateY(-2px);
+  }
+  100% {
+    transform: scale(1) translateY(0);
+  }
+}
+
+.klev-tab-ico-pop {
+  animation: klevTabIconPop 0.34s cubic-bezier(0.22, 1.2, 0.36, 1);
+}
+
+/* Когда в панели работает скользящая капсула .klev-nav-glider, убираем дублирующую статичную рамку у .active,
+   чтобы было наглядно видно растяжение и перетекание самой капсулы между кнопками */
+.top-section-nav.has-liquid-glider .top-nav-item.active,
+.bottom-nav-inner.has-liquid-glider .nav-tab.active:not(.nav-sos-btn) {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
 .top-nav-item,
 .bottom-nav-inner .nav-tab,
 .adm-sec-tab {
   z-index: 1;
 }
 
-/* П. 9: Плавное горизонтальное перелистывание (cross-slide carousel) между разделами */
-#app.klev-flip-stage-active {
-  position: relative;
-  overflow-x: hidden;
-}
-@keyframes klevSecFlipOutLeft {
-  0% {
-    opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-  100% {
-    opacity: 0;
-    transform: translate3d(-38%, 0, 0) scale(0.96);
-  }
-}
-@keyframes klevSecFlipOutRight {
-  0% {
-    opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-  100% {
-    opacity: 0;
-    transform: translate3d(38%, 0, 0) scale(0.96);
-  }
-}
+/* Плавный лёгкий GPU-слайд секций без двойного DOM и без ре-растеризации (0 фризов) */
 @keyframes klevSecSlideFromRight {
   0% {
-    opacity: 0;
-    transform: translate3d(38%, 0, 0) scale(0.96);
+    opacity: 0.35;
+    transform: translate3d(22px, 0, 0);
   }
   100% {
     opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
+    transform: translate3d(0, 0, 0);
   }
 }
 @keyframes klevSecSlideFromLeft {
   0% {
-    opacity: 0;
-    transform: translate3d(-38%, 0, 0) scale(0.96);
+    opacity: 0.35;
+    transform: translate3d(-22px, 0, 0);
   }
   100% {
     opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
+    transform: translate3d(0, 0, 0);
   }
 }
-.klev-sec-flip-out-left {
-  position: absolute !important;
-  top: 0;
-  left: 0;
-  right: 0;
-  width: 100%;
-  pointer-events: none !important;
-  z-index: 1;
-  animation: klevSecFlipOutLeft 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-}
-.klev-sec-flip-out-right {
-  position: absolute !important;
-  top: 0;
-  left: 0;
-  right: 0;
-  width: 100%;
-  pointer-events: none !important;
-  z-index: 1;
-  animation: klevSecFlipOutRight 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-}
 .klev-sec-slide-right {
-  position: relative;
-  z-index: 2;
-  animation: klevSecSlideFromRight 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards !important;
+  animation: klevSecSlideFromRight 0.22s cubic-bezier(0.22, 1, 0.36, 1) forwards !important;
 }
 .klev-sec-slide-left {
-  position: relative;
-  z-index: 2;
-  animation: klevSecSlideFromLeft 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards !important;
+  animation: klevSecSlideFromLeft 0.22s cubic-bezier(0.22, 1, 0.36, 1) forwards !important;
 }
 
-/* П. 11: Мягкое припрятывание и уменьшение верхнего и нижнего меню при прокрутке страницы вниз */
+/* П. 11: Мягкое припрятывание верхнего и нижнего меню при прокрутке без тяжёлого пересчёта геометрии */
 .app-header,
 .bottom-nav {
+  will-change: transform, opacity;
   transition:
-    transform 0.32s cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 0.28s ease,
-    box-shadow 0.28s ease !important;
+    transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.24s ease !important;
 }
 html[data-scroll-compact="1"]:not([data-arc-map-active="1"]) .app-header {
-  transform: translate3d(0, -34%, 0) scale(0.94) !important;
+  transform: translate3d(0, -26%, 0) scale(0.96) !important;
   transform-origin: top center !important;
-  opacity: 0.84 !important;
+  opacity: 0.88 !important;
 }
 html[data-scroll-compact="1"]:not([data-arc-map-active="1"]) .bottom-nav {
-  transform: translate3d(0, 30%, 0) scale(0.92) !important;
+  transform: translate3d(0, 26%, 0) scale(0.94) !important;
   transform-origin: bottom center !important;
-  opacity: 0.84 !important;
+  opacity: 0.88 !important;
 }

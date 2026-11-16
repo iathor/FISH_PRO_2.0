@@ -1,11 +1,11 @@
-import { storage } from './core/storage.js?v=2.9.3-r238';
-import { svgIcon } from './ui/icons.js?v=2.9.3-r238';
-import { initReleaseUpdater, checkForReleaseUpdate } from './core/updater.js?v=2.9.3-r238';
-import { RU } from './i18n/ru.js?v=2.9.3-r238';
-import { events } from './core/events.js?v=2.9.3-r238';
-import { store } from './core/store.js?v=2.9.3-r238';
-import { router } from './core/router.js?v=2.9.3-r238';
-import { installShortcut, initPwa } from './core/pwa.js?v=2.9.3-r238';
+import { storage } from './core/storage.js?v=2.9.3-r239';
+import { svgIcon } from './ui/icons.js?v=2.9.3-r239';
+import { initReleaseUpdater, checkForReleaseUpdate } from './core/updater.js?v=2.9.3-r239';
+import { RU } from './i18n/ru.js?v=2.9.3-r239';
+import { events } from './core/events.js?v=2.9.3-r239';
+import { store } from './core/store.js?v=2.9.3-r239';
+import { router } from './core/router.js?v=2.9.3-r239';
+import { installShortcut, initPwa } from './core/pwa.js?v=2.9.3-r239';
 import {
   initTelegramMiniApp,
   extractIncomingDeepLinkParams,
@@ -15,17 +15,17 @@ import {
   syncTelegramTheme,
   syncTelegramBackButton,
   getTelegramUser
-} from './core/telegram.js?v=2.9.3-r238';
-import { FISH_DB } from './data/species.js?v=2.9.3-r238';
-import { WATER_PROFILES } from './data/waters.js?v=2.9.3-r238';
-import { showToast, openModal, closeModal } from './ui/components.js?v=2.9.3-r238';
-import { weatherModule } from './modules/weather/weather.module.js?v=2.9.3-r238';
-import { geoModule } from './modules/geo/geo.module.js?v=2.9.3-r238';
-import { fishModule } from './modules/fish/fish.module.js?v=2.9.3-r238';
-import { forecastModule } from './modules/forecast/forecast.module.js?v=2.9.3-r238';
-import { calendarModule } from './modules/calendar/calendar.module.js?v=2.9.3-r238';
-import { logModule } from './modules/log/log.module.js?v=2.9.3-r238';
-import { circleModule } from './modules/circle/circle.module.js?v=2.9.3-r238';
+} from './core/telegram.js?v=2.9.3-r239';
+import { FISH_DB } from './data/species.js?v=2.9.3-r239';
+import { WATER_PROFILES } from './data/waters.js?v=2.9.3-r239';
+import { showToast, openModal, closeModal } from './ui/components.js?v=2.9.3-r239';
+import { weatherModule } from './modules/weather/weather.module.js?v=2.9.3-r239';
+import { geoModule } from './modules/geo/geo.module.js?v=2.9.3-r239';
+import { fishModule } from './modules/fish/fish.module.js?v=2.9.3-r239';
+import { forecastModule } from './modules/forecast/forecast.module.js?v=2.9.3-r239';
+import { calendarModule } from './modules/calendar/calendar.module.js?v=2.9.3-r239';
+import { logModule } from './modules/log/log.module.js?v=2.9.3-r239';
+import { circleModule } from './modules/circle/circle.module.js?v=2.9.3-r239';
 if (typeof window !== 'undefined') {
   window.__KLEV_BOOTSTRAPPED__ = true;
   window.__KLEV_STORE__ = store;
@@ -142,7 +142,7 @@ export function recordClientErrorTelemetry(type, message, sourceOrStack = '') {
       msg: msgStr,
       src: String(sourceOrStack || '').slice(0, 220),
       route: String(window.location?.hash || '#/forecast'),
-      ver: '2.9.3-r238',
+      ver: '2.9.3-r239',
       env: envLabel,
       fisherId: uInfo.fisherId,
       login: uInfo.login,
@@ -754,38 +754,24 @@ function applyIncomingDeepLinkToStore(deepLink, triggerNetworkFetch = false) {
 }
 
 function syncSystemFontScaleCompensation() {
-  if (typeof document === 'undefined' || !document.body) return;
-  try {
-    let probe = document.getElementById('klevSysFontProbe');
-    if (!probe) {
-      probe = document.createElement('div');
-      probe.id = 'klevSysFontProbe';
-      probe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:auto;height:auto;font-size:100px !important;line-height:1 !important;padding:0 !important;margin:0 !important;visibility:hidden !important;pointer-events:none !important;webkit-text-size-adjust:none;text-size-adjust:none;';
-      probe.textContent = 'M';
-      document.body.appendChild(probe);
-    }
-    const renderedPx = parseFloat(window.getComputedStyle(probe).fontSize) || 100;
-    const scaleRatio = renderedPx / 100;
-    // Если в системе смартфона включён увеличенный шрифт (scaleRatio > 1.03), компенсируем масштаб токенов
-    const comp = scaleRatio > 1.02 ? Math.max(0.70, Math.min(1.0, +(1 / scaleRatio).toFixed(3))) : 1;
-    document.documentElement.style.setProperty('--sys-font-comp', String(comp));
-    document.documentElement.setAttribute('data-sys-font-scaled', scaleRatio > 1.04 ? '1' : '0');
-  } catch (_e) {}
+  if (typeof document === 'undefined' || !document.documentElement) return;
+  document.documentElement.style.setProperty('--sys-font-comp', '1');
 }
 
 let _lastScrollYForPeek = 0;
+let _scrollPeekRaf = false;
 function initScrollCompactMenus() {
   if (typeof window === 'undefined' || typeof document === 'undefined') return;
   const rootEl = document.documentElement;
-  const handleScrollY = (curY) => {
+  const applyScrollDelta = (curY) => {
     if (rootEl.getAttribute('data-arc-map-active') === '1') return;
     const dy = curY - _lastScrollYForPeek;
-    if (curY <= 20 || dy < -6) {
+    if (curY <= 24 || dy < -10) {
       if (rootEl.getAttribute('data-scroll-compact') === '1') {
         rootEl.setAttribute('data-scroll-compact', '0');
       }
       _lastScrollYForPeek = Math.max(0, curY);
-    } else if (curY > 32 && dy > 6) {
+    } else if (curY > 48 && dy > 14) {
       if (rootEl.getAttribute('data-scroll-compact') !== '1') {
         rootEl.setAttribute('data-scroll-compact', '1');
       }
@@ -793,14 +779,13 @@ function initScrollCompactMenus() {
     }
   };
   window.addEventListener('scroll', () => {
-    handleScrollY(window.scrollY || document.documentElement.scrollTop || 0);
+    if (_scrollPeekRaf) return;
+    _scrollPeekRaf = true;
+    requestAnimationFrame(() => {
+      _scrollPeekRaf = false;
+      applyScrollDelta(window.scrollY || document.documentElement.scrollTop || 0);
+    });
   }, { passive: true });
-  document.addEventListener('scroll', (e) => {
-    const t = e.target;
-    if (t && t !== document && t !== window && typeof t.scrollTop === 'number' && t.clientHeight > 180) {
-      handleScrollY(t.scrollTop);
-    }
-  }, { passive: true, capture: true });
   const expandMenusOnTap = () => {
     if (rootEl.getAttribute('data-scroll-compact') === '1') {
       rootEl.setAttribute('data-scroll-compact', '0');
@@ -809,7 +794,6 @@ function initScrollCompactMenus() {
   document.querySelector('.app-header')?.addEventListener('pointerdown', expandMenusOnTap, { passive: true });
   document.querySelector('.bottom-nav')?.addEventListener('pointerdown', expandMenusOnTap, { passive: true });
 }
-
 function bootstrapApp() {
   window.__KLEV_BOOTSTRAPPED__ = true;
   syncSystemFontScaleCompensation();
