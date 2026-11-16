@@ -101,22 +101,22 @@ function downloadPhotoCrossPlatform(filename, dataUrl) {
   }
 }
 
-import { isSpeciesInGeoRange } from '../../data/basins.js?v=2.9.2-r237';
-import { RU } from '../../i18n/ru.js?v=2.9.2-r237';
-import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.9.2-r237';
-import { events } from '../../core/events.js?v=2.9.2-r237';
-import { router } from '../../core/router.js?v=2.9.2-r237';
-import { storage } from '../../core/storage.js?v=2.9.2-r237';
-import { store } from '../../core/store.js?v=2.9.2-r237';
-import { setLocation } from '../geo/geo.module.js?v=2.9.2-r237';
-import { formatLocalYYYYMMDD, fmtDeltaPress } from '../../core/format.js?v=2.9.2-r237';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.9.2-r237';
-import { FISH_DB } from '../../data/species.js?v=2.9.2-r237';
-import { escapeHtml, createPill, showToast, openModal, closeModal, openConfirmDeleteModal, downloadFileCrossPlatform, flashHighlightElement } from '../../ui/components.js?v=2.9.2-r237';
+import { isSpeciesInGeoRange } from '../../data/basins.js?v=2.9.3-r238';
+import { RU } from '../../i18n/ru.js?v=2.9.3-r238';
+import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.9.3-r238';
+import { events } from '../../core/events.js?v=2.9.3-r238';
+import { router } from '../../core/router.js?v=2.9.3-r238';
+import { storage } from '../../core/storage.js?v=2.9.3-r238';
+import { store } from '../../core/store.js?v=2.9.3-r238';
+import { setLocation } from '../geo/geo.module.js?v=2.9.3-r238';
+import { formatLocalYYYYMMDD, fmtDeltaPress } from '../../core/format.js?v=2.9.3-r238';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.9.3-r238';
+import { FISH_DB } from '../../data/species.js?v=2.9.3-r238';
+import { escapeHtml, createPill, showToast, openModal, closeModal, openConfirmDeleteModal, downloadFileCrossPlatform, flashHighlightElement } from '../../ui/components.js?v=2.9.3-r238';
 let activeLogTab = 'active'; // 'active' | 'trash'
-import { computeMoon } from '../weather/weather.module.js?v=2.9.2-r237';
-import { calcHourly } from '../forecast/forecast.module.js?v=2.9.2-r237';
-import { openFishPhotoScannerModal, analyzeFishPhotoHybrid, requestAppCameraAndPhotoAccess } from '../fish/scanner.js?v=2.9.2-r237';
+import { computeMoon } from '../weather/weather.module.js?v=2.9.3-r238';
+import { calcHourly, calcDayBest } from '../forecast/forecast.module.js?v=2.9.3-r238';
+import { openFishPhotoScannerModal, analyzeFishPhotoHybrid, requestAppCameraAndPhotoAccess } from '../fish/scanner.js?v=2.9.3-r238';
 let currentFilter = { fishId: 'all', cond: 'all' };
 /**
  * Биологические верхние пределы веса (кг) для защиты от накрутки и опечаток
@@ -574,9 +574,15 @@ export function openCatchWizard(prefill = {}) {
   };
   const mapBookmarks = buildMapBookmarksList(s);
 
-  const formatSummaryBanner = (dObj, hObj) => {
+  const formatSummaryBanner = (dObj, hObj, fishObj = currentFish, methodVal = currentMethodVal) => {
+    const stNow = store.getState();
+    const fUse = fishObj || currentFish;
+    const mUse = methodVal || stNow.method;
+    const hrPred = dObj.hours ? calcHourly(fUse, dObj, hObj, mUse, stNow.water, stNow.depth, stNow.normPress, dObj.iceState || stNow.iceState) : 50;
+    const dayPeakPred = dObj.hours ? calcDayBest(fUse, dObj, mUse, stNow.water, stNow.depth, stNow.normPress, dObj.iceState || stNow.iceState) : hrPred;
     const tAirStr = (hObj.tAir > 0 ? '+' + hObj.tAir : hObj.tAir) + '°C';
-    return `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="13" r="4" stroke="#38bdf8" stroke-width="1.8"/></svg> <b>Метеосводка из кэша 10 км (${dObj.date}, ${String(hObj.hour).padStart(2, '0')}:00):</b> Воздух ${tAirStr} • Вода ~${dObj.waterTemp ?? 10}°C • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><polygon points="16,8 13.5,13.5 8,16 10.5,10.5" fill="#38bdf8" stroke="currentColor" stroke-width="1.3"/></svg> ${hObj.press} мм (Δ ${fmtDeltaPress(dObj.dP ?? 0)}) • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> ${hObj.windDir} ${hObj.wind} м/с • ${dObj.moon?.phaseIcon || '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6" stroke-linejoin="round"/></svg>'} ${dObj.moon?.moonDay || 12} л.д.`;
+    const predCol = hrPred >= 65 ? 'var(--good)' : (hrPred >= 35 ? 'var(--accent)' : 'var(--warn)');
+    return `<b>Метеоархив и прогноз 10 км (${dObj.date}, ${String(hObj.hour).padStart(2, '0')}:00):</b> Воздух ${tAirStr} • Вода ~${dObj.waterTemp ?? 10}°C • Давление ${hObj.press} мм (Δ ${fmtDeltaPress(dObj.dP ?? 0)}) • Ветер ${hObj.windDir} ${hObj.wind} м/с • ${dObj.moon?.moonDay || 12} л.д.<br><span style="color:${predCol};font-weight:900;">Расчётный прогноз клёва «${escapeHtml(fUse.name)}» в этот час: ${hrPred}% (пик дня: ${dayPeakPred}%)</span>`;
   };
   const html = `
     <div style="display:flex;flex-direction:column;gap:10px;font-size:var(--fs-sm);">
@@ -746,13 +752,17 @@ export function openCatchWizard(prefill = {}) {
       bodyEl.querySelectorAll('[data-cw-quick-date]').forEach(btn => {
         btn.classList.toggle('active', btn.getAttribute('data-cw-quick-date') === activeDateStr);
       });
+      const stCur = store.getState();
+      const chosenFishObj = FISH_DB.find(x => x.id === (fishSel?.value || currentFish.id)) || currentFish;
+      const chosenMethodVal = methodSel?.value || currentMethodVal;
       if (hourSel && Array.isArray(day.hours)) {
-        hourSel.innerHTML = day.hours.map(h =>
-          `<option value="${h.hour}" ${h.hour === activeHour ? 'selected' : ''}>${String(h.hour).padStart(2, '0')}:00 (${h.tAir > 0 ? '+' + h.tAir : h.tAir}°C, ${h.press} мм, ${h.wind} м/с)</option>`
-        ).join('');
+        hourSel.innerHTML = day.hours.map(h => {
+          const hSc = calcHourly(chosenFishObj, day, h, chosenMethodVal, stCur.water, stCur.depth, stCur.normPress, day.iceState || stCur.iceState);
+          return `<option value="${h.hour}" ${h.hour === activeHour ? 'selected' : ''}>${String(h.hour).padStart(2, '0')}:00 (${h.tAir > 0 ? '+' + h.tAir : h.tAir}°C, ${h.press} мм, ${h.wind} м/с • Прогноз ${hSc}%)</option>`;
+        }).join('');
       }
       if (summaryBox) {
-        summaryBox.innerHTML = formatSummaryBanner(day, hr);
+        summaryBox.innerHTML = formatSummaryBanner(day, hr, chosenFishObj, chosenMethodVal);
       }
     };
 
@@ -1064,7 +1074,7 @@ export function renderLog(container) {
     <div class="card">
       <div class="section-head">
         <div>
-          <span class="section-title"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="5" y="3" width="14" height="18" rx="2.5" fill="rgba(56,189,248,0.16)" stroke="currentColor" stroke-width="1.8"/><path d="M9 7h6M9 11h6M9 15h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Журнал уловов и личная калибровка прогноза</span>
+          <span class="section-title">Журнал уловов и личная калибровка прогноза</span>
 
         </div>
         <div class="toolbar-row" style="display:flex;gap:6px;flex-wrap:wrap;">
@@ -1188,6 +1198,7 @@ export function renderLog(container) {
                   ${createPill({ text: `Вода ${c.waterTemp}°C`, tone: 'neutral' })}
                   ${createPill({ text: `${c.press} мм (Δ${c.dP})`, tone: 'neutral' })}
                   ${createPill({ text: `${c.windDir} ${c.wind} м/с`, tone: 'neutral' })}
+                  ${Number.isFinite(c.predictedScore) ? createPill({ text: `Прогноз: ${c.predictedScore}%`, tone: c.predictedScore >= 60 ? 'good' : (c.predictedScore >= 35 ? 'ice' : 'warn') }) : ''}
                   ${createPill({ text: c.matchedForecast ? '<svg class="k-ico" style="color:var(--good);" viewBox="0 0 24 24" fill="none"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3" fill="rgba(16,185,129,0.22)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> Совпал' : '<svg class="k-ico" style="color:var(--warn);" viewBox="0 0 24 24" fill="none"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h3a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-3" fill="rgba(245,158,11,0.22)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> Вопреки', tone: c.matchedForecast ? 'good' : 'warn' })}
                 </div>
                 <div style="font-size:var(--fs-xs);color:var(--accent);">Наживка / приманка: <b>${escapeHtml(c.bait)}</b></div>

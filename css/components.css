@@ -377,7 +377,7 @@ input[type="checkbox"], input[type="radio"] {
   position: fixed;
   inset: 0;
   background: rgba(2, 6, 23, 0.88);
-  z-index: 9500;
+  z-index: 14500 !important;
   display: none;
   align-items: center;
   justify-content: center;
@@ -1447,4 +1447,67 @@ html[data-liquid-glass="0"] .bottom-nav-inner {
 }
 #mapBox[data-ymap-hydro="1"][data-ymap-dim="1"] img.klev-base-tile-layer {
   filter: brightness(0.84) contrast(1.25) saturate(1.35);
+}
+
+
+/* v2.9.3 (r238): П. 1, 6, 7, 10 — Единый стандарт типографики, компактные кнопки при увеличенном системном шрифте, удаление SVG из заголовков, лайтбокс поверх модалок */
+.fish-lightbox-backdrop {
+  z-index: 14500 !important;
+}
+
+.bento-card-title svg,
+.bento-card-title .k-ico,
+.section-title svg,
+.section-title .k-ico,
+.unified-modal-title svg,
+.unified-modal-title .k-ico,
+#appModalTitle svg,
+#appModalTitle .k-ico,
+.adm-card-title svg,
+.adm-card-title .k-ico,
+.guide-block h4 svg,
+.guide-block h4 .k-ico {
+  display: none !important;
+}
+
+.bento-card-title,
+.section-title,
+.unified-modal-title,
+.adm-card-title {
+  font-family: var(--font-ui) !important;
+  font-size: var(--fs-md) !important;
+  font-weight: 800 !important;
+  line-height: 1.24 !important;
+  letter-spacing: -0.01em !important;
+}
+
+.bento-card-sub,
+.section-sub {
+  font-family: var(--font-ui) !important;
+  font-size: var(--fs-xs) !important;
+  font-weight: 600 !important;
+  line-height: 1.32 !important;
+}
+
+.btn,
+.w-chip,
+.top-nav-item,
+.bottom-nav-inner .nav-tab,
+.adm-sec-tab {
+  font-family: var(--font-ui) !important;
+  font-size: calc(12px * var(--sys-font-comp, 1)) !important;
+  line-height: 1.15 !important;
+  -webkit-text-size-adjust: 100% !important;
+  text-size-adjust: 100% !important;
+}
+
+.btn {
+  min-height: 36px;
+  padding: 5px 11px;
+}
+
+.btn.btn-sm {
+  min-height: 30px;
+  padding: 3px 9px;
+  font-size: calc(11.5px * var(--sys-font-comp, 1)) !important;
 }

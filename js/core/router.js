@@ -1,6 +1,6 @@
-import { store } from './store.js?v=2.9.2-r237';
-import { renderMap } from '../modules/geo/geo.module.js?v=2.9.2-r237';
-import { closeModal } from '../ui/components.js?v=2.9.2-r237';
+import { store } from './store.js?v=2.9.3-r238';
+import { renderMap } from '../modules/geo/geo.module.js?v=2.9.3-r238';
+import { closeModal } from '../ui/components.js?v=2.9.3-r238';
 const VALID_ROUTES = ['geo', 'weather', 'fish', 'forecast', 'circle', 'chats', 'log', 'calendar', 'admin'];
 const DEFAULT_ROUTE = (typeof window !== 'undefined' && window.__KLEV_ADMIN_CONTOUR__ === true) ? 'admin' : 'forecast';
 const routeHistoryStack = [DEFAULT_ROUTE];
@@ -180,6 +180,45 @@ export const router = {
       window.syncFishDockState(true, target);
     }
   },
+  syncNavGliders(route) {
+    if (typeof document === 'undefined') return;
+    const syncBarGlider = (barEl, gliderId) => {
+      if (!barEl) return;
+      let glider = document.getElementById(gliderId);
+      if (!glider) {
+        glider = document.createElement('div');
+        glider.id = gliderId;
+        glider.className = 'klev-nav-glider';
+        barEl.prepend(glider);
+      }
+      const activeBtn = barEl.querySelector('.active');
+      if (!activeBtn || activeBtn.offsetParent === null) {
+        glider.style.opacity = '0';
+        return;
+      }
+      const left = activeBtn.offsetLeft;
+      const top = activeBtn.offsetTop;
+      const width = activeBtn.offsetWidth;
+      const height = activeBtn.offsetHeight;
+      if (width > 4 && height > 4) {
+        glider.style.width = `${width}px`;
+        glider.style.height = `${height}px`;
+        glider.style.transform = `translate3d(${left}px, ${top}px, 0)`;
+        glider.style.opacity = '1';
+      }
+    };
+    const runSync = () => {
+      syncBarGlider(document.getElementById('topSectionNavBar'), 'topNavGlider');
+      syncBarGlider(document.querySelector('.bottom-nav-inner'), 'bottomNavGlider');
+      syncBarGlider(document.getElementById('adminTopTabBar'), 'admTopNavGlider');
+      syncBarGlider(document.querySelector('.adm-sec-tabs'), 'admNavGlider');
+    };
+    runSync();
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(runSync);
+    }
+    setTimeout(runSync, 90);
+  },
   applyVisibility(route) {
     const ROUTE_ORDER = ['weather', 'fish', 'calendar', 'geo', 'chats', 'circle', 'forecast', 'log', 'admin'];
     const prevRoute = this._lastVisibleRoute || store.getState().route || 'forecast';
@@ -188,6 +227,7 @@ export const router = {
     const slideDir = (prevRoute !== route && prevIdx !== -1 && nextIdx !== -1)
       ? (nextIdx > prevIdx ? 'right' : 'left')
       : 'fade';
+    const isRouteChanged = prevRoute !== route && Boolean(this._lastVisibleRoute);
     this._lastVisibleRoute = route;
 
     if (typeof document !== 'undefined' && document.body) {
@@ -210,8 +250,17 @@ export const router = {
       }
     }
 
+    if (this._flipCleanupTimer) {
+      clearTimeout(this._flipCleanupTimer);
+      this._flipCleanupTimer = null;
+    }
+    const appMain = document.getElementById('app');
+    if (appMain && isRouteChanged && route !== 'geo' && prevRoute !== 'geo') {
+      appMain.classList.add('klev-flip-stage-active');
+    }
     document.querySelectorAll('[data-route-section]').forEach(sec => {
       const secName = sec.getAttribute('data-route-section');
+      sec.classList.remove('klev-sec-flip-out-left', 'klev-sec-flip-out-right');
       if (secName === route) {
         sec.style.display = '';
         sec.classList.remove('klev-sec-slide-right', 'klev-sec-slide-left', 'klev-sec-slide-fade');
@@ -221,11 +270,27 @@ export const router = {
             ? 'klev-sec-slide-right'
             : (slideDir === 'left' ? 'klev-sec-slide-left' : 'klev-sec-slide-fade')
         );
+      } else if (isRouteChanged && secName === prevRoute && route !== 'geo' && prevRoute !== 'geo') {
+        sec.style.display = '';
+        sec.classList.remove('klev-sec-slide-right', 'klev-sec-slide-left', 'klev-sec-slide-fade');
+        sec.classList.add(slideDir === 'right' ? 'klev-sec-flip-out-left' : 'klev-sec-flip-out-right');
       } else {
         sec.style.display = 'none';
         sec.classList.remove('klev-sec-slide-right', 'klev-sec-slide-left', 'klev-sec-slide-fade');
       }
     });
+    if (isRouteChanged) {
+      this._flipCleanupTimer = setTimeout(() => {
+        document.querySelectorAll('[data-route-section]').forEach(sec => {
+          const secName = sec.getAttribute('data-route-section');
+          if (secName !== (this._lastVisibleRoute || route)) {
+            sec.style.display = 'none';
+            sec.classList.remove('klev-sec-flip-out-left', 'klev-sec-flip-out-right');
+          }
+        });
+        if (appMain) appMain.classList.remove('klev-flip-stage-active');
+      }, 360);
+    }
 
     document.querySelectorAll('[data-nav-tab]').forEach(btn => {
       const tabAttr = btn.getAttribute('data-nav-tab');
@@ -235,6 +300,10 @@ export const router = {
         btn.classList.toggle('active', tabAttr === route);
       }
     });
+    this.syncNavGliders(route);
+    if (typeof document !== 'undefined' && document.documentElement) {
+      document.documentElement.setAttribute('data-scroll-compact', '0');
+    }
 
     if (typeof window.syncFishDockState === 'function') {
       window.syncFishDockState(false, route);
@@ -249,3 +318,4 @@ export const router = {
     }
   }
 };
+if (typeof window !== 'undefined') { window.__KLEV_SYNC_NAV_GLIDERS__ = () => router.syncNavGliders(store.getState().route); }

@@ -2,7 +2,7 @@
 [data-theme="dark"] {
   /* Тёмная радарная схема (по Фото 2 — 1000130765.jpg): глубокий сонарный фон, циановые контуры и неоново-изумрудный индекс */
   --bg: #07111f;
-  --bg-grad: radial-gradient(circle at 50% 18%, rgba(0, 229, 255, 0.14) 0%, #07111f 58%, #040912 100%);
+  --bg-grad: radial-gradient(circle at 50% 18%, #0a2239 0%, #07111f 58%, #040912 100%);
   --panel: rgba(11, 24, 42, 0.94);
   --card: rgba(15, 31, 53, 0.92);
   --input-bg: #081322;
@@ -42,11 +42,12 @@
   --pill-ice-bg: rgba(56, 189, 248, 0.18);
   --pill-ice-text: #7dd3fc;
 
-  --font-ui: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --fs-xs: 13px;
-  --fs-sm: 15px;
-  --fs-md: 17px;
-  --fs-lg: 19px;
+  --sys-font-comp: 1;
+  --font-ui: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --fs-xs: calc(11.5px * var(--sys-font-comp, 1));
+  --fs-sm: calc(13px * var(--sys-font-comp, 1));
+  --fs-md: calc(15px * var(--sys-font-comp, 1));
+  --fs-lg: calc(16.5px * var(--sys-font-comp, 1));
 
   --r-sm: 11px;
   --r-md: 16px;

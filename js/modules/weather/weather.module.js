@@ -1,11 +1,11 @@
-import { RU } from '../../i18n/ru.js?v=2.9.2-r237';
-import { events } from '../../core/events.js?v=2.9.2-r237';
-import { storage } from '../../core/storage.js?v=2.9.2-r237';
-import { store } from '../../core/store.js?v=2.9.2-r237';
-import { fetchWithTimeout, fallbackChain } from '../../core/http.js?v=2.9.2-r237';
-import { formatLocalYYYYMMDD, fmtHM, fmtDeltaPress } from '../../core/format.js?v=2.9.2-r237';
-import { WATER_PROFILES } from '../../data/waters.js?v=2.9.2-r237';
-import { createPill, showToast } from '../../ui/components.js?v=2.9.2-r237';
+import { RU } from '../../i18n/ru.js?v=2.9.3-r238';
+import { events } from '../../core/events.js?v=2.9.3-r238';
+import { storage } from '../../core/storage.js?v=2.9.3-r238';
+import { store } from '../../core/store.js?v=2.9.3-r238';
+import { fetchWithTimeout, fallbackChain } from '../../core/http.js?v=2.9.3-r238';
+import { formatLocalYYYYMMDD, fmtHM, fmtDeltaPress } from '../../core/format.js?v=2.9.3-r238';
+import { WATER_PROFILES } from '../../data/waters.js?v=2.9.3-r238';
+import { createPill, showToast } from '../../ui/components.js?v=2.9.3-r238';
 const DIRS = ['С', 'СВ', 'В', 'ЮВ', 'Ю', 'ЮЗ', 'З', 'СЗ'];
 
 /**
@@ -1418,17 +1418,46 @@ export function render(container) {
   const dayIdx = Number.isFinite(s.dayIdx) ? s.dayIdx : 2;
   const day = days[dayIdx] || days[2] || days[0];
   if (!day) return;
+  const isInsideArcModal = container.id === 'arcWeatherInnerMount';
   const m = day.moon || computeMoon(day.date || '2026-10-30');
   const prof = WATER_PROFILES[s.water] || WATER_PROFILES.small_river;
   const flowLabel = prof.flow >= 1.8 ? 'быстрое течение' : (prof.flow >= 1.1 ? 'умеренное течение' : 'стоячая вода');
-  const archiveStats = storage.getWeatherArchiveStats(s.lat, s.lon);
   const safety = computeIceSafetyIndex(day, s.water);
   const waterTitle = s.selectedWaterName || prof.shortName || 'Водоём';
   const isIceSeason = day.iceState === 'ice_safe' || day.iceState === 'ice_danger';
   const isSlushSeason = day.iceState === 'ice_slush';
+  const isWinterPeriod = isIceSeason || isSlushSeason || (Number(day.tDay ?? 0) <= 2 && Number(day.tNight ?? 0) <= -1);
+  // П. 4: Если лёд уже устоялся (ice_safe и толщина >= 15 см), пункт по допуску безопасности НЕ выводится — только на начальных этапах становления льда!
+  const iceCmVal = Number(day.iceThickness) || 0;
+  const isInitialIceStage = isSlushSeason || day.iceState === 'ice_danger' || (day.iceState === 'ice_safe' && iceCmVal < 15);
+
+  // Расчёт осадков и накопления снега (П. 4)
+  const hrs = Array.isArray(day.hours) && day.hours.length ? day.hours : Array.from({ length: 24 }, (_, h) => ({
+    hour: h,
+    tAir: Math.round((day.tNight + (day.tDay - day.tNight) * Math.sin(Math.max(0, (h - 5) / 14) * Math.PI)) * 10) / 10,
+    press: day.pressAvg || 752,
+    precip: 0
+  }));
+  const rawPrecipDay = Number(day.precip ?? hrs.reduce((acc, h) => acc + (Number(h.precip) || 0), 0));
+  const precipDayMm = Math.round(rawPrecipDay * 10) / 10;
+  const precipKind = Number(day.tDay ?? 0) <= -0.5
+    ? 'снег'
+    : (Number(day.tDay ?? 0) <= 2.2 && Number(day.tNight ?? 0) <= 0 ? 'мокрый снег' : 'дождь');
+  const snowRatio = Number(day.tDay ?? 0) <= -5 ? 1.35 : (Number(day.tDay ?? 0) <= 1.5 ? 1.05 : 0);
+  const freshSnowCm = Math.round(precipDayMm * snowRatio * 10) / 10;
+  // Накопление снега за последние дни и общая высота снежного покрова в зимний период
+  const prevDaysSlice = days.slice(0, Math.min(days.length, dayIdx + 1));
+  const accumPrecipMm = prevDaysSlice.reduce((acc, d) => {
+    const dp = Number(d?.precip ?? (Array.isArray(d?.hours) ? d.hours.reduce((s0, h) => s0 + (Number(h.precip) || 0), 0) : 0));
+    return acc + (Number(d?.tDay ?? 0) <= 2 ? dp : 0);
+  }, 0);
+  const snowCoverEstimateCm = isWinterPeriod
+    ? Math.max(freshSnowCm > 0 ? Math.ceil(freshSnowCm) : 2, Math.round((iceCmVal * 0.85) + accumPrecipMm * 1.15))
+    : 0;
+
   const heroTitle = isIceSeason
-    ? '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1" stroke="#7dd3fc" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="#38bdf8"/></svg> Погода и Ледовая обстановка'
-    : (isSlushSeason ? '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1" stroke="#7dd3fc" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="#38bdf8"/></svg> Погода и Предзимний режим водоёма' : '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> Погода и Режим открытой воды');
+    ? 'Погода и Ледовая обстановка'
+    : (isSlushSeason ? 'Погода и Предзимний режим водоёма' : 'Погода и Режим открытой воды');
   const heroVerdictShort = day.iceState === 'ice_safe'
     ? `БЕЗОПАСНЫЙ ЛЁД (~${day.iceThickness || 12} СМ)`
     : (day.iceState === 'ice_danger'
@@ -1440,27 +1469,38 @@ export function render(container) {
   const openWaterComfort = Math.max(15, Math.min(98, Math.round(92 - Math.max(0, (day.windMax || 3) - 3) * 8 - Math.abs(day.dP || 0) * 3)));
   const gaugeScore = (isIceSeason || isSlushSeason) ? safety.index : openWaterComfort;
   const gaugeArcLen = Math.round((Math.max(6, Math.min(100, gaugeScore)) / 100) * 188.5);
+  const gaugeColor = gaugeScore >= 70 ? '#10b981' : (gaugeScore >= 50 ? '#38bdf8' : (gaugeScore >= 30 ? '#f59e0b' : '#ef4444'));
   const gaugeSubTitle = (isIceSeason || isSlushSeason) ? 'Индекс льда:' : 'Комфорт воды:';
   const gaugeLvlWord = (isIceSeason || isSlushSeason)
-    ? (safety.footSafe ? 'Пешком можно' : 'Только берег')
+    ? (safety.footSafe ? 'Устойчивый' : 'Только берег')
     : ((day.windMax || 3) <= 5 ? 'Лодка и берег' : 'Волна у берега');
-  const hrs = Array.isArray(day.hours) && day.hours.length ? day.hours : Array.from({ length: 24 }, (_, h) => ({
-    hour: h,
-    tAir: Math.round((day.tNight + (day.tDay - day.tNight) * Math.sin(Math.max(0, (h - 5) / 14) * Math.PI)) * 10) / 10,
-    press: day.pressAvg || 752
-  }));
-  const tVals = hrs.map(h => Number(h.tAir ?? day.tDay ?? 0));
-  const minT = Math.min(...tVals);
-  const maxT = Math.max(...tVals);
-  const spanT = Math.max(2, maxT - minT);
-  const svgW = 320, svgH = 88, padL = 12, padR = 12, padT = 18, padB = 16;
+
+  // П. 5: Суточный ход атмосферного давления (00:00–24:00) по точным данным метеостанций
+  const pVals = hrs.map(h => Number(h.press ?? day.pressAvg ?? 754));
+  const minP = Math.min(...pVals);
+  const maxP = Math.max(...pVals);
+  const spanP = Math.max(3, maxP - minP);
+  const floorP = minP - Math.max(1, spanP * 0.18);
+  const ceilP = maxP + Math.max(1, spanP * 0.18);
+  const rangeP = Math.max(4, ceilP - floorP);
+  const svgW = 320, svgH = 92, padL = 12, padR = 12, padT = 20, padB = 16;
   const plotW = svgW - padL - padR;
   const plotH = svgH - padT - padB;
+  let minIdx = 0, maxIdx = 0;
+  pVals.forEach((pv, i) => {
+    if (pv <= pVals[minIdx]) minIdx = i;
+    if (pv >= pVals[maxIdx]) maxIdx = i;
+  });
+  if (minIdx === maxIdx && hrs.length > 12) {
+    minIdx = 4;
+    maxIdx = 16;
+  }
   const pts = hrs.map((h, idx) => {
     const x = Math.round((padL + (idx / Math.max(1, hrs.length - 1)) * plotW) * 10) / 10;
-    const norm = (Number(h.tAir ?? 0) - minT) / spanT;
+    const pVal = Number(h.press ?? day.pressAvg ?? 754);
+    const norm = Math.max(0.06, Math.min(0.94, (pVal - floorP) / rangeP));
     const y = Math.round((padT + (1 - norm) * plotH) * 10) / 10;
-    return { x, y, t: h.tAir, p: h.press, hr: h.hour };
+    return { x, y, t: h.tAir, p: Math.round(pVal * 10) / 10, hr: h.hour };
   });
   let wavePathD = `M ${pts[0].x} ${pts[0].y}`;
   for (let i = 0; i < pts.length - 1; i++) {
@@ -1469,87 +1509,99 @@ export function render(container) {
     wavePathD += ` C ${cx} ${p0.y}, ${cx} ${p1.y}, ${p1.x} ${p1.y}`;
   }
   const waveAreaD = `${wavePathD} L ${pts[pts.length - 1].x} ${svgH - 4} L ${pts[0].x} ${svgH - 4} Z`;
-  const coldPt = pts[6] || pts[0];
-  const warmPt = pts[14] || pts[Math.floor(pts.length / 2)];
+  const minPt = pts[minIdx] || pts[4] || pts[0];
+  const maxPt = pts[maxIdx] || pts[16] || pts[Math.floor(pts.length / 2)];
+  const normPVal = Number(s.normPress || 754);
+  const normY = Math.round((padT + (1 - Math.max(0.08, Math.min(0.92, (normPVal - floorP) / rangeP))) * plotH) * 10) / 10;
+
   const tDayStr = `${day.tDay > 0 ? '+' + day.tDay : day.tDay}°C`;
   const tNightStr = `${day.tNight > 0 ? '+' + day.tNight : day.tNight}°C`;
   const wTempStr = `${day.waterTemp > 0 ? '+' + day.waterTemp : day.waterTemp}°C`;
   container.innerHTML = `
     <div class="bento-dashboard-wrap">
+      ${!isInsideArcModal ? `
+        <div class="weather-sticky-back-bar" style="position:sticky;top:56px;z-index:940;display:flex;align-items:center;justify-content:space-between;padding:4px 0 6px;background:linear-gradient(180deg, var(--bg) 78%, rgba(7,17,31,0));backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);">
+          <button type="button" class="klev-arc-glass" id="weatherStickyBackToMapBtn" style="height:36px;padding:0 13px;border-radius:12px;display:inline-flex;align-items:center;gap:6px;font-weight:800;font-size:12.5px;cursor:pointer;">
+            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><polyline points="15 18 9 12 15 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span>На карту</span>
+          </button>
+        </div>
+      ` : ''}
       <!-- Горизонтальная лента быстрого выбора дня прямо во вкладке Погода -->
       <div class="chip-scroll-row" id="weatherDaysStrip" style="padding-bottom:2px;">
         ${days.map((d, idx) => {
           const isAct = idx === dayIdx;
-          const dTitle = idx === 2 ? '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2c1.5 3.5 4.5 5.5 4.5 10a5.5 5.5 0 1 1-11 0c0-3 2-5.5 3.5-7 0 2 1.5 3 1.5 3S12 5.5 12 2z" fill="#f97316" stroke="#fbbf24" stroke-width="1.5" stroke-linejoin="round"/></svg> Сегодня' : (idx === 3 ? '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><polygon points="13,2 4,14 11,14 10,22 20,10 13,10" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.5" stroke-linejoin="round"/></svg> Завтра' : (d.relTitle || d.label));
+          const dTitle = idx === 2 ? 'Сегодня' : (idx === 3 ? 'Завтра' : (d.relTitle || d.label));
           const dTemp = `${d.tDay > 0 ? '+' + d.tDay : d.tDay}°`;
           return `
-            <button type="button" class="w-chip ${isAct ? 'active' : ''}" data-weather-pick-day="${idx}" style="padding:5px 11px;min-height:36px;">
+            <button type="button" class="w-chip ${isAct ? 'active' : ''}" data-weather-pick-day="${idx}" style="padding:5px 11px;min-height:36px;white-space:nowrap;">
               <span>${dTitle}</span>
               <span style="opacity:0.85;font-weight:800;">${dTemp}</span>
             </button>
           `;
         }).join('')}
       </div>
-      <!-- КАРТОЧКА 1 (Bento Hero): Компактный сезонный режим водоёма (радар справа вверху, инфо-блок на всю ширину внизу) -->
+      <!-- КАРТОЧКА 1 (Bento Hero): Компактный сезонный режим водоёма -->
       <div class="bento-card bento-hero-card" style="padding:10px 12px;">
         <div class="bento-card-head" style="margin-bottom:6px;gap:6px;align-items:flex-start;">
           <div style="min-width:0;flex:1;">
             <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;">
-              <div class="bento-card-title" style="font-size:15px;">
+              <div class="bento-card-title">
                 <span>${heroTitle}</span>
               </div>
               ${isWeatherBetaUser(s) ? `
               <div style="display:inline-flex;align-items:center;gap:5px;flex-wrap:wrap;">
-                <button type="button" class="btn btn-sm" id="weatherHeroRefreshBtn" style="min-height:26px;padding:2px 8px;font-size:11px;font-weight:800;" title="Обновить погоду">
-                  <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M20 11a8 8 0 0 0-14.5-4.5L4 8m0-5v5h5M4 13a8 8 0 0 0 14.5 4.5L20 16m0 5v-5h-5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <button type="button" class="btn btn-sm" id="weatherHeroRefreshBtn" style="min-height:28px;padding:2px 9px;font-size:11.5px;font-weight:800;" title="Обновить погоду">
                   <span>Обновить погоду</span>
                 </button>
               </div>
               ` : ''}
             </div>
-            <div class="bento-card-sub" style="font-size:11px;margin-top:2px;line-height:1.25;">
-              <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#ef4444"/></svg> ${s.locLabel} (${waterTitle} • ${flowLabel}) • ${day.relTitle ? day.relTitle + ' (' + day.label + ')' : day.label}
+            <div class="bento-card-sub" style="margin-top:2px;">
+              ${s.locLabel} (${waterTitle} • ${flowLabel}) • ${day.relTitle ? day.relTitle + ' (' + day.label + ')' : day.label}
             </div>
           </div>
         </div>
-        <!-- Верхний ряд: слева статус льда/воды, справа вверху — радар индекса льда и температура воды -->
+        <!-- Верхний ряд: слева статус льда/воды и снежный покров, справа — шкала индекса и температура воды -->
         <div style="display:grid;grid-template-columns:1.12fr 0.88fr;gap:8px;align-items:center;margin-bottom:6px;">
           <div style="min-width:0;">
-            <div class="bento-status-verdict" style="color:${heroTone};font-size:15px;line-height:1.18;margin-bottom:3px;">
+            <div class="bento-status-verdict" style="color:${heroTone};margin-bottom:4px;">
               ${heroVerdictShort}
             </div>
-            <div style="font-size:11.5px;font-weight:800;color:var(--text);line-height:1.3;">
-              ${day.iceNote || (day.iceState === 'open_water' ? `Открытая вода (~${day.waterTemp}°C), льда нет (${flowLabel})` : safety.vehicleVerdict)}
+            <div style="font-size:12px;font-weight:700;color:var(--text);line-height:1.35;">
+              ${day.iceNote || (day.iceState === 'open_water' ? `Открытая вода (~${day.waterTemp}°C), льда нет (${flowLabel})` : `Река: ~${day.riverIceThickness || day.iceThickness || 12} см • Озёра: ~${day.lakeIceThickness || Math.round((day.iceThickness || 12) * 1.2)} см`)}
             </div>
+            ${isWinterPeriod ? `
+              <div id="weatherWinterSnowSummaryBox" style="margin-top:6px;padding:6px 8px;border-radius:9px;background:var(--panel);border:1px solid var(--border);font-size:11.5px;line-height:1.35;color:var(--text);">
+                <div><b>Осадки за сутки:</b> ${precipDayMm} мм (${precipKind})${freshSnowCm > 0 ? ` • <b>Прирост снега:</b> +${freshSnowCm} см` : ''}</div>
+                <div style="color:var(--muted);margin-top:2px;"><b>Накопление снега (покров):</b> ~${snowCoverEstimateCm} см</div>
+              </div>
+            ` : ''}
           </div>
           <div class="bento-gauge-col" style="padding:0;justify-content:flex-start;align-items:center;">
-            <div class="bento-gauge-svg-box" style="width:138px;height:74px;margin:0 auto;">
-              <svg viewBox="0 0 156 90" width="138" height="74" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <defs>
-                  <linearGradient id="weatherGaugeGrad" x1="0%" y1="100%" x2="100%" y2="0%">
-                    <stop offset="0%" stop-color="var(--gauge-start, #3b82f6)"/>
-                    <stop offset="100%" stop-color="var(--gauge-end, #10b981)"/>
-                  </linearGradient>
-                </defs>
-                <path d="M 18 78 A 60 60 0 0 1 138 78" stroke="var(--gauge-track, #dbe7f3)" stroke-width="12" stroke-linecap="round" fill="none"/>
-                <path d="M 18 78 A 60 60 0 0 1 138 78" stroke="url(#weatherGaugeGrad)" stroke-width="12" stroke-linecap="round" fill="none" stroke-dasharray="${gaugeArcLen} 200"/>
+            <div class="bento-gauge-svg-box" style="width:140px;height:78px;margin:0 auto;">
+              <svg viewBox="0 0 156 92" width="140" height="78" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M 16 80 A 62 62 0 0 1 140 80" stroke="var(--gauge-track, rgba(148,163,184,0.18))" stroke-width="6.5" stroke-opacity="0.22" stroke-linecap="round" fill="none"/>
+                <path d="M 16 80 A 62 62 0 0 1 140 80" stroke="${gaugeColor}" stroke-width="6.5" stroke-opacity="0.42" stroke-linecap="round" fill="none" stroke-dasharray="${gaugeArcLen} 200"/>
               </svg>
               <div class="bento-gauge-center-text" style="bottom:0;">
-                <span class="bento-gauge-sub" style="font-size:9.5px;">${gaugeSubTitle}</span>
-                <span class="bento-gauge-lvl" style="font-size:11px;">${gaugeLvlWord}</span>
-                <span class="bento-gauge-pct" style="font-size:20px;">${gaugeScore}%</span>
+                <span class="bento-gauge-sub">${gaugeSubTitle}</span>
+                <span class="bento-gauge-lvl" style="color:${gaugeColor};">${gaugeLvlWord}</span>
+                <span class="bento-gauge-pct" style="color:${gaugeColor};">${gaugeScore}%</span>
               </div>
             </div>
-            <div class="bento-tackle-summary" style="margin-top:2px;font-size:10.5px;line-height:1.2;text-align:center;">
+            <div class="bento-tackle-summary" style="margin-top:2px;font-size:11px;line-height:1.2;text-align:center;">
               <span style="color:var(--muted);">Вода с учётом течения:</span>
-              <b style="font-size:12.5px;color:var(--accent);margin-left:3px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> ${wTempStr}</b>
+              <b style="color:var(--accent);margin-left:3px;white-space:nowrap;">${wTempStr}</b>
             </div>
           </div>
         </div>
-        <!-- Нижний ряд на ВСЮ ШИРИНУ карточки (без дублирующего 4-строчного абзаца) -->
-        <div style="width:100%;padding:7px 10px;border-radius:10px;background:var(--panel);border:1px solid var(--border);font-size:11.5px;line-height:1.3;">
-          <div style="font-weight:800;color:var(--text);">${safety.vehicleVerdict}</div>
-        </div>
+        ${isInitialIceStage ? `
+          <!-- П. 4: Пункт по безопасности выводится ТОЛЬКО во время становления льда на начальных этапах (< 15 см, шуга или опасный лёд) -->
+          <div id="weatherInitialIceSafetyBlock" style="width:100%;padding:7px 10px;border-radius:10px;background:var(--panel);border:1px solid var(--warn);font-size:11.5px;line-height:1.35;">
+            <div style="font-weight:800;color:var(--text);">Этап становления льда: ${safety.vehicleVerdict}</div>
+          </div>
+        ` : ''}
       </div>
       ${(() => {
         const haz = evaluateRoadAndWeatherHazards(day, s);
@@ -1557,46 +1609,44 @@ export function render(container) {
         const roadColdNote = day.tNight <= -28 ? `Мороз до ${day.tNight}°C` : (day.tDay >= -2 && day.tNight <= 1 ? 'Риск гололедицы (0°C)' : 'Покрытие по сезону');
         const windStormNote = (day.windMax || 3) >= 12 ? `Штормовой ${day.windDir} ${day.windMax} м/с` : `${day.windDir || 'З'} ${day.windMax || 3} м/с (без шторма)`;
         return `
-          <!-- Дорожная и штормовая сводка (гололедица, метель, шторм, экстремальные температуры) -->
+          <!-- Дорожная и штормовая сводка -->
           <div class="bento-card" id="weatherRoadStormCard" style="padding:10px 12px;border-color:${haz.hasWarning ? statusTone : 'var(--border)'};">
             <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;">
-              <div class="bento-card-title" style="font-size:14px;">
-                <svg class="k-ico" style="color:${statusTone};" viewBox="0 0 24 24" fill="none"><path d="M12 3L2.5 19.5h19L12 3z" fill="rgba(245,158,11,0.18)" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><path d="M12 9v5M12 17h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              <div class="bento-card-title">
                 <span>Дорожная и штормовая обстановка</span>
               </div>
-              <span class="pill ${haz.hasDanger ? 'pill-bad' : (haz.hasWarning ? 'pill-warn' : 'pill-good')}" style="font-size:10.5px;">
+              <span class="pill ${haz.hasDanger ? 'pill-bad' : (haz.hasWarning ? 'pill-warn' : 'pill-good')}" style="font-size:11px;white-space:nowrap;">
                 ${haz.hasDanger ? 'Шторм / Опасно' : (haz.hasWarning ? 'Внимание в пути' : 'Без угроз')}
               </span>
             </div>
             <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;">
               <div style="padding:7px 9px;border-radius:10px;background:var(--panel);border:1px solid var(--border);">
-                <div style="font-size:10.5px;color:var(--muted);font-weight:800;">Трасса и зимники</div>
-                <div style="font-size:12.5px;font-weight:900;color:var(--text);margin-top:2px;">${roadColdNote}</div>
+                <div style="font-size:11px;color:var(--muted);font-weight:700;">Трасса и зимники</div>
+                <div style="font-size:12.5px;font-weight:800;color:var(--text);margin-top:2px;">${roadColdNote}</div>
               </div>
               <div style="padding:7px 9px;border-radius:10px;background:var(--panel);border:1px solid var(--border);">
-                <div style="font-size:10.5px;color:var(--muted);font-weight:800;">Ветер и метель</div>
-                <div style="font-size:12.5px;font-weight:900;color:var(--text);margin-top:2px;">${windStormNote}</div>
+                <div style="font-size:11px;color:var(--muted);font-weight:700;">Ветер и метель</div>
+                <div style="font-size:12.5px;font-weight:800;color:var(--text);margin-top:2px;white-space:nowrap;">${windStormNote}</div>
               </div>
             </div>
             ${haz.items.length > 0 ? `
               <div style="display:flex;flex-direction:column;gap:5px;margin-top:7px;">
                 ${haz.items.map(it => `
-                  <div style="padding:6px 9px;border-radius:9px;background:${it.tone === 'bad' ? 'rgba(239,68,68,0.14)' : 'rgba(245,158,11,0.14)'};border:1px solid ${it.tone === 'bad' ? 'var(--bad)' : 'var(--warn)'};font-size:11.5px;font-weight:800;color:var(--text);">
-                    <span style="color:${it.tone === 'bad' ? 'var(--bad)' : 'var(--warn)'};">${it.title}:</span> ${it.detail}
+                  <div style="padding:6px 9px;border-radius:9px;background:${it.tone === 'bad' ? 'rgba(239,68,68,0.14)' : 'rgba(245,158,11,0.14)'};border:1px solid ${it.tone === 'bad' ? 'var(--bad)' : 'var(--warn)'};font-size:11.5px;font-weight:700;color:var(--text);">
+                    <span style="color:${it.tone === 'bad' ? 'var(--bad)' : 'var(--warn)'};font-weight:800;">${it.title}:</span> ${it.detail}
                   </div>
                 `).join('')}
               </div>
             ` : ''}
           </div>
           ${haz.waveRelevant ? `
-            <!-- Почасовая высота и направление волны (выводится ТОЛЬКО для морских/приморских зон, водохранилищ и крупных рек при открытой воде) -->
+            <!-- Почасовая высота и направление волны -->
             <div class="bento-card" id="weatherHourlyWaveCard" style="padding:10px 12px;">
               <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;">
-                <div class="bento-card-title" style="font-size:14px;">
-                  <svg class="k-ico" style="color:#38bdf8;" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                <div class="bento-card-title">
                   <span>Волна по часам (высота и направление)</span>
                 </div>
-                <span class="pill ${haz.maxWaveM >= 0.8 ? 'pill-bad' : (haz.maxWaveM >= 0.45 ? 'pill-warn' : 'pill-good')}" style="font-size:10.5px;">
+                <span class="pill ${haz.maxWaveM >= 0.8 ? 'pill-bad' : (haz.maxWaveM >= 0.45 ? 'pill-warn' : 'pill-good')}" style="font-size:11px;white-space:nowrap;">
                   Макс. ${haz.maxWaveM.toFixed(1)} м
                 </span>
               </div>
@@ -1606,9 +1656,9 @@ export function render(container) {
                   const wCol = wSlot.waveM >= 0.8 ? 'var(--bad)' : (wSlot.waveM >= 0.45 ? 'var(--warn)' : 'var(--good)');
                   return `
                     <div style="padding:6px 4px;border-radius:10px;background:var(--panel);border:1px solid var(--border);display:flex;flex-direction:column;align-items:center;gap:2px;">
-                      <span style="font-size:10px;font-weight:800;color:var(--muted);">${String(hIdx).padStart(2, '0')}:00</span>
-                      <span style="font-size:14px;font-weight:900;color:${wCol};">${wSlot.waveM.toFixed(1)} м</span>
-                      <span style="font-size:10.5px;font-weight:800;color:var(--accent);">${wSlot.dir} • ${Math.round(wSlot.windMs)} м/с</span>
+                      <span style="font-size:10.5px;font-weight:800;color:var(--muted);">${String(hIdx).padStart(2, '0')}:00</span>
+                      <span style="font-size:13.5px;font-weight:900;color:${wCol};white-space:nowrap;">${wSlot.waveM.toFixed(1)} м</span>
+                      <span style="font-size:10.5px;font-weight:800;color:var(--accent);white-space:nowrap;">${wSlot.dir} • ${Math.round(wSlot.windMs)} м/с</span>
                     </div>
                   `;
                 }).join('')}
@@ -1617,144 +1667,142 @@ export function render(container) {
           ` : ''}
         `;
       })()}
-      <!-- КАРТОЧКА 2 (Двойной Bento-ряд 50% / 50%): Температура + Давление и Ветер -->
+      <!-- КАРТОЧКА 2 (Двойной Bento-ряд 50% / 50%): Температура + Давление, Ветер и Осадки -->
       <div class="bento-bottom-duo">
         <div class="bento-card bento-weather-card" style="cursor:default;">
-          <div class="bento-card-title" style="margin-bottom:8px;font-size:14.5px;">
-            <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M14 14.76V5a2 2 0 1 0-4 0v9.76a4 4 0 1 0 4 0z" fill="rgba(56,189,248,0.22)" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="17.5" r="1.8" fill="#ef4444"/></svg></span>
-            <span>Воздух & Вода</span>
+          <div class="bento-card-title" style="margin-bottom:8px;">
+            <span>Воздух и Вода</span>
           </div>
           <div class="bento-weather-rows">
             <div class="bento-temp-split">
               <div>
-                <div class="bento-temp-air">${tDayStr}</div>
-                <div style="font-size:10.5px;color:var(--muted);font-weight:700;">Днём (ночью ${tNightStr})</div>
+                <div class="bento-temp-air" style="white-space:nowrap;">${tDayStr}</div>
+                <div style="font-size:11px;color:var(--muted);font-weight:700;">Днём (ночью ${tNightStr})</div>
               </div>
               <div class="bento-temp-water-box">
-                <div style="font-size:15px;font-weight:900;color:var(--accent);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> ${wTempStr}</div>
-                <div style="font-size:10.5px;color:var(--muted);font-weight:700;">Вода (${flowLabel})</div>
+                <div style="font-size:15px;font-weight:900;color:var(--accent);white-space:nowrap;">${wTempStr}</div>
+                <div style="font-size:11px;color:var(--muted);font-weight:700;">Вода (${flowLabel})</div>
               </div>
             </div>
             <div class="bento-weather-item-row">
-              <span style="font-size:16px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg></span>
               <div>
                 <div style="font-weight:800;color:var(--text);">Биотоп: ${waterTitle}</div>
-                <div style="font-size:10.5px;color:var(--muted);">Глубина в точке: ~${s.depth.toFixed(1)} м</div>
+                <div style="font-size:11px;color:var(--muted);">Глубина в точке: ~${s.depth.toFixed(1)} м</div>
               </div>
             </div>
           </div>
         </div>
         <div class="bento-card bento-radar-card" style="cursor:default;">
-          <div class="bento-card-title" style="margin-bottom:8px;font-size:14.5px;">
-            <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><polygon points="16,8 13.5,13.5 8,16 10.5,10.5" fill="#38bdf8" stroke="currentColor" stroke-width="1.3"/></svg></span>
-            <span>Барометр & Ветер</span>
+          <div class="bento-card-title" style="margin-bottom:8px;">
+            <span>Барометр, Ветер и Осадки</span>
           </div>
           <div class="bento-weather-rows">
             <div class="bento-temp-split">
               <div>
-                <div class="bento-temp-air" style="font-size:21px;">${day.pressAvg} <span style="font-size:12px;font-weight:700;">мм</span></div>
-                <div style="font-size:10.5px;color:var(--muted);font-weight:700;">Тренд: ${fmtDeltaPress(day.dP)}</div>
+                <div class="bento-temp-air" style="font-size:20px;white-space:nowrap;">${day.pressAvg} <span style="font-size:12px;font-weight:700;">мм</span></div>
+                <div style="font-size:11px;color:var(--muted);font-weight:700;white-space:nowrap;">Тренд: ${fmtDeltaPress(day.dP)}</div>
               </div>
               <div class="bento-temp-water-box">
-                <div style="font-size:14px;font-weight:900;color:var(--good);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> ${day.windDir} ${day.windMax} м/с</div>
-                <div style="font-size:10.5px;color:var(--muted);font-weight:700;">${isWaveForecastRelevantForContext(s, day) ? "Ветер и волна" : "Направление и скорость"}</div>
+                <div style="font-size:14px;font-weight:900;color:var(--good);white-space:nowrap;">${day.windDir} ${day.windMax} м/с</div>
+                <div style="font-size:11px;color:var(--muted);font-weight:700;">${isWaveForecastRelevantForContext(s, day) ? "Ветер и волна" : "Ветер"}</div>
               </div>
             </div>
             <div class="bento-weather-item-row">
-              <span style="font-size:16px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M3 20L10 6l5 9 3-5 3 10H3z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></span>
               <div>
                 <div style="font-weight:800;color:var(--text);">Норма: ${s.normPress} мм (${s.elevation} м)</div>
-                <div style="font-size:10.5px;color:var(--muted);">Осадки за сутки: ${day.precip || 0} мм</div>
+                <div style="font-size:11px;color:var(--muted);">
+                  Осадки: <b>${precipDayMm} мм</b> (${precipKind})${isWinterPeriod ? ` • Снег: <b>${freshSnowCm > 0 ? '+' + freshSnowCm + ' см' : '~' + snowCoverEstimateCm + ' см'}</b>` : ''}
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-      <!-- КАРТОЧКА 3 (Bento Chart): Суточный ход температуры и давления 00:00–24:00 -->
-      <div class="bento-card bento-chart-card">
+      <!-- КАРТОЧКА 3 (П. 5 — Суточный ход атмосферного давления 00:00–24:00 по метеостанциям) -->
+      <div class="bento-card bento-chart-card" id="weatherDiurnalPressureCard">
         <div class="bento-card-head" style="margin-bottom:4px;">
           <div class="bento-card-title">
-            <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M3 3v18h18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M7 15l4-5 4 3 5-7" stroke="#38bdf8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-            <span>Суточный ход температуры воздуха и давления</span>
+            <span>Суточный ход атмосферного давления (мм рт. ст.)</span>
           </div>
-          <span style="font-size:12px;font-weight:800;color:var(--muted);">00:00–24:00</span>
+          <span style="font-size:11.5px;font-weight:800;color:var(--muted);white-space:nowrap;">Норма: ${s.normPress} мм</span>
         </div>
         <div style="width:100%;overflow:hidden;">
-          <div class="bento-chart-stage" style="position:relative;width:100%;height:106px;">
+          <div class="bento-chart-stage" style="position:relative;width:100%;height:108px;">
             <svg viewBox="0 0 ${svgW} ${svgH}" width="100%" height="100%" preserveAspectRatio="none" style="display:block;width:100%;height:100%;">
               <defs>
                 <linearGradient id="weatherWaveFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stop-color="var(--wave-fill-top, rgba(59,130,246,0.35))"/>
-                  <stop offset="100%" stop-color="var(--wave-fill-bot, rgba(59,130,246,0.02))"/>
+                  <stop offset="0%" stop-color="var(--wave-fill-top, rgba(56,189,248,0.34))"/>
+                  <stop offset="100%" stop-color="var(--wave-fill-bot, rgba(56,189,248,0.02))"/>
                 </linearGradient>
               </defs>
-              <line x1="${padL}" y1="${padT + plotH * 0.5}" x2="${svgW - padR}" y2="${padT + plotH * 0.5}" stroke="var(--border)" stroke-dasharray="3 3" stroke-width="1" vector-effect="non-scaling-stroke" opacity="0.6"/>
+              <line x1="${padL}" y1="${normY}" x2="${svgW - padR}" y2="${normY}" stroke="var(--accent)" stroke-dasharray="4 3" stroke-width="1.2" vector-effect="non-scaling-stroke" opacity="0.65"/>
               <path d="${waveAreaD}" fill="url(#weatherWaveFill)"/>
               <path d="${wavePathD}" fill="none" stroke="var(--wave-stroke, #38bdf8)" stroke-width="2.6" vector-effect="non-scaling-stroke" stroke-linecap="round"/>
             </svg>
-            <div class="bento-chart-dot" style="left:${((coldPt.x / svgW) * 100).toFixed(1)}%;top:${((coldPt.y / svgH) * 100).toFixed(1)}%;background:#38bdf8;"></div>
-            <div class="bento-chart-badge" style="left:${Math.max(13, Math.min(87, (coldPt.x / svgW) * 100)).toFixed(1)}%;top:${Math.max(20, ((coldPt.y / svgH) * 100) - 6).toFixed(1)}%;border-color:rgba(56,189,248,0.55);">
-              06:00 (${coldPt.t > 0 ? '+' + coldPt.t : coldPt.t}°C)
+            <div class="bento-chart-dot" style="left:${((minPt.x / svgW) * 100).toFixed(1)}%;top:${((minPt.y / svgH) * 100).toFixed(1)}%;background:#38bdf8;"></div>
+            <div class="bento-chart-badge" style="left:${Math.max(14, Math.min(86, (minPt.x / svgW) * 100)).toFixed(1)}%;top:${Math.max(18, ((minPt.y / svgH) * 100) - 6).toFixed(1)}%;border-color:rgba(56,189,248,0.55);">
+              ${String(minPt.hr).padStart(2, '0')}:00 (${minPt.p} мм)
             </div>
-            <div class="bento-chart-dot" style="left:${((warmPt.x / svgW) * 100).toFixed(1)}%;top:${((warmPt.y / svgH) * 100).toFixed(1)}%;background:#10b981;"></div>
-            <div class="bento-chart-badge" style="left:${Math.max(13, Math.min(87, (warmPt.x / svgW) * 100)).toFixed(1)}%;top:${Math.max(20, ((warmPt.y / svgH) * 100) - 6).toFixed(1)}%;border-color:rgba(16,185,129,0.55);">
-              14:00 (${warmPt.t > 0 ? '+' + warmPt.t : warmPt.t}°C)
+            <div class="bento-chart-dot" style="left:${((maxPt.x / svgW) * 100).toFixed(1)}%;top:${((maxPt.y / svgH) * 100).toFixed(1)}%;background:#10b981;"></div>
+            <div class="bento-chart-badge" style="left:${Math.max(14, Math.min(86, (maxPt.x / svgW) * 100)).toFixed(1)}%;top:${Math.max(18, ((maxPt.y / svgH) * 100) - 6).toFixed(1)}%;border-color:rgba(16,185,129,0.55);">
+              ${String(maxPt.hr).padStart(2, '0')}:00 (${maxPt.p} мм)
             </div>
           </div>
           <div class="bento-chart-ticks-grid">
             ${[0, 3, 6, 9, 12, 15, 18, 21].map(hIdx => {
               const pObj = pts[hIdx] || pts[0];
-              const tVal = pObj ? pObj.t : day.tDay;
-              const tStr = `${tVal > 0 ? '+' + tVal : tVal}°`;
+              const pVal = pObj ? Math.round(pObj.p) : day.pressAvg;
               return `
                 <div class="bento-chart-tick-cell">
                   <span class="bento-chart-tick-hr">${String(hIdx).padStart(2, '0')}:00</span>
-                  <span class="bento-chart-tick-val" style="color:var(--text);">${tStr}</span>
+                  <span class="bento-chart-tick-val" style="color:var(--text);white-space:nowrap;">${pVal}</span>
                 </div>
               `;
             }).join('')}
           </div>
-          <div style="display:flex;justify-content:space-between;align-items:center;padding:2px 10px 0;font-size:11px;font-weight:800;color:var(--muted);">
-            <span>00:00</span>
-            <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.5" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> Восход ${fmtHM(day.sunriseHr)}</span>
-            <span>12:00 (${day.pressAvg} мм)</span>
-            <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.5" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> Закат ${fmtHM(day.sunsetHr)}</span>
-            <span>24:00</span>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 6px 0;font-size:11px;font-weight:700;color:var(--muted);flex-wrap:wrap;gap:6px;">
+            <span>Мин: <b>${Math.round(minP)} мм</b></span>
+            <span>Среднее: <b>${day.pressAvg} мм</b> (${fmtDeltaPress(day.dP)})</span>
+            <span>Макс: <b>${Math.round(maxP)} мм</b></span>
           </div>
         </div>
       </div>
-      <!-- КАРТОЧКА 4 (Bento Solunar & Archive): Луна, Солунарные окна и 5-дневный кэш 10 км -->
+      <!-- КАРТОЧКА 4: Луна и Солунарные окна -->
       <div class="bento-card bento-solunar-card">
         <div class="bento-card-head">
           <div>
             <div class="bento-card-title">
-              <span>${m.phaseIcon}</span>
               <span>Луна: ${m.phaseName} (${m.moonDay} л.д., освещённость ${m.illum}%)</span>
             </div>
             <div class="bento-card-sub">
-              <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.5" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> Восход ${fmtHM(day.sunriseHr)} • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.5" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> Закат ${fmtHM(day.sunsetHr)}
+              Восход ${fmtHM(day.sunriseHr)} • Закат ${fmtHM(day.sunsetHr)}
             </div>
           </div>
         </div>
         <div class="bento-metrics-grid" style="margin-bottom:8px;">
           <div class="bento-metric-tile">
-            <div class="bento-metric-label"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.5" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> Главные лунные выходы</div>
-            <div class="bento-metric-val" style="font-size:14.5px;color:var(--good);">${m.majorWindows.join(' • ')}</div>
+            <div class="bento-metric-label">Главные лунные выходы</div>
+            <div class="bento-metric-val" style="font-size:14px;color:var(--good);">${m.majorWindows.join(' • ')}</div>
             <div class="bento-metric-sub">Верхняя и нижняя кульминация Луны</div>
           </div>
           <div class="bento-metric-tile">
-            <div class="bento-metric-label"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6" stroke-linejoin="round"/></svg> Малые лунные окна</div>
-            <div class="bento-metric-val" style="font-size:14.5px;color:var(--accent);">${m.minorWindows.join(' • ')}</div>
+            <div class="bento-metric-label">Малые лунные окна</div>
+            <div class="bento-metric-val" style="font-size:14px;color:var(--accent);">${m.minorWindows.join(' • ')}</div>
             <div class="bento-metric-sub">Восход и заход Луны над горизонтом</div>
           </div>
         </div>
         <details style="font-size:12px;color:var(--muted);">
-          <summary style="cursor:pointer;font-weight:800;color:var(--accent);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="rgba(56,189,248,0.18)" stroke="#38bdf8" stroke-width="1.8"/><path d="M12 11v5M12 8h.01" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> Как фазы Луны и барический шок влияют на рыбу</summary>
+          <summary style="cursor:pointer;font-weight:800;color:var(--accent);">Как фазы Луны и барический шок влияют на рыбу</summary>
           <p style="margin-top:6px;line-height:1.45;">${RU.solunarDisclaimer}</p>
         </details>
       </div>
     </div>
   `;
+  container.querySelector('#weatherStickyBackToMapBtn')?.addEventListener('click', () => {
+    if (typeof window !== 'undefined' && typeof window.__KLEV_NAVIGATE_SECTION__ === 'function') {
+      window.__KLEV_NAVIGATE_SECTION__('geo');
+    }
+  });
   container.querySelectorAll('[data-weather-pick-day]').forEach(btn => {
     btn.addEventListener('click', () => {
       const idx = parseInt(btn.getAttribute('data-weather-pick-day'), 10);

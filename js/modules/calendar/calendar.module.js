@@ -1,9 +1,9 @@
-import { RU } from '../../i18n/ru.js?v=2.9.2-r237';
-import { store } from '../../core/store.js?v=2.9.2-r237';
-import { generateSpawnICS } from '../../core/format.js?v=2.9.2-r237';
-import { BASIN_CONFIGS, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.9.2-r237';
-import { FISH_DB } from '../../data/species.js?v=2.9.2-r237';
-import { showToast, downloadFileCrossPlatform, flashHighlightElement } from '../../ui/components.js?v=2.9.2-r237';
+import { RU } from '../../i18n/ru.js?v=2.9.3-r238';
+import { store } from '../../core/store.js?v=2.9.3-r238';
+import { generateSpawnICS } from '../../core/format.js?v=2.9.3-r238';
+import { BASIN_CONFIGS, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.9.3-r238';
+import { FISH_DB } from '../../data/species.js?v=2.9.3-r238';
+import { showToast, downloadFileCrossPlatform, flashHighlightElement } from '../../ui/components.js?v=2.9.3-r238';
 const COMPARE_COLORS = ['#10b981', '#38bdf8', '#a855f7'];
 export function getSpawnWindows(fishId, basinCode) {
   const fish = FISH_DB.find(f => f.id === fishId) || FISH_DB[0];
@@ -164,7 +164,7 @@ export function renderCalendar(container, fishId) {
     <div class="card">
       <div class="section-head">
         <div>
-          <span class="section-title"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="3" fill="rgba(56,189,248,0.14)" stroke="currentColor" stroke-width="1.8"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="7" y="13" width="3" height="3" rx="0.8" fill="#38bdf8"/><rect x="14" y="13" width="3" height="3" rx="0.8" fill="#10b981"/></svg> Годовой биологический календарь${s.calendarMode === 'compare' ? ' (Сравнение видов)' : ': ' + fish.name}</span>
+          <span class="section-title">Годовой биологический календарь${s.calendarMode === 'compare' ? ' (Сравнение видов)' : ': ' + fish.name}</span>
           <div style="font-size:var(--fs-xs);color:var(--accent);font-weight:700;margin-top:2px;">${info.shiftNote}</div>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">

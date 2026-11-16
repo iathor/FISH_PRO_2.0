@@ -7,9 +7,10 @@
 }
 
 html {
-  font-size: 16.5px;
+  font-size: calc(15px * var(--sys-font-comp, 1));
   scroll-behavior: smooth;
   -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {

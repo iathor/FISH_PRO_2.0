@@ -1,4 +1,4 @@
-import { svgIcon } from './icons.js?v=2.9.2-r237';
+import { svgIcon } from './icons.js?v=2.9.3-r238';
 /**
  * Экранирует пользовательские строки перед вставкой в HTML (защита от DOM XSS и инъекций тегов)
  */
@@ -315,10 +315,11 @@ export function openModal(title, contentHtml, onMount = null, canClose = true, o
     footerHtml += `<button type="button" class="btn" id="modalCloseBtn" data-modal-close style="flex:1;min-width:0;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg> Закрыть</button>`;
   }
   const headerRightHtml = (options && options.headerRightHtml) ? String(options.headerRightHtml) : '';
+  const cleanModalTitleText = String(title || '').replace(/<svg[\s\S]*?<\/svg>/gi, '').trim();
   backdrop.innerHTML = `
-    <div class="modal-box ${footerHtml ? 'modal-has-sticky-footer' : ''}" role="dialog" aria-modal="true" aria-label="${escapeHtml(String(title || '').replace(/<[^>]+>/g, '').trim())}">
+    <div class="modal-box ${footerHtml ? 'modal-has-sticky-footer' : ''}" role="dialog" aria-modal="true" aria-label="${escapeHtml(cleanModalTitleText.replace(/<[^>]+>/g, '').trim())}">
       <div class="section-head" style="margin-bottom:10px;">
-        <h3 style="font-size:var(--fs-lg);font-weight:800;line-height:1.25;min-width:0;word-break:break-word;">${title}</h3>
+        <h3 class="unified-modal-title" style="font-size:var(--fs-md);font-weight:800;line-height:1.25;min-width:0;word-break:break-word;margin:0;">${cleanModalTitleText}</h3>
         ${headerRightHtml}
       </div>
       <div id="modalDynamicBody" class="modal-dynamic-body">${contentHtml}</div>
@@ -351,6 +352,8 @@ export function closeModal() {
   if (typeof window !== 'undefined') {
     window.__KLEV_MODAL_BACK_FN__ = null;
   }
+  const lb = document.getElementById('fishImageLightbox');
+  if (lb) lb.classList.remove('open');
   const backdrop = document.getElementById('appModalBackdrop');
   if (backdrop) backdrop.classList.remove('open');
 }
@@ -485,7 +488,7 @@ export function getRemotePolicyFromClientEnv() {
   const fallback = {
     policyVersion: ACTIVE_POLICY_VERSION_DEFAULT,
     appVersion: ACTIVE_APP_VERSION_DEFAULT,
-    appRevision: 'r237',
+    appRevision: 'r238',
     effectiveDate: '10 ноября 2026 г.',
     title: 'Политика конфиденциальности, Пользовательское соглашение и Правила обработки геоданных «Клёв ПРО 2.0»',
     summary: 'Редакция v2.8.3 (r235): сохранность пользовательских данных при очистке кэша, единый постоянный ID рыбака на всех устройствах по логину и паролю, расчёт гидрологии и льда по данным Росгидромета (meteoinfo.ru), правила гостевого доступа и Бета-теста.',
@@ -899,30 +902,36 @@ export function openUserAgreementModal({
 if (typeof window !== 'undefined') {
   window.openLegalModal = () => openUserAgreementModal({ requireVerification: false });
 }
-export function openFishLightbox(fishTitle, latinTitle, visualHtml) {
+export function openFishLightbox(fishTitle, latinTitle, visualHtml, fishId = null) {
   let lb = document.getElementById('fishImageLightbox');
   if (!lb) {
     lb = document.createElement('div');
     lb.id = 'fishImageLightbox';
     lb.className = 'fish-lightbox-backdrop';
     document.body.appendChild(lb);
+  } else if (lb.parentElement === document.body && lb.nextElementSibling) {
+    document.body.appendChild(lb);
   }
+  lb.style.zIndex = '14500';
+  const modalOpenNow = Boolean(document.getElementById('appModalBackdrop')?.classList.contains('open'));
   lb.innerHTML = `
     <div class="fish-lightbox-box" role="dialog" aria-modal="true" aria-label="Увеличенное изображение: ${fishTitle}">
-      <div class="fish-lightbox-head">
+      <div class="fish-lightbox-head" style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
         <div style="min-width:0;">
           <div style="font-weight:800;font-size:var(--fs-md);color:var(--text);">${fishTitle}</div>
           ${latinTitle ? `<div style="font-size:var(--fs-xs);color:var(--muted);font-style:italic;">${latinTitle}</div>` : ''}
         </div>
+        <button type="button" class="btn btn-sm" id="fishLightboxTopCloseBtn" aria-label="Закрыть увеличение" style="min-height:30px;padding:2px 9px;font-weight:800;">Закрыть</button>
       </div>
       <div class="fish-lightbox-stage" id="fishLightboxStage" title="Нажмите, чтобы закрыть">
         ${visualHtml}
       </div>
       <div style="font-size:var(--fs-xs);color:var(--muted);text-align:center;margin-top:8px;">
-        Нажмите на изображение или кнопку внизу для возврата к карточке
+        Нажмите на изображение или кнопку внизу для возврата
       </div>
-      <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:flex;">
-        <button type="button" class="btn" id="fishLightboxCloseBtn" aria-label="Закрыть просмотр" style="width:100%;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg> Закрыть</button>
+      <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:flex;gap:8px;">
+        ${(fishId && !modalOpenNow) ? `<button type="button" class="btn btn-accent" id="fishLightboxOpenDetailBtn" style="flex:1.2;">Справка ихтиолога</button>` : ''}
+        <button type="button" class="btn" id="fishLightboxCloseBtn" aria-label="Закрыть просмотр" style="flex:1;">Закрыть</button>
       </div>
     </div>
   `;
@@ -930,12 +939,22 @@ export function openFishLightbox(fishTitle, latinTitle, visualHtml) {
   if (typeof window !== 'undefined' && typeof window.__KLEV_PUSH_BACK_GUARD__ === 'function') {
     window.__KLEV_PUSH_BACK_GUARD__('lightbox');
   }
-  const closeLb = () => lb.classList.remove('open');
-  lb.onclick = (e) => {
-    if (e.target === lb) closeLb();
+  const closeLb = (e) => {
+    if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+    lb.classList.remove('open');
   };
+  lb.onclick = (e) => {
+    if (e.target === lb) closeLb(e);
+  };
+  lb.querySelector('#fishLightboxTopCloseBtn')?.addEventListener('click', closeLb);
   lb.querySelector('#fishLightboxCloseBtn')?.addEventListener('click', closeLb);
   lb.querySelector('#fishLightboxStage')?.addEventListener('click', closeLb);
+  lb.querySelector('#fishLightboxOpenDetailBtn')?.addEventListener('click', (e) => {
+    closeLb(e);
+    if (fishId && typeof window !== 'undefined' && typeof window.__KLEV_OPEN_FISH_DETAIL__ === 'function') {
+      window.__KLEV_OPEN_FISH_DETAIL__(fishId);
+    }
+  });
 }
 /**
  * Кроссплатформенная выгрузка файла на устройство (100% работает в Android APK, iOS Safari/PWA, Telegram Mini App и браузере ПК).

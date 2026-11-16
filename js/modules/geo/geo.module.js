@@ -1,14 +1,14 @@
-import { renderFishVisual } from '../../ui/svg.js?v=2.9.2-r237';
-import { MAP_LAYERS, SPOT_CATEGORIES, getCompatibleMethods } from '../../core/config.js?v=2.9.2-r237';
-import { events } from '../../core/events.js?v=2.9.2-r237';
-import { storage, safeJsonParse } from '../../core/storage.js?v=2.9.2-r237';
-import { router } from '../../core/router.js?v=2.9.2-r237';
-import { store } from '../../core/store.js?v=2.9.2-r237';
-import { fetchWithTimeout } from '../../core/http.js?v=2.9.2-r237';
-import { installShortcut, syncInstallButtons } from '../../core/pwa.js?v=2.9.2-r237';
-import { triggerHaptic } from '../../core/telegram.js?v=2.9.2-r237';
-import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.9.2-r237';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.9.2-r237';
+import { renderFishVisual } from '../../ui/svg.js?v=2.9.3-r238';
+import { MAP_LAYERS, SPOT_CATEGORIES, getCompatibleMethods } from '../../core/config.js?v=2.9.3-r238';
+import { events } from '../../core/events.js?v=2.9.3-r238';
+import { storage, safeJsonParse } from '../../core/storage.js?v=2.9.3-r238';
+import { router } from '../../core/router.js?v=2.9.3-r238';
+import { store } from '../../core/store.js?v=2.9.3-r238';
+import { fetchWithTimeout } from '../../core/http.js?v=2.9.3-r238';
+import { installShortcut, syncInstallButtons } from '../../core/pwa.js?v=2.9.3-r238';
+import { triggerHaptic } from '../../core/telegram.js?v=2.9.3-r238';
+import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.9.3-r238';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.9.3-r238';
 import {
   RUSSIA_CITIES,
   RUSSIA_WATERS,
@@ -16,12 +16,12 @@ import {
   getNearestRussianSettlements,
   getNearestRussianWaters,
   getWaterTypeShortTag
-} from '../../data/russia-waters.js?v=2.9.2-r237';
-import { FISH_DB } from '../../data/species.js?v=2.9.2-r237';
-import { escapeHtml, createPill, showToast, openModal, closeModal, openConfirmDeleteModal, downloadFileCrossPlatform, flashHighlightElement, isGeoDistributionConsentActive, ensureGeoDistributionConsent, setGeoDistributionConsentState } from '../../ui/components.js?v=2.9.2-r237';
-import { fetchWeather, weatherModule } from '../weather/weather.module.js?v=2.9.2-r237';
-import { calcDayBest } from '../forecast/forecast.module.js?v=2.9.2-r237';
-import { computeHexPolygonForCircle, getEffectiveCircleRadiusKm, getCircleHexDecayState, canUserAccessCrewItem, getCurrentFisherIdentity, isUserAdmin, isCurrentUserBetaTester, verifyBetaTesterStatusFromCloud, isCircleItemMine, isCircleItemHidden, openAddThematicMapPointModal } from '../circle/circle.module.js?v=2.9.2-r237';
+} from '../../data/russia-waters.js?v=2.9.3-r238';
+import { FISH_DB } from '../../data/species.js?v=2.9.3-r238';
+import { escapeHtml, createPill, showToast, openModal, closeModal, openConfirmDeleteModal, downloadFileCrossPlatform, flashHighlightElement, isGeoDistributionConsentActive, ensureGeoDistributionConsent, setGeoDistributionConsentState } from '../../ui/components.js?v=2.9.3-r238';
+import { fetchWeather, weatherModule } from '../weather/weather.module.js?v=2.9.3-r238';
+import { calcDayBest } from '../forecast/forecast.module.js?v=2.9.3-r238';
+import { computeHexPolygonForCircle, getEffectiveCircleRadiusKm, getCircleHexDecayState, canUserAccessCrewItem, getCurrentFisherIdentity, isUserAdmin, isCurrentUserBetaTester, verifyBetaTesterStatusFromCloud, isCircleItemMine, isCircleItemHidden, openAddThematicMapPointModal } from '../circle/circle.module.js?v=2.9.3-r238';
 // ============================================================================
 // АВТОНОМНОЕ ЯДРО, РЕПРОЕКТОР EPSG:3395 И ИНСПЕКТОР ПРОВЕРКИ ОФЛАЙН-КАРТ (ФАЗА 1 • v2)
 // Хранение в формате инлайн-DataURL (100% сохранность после перезапуска Android WebView)
@@ -9176,11 +9176,11 @@ function renderArcMobileMap(container, s, prevLiveMapBox) {
         <span>Быстрый доступ</span>
       </button>
 
-      <!-- Полноэкранное окно Погоды поверх карты (п. 2.4) -->
-      <div id="arcFullScreenWeatherModal" style="display:${_arcFullScreenWeatherOpen ? 'block' : 'none'};position:fixed;inset:0;z-index:1300;background:var(--bg-grad, var(--bg));overflow-y:auto;padding:12px 10px 28px;">
+      <!-- Полноэкранное окно Погоды поверх карты (п. 2.4, п. 3 — закреплённая кнопка «На карту» при прокрутке) -->
+      <div id="arcFullScreenWeatherModal" style="display:${_arcFullScreenWeatherOpen ? 'block' : 'none'};position:fixed;inset:0;z-index:1350;background-color:var(--bg);background-image:var(--bg-grad);overflow-y:auto;padding:0 10px 28px;">
         <div style="max-width:960px;margin:0 auto;">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-            <button type="button" class="klev-arc-glass" id="arcCloseWeatherModalBtn" style="height:40px;padding:0 14px;border-radius:14px;display:inline-flex;align-items:center;gap:6px;font-weight:900;font-size:13px;cursor:pointer;">
+          <div class="weather-sticky-back-bar" style="position:sticky;top:0;z-index:1380;display:flex;align-items:center;justify-content:space-between;padding:10px 0 8px;margin-bottom:6px;background:linear-gradient(180deg, var(--bg) 78%, rgba(7,17,31,0));backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);">
+            <button type="button" class="klev-arc-glass" id="arcCloseWeatherModalBtn" style="height:38px;padding:0 14px;border-radius:13px;display:inline-flex;align-items:center;gap:6px;font-weight:800;font-size:13px;cursor:pointer;">
               <svg class="k-ico" viewBox="0 0 24 24" fill="none"><polyline points="15 18 9 12 15 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
               <span>На карту</span>
             </button>

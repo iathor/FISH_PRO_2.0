@@ -2045,8 +2045,11 @@ html[data-arc-map-active="1"] #secGeo {
   .top-section-nav #topNavWeatherBtn {
     display: none !important;
   }
-  .top-section-nav:not([data-has-admin="1"]) {
+  .top-section-nav:not([data-has-admin="1"]):not(#adminTopTabBar) {
     grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+  #adminTopTabBar {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
   }
   .top-section-nav[data-has-admin="1"] {
     grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
@@ -2261,7 +2264,10 @@ html[data-arc-map-active="1"] .leaflet-control-zoom {
   display: none !important;
 }
 /* Скрываем язычки Разделы и шапка / Быстрый доступ, когда открыто модальное окно или активна другая вкладка (1000137338.jpg, 1000137332.mp4) */
-html:not([data-arc-map-active="1"]) .klev-arc-edge-handle,
+html:not([data-arc-map-active="1"]) .klev-arc-edge-handle {
+  display: none !important;
+  pointer-events: none !important;
+}
 body:has(#appModalBackdrop.open) .klev-arc-edge-handle {
   display: none !important;
   pointer-events: none !important;
@@ -2269,4 +2275,178 @@ body:has(#appModalBackdrop.open) .klev-arc-edge-handle {
 /* Светлый фон подложки карты для дневной схемы, чтобы при зуме не мигал тёмно-синий квадрат вокруг офлайн-карты (1000137332.mp4, 1000137336.mp4) */
 #mapBox:not([data-ymap-layer="yandex_sat"]):not([data-ymap-layer="yandex_hybrid"]):not([data-ymap-layer="yandex_dark"]) {
   background: #e4eef7 !important;
+}
+
+
+/* v2.9.3 (r238): П. 8, 9, 11 — Скрытие лишней плашки «Быстрый доступ», плавное перелистывание разделов, перетекающая подсветка меню и припрятывание верхнего/нижнего меню при скролле */
+.quick-dock-tab-label {
+  display: none !important;
+}
+
+/* П. 8: Читаемый текст поверх приглушённой тонкой дуги прогноза */
+.bento-gauge-svg-box {
+  position: relative;
+  width: 152px;
+  height: 88px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.bento-gauge-center-text {
+  position: absolute;
+  bottom: 0px;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  line-height: 1.08;
+  pointer-events: none;
+  text-shadow: 0 1px 6px rgba(4, 9, 18, 0.72);
+}
+[data-theme="light"] .bento-gauge-center-text {
+  text-shadow: 0 1px 4px rgba(255, 255, 255, 0.92);
+}
+.bento-gauge-sub {
+  font-size: calc(10.5px * var(--sys-font-comp, 1)) !important;
+  font-weight: 700 !important;
+  color: var(--muted);
+}
+.bento-gauge-lvl {
+  font-size: calc(12px * var(--sys-font-comp, 1)) !important;
+  font-weight: 800 !important;
+  margin-top: 1px;
+}
+.bento-gauge-pct {
+  font-size: calc(22px * var(--sys-font-comp, 1)) !important;
+  font-weight: 900 !important;
+  margin-top: 1px;
+}
+
+/* П. 9: Перетекающая подсветка (glider) в верхнем и нижнем меню */
+.top-section-nav,
+.bottom-nav-inner,
+.adm-sec-tabs {
+  position: relative !important;
+}
+.klev-nav-glider {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 0;
+  border-radius: 13px;
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 15%, rgba(56, 189, 248, 0.34), rgba(2, 132, 199, 0.24) 75%);
+  border: 1.5px solid var(--accent);
+  box-shadow: 0 0 16px rgba(0, 229, 255, 0.28), inset 0 1px 2px rgba(255, 255, 255, 0.42);
+  transition:
+    transform 0.38s cubic-bezier(0.22, 1, 0.36, 1),
+    width 0.38s cubic-bezier(0.22, 1, 0.36, 1),
+    height 0.38s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.24s ease;
+  opacity: 0;
+}
+.bottom-nav-inner > .klev-nav-glider {
+  border-radius: 16px;
+}
+.top-nav-item,
+.bottom-nav-inner .nav-tab,
+.adm-sec-tab {
+  z-index: 1;
+}
+
+/* П. 9: Плавное горизонтальное перелистывание (cross-slide carousel) между разделами */
+#app.klev-flip-stage-active {
+  position: relative;
+  overflow-x: hidden;
+}
+@keyframes klevSecFlipOutLeft {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(-38%, 0, 0) scale(0.96);
+  }
+}
+@keyframes klevSecFlipOutRight {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(38%, 0, 0) scale(0.96);
+  }
+}
+@keyframes klevSecSlideFromRight {
+  0% {
+    opacity: 0;
+    transform: translate3d(38%, 0, 0) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+@keyframes klevSecSlideFromLeft {
+  0% {
+    opacity: 0;
+    transform: translate3d(-38%, 0, 0) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+.klev-sec-flip-out-left {
+  position: absolute !important;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  pointer-events: none !important;
+  z-index: 1;
+  animation: klevSecFlipOutLeft 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.klev-sec-flip-out-right {
+  position: absolute !important;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  pointer-events: none !important;
+  z-index: 1;
+  animation: klevSecFlipOutRight 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.klev-sec-slide-right {
+  position: relative;
+  z-index: 2;
+  animation: klevSecSlideFromRight 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards !important;
+}
+.klev-sec-slide-left {
+  position: relative;
+  z-index: 2;
+  animation: klevSecSlideFromLeft 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards !important;
+}
+
+/* П. 11: Мягкое припрятывание и уменьшение верхнего и нижнего меню при прокрутке страницы вниз */
+.app-header,
+.bottom-nav {
+  transition:
+    transform 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.28s ease,
+    box-shadow 0.28s ease !important;
+}
+html[data-scroll-compact="1"]:not([data-arc-map-active="1"]) .app-header {
+  transform: translate3d(0, -34%, 0) scale(0.94) !important;
+  transform-origin: top center !important;
+  opacity: 0.84 !important;
+}
+html[data-scroll-compact="1"]:not([data-arc-map-active="1"]) .bottom-nav {
+  transform: translate3d(0, 30%, 0) scale(0.92) !important;
+  transform-origin: bottom center !important;
+  opacity: 0.84 !important;
 }
