@@ -903,55 +903,55 @@ jobs:
 
                   @JavascriptInterface
                   public String getAppVersion() {
-            return "2.9.0-r240";
-        }
+                      return "2.9.0-r240";
+                  }
 
                   @JavascriptInterface
                   public int getAppBuildNumber() {
-            return 240;
-        }
+                      return 240;
+                  }
 
                   @JavascriptInterface
                   public String getAppRevision() {
-            return "r240";
-        }
+                      return "r240";
+                  }
 
                   private boolean isAllowedExternalUri(Uri uri) {
-            if (uri == null) return false;
-            String scheme = uri.getScheme();
-            if (scheme == null || !"https".equalsIgnoreCase(scheme.trim())) return false;
-            String host = uri.getHost();
-            if (host == null) return false;
-            String h = host.trim().toLowerCase(Locale.ROOT);
-            return "klevpro.ru".equals(h)
-                || "www.klevpro.ru".equals(h)
-                || "xn--b1apdneg0j.xn--p1ai".equals(h)
-                || "github.com".equals(h);
-        }
+                      if (uri == null) return false;
+                      String scheme = uri.getScheme();
+                      if (scheme == null || !"https".equalsIgnoreCase(scheme.trim())) return false;
+                      String host = uri.getHost();
+                      if (host == null) return false;
+                      String h = host.trim().toLowerCase(Locale.ROOT);
+                      return "klevpro.ru".equals(h)
+                          || "www.klevpro.ru".equals(h)
+                          || "xn--b1apdneg0j.xn--p1ai".equals(h)
+                          || "github.com".equals(h);
+                  }
 
-        @JavascriptInterface
-        public void downloadApkUpdate(String url) {
-            if (url == null || url.trim().isEmpty()) return;
-            try {
-                Uri uri = Uri.parse(url.trim());
-                if (!isAllowedExternalUri(uri)) return;
-                Intent intent = new Intent(Intent.ACTION_VIEW, uri);
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                ctx.startActivity(intent);
-            } catch (Exception ignored) {}
-        }
+                  @JavascriptInterface
+                  public void downloadApkUpdate(String url) {
+                      if (url == null || url.trim().isEmpty()) return;
+                      try {
+                          Uri uri = Uri.parse(url.trim());
+                          if (!isAllowedExternalUri(uri)) return;
+                          Intent intent = new Intent(Intent.ACTION_VIEW, uri);
+                          intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                          ctx.startActivity(intent);
+                      } catch (Exception ignored) {}
+                  }
 
-        @JavascriptInterface
-        public void openExternalUrl(String url) {
-            if (url == null || url.trim().isEmpty()) return;
-            try {
-                Uri uri = Uri.parse(url.trim());
-                if (!isAllowedExternalUri(uri)) return;
-                Intent intent = new Intent(Intent.ACTION_VIEW, uri);
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                ctx.startActivity(intent);
-            } catch (Exception ignored) {}
-        }
+                  @JavascriptInterface
+                  public void openExternalUrl(String url) {
+                      if (url == null || url.trim().isEmpty()) return;
+                      try {
+                          Uri uri = Uri.parse(url.trim());
+                          if (!isAllowedExternalUri(uri)) return;
+                          Intent intent = new Intent(Intent.ACTION_VIEW, uri);
+                          intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                          ctx.startActivity(intent);
+                      } catch (Exception ignored) {}
+                  }
 
                   @JavascriptInterface
                   public boolean areNotificationsEnabled() {

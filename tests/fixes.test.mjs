@@ -239,3 +239,28 @@ test("2.1 Идемпотентность apply-fixes.mjs: повторный з�
     assert.equal(after, before[f], `Файл ${f} не должен меняться при повторном запуске apply-fixes.mjs`);
   }
 });
+
+test("2.3 Синтаксическая валидность YAML в .github/workflows/build-android-apk.yml и apply-fixes.yml", () => {
+  for (const wfRel of [".github/workflows/build-android-apk.yml", ".github/workflows/apply-fixes.yml"]) {
+    const lines = fs.readFileSync(path.join(ROOT, wfRel), "utf8").split(/\r?\n/);
+    let inRunBlock = false;
+    let runIndent = 0;
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (!line.trim() || line.trim().startsWith("#")) continue;
+      const mRun = line.match(/^(\s*)run:\s*\|\s*$/);
+      if (mRun) {
+        inRunBlock = true;
+        runIndent = mRun[1].length;
+        continue;
+      }
+      if (inRunBlock) {
+        const curIndent = line.match(/^(\s*)/)[1].length;
+        if (curIndent <= runIndent) {
+          assert.match(line, /^\s*(-\s+name:|steps:|jobs:|permissions:|env:|working-directory:|if:|uses:|with:)/, `Некорректный отступ YAML внутри блока run: | в ${wfRel} на строке ${i + 1}: ${line}`);
+          inRunBlock = false;
+        }
+      }
+    }
+  }
+});

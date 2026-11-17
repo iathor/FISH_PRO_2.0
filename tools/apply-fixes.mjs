@@ -584,50 +584,56 @@ function patchVersionAndAndroidFiles() {
   }
 
   // 3.5 + 3.4: MainActivity.java — проверка схемы https и белого списка хостов в openExternalUrl / downloadApkUpdate + единая версия
-  const patchMainActivitySource = (javaSrc) => {
+  // Сохраняем точный отступ строк (8 пробелов в MainActivity.java и 18 пробелов внутри YAML heredoc в build-android-apk.yml), чтобы не ломать YAML!
+  const patchMainActivitySource = (javaSrc, baseIndent = "        ") => {
     let s = javaSrc;
+    const ind = baseIndent;
+    const ind4 = ind + "    ";
+    const ind8 = ind + "        ";
     s = s.replace(/KlevProAPK\/[0-9.a-zA-Z_-]+/g, `KlevProAPK/${V_FULL}`);
     s = s.replace(/\?v=[0-9.]+_r\d+_/g, `?v=${V_NUM}_${V_REV}_`);
-    s = s.replace(/public String getAppVersion\(\)\s*\{\s*return\s*"[^"]+";\s*\}/g, `public String getAppVersion() {\n            return "${V_FULL}";\n        }`);
-    s = s.replace(/public int getAppBuildNumber\(\)\s*\{\s*return\s*\d+;\s*\}/g, `public int getAppBuildNumber() {\n            return ${V_BUILD};\n        }`);
-    s = s.replace(/public String getAppRevision\(\)\s*\{\s*return\s*"[^"]+";\s*\}/g, `public String getAppRevision() {\n            return "${V_REV}";\n        }`);
+    s = s.replace(/public String getAppVersion\(\)\s*\{\s*return\s*"[^"]+";\s*\}/g, `public String getAppVersion() {\n${ind4}return "${V_FULL}";\n${ind}}`);
+    s = s.replace(/public int getAppBuildNumber\(\)\s*\{\s*return\s*\d+;\s*\}/g, `public int getAppBuildNumber() {\n${ind4}return ${V_BUILD};\n${ind}}`);
+    s = s.replace(/public String getAppRevision\(\)\s*\{\s*return\s*"[^"]+";\s*\}/g, `public String getAppRevision() {\n${ind4}return "${V_REV}";\n${ind}}`);
 
-    const safeUrlMethods = `private boolean isAllowedExternalUri(Uri uri) {
-            if (uri == null) return false;
-            String scheme = uri.getScheme();
-            if (scheme == null || !"https".equalsIgnoreCase(scheme.trim())) return false;
-            String host = uri.getHost();
-            if (host == null) return false;
-            String h = host.trim().toLowerCase(Locale.ROOT);
-            return "klevpro.ru".equals(h)
-                || "www.klevpro.ru".equals(h)
-                || "xn--b1apdneg0j.xn--p1ai".equals(h)
-                || "github.com".equals(h);
-        }
-
-        @JavascriptInterface
-        public void downloadApkUpdate(String url) {
-            if (url == null || url.trim().isEmpty()) return;
-            try {
-                Uri uri = Uri.parse(url.trim());
-                if (!isAllowedExternalUri(uri)) return;
-                Intent intent = new Intent(Intent.ACTION_VIEW, uri);
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                ctx.startActivity(intent);
-            } catch (Exception ignored) {}
-        }
-
-        @JavascriptInterface
-        public void openExternalUrl(String url) {
-            if (url == null || url.trim().isEmpty()) return;
-            try {
-                Uri uri = Uri.parse(url.trim());
-                if (!isAllowedExternalUri(uri)) return;
-                Intent intent = new Intent(Intent.ACTION_VIEW, uri);
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                ctx.startActivity(intent);
-            } catch (Exception ignored) {}
-        }`;
+    const safeUrlMethods = [
+      `private boolean isAllowedExternalUri(Uri uri) {`,
+      `${ind4}if (uri == null) return false;`,
+      `${ind4}String scheme = uri.getScheme();`,
+      `${ind4}if (scheme == null || !"https".equalsIgnoreCase(scheme.trim())) return false;`,
+      `${ind4}String host = uri.getHost();`,
+      `${ind4}if (host == null) return false;`,
+      `${ind4}String h = host.trim().toLowerCase(Locale.ROOT);`,
+      `${ind4}return "klevpro.ru".equals(h)`,
+      `${ind8}|| "www.klevpro.ru".equals(h)`,
+      `${ind8}|| "xn--b1apdneg0j.xn--p1ai".equals(h)`,
+      `${ind8}|| "github.com".equals(h);`,
+      `${ind}}`,
+      ``,
+      `${ind}@JavascriptInterface`,
+      `${ind}public void downloadApkUpdate(String url) {`,
+      `${ind4}if (url == null || url.trim().isEmpty()) return;`,
+      `${ind4}try {`,
+      `${ind8}Uri uri = Uri.parse(url.trim());`,
+      `${ind8}if (!isAllowedExternalUri(uri)) return;`,
+      `${ind8}Intent intent = new Intent(Intent.ACTION_VIEW, uri);`,
+      `${ind8}intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);`,
+      `${ind8}ctx.startActivity(intent);`,
+      `${ind4}} catch (Exception ignored) {}`,
+      `${ind}}`,
+      ``,
+      `${ind}@JavascriptInterface`,
+      `${ind}public void openExternalUrl(String url) {`,
+      `${ind4}if (url == null || url.trim().isEmpty()) return;`,
+      `${ind4}try {`,
+      `${ind8}Uri uri = Uri.parse(url.trim());`,
+      `${ind8}if (!isAllowedExternalUri(uri)) return;`,
+      `${ind8}Intent intent = new Intent(Intent.ACTION_VIEW, uri);`,
+      `${ind8}intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);`,
+      `${ind8}ctx.startActivity(intent);`,
+      `${ind4}} catch (Exception ignored) {}`,
+      `${ind}}`
+    ].join("\n");
 
     const oldMethodsRe = /(?:private boolean isAllowedExternalUri[\s\S]*?)?@JavascriptInterface\s+public void downloadApkUpdate\(String url\)\s*\{[\s\S]*?@JavascriptInterface\s+public void openExternalUrl\(String url\)\s*\{[\s\S]*?\}\s*\}/;
     if (oldMethodsRe.test(s)) {
@@ -645,7 +651,7 @@ function patchVersionAndAndroidFiles() {
   // Патч .github/workflows/build-android-apk.yml (без затрагивания keystore, signingConfigs и secrets.*)
   let wf = readText('.github/workflows/build-android-apk.yml');
   if (wf) {
-    wf = patchMainActivitySource(wf);
+    wf = patchMainActivitySource(wf, "                  ");
     wf = wf.replace(/VER_CODE=\$\(\(\d+\s*\+\s*RUN_NUM\)\)/g, `VER_CODE=$((${V_CODE} + RUN_NUM))`);
     wf = wf.replace(/versionName\s+"[0-9.a-zA-Z_-]+"/g, `versionName "${V_FULL}"`);
     wf = wf.replace(/publish v[0-9.a-zA-Z_-]+ web & signed apks/g, `publish v${V_FULL} web & signed apks`);
