@@ -1,0 +1,59 @@
+name: Apply Targeted Fixes & Verify Tests (Klev PRO 2.0)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply-fixes:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Run idempotent fixes script
+        run: node tools/apply-fixes.mjs
+
+      - name: Run automated verification tests
+        run: node --test tests/
+
+      - name: Commit and push targeted files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            VERSION \
+            version.json \
+            apk/apk-version.json \
+            policy-version.json \
+            manifest.json \
+            robots.txt \
+            .gitignore \
+            sw.js \
+            index.html \
+            kp-control-89.html \
+            app-runtime.js \
+            cloudflare-worker-bot.js \
+            android/app/build.gradle \
+            android/app/src/main/java/ru/klevpro/app/MainActivity.java \
+            .github/workflows/build-android-apk.yml \
+            .github/workflows/apply-fixes.yml \
+            tools/apply-fixes.mjs \
+            tests/fixes.test.mjs \
+            FIXES_REPORT_r240.md
+          git add -u apk/ assets/ css/ .github/workflows/ || true
+          if [ -d "bot" ]; then git add -u bot/ || true; fi
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(fixes): apply P1-P3 security, weather and version 2.9.0-r240 fixes"
+            git pull --rebase origin "${GITHUB_REF_NAME:-main}" || true
+            git push origin HEAD:"${GITHUB_REF_NAME:-main}"
+          else
+            echo "Изменений для коммита нет (скрипт идемпотентен)."
+          fi

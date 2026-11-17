@@ -1,7 +1,7 @@
 // @file bot/cloudflare-worker-bot.js — @KlevProClubBot (V.2.1.1)
 // Компактная сборка для Cloudflare Workers (115 рыб, 491 водоём, 609 городов РФ + Triple-Engine $0 DB + E2EE Relay + Обмен точками Круга/Экипажа/SOS + Уникальные Региональные ID FP_89AAA001 & Эксклюзивный VIP ID владельца FP_89VIP089 + Секретная Серверная Консоль Супер-Админа)
 
-const WORKER_VERSION = '2.9.3-r239';
+const WORKER_VERSION = '2.9.0-r240';
 const RESERVE_ID_TTL_MS = 24 * 60 * 60 * 1000; // Временный резервный ID живёт строго не более 24 часов (суток)
 const deletedFisherIdsSet = new Set(); // Удалённые вручную через Админ-панель ID (защита от повторной фоновой вставки)
 const rateBuckets = new Map();
@@ -74,10 +74,10 @@ function getSecurityAuditSnapshot() {
 
 function detectSqlInjectionAttempt(rawStr, endpoint = '', ip = 'anon', fid = '') {
  if (!rawStr || typeof rawStr !== 'string') return false;
- const decoded = (() => { try { return decodeURIComponent(rawStr); } catch (_e) { return rawStr; } })();
- const sqliRegex = /(\bUNION\s+ALL\s+SELECT\b|\bUNION\s+SELECT\b|\bDROP\s+TABLE\b|\bALTER\s+TABLE\b|\bINSERT\s+INTO\b|\bDELETE\s+FROM\b|'\s*OR\s+['"0-9a-z_]+\s*=\s*['"0-9a-z_]+|"\s*OR\s+['"0-9a-z_]+\s*=\s*['"0-9a-z_]+|;\s*SELECT\b|\bSLEEP\s*\(|\bBENCHMARK\s*\()/i;
- if (sqliRegex.test(decoded)) {
-  recordSecurityIncident('sqli', endpoint, `Перехвачена SQL-сигнатура: ${decoded.slice(0, 120)}`, ip, fid);
+ const str = String(rawStr);
+ // Запросы к D1 полностью параметризованы (.prepare().bind()); проверяем только длину и управляющие/нулевые байты, не блокируя апострофы и легитимные логины.
+ if (str.length > 8192 || /[\x00-\x08\x0B\x0C\x0E-\x1F]/.test(str)) {
+  recordSecurityIncident('sqli', endpoint, 'Отклонена строка с управляющими символами или превышением длины', ip, fid);
   return true;
  }
  return false;
@@ -410,81 +410,24 @@ const revokedAdminSessionsSet = new Set();
 const ADMIN_SESSION_DEFAULT_TTL_MS = 8 * 3600 * 1000; // 8 часов
 
 // Чистая синхронная реализация SHA-256 и RFC 2104 HMAC-SHA256 (256 бит) для криптостойкой подписи сессий
-const _SHA256_K = new Uint32Array([
- 0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
- 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
- 0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
- 0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
- 0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
- 0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
- 0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
- 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
-]);
-
-function sha256BytesSync(dataBytes) {
+async function sha256Bytes(dataBytes) {
  const msg = dataBytes instanceof Uint8Array ? dataBytes : new TextEncoder().encode(String(dataBytes || ''));
- const bitLen = msg.length * 8;
- const padLen = ((msg.length + 9 + 63) & ~63);
- const buf = new Uint8Array(padLen);
- buf.set(msg);
- buf[msg.length] = 0x80;
- const view = new DataView(buf.buffer);
- view.setUint32(padLen - 8, Math.floor(bitLen / 0x100000000), false);
- view.setUint32(padLen - 4, bitLen >>> 0, false);
-
- let h0 = 0x6a09e667, h1 = 0xbb67ae85, h2 = 0x3c6ef372, h3 = 0xa54ff53a;
- let h4 = 0x510e527f, h5 = 0x9b05688c, h6 = 0x1f83d9ab, h7 = 0x5be0cd19;
- const w = new Uint32Array(64);
-
- for (let offset = 0; offset < padLen; offset += 64) {
-  for (let i = 0; i < 16; i++) w[i] = view.getUint32(offset + i * 4, false);
-  for (let i = 16; i < 64; i++) {
-   const s0 = ((w[i - 15] >>> 7) | (w[i - 15] << 25)) ^ ((w[i - 15] >>> 18) | (w[i - 15] << 14)) ^ (w[i - 15] >>> 3);
-   const s1 = ((w[i - 2] >>> 17) | (w[i - 2] << 15)) ^ ((w[i - 2] >>> 19) | (w[i - 2] << 13)) ^ (w[i - 2] >>> 10);
-   w[i] = (w[i - 16] + s0 + w[i - 7] + s1) >>> 0;
-  }
-  let a = h0, b = h1, c = h2, d = h3, e = h4, f = h5, g = h6, h = h7;
-  for (let i = 0; i < 64; i++) {
-   const S1 = ((e >>> 6) | (e << 26)) ^ ((e >>> 11) | (e << 21)) ^ ((e >>> 25) | (e << 7));
-   const ch = (e & f) ^ (~e & g);
-   const temp1 = (h + S1 + ch + _SHA256_K[i] + w[i]) >>> 0;
-   const S0 = ((a >>> 2) | (a << 30)) ^ ((a >>> 13) | (a << 19)) ^ ((a >>> 22) | (a << 10));
-   const maj = (a & b) ^ (a & c) ^ (b & c);
-   const temp2 = (S0 + maj) >>> 0;
-   h = g; g = f; f = e; e = (d + temp1) >>> 0;
-   d = c; c = b; b = a; a = (temp1 + temp2) >>> 0;
-  }
-  h0 = (h0 + a) >>> 0; h1 = (h1 + b) >>> 0; h2 = (h2 + c) >>> 0; h3 = (h3 + d) >>> 0;
-  h4 = (h4 + e) >>> 0; h5 = (h5 + f) >>> 0; h6 = (h6 + g) >>> 0; h7 = (h7 + h) >>> 0;
- }
- const out = new Uint8Array(32);
- const outView = new DataView(out.buffer);
- [h0, h1, h2, h3, h4, h5, h6, h7].forEach((val, idx) => outView.setUint32(idx * 4, val, false));
- return out;
+ const hashBuf = await crypto.subtle.digest('SHA-256', msg);
+ return new Uint8Array(hashBuf);
 }
 
-function hmacSha256HexSync(keyStr = '', messageStr = '') {
+async function hmacSha256Hex(keyStr = '', messageStr = '') {
  const enc = new TextEncoder();
- let keyBytes = enc.encode(String(keyStr || ''));
- if (keyBytes.length > 64) keyBytes = sha256BytesSync(keyBytes);
- const padKey = new Uint8Array(64);
- padKey.set(keyBytes);
- const ipad = new Uint8Array(64);
- const opad = new Uint8Array(64);
- for (let i = 0; i < 64; i++) {
-  ipad[i] = padKey[i] ^ 0x36;
-  opad[i] = padKey[i] ^ 0x5c;
- }
- const msgBytes = enc.encode(String(messageStr || ''));
- const innerInput = new Uint8Array(64 + msgBytes.length);
- innerInput.set(ipad);
- innerInput.set(msgBytes, 64);
- const innerHash = sha256BytesSync(innerInput);
- const outerInput = new Uint8Array(64 + 32);
- outerInput.set(opad);
- outerInput.set(innerHash, 64);
- const finalHash = sha256BytesSync(outerInput);
- return Array.from(finalHash, b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
+ const rawKey = enc.encode(String(keyStr || 'klev_default_hmac_key'));
+ const cryptoKey = await crypto.subtle.importKey(
+  'raw',
+  rawKey.length > 0 ? rawKey : new Uint8Array([1]),
+  { name: 'HMAC', hash: 'SHA-256' },
+  false,
+  ['sign']
+ );
+ const sigBuf = await crypto.subtle.sign('HMAC', cryptoKey, enc.encode(String(messageStr || '')));
+ return Array.from(new Uint8Array(sigBuf), b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
 }
 
 function generateSecureRandomTokenHex(byteLen = 32, prefix = 'STOK_') {
@@ -503,13 +446,13 @@ function getAdminSigningSecret(env = null) {
  return s.length >= 8 ? s : '';
 }
 
-function issueServerAdminSessionToken(ttlMs = ADMIN_SESSION_DEFAULT_TTL_MS, env = null) {
+async function issueServerAdminSessionToken(ttlMs = ADMIN_SESSION_DEFAULT_TTL_MS, env = null) {
  const secret = getAdminSigningSecret(env);
  if (!secret) return '';
  const safeTtl = Math.max(60000, Math.min(24 * 3600 * 1000, Number(ttlMs) || ADMIN_SESSION_DEFAULT_TTL_MS));
  const expMs = Date.now() + safeTtl;
  const nonceHex = generateSecureRandomTokenHex(8, '');
- const sigHex = hmacSha256HexSync(secret, `ADM_SESS_V3:${expMs}:${nonceHex}`);
+ const sigHex = await hmacSha256Hex(secret, `ADM_SESS_V3:${expMs}:${nonceHex}`);
  const token = `ADM_SESS_${expMs}_${nonceHex}_${sigHex}`;
  activeAdminSessionsMap.set(token, expMs);
  return token;
@@ -580,7 +523,7 @@ function getAdminConsoleToken(env = null) {
  return tok.length >= 12 ? tok : '';
 }
 
-function isValidOwnerAdminToken(tok = '', env = null) {
+async function isValidOwnerAdminToken(tok = '', env = null) {
  const clean = String(tok || '').trim();
  if (!clean || clean === 'OWNER_LOCAL_ADMIN') return false;
  const signingSecret = getAdminSigningSecret(env);
@@ -605,7 +548,7 @@ function isValidOwnerAdminToken(tok = '', env = null) {
   if (!/^[0-9A-F]{16}$/.test(nonceHex) || !/^[0-9A-F]{64}$/.test(sigHex)) {
    return false;
   }
-  const expectedSig = hmacSha256HexSync(signingSecret, `ADM_SESS_V3:${expNum}:${nonceHex}`);
+  const expectedSig = await hmacSha256Hex(signingSecret, `ADM_SESS_V3:${expNum}:${nonceHex}`);
   if (!constantTimeEquals(sigHex, expectedSig)) {
    return false;
   }
@@ -773,7 +716,7 @@ async function verifyUserAuth(env, { fid = '', authTokenHash = '', deviceId = ''
  const effToken = String(authTokenHash || hdrAuth || '').trim();
  const effAdmin = String(adminToken || hdrAdm || '').trim();
 
- if (isValidOwnerAdminToken(effAdmin, env) || isValidOwnerAdminToken(effToken, env)) {
+ if (await isValidOwnerAdminToken(effAdmin, env) || await isValidOwnerAdminToken(effToken, env)) {
   return { ok: true, isAdmin: true, isOwner: true };
  }
  const normFid = workerNormalizeFisherId(fid || '', '89');
@@ -876,13 +819,13 @@ async function resolveWorkerAccountIdentity(rawLogin = '', rawPassword = '', raw
  const isOwnerLogin = workerIsOwnerLogin(loginClean) || workerIsOwnerLogin(snap?.login) || isOwnerFisherId(snap?.fisherId);
  const isOwnerPass = (
   isOwnerPasswordMatch(passClean, env) ||
-  (incomingTok && isValidOwnerAdminToken(incomingTok, env))
+  (incomingTok && await isValidOwnerAdminToken(incomingTok, env))
  );
  if (isOwnerLogin && isOwnerPass) {
   const preferredOwnerFid = (loginNorm === 'fp_fmp089' || String(snap?.fisherId || '').toUpperCase() === OWNER_SECONDARY_ID)
    ? OWNER_SECONDARY_ID
    : OWNER_FISHER_ID;
-  const admTok = issueServerAdminSessionToken(ADMIN_SESSION_DEFAULT_TTL_MS, env);
+  const admTok = await issueServerAdminSessionToken(ADMIN_SESSION_DEFAULT_TTL_MS, env);
   if (!admTok) {
    return { ok: false, error: 'Серверные секреты администратора (ADMIN_SECRET_PASSWORD / ADMIN_SESSION_SECRET) не заданы в Cloudflare' };
   }
@@ -1297,14 +1240,14 @@ async function getWorkerEnvelopePrivateKey(env = null) {
  return key;
 }
 
-function workerXorStreamCipher(dataBytes, keyHex, ivHex) {
+async function workerXorStreamCipher(dataBytes, keyHex, ivHex) {
  const out = new Uint8Array(dataBytes.length);
  const enc = new TextEncoder();
  let blockIdx = 0;
  let offset = 0;
  while (offset < dataBytes.length) {
   const seedBytes = enc.encode(`${keyHex}:${ivHex}:${blockIdx++}`);
-  const keystream = sha256BytesSync(seedBytes);
+  const keystream = await sha256Bytes(seedBytes);
   const chunkLen = Math.min(32, dataBytes.length - offset);
   for (let i = 0; i < chunkLen; i++) {
    out[offset + i] = dataBytes[offset + i] ^ keystream[i];
@@ -1338,10 +1281,10 @@ async function unwrapWorkerE2ERequest(outerRequest, outerUrl, env = null) {
    const ivHex = parts[1];
    const cipherB64 = parts[2];
    const macHex = parts[3].toUpperCase();
-   const expectedMac = hmacSha256HexSync(WORKER_E2E_FALLBACK_SEED, `E2E0:${ivHex}:${cipherB64}`);
+   const expectedMac = await hmacSha256Hex(WORKER_E2E_FALLBACK_SEED, `E2E0:${ivHex}:${cipherB64}`);
    if (!constantTimeEquals(macHex, expectedMac)) return { ok: false, error: 'Invalid E2E0 HMAC' };
    const cipherBytes = workerB64UrlToBytes(cipherB64);
-   const plainBytes = workerXorStreamCipher(cipherBytes, WORKER_E2E_FALLBACK_SEED, ivHex);
+   const plainBytes = await workerXorStreamCipher(cipherBytes, WORKER_E2E_FALLBACK_SEED, ivHex);
    plainJsonStr = new TextDecoder().decode(plainBytes);
    e2eVersion = 'E2E0';
   } else {
@@ -1416,9 +1359,9 @@ async function encryptWorkerE2EResponse(bodyText, httpStatus, respKeyHex, versio
   return `E2E1.${workerBytesToB64Url(iv)}.${workerBytesToB64Url(new Uint8Array(cipherBuf))}`;
  }
  const ivHex = generateSecureRandomTokenHex(8, '');
- const cipherBytes = workerXorStreamCipher(plainBytes, respKeyHex || WORKER_E2E_FALLBACK_SEED, ivHex);
+ const cipherBytes = await workerXorStreamCipher(plainBytes, respKeyHex || WORKER_E2E_FALLBACK_SEED, ivHex);
  const cipherB64 = workerBytesToB64Url(cipherBytes);
- const macHex = hmacSha256HexSync(respKeyHex || WORKER_E2E_FALLBACK_SEED, `E2ER0:${ivHex}:${cipherB64}`);
+ const macHex = await hmacSha256Hex(respKeyHex || WORKER_E2E_FALLBACK_SEED, `E2ER0:${ivHex}:${cipherB64}`);
  return `E2E0.${ivHex}.${cipherB64}.${macHex}`;
 }
 
@@ -1530,7 +1473,8 @@ function checkWorkerRateLimit(userId, isGeo = false, maxPerMin = 140) {
  }
  b.total += 1;
  if (isGeo) b.geo += 1;
- if (b.total > Math.max(240, Number(maxPerMin) || 240)) return false;
+ const limit = Math.max(1, Number(maxPerMin) || 60);
+ if (b.total > limit) return false;
  if (isGeo && b.geo > 8) return false;
  return true;
 }
@@ -5499,30 +5443,35 @@ async function checkD1RateLimit(env, bucketKey, maxHits = 60, windowMs = 60000, 
  return { allowed: okMem, locked: !okMem, remaining: okMem ? 1 : 0 };
 }
 
+const AUTH_ATTEMPTS_WINDOW_MS = 15 * 60 * 1000; // 15 минут
+const AUTH_ATTEMPTS_MAX_FAILS = 5; // 5 неудач за 15 минут
+
 async function checkD1LoginBruteForce(env, ip = 'anon', loginNorm = '') {
  const memCheck = checkLoginBruteForce(ip, loginNorm);
  if (memCheck.locked) return memCheck;
- const normL = String(loginNorm || 'any').toLowerCase().slice(0, 40);
- const key = `bf_d1_${normL}`;
+ const normL = String(loginNorm || 'any').toLowerCase().slice(0, 64);
+ const key = `acct_${normL}`;
  const now = Date.now();
- const d1Info = getD1(env);
- const d1 = d1Info?.db;
+ const d1 = getD1(env)?.db;
  if (d1) {
   try {
    await ensureD1Tables(d1);
-   const row = await d1.prepare('SELECT cnt, reset_at, locked_until FROM rate_limits WHERE k = ?').bind(key).first();
+   await d1.prepare('CREATE TABLE IF NOT EXISTS auth_attempts (account_key TEXT PRIMARY KEY, fail_count INTEGER NOT NULL DEFAULT 0, first_fail_at INTEGER NOT NULL DEFAULT 0, locked_until INTEGER NOT NULL DEFAULT 0)').run();
+   // Ленивая очистка старых записей старше 15 минут
+   await d1.prepare('DELETE FROM auth_attempts WHERE (locked_until > 0 AND locked_until <= ?) OR (locked_until = 0 AND first_fail_at <= ?)').bind(now, now - AUTH_ATTEMPTS_WINDOW_MS).run().catch(() => {});
+   const row = await d1.prepare('SELECT fail_count, first_fail_at, locked_until FROM auth_attempts WHERE account_key = ?').bind(key).first();
    if (row) {
     const lockedUntil = Number(row.locked_until || 0);
     if (lockedUntil > now) {
      return { locked: true, waitSec: Math.ceil((lockedUntil - now) / 1000), remainingAttempts: 0 };
     }
-    const resetAt = Number(row.reset_at || 0);
-    if (resetAt > now) {
-     const cnt = Number(row.cnt || 0);
-     if (cnt >= BRUTE_FORCE_MAX_FAILS) {
-      return { locked: true, waitSec: Math.ceil((resetAt - now) / 1000), remainingAttempts: 0 };
+    const firstFailAt = Number(row.first_fail_at || 0);
+    if (firstFailAt + AUTH_ATTEMPTS_WINDOW_MS > now) {
+     const cnt = Number(row.fail_count || 0);
+     if (cnt >= AUTH_ATTEMPTS_MAX_FAILS) {
+      return { locked: true, waitSec: Math.ceil((firstFailAt + AUTH_ATTEMPTS_WINDOW_MS - now) / 1000), remainingAttempts: 0 };
      }
-     return { locked: false, remainingAttempts: Math.max(0, BRUTE_FORCE_MAX_FAILS - cnt) };
+     return { locked: false, remainingAttempts: Math.max(0, AUTH_ATTEMPTS_MAX_FAILS - cnt) };
     }
    }
   } catch (e) {}
@@ -5532,26 +5481,27 @@ async function checkD1LoginBruteForce(env, ip = 'anon', loginNorm = '') {
 
 async function recordD1LoginFailure(env, ip = 'anon', loginNorm = '', endpoint = '/auth/login') {
  const memRec = recordLoginFailure(ip, loginNorm, endpoint);
- const normL = String(loginNorm || 'any').toLowerCase().slice(0, 40);
- const key = `bf_d1_${normL}`;
+ const normL = String(loginNorm || 'any').toLowerCase().slice(0, 64);
+ const key = `acct_${normL}`;
  const now = Date.now();
- const d1Info = getD1(env);
- const d1 = d1Info?.db;
+ const d1 = getD1(env)?.db;
  if (d1) {
   try {
    await ensureD1Tables(d1);
-   const row = await d1.prepare('SELECT cnt, reset_at, locked_until FROM rate_limits WHERE k = ?').bind(key).first();
+   await d1.prepare('CREATE TABLE IF NOT EXISTS auth_attempts (account_key TEXT PRIMARY KEY, fail_count INTEGER NOT NULL DEFAULT 0, first_fail_at INTEGER NOT NULL DEFAULT 0, locked_until INTEGER NOT NULL DEFAULT 0)').run();
+   await d1.prepare('DELETE FROM auth_attempts WHERE (locked_until > 0 AND locked_until <= ?) OR (locked_until = 0 AND first_fail_at <= ?)').bind(now, now - AUTH_ATTEMPTS_WINDOW_MS).run().catch(() => {});
+   const row = await d1.prepare('SELECT fail_count, first_fail_at, locked_until FROM auth_attempts WHERE account_key = ?').bind(key).first();
    let cnt = 1;
-   let resetAt = now + BRUTE_FORCE_WINDOW_MS;
+   let firstFailAt = now;
    let lockedUntil = 0;
-   if (row && Number(row.reset_at || 0) > now) {
-    cnt = Number(row.cnt || 0) + 1;
-    resetAt = Number(row.reset_at);
+   if (row && Number(row.first_fail_at || 0) + AUTH_ATTEMPTS_WINDOW_MS > now) {
+    cnt = Number(row.fail_count || 0) + 1;
+    firstFailAt = Number(row.first_fail_at);
    }
-   if (cnt >= BRUTE_FORCE_MAX_FAILS) {
-    lockedUntil = now + BRUTE_FORCE_WINDOW_MS;
+   if (cnt >= AUTH_ATTEMPTS_MAX_FAILS) {
+    lockedUntil = now + AUTH_ATTEMPTS_WINDOW_MS;
    }
-   await d1.prepare('INSERT OR REPLACE INTO rate_limits (k, cnt, reset_at, locked_until) VALUES (?, ?, ?, ?)').bind(key, cnt, resetAt, lockedUntil).run();
+   await d1.prepare('INSERT OR REPLACE INTO auth_attempts (account_key, fail_count, first_fail_at, locked_until) VALUES (?, ?, ?, ?)').bind(key, cnt, firstFailAt, lockedUntil).run();
    return { count: cnt, lockedUntil };
   } catch (e) {}
  }
@@ -5560,13 +5510,12 @@ async function recordD1LoginFailure(env, ip = 'anon', loginNorm = '', endpoint =
 
 async function clearD1LoginFailures(env, ip = 'anon', loginNorm = '') {
  clearLoginFailures(ip, loginNorm);
- const normL = String(loginNorm || 'any').toLowerCase().slice(0, 40);
- const key = `bf_d1_${normL}`;
- const d1Info = getD1(env);
- const d1 = d1Info?.db;
+ const normL = String(loginNorm || 'any').toLowerCase().slice(0, 64);
+ const key = `acct_${normL}`;
+ const d1 = getD1(env)?.db;
  if (d1) {
   try {
-   await d1.prepare('DELETE FROM rate_limits WHERE k = ?').bind(key).run();
+   await d1.prepare('DELETE FROM auth_attempts WHERE account_key = ?').bind(key).run();
   } catch (e) {}
  }
 }
@@ -7311,6 +7260,21 @@ function renderSuperAdminConsoleHtml(originUrl = '', d1Info = null) {
 }
 
 
+
+function normalizeWorkerPath(pathname = '/') {
+ const clean = String(pathname || '/').replace(/\/+/g, '/').replace(/\/+$/, '');
+ return clean || '/';
+}
+
+function matchWorkerRoute(normPath, ...routes) {
+ for (const r of routes) {
+  if (normPath === r) return true;
+  if (r.startsWith('/api/') && normPath === r.slice(4)) return true;
+  if (!r.startsWith('/api/') && normPath === '/api' + r) return true;
+ }
+ return false;
+}
+
 export default {
  async fetch(outerRequest, env, ctx) {
   const dynamicCors = getCorsHeadersForRequest(outerRequest);
@@ -7359,6 +7323,7 @@ export default {
   const _rawEnvUrl = String((env && env.WEBAPP_URL) || '').trim();
   const WEBAPP_URL = ((_rawEnvUrl && !/github\.io|klev-pro-2/i.test(_rawEnvUrl)) ? _rawEnvUrl : 'https://klevpro.ru/').replace(/\/?$/, '/');
   const reqUrl = new URL(request.url);
+  const normPath = normalizeWorkerPath(reqUrl.pathname);
 
   // Пункт 19: Принудительный HTTPS (кроме локальной отладки)
   if (reqUrl.protocol === 'http:' && reqUrl.hostname !== 'localhost' && reqUrl.hostname !== '127.0.0.1') {
@@ -7385,14 +7350,14 @@ export default {
     headers: { ...CORS_HEADERS, 'Content-Type': 'application/xml; charset=utf-8' }
    });
   }
-  if (reqUrl.pathname.endsWith('/api/admin/security-audit') && (request.method === 'GET' || request.method === 'POST')) {
+  if (matchWorkerRoute(normPath, '/api/admin/security-audit') && (request.method === 'GET' || request.method === 'POST')) {
    await ensurePersistentStateLoaded(env);
    let b = {};
    if (request.method === 'POST' || reqUrl.searchParams.has('payload')) {
     b = await readWorkerRequestPayload(request, reqUrl).catch(() => ({}));
    }
    const tok = extractAdminTokenFromRequest(request, reqUrl, b);
-   if (!isValidOwnerAdminToken(tok, env)) {
+   if (!await isValidOwnerAdminToken(tok, env)) {
     recordSecurityIncident('data_exposure', '/api/admin/security-audit', 'Попытка неавторизованного доступа к радару ИБ Супер-Админа', clientIp);
     return jsonResponse({ ok: false, error: 'Unauthorized', authRequired: true }, 401);
    }
@@ -7416,10 +7381,10 @@ export default {
    return jsonResponse({ ok: true, securityAudit: getSecurityAuditSnapshot() });
   }
 
-  if (reqUrl.pathname.endsWith('/api/telemetry/client-error') && (request.method === 'POST' || request.method === 'GET')) {
+  if (matchWorkerRoute(normPath, '/api/telemetry/client-error') && (request.method === 'POST' || request.method === 'GET')) {
    if (request.method === 'GET') {
     const admTok = extractAdminTokenFromRequest(request, reqUrl, {});
-    if (!isValidOwnerAdminToken(admTok, env)) {
+    if (!await isValidOwnerAdminToken(admTok, env)) {
      recordSecurityIncident('data_exposure', '/api/telemetry/client-error', 'Попытка чтения логов ошибок клиента без токена Супер-Админа', clientIp);
      return jsonResponse({ ok: false, error: 'Forbidden' }, 403);
     }
@@ -7429,7 +7394,7 @@ export default {
     const errBody = await readWorkerRequestPayload(request, reqUrl);
     if (errBody && errBody.action === 'clear') {
      const admTok = extractAdminTokenFromRequest(request, reqUrl, errBody);
-     if (isValidOwnerAdminToken(admTok, env)) {
+     if (await isValidOwnerAdminToken(admTok, env)) {
       clientErrorTelemetryLog.length = 0;
       return jsonResponse({ ok: true, cleared: true, errors: [] });
      }
@@ -7459,7 +7424,7 @@ export default {
   }
 
   // ── Контрольный таймер возвращения (Dead Man's Switch / Авто-SOS): /api/sos/deadman ──
-  if (reqUrl.pathname.endsWith('/api/sos/deadman') && (request.method === 'POST' || request.method === 'GET')) {
+  if (matchWorkerRoute(normPath, '/api/sos/deadman') && (request.method === 'POST' || request.method === 'GET')) {
    await ensurePersistentStateLoaded(env);
    if (request.method === 'GET') {
     const fid = workerNormalizeFisherId(reqUrl.searchParams.get('fid') || '', '89');
@@ -7523,7 +7488,7 @@ export default {
    }
   }
 
-  if (reqUrl.pathname.endsWith('/api/tile-proxy') && request.method === 'GET') {
+  if (matchWorkerRoute(normPath, '/api/tile-proxy') && request.method === 'GET') {
    const rawTileUrl = reqUrl.searchParams.get('url') || '';
    if (!rawTileUrl || !rawTileUrl.startsWith('https://')) {
     return new Response('Missing tile url', { status: 400, headers: CORS_HEADERS });
@@ -7531,7 +7496,7 @@ export default {
    try {
     const parsedTile = new URL(rawTileUrl);
     const th = parsedTile.hostname.toLowerCase();
-    const isAllowedTileHost = /(maps\.yandex\.net|arcgisonline\.com|openstreetmap\.org|cartocdn\.com|opentopomap\.org|maps\.mail\.ru)$/i.test(th);
+    const isAllowedTileHost = /(^|\.)(maps\.yandex\.net|arcgisonline\.com|openstreetmap\.org|cartocdn\.com|opentopomap\.org|maps\.mail\.ru)$/i.test(th);
     if (!isAllowedTileHost) {
      return new Response('Forbidden tile host', { status: 403, headers: CORS_HEADERS });
     }
@@ -7562,7 +7527,7 @@ export default {
   }
 
   // ── Универсальный редиректор коротких ссылок /go?p=KP1_... (гарантия отсутствия 404 на любых доменах) ──
-  if (reqUrl.pathname.endsWith('/go') && request.method === 'GET') {
+  if (matchWorkerRoute(normPath, '/go') && request.method === 'GET') {
    const pTok = reqUrl.searchParams.get('p') || reqUrl.searchParams.get('pack') || '';
    const targetBase = 'https://klevpro.ru/';
    const dest = pTok ? (targetBase + '#p=' + encodeURIComponent(pTok)) : (targetBase + (reqUrl.search || '') + '#/forecast');
@@ -7570,12 +7535,12 @@ export default {
   }
 
   // ── Статус и управление до 3 ключей и реальным счётчиком Gemini Vision API (/api/ai/status, /api/ai/record-usage и /api/ai/config) ──
-  if (reqUrl.pathname.endsWith('/api/ai/record-usage') && (request.method === 'GET' || request.method === 'POST')) {
+  if (matchWorkerRoute(normPath, '/api/ai/record-usage') && (request.method === 'GET' || request.method === 'POST')) {
    await ensurePersistentStateLoaded(env);
    await syncFreshGeminiConfigFromD1(env);
    const b = await readWorkerRequestPayload(request, reqUrl).catch(() => ({}));
    const admTok = extractAdminTokenFromRequest(request, reqUrl, b);
-   const isOwnerCall = isValidOwnerAdminToken(admTok, env);
+   const isOwnerCall = await isValidOwnerAdminToken(admTok, env);
    if (b?.model && String(b.model).startsWith('gemini-')) {
     if (isOwnerCall) {
      geminiConfigStore.activeModel = String(b.model).trim().slice(0, 48);
@@ -7601,23 +7566,23 @@ export default {
    }), { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
   }
 
-  if (reqUrl.pathname.endsWith('/api/ai/status') && (request.method === 'GET' || request.method === 'POST')) {
+  if (matchWorkerRoute(normPath, '/api/ai/status') && (request.method === 'GET' || request.method === 'POST')) {
    await ensurePersistentStateLoaded(env);
    await syncFreshGeminiConfigFromD1(env);
    const tok = extractAdminTokenFromRequest(request, reqUrl, {});
-   const isOwner = isValidOwnerAdminToken(tok, env);
+   const isOwner = await isValidOwnerAdminToken(tok, env);
    return new Response(JSON.stringify({
     ok: true,
     aiQuota: getGeminiQuotaStatus(env, isOwner)
    }), { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
   }
 
-  if (reqUrl.pathname.endsWith('/api/ai/config') && (request.method === 'POST' || reqUrl.searchParams.has('payload'))) {
+  if (matchWorkerRoute(normPath, '/api/ai/config') && (request.method === 'POST' || reqUrl.searchParams.has('payload'))) {
    await ensurePersistentStateLoaded(env);
    try {
     const body = await readWorkerRequestPayload(request, reqUrl);
     const tok = extractAdminTokenFromRequest(request, reqUrl, body);
-    if (!isValidOwnerAdminToken(tok, env)) {
+    if (!await isValidOwnerAdminToken(tok, env)) {
      return new Response(JSON.stringify({ ok: false, error: 'Доступ разрешён только Супер-Админу (FP_89VIP089)' }), { status: 403, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
     }
     await syncFreshGeminiConfigFromD1(env);
@@ -7720,7 +7685,7 @@ export default {
   }
 
   // ── 0. Секретная серверная страница Базы Пользователей и Статистики (ТОЛЬКО для iAthor / FP_89VIP089) ──
-  if (reqUrl.pathname.endsWith('/fp-vip089-console') && (request.method === 'GET' || request.method === 'POST')) {
+  if (matchWorkerRoute(normPath, '/fp-vip089-console') && (request.method === 'GET' || request.method === 'POST')) {
    if (!checkWorkerRateLimit(`console_${clientIp}`, false, 10)) {
     return new Response('Too many requests', { status: 429, headers: CORS_HEADERS });
    }
@@ -7733,7 +7698,7 @@ export default {
    }
    const tok = extractAdminTokenFromRequest(request, reqUrl, body);
    const consoleCsp = "default-src 'self' https: data: blob: 'unsafe-inline'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src *; frame-ancestors *;";
-   if (!isValidOwnerAdminToken(tok, env)) {
+   if (!await isValidOwnerAdminToken(tok, env)) {
     const loginHtml = '<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8"><title>👑 Вход в Веб-Консоль Владельца</title><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{background:#090d16;color:#e2e8f0;font-family:system-ui,-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:16px;} .box{background:#0f172a;border:1px solid #334155;border-radius:12px;padding:24px;max-width:380px;width:100%;text-align:center;box-shadow:0 10px 25px rgba(0,0,0,0.5);} input{width:100%;box-sizing:border-box;padding:11px 14px;background:#1e293b;border:1px solid #475569;border-radius:8px;color:#fff;font-size:14px;margin-bottom:12px;outline:none;} button{width:100%;padding:11px;background:#0284c7;color:#fff;font-weight:700;border:none;border-radius:8px;cursor:pointer;font-size:15px;}</style></head><body><div class="box"><div style="font-size:36px;margin-bottom:6px;">👑</div><h2 style="margin:0 0 6px;color:#38bdf8;">Веб-Консоль Супер-Админа</h2><p style="font-size:12px;color:#94a3b8;margin-bottom:18px;">Клёв ПРО 2.0 • Введите пароль Владельца или токен доступа</p><form method="POST" action="' + reqUrl.pathname + '"><input type="password" name="token" placeholder="Пароль или токен доступа" autofocus required><button type="submit">Войти в консоль</button></form></div></body></html>';
     return new Response(loginHtml, {
      status: 200,
@@ -7745,7 +7710,7 @@ export default {
     });
    }
    const d1Info = getD1(env);
-   const issuedCookieTok = issueServerAdminSessionToken(ADMIN_SESSION_DEFAULT_TTL_MS, env);
+   const issuedCookieTok = await issueServerAdminSessionToken(ADMIN_SESSION_DEFAULT_TTL_MS, env);
    await persistSystemMeta(env, ctx);
    const sessionCookie = `klev_admin_session=${encodeURIComponent(issuedCookieTok)}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=28800`;
    return new Response(renderSuperAdminConsoleHtml(reqUrl.origin, d1Info), {
@@ -7760,7 +7725,7 @@ export default {
   }
 
   // ── Удаление пользователя из базы данных сервера Супер-Админом (/api/admin/user/delete) ──
-  if (reqUrl.pathname.endsWith('/api/admin/user/delete') && (request.method === 'POST' || reqUrl.searchParams.has('payload'))) {
+  if (matchWorkerRoute(normPath, '/api/admin/user/delete') && (request.method === 'POST' || reqUrl.searchParams.has('payload'))) {
    if (!checkWorkerRateLimit(`admdel_${clientIp}`, false, 20)) {
     return new Response(JSON.stringify({ ok: false, error: 'Rate limit' }), { status: 429, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
    }
@@ -7768,7 +7733,7 @@ export default {
    try {
     const body = await readWorkerRequestPayload(request, reqUrl);
     const tok = extractAdminTokenFromRequest(request, reqUrl, body);
-    if (!isValidOwnerAdminToken(tok, env)) {
+    if (!await isValidOwnerAdminToken(tok, env)) {
      return new Response(JSON.stringify({ ok: false, error: 'Forbidden: invalid admin token' }), { status: 403, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
     }
     const targetFid = workerNormalizeFisherId(body.fisherId || '', '89') || String(body.fisherId || '').trim().toUpperCase();
@@ -7860,11 +7825,98 @@ export default {
    }
   }
 
+  
+const AI_CHUNK_TTL_MS = 15 * 60 * 1000; // 15 минут TTL для ключей AI_CHK_*
+const AI_MAX_CHUNKS_PER_USER_DAY = 300; // Суточный лимит чанков на одного пользователя
+const aiUserDailyChunkCounterMap = new Map();
+
+async function verifyAiVisionBetaAccess(request, reqUrl, body, env) {
+ const admTok = extractAdminTokenFromRequest(request, reqUrl, body);
+ if (admTok && await isValidOwnerAdminToken(admTok, env)) {
+  return { allowed: true, isOwner: true, fisherId: OWNER_FISHER_ID };
+ }
+ const hdrAuth = request?.headers?.get('X-Auth-Token') || request?.headers?.get('Authorization')?.replace(/^Bearer\s+/i, '') || '';
+ const sessionToken = String(body?.sessionToken || body?.authToken || body?.authTokenHash || hdrAuth || '').trim();
+ const rawFid = String(body?.fisherId || request?.headers?.get('X-Fisher-Id') || '').trim().toUpperCase();
+ const rawLogin = workerNormalizeLogin(body?.login || '');
+ if (!sessionToken) {
+  return { allowed: false };
+ }
+ let resolvedFid = /^FP_[A-Z0-9_]+$/.test(rawFid) ? rawFid : '';
+ if (!resolvedFid && rawLogin && loginToAuthKeyMap.has(rawLogin)) {
+  const ak = loginToAuthKeyMap.get(rawLogin);
+  resolvedFid = cloudAuthProfiles.get(ak)?.fisherId || '';
+ }
+ if (!resolvedFid) {
+  for (const [uid, uObj] of usersRegistryStore.entries()) {
+   if (uObj && ((uObj.sessionToken && constantTimeEquals(sessionToken, uObj.sessionToken)) || (uObj.authTokenHash && constantTimeEquals(sessionToken, uObj.authTokenHash)))) {
+    resolvedFid = uid;
+    break;
+   }
+  }
+ }
+ if (!resolvedFid) {
+  return { allowed: false };
+ }
+ const authRes = await verifyUserAuth(env, {
+  fid: resolvedFid,
+  authTokenHash: sessionToken,
+  deviceId: String(body?.deviceId || '').trim(),
+  adminToken: admTok,
+  request
+ });
+ if (!authRes.ok || authRes.isReserve) {
+  return { allowed: false };
+ }
+ const isBeta = Boolean(authRes.isOwner || authRes.isAdmin || isUserBetaTesterOnServer(resolvedFid));
+ if (!isBeta) {
+  return { allowed: false };
+ }
+ return { allowed: true, isOwner: Boolean(authRes.isOwner), fisherId: resolvedFid };
+}
+
+async function consumeAiUserChunkQuota(env, fisherId, addChunks = 1) {
+ const dayKey = new Date().toISOString().slice(0, 10);
+ const quotaKey = `AI_Q_${fisherId}_${dayKey}`;
+ const memUsed = (aiUserDailyChunkCounterMap.get(quotaKey) || 0) + addChunks;
+ aiUserDailyChunkCounterMap.set(quotaKey, memUsed);
+ if (memUsed > AI_MAX_CHUNKS_PER_USER_DAY) return false;
+ const d1 = getD1(env)?.db;
+ if (d1) {
+  try {
+   await ensureD1Tables(d1);
+   const row = await d1.prepare('SELECT v FROM klev_kv WHERE k = ?').bind(quotaKey).first();
+   const cur = (row && Number(row.v) ? Number(row.v) : 0) + addChunks;
+   if (cur > AI_MAX_CHUNKS_PER_USER_DAY) return false;
+   await d1.prepare('INSERT OR REPLACE INTO klev_kv (k, v, updated_at) VALUES (?, ?, ?)').bind(quotaKey, String(cur), Date.now()).run();
+  } catch (_e) {}
+ }
+ return true;
+}
+
   // ── Прямой Vision ИИ-определитель рыбы (/api/ai/identify-fish) + Пакетная сборка чанков для работы в РФ без VPN ──
-  if (reqUrl.pathname.endsWith('/api/ai/identify-fish') && (request.method === 'POST' || request.method === 'GET' || reqUrl.searchParams.has('payload'))) {
+  if (matchWorkerRoute(normPath, '/api/ai/identify-fish', '/api/ai/identify-fish/chunk') && (request.method === 'POST' || request.method === 'GET' || reqUrl.searchParams.has('payload'))) {
    try {
     await ensurePersistentStateLoaded(env);
     const b = await readWorkerRequestPayload(request, reqUrl, 4194304);
+    const aiAuth = await verifyAiVisionBetaAccess(request, reqUrl, b, env);
+    if (!aiAuth.allowed) {
+     return new Response(JSON.stringify({ ok: false, error: 'Forbidden' }), { status: 403, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
+    }
+    if (normPath.endsWith('/chunk') && !b.chunkMode) {
+     b.chunkMode = 'put';
+    }
+    const nowChunkTs = Date.now();
+    const expiredChunkCutoff = nowChunkTs - AI_CHUNK_TTL_MS;
+    if (globalThis.__klevVisionChunkStore) {
+     for (const [ck, cv] of globalThis.__klevVisionChunkStore.entries()) {
+      if (!cv || cv.ts < expiredChunkCutoff) globalThis.__klevVisionChunkStore.delete(ck);
+     }
+    }
+    const d1LazyClean = getD1(env)?.db;
+    if (d1LazyClean) {
+     await d1LazyClean.prepare("DELETE FROM klev_kv WHERE k LIKE 'AI_CHK_%' AND updated_at < ?").bind(expiredChunkCutoff).run().catch(() => {});
+    }
     if (!globalThis.__klevVisionChunkStore) {
      globalThis.__klevVisionChunkStore = new Map();
     }
@@ -7879,6 +7931,10 @@ export default {
      const chunkData = String(b?.data || '').trim();
      if (!reqScanId || idx < 0 || total <= 0 || total > 60 || !chunkData || chunkData.length > 16000) {
       return new Response(JSON.stringify({ ok: false, error: 'Invalid chunk parameters' }), { status: 400, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
+     }
+     const quotaOk = await consumeAiUserChunkQuota(env, aiAuth.fisherId, 1);
+     if (!quotaOk) {
+      return new Response(JSON.stringify({ ok: false, error: 'Forbidden' }), { status: 403, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
      }
      const chunkKey = `AI_CHK_${reqScanId}_${idx}`;
      globalThis.__klevVisionChunkStore.set(chunkKey, { data: chunkData, ts: Date.now() });
@@ -7924,8 +7980,8 @@ export default {
     const dhash = String(b?.dhash || '').toLowerCase().replace(/^dh_/, '');
     const basinCode = String(b?.basinCode || 'arctic_ob_taz');
     const admTokVis = extractAdminTokenFromRequest(request, reqUrl, b);
-    const clientGeminiKey = isValidOwnerAdminToken(admTokVis, env) ? String(b?.geminiApiKey || '').trim() : '';
-    if (b?.geminiApiKey && !isValidOwnerAdminToken(admTokVis, env)) {
+    const clientGeminiKey = await isValidOwnerAdminToken(admTokVis, env) ? String(b?.geminiApiKey || '').trim() : '';
+    if (b?.geminiApiKey && !await isValidOwnerAdminToken(admTokVis, env)) {
      recordSecurityIncident('mass_assign', '/api/ai/identify-fish', 'Попытка подстановки внешнего geminiApiKey без токена Супер-Админа', clientIp);
     }
 
@@ -8115,7 +8171,7 @@ export default {
   }
 
   // ── Поиск собеседника по Логину или Fisher ID (/auth/resolve-peer?query=...) ──
-  if (reqUrl.pathname.endsWith('/auth/resolve-peer') && request.method === 'GET') {
+  if (matchWorkerRoute(normPath, '/auth/resolve-peer') && request.method === 'GET') {
    await ensurePersistentStateLoaded(env);
    const q = String(reqUrl.searchParams.get('query') || '').trim();
    if (detectSqlInjectionAttempt(q, '/auth/resolve-peer', clientIp)) {
@@ -8178,7 +8234,7 @@ export default {
    return new Response(JSON.stringify({ ok: true, found: false }), { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
   }
 
-  if (reqUrl.pathname.endsWith('/api/admin/users') && (request.method === 'GET' || request.method === 'POST')) {
+  if (matchWorkerRoute(normPath, '/api/admin/users') && (request.method === 'GET' || request.method === 'POST')) {
    if (!checkWorkerRateLimit(`admusers_${clientIp}`, false, 180)) {
     return new Response(JSON.stringify({ ok: false, error: 'Rate limit' }), { status: 429, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
    }
@@ -8190,7 +8246,7 @@ export default {
     } catch (e) {}
    }
    const tok = extractAdminTokenFromRequest(request, reqUrl, b);
-   if (!isValidOwnerAdminToken(tok, env)) {
+   if (!await isValidOwnerAdminToken(tok, env)) {
     return new Response(JSON.stringify({ ok: false, error: 'Unauthorized', authRequired: true }), { status: 401, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
    }
    purgeExpiredServerCirclePoints();
@@ -8308,7 +8364,7 @@ export default {
    });
   }
 
-  if (reqUrl.pathname.endsWith('/api/admin/meteoinfo-status') && (request.method === 'GET' || request.method === 'POST')) {
+  if (matchWorkerRoute(normPath, '/api/admin/meteoinfo-status') && (request.method === 'GET' || request.method === 'POST')) {
    let b = {};
    if (request.method === 'POST' || reqUrl.searchParams.has('payload')) {
     try { b = await readWorkerRequestPayload(request, reqUrl); } catch (e) {}
@@ -8420,7 +8476,7 @@ function generateSyntheticWeatherJson(lat, lon) {
 
 
 // ── 1. Эндпоинт 10-км гео-сетки погоды (/weather?lat=...&lon=...) с двойным кэшем и защитой от 502/сбоев ──
-  if (reqUrl.pathname.endsWith('/weather') && request.method === 'GET') {
+  if (matchWorkerRoute(normPath, '/weather') && request.method === 'GET') {
    const rawLat = parseFloat(reqUrl.searchParams.get('lat') || '66.1');
    const rawLon = parseFloat(reqUrl.searchParams.get('lon') || '76.6');
    const gLat = (Math.round((Number.isFinite(rawLat) ? Math.max(-85, Math.min(85, rawLat)) : 66.1) * 10) / 10).toFixed(1);
@@ -8578,7 +8634,7 @@ function generateSyntheticWeatherJson(lat, lon) {
   }
 
   // ── 2. Серверное выделение ID (/api/id/allocate): без регистрации выдаёт временный резерв FP_XXRZYYYY, а при наличии валидного токена логина+пароля возвращает постоянный ID FP_XXAAA001 ──
-  if (reqUrl.pathname.endsWith('/api/id/allocate') && (request.method === 'POST' || reqUrl.searchParams.has('payload'))) {
+  if (matchWorkerRoute(normPath, '/api/id/allocate') && (request.method === 'POST' || reqUrl.searchParams.has('payload'))) {
    if (!checkWorkerRateLimit(`alloc_${clientIp}`, false, 30)) {
     return new Response(JSON.stringify({ ok: false, error: 'Rate limit' }), { status: 429, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
    }
@@ -8599,7 +8655,7 @@ function generateSyntheticWeatherJson(lat, lon) {
     // 1. Проверяем, авторизован ли Владелец (iAthor / iAthor82 -> всегда строго FP_89VIP089)
     const isVerifiedOwner = (
      (workerIsOwnerLogin(reqLoginNorm) || workerIsOwnerLogin(body.callsign || '') || isOwnerFisherId(reqCurId)) &&
-     (isValidOwnerAdminToken(reqAuthToken, env) || isOwnerFisherId(reqCurId) || (deviceId && isOwnerFisherId(deviceToFisherIdMap.get(deviceId) || '')))
+     (await isValidOwnerAdminToken(reqAuthToken, env) || isOwnerFisherId(reqCurId) || (deviceId && isOwnerFisherId(deviceToFisherIdMap.get(deviceId) || '')))
     );
     if (isVerifiedOwner) {
      const ownerFid = reqCurId === OWNER_SECONDARY_ID ? OWNER_SECONDARY_ID : OWNER_FISHER_ID;
@@ -8804,7 +8860,7 @@ function generateSyntheticWeatherJson(lat, lon) {
   }
 
   // ── 2b. Двухэтапная связка автономного ID рыбака (FP_89...) и единого профиля с аккаунтом Telegram (/api/tg/bind) ──
-  if (reqUrl.pathname.endsWith('/api/tg/bind')) {
+  if (matchWorkerRoute(normPath, '/api/tg/bind')) {
    await ensurePersistentStateLoaded(env);
    if (request.method === 'GET' && !reqUrl.searchParams.has('payload')) {
     const qFid = workerNormalizeFisherId(reqUrl.searchParams.get('fid') || '', '89');
@@ -8882,7 +8938,7 @@ function generateSyntheticWeatherJson(lat, lon) {
   }
 
   // ── 3. Реальный обмен точками Круга, Экипажа, SOS и Мастерской между всеми устройствами (/api/circle/publish, /api/circle/nearby, /api/circle/delete) ──
-  if (reqUrl.pathname.endsWith('/api/circle/publish') && (request.method === 'POST' || reqUrl.searchParams.has('payload'))) {
+  if (matchWorkerRoute(normPath, '/api/circle/publish') && (request.method === 'POST' || reqUrl.searchParams.has('payload'))) {
    if (!checkWorkerRateLimit(`pub_${clientIp}`, false, 35)) {
     return new Response(JSON.stringify({ ok: false, error: 'Rate limit' }), { status: 429, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
    }
@@ -9005,7 +9061,7 @@ function generateSyntheticWeatherJson(lat, lon) {
    }
   }
 
-  if (reqUrl.pathname.endsWith('/api/circle/nearby') && request.method === 'GET') {
+  if (matchWorkerRoute(normPath, '/api/circle/nearby') && request.method === 'GET') {
    if (!checkWorkerRateLimit(`nearby_${clientIp}`, false, 35)) {
     return new Response(JSON.stringify({ ok: false, error: 'Rate limit' }), { status: 429, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
    }
@@ -9057,7 +9113,7 @@ function generateSyntheticWeatherJson(lat, lon) {
    });
    const isViewerAdmin = Boolean(
     nearbyAuth.isAdmin ||
-    isValidOwnerAdminToken(adminTok, env) ||
+    await isValidOwnerAdminToken(adminTok, env) ||
     (nearbyAuth.ok && viewerFid && adminWhitelistStore.has(viewerFid))
    );
 
@@ -9122,7 +9178,7 @@ function generateSyntheticWeatherJson(lat, lon) {
    });
   }
 
-  if (reqUrl.pathname.endsWith('/api/circle/delete') && (request.method === 'POST' || reqUrl.searchParams.has('payload'))) {
+  if (matchWorkerRoute(normPath, '/api/circle/delete') && (request.method === 'POST' || reqUrl.searchParams.has('payload'))) {
    try {
     await ensurePersistentStateLoaded(env);
     const body = await readWorkerRequestPayload(request, reqUrl);
@@ -9130,7 +9186,7 @@ function generateSyntheticWeatherJson(lat, lon) {
     const fid = workerNormalizeFisherId(body.fid || '', '89');
     const devId = String(body.deviceId || '').trim();
     const admTok = extractAdminTokenFromRequest(request, reqUrl, body);
-    const isAdm = isValidOwnerAdminToken(admTok, env);
+    const isAdm = await isValidOwnerAdminToken(admTok, env);
     const target = circlePointsStore.get(id);
     if (!target) {
      return new Response(JSON.stringify({ ok: true, deleted: false }), { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
@@ -9187,7 +9243,7 @@ function generateSyntheticWeatherJson(lat, lon) {
    }
   }
 
-  if (reqUrl.pathname.endsWith('/auth/check-login') && request.method === 'GET') {
+  if (matchWorkerRoute(normPath, '/auth/check-login') && request.method === 'GET') {
    if (!checkWorkerRateLimit(`chklogin_${clientIp}`, false, 30)) {
     return new Response(JSON.stringify({ ok: false, available: false, error: 'Rate limit' }), { status: 429, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
    }
@@ -9220,7 +9276,7 @@ function generateSyntheticWeatherJson(lat, lon) {
    }), { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
   }
 
-  if (reqUrl.pathname.endsWith('/auth/login') && (request.method === 'POST' || reqUrl.searchParams.has('payload'))) {
+  if (matchWorkerRoute(normPath, '/auth/login', '/auth/register') && (request.method === 'POST' || reqUrl.searchParams.has('payload'))) {
    if (!checkWorkerRateLimit(`auth_${clientIp}`, false, 15)) {
     return new Response(JSON.stringify({ ok: false, error: 'Too many login attempts' }), {
      status: 429,
@@ -9289,7 +9345,7 @@ function generateSyntheticWeatherJson(lat, lon) {
      sessionToken: ident.sessionToken || existing?.sessionToken || '',
      authTokenHash: ident.authTokenHash,
      secureTokenHash: secureTok,
-     adminSessionToken: ident.isOwner ? (ident.adminSessionToken || getAdminConsoleToken(env) || issueServerAdminSessionToken(ADMIN_SESSION_DEFAULT_TTL_MS, env)) : '',
+     adminSessionToken: ident.isOwner ? (ident.adminSessionToken || getAdminConsoleToken(env) || await issueServerAdminSessionToken(ADMIN_SESSION_DEFAULT_TTL_MS, env)) : '',
      ownerUnlocked: ident.isOwner ? true : Boolean(existing?.ownerUnlocked),
      isAdmin: ident.isOwner ? true : adminWhitelistStore.has(ident.fisherId),
      isBetaTester: ident.isOwner ? true : isUserBetaTesterOnServer(ident.fisherId),
@@ -9351,7 +9407,7 @@ function generateSyntheticWeatherJson(lat, lon) {
      login: ident.login,
      pinHash: ident.pinHash,
      sessionToken: ident.sessionToken || ident.authTokenHash,
-     adminSessionToken: ident.isOwner ? (ident.adminSessionToken || issueServerAdminSessionToken(ADMIN_SESSION_DEFAULT_TTL_MS, env)) : '',
+     adminSessionToken: ident.isOwner ? (ident.adminSessionToken || await issueServerAdminSessionToken(ADMIN_SESSION_DEFAULT_TTL_MS, env)) : '',
      serverDynamicSlotHtml: ident.isOwner ? buildOwnerServerPortalSlotHtml(reqUrl.origin) : '',
      isBetaTester: Boolean(safeProfileOut.isBetaTester),
      betaGateConfig: { ...betaGateConfig },
@@ -9373,7 +9429,7 @@ function generateSyntheticWeatherJson(lat, lon) {
    }
   }
 
-  if (reqUrl.pathname.endsWith('/auth/sync') && (request.method === 'POST' || reqUrl.searchParams.has('payload'))) {
+  if (matchWorkerRoute(normPath, '/auth/sync') && (request.method === 'POST' || reqUrl.searchParams.has('payload'))) {
    if (!checkWorkerRateLimit(`sync_${clientIp}`, false, 30)) {
     return new Response(JSON.stringify({ ok: false, error: 'Rate limit exceeded' }), {
      status: 429,
@@ -9392,10 +9448,15 @@ function generateSyntheticWeatherJson(lat, lon) {
     const normFidPre = /^FP_/i.test(rawLoginClean) ? workerNormalizeFisherId(rawLoginClean, '89') : '';
     const preCheckKey = normLoginPre ? `AUTH_${normLoginPre}_${body.authTokenHash && String(body.authTokenHash).startsWith('KTOK_') ? body.authTokenHash : workerDeriveAuthToken(rawLoginClean, body.password)}` : '';
     await loadPersistedAuthProfile(env, preCheckKey, normLoginPre, normFidPre);
+    const syncBfState = await checkD1LoginBruteForce(env, clientIp, normLoginPre || rawLoginClean);
+    if (syncBfState.locked) {
+     return new Response(JSON.stringify({ ok: false, code: 'BRUTE_FORCE_LOCKED', error: 'Слишком много неудачных попыток. Повторите через 15 минут.' }), { status: 429, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
+    }
     const ident = await resolveWorkerAccountIdentity(body.login, body.password, body.authTokenHash, body.regionCode, snap, env);
     if (!ident.ok) {
+     const failRec = await recordD1LoginFailure(env, clientIp, normLoginPre || rawLoginClean, '/auth/sync');
      return new Response(JSON.stringify({ ok: false, error: 'Invalid credentials' }), {
-      status: 400,
+      status: failRec.lockedUntil ? 429 : 400,
       headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
      });
     }
@@ -9410,7 +9471,7 @@ function generateSyntheticWeatherJson(lat, lon) {
      pbkdf2Verifier: ident.pbkdf2Verifier || existing?.pbkdf2Verifier || '',
      sessionToken: ident.sessionToken || existing?.sessionToken || '',
      authTokenHash: ident.authTokenHash,
-     adminSessionToken: ident.isOwner ? (ident.adminSessionToken || getAdminConsoleToken(env) || issueServerAdminSessionToken(ADMIN_SESSION_DEFAULT_TTL_MS, env)) : '',
+     adminSessionToken: ident.isOwner ? (ident.adminSessionToken || getAdminConsoleToken(env) || await issueServerAdminSessionToken(ADMIN_SESSION_DEFAULT_TTL_MS, env)) : '',
      ownerUnlocked: ident.isOwner ? true : Boolean(existing.ownerUnlocked),
      isAdmin: ident.isOwner ? true : adminWhitelistStore.has(ident.fisherId),
      isBetaTester: ident.isOwner ? true : isUserBetaTesterOnServer(ident.fisherId),
@@ -9448,7 +9509,7 @@ function generateSyntheticWeatherJson(lat, lon) {
      ok: true,
      fisherId: ident.fisherId,
      isOwner: ident.isOwner,
-     adminSessionToken: ident.isOwner ? (ident.adminSessionToken || issueServerAdminSessionToken(ADMIN_SESSION_DEFAULT_TTL_MS, env)) : '',
+     adminSessionToken: ident.isOwner ? (ident.adminSessionToken || await issueServerAdminSessionToken(ADMIN_SESSION_DEFAULT_TTL_MS, env)) : '',
      serverDynamicSlotHtml: ident.isOwner ? buildOwnerServerPortalSlotHtml(reqUrl.origin) : '',
      isBetaTester: Boolean(safeSyncProfile.isBetaTester),
      betaGateConfig: { ...betaGateConfig },
@@ -9466,14 +9527,14 @@ function generateSyntheticWeatherJson(lat, lon) {
    }
   }
 
-  if (reqUrl.pathname.endsWith('/admin/whitelist')) {
+  if (matchWorkerRoute(normPath, '/admin/whitelist')) {
   if (!checkWorkerRateLimit(`wl_${clientIp}`, false, 15)) {
    return new Response(JSON.stringify({ ok: false, error: 'Rate limit' }), { status: 429, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
   }
   await ensurePersistentStateLoaded(env);
   if (request.method === 'GET' && !reqUrl.searchParams.has('payload')) {
    const admTok = extractAdminTokenFromRequest(request, reqUrl, null);
-   const isFullAdm = isValidOwnerAdminToken(admTok, env);
+   const isFullAdm = await isValidOwnerAdminToken(admTok, env);
    const listOut = Array.from(adminWhitelistStore.values()).map(item => isFullAdm ? item : { id: item.id });
    return new Response(JSON.stringify({ ok: true, whitelist: listOut }), {
     headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' }
@@ -9483,7 +9544,7 @@ function generateSyntheticWeatherJson(lat, lon) {
    try {
     const body = await readWorkerRequestPayload(request, reqUrl);
     const secret = extractAdminTokenFromRequest(request, reqUrl, body);
-    if (!isValidOwnerAdminToken(secret, env)) {
+    if (!await isValidOwnerAdminToken(secret, env)) {
      return new Response(JSON.stringify({ ok: false, error: 'Forbidden' }), { status: 403, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
     }
     if (body.action === 'add' && body.entry && body.entry.id) {
@@ -9514,7 +9575,7 @@ function generateSyntheticWeatherJson(lat, lon) {
   }
   }
 
-  if (reqUrl.pathname.endsWith('/api/version') && request.method === 'GET') {
+  if (matchWorkerRoute(normPath, '/api/version') && request.method === 'GET') {
    return new Response(JSON.stringify({
     appName: 'Клёв ПРО 2.0',
     packageName: 'ru.klevpro.app',
@@ -9542,7 +9603,7 @@ function generateSyntheticWeatherJson(lat, lon) {
   }
 
 
-  if ((reqUrl.pathname.endsWith('/policy-version.json') || reqUrl.pathname.endsWith('/api/policy/status')) && request.method === 'GET') {
+  if ((matchWorkerRoute(normPath, '/policy-version.json') || matchWorkerRoute(normPath, '/api/policy/status')) && request.method === 'GET') {
    await ensurePersistentStateLoaded(env);
    const qFid = workerNormalizeFisherId(reqUrl.searchParams.get('fid') || '', '89');
    const uConsent = qFid ? (userConsentsStore.get(qFid) || null) : null;
@@ -9563,7 +9624,7 @@ function generateSyntheticWeatherJson(lat, lon) {
    });
   }
 
-  if (reqUrl.pathname.endsWith('/api/policy/accept') && (request.method === 'POST' || reqUrl.searchParams.has('payload'))) {
+  if (matchWorkerRoute(normPath, '/api/policy/accept') && (request.method === 'POST' || reqUrl.searchParams.has('payload'))) {
    try {
     await ensurePersistentStateLoaded(env);
     const body = await readWorkerRequestPayload(request, reqUrl);
@@ -9608,12 +9669,12 @@ function generateSyntheticWeatherJson(lat, lon) {
    }
   }
 
-  if (reqUrl.pathname.endsWith('/api/admin/policy-update') && (request.method === 'POST' || reqUrl.searchParams.has('payload'))) {
+  if (matchWorkerRoute(normPath, '/api/admin/policy-update') && (request.method === 'POST' || reqUrl.searchParams.has('payload'))) {
    try {
     await ensurePersistentStateLoaded(env);
     const body = await readWorkerRequestPayload(request, reqUrl);
     const tok = extractAdminTokenFromRequest(request, reqUrl, body);
-    if (!isValidOwnerAdminToken(tok, env)) {
+    if (!await isValidOwnerAdminToken(tok, env)) {
      return new Response(JSON.stringify({ ok: false, error: 'Forbidden' }), { status: 403, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
     }
     if (body.policyVersion) policyStateStore.policyVersion = String(body.policyVersion).trim().slice(0, 64);
@@ -9686,7 +9747,7 @@ function generateSyntheticWeatherJson(lat, lon) {
    }
   }
 
-  if (reqUrl.pathname.endsWith('/api/geo/consent') && (request.method === 'POST' || reqUrl.searchParams.has('payload'))) {
+  if (matchWorkerRoute(normPath, '/api/geo/consent') && (request.method === 'POST' || reqUrl.searchParams.has('payload'))) {
    try {
     await ensurePersistentStateLoaded(env);
     const body = await readWorkerRequestPayload(request, reqUrl);
@@ -9716,7 +9777,7 @@ function generateSyntheticWeatherJson(lat, lon) {
    }
   }
 
-  if (reqUrl.pathname.endsWith('/api/geo/revoke-consent') && (request.method === 'POST' || reqUrl.searchParams.has('payload'))) {
+  if (matchWorkerRoute(normPath, '/api/geo/revoke-consent') && (request.method === 'POST' || reqUrl.searchParams.has('payload'))) {
    try {
     await ensurePersistentStateLoaded(env);
     const body = await readWorkerRequestPayload(request, reqUrl);
@@ -9782,7 +9843,7 @@ function generateSyntheticWeatherJson(lat, lon) {
    }
   }
 
-  if (reqUrl.pathname.endsWith('/auth/delete-account') && (request.method === 'POST' || reqUrl.searchParams.has('payload'))) {
+  if (matchWorkerRoute(normPath, '/auth/delete-account') && (request.method === 'POST' || reqUrl.searchParams.has('payload'))) {
    try {
     await ensurePersistentStateLoaded(env);
     const body = await readWorkerRequestPayload(request, reqUrl);
@@ -9886,7 +9947,7 @@ function generateSyntheticWeatherJson(lat, lon) {
    }
   }
 
-  if (reqUrl.pathname.endsWith('/api/relay/delete-message') && (request.method === 'POST' || reqUrl.searchParams.has('payload'))) {
+  if (matchWorkerRoute(normPath, '/api/relay/delete-message') && (request.method === 'POST' || reqUrl.searchParams.has('payload'))) {
    try {
     await ensurePersistentStateLoaded(env);
     const body = await readWorkerRequestPayload(request, reqUrl);
@@ -9939,7 +10000,7 @@ function generateSyntheticWeatherJson(lat, lon) {
    }
   }
 
-  if (reqUrl.pathname.endsWith('/api/beta/status') && (request.method === 'GET' || request.method === 'POST')) {
+  if (matchWorkerRoute(normPath, '/api/beta/status') && (request.method === 'GET' || request.method === 'POST')) {
    await ensurePersistentStateLoaded(env, true);
    let rawFidParam = reqUrl.searchParams.get('fid') || '';
    if (!rawFidParam && (request.method === 'POST' || reqUrl.searchParams.has('payload'))) {
@@ -9963,7 +10024,7 @@ function generateSyntheticWeatherJson(lat, lon) {
    });
   }
 
-  if (reqUrl.pathname.endsWith('/api/admin/beta-testers') && (request.method === 'POST' || request.method === 'GET')) {
+  if (matchWorkerRoute(normPath, '/api/admin/beta-testers') && (request.method === 'POST' || request.method === 'GET')) {
    await ensurePersistentStateLoaded(env, true);
    let body = {};
    const hasWritePayload = request.method === 'POST' || reqUrl.searchParams.has('payload') || reqUrl.searchParams.has('action');
@@ -9974,7 +10035,7 @@ function generateSyntheticWeatherJson(lat, lon) {
     if (!body.label && reqUrl.searchParams.get('label')) body.label = reqUrl.searchParams.get('label');
    }
    const tok = extractAdminTokenFromRequest(request, reqUrl, body);
-   if (!isValidOwnerAdminToken(tok, env)) {
+   if (!await isValidOwnerAdminToken(tok, env)) {
     return new Response(JSON.stringify({ ok: false, error: 'Forbidden' }), { status: 403, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
    }
    if (hasWritePayload && body && body.action) {
@@ -10037,7 +10098,7 @@ function generateSyntheticWeatherJson(lat, lon) {
    });
   }
 
-  if (reqUrl.pathname.endsWith('/api/relay/delete-channel') && (request.method === 'POST' || reqUrl.searchParams.has('payload'))) {
+  if (matchWorkerRoute(normPath, '/api/relay/delete-channel') && (request.method === 'POST' || reqUrl.searchParams.has('payload'))) {
    try {
     await ensurePersistentStateLoaded(env);
     const body = await readWorkerRequestPayload(request, reqUrl);
@@ -10151,7 +10212,7 @@ function generateSyntheticWeatherJson(lat, lon) {
    }
   }
 
-  if (reqUrl.pathname.endsWith('/relay/push') && (request.method === 'POST' || reqUrl.searchParams.has('payload'))) {
+  if (matchWorkerRoute(normPath, '/relay/push') && (request.method === 'POST' || reqUrl.searchParams.has('payload'))) {
   if (!checkWorkerRateLimit(`rpush_${clientIp}`, false, 45)) {
    return new Response(JSON.stringify({ ok: false, error: 'Rate limit' }), { status: 429, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
   }
@@ -10205,7 +10266,7 @@ function generateSyntheticWeatherJson(lat, lon) {
   }
   }
 
-  if (reqUrl.pathname.endsWith('/relay/pull') && request.method === 'GET') {
+  if (matchWorkerRoute(normPath, '/relay/pull') && request.method === 'GET') {
   if (!checkWorkerRateLimit(`rpull_${clientIp}`, false, 60)) {
    return new Response(JSON.stringify({ ok: false, packets: [] }), { status: 429, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
   }

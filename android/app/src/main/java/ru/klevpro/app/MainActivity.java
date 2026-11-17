@@ -27,6 +27,11 @@ import android.location.GnssStatus;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
+import android.view.Surface;
 import android.media.AudioAttributes;
 import android.media.AudioManager;
 import android.media.RingtoneManager;
@@ -598,6 +603,13 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        
+        @JavascriptInterface
+        public float getCompassHeadingDeg() {
+            return latestCompassHeadingDeg;
+        }
+
+        @JavascriptInterface
         public int getGnssSatellitesVisible() {
             return gnssSatellitesVisibleCount;
         }
@@ -653,24 +665,39 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String getAppVersion() {
-            return "2.9.0-r233";
+            return "2.9.0-r240";
         }
 
         @JavascriptInterface
         public int getAppBuildNumber() {
-            return 231;
+            return 240;
         }
 
         @JavascriptInterface
         public String getAppRevision() {
-            return "r231";
+            return "r240";
+        }
+
+        private boolean isAllowedExternalUri(Uri uri) {
+            if (uri == null) return false;
+            String scheme = uri.getScheme();
+            if (scheme == null || !"https".equalsIgnoreCase(scheme.trim())) return false;
+            String host = uri.getHost();
+            if (host == null) return false;
+            String h = host.trim().toLowerCase(Locale.ROOT);
+            return "klevpro.ru".equals(h)
+                || "www.klevpro.ru".equals(h)
+                || "xn--b1apdneg0j.xn--p1ai".equals(h)
+                || "github.com".equals(h);
         }
 
         @JavascriptInterface
         public void downloadApkUpdate(String url) {
             if (url == null || url.trim().isEmpty()) return;
             try {
-                Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url.trim()));
+                Uri uri = Uri.parse(url.trim());
+                if (!isAllowedExternalUri(uri)) return;
+                Intent intent = new Intent(Intent.ACTION_VIEW, uri);
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 ctx.startActivity(intent);
             } catch (Exception ignored) {}
@@ -680,7 +707,9 @@ public class MainActivity extends Activity {
         public void openExternalUrl(String url) {
             if (url == null || url.trim().isEmpty()) return;
             try {
-                Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url.trim()));
+                Uri uri = Uri.parse(url.trim());
+                if (!isAllowedExternalUri(uri)) return;
+                Intent intent = new Intent(Intent.ACTION_VIEW, uri);
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 ctx.startActivity(intent);
             } catch (Exception ignored) {}
@@ -973,7 +1002,7 @@ public class MainActivity extends Activity {
         ws.setCacheMode(WebSettings.LOAD_DEFAULT);
         // Пользовательские данные защищены в Context.getFilesDir()/klev_appdata_vault; кэш WebView не очищается принудительно
         String baseUa = ws.getUserAgentString();
-        ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.9.0-r233");
+        ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.9.0-r240");
 
         webView.addJavascriptInterface(new NativeBridge(this), "AndroidBridge");
 
@@ -1003,7 +1032,7 @@ public class MainActivity extends Activity {
                             try {
                                 URL u = new URL(targetUrl);
                                 String h = u.getHost() != null ? u.getHost().toLowerCase() : "";
-                                if (h.endsWith("meteoinfo.ru") || h.endsWith("met.no") || h.endsWith("open-meteo.com") || h.endsWith("project-osrm.org") || h.endsWith("openstreetmap.de") || h.endsWith("openstreetmap.org") || h.endsWith("workers.dev") || h.endsWith("klevpro.ru")) {
+                                if (h.endsWith("meteoinfo.ru") || h.endsWith("met.no") || h.endsWith("open-meteo.com") || h.endsWith("project-osrm.org") || h.endsWith("openstreetmap.de") || h.endsWith("openstreetmap.org") || h.endsWith("openstreetmap.fr") || h.endsWith("overpass-api.de") || h.endsWith("kumi.systems") || h.endsWith("mail.ru") || h.endsWith("vk.com") || h.endsWith("workers.dev") || h.endsWith("klevpro.ru")) {
                                     conn = (HttpURLConnection) u.openConnection();
                                     conn.setRequestMethod("GET");
                                     conn.setConnectTimeout(6500);
@@ -1569,7 +1598,7 @@ public class MainActivity extends Activity {
             }
         }
         String entryHtml = getPackageName().contains("admin") ? "kp-control-89.html" : "index.html";
-        String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/" + entryHtml + "?v=2.8.3_r231_" + System.currentTimeMillis();
+        String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/" + entryHtml + "?v=2.9.0_r240_" + System.currentTimeMillis();
         if (intent != null && intent.getData() != null) {
             Uri data = intent.getData();
             String q = data.getEncodedQuery();

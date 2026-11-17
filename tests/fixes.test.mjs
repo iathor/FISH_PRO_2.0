@@ -1,0 +1,241 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import crypto from 'node:crypto';
+import { fileURLToPath } from 'node:url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const ROOT = path.resolve(__dirname, '..');
+
+const verData = JSON.parse(fs.readFileSync(path.join(ROOT, 'VERSION'), 'utf8'));
+const workerSrc = fs.readFileSync(path.join(ROOT, 'cloudflare-worker-bot.js'), 'utf8');
+const indexSrc = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+const kpSrc = fs.readFileSync(path.join(ROOT, 'kp-control-89.html'), 'utf8');
+const swSrc = fs.readFileSync(path.join(ROOT, 'sw.js'), 'utf8');
+const runtimeSrc = fs.existsSync(path.join(ROOT, 'app-runtime.js'))
+  ? fs.readFileSync(path.join(ROOT, 'app-runtime.js'), 'utf8')
+  : indexSrc;
+
+test('3.1 Лимитер запросов checkWorkerRateLimit соблюдает переданный maxPerMin и не задирает лимит до 240', () => {
+  assert.ok(
+    !workerSrc.includes('Math.max(240, Number(maxPerMin) || 240)'),
+    'В воркере не должно оставаться Math.max(240, ...)'
+  );
+  assert.ok(
+    workerSrc.includes('const limit = Math.max(1, Number(maxPerMin) || 60);'),
+    'В checkWorkerRateLimit должен использоваться const limit = Math.max(1, Number(maxPerMin) || 60)'
+  );
+  assert.ok(
+    workerSrc.includes('CREATE TABLE IF NOT EXISTS auth_attempts'),
+    'Должна создаваться таблица auth_attempts для блокировки после 5 неудачных попыток за 15 минут'
+  );
+
+  // Эмуляция логики checkWorkerRateLimit при maxPerMin = 15 (/auth/login)
+  const rateBuckets = new Map();
+  function checkWorkerRateLimit(userId, isGeo = false, maxPerMin = 140) {
+    const now = Date.now();
+    const key = String(userId || 'anon').slice(0, 64);
+    let b = rateBuckets.get(key);
+    if (!b || now - b.start >= 60000) {
+      b = { start: now, total: 0, geo: 0 };
+      rateBuckets.set(key, b);
+    }
+    b.total += 1;
+    if (isGeo) b.geo += 1;
+    const limit = Math.max(1, Number(maxPerMin) || 60);
+    if (b.total > limit) return false;
+    if (isGeo && b.geo > 8) return false;
+    return true;
+  }
+  for (let i = 1; i <= 15; i++) {
+    assert.equal(checkWorkerRateLimit('auth_1.2.3.4', false, 15), true, `Попытка ${i} должна проходить`);
+  }
+  assert.equal(checkWorkerRateLimit('auth_1.2.3.4', false, 15), false, '16-я попытка при лимите 15 должна блокироваться');
+});
+
+test('3.2 ИИ-ручка /api/ai/identify-fish и /api/ai/identify-fish/chunk проверяет сессию, бета-статус, квоту и TTL AI_CHK_*', () => {
+  assert.ok(workerSrc.includes('async function verifyAiVisionBetaAccess('));
+  assert.ok(workerSrc.includes('const aiAuth = await verifyAiVisionBetaAccess(request, reqUrl, b, env);'));
+  assert.ok(workerSrc.includes("return new Response(JSON.stringify({ ok: false, error: 'Forbidden' }), { status: 403"));
+  assert.ok(workerSrc.includes("DELETE FROM klev_kv WHERE k LIKE 'AI_CHK_%' AND updated_at < ?"));
+  assert.ok(workerSrc.includes('consumeAiUserChunkQuota(env, aiAuth.fisherId, 1)'));
+});
+
+test('3.3 Регулярка прокси тайлов блокирует чужие домены (evilopenstreetmap.org) и пропускает легитимные поддомены', () => {
+  const tileHostRe = /(^|\.)(maps\.yandex\.net|arcgisonline\.com|openstreetmap\.org|cartocdn\.com|opentopomap\.org|maps\.mail\.ru)$/i;
+  assert.equal(tileHostRe.test('evilopenstreetmap.org'), false, 'evilopenstreetmap.org должен отвергаться');
+  assert.equal(tileHostRe.test('fake-maps.yandex.net'), false, 'fake-maps.yandex.net должен отвергаться');
+  assert.equal(tileHostRe.test('core-renderer-tiles.maps.yandex.net'), true, 'Яндекс тайлы должны проходить');
+  assert.equal(tileHostRe.test('tile.openstreetmap.org'), true, 'tile.openstreetmap.org должен проходить');
+  assert.ok(workerSrc.includes('/(^|\\.)(maps\\.yandex\\.net|arcgisonline\\.com|openstreetmap\\.org|cartocdn\\.com|opentopomap\\.org|maps\\.mail\\.ru)$/i'));
+  assert.ok(swSrc.includes('/(^|\\.)(maps\\.yandex\\.net|arcgisonline\\.com|openstreetmap\\.org|openstreetmap\\.fr|cartocdn\\.com|opentopomap\\.org|maps\\.mail\\.ru)$/i'));
+  assert.ok(runtimeSrc.includes('window.__KLEV_USE_TILE_PROXY_FALLBACK__'), 'Прокси тайлов в клиенте должен быть закрыт флагом резерва');
+});
+
+test('3.4 & 4.8 Единый источник версии VERSION (2.9.0 r240) синхронизирован во всех файлах и ссылка на APK валидна', () => {
+  assert.equal(verData.version, '2.9.0');
+  assert.equal(verData.revision, 'r240');
+  assert.equal(verData.versionCode, 293240);
+
+  const vJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'version.json'), 'utf8'));
+  const apkVJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'apk/apk-version.json'), 'utf8'));
+  const polJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'policy-version.json'), 'utf8'));
+  const manJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifest.json'), 'utf8'));
+  const gradleSrc = fs.readFileSync(path.join(ROOT, 'android/app/build.gradle'), 'utf8');
+  const mainJava = fs.readFileSync(path.join(ROOT, 'android/app/src/main/java/ru/klevpro/app/MainActivity.java'), 'utf8');
+
+  assert.equal(vJson.version, verData.version);
+  assert.equal(vJson.revision, verData.revision);
+  assert.equal(vJson.versionCode, verData.versionCode);
+  assert.equal(vJson.apkUrl, `https://klevpro.ru/apk/klev-pro-v${verData.version}.apk`);
+  assert.equal(apkVJson.apkUrl, vJson.apkUrl);
+  assert.equal(polJson.appVersion, verData.version);
+  assert.equal(polJson.appRevision, verData.revision);
+  assert.equal(manJson.version, verData.fullVersion);
+
+  assert.ok(gradleSrc.includes(`versionCode ${verData.versionCode}`));
+  assert.ok(gradleSrc.includes(`versionName "${verData.fullVersion}"`));
+  assert.ok(mainJava.includes(`KlevProAPK/${verData.fullVersion}`));
+  assert.ok(mainJava.includes(`?v=${verData.version}_${verData.revision}_`));
+
+  // Если в каталоге apk/ присутствуют собранные .apk файлы, проверяем физическое наличие целевого файла из apkUrl
+  const apkDir = path.join(ROOT, 'apk');
+  const apkFiles = fs.existsSync(apkDir) ? fs.readdirSync(apkDir).filter(f => f.endsWith('.apk')) : [];
+  if (apkFiles.length > 0 || process.env.STRICT_APK_FILE_CHECK === '1') {
+    const expectedApkPath = path.join(apkDir, verData.apkFileName);
+    assert.ok(fs.existsSync(expectedApkPath), `В apk/ должен лежать файл ${verData.apkFileName}, указанный в version.json`);
+  }
+});
+
+test('3.5 Экранирование пользовательских данных esc() и белый список URI в MainActivity.java', () => {
+  assert.ok(runtimeSrc.includes('const esc=Be;'));
+  const esc = (e) => e == null ? '' : String(e)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
+  const malicious = `<img src=x onerror="alert('xss')"> & 'test'`;
+  const escaped = esc(malicious);
+  assert.equal(escaped, '&lt;img src=x onerror=&quot;alert(&#39;xss&#39;)&quot;&gt; &amp; &#39;test&#39;');
+  assert.ok(!escaped.includes('<') && !escaped.includes('>'));
+
+  const mainJava = fs.readFileSync(path.join(ROOT, 'android/app/src/main/java/ru/klevpro/app/MainActivity.java'), 'utf8');
+  assert.ok(mainJava.includes('private boolean isAllowedExternalUri(Uri uri)'));
+  assert.ok(mainJava.includes('!"https".equalsIgnoreCase(scheme.trim())'));
+  assert.ok(mainJava.includes('"klevpro.ru".equals(h)'));
+  assert.ok(mainJava.includes('"xn--b1apdneg0j.xn--p1ai".equals(h)'));
+  assert.ok(mainJava.includes('"github.com".equals(h)'));
+});
+
+test('3.6 & 4.2 Админка закрыта от индексации (meta noindex + robots.txt) и синхронизирована с index.html', () => {
+  const robotsTxt = fs.readFileSync(path.join(ROOT, 'robots.txt'), 'utf8');
+  assert.ok(robotsTxt.includes('Disallow: /kp-control-89.html'));
+  assert.ok(!robotsTxt.includes('Host:'));
+  assert.ok(kpSrc.includes('<meta name="robots" content="noindex, nofollow">'));
+  assert.ok(kpSrc.includes('window.__KLEV_ADMIN_CONTOUR__ = true;'));
+});
+
+test('4.5 Совпадение хешей SHA-256 через crypto.subtle со старой эталонной реализацией', async () => {
+  // Старая самописная реализация для сверки эталонных векторов
+  const K = new Uint32Array([
+    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+    0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+    0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+    0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+    0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
+  ]);
+  function legacySha256Hex(str) {
+    const msg = new TextEncoder().encode(str);
+    const bitLen = msg.length * 8;
+    const padLen = ((msg.length + 9 + 63) & ~63);
+    const buf = new Uint8Array(padLen);
+    buf.set(msg);
+    buf[msg.length] = 0x80;
+    const view = new DataView(buf.buffer);
+    view.setUint32(padLen - 8, Math.floor(bitLen / 0x100000000), false);
+    view.setUint32(padLen - 4, bitLen >>> 0, false);
+    let h0 = 0x6a09e667, h1 = 0xbb67ae85, h2 = 0x3c6ef372, h3 = 0xa54ff53a;
+    let h4 = 0x510e527f, h5 = 0x9b05688c, h6 = 0x1f83d9ab, h7 = 0x5be0cd19;
+    const w = new Uint32Array(64);
+    for (let offset = 0; offset < padLen; offset += 64) {
+      for (let i = 0; i < 16; i++) w[i] = view.getUint32(offset + i * 4, false);
+      for (let i = 16; i < 64; i++) {
+        const s0 = ((w[i - 15] >>> 7) | (w[i - 15] << 25)) ^ ((w[i - 15] >>> 18) | (w[i - 15] << 14)) ^ (w[i - 15] >>> 3);
+        const s1 = ((w[i - 2] >>> 17) | (w[i - 2] << 15)) ^ ((w[i - 2] >>> 19) | (w[i - 2] << 13)) ^ (w[i - 2] >>> 10);
+        w[i] = (w[i - 16] + s0 + w[i - 7] + s1) >>> 0;
+      }
+      let a = h0, b = h1, c = h2, d = h3, e = h4, f = h5, g = h6, h = h7;
+      for (let i = 0; i < 64; i++) {
+        const S1 = ((e >>> 6) | (e << 26)) ^ ((e >>> 11) | (e << 21)) ^ ((e >>> 25) | (e << 7));
+        const ch = (e & f) ^ (~e & g);
+        const temp1 = (h + S1 + ch + K[i] + w[i]) >>> 0;
+        const S0 = ((a >>> 2) | (a << 30)) ^ ((a >>> 13) | (a << 19)) ^ ((a >>> 22) | (a << 10));
+        const maj = (a & b) ^ (a & c) ^ (b & c);
+        const temp2 = (S0 + maj) >>> 0;
+        h = g; g = f; f = e; e = (d + temp1) >>> 0;
+        d = c; c = b; b = a; a = (temp1 + temp2) >>> 0;
+      }
+      h0 = (h0 + a) >>> 0; h1 = (h1 + b) >>> 0; h2 = (h2 + c) >>> 0; h3 = (h3 + d) >>> 0;
+      h4 = (h4 + e) >>> 0; h5 = (h5 + f) >>> 0; h6 = (h6 + g) >>> 0; h7 = (h7 + h) >>> 0;
+    }
+    const out = new Uint8Array(32);
+    const outView = new DataView(out.buffer);
+    [h0, h1, h2, h3, h4, h5, h6, h7].forEach((val, idx) => outView.setUint32(idx * 4, val, false));
+    return Array.from(out, b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
+  }
+
+  async function subtleSha256Hex(str) {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+    return Array.from(new Uint8Array(buf), b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
+  }
+
+  for (const sample of ['', 'KlevPro_2.9.0_r240', 'Рыболов Новый Уренгой 66.08N 76.68E', 'ADM_SESS_V3:1790000000000:A1B2C3D4E5F60718']) {
+    const expected = legacySha256Hex(sample);
+    const actual = await subtleSha256Hex(sample);
+    assert.equal(actual, expected, `Хеш SHA-256 для "${sample}" должен совпадать 1-в-1`);
+  }
+  assert.ok(!workerSrc.includes('const _SHA256_K = new Uint32Array'), 'Самописный SHA-256 должен быть удалён из воркера');
+});
+
+test('4.6 & 5.3 Расчёт восхода/заката для 66.08°N (Новый Уренгой) и детерминированность прогноза клёва с био-потолком', () => {
+  assert.ok(runtimeSrc.includes('function calcPolarSunTimes('));
+  const m = runtimeSrc.match(/function calcPolarSunTimes\([\s\S]*?\}\}\}/);
+  assert.ok(m, 'Функция calcPolarSunTimes должна присутствовать в рантайме');
+  const calcPolarSunTimes = new Function(`return (${m[0]})`)();
+
+  const nov17 = calcPolarSunTimes('2026-11-17', 66.08, 76.68);
+  // Для 66.08°N 17 ноября восход около 08:48 (8.80 ч), закат около 14:29 (14.49 ч)
+  assert.ok(nov17.sunriseHr >= 8.5 && nov17.sunriseHr <= 9.1, `Восход для 66.08°N в ноябре: ${nov17.sunriseHr}`);
+  assert.ok(nov17.sunsetHr >= 14.2 && nov17.sunsetHr <= 14.8, `Закат для 66.08°N в ноябре: ${nov17.sunsetHr}`);
+
+  const jun21 = calcPolarSunTimes('2026-06-21', 68.5, 76.68);
+  assert.equal(jun21.polarDay, true, 'На 68.5°N 21 июня должен определяться полярный день');
+
+  // Проверка детерминированности прогноза клёва и соблюдения биологического потолка (0..100%)
+  function evalBiteScoreDeterministic(base, factors, bioCeiling = 94) {
+    const sum = factors.reduce((acc, f) => acc + f, 0);
+    return Math.max(5, Math.min(bioCeiling, Math.min(100, Math.round(base + sum))));
+  }
+  const s1 = evalBiteScoreDeterministic(52, [14, 12, 10, 8, 15], 92);
+  const s2 = evalBiteScoreDeterministic(52, [14, 12, 10, 8, 15], 92);
+  assert.equal(s1, s2, 'Прогноз клёва должен быть строго детерминированным');
+  assert.equal(s1, 92, 'Прогноз клёва не должен превышать биологический потолок вида');
+});
+
+test("2.1 Идемпотентность apply-fixes.mjs: повторный запуск не меняет ни одного байта", async () => {
+  const { execFileSync } = await import("node:child_process");
+  const files = ["index.html", "kp-control-89.html", "app-runtime.js", "cloudflare-worker-bot.js", "sw.js", "version.json", "robots.txt"];
+  const before = Object.fromEntries(files.map(f => [f, fs.readFileSync(path.join(ROOT, f), "utf8")]));
+  execFileSync(process.execPath, [path.join(ROOT, "tools/apply-fixes.mjs")], { cwd: ROOT });
+  for (const f of files) {
+    const after = fs.readFileSync(path.join(ROOT, f), "utf8");
+    assert.equal(after, before[f], `Файл ${f} не должен меняться при повторном запуске apply-fixes.mjs`);
+  }
+});

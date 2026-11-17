@@ -1,0 +1,16 @@
+{
+  "version": "2.9.0",
+  "revision": "r240",
+  "buildNumber": 240,
+  "versionCode": 293240,
+  "displayVersion": "v2.9.0 r240",
+  "fullVersion": "2.9.0-r240",
+  "policyVersion": "2026.11.17-v2.9.0",
+  "releaseDate": "2026-11-17",
+  "date": "17 ноября 2026",
+  "apkFileName": "klev-pro-v2.9.0.apk",
+  "adminApkFileName": "klev-pro-admin-v2.9.0.apk",
+  "apkUrl": "https://klevpro.ru/apk/klev-pro-v2.9.0.apk",
+  "fileSize": "38.8 МБ",
+  "versionBranchNote": "Единая стабильная ветка v2.9.0 (ревизия r240): базовый номер версии зафиксирован на 2.9.0 до выхода мажорного релиза 3.0; актуальность обновлений на сайте и в приложении определяется номером ревизии (r240)."
+}

@@ -63,7 +63,7 @@ jobs:
           mkdir -p "$PROJ_DIR/app/src/main/assets/www"
           if [ -f "kp-control-89.html" ]; then cp -f "kp-control-89.html" /tmp/kp-control-89-master.html; fi
           if [ -f "icon-admin-512.png" ]; then cp -f "icon-admin-512.png" /tmp/icon-admin-512.png; fi
-          for f in index.html kp-control-89.html policy-version.json manifest.json version.json icon.svg icon-192.png icon-512.png icon-admin-192.png icon-admin-512.png apple-touch-icon.png sw.js css js assets; do
+          for f in index.html kp-control-89.html app-runtime.js VERSION policy-version.json manifest.json version.json icon.svg icon-192.png icon-512.png icon-admin-192.png icon-admin-512.png apple-touch-icon.png sw.js css js assets; do
             if [ -e "$f" ]; then
               cp -r "$f" "$PROJ_DIR/app/src/main/assets/www/"
             fi
@@ -89,7 +89,7 @@ jobs:
 
           # 4. Вычисляем строго возрастающий versionCode для релиза 2.5.6 r194 (чтобы Android всегда обновлял APK поверх старой версии)
           RUN_NUM=${GITHUB_RUN_NUMBER:-0}
-          VER_CODE=$((290233 + RUN_NUM))
+          VER_CODE=$((293240 + RUN_NUM))
           echo "Using versionCode=$VER_CODE"
 
           cat << 'EOF' > "$PROJ_DIR/settings.gradle"
@@ -134,7 +134,7 @@ jobs:
                   minSdk 24
                   targetSdk 34
                   versionCode ${VER_CODE}
-                  versionName "2.9.0-r233"
+                  versionName "2.9.0-r240"
               }
               signingConfigs {
                   release {
@@ -903,38 +903,55 @@ jobs:
 
                   @JavascriptInterface
                   public String getAppVersion() {
-                      return "2.9.0-r233";
-                  }
+            return "2.9.0-r240";
+        }
 
                   @JavascriptInterface
                   public int getAppBuildNumber() {
-                      return 231;
-                  }
+            return 240;
+        }
 
                   @JavascriptInterface
                   public String getAppRevision() {
-                      return "r231";
-                  }
+            return "r240";
+        }
 
-                  @JavascriptInterface
-                  public void downloadApkUpdate(String url) {
-                      if (url == null || url.trim().isEmpty()) return;
-                      try {
-                          Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url.trim()));
-                          intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                          ctx.startActivity(intent);
-                      } catch (Exception ignored) {}
-                  }
+                  private boolean isAllowedExternalUri(Uri uri) {
+            if (uri == null) return false;
+            String scheme = uri.getScheme();
+            if (scheme == null || !"https".equalsIgnoreCase(scheme.trim())) return false;
+            String host = uri.getHost();
+            if (host == null) return false;
+            String h = host.trim().toLowerCase(Locale.ROOT);
+            return "klevpro.ru".equals(h)
+                || "www.klevpro.ru".equals(h)
+                || "xn--b1apdneg0j.xn--p1ai".equals(h)
+                || "github.com".equals(h);
+        }
 
-                  @JavascriptInterface
-                  public void openExternalUrl(String url) {
-                      if (url == null || url.trim().isEmpty()) return;
-                      try {
-                          Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url.trim()));
-                          intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                          ctx.startActivity(intent);
-                      } catch (Exception ignored) {}
-                  }
+        @JavascriptInterface
+        public void downloadApkUpdate(String url) {
+            if (url == null || url.trim().isEmpty()) return;
+            try {
+                Uri uri = Uri.parse(url.trim());
+                if (!isAllowedExternalUri(uri)) return;
+                Intent intent = new Intent(Intent.ACTION_VIEW, uri);
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                ctx.startActivity(intent);
+            } catch (Exception ignored) {}
+        }
+
+        @JavascriptInterface
+        public void openExternalUrl(String url) {
+            if (url == null || url.trim().isEmpty()) return;
+            try {
+                Uri uri = Uri.parse(url.trim());
+                if (!isAllowedExternalUri(uri)) return;
+                Intent intent = new Intent(Intent.ACTION_VIEW, uri);
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                ctx.startActivity(intent);
+            } catch (Exception ignored) {}
+        }
 
                   @JavascriptInterface
                   public boolean areNotificationsEnabled() {
@@ -1223,7 +1240,7 @@ jobs:
                   ws.setCacheMode(WebSettings.LOAD_DEFAULT);
                   // Пользовательские данные защищены в Context.getFilesDir()/klev_appdata_vault; кэш WebView не очищается принудительно
                   String baseUa = ws.getUserAgentString();
-                  ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.9.0-r233");
+                  ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.9.0-r240");
 
                   webView.addJavascriptInterface(new NativeBridge(this), "AndroidBridge");
 
@@ -1819,7 +1836,7 @@ jobs:
                       }
                   }
                   String entryHtml = getPackageName().contains("admin") ? "kp-control-89.html" : "index.html";
-                  String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/" + entryHtml + "?v=2.8.3_r231_" + System.currentTimeMillis();
+                  String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/" + entryHtml + "?v=2.9.0_r240_" + System.currentTimeMillis();
                   if (intent != null && intent.getData() != null) {
                       Uri data = intent.getData();
                       String q = data.getEncodedQuery();
@@ -2186,11 +2203,16 @@ jobs:
             cp -f "/tmp/klev-apk-dist/klev-pro-admin-v2.5.6.apk" apk/klev-pro-admin-v2.9.0.apk
           fi
           ls -lh apk/
+          EXPECTED_APK_NAME=$(node -e "const v=JSON.parse(require('fs').readFileSync('version.json','utf8')); console.log(new URL(v.apkUrl).pathname.replace(/^\/+/, ''));")
+          if [ ! -s "$EXPECTED_APK_NAME" ]; then
+            echo "ОШИБКА СБОРКИ: apkUrl в version.json указывает на $EXPECTED_APK_NAME, но файл отсутствует или пуст в каталоге apk/!"
+            exit 1
+          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
           if ! git diff --cached --quiet; then
-            git commit -m "chore(release): publish v2.9.0-r233 web & signed apks"
+            git commit -m "chore(release): publish v2.9.0-r240 web & signed apks"
             git pull --rebase origin "${GITHUB_REF_NAME:-main}" || true
             git push origin HEAD:"${GITHUB_REF_NAME:-main}"
           fi

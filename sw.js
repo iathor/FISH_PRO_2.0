@@ -3,7 +3,7 @@
  * @description Service Worker для PWA «Клёв ПРО 2.0: Круг» (Ревизия 2.9.2 r237).
  */
 
-const CACHE_VERSION = 'klev-pro-v2.9.3-r239';
+const CACHE_VERSION = 'klev-pro-v2.9.0-r240';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 
 const CORE_ASSETS = [
@@ -11,41 +11,19 @@ const CORE_ASSETS = [
   './index.html',
   './manifest.json',
   './version.json',
-  './css/tokens.css?v=2.9.3-r239',
-  './css/base.css?v=2.9.3-r239',
-  './css/components.css?v=2.9.3-r239',
-  './css/layout.css?v=2.9.3-r239',
-  './js/app.js?v=2.9.3-r239',
-  './js/core/config.js?v=2.9.3-r239',
-  './js/core/events.js?v=2.9.3-r239',
-  './js/core/format.js?v=2.9.3-r239',
-  './js/core/http.js?v=2.9.3-r239',
-  './js/core/pwa.js?v=2.9.3-r239',
-  './js/core/router.js?v=2.9.3-r239',
-  './js/core/storage.js?v=2.9.3-r239',
-  './js/core/store.js?v=2.9.3-r239',
-  './js/core/telegram.js?v=2.9.3-r239',
-  './js/core/updater.js?v=2.9.3-r239',
-  './js/data/basins.js?v=2.9.3-r239',
-  './js/data/russia-waters.js?v=2.9.3-r239',
-  './js/data/species.js?v=2.9.3-r239',
-  './js/data/waters.js?v=2.9.3-r239',
-  './js/i18n/ru.js?v=2.9.3-r239',
-  './js/modules/calendar/calendar.module.js?v=2.9.3-r239',
-  './js/modules/circle/circle.module.js?v=2.9.3-r239',
-  './js/modules/fish/fish.module.js?v=2.9.3-r239',
-  './js/modules/fish/scanner.js?v=2.9.3-r239',
-  './js/modules/forecast/forecast.module.js?v=2.9.3-r239',
-  './js/modules/geo/geo.module.js?v=2.9.3-r239',
-  './js/modules/log/log.module.js?v=2.9.3-r239',
-  './js/modules/weather/weather.module.js?v=2.9.3-r239',
-  './js/ui/components.js?v=2.9.3-r239',
-  './js/ui/icons.js?v=2.9.3-r239',
-  './js/ui/svg.js?v=2.9.3-r239'
+  './policy-version.json',
+  './manifest.json?v=2.9.0-r240',
+  './icon-192.png?v=2.9.0-r240',
+  './apple-touch-icon.png?v=2.9.0-r240',
+  './css/tokens.css?v=2.9.0-r240',
+  './css/base.css?v=2.9.0-r240',
+  './css/components.css?v=2.9.0-r240',
+  './css/layout.css?v=2.9.0-r240',
+  './app-runtime.js?v=2.9.0-r240'
 ];
 
 function isMapTileHostname(hostname = '') {
-  return /(tile\.opentopomap\.org|tile\.openstreetmap\.org|openstreetmap\.fr|arcgisonline\.com|basemaps\.cartocdn\.com|core-renderer-tiles\.maps\.yandex\.net|core-sat\.maps\.yandex\.net|sat0[1-4]\.maps\.yandex\.net|vec0[1-4]\.maps\.yandex\.net|maps\.yandex\.net|maps\.mail\.ru)/i.test(String(hostname || ''));
+  return /(^|\.)(maps\.yandex\.net|arcgisonline\.com|openstreetmap\.org|openstreetmap\.fr|cartocdn\.com|opentopomap\.org|maps\.mail\.ru)$/i.test(String(hostname || ''));
 }
 
 self.addEventListener('install', event => {
