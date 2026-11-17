@@ -761,13 +761,10 @@ function patchFrontendAndServiceWorker() {
     /\$\{s\.top3Baits\.length>0\?s\.top3Baits\.join\(" • "\):"Приманки"\}/g,
     '${s.top3Baits.length>0?s.top3Baits.map(esc).join(" • "):"Приманки"}'
   );
+  // Экранируем пользовательские подстроки (название водоёма / ключ экипажа) внутри формирования title чата, не ломая SVG-иконку <svg class="k-ico">
   runtimeCode = runtimeCode.replace(
-    /<div style="font-weight:900;font-size:var\(--fs-sm\);color:var\(--accent\);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">\\n\s*\$\{i\.title\}\\n\s*<\/div>/g,
-    '<div style="font-weight:900;font-size:var(--fs-sm);color:var(--accent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">\\n                ${esc(i.title)}\\n              </div>'
-  );
-  runtimeCode = runtimeCode.replace(
-    /<span style="font-weight:800;font-size:var\(--fs-sm\);color:var\(--text\);word-break:break-word;">\$\{e\.title\}<\/span>/g,
-    '<span style="font-weight:800;font-size:var(--fs-sm);color:var(--text);word-break:break-word;">${esc(e.title)}</span>'
+    'Экипаж ${e}${s?` • ${s.wn||s.lb}`:""}',
+    'Экипаж ${esc(e)}${s?` • ${esc(s.wn||s.lb)}`:""}'
   );
   runtimeCode = runtimeCode.replace(
     /\$\{e\.fishName\} \$\{e\.weightKg\?`• \$\{e\.weightKg\} кг`:""\} \(\$\{e\.dateLabel\|\|"Сегодня"\}, \$\{e\.locLabel\|\|t\.locLabel\}\)/g,
