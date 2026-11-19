@@ -141,7 +141,7 @@ export function renderCalendar(container, fishId) {
         const isJointPeak = compared.length >= 2 && compared.every(c => c.monthActivity[idx] >= 2 && !c.spawnMonths.includes(idx + 1));
         return `
           <div class="month-cell ${idx === curMonth ? 'current' : ''}" style="${isJointPeak ? 'border-color:var(--good);background:rgba(16,185,129,0.08);' : ''}">
-            <span style="font-weight:800;font-size:var(--fs-xs);">${mName} ${isJointPeak ? '' : ''}</span>
+            <span style="font-weight:800;font-size:var(--fs-xs);">${mName} ${isJointPeak ? '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2c1.5 3.5 4.5 5.5 4.5 10a5.5 5.5 0 1 1-11 0c0-3 2-5.5 3.5-7 0 2 1.5 3 1.5 3S12 5.5 12 2z" fill="#f97316" stroke="#fbbf24" stroke-width="1.5" stroke-linejoin="round"/></svg>' : ''}</span>
             <div style="display:flex;flex-direction:column;gap:3px;margin:4px 0;">
               ${compared.map(c => {
                 const act = c.monthActivity[idx];

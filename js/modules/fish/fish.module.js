@@ -852,7 +852,7 @@ export function openFishingPrefsModal(isEditMode = true, onBackToHub = null) {
               });
               return sortedCities.map((c, idx) => `
                 <option value="${c.lat},${c.lon},${c.name},${c.admin1}" ${idx === 0 ? 'selected' : ''}>
-                  ${idx === 0 ? ' ' : ''}${c.name} (${c.admin1})
+                  ${idx === 0 ? '★ ' : ''}${c.name} (${c.admin1})
                 </option>
               `).join('');
             })()}
@@ -883,7 +883,7 @@ export function openFishingPrefsModal(isEditMode = true, onBackToHub = null) {
                 <select id="onbSpecificWaterSelect" class="input" style="width:100%;min-height:38px;font-weight:800;">
                   ${nearW.map((w, idx) => {
                     const cleanLbl = String(w.label || w.name || '').replace(/<svg[\s\S]*?<\/svg>/gi, '').replace(/<[^>]+>/g, '').trim();
-                    return `<option value="${w.wType}|${w.name}|${w.defDepth || 2.0}" ${idx === 0 ? 'selected' : ''}>${idx === 0 ? ' ' : ''}${cleanLbl}</option>`;
+                    return `<option value="${w.wType}|${w.name}|${w.defDepth || 2.0}" ${idx === 0 ? 'selected' : ''}>${idx === 0 ? '★ ' : ''}${cleanLbl}</option>`;
                   }).join('')}
                 </select>
               </div>
@@ -892,7 +892,7 @@ export function openFishingPrefsModal(isEditMode = true, onBackToHub = null) {
           <div id="onbWatersContainer" class="modal-chip-wrap">
             ${availWaters.map(w => {
               const active = selectedWaters.has(w.id);
-              return `<button type="button" class="w-chip ${active ? 'active' : ''}" data-onb-water="${w.id}">${active ? '' : ''}${w.name}</button>`;
+              return `<button type="button" class="w-chip ${active ? 'active' : ''}" data-onb-water="${w.id}">${active ? '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> ' : ''}${w.name}</button>`;
             }).join('')}
           </div>
         </div>
@@ -905,7 +905,7 @@ export function openFishingPrefsModal(isEditMode = true, onBackToHub = null) {
           <div id="onbMethodsContainer" class="modal-chip-wrap">
             ${TACKLE_OPTIONS.map(m => {
               const active = selectedMethods.has(m.val);
-              return `<button type="button" class="w-chip ${active ? 'active' : ''}" data-onb-method="${m.val}">${active ? '' : ''}${m.text}</button>`;
+              return `<button type="button" class="w-chip ${active ? 'active' : ''}" data-onb-method="${m.val}">${active ? '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> ' : ''}${m.text}</button>`;
             }).join('')}
           </div>
         </div>
@@ -921,7 +921,7 @@ export function openFishingPrefsModal(isEditMode = true, onBackToHub = null) {
           <div id="onbSpeciesChips" class="modal-chip-wrap" style="max-height:190px;overflow-y:auto;padding:4px 0;display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:6px;">
             ${regionalSpecies.map(f => {
               const active = selectedFishes.has(f.id);
-              return `<button type="button" class="w-chip ${active ? 'active' : ''}" data-onb-fish="${f.id}" data-fish-label="${f.name}" style="justify-content:flex-start;min-height:36px;padding:6px 10px;">${active ? '' : ''}${f.name}</button>`;
+              return `<button type="button" class="w-chip ${active ? 'active' : ''}" data-onb-fish="${f.id}" data-fish-label="${f.name}" style="justify-content:flex-start;min-height:36px;padding:6px 10px;">${active ? '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.1 6.5L12 17.4l-5.8 3.1 1.1-6.5-4.8-4.6 6.6-.9L12 2.5z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6" stroke-linejoin="round"/></svg> ' : '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.1 6.5L12 17.4l-5.8 3.1 1.1-6.5-4.8-4.6 6.6-.9L12 2.5z" fill="none" stroke="rgba(251,191,36,0.82)" stroke-width="1.8" stroke-linejoin="round"/></svg> '}${f.name}</button>`;
             }).join('')}
           </div>
         </div>
@@ -991,7 +991,7 @@ export function openFishingPrefsModal(isEditMode = true, onBackToHub = null) {
       }
       function syncChipStarHtml(btn, isActive) {
         const fname = btn.getAttribute('data-fish-label') || btn.textContent.trim();
-        btn.innerHTML = `${isActive ? '' : ''}${fname}`;
+        btn.innerHTML = `${isActive ? '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.1 6.5L12 17.4l-5.8 3.1 1.1-6.5-4.8-4.6 6.6-.9L12 2.5z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6" stroke-linejoin="round"/></svg> ' : '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.1 6.5L12 17.4l-5.8 3.1 1.1-6.5-4.8-4.6 6.6-.9L12 2.5z" fill="none" stroke="rgba(251,191,36,0.82)" stroke-width="1.8" stroke-linejoin="round"/></svg> '}${fname}`;
       }
       function bindFishChips(container) {
         if (!container) return;
@@ -1072,7 +1072,7 @@ export function openFishingPrefsModal(isEditMode = true, onBackToHub = null) {
         const isSeaCoastal = isCoastalInBasin(currentBasin, currentLat, currentLon);
         const hint = bodyEl.querySelector('#onbLocHint');
         if (hint) {
-          const coordPart = sourceType !== 'manual' ? `${cName} (${currentLat.toFixed(2)}°N, ${currentLon.toFixed(2)}°E) • ` : '';
+          const coordPart = sourceType !== 'manual' ? `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#ef4444"/></svg> ${cName} (${currentLat.toFixed(2)}°N, ${currentLon.toFixed(2)}°E) • ` : '';
           hint.innerHTML = `${coordPart}Бассейн: ${getSpotEcoregion(currentLat, currentLon, currentBasin, s.water, '').displayBasinName || BASIN_CONFIGS[currentBasin]?.name || 'РФ'} ${isSeaCoastal ? '• Морское побережье' : '• Пресноводный бассейн'}`;
         }
         const availWaters = getAvailableWaterTypes(currentBasin, currentLat, currentLon);
@@ -1088,7 +1088,7 @@ export function openFishingPrefsModal(isEditMode = true, onBackToHub = null) {
         if (watersContainer) {
           watersContainer.innerHTML = availWaters.map(w => {
             const active = selectedWaters.has(w.id);
-            return `<button type="button" class="w-chip ${active ? 'active' : ''}" data-onb-water="${w.id}">${active ? '' : ''}${w.name}</button>`;
+            return `<button type="button" class="w-chip ${active ? 'active' : ''}" data-onb-water="${w.id}">${active ? '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> ' : ''}${w.name}</button>`;
           }).join('');
           bindWaters(watersContainer);
           const cnt = bodyEl.querySelector('#onbWatersCount');
@@ -1099,7 +1099,7 @@ export function openFishingPrefsModal(isEditMode = true, onBackToHub = null) {
         if (speciesContainer) {
           speciesContainer.innerHTML = regionalSpecies.map(f => {
             const active = selectedFishes.has(f.id);
-            return `<button type="button" class="w-chip ${active ? 'active' : ''}" data-onb-fish="${f.id}" data-fish-label="${f.name}" style="justify-content:flex-start;min-height:36px;padding:6px 10px;">${active ? '' : ''}${f.name}</button>`;
+            return `<button type="button" class="w-chip ${active ? 'active' : ''}" data-onb-fish="${f.id}" data-fish-label="${f.name}" style="justify-content:flex-start;min-height:36px;padding:6px 10px;">${active ? '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.1 6.5L12 17.4l-5.8 3.1 1.1-6.5-4.8-4.6 6.6-.9L12 2.5z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6" stroke-linejoin="round"/></svg> ' : '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.1 6.5L12 17.4l-5.8 3.1 1.1-6.5-4.8-4.6 6.6-.9L12 2.5z" fill="none" stroke="rgba(251,191,36,0.82)" stroke-width="1.8" stroke-linejoin="round"/></svg> '}${f.name}</button>`;
           }).join('');
           bindFishChips(speciesContainer);
         }
@@ -1204,10 +1204,10 @@ export function openProfileHubModal() {
       <div style="padding:10px 12px;background:rgba(56,189,248,0.12);border:1.5px solid var(--accent);border-radius:var(--r-sm);">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
           <div style="font-weight:800;font-size:var(--fs-md);color:var(--accent);">
-            ${savedLogin || ident.callsign} ${ownerMode ? '• Владелец' : (adminMode ? '• Админ' : '')}
+            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" fill="rgba(56,189,248,0.22)" stroke="currentColor" stroke-width="1.8"/><path d="M4 20c0-3.8 3.6-6.5 8-6.5s8 2.7 8 6.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> ${savedLogin || ident.callsign} ${ownerMode ? '• Владелец' : (adminMode ? '• Админ' : '')}
           </div>
           <button type="button" class="btn btn-sm btn-good fisher-id-copy-badge" data-copy-fisher-id="${ident.fisherId}" title="Нажмите для автокопирования вашего ID рыбака" style="min-height:30px;padding:3px 10px;font-family:monospace;font-weight:900;">
-            ${ident.fisherId} Копировать ID
+            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> ${ident.fisherId} Копировать ID
           </button>
         </div>
         <div style="font-size:var(--fs-xs);color:var(--muted);margin-top:4px;line-height:1.4;">
@@ -1216,7 +1216,7 @@ export function openProfileHubModal() {
       </div>
       <!-- ЗОНА 1: ЛОГИН, ПАРОЛЬ И МОЙ ID -->
       <button type="button" class="settings-hub-card" data-open-hub-zone="auth">
-        <div class="settings-hub-card-icon"></div>
+        <div class="settings-hub-card-icon"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="5" y="11" width="14" height="10" rx="2.5" fill="rgba(251,191,36,0.22)" stroke="#fbbf24" stroke-width="1.8"/><path d="M8 11V7a4 4 0 0 1 8 0v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></div>
         <div class="settings-hub-card-body">
           <div class="settings-hub-card-title">1. Вход, Пароль и Мой ID (${ident.fisherId})</div>
           <div class="settings-hub-card-sub">
@@ -1229,18 +1229,18 @@ export function openProfileHubModal() {
       </button>
       <!-- ЗОНА 2: МОЯ РЫБАЛКА (ЛОКАЦИЯ, ВОДОЁМЫ, СНАСТИ, РЫБЫ) -->
       <button type="button" class="settings-hub-card" data-open-hub-zone="fishing">
-        <div class="settings-hub-card-icon"></div>
+        <div class="settings-hub-card-icon"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg></div>
         <div class="settings-hub-card-body">
           <div class="settings-hub-card-title">2. Моя рыбалка: Локация, Снасти и Рыбы</div>
           <div class="settings-hub-card-sub">
-            ${s.locLabel} • Избранных рыб: ${favCount} • Выбрать водоёмы, рабочие снасти и виды рыб
+            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#ef4444"/></svg> ${s.locLabel} • Избранных рыб: ${favCount} • Выбрать водоёмы, рабочие снасти и виды рыб
           </div>
         </div>
         <div class="settings-hub-card-arrow">›</div>
       </button>
       <!-- ЗОНА 3: НАСТРОЙКИ ПРИЛОЖЕНИЯ (РЕЖИМ, ТЕМА И УВЕДОМЛЕНИЯ) -->
       <button type="button" class="settings-hub-card" data-open-hub-zone="app">
-        <div class="settings-hub-card-icon"></div>
+        <div class="settings-hub-card-icon"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3.2" stroke="currentColor" stroke-width="1.9"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.6.77 1.05 1.41 1.19H21a2 2 0 1 1 0 4h-.09c-.64.14-1.15.59-1.51 1.21z" stroke="currentColor" stroke-width="1.6"/></svg></div>
         <div class="settings-hub-card-body">
           <div class="settings-hub-card-title">3. Настройки приложения</div>
           <div class="settings-hub-card-sub">
@@ -1252,7 +1252,7 @@ export function openProfileHubModal() {
       <!-- ЗОНА 4: ФАЗА 2 И 3 (ДОСТУПНО АДМИНУ И УЧАСТНИКАМ БЕТА-ТЕСТА) -->
       ${(adminMode || isCurrentUserBetaTester(s) || (typeof localStorage !== 'undefined' && localStorage.getItem('klev_pro_beta_tester_granted_v1') === '1')) ? `
       <button type="button" class="settings-hub-card" data-open-hub-zone="offgrid" id="hubZoneOffGridBtn" style="border-color:rgba(56,189,248,0.55);">
-        <div class="settings-hub-card-icon"></div>
+        <div class="settings-hub-card-icon"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5M19.1 4.9C23 8.8 23 15.2 19.1 19.1" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="#ef4444"/></svg></div>
         <div class="settings-hub-card-body">
           <div class="settings-hub-card-title" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
             <span>4. Автономная связь и Авто-SOS (Тайга / Море)</span>
@@ -1266,7 +1266,7 @@ export function openProfileHubModal() {
       </button>
       ` : `
       <button type="button" class="settings-hub-card" id="hubZoneOffGridDisabledBtn" disabled aria-disabled="true" style="opacity:0.62;cursor:not-allowed;border-style:dashed;">
-        <div class="settings-hub-card-icon"></div>
+        <div class="settings-hub-card-icon"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5M19.1 4.9C23 8.8 23 15.2 19.1 19.1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="currentColor"/></svg></div>
         <div class="settings-hub-card-body">
           <div class="settings-hub-card-title" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
             <span>4. Автономная связь и Авто-SOS (Тайга / Море)</span>
@@ -1382,7 +1382,7 @@ function buildFishResultsHtml(s, list) {
           Ваш список Избранного пока пуст (или этих рыб нет в водоёме)
         </div>
         <div style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:10px;">
-          По умолчанию в Избранном нет рыб. Нажмите «» на карточке нужной рыбы или отключите фильтр «Избранное», чтобы увидеть все виды биотопа «${prof.shortName}».
+          По умолчанию в Избранном нет рыб. Нажмите «<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.1 6.5L12 17.4l-5.8 3.1 1.1-6.5-4.8-4.6 6.6-.9L12 2.5z" fill="none" stroke="rgba(251,191,36,0.82)" stroke-width="1.8" stroke-linejoin="round"/></svg>» на карточке нужной рыбы или отключите фильтр «Избранное», чтобы увидеть все виды биотопа «${prof.shortName}».
         </div>
         <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
           <button type="button" class="btn btn-sm btn-accent" id="fishResetFavFilterBtn">
@@ -1408,7 +1408,7 @@ function buildFishResultsHtml(s, list) {
             else if (f.legal === 'introduced') badge = createPill({ text: 'Вселенец', tone: 'purple' });
             return `
               <div class="fish-card ${f.id === s.fishId ? 'active' : ''} ${isRed ? 'redbook-muted' : ''}" data-select-fish="${f.id}" role="option" aria-selected="${f.id === s.fishId}">
-                <button type="button" class="fav-btn" data-fav-fish="${f.id}" aria-label="${isFav ? 'Убрать из избранного' : 'В избранное'} ${f.name}">${isFav ? '' : ''}</button>
+                <button type="button" class="fav-btn" data-fav-fish="${f.id}" aria-label="${isFav ? 'Убрать из избранного' : 'В избранное'} ${f.name}">${isFav ? '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.1 6.5L12 17.4l-5.8 3.1 1.1-6.5-4.8-4.6 6.6-.9L12 2.5z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6" stroke-linejoin="round"/></svg>' : '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.1 6.5L12 17.4l-5.8 3.1 1.1-6.5-4.8-4.6 6.6-.9L12 2.5z" fill="none" stroke="rgba(251,191,36,0.82)" stroke-width="1.8" stroke-linejoin="round"/></svg>'}</button>
                 <div class="fish-img-wrap">${renderFishVisual(f)}</div>
                 <div class="fish-name">${f.name}</div>
                 <div class="fish-latin">${f.latin || ''}</div>
@@ -1496,7 +1496,7 @@ export function renderFishStrip(container, state) {
           <span>Назад</span>
         </button>
         <span class="section-title" id="fishSectionTitleText" style="font-size:15px;font-weight:800;">Ихтиобаза (115 видов РФ)</span>
-        <span class="code-tag">${escapeHtml(s.selectedWaterName || s.locLabel || 'РФ')}</span>
+        <span style="width:36px;"></span>
       </div>
       <!-- Кнопки По фото (ИИ), объединённая кнопка Избранное (открывает список с чекбоксом) и широкая кнопка переключения ихтиобазы -->
       <div class="fish-toolbar-onerow">

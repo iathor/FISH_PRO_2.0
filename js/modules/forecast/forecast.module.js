@@ -18,6 +18,15 @@ import { isTelegramWebApp, getTelegramUser, shareToTelegramChat, openBotChatInTe
  * Список морских, проходных и полупроходных видов, которые заходят в пресные реки
  * (big_river, small_river) и эстуарии (sea_gulf) при нересте, сезонных миграциях или приливах/отливах.
  */
+
+function escapeHtml(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 const RIVER_ENTERING_SPECIES = {
   smelt: { runMonths: [12, 1, 2, 3, 4, 5], reason: 'весенне-зимний нерестовый и кормовой ход из заливов в устья рек' },
   navaga: { runMonths: [11, 12, 1, 2, 3], reason: 'зимний приливной и преднерестовый заход в устья северных и дальневосточных рек' },
@@ -1139,7 +1148,7 @@ export function calcDynamicRig(method, water, depth, wind, fish = null, waterTem
 export function generateAdaptiveGuides(fish, water, depth, day, method, globalIceState) {
   const iceState = day.iceState || globalIceState;
   const iceThickness = day.iceThickness ?? 0;
-  const sizeBlock = fish.sizeInfo ? `<div style="margin-top:6px;color:var(--accent);font-weight:700;">${fish.sizeInfo}</div>` : '';
+  const sizeBlock = fish.sizeInfo ? `<div style="margin-top:6px;color:var(--accent);font-weight:700;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="3" y="8" width="18" height="8" rx="2" transform="rotate(-35 12 12)" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8"/><path d="M8 11l1.5 2M11 9l1.5 2M14 7l1.5 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg> ${fish.sizeInfo}</div>` : '';
   const traitsBlock = fish.idTraits ? `<div style="margin-top:5px;color:var(--muted);"><b>Приметы вида:</b> ${fish.idTraits}</div>` : '';
   const runInfo = RIVER_ENTERING_SPECIES[fish.id];
   const migrationBlock = runInfo
@@ -1155,7 +1164,7 @@ export function generateAdaptiveGuides(fish, water, depth, day, method, globalIc
   } else if (iceState === 'ice_danger') {
     standAdvice = `<b>Опасный лёд:</b> ${day.iceNote || 'Выход на лёд запрещён!'} С берега: ${fish.baseAdvice}${sizeBlock}`;
   } else if (iceState === 'ice_slush') {
-    standAdvice = `<b>Шуга и забереги (колебания -3..+3°C):</b> ледостава нет, рыба стоит в придонных ямах и затишках на глубине ${depth.toFixed(1)} м. ${fish.baseAdvice}${migrationBlock}${sizeBlock}`;
+    standAdvice = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg><b>Шуга и забереги (колебания -3..+3°C):</b> ледостава нет, рыба стоит в придонных ямах и затишках на глубине ${depth.toFixed(1)} м. ${fish.baseAdvice}${migrationBlock}${sizeBlock}`;
   } else {
     standAdvice = `<b>Биотоп (${WATER_PROFILES[water]?.shortName || 'водоём'}, горизонт ${depth.toFixed(1)} м):</b> ${fish.baseAdvice}${migrationBlock}${sizeBlock}${traitsBlock}`;
   }
@@ -1788,11 +1797,11 @@ export function renderExpress(container) {
           ${createPill({ text: verdict, tone: verdictTone })}
         </div>
         <div class="express-chips">
-          ${createPill({ icon: '', text: `Вода ${d.waterTemp}°C`, tone: wtTone })}
-          ${createPill({ icon: '', text: `${d.pressAvg} мм (${fmtDeltaPress(d.dP)})`, tone: pTone })}
-          ${createPill({ icon: '', text: `${d.windDir} ${d.windMax} м/с`, tone: wTone })}
+          ${createPill({ icon: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg>', text: `Вода ${d.waterTemp}°C`, tone: wtTone })}
+          ${createPill({ icon: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><polygon points="16,8 13.5,13.5 8,16 10.5,10.5" fill="#38bdf8" stroke="currentColor" stroke-width="1.3"/></svg>', text: `${d.pressAvg} мм (${fmtDeltaPress(d.dP)})`, tone: pTone })}
+          ${createPill({ icon: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>', text: `${d.windDir} ${d.windMax} м/с`, tone: wTone })}
           ${createPill({ icon: d.moon.phaseIcon, text: `${d.moon.moonDay} л.д.`, tone: 'neutral' })}
-          ${createPill({ icon: dayIce === 'open_water' ? '' : '', text: iceText, tone: iceTone })}
+          ${createPill({ icon: dayIce === 'open_water' ? '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg>' : '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1" stroke="#7dd3fc" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="#38bdf8"/></svg>', text: iceText, tone: iceTone })}
         </div>
         <p style="font-size:var(--fs-xs);color:var(--muted);line-height:1.42;">
           ${fish.legal === 'redbook'
@@ -1978,7 +1987,7 @@ export function renderExpress(container) {
             <div class="bento-active-status-row">
               <div class="bento-splash-fish-box" data-open-fish-zoom="${fish.id}" style="cursor:zoom-in;position:relative;" title="Нажмите для просмотра карточки рыбы или увеличения">
                 ${renderFishVisual(fish)}
-                <span data-open-fish-lightbox="${fish.id}" title="Увеличить изображение на весь экран" style="position:absolute;bottom:2px;right:2px;width:20px;height:20px;border-radius:6px;background:rgba(7,17,31,0.78);border:1px solid rgba(56,189,248,0.45);display:inline-flex;align-items:center;justify-content:center;font-size:10px;opacity:0.92;cursor:zoom-in;"></span>
+                <span data-open-fish-lightbox="${fish.id}" title="Увеличить изображение на весь экран" style="position:absolute;bottom:2px;right:2px;width:20px;height:20px;border-radius:6px;background:rgba(7,17,31,0.78);border:1px solid rgba(56,189,248,0.45);display:inline-flex;align-items:center;justify-content:center;font-size:10px;opacity:0.92;cursor:zoom-in;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="2"/><path d="M16 16l4.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>
               </div>
               <div data-open-fish-zoom="${fish.id}" style="cursor:pointer;" title="Открыть карточку вида (Справка ихтиолога)">
                 <div class="bento-status-verdict" style="color:${heroTone};">${heroStatusShort}</div>
@@ -2145,7 +2154,7 @@ export function renderExpress(container) {
         <!-- Правая карточка: Автоматически меняет название по сезону (летом — Погода & Вода, в межсезонье — Погода & Шуга, зимой — Погода & Лёд) -->
         <div class="bento-card bento-weather-card" id="bentoWeatherIceCard" title="Нажмите для перехода в подробный раздел Погода и состояние водоёма">
           <div class="bento-card-title" style="margin-bottom:8px;font-size:14.5px;">
-            <span>${effIceForTackle === 'ice_safe' || effIceForTackle === 'ice_danger' ? '' : (effIceForTackle === 'ice_slush' ? '' : '')}</span>
+            <span>${effIceForTackle === 'ice_safe' || effIceForTackle === 'ice_danger' ? '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1" stroke="#7dd3fc" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="#38bdf8"/></svg>' : (effIceForTackle === 'ice_slush' ? '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1" stroke="#7dd3fc" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="#38bdf8"/></svg>' : '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg>')}</span>
             <span>${effIceForTackle === 'ice_safe' || effIceForTackle === 'ice_danger' ? 'Погода & Лёд' : (effIceForTackle === 'ice_slush' ? 'Погода & Шуга' : 'Погода & Вода')}</span>
           </div>
           <div class="bento-weather-rows">
@@ -2155,19 +2164,19 @@ export function renderExpress(container) {
                 <div style="font-size:10.5px;color:var(--muted);font-weight:700;">Воздух (${activeDayForTackle.windDir || 'З'} ${activeDayForTackle.windMax || 3} м/с)</div>
               </div>
               <div class="bento-temp-water-box">
-                <div style="font-size:13.5px;font-weight:900;color:var(--accent);">${tWatStr}</div>
+                <div style="font-size:13.5px;font-weight:900;color:var(--accent);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> ${tWatStr}</div>
                 <div style="font-size:10.5px;color:var(--muted);font-weight:700;">Вода</div>
               </div>
             </div>
             <div class="bento-weather-item-row">
-              <span style="font-size:17px;"></span>
+              <span style="font-size:17px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><polygon points="16,8 13.5,13.5 8,16 10.5,10.5" fill="#38bdf8" stroke="currentColor" stroke-width="1.3"/></svg></span>
               <div>
                 <div style="font-weight:900;color:var(--text);">${activeDayForTackle.pressAvg || 750} мм рт. ст.</div>
                 <div style="font-size:10.5px;color:var(--muted);">Давление (${fmtDeltaPress(activeDayForTackle.dP)})</div>
               </div>
             </div>
             <div class="bento-weather-item-row bento-ice-hazard">
-              <span style="font-size:17px;">${effIceForTackle === 'open_water' ? '' : ''}</span>
+              <span style="font-size:17px;">${effIceForTackle === 'open_water' ? '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg>' : '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1" stroke="#7dd3fc" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="#38bdf8"/></svg>'}</span>
               <div>
                 <div style="font-weight:900;color:var(--text);">${iceMainTitle}</div>
                 <div style="font-size:10.5px;color:var(--muted);">${iceSubTitle}</div>
@@ -2225,7 +2234,7 @@ export function renderExpress(container) {
             <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:8px;">
               <div>
                 <span style="font-size:var(--fs-xs);font-weight:800;color:var(--accent);">ПАНЕЛЬ ПРОФИ: РУЧНАЯ КАЛИБРОВКА ВЕСОВ 8-ФАКТОРНОЙ МОДЕЛИ</span>
-                <div style="font-size:11px;color:var(--good);font-weight:700;margin-top:2px;">${val30.label}</div>
+                <div style="font-size:11px;color:var(--good);font-weight:700;margin-top:2px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="4.5" stroke="#38bdf8" stroke-width="1.6"/><circle cx="12" cy="12" r="1.8" fill="#10b981"/></svg> ${val30.label}</div>
                 <div id="proCalibLiveSummary" style="font-size:11.5px;color:var(--accent);font-weight:800;margin-top:3px;">
                   Активность «${fish.name}» с текущей калибровкой весов: <b>${calScoreNow}%</b>
                 </div>
@@ -2304,11 +2313,11 @@ export function renderWeek(container) {
             return `
               <div class="day-card archive-day ${idx === s.dayIdx ? 'active' : ''}" data-week-day="${idx}" data-guest-locked-day="1">
                 <div class="day-status-stripe" style="background:${col};"></div>
-                <div style="font-weight:800;font-size:11.5px;color:var(--muted);">${d.relTitle}</div>
+                <div style="font-weight:800;font-size:11.5px;color:var(--muted);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="5" y="3" width="14" height="18" rx="2.5" fill="rgba(56,189,248,0.16)" stroke="currentColor" stroke-width="1.8"/><path d="M9 7h6M9 11h6M9 15h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> ${d.relTitle}</div>
                 <div style="font-weight:700;font-size:12px;">${d.label}</div>
                 <div style="font-size:var(--fs-sm);font-weight:800;">${d.tDay > 0 ? '+' + d.tDay : d.tDay}° / ${d.tNight > 0 ? '+' + d.tNight : d.tNight}°C</div>
                 <div style="font-size:11px;color:var(--muted);line-height:1.3;">
-                  ${d.waterTemp}°C • ${d.pressAvg} мм
+                  <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> ${d.waterTemp}°C • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><polygon points="16,8 13.5,13.5 8,16 10.5,10.5" fill="#38bdf8" stroke="currentColor" stroke-width="1.3"/></svg> ${d.pressAvg} мм
                 </div>
                 <div style="margin-top:auto;padding-top:4px;border-top:1px dashed var(--border);display:flex;justify-content:space-between;align-items:center;gap:4px;">
                   <span style="color:var(--accent);font-size:11px;font-weight:800;">Архив (шаг 4ч)</span>
@@ -2333,13 +2342,13 @@ export function renderWeek(container) {
               <div style="font-size:var(--fs-md);font-weight:800;">${d.tDay > 0 ? '+' + d.tDay : d.tDay}° / ${d.tNight > 0 ? '+' + d.tNight : d.tNight}°C</div>
               <div style="font-size:var(--fs-xs);color:var(--muted);line-height:1.38;">
                 Вода ${d.waterTemp}°C<br>
-                ${d.pressAvg} мм (${fmtDeltaPress(d.dP)})<br>
-                ${d.windDir} ${d.windMax} м/с
+                <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><polygon points="16,8 13.5,13.5 8,16 10.5,10.5" fill="#38bdf8" stroke="currentColor" stroke-width="1.3"/></svg> ${d.pressAvg} мм (${fmtDeltaPress(d.dP)})<br>
+                <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> ${d.windDir} ${d.windMax} м/с
               </div>
               ${isPriority ? `
                 <div style="padding:4px 7px;border-radius:6px;background:var(--panel);border:1px solid var(--border);font-size:11.5px;line-height:1.35;">
                   <div style="color:var(--accent);font-weight:800;">Пик клёва: ${bestWindow}</div>
-                  <div style="color:var(--muted);">${fmtHM(d.sunriseHr)}–${fmtHM(d.sunsetHr)} • ${d.moon.phaseIcon} ${d.moon.moonDay} л.д.</div>
+                  <div style="color:var(--muted);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.5" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> ${fmtHM(d.sunriseHr)}–${fmtHM(d.sunsetHr)} • ${d.moon.phaseIcon} ${d.moon.moonDay} л.д.</div>
                 </div>
               ` : ''}
               <div style="margin-top:auto;padding-top:6px;border-top:1px solid var(--border);">
@@ -2409,7 +2418,7 @@ export function renderHourly(container) {
           const isNow = s.dayIdx === 2 && hr.hour === curH;
           const isTw = Math.abs(hr.hour + 0.5 - day.sunriseHr) <= 1.1 || Math.abs(hr.hour + 0.5 - day.sunsetHr) <= 1.1;
           const isLunar = hr.hour === day.moon.transitHour || hr.hour === day.moon.underfootHour;
-          const mark = isTw ? '' : (isLunar ? '' : '·');
+          const mark = isTw ? '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.5" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg>' : (isLunar ? '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.5" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg>' : '·');
           return `
             <button type="button" class="hour-slot ${hr.hour === selH ? 'active' : ''} ${isNow ? 'now' : ''}" data-scrub-hour="${hr.hour}" aria-label="${hr.hour}:00, активность ${sc}%">
               <span style="font-weight:800;">${String(hr.hour).padStart(2, '0')}</span>
@@ -2424,7 +2433,7 @@ export function renderHourly(container) {
         <div style="flex:1;min-width:240px;">
           <div style="font-size:var(--fs-xs);color:var(--muted);font-weight:700;">УСЛОВИЯ В ВЫБРАННЫЙ ЧАС: ${String(selH).padStart(2, '0')}:00 (${day.label})</div>
           <div style="font-size:var(--fs-md);font-weight:800;margin-top:2px;">
-            Воздух ${selHrObj.tAir > 0 ? '+' + selHrObj.tAir : selHrObj.tAir}°C • Вода ~${day.waterTemp}°C • ${selHrObj.press} мм (за 3ч: ${fmtDeltaPress(selHrObj.dp3h)}) • ${selHrObj.windDir} ${selHrObj.wind} м/с
+            Воздух ${selHrObj.tAir > 0 ? '+' + selHrObj.tAir : selHrObj.tAir}°C • Вода ~${day.waterTemp}°C • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><polygon points="16,8 13.5,13.5 8,16 10.5,10.5" fill="#38bdf8" stroke="currentColor" stroke-width="1.3"/></svg> ${selHrObj.press} мм (за 3ч: ${fmtDeltaPress(selHrObj.dp3h)}) • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> ${selHrObj.windDir} ${selHrObj.wind} м/с
           </div>
           <div style="font-size:var(--fs-xs);color:var(--accent);margin-top:5px;line-height:1.42;">
             Рекомендуемая оснастка: <b>${rig.weight}</b> (${rig.line}) • ${rig.tactic}
@@ -2482,7 +2491,7 @@ export function renderHourly(container) {
             `;
           }).join('')}
           <p style="margin-top:10px;font-size:var(--fs-xs);color:var(--muted);">
-            ${RU.forecastDisclaimer}
+            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3v18M5 7h14M5 7l-3 6h6l-3-6zm14 0l-3 6h6l-3-6zM8 21h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> ${RU.forecastDisclaimer}
           </p>
         </div>
       </details>
@@ -2573,12 +2582,12 @@ function renderArchiveDayLogger(container, s, defaultDay, currentFish) {
     const precipVal = Number(hObj.precip ?? 0);
     const scColor = sc >= 70 ? '#10b981' : (sc >= 50 ? '#38bdf8' : (sc >= 25 ? '#f59e0b' : '#94a3b8'));
     const skyIcon = precipVal > 0.2
-      ? ``
+      ? `<svg class="k-ico" style="width:20px;height:20px;color:#38bdf8;" viewBox="0 0 24 24" fill="none"><path d="M7 15h9.5a3.5 3.5 0 0 0 .4-6.97A5 5 0 0 0 7.2 6.5 4 4 0 0 0 7 15z" fill="rgba(148,163,184,0.28)" stroke="currentColor" stroke-width="1.7"/><path d="M9 18v2M13 18v2M17 18v2" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/></svg>`
       : (isDaySlot
           ? (cloudVal >= 75
-              ? ``
-              : ``)
-          : ``);
+              ? `<svg class="k-ico" style="width:20px;height:20px;color:#94a3b8;" viewBox="0 0 24 24" fill="none"><path d="M7 17h10a4 4 0 0 0 .4-7.97A5.5 5.5 0 0 0 6.8 7.5 4.5 4.5 0 0 0 7 17z" fill="rgba(148,163,184,0.32)" stroke="currentColor" stroke-width="1.7"/></svg>`
+              : `<svg class="k-ico" style="width:20px;height:20px;color:#fbbf24;" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.5" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg>`)
+          : `<svg class="k-ico" style="width:20px;height:20px;color:#cbd5e1;" viewBox="0 0 24 24" fill="none"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z" fill="rgba(251,191,36,0.28)" stroke="currentColor" stroke-width="1.6"/></svg>`);
     return `
       <div class="bento-metric-tile arch-4h-slot" style="padding:8px 6px;display:flex;flex-direction:column;align-items:center;justify-content:space-between;text-align:center;gap:4px;border-radius:12px;">
         <div style="font-size:12px;font-weight:900;color:var(--text);">${String(hIdx).padStart(2, '0')}:00</div>

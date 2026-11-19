@@ -5976,7 +5976,7 @@ export function openPhase3RoutesModal(container = null) {
                   </div>
                   <div style="display:flex;gap:5px;">
                     <button type="button" class="btn btn-sm btn-accent" data-load-saved-route="${escapeHtml(rt.id)}" style="min-height:28px;padding:2px 8px;font-size:11px;">Вести назад</button>
-                    <button type="button" class="btn btn-sm" data-del-saved-route="${escapeHtml(rt.id)}" style="min-height:28px;padding:2px 7px;font-size:11px;color:var(--bad);"></button>
+                    <button type="button" class="btn btn-sm" data-del-saved-route="${escapeHtml(rt.id)}" style="min-height:28px;padding:2px 7px;font-size:11px;color:var(--bad);">✕</button>
                   </div>
                 </div>
               `).join('')}
@@ -9043,17 +9043,10 @@ function renderArcMobileMap(container, s, prevLiveMapBox) {
         </div>
       ` : ''}
 
-      <!-- Плавающий индикатор курса и доворота карты при включённом компасе -->
-      ${_arcGpsCompassState === 'compass' ? `
-        <div class="klev-arc-glass" id="arcCompassLiveHudBar" style="position:absolute;top:76px;left:50%;transform:translateX(-50%);z-index:928;border-radius:999px;padding:5px 12px;display:inline-flex;align-items:center;gap:8px;font-size:11.5px;font-weight:800;border:1px solid var(--accent);">
-          <span>Компас: <b id="arcCompassAzimuthHudVal" style="color:var(--accent);">${_arcCompassHeadingDeg}°</b></span>
-          <button type="button" class="pill-btn" id="arcCompassRotateStepBtn" style="padding:2px 8px;font-size:10.5px;min-height:24px;">Повернуть +45°</button>
-          <button type="button" class="pill-btn" id="arcCompassResetNorthBtn" style="padding:2px 8px;font-size:10.5px;min-height:24px;">Север 0°</button>
-        </div>
-      ` : ''}
+
 
       <!-- Правые кнопки на карте: объединённая кнопка GPS / Компас + кнопка Точки -->
-      <div id="arcRightSideButtons" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);z-index:920;display:${_arcRouteBuilderMode ? 'none' : 'flex'};flex-direction:column;gap:10px;">
+      <div id="arcRightSideButtons" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);z-index:920;display:${(_arcRouteBuilderMode || _arcExpandedPlaqueId || _arcActivePopover) ? 'none' : 'flex'};flex-direction:column;gap:10px;">
         <button type="button" class="klev-arc-glass klev-arc-icon-btn ${(_arcGpsCompassState === 'centered' || _arcGpsCompassState === 'compass') ? 'active' : ''}" id="arcBtnGpsCompass" aria-label="Переключение GPS и Компаса с вращением карты" title="${_arcGpsCompassState === 'compass' ? 'Режим Компаса (вращение карты активно) — нажмите для возврата GPS' : 'Режим GPS — нажмите для включения Компаса и вращения карты'}">
           ${_arcGpsCompassState === 'compass'
             ? `<svg class="k-svg" data-compass-needle="1" style="width:22px;height:22px;color:var(--accent);transform:rotate(${-_arcCompassHeadingDeg}deg);transition:transform 0.14s linear;" viewBox="0 0 24 24" fill="none"><use href="#map-compass"/></svg>`
@@ -9144,7 +9137,7 @@ function renderArcMobileMap(container, s, prevLiveMapBox) {
 
       <!-- Панель управления в нижней части экрана для режимов «Маршрут по точкам» (п. 8.2.2) и «Нарисовать пальцем» (п. 8.2.3) -->
       ${_arcRouteBuilderMode === 'waypoints' ? `
-        <div class="klev-arc-glass" id="arcWaypointsBottomBar" style="position:absolute;bottom:34px;left:10px;right:10px;z-index:935;border-radius:22px;padding:10px;display:flex;flex-direction:column;gap:8px;">
+        <div class="klev-arc-glass" id="arcWaypointsBottomBar" style="position:absolute;bottom:calc(82px + env(safe-area-inset-bottom, 0px));left:10px;right:10px;z-index:935;border-radius:22px;padding:10px;display:flex;flex-direction:column;gap:8px;">
           <div style="display:flex;gap:7px;">
             <button type="button" class="btn btn-sm" id="arcWpBackBtn" style="width:44px;min-height:42px;padding:0;justify-content:center;" aria-label="Назад">
               <svg class="k-ico" viewBox="0 0 24 24" fill="none"><polyline points="15 18 9 12 15 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -9157,7 +9150,7 @@ function renderArcMobileMap(container, s, prevLiveMapBox) {
       ` : ''}
 
       ${_arcRouteBuilderMode === 'freehand' ? `
-        <div class="klev-arc-glass" id="arcFreehandBottomBar" style="position:absolute;bottom:34px;left:10px;right:10px;z-index:935;border-radius:22px;padding:10px;display:flex;gap:7px;align-items:center;">
+        <div class="klev-arc-glass" id="arcFreehandBottomBar" style="position:absolute;bottom:calc(82px + env(safe-area-inset-bottom, 0px));left:10px;right:10px;z-index:935;border-radius:22px;padding:10px;display:flex;gap:7px;align-items:center;">
           <button type="button" class="btn btn-sm" id="arcFhBackBtn" style="width:44px;min-height:42px;padding:0;justify-content:center;" aria-label="Назад">
             <svg class="k-ico" viewBox="0 0 24 24" fill="none"><polyline points="15 18 9 12 15 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
@@ -9168,7 +9161,7 @@ function renderArcMobileMap(container, s, prevLiveMapBox) {
 
       <!-- Кнопки «Вести по маршруту» и «Стоп с удержанием 1-2 сек и круговым прогрессом» (п. 8.2.3 + видео) -->
       ${(_arcBuiltRoute && !_arcRouteBuilderMode) ? `
-        <div id="arcGuidanceFloatingControls" style="position:absolute;bottom:130px;left:50%;transform:translateX(-50%);z-index:932;display:flex;align-items:center;gap:14px;">
+        <div id="arcGuidanceFloatingControls" style="position:absolute;bottom:calc(134px + env(safe-area-inset-bottom, 0px));left:50%;transform:translateX(-50%);z-index:932;display:flex;align-items:center;gap:14px;">
           <button type="button" class="klev-arc-glass" id="arcNavStartPauseBtn" style="width:58px;height:58px;border-radius:999px;display:flex;align-items:center;justify-content:center;cursor:pointer;border:2px solid var(--accent);" aria-label="Вести по маршруту">
             ${!_arcBuiltRoute.started
               ? `<span style="transform:scale(1.25);display:inline-flex;">${curTransport.svg}</span>`
@@ -9189,7 +9182,7 @@ function renderArcMobileMap(container, s, prevLiveMapBox) {
       ` : ''}
 
       <!-- Нижний блок: 6 компактных однострочных мини-плашек над нижним доком (нажал -> посмотрел в шторке) -->
-      <div id="arcBottomPlaquesMount" style="position:absolute;bottom:calc(74px + env(safe-area-inset-bottom, 0px));left:10px;right:10px;z-index:930;display:${_arcRouteBuilderMode ? 'none' : 'flex'};flex-direction:column;gap:6px;">
+      <div id="arcBottomPlaquesMount" style="position:absolute;bottom:calc(80px + env(safe-area-inset-bottom, 0px));left:10px;right:10px;z-index:930;display:${_arcRouteBuilderMode ? 'none' : 'flex'};flex-direction:column;gap:6px;">
         ${_arcExpandedPlaqueId ? expandedPlaqueHtml : `
           <div class="klev-arc-single-pills-strip map-bottom-pills-strip" id="arcCompactPillsStrip" style="position:static;display:flex;align-items:center;gap:7px;overflow-x:auto;padding:2px 2px 4px;scrollbar-width:none;">
             <button type="button" class="map-single-pill" data-arc-open-plaque="8.1">
@@ -10316,7 +10309,7 @@ export function render(container) {
         <div class="geo-auth-only-block" style="margin-top:8px;padding:7px 10px;background:var(--card);border:1px solid var(--border);border-radius:8px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;font-size:11px;">
           <div style="display:flex;align-items:center;gap:6px;">
             <span style="font-weight:800;color:${isGeoDistributionConsentActive() ? 'var(--good)' : 'var(--muted)'};">
-              ${isGeoDistributionConsentActive() ? '[] Согласие на передачу геоданных в сеть активно' : '[ ] Передача геоданных в сеть не активирована (100% локально)'}
+              ${isGeoDistributionConsentActive() ? '[✓] Согласие на передачу геоданных в сеть активно' : '[ ] Передача геоданных в сеть не активирована (100% локально)'}
             </span>
           </div>
           <div style="display:flex;gap:6px;">
@@ -10584,7 +10577,7 @@ export function render(container) {
               <select id="geoNearbyPlaceSelect" class="input" style="width:100%;min-height:40px;font-weight:800;">
                 ${rawPlaces.map((p, idx) => `
                   <option value="${p.lat},${p.lon},${escapeHtml(p.name)}" ${idx === 0 ? 'selected' : ''}>
-                    ${idx === 0 ? ' ' : ''}${escapeHtml(p.name)} — ${p.distKm <= 1 ? 'текущая локация' : (p.distKm + ' км')}
+                    ${idx === 0 ? '★ ' : ''}${escapeHtml(p.name)} — ${p.distKm <= 1 ? 'текущая локация' : (p.distKm + ' км')}
                   </option>
                 `).join('')}
               </select>
@@ -10658,7 +10651,7 @@ export function render(container) {
            <select id="geoNearbyWaterSelect" class="input geo-auth-only-block" style="width:100%;min-height:42px;font-weight:800;">
         ${rawWaters.map((w, idx) => {
           const cleanLbl = String(w.label || w.name || '').replace(/<svg[\s\S]*?<\/svg>/gi, '').replace(/<[^>]+>/g, '').trim();
-          return `<option value="${escapeHtml(w.wType)}|${escapeHtml(w.name || cleanLbl)}|${w.defDepth || ''}|${w.lat || ''}|${w.lon || ''}" ${idx === 0 ? 'selected' : ''}>${idx === 0 ? ' ' : ''}${escapeHtml(cleanLbl)}</option>`;
+          return `<option value="${escapeHtml(w.wType)}|${escapeHtml(w.name || cleanLbl)}|${w.defDepth || ''}|${w.lat || ''}|${w.lon || ''}" ${idx === 0 ? 'selected' : ''}>${idx === 0 ? '★ ' : ''}${escapeHtml(cleanLbl)}</option>`;
         }).join('')}
       </select>
       ${(() => {
@@ -10738,7 +10731,7 @@ export function render(container) {
  <select id="geoWaterSelect" class="input" style="width:100%;min-height:40px;font-weight:800;">
  ${(() => {
    const sortedBiotopes = [...availableWaters].sort((a, b) => (a.id === s.water ? -1 : (b.id === s.water ? 1 : 0)));
-   return sortedBiotopes.map((w, idx) => `<option value="${w.id}" ${idx === 0 ? 'selected' : ''}>${idx === 0 ? ' ' : ''}${String(w.name || '').replace(/<[^>]+>/g, '').trim()}</option>`).join('');
+   return sortedBiotopes.map((w, idx) => `<option value="${w.id}" ${idx === 0 ? 'selected' : ''}>${idx === 0 ? '★ ' : ''}${String(w.name || '').replace(/<[^>]+>/g, '').trim()}</option>`).join('');
  })()}
  </select>
  </div>
@@ -10747,7 +10740,7 @@ export function render(container) {
  <select id="geoMethodSelect" class="input" style="width:100%;min-height:40px;font-weight:800;">
  ${(() => {
    const sortedMethods = [...compatibleMethods].sort((a, b) => (a.val === s.method ? -1 : (b.val === s.method ? 1 : 0)));
-   return sortedMethods.map((m, idx) => `<option value="${m.val}" ${idx === 0 ? 'selected' : ''}>${idx === 0 ? ' ' : ''}${String(m.text || '').replace(/<[^>]+>/g, '').trim()}</option>`).join('');
+   return sortedMethods.map((m, idx) => `<option value="${m.val}" ${idx === 0 ? 'selected' : ''}>${idx === 0 ? '★ ' : ''}${String(m.text || '').replace(/<[^>]+>/g, '').trim()}</option>`).join('');
  })()}
  </select>
  </div>

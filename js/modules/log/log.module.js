@@ -24,7 +24,7 @@ export function openCatchPhotoViewerModal({ photoUrl, fishName = 'Улов', dat
         <div style="font-weight:900;font-size:var(--fs-sm);color:var(--accent);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
           Фото улова: ${escapeHtml(cleanTitle)}
         </div>
-        <button type="button" class="btn btn-sm" id="catchViewerTopCloseBtn" style="min-height:30px;padding:2px 8px;font-weight:800;"></button>
+        <button type="button" class="btn btn-sm" id="catchViewerTopCloseBtn" style="min-height:30px;padding:2px 8px;font-weight:800;">✕</button>
       </div>
       <div style="width:100%;max-height:68vh;overflow:hidden;border-radius:10px;background:#050811;display:flex;align-items:center;justify-content:center;border:1px solid var(--border);">
         <img id="catchViewerImg" src="${photoUrl}" alt="${escapeHtml(cleanTitle)}" style="max-width:100%;max-height:66vh;object-fit:contain;border-radius:8px;display:block;">
@@ -604,6 +604,7 @@ export function openCatchWizard(prefill = {}) {
             Выбрать на карте
           </button>
           <button type="button" class="btn btn-sm" id="cwQuickAddBookmarkBtn" style="min-height:38px;width:100%;justify-content:center;font-weight:800;">
+            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.1 6.5L12 17.4l-5.8 3.1 1.1-6.5-4.8-4.6 6.6-.9L12 2.5z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6" stroke-linejoin="round"/></svg>
             + В закладки карты
           </button>
         </div>
@@ -641,7 +642,7 @@ export function openCatchWizard(prefill = {}) {
       <div>
         <label for="cwFishId" style="display:block;font-weight:700;font-size:var(--fs-xs);color:var(--muted);">ШАГ 1. ПОЙМАННАЯ РЫБА (ИЗБРАННЫЕ ВВЕРХУ)</label>
         <select id="cwFishId" style="margin-top:3px;width:100%;">
-          ${sortedSpecies.map(f => `<option value="${f.id}" ${f.id === currentFish.id ? 'selected' : ''}>${favSet.has(f.id) ? ' ' : ''}${f.name}</option>`).join('')}
+          ${sortedSpecies.map(f => `<option value="${f.id}" ${f.id === currentFish.id ? 'selected' : ''}>${favSet.has(f.id) ? '★ ' : ''}${f.name}</option>`).join('')}
         </select>
       </div>
 
@@ -1154,11 +1155,11 @@ export function renderLog(container) {
             ${trashRecords.map(c => `
               <div class="card" style="background:var(--card);padding:10px 12px;border:1.5px dashed var(--warn);display:flex;flex-direction:column;gap:6px;">
                 <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;">
-                  <span style="font-weight:800;font-size:var(--fs-md);color:var(--warn);">${escapeHtml(c.fishName)} ${c.weightKg ? `• ${c.weightKg} кг` : ''}</span>
+                  <span style="font-weight:800;font-size:var(--fs-md);color:var(--warn);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> ${escapeHtml(c.fishName)} ${c.weightKg ? `• ${c.weightKg} кг` : ''}</span>
                   <span class="pill pill-warn" style="font-size:10px;">На удаление</span>
                 </div>
                 <div style="font-size:var(--fs-xs);color:var(--muted);">
-                  ${escapeHtml(c.dateLabel || c.date)}, ${String(c.hour ?? 12).padStart(2, '0')}:00 • ${escapeHtml(c.locLabel || 'Водоём')}
+                  <svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="3" fill="rgba(56,189,248,0.14)" stroke="currentColor" stroke-width="1.8"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="7" y="13" width="3" height="3" rx="0.8" fill="#38bdf8"/><rect x="14" y="13" width="3" height="3" rx="0.8" fill="#10b981"/></svg> ${escapeHtml(c.dateLabel || c.date)}, ${String(c.hour ?? 12).padStart(2, '0')}:00 • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#ef4444"/></svg> ${escapeHtml(c.locLabel || 'Водоём')}
                 </div>
                 <div style="font-size:var(--fs-xs);color:var(--accent);">Наживка / приманка: <b>${escapeHtml(c.bait || '—')}</b></div>
                 <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;">
@@ -1187,7 +1188,7 @@ export function renderLog(container) {
         </div>
         ${filtered.length === 0 ? `
           <div style="padding:16px;text-align:center;background:var(--card);border-radius:var(--r-sm);color:var(--muted);font-size:var(--fs-sm);">
-            Записей пока нет. Нажмите <b>«+ Записать улов»</b>, чтобы выбрать дату за последние 5 дней (или сегодня) — почасовой прогноз подставится автоматически!
+            Записей пока нет. Нажмите <b>«<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg> + Записать улов»</b>, чтобы выбрать дату за последние 5 дней (или сегодня) — почасовой прогноз подставится автоматически!
           </div>
         ` : `
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(265px,1fr));gap:10px;">
@@ -1199,11 +1200,11 @@ export function renderLog(container) {
                     <button type="button" class="btn btn-sm btn-good" style="min-height:28px;padding:2px 8px;" data-apply-catch-rig="${c.id}" title="Повторить снасть: подставить рыбу, способ ловли, глубину и приманку в прогноз">Снасть</button>
                     <button type="button" class="btn btn-sm btn-accent" style="min-height:28px;padding:2px 8px;" data-chat-share-catch="${c.id}" title="Поделиться карточкой улова в чате Экипажа или личном диалоге">В чат</button>
                     <button type="button" class="btn btn-sm" style="min-height:28px;padding:2px 8px;" data-share-catch="${c.id}" title="Отправить улов в Круг с размытием координат ±5 км">В Круг</button>
-                    <button type="button" class="btn btn-sm" style="min-height:28px;padding:2px 7px;color:var(--bad);" data-del-catch="${c.id}" title="Пометить на удаление" aria-label="Пометить запись на удаление"></button>
+                    <button type="button" class="btn btn-sm" style="min-height:28px;padding:2px 7px;color:var(--bad);" data-del-catch="${c.id}" title="Пометить на удаление" aria-label="Пометить запись на удаление"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
                   </div>
                 </div>
                 <div style="font-size:var(--fs-xs);color:var(--muted);">
-                  ${escapeHtml(c.dateLabel || c.date)}, ${String(c.hour ?? 12).padStart(2, '0')}:00 • ${escapeHtml(c.locLabel || 'Водоём')} (${c.depth} м)
+                  <svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="3" fill="rgba(56,189,248,0.14)" stroke="currentColor" stroke-width="1.8"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="7" y="13" width="3" height="3" rx="0.8" fill="#38bdf8"/><rect x="14" y="13" width="3" height="3" rx="0.8" fill="#10b981"/></svg> ${escapeHtml(c.dateLabel || c.date)}, ${String(c.hour ?? 12).padStart(2, '0')}:00 • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#ef4444"/></svg> ${escapeHtml(c.locLabel || 'Водоём')} (${c.depth} м)
                 </div>
                 <div style="display:flex;gap:4px;flex-wrap:wrap;">
                   ${createPill({ text: `Вода ${c.waterTemp}°C`, tone: 'neutral' })}

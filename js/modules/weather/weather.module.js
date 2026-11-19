@@ -254,12 +254,12 @@ export function computeMoon(dateStr) {
   const riseHour = (transitHour + 18) % 24;
   const setHour = (transitHour + 6) % 24;
   let phaseName = 'Растущая луна';
-  let phaseIcon = '';
-  if (moonDay === 1 || moonDay >= 29) { phaseName = 'Новолуние'; phaseIcon = ''; }
-  else if (moonDay >= 14 && moonDay <= 16) { phaseName = 'Полнолуние'; phaseIcon = ''; }
-  else if (moonDay >= 7 && moonDay <= 8) { phaseName = 'Первая четверть'; phaseIcon = ''; }
-  else if (moonDay >= 22 && moonDay <= 23) { phaseName = 'Последняя четверть'; phaseIcon = ''; }
-  else if (moonDay > 16) { phaseName = 'Убывающая луна'; phaseIcon = ''; }
+  let phaseIcon = '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6" stroke-linejoin="round"/></svg>';
+  if (moonDay === 1 || moonDay >= 29) { phaseName = 'Новолуние'; phaseIcon = '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6" stroke-linejoin="round"/></svg>'; }
+  else if (moonDay >= 14 && moonDay <= 16) { phaseName = 'Полнолуние'; phaseIcon = '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.5" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg>'; }
+  else if (moonDay >= 7 && moonDay <= 8) { phaseName = 'Первая четверть'; phaseIcon = '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6" stroke-linejoin="round"/></svg>'; }
+  else if (moonDay >= 22 && moonDay <= 23) { phaseName = 'Последняя четверть'; phaseIcon = '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6" stroke-linejoin="round"/></svg>'; }
+  else if (moonDay > 16) { phaseName = 'Убывающая луна'; phaseIcon = '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6" stroke-linejoin="round"/></svg>'; }
   return {
     moonDay,
     illum,
@@ -1558,7 +1558,7 @@ export function render(container) {
             <span>Назад</span>
           </button>
           <span style="font-size:14.5px;font-weight:800;">Погода и Гидрология</span>
-          <span class="code-tag">${escapeHtml(s.selectedWaterName || s.locLabel || 'РФ')}</span>
+          <span style="width:36px;"></span>
         </div>
       ` : ''}
       <!-- Горизонтальная лента быстрого выбора дня прямо во вкладке Погода -->
@@ -1592,7 +1592,7 @@ export function render(container) {
               ` : ''}
             </div>
             <div class="bento-card-sub" style="margin-top:2px;">
-              ${s.locLabel} (${waterTitle} • ${flowLabel}) • ${day.relTitle ? day.relTitle + ' (' + day.label + ')' : day.label}
+              ${waterTitle && !String(waterTitle).includes(s.locLabel) ? s.locLabel + ' • ' + waterTitle : (waterTitle || s.locLabel)} (${flowLabel}) • ${day.relTitle || day.label}
             </div>
           </div>
         </div>
@@ -1731,7 +1731,7 @@ export function render(container) {
             <span>Барометр, Ветер и Осадки</span>
           </div>
           <div class="bento-weather-rows">
-            <div class="bento-temp-split" style="gap:6px;">
+            <div class="bento-temp-split" style="gap:6px;flex-wrap:wrap;">
               <div style="min-width:0;">
                 <div class="bento-temp-air" style="font-size:19px;white-space:nowrap;">${day.pressAvg} <span style="font-size:12px;font-weight:700;">мм</span></div>
                 <div style="font-size:11.5px;color:var(--muted);font-weight:700;white-space:nowrap;">Тренд: ${fmtDeltaPress(day.dP)}</div>
@@ -1774,13 +1774,9 @@ export function render(container) {
               <path d="${wavePathD}" fill="none" stroke="var(--wave-stroke, #38bdf8)" stroke-width="2.6" vector-effect="non-scaling-stroke" stroke-linecap="round"/>
             </svg>
             <div class="bento-chart-dot" style="left:${((minPt.x / svgW) * 100).toFixed(1)}%;top:${((minPt.y / svgH) * 100).toFixed(1)}%;background:#38bdf8;"></div>
-            <div class="bento-chart-badge" style="left:${Math.max(14, Math.min(86, (minPt.x / svgW) * 100)).toFixed(1)}%;top:${Math.max(18, ((minPt.y / svgH) * 100) - 6).toFixed(1)}%;border-color:rgba(56,189,248,0.55);">
-              ${String(minPt.hr).padStart(2, '0')}:00 (${minPt.p} мм)
-            </div>
+            
             <div class="bento-chart-dot" style="left:${((maxPt.x / svgW) * 100).toFixed(1)}%;top:${((maxPt.y / svgH) * 100).toFixed(1)}%;background:#10b981;"></div>
-            <div class="bento-chart-badge" style="left:${Math.max(14, Math.min(86, (maxPt.x / svgW) * 100)).toFixed(1)}%;top:${Math.max(18, ((maxPt.y / svgH) * 100) - 6).toFixed(1)}%;border-color:rgba(16,185,129,0.55);">
-              ${String(maxPt.hr).padStart(2, '0')}:00 (${maxPt.p} мм)
-            </div>
+            
           </div>
           <div class="bento-chart-ticks-grid">
             ${[0, 3, 6, 9, 12, 15, 18, 21].map(hIdx => {

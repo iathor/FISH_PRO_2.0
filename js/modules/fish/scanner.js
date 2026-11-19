@@ -1751,7 +1751,7 @@ ${escapeHtml(fullAnalysisText || activeMatch.reason || fish.idTraits || "")}
                             <span style="display:flex;align-items:center;gap:8px;min-width:0;flex:1;">
                               <img src="assets/fish/${m.fish.id}.png" alt="" style="width:36px;height:22px;object-fit:contain;flex-shrink:0;" onerror="this.style.display='none'">
                               <span style="font-weight:800;font-size:12.5px;white-space:normal;line-height:1.25;">
-                                ${isSel ? " " : ""}${idx + 1}. ${escapeHtml(m.displayTitle || m.fish.name)}${escapeHtml(posTag)}
+                                ${isSel ? "✓ " : ""}${idx + 1}. ${escapeHtml(m.displayTitle || m.fish.name)}${escapeHtml(posTag)}
                               </span>
                             </span>
                             <span class="pill ${isSel ? "pill-good" : "pill-neutral"}" style="font-weight:900;font-size:11px;flex-shrink:0;">
@@ -1796,7 +1796,7 @@ ${escapeHtml(fullAnalysisText || activeMatch.reason || fish.idTraits || "")}
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;">
               ${!isRedBook ? `
                 <button type="button" class="btn btn-good" id="scannerApplyToLogBtn" style="min-height:42px;font-weight:900;">
-                  + Записать в Журнал
+                  <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg> + Записать в Журнал
                 </button>
               ` : ""}
               <button type="button" class="btn btn-accent" id="scannerSelectForForecastBtn" style="min-height:42px;font-weight:800;">
