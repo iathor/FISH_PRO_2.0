@@ -44,6 +44,15 @@ const REGIONAL_SIGNATURE_SPECIES = {
   amur: ['pike', 'amur_pike', 'snakehead', 'sky_gazer', 'carp', 'crucian', 'amur_catfish', 'lenok', 'grayling', 'tarpon_carp', 'parabramis', 'grass_carp'],
   pacific_sea: ['coho_salmon', 'chum_salmon', 'pink_salmon', 'char', 'dolly_varden', 'cherry_salmon', 'chinook_salmon', 'sockeye_salmon', 'kundzha', 'smelt', 'navaga', 'greenling', 'starry_flounder', 'halibut']
 };
+
+function escapeHtml(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 export function normalizeSearchText(str) {
   return String(str || '')
     .toLowerCase()
@@ -199,7 +208,7 @@ export function openFishDetail(fishId) {
       <div class="fish-detail-header">
         <div class="fish-detail-img-banner" id="detailFishImgZoomBtn" role="button" tabindex="0" aria-label="Увеличить изображение ${f.name}" title="Нажмите для полноразмерного просмотра">
           ${visualHtml}
-          <span class="fish-detail-zoom-hint"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="2"/><path d="M16 16l4.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg> Нажмите для увеличения</span>
+          <span class="fish-detail-zoom-hint">Нажмите для увеличения</span>
         </div>
         <div class="fish-detail-title-col">
           <div style="font-size:var(--fs-lg);font-weight:800;line-height:1.22;color:var(--text);">${f.name}</div>
@@ -246,28 +255,28 @@ export function openFishDetail(fishId) {
       </div>
       ${f.sizeInfo ? `
         <div class="card" style="background:var(--card);padding:11px 12px;font-size:var(--fs-sm);line-height:1.45;">
-          <div style="font-size:var(--fs-xs);font-weight:800;color:var(--accent);text-transform:uppercase;margin-bottom:3px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="3" y="8" width="18" height="8" rx="2" transform="rotate(-35 12 12)" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8"/><path d="M8 11l1.5 2M11 9l1.5 2M14 7l1.5 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg> Размеры в уловах и трофейный потенциал</div>
+          <div style="font-size:var(--fs-xs);font-weight:800;color:var(--accent);text-transform:uppercase;margin-bottom:3px;">Размеры в уловах и трофейный потенциал</div>
           <div>${f.sizeInfo}</div>
         </div>
       ` : ""}
       ${f.idTraits ? `
         <div class="card" style="background:var(--card);padding:11px 12px;font-size:var(--fs-sm);line-height:1.45;">
-          <div style="font-size:var(--fs-xs);font-weight:800;color:var(--accent);text-transform:uppercase;margin-bottom:3px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="2"/><path d="M16 16l4.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg> Как распознать вид (отличительные признаки)</div>
+          <div style="font-size:var(--fs-xs);font-weight:800;color:var(--accent);text-transform:uppercase;margin-bottom:3px;">Как распознать вид (отличительные признаки)</div>
           <div>${f.idTraits}</div>
         </div>
       ` : ""}
       <div class="card" style="background:var(--card);padding:12px;font-size:var(--fs-sm);line-height:1.48;display:flex;flex-direction:column;gap:10px;">
         <div>
-          <div style="font-size:var(--fs-xs);font-weight:800;color:var(--accent);text-transform:uppercase;margin-bottom:3px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> Места стоянки, биотопы и сезонные повадки</div>
+          <div style="font-size:var(--fs-xs);font-weight:800;color:var(--accent);text-transform:uppercase;margin-bottom:3px;">Места стоянки, биотопы и сезонные повадки</div>
           <div>${f.baseAdvice}</div>
         </div>
         <div style="padding-top:8px;border-top:1px solid var(--border);">
-          <div style="font-size:var(--fs-xs);font-weight:800;color:var(--accent);text-transform:uppercase;margin-bottom:3px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg> Рекомендуемые снасти, оснастки и способы лова</div>
+          <div style="font-size:var(--fs-xs);font-weight:800;color:var(--accent);text-transform:uppercase;margin-bottom:3px;">Рекомендуемые снасти, оснастки и способы лова</div>
           <div>${f.topGear}</div>
         </div>
         ${f.feedBase ? `
           <div style="padding-top:8px;border-top:1px solid var(--border);">
-            <div style="font-size:var(--fs-xs);font-weight:800;color:var(--accent);text-transform:uppercase;margin-bottom:3px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 18c0-4 4-4 4-8s4-4 4-6 5-1 5 3-3 5-3 8 4 4 6 2" stroke="#f43f5e" stroke-width="2.2" stroke-linecap="round"/></svg> Природная кормовая база и рабочие приманки</div>
+            <div style="font-size:var(--fs-xs);font-weight:800;color:var(--accent);text-transform:uppercase;margin-bottom:3px;">Природная кормовая база и рабочие приманки</div>
             <div>${f.feedBase}</div>
           </div>
         ` : ""}
@@ -275,7 +284,7 @@ export function openFishDetail(fishId) {
     </div>
   `;
   const stickyFooterHtml = `
-    <button type="button" class="btn btn-accent" id="detailSelectFishForForecastBtn" style="flex:1.3;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="4.5" stroke="#38bdf8" stroke-width="1.6"/><circle cx="12" cy="12" r="1.8" fill="#10b981"/></svg> Выбрать для прогноза</button>
+    <button type="button" class="btn btn-accent" id="detailSelectFishForForecastBtn" style="flex:1.3;">Выбрать для прогноза</button>
     <button type="button" class="btn" id="detailBottomCloseBtn" data-modal-close style="flex:1;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg> Закрыть</button>
   `;
   openModal("Справка ихтиолога", html, (bodyEl, footerEl) => {
@@ -338,16 +347,16 @@ export function openFavoritesEditorModal() {
         </label>
         <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;width:100%;">
           <button type="button" class="btn btn-sm ${!showAllInModal ? "btn-accent" : ""}" id="favModalScopeRegBtn" style="min-height:40px;width:100%;justify-content:center;font-weight:800;">
-            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#ef4444"/></svg> По региону (${regional.length})
+            По региону (${regional.length})
           </button>
           <button type="button" class="btn btn-sm ${showAllInModal ? "btn-accent" : ""}" id="favModalScopeAllBtn" style="min-height:40px;width:100%;justify-content:center;font-weight:800;">
-            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" stroke="currentColor" stroke-width="1.6"/></svg> Весь атлас РФ (${FISH_DB.length})
+            Весь атлас РФ (${FISH_DB.length})
           </button>
           <button type="button" class="btn btn-sm" id="favModalSelectPopularBtn" style="min-height:40px;width:100%;justify-content:center;font-weight:800;">
-            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.1 6.5L12 17.4l-5.8 3.1 1.1-6.5-4.8-4.6 6.6-.9L12 2.5z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6" stroke-linejoin="round"/></svg> Топ-6 региона
+            Топ-6 региона
           </button>
           <button type="button" class="btn btn-sm" id="favModalClearAllBtn" style="min-height:40px;width:100%;justify-content:center;font-weight:800;color:var(--bad);">
-            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Очистить выбор
+            Очистить выбор
           </button>
         </div>
         <input type="search" id="favModalSearch" class="input" value="${searchQuery}" placeholder="${ecoregion.searchPlaceholder || 'Поиск рыбы...'}" style="min-height:40px;padding:6px 12px;font-size:var(--fs-sm);">
@@ -368,7 +377,7 @@ export function openFavoritesEditorModal() {
         </div>
         <div style="padding-top:8px;border-top:1px solid var(--border);width:100%;">
           <button type="button" class="btn btn-accent" id="favModalSaveBtn" style="min-height:42px;width:100%;justify-content:center;font-weight:800;">
-            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" fill="rgba(16,185,129,0.2)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M17 21v-8H7v8M7 3v5h8" stroke="currentColor" stroke-width="1.7"/></svg> Готово (${favSet.size})
+            Готово (${favSet.size})
           </button>
         </div>
       </div>
@@ -379,7 +388,7 @@ export function openFavoritesEditorModal() {
       const pill = bodyEl.querySelector("#favSelectedCountPill");
       if (pill) pill.textContent = `Выбрано: ${selected.length}`;
       const saveBtn = bodyEl.querySelector("#favModalSaveBtn");
-      if (saveBtn) saveBtn.innerHTML = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" fill="rgba(16,185,129,0.2)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M17 21v-8H7v8M7 3v5h8" stroke="currentColor" stroke-width="1.7"/></svg> Готово (${selected.length})`;
+      if (saveBtn) saveBtn.innerHTML = `Готово (${selected.length})`;
       return selected;
     };
     bodyEl.querySelectorAll(".fav-edit-chk").forEach(chk => {
@@ -469,36 +478,36 @@ export function openAppParamsModal(onBackToHub = null) {
       <div style="display:flex;flex-direction:column;gap:10px;font-size:var(--fs-sm);">
         ${renderSettingsZoneTabsHtml('app')}
         <div class="card" style="background:var(--card);padding:10px 12px;border:1px solid var(--border);display:flex;flex-direction:column;gap:6px;">
-          <label style="display:block;font-weight:800;font-size:var(--fs-xs);color:var(--accent);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> РЕЖИМ ПРОГНОЗА И УРОВЕНЬ ДЕТАЛИЗАЦИИ</label>
+          <label style="display:block;font-weight:800;font-size:var(--fs-xs);color:var(--accent);">РЕЖИМ ПРОГНОЗА И УРОВЕНЬ ДЕТАЛИЗАЦИИ</label>
           <div id="onbModeContainer" class="modal-grid-3">
             <button type="button" class="btn btn-sm ${currentAppMode === 'novice' ? 'btn-good' : ''}" data-onb-mode="novice" style="flex-direction:column;min-height:44px;gap:2px;">
-              <span><svg class="k-ico" style="color:var(--good);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg> Новичок</span>
+              <span>Новичок</span>
               <span style="font-size:10px;opacity:0.85;">Светофор + ТОП-3</span>
             </button>
             <button type="button" class="btn btn-sm ${currentAppMode === 'angler' ? 'btn-accent' : ''}" data-onb-mode="angler" style="flex-direction:column;min-height:44px;gap:2px;">
-              <span><svg class="k-ico" style="color:var(--warn);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg> Рыбак</span>
+              <span>Рыбак</span>
               <span style="font-size:10px;opacity:0.85;">Полный + Круг</span>
             </button>
             <button type="button" class="btn btn-sm ${currentAppMode === 'pro' ? 'btn-accent' : ''}" data-onb-mode="pro" style="flex-direction:column;min-height:44px;gap:2px;">
-              <span><svg class="k-ico" style="color:var(--bad);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg> Профи</span>
+              <span>Профи</span>
               <span style="font-size:10px;opacity:0.85;">8 факт. + GPX</span>
             </button>
           </div>
           <div id="onbModeDescBox" style="padding:6px 8px;background:var(--panel);border:1px solid var(--border);border-radius:var(--r-sm);font-size:11.5px;line-height:1.38;color:var(--text);">
             ${currentAppMode === 'novice'
-              ? '<svg class="k-ico" style="color:var(--good);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg> <b>Новичок:</b> Лаконичный экран «Клюёт / Не клюёт», ТОП-3 активные рыбы и готовая рекомендация по снасти.'
+              ? '<b>Новичок:</b> Лаконичный экран «Клюёт / Не клюёт», ТОП-3 активные рыбы и готовая рекомендация по снасти.'
               : (currentAppMode === 'pro'
-                  ? '<svg class="k-ico" style="color:var(--bad);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg> <b>Профи:</b> Все 8 факторов модели с калибровкой весов, экспорт точек эхолота (.GPX) и статистика за 30 дней.'
-                  : '<svg class="k-ico" style="color:var(--warn);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg> <b>Рыбак:</b> Почасовой прогноз клёва с архивом погоды, карта водоёмов, справочник рыб, «Круг» и журнал уловов.')}
+                  ? '<b>Профи:</b> Все 8 факторов модели с калибровкой весов, экспорт точек эхолота (.GPX) и статистика за 30 дней.'
+                  : '<b>Рыбак:</b> Почасовой прогноз клёва с архивом погоды, карта водоёмов, справочник рыб, «Круг» и журнал уловов.')}
           </div>
         </div>
         <div class="card" style="background:var(--card);padding:10px 12px;border:1px solid var(--border);display:flex;flex-direction:column;gap:6px;">
-          <div style="font-weight:800;font-size:var(--fs-xs);color:var(--accent);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2a10 10 0 0 0 0 20c1.7 0 3-1.3 3-3 0-.8-.3-1.5-.8-2-.5-.5-.8-1.2-.8-2 0-1.7 1.3-3 3-3h1.6A5 5 0 0 0 22 7c0-2.8-4.5-5-10-5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8"/><circle cx="7.5" cy="10.5" r="1.4" fill="#ef4444"/><circle cx="12" cy="7.5" r="1.4" fill="#fbbf24"/><circle cx="16.5" cy="10.5" r="1.4" fill="#10b981"/></svg> ТЕМА ОФОРМЛЕНИЯ ЭКРАНА</div>
+          <div style="font-weight:800;font-size:var(--fs-xs);color:var(--accent);">ТЕМА ОФОРМЛЕНИЯ ЭКРАНА</div>
           <div class="modal-grid-3" id="onbThemeContainer">
-            <button type="button" class="btn btn-sm ${curTheme === 'auto' ? 'btn-accent' : ''}" data-onb-theme="auto"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6" stroke-linejoin="round"/></svg> Авто</button>
-            <button type="button" class="btn btn-sm ${curTheme === 'dark' ? 'btn-accent' : ''}" data-onb-theme="dark"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6" stroke-linejoin="round"/></svg> Тёмная</button>
-            <button type="button" class="btn btn-sm ${curTheme === 'light' ? 'btn-accent' : ''}" data-onb-theme="light"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.5" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> Светлая</button>
-            <button type="button" class="btn btn-sm ${curTheme === 'contrast' ? 'btn-accent' : ''}" data-onb-theme="contrast"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="6.5" cy="14.5" r="3.5" fill="rgba(251,191,36,0.28)" stroke="currentColor" stroke-width="1.8"/><circle cx="17.5" cy="14.5" r="3.5" fill="rgba(251,191,36,0.28)" stroke="currentColor" stroke-width="1.8"/><path d="M10 14.5h4M3 14l2-7M21 14l-2-7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Контраст (Солнце)</button>
+            <button type="button" class="btn btn-sm ${curTheme === 'auto' ? 'btn-accent' : ''}" data-onb-theme="auto">Авто</button>
+            <button type="button" class="btn btn-sm ${curTheme === 'dark' ? 'btn-accent' : ''}" data-onb-theme="dark">Тёмная</button>
+            <button type="button" class="btn btn-sm ${curTheme === 'light' ? 'btn-accent' : ''}" data-onb-theme="light">Светлая</button>
+            <button type="button" class="btn btn-sm ${curTheme === 'contrast' ? 'btn-accent' : ''}" data-onb-theme="contrast">Контраст (Солнце)</button>
           </div>
           <div style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
             <div>
@@ -513,35 +522,35 @@ export function openAppParamsModal(onBackToHub = null) {
         <!-- Компактный объединённый блок «Уведомления и Сигналы Круга» -->
         <div class="card" style="background:var(--card);padding:10px 12px;border:1px solid var(--border);display:flex;flex-direction:column;gap:8px;">
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
-            <span style="font-weight:800;font-size:var(--fs-xs);color:var(--accent);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9z" fill="rgba(251,191,36,0.24)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M13.73 21a2 2 0 0 1-3.46 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> УВЕДОМЛЕНИЯ И СИГНАЛЫ КРУГА</span>
+            <span style="font-weight:800;font-size:var(--fs-xs);color:var(--accent);">УВЕДОМЛЕНИЯ И СИГНАЛЫ КРУГА</span>
             <div style="display:flex;gap:6px;flex-wrap:wrap;">
-              <button type="button" class="btn btn-sm btn-accent" id="appParamsReqSysNotifBtn" style="min-height:26px;padding:2px 8px;font-size:11px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9z" fill="rgba(251,191,36,0.24)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M13.73 21a2 2 0 0 1-3.46 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Включить системные Push</button>
-              <button type="button" class="btn btn-sm" id="appParamsOpenNotifHistoryBtn" style="min-height:26px;padding:2px 8px;font-size:11px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="9" y="9" width="11" height="11" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> История сигналов</button>
+              <button type="button" class="btn btn-sm btn-accent" id="appParamsReqSysNotifBtn" style="min-height:26px;padding:2px 8px;font-size:11px;">Включить системные Push</button>
+              <button type="button" class="btn btn-sm" id="appParamsOpenNotifHistoryBtn" style="min-height:26px;padding:2px 8px;font-size:11px;">История сигналов</button>
             </div>
           </div>
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(195px,1fr));gap:6px;font-size:12px;">
             <label style="display:flex;justify-content:space-between;align-items:center;gap:6px;padding:6px 8px;background:var(--panel);border:1px solid var(--border);border-radius:6px;cursor:pointer;">
-              <span><svg class="k-ico" style="color:var(--bad);" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9.5" fill="#dc2626" stroke="#fca5a5" stroke-width="1.8"/><text x="12" y="15" text-anchor="middle" fill="#fff" font-size="7.5" font-weight="900" font-family="sans-serif">SOS</text></svg> Сигналы SOS на воде</span>
+              <span>Сигналы SOS на воде</span>
               <input type="checkbox" data-app-notif-toggle="sos" ${prefs.sos !== false ? 'checked' : ''}>
             </label>
             <label style="display:flex;justify-content:space-between;align-items:center;gap:6px;padding:6px 8px;background:var(--panel);border:1px solid var(--border);border-radius:6px;cursor:pointer;">
-              <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> Экипажи и чат экипажа</span>
+              <span>Экипажи и чат экипажа</span>
               <input type="checkbox" data-app-notif-toggle="crew" ${prefs.crew !== false ? 'checked' : ''}>
             </label>
             <label style="display:flex;justify-content:space-between;align-items:center;gap:6px;padding:6px 8px;background:var(--panel);border:1px solid var(--border);border-radius:6px;cursor:pointer;">
-              <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3.5" fill="rgba(56,189,248,0.25)" stroke="currentColor" stroke-width="1.8"/><path d="M3 19c0-3.2 2.7-5.5 6-5.5s6 2.3 6 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="17" cy="9" r="2.8" stroke="currentColor" stroke-width="1.6"/><path d="M16 14c2.6.3 4.8 2 5 4.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg> Сводки Круга рядом</span>
+              <span>Сводки Круга рядом</span>
               <input type="checkbox" data-app-notif-toggle="circle" ${prefs.circle !== false ? 'checked' : ''}>
             </label>
             <label style="display:flex;justify-content:space-between;align-items:center;gap:6px;padding:6px 8px;background:var(--panel);border:1px solid var(--border);border-radius:6px;cursor:pointer;">
-              <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" fill="rgba(56,189,248,0.2)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> Мастерская снастей</span>
+              <span>Мастерская снастей</span>
               <input type="checkbox" data-app-notif-toggle="workshop" ${prefs.workshop !== false ? 'checked' : ''}>
             </label>
             <label style="display:flex;justify-content:space-between;align-items:center;gap:6px;padding:6px 8px;background:var(--panel);border:1px solid var(--border);border-radius:6px;cursor:pointer;">
-              <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> Личные чаты рыбаков</span>
+              <span>Личные чаты рыбаков</span>
               <input type="checkbox" data-app-notif-toggle="dm" ${prefs.dm !== false ? 'checked' : ''}>
             </label>
             <label style="display:flex;justify-content:space-between;align-items:center;gap:6px;padding:6px 8px;background:var(--panel);border:1px solid var(--border);border-radius:6px;cursor:pointer;">
-              <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><polygon points="11,5 6,9 2,9 2,15 6,15 11,19" fill="rgba(56,189,248,0.24)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07M19.07 4.93a10 10 0 0 1 0 14.14" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/></svg> Звук сонара и вибро</span>
+              <span>Звук сонара и вибро</span>
               <input type="checkbox" data-app-notif-toggle="sound" ${prefs.sound !== false ? 'checked' : ''}>
             </label>
           </div>
@@ -619,23 +628,23 @@ export function openAppParamsModal(onBackToHub = null) {
           `;
         })()}
         <div class="card" style="background:var(--card);padding:10px 12px;border:1px solid var(--border);display:flex;flex-direction:column;gap:8px;">
-          <div style="font-weight:800;font-size:var(--fs-xs);color:var(--accent);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M20 11a8 8 0 0 0-14.5-4.5L4 8m0-5v5h5M4 13a8 8 0 0 0 14.5 4.5L20 16m0 5v-5h-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> ПРОВЕРКА ВЕРСИИ И ПРИЛОЖЕНИЕ</div>
+          <div style="font-weight:800;font-size:var(--fs-xs);color:var(--accent);">ПРОВЕРКА ВЕРСИИ И ПРИЛОЖЕНИЕ</div>
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:6px;">
-            ${(isUserAdmin(s) || isCurrentUserBetaTester(s)) ? `<button type="button" class="btn btn-sm" id="onbRefreshWeatherBtn"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M20 11a8 8 0 0 0-14.5-4.5L4 8m0-5v5h5M4 13a8 8 0 0 0 14.5 4.5L20 16m0 5v-5h-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Обновить погоду</button>` : ''}
-            <button type="button" class="btn btn-sm" id="onbVersionCheckBtn"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 8l-9-5-9 5v8l9 5 9-5V8z" fill="rgba(56,189,248,0.16)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M3 8l9 5 9-5M12 13v8" stroke="currentColor" stroke-width="1.7"/></svg> Проверить версию</button>
-            ${(isApkOrTmaContainer() || isAppInstalledOrShortcutPresent()) ? '' : '<button type="button" class="btn btn-sm" id="onbInstallAppBtn" data-install-app><svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="6" y="2" width="12" height="20" rx="2.5" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="18" r="1.2" fill="#38bdf8"/></svg> На экран</button>'}
+            ${(isUserAdmin(s) || isCurrentUserBetaTester(s)) ? `<button type="button" class="btn btn-sm" id="onbRefreshWeatherBtn">Обновить погоду</button>` : ''}
+            <button type="button" class="btn btn-sm" id="onbVersionCheckBtn">Проверить версию</button>
+            ${(isApkOrTmaContainer() || isAppInstalledOrShortcutPresent()) ? '' : '<button type="button" class="btn btn-sm" id="onbInstallAppBtn" data-install-app>На экран</button>'}
           </div>
           <div style="padding-top:6px;border-top:1px dashed var(--border);display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
-            <span style="font-size:11px;color:var(--muted);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" fill="rgba(56,189,248,0.14)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M14 2v6h6M8 13h8M8 17h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Правовая информация, авторские права и Политика (152-ФЗ • 12+)</span>
-            <button type="button" class="btn btn-sm" id="onbOpenLegalAgreementBtn" style="min-height:28px;padding:3px 10px;font-size:11px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" fill="rgba(56,189,248,0.14)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M14 2v6h6M8 13h8M8 17h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Прочитать</button>
+            <span style="font-size:11px;color:var(--muted);">Правовая информация, авторские права и Политика (152-ФЗ • 12+)</span>
+            <button type="button" class="btn btn-sm" id="onbOpenLegalAgreementBtn" style="min-height:28px;padding:3px 10px;font-size:11px;">Прочитать</button>
           </div>
           ${isAndroidWebsiteVisitor() ? `
             <div style="padding:8px 10px;background:rgba(16,185,129,0.10);border:1px solid var(--good);border-radius:var(--r-sm);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-top:2px;">
               <div style="min-width:0;flex:1;">
-                <div style="font-weight:800;font-size:11.5px;color:var(--good);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="6" y="2" width="12" height="20" rx="2.5" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="18" r="1.2" fill="#38bdf8"/></svg> Приложение для Android (.APK)</div>
+                <div style="font-weight:800;font-size:11.5px;color:var(--good);">Приложение для Android (.APK)</div>
                 <div style="font-size:11px;color:var(--muted);">Доступна версия: <b>v${getCachedApkManifest().version || '2.8.3'}</b> (${getCachedApkManifest().fileSize || '7.9 МБ'})</div>
               </div>
-              <button type="button" class="btn btn-sm btn-good" id="onbDownloadAndroidApkBtn" style="font-weight:800;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg> Скачать APK (v${getCachedApkManifest().version || '2.8.3'})</button>
+              <button type="button" class="btn btn-sm btn-good" id="onbDownloadAndroidApkBtn" style="font-weight:800;">Скачать APK (v${getCachedApkManifest().version || '2.8.3'})</button>
             </div>
           ` : ''}
         </div>
@@ -678,10 +687,10 @@ export function openAppParamsModal(onBackToHub = null) {
         const descBox = bodyEl.querySelector('#onbModeDescBox');
         if (descBox) {
           descBox.innerHTML = currentAppMode === 'novice'
-            ? '<svg class="k-ico" style="color:var(--good);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg> <b>Новичок:</b> Лаконичный экран «Клюёт / Не клюёт», ТОП-3 активные рыбы и готовая рекомендация по снасти.'
+            ? '<b>Новичок:</b> Лаконичный экран «Клюёт / Не клюёт», ТОП-3 активные рыбы и готовая рекомендация по снасти.'
             : (currentAppMode === 'pro'
-                ? '<svg class="k-ico" style="color:var(--bad);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg> <b>Профи:</b> Все 8 факторов модели с калибровкой весов, экспорт точек эхолота (.GPX) и статистика за 30 дней.'
-                : '<svg class="k-ico" style="color:var(--warn);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg> <b>Рыбак:</b> Почасовой прогноз клёва с архивом погоды, карта водоёмов, справочник рыб, «Круг» и журнал уловов.');
+                ? '<b>Профи:</b> Все 8 факторов модели с калибровкой весов, экспорт точек эхолота (.GPX) и статистика за 30 дней.'
+                : '<b>Рыбак:</b> Почасовой прогноз клёва с архивом погоды, карта водоёмов, справочник рыб, «Круг» и журнал уловов.');
         }
         showToast('Режим прогноза сохранён', 'good');
       });
@@ -765,7 +774,7 @@ export function openAppParamsModal(onBackToHub = null) {
     });
 
   }
-  openModal('<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3.2" stroke="currentColor" stroke-width="1.9"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.6.77 1.05 1.41 1.19H21a2 2 0 1 1 0 4h-.09c-.64.14-1.15.59-1.51 1.21z" stroke="currentColor" stroke-width="1.6"/></svg> Настройки приложения', '<div id="appParamsMount"></div>', (bodyEl) => {
+  openModal('Настройки приложения', '<div id="appParamsMount"></div>', (bodyEl) => {
     if (bodyEl) renderParamsBody(bodyEl);
   }, true, { onBack: backFn });
 }
@@ -793,15 +802,15 @@ export function openFishingPrefsModal(isEditMode = true, onBackToHub = null) {
     isEditMode && s.favoritesExplicitlySet ? (s.favorites || []) : []
   );
   const TACKLE_OPTIONS = [
-    { val: 'spin_micro', text: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg> Нано-джиг / Мормышинг / Ультралайт (0.2–5 г)' },
-    { val: 'spin_jig', text: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg> Спиннинг джиговый (средний и тяжёлый)' },
-    { val: 'spin_lure', text: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg> Спиннинг: блёсны и воблеры (твичинг / перекат)' },
-    { val: 'bottom', text: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="3" y="8" width="18" height="8" rx="4" fill="rgba(217,119,6,0.25)" stroke="#f59e0b" stroke-width="1.8"/><circle cx="7" cy="12" r="1.5" fill="#f59e0b"/><path d="M12 10h6M11 14h5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg> Донная снасть (фидер / пикер / кормушка)' },
-    { val: 'float', text: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5l6.74-6.76z" fill="rgba(56,189,248,0.2)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M16 8L2 22M17.5 15H9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg> Поплавочная удочка (маховая / в проводку)' },
-    { val: 'winter_jig', text: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1" stroke="#7dd3fc" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="#38bdf8"/></svg> Зимняя мормышка / безмотылка' },
-    { val: 'winter_lure', text: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1" stroke="#7dd3fc" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="#38bdf8"/></svg> Зимнее блеснение (балансир / виб)' },
-    { val: 'fly', text: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><ellipse cx="12" cy="13" rx="5" ry="6" fill="rgba(16,185,129,0.22)" stroke="currentColor" stroke-width="1.8"/><path d="M9 5l3 2 3-2M4 10h3M17 10h3M3 14h4M17 14h4M5 18l3-2M19 18l-3-2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg> Нахлыст / Бомбарда (мушка / нимфа)' },
-    { val: 'sea_rock', text: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="5" r="2.5" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5V21M5 13c0 4.5 3.1 8 7 8s7-3.5 7-8M8 10h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Морской рокфишинг / прибрежный джиг' }
+    { val: 'spin_micro', text: 'Нано-джиг / Мормышинг / Ультралайт (0.2–5 г)' },
+    { val: 'spin_jig', text: 'Спиннинг джиговый (средний и тяжёлый)' },
+    { val: 'spin_lure', text: 'Спиннинг: блёсны и воблеры (твичинг / перекат)' },
+    { val: 'bottom', text: 'Донная снасть (фидер / пикер / кормушка)' },
+    { val: 'float', text: 'Поплавочная удочка (маховая / в проводку)' },
+    { val: 'winter_jig', text: 'Зимняя мормышка / безмотылка' },
+    { val: 'winter_lure', text: 'Зимнее блеснение (балансир / виб)' },
+    { val: 'fly', text: 'Нахлыст / Бомбарда (мушка / нимфа)' },
+    { val: 'sea_rock', text: 'Морской рокфишинг / прибрежный джиг' }
   ];
   function getSortedRegionalSpecies(basin) {
     const isSea = isCoastalInBasin(basin, currentLat, currentLon);
@@ -829,8 +838,8 @@ export function openFishingPrefsModal(isEditMode = true, onBackToHub = null) {
         <!-- ШАГ 1: ЛОКАЦИЯ И РЕГИОН -->
         <div class="card" style="background:var(--card);padding:11px 12px;border:1px solid var(--border);">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:6px;flex-wrap:wrap;">
-            <label style="font-weight:800;font-size:var(--fs-xs);color:var(--accent);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#ef4444"/></svg> 1. ГОРОД / РЕГИОН ЛОВЛИ</label>
-            <button type="button" class="btn btn-sm" id="onbGpsBtn"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="4.5" stroke="#38bdf8" stroke-width="1.6"/><circle cx="12" cy="12" r="1.8" fill="#10b981"/></svg> Мой GPS</button>
+            <label style="font-weight:800;font-size:var(--fs-xs);color:var(--accent);">1. ГОРОД / РЕГИОН ЛОВЛИ</label>
+            <button type="button" class="btn btn-sm" id="onbGpsBtn">Мой GPS</button>
           </div>
           <select id="onbCitySelect" class="input" style="width:100%;min-height:40px;font-weight:800;">
             ${(() => {
@@ -843,19 +852,19 @@ export function openFishingPrefsModal(isEditMode = true, onBackToHub = null) {
               });
               return sortedCities.map((c, idx) => `
                 <option value="${c.lat},${c.lon},${c.name},${c.admin1}" ${idx === 0 ? 'selected' : ''}>
-                  ${idx === 0 ? '★ ' : ''}${c.name} (${c.admin1})
+                  ${idx === 0 ? ' ' : ''}${c.name} (${c.admin1})
                 </option>
               `).join('');
             })()}
           </select>
           <div id="onbLocHint" style="font-size:var(--fs-xs);color:var(--accent);margin-top:5px;font-weight:700;line-height:1.35;">
-            Бассейн: ${getSpotEcoregion(currentLat, currentLon, currentBasin, s.water, '').displayBasinName || BASIN_CONFIGS[currentBasin]?.name || 'РФ'} ${isSeaCoastal ? '• <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> Морское побережье' : '• <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> Пресноводный бассейн'}
+            Бассейн: ${getSpotEcoregion(currentLat, currentLon, currentBasin, s.water, '').displayBasinName || BASIN_CONFIGS[currentBasin]?.name || 'РФ'} ${isSeaCoastal ? '• Морское побережье' : '• Пресноводный бассейн'}
           </div>
         </div>
         <!-- ШАГ 2: ТИПЫ ВОДОЁМОВ -->
         <div class="card" style="background:var(--card);padding:11px 12px;border:1px solid var(--border);">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:6px;flex-wrap:wrap;">
-            <label style="font-weight:800;font-size:var(--fs-xs);color:var(--accent);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> 2. ТИПЫ ВОДОЁМОВ</label>
+            <label style="font-weight:800;font-size:var(--fs-xs);color:var(--accent);">2. ТИПЫ ВОДОЁМОВ</label>
             <span style="font-size:var(--fs-xs);color:var(--muted);font-weight:700;">отмечено: <b id="onbWatersCount">${selectedWaters.size}</b></span>
           </div>
           ${(() => {
@@ -874,7 +883,7 @@ export function openFishingPrefsModal(isEditMode = true, onBackToHub = null) {
                 <select id="onbSpecificWaterSelect" class="input" style="width:100%;min-height:38px;font-weight:800;">
                   ${nearW.map((w, idx) => {
                     const cleanLbl = String(w.label || w.name || '').replace(/<svg[\s\S]*?<\/svg>/gi, '').replace(/<[^>]+>/g, '').trim();
-                    return `<option value="${w.wType}|${w.name}|${w.defDepth || 2.0}" ${idx === 0 ? 'selected' : ''}>${idx === 0 ? '★ ' : ''}${cleanLbl}</option>`;
+                    return `<option value="${w.wType}|${w.name}|${w.defDepth || 2.0}" ${idx === 0 ? 'selected' : ''}>${idx === 0 ? ' ' : ''}${cleanLbl}</option>`;
                   }).join('')}
                 </select>
               </div>
@@ -883,36 +892,36 @@ export function openFishingPrefsModal(isEditMode = true, onBackToHub = null) {
           <div id="onbWatersContainer" class="modal-chip-wrap">
             ${availWaters.map(w => {
               const active = selectedWaters.has(w.id);
-              return `<button type="button" class="w-chip ${active ? 'active' : ''}" data-onb-water="${w.id}">${active ? '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> ' : ''}${w.name}</button>`;
+              return `<button type="button" class="w-chip ${active ? 'active' : ''}" data-onb-water="${w.id}">${active ? '' : ''}${w.name}</button>`;
             }).join('')}
           </div>
         </div>
         <!-- ШАГ 3: СНАСТИ -->
         <div class="card" style="background:var(--card);padding:11px 12px;border:1px solid var(--border);">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:6px;flex-wrap:wrap;">
-            <label style="font-weight:800;font-size:var(--fs-xs);color:var(--accent);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg> 3. ВАШИ СНАСТИ</label>
+            <label style="font-weight:800;font-size:var(--fs-xs);color:var(--accent);">3. ВАШИ СНАСТИ</label>
             <span style="font-size:var(--fs-xs);color:var(--muted);font-weight:700;">отмечено: <b id="onbMethodsCount">${selectedMethods.size}</b></span>
           </div>
           <div id="onbMethodsContainer" class="modal-chip-wrap">
             ${TACKLE_OPTIONS.map(m => {
               const active = selectedMethods.has(m.val);
-              return `<button type="button" class="w-chip ${active ? 'active' : ''}" data-onb-method="${m.val}">${active ? '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> ' : ''}${m.text}</button>`;
+              return `<button type="button" class="w-chip ${active ? 'active' : ''}" data-onb-method="${m.val}">${active ? '' : ''}${m.text}</button>`;
             }).join('')}
           </div>
         </div>
         <!-- ШАГ 4: ЦЕЛЕВЫЕ РЫБЫ В ИЗБРАННОЕ -->
         <div class="card" style="background:var(--card);padding:11px 12px;border:1px solid var(--border);">
           <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px;">
-            <label style="font-weight:800;font-size:var(--fs-xs);color:var(--accent);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 12s4-6 11-6c4.2 0 7 2.5 9 6-2 3.5-4.8 6-9 6-7 0-11-6-11-6z" fill="rgba(56,189,248,0.28)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M2 12l-1.5-3.5L5 10.5M2 12l-1.5 3.5L5 13.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="16.5" cy="10.8" r="1.3" fill="currentColor"/></svg> 4. ИЗБРАННЫЕ ВИДЫ РЫБ РЕГИОНА</label>
+            <label style="font-weight:800;font-size:var(--fs-xs);color:var(--accent);">4. ИЗБРАННЫЕ ВИДЫ РЫБ РЕГИОНА</label>
             <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;width:100%;">
-              <button type="button" class="btn btn-sm btn-accent" id="onbSelectTypicalBtn" style="min-height:38px;width:100%;justify-content:center;font-weight:800;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.1 6.5L12 17.4l-5.8 3.1 1.1-6.5-4.8-4.6 6.6-.9L12 2.5z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6" stroke-linejoin="round"/></svg> Топ-7 региона</button>
+              <button type="button" class="btn btn-sm btn-accent" id="onbSelectTypicalBtn" style="min-height:38px;width:100%;justify-content:center;font-weight:800;">Топ-7 региона</button>
               <button type="button" class="btn btn-sm" id="onbClearFishBtn" style="min-height:38px;width:100%;justify-content:center;font-weight:800;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg> Очистить</button>
             </div>
           </div>
           <div id="onbSpeciesChips" class="modal-chip-wrap" style="max-height:190px;overflow-y:auto;padding:4px 0;display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:6px;">
             ${regionalSpecies.map(f => {
               const active = selectedFishes.has(f.id);
-              return `<button type="button" class="w-chip ${active ? 'active' : ''}" data-onb-fish="${f.id}" data-fish-label="${f.name}" style="justify-content:flex-start;min-height:36px;padding:6px 10px;">${active ? '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.1 6.5L12 17.4l-5.8 3.1 1.1-6.5-4.8-4.6 6.6-.9L12 2.5z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6" stroke-linejoin="round"/></svg> ' : '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.1 6.5L12 17.4l-5.8 3.1 1.1-6.5-4.8-4.6 6.6-.9L12 2.5z" fill="none" stroke="rgba(251,191,36,0.82)" stroke-width="1.8" stroke-linejoin="round"/></svg> '}${f.name}</button>`;
+              return `<button type="button" class="w-chip ${active ? 'active' : ''}" data-onb-fish="${f.id}" data-fish-label="${f.name}" style="justify-content:flex-start;min-height:36px;padding:6px 10px;">${active ? '' : ''}${f.name}</button>`;
             }).join('')}
           </div>
         </div>
@@ -921,7 +930,7 @@ export function openFishingPrefsModal(isEditMode = true, onBackToHub = null) {
             <button type="button" class="btn" id="onbLaterBtn" style="flex:1;min-width:130px;">Заполню позже</button>
           ` : ''}
           <button type="button" class="btn btn-good" id="onbSaveBtn" style="flex:2;width:100%;white-space:normal;line-height:1.25;">
-            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" fill="rgba(16,185,129,0.2)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M17 21v-8H7v8M7 3v5h8" stroke="currentColor" stroke-width="1.7"/></svg> Сохранить настройки рыбалки (локация, водоёмы, снасти, рыбы)
+            Сохранить настройки рыбалки (локация, водоёмы, снасти, рыбы)
           </button>
         </div>
       </div>
@@ -929,7 +938,7 @@ export function openFishingPrefsModal(isEditMode = true, onBackToHub = null) {
   }
   const backFn = typeof onBackToHub === 'function' ? onBackToHub : (isEditMode ? (() => openProfileHubModal()) : null);
   openModal(
-    isEditMode ? '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg> Моя рыбалка: Локация, Снасти и Рыбы' : '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z" fill="#f97316"/><path d="M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z" fill="rgba(56,189,248,0.25)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> Стартовая настройка рыбалки',
+    isEditMode ? 'Моя рыбалка: Локация, Снасти и Рыбы' : 'Стартовая настройка рыбалки',
     getFishingBodyHtml(),
     (bodyEl) => {
       if (!bodyEl) return;
@@ -982,7 +991,7 @@ export function openFishingPrefsModal(isEditMode = true, onBackToHub = null) {
       }
       function syncChipStarHtml(btn, isActive) {
         const fname = btn.getAttribute('data-fish-label') || btn.textContent.trim();
-        btn.innerHTML = `${isActive ? '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.1 6.5L12 17.4l-5.8 3.1 1.1-6.5-4.8-4.6 6.6-.9L12 2.5z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6" stroke-linejoin="round"/></svg> ' : '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.1 6.5L12 17.4l-5.8 3.1 1.1-6.5-4.8-4.6 6.6-.9L12 2.5z" fill="none" stroke="rgba(251,191,36,0.82)" stroke-width="1.8" stroke-linejoin="round"/></svg> '}${fname}`;
+        btn.innerHTML = `${isActive ? '' : ''}${fname}`;
       }
       function bindFishChips(container) {
         if (!container) return;
@@ -1063,8 +1072,8 @@ export function openFishingPrefsModal(isEditMode = true, onBackToHub = null) {
         const isSeaCoastal = isCoastalInBasin(currentBasin, currentLat, currentLon);
         const hint = bodyEl.querySelector('#onbLocHint');
         if (hint) {
-          const coordPart = sourceType !== 'manual' ? `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#ef4444"/></svg> ${cName} (${currentLat.toFixed(2)}°N, ${currentLon.toFixed(2)}°E) • ` : '';
-          hint.innerHTML = `${coordPart}Бассейн: ${getSpotEcoregion(currentLat, currentLon, currentBasin, s.water, '').displayBasinName || BASIN_CONFIGS[currentBasin]?.name || 'РФ'} ${isSeaCoastal ? '• <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> Морское побережье' : '• <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> Пресноводный бассейн'}`;
+          const coordPart = sourceType !== 'manual' ? `${cName} (${currentLat.toFixed(2)}°N, ${currentLon.toFixed(2)}°E) • ` : '';
+          hint.innerHTML = `${coordPart}Бассейн: ${getSpotEcoregion(currentLat, currentLon, currentBasin, s.water, '').displayBasinName || BASIN_CONFIGS[currentBasin]?.name || 'РФ'} ${isSeaCoastal ? '• Морское побережье' : '• Пресноводный бассейн'}`;
         }
         const availWaters = getAvailableWaterTypes(currentBasin, currentLat, currentLon);
         const validWaterIds = new Set(availWaters.map(w => w.id));
@@ -1079,7 +1088,7 @@ export function openFishingPrefsModal(isEditMode = true, onBackToHub = null) {
         if (watersContainer) {
           watersContainer.innerHTML = availWaters.map(w => {
             const active = selectedWaters.has(w.id);
-            return `<button type="button" class="w-chip ${active ? 'active' : ''}" data-onb-water="${w.id}">${active ? '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> ' : ''}${w.name}</button>`;
+            return `<button type="button" class="w-chip ${active ? 'active' : ''}" data-onb-water="${w.id}">${active ? '' : ''}${w.name}</button>`;
           }).join('');
           bindWaters(watersContainer);
           const cnt = bodyEl.querySelector('#onbWatersCount');
@@ -1090,7 +1099,7 @@ export function openFishingPrefsModal(isEditMode = true, onBackToHub = null) {
         if (speciesContainer) {
           speciesContainer.innerHTML = regionalSpecies.map(f => {
             const active = selectedFishes.has(f.id);
-            return `<button type="button" class="w-chip ${active ? 'active' : ''}" data-onb-fish="${f.id}" data-fish-label="${f.name}" style="justify-content:flex-start;min-height:36px;padding:6px 10px;">${active ? '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.1 6.5L12 17.4l-5.8 3.1 1.1-6.5-4.8-4.6 6.6-.9L12 2.5z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6" stroke-linejoin="round"/></svg> ' : '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.1 6.5L12 17.4l-5.8 3.1 1.1-6.5-4.8-4.6 6.6-.9L12 2.5z" fill="none" stroke="rgba(251,191,36,0.82)" stroke-width="1.8" stroke-linejoin="round"/></svg> '}${f.name}</button>`;
+            return `<button type="button" class="w-chip ${active ? 'active' : ''}" data-onb-fish="${f.id}" data-fish-label="${f.name}" style="justify-content:flex-start;min-height:36px;padding:6px 10px;">${active ? '' : ''}${f.name}</button>`;
           }).join('');
           bindFishChips(speciesContainer);
         }
@@ -1104,7 +1113,7 @@ export function openFishingPrefsModal(isEditMode = true, onBackToHub = null) {
       const gpsBtn = bodyEl.querySelector('#onbGpsBtn');
       if (gpsBtn) {
         gpsBtn.addEventListener('click', async () => {
-          gpsBtn.innerHTML = '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.5 2" stroke="#38bdf8" stroke-width="1.9" stroke-linecap="round"/></svg> Поиск...';
+          gpsBtn.innerHTML = 'Поиск...';
           gpsBtn.disabled = true;
           try {
             const geoRes = await detectUserPosition();
@@ -1114,15 +1123,15 @@ export function openFishingPrefsModal(isEditMode = true, onBackToHub = null) {
               const cName = (near && near.distKm <= 75) ? near.name : (geoRes.city || 'Моя точка');
               const cAdmin = (near && near.distKm <= 75) ? near.admin1 : (geoRes.region || 'Россия');
               applyModalLocation(geoRes.lat, geoRes.lon, cName, cAdmin, geoRes.source);
-              gpsBtn.innerHTML = geoRes.source === 'ip' ? '<svg class="k-ico" style="color:var(--good);" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="rgba(16,185,129,0.24)" stroke="#10b981" stroke-width="1.9"/><path d="M8 12.5l2.7 2.7L16.5 9.5" stroke="#10b981" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg> По сети' : '<svg class="k-ico" style="color:var(--good);" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="rgba(16,185,129,0.24)" stroke="#10b981" stroke-width="1.9"/><path d="M8 12.5l2.7 2.7L16.5 9.5" stroke="#10b981" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg> Найдено';
+              gpsBtn.innerHTML = geoRes.source === 'ip' ? 'По сети' : 'Найдено';
               showToast(` Локация определена: ${cName}`, 'good');
             } else {
-              gpsBtn.innerHTML = '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#ef4444"/></svg> Выберите в списке';
+              gpsBtn.innerHTML = 'Выберите в списке';
               showToast('Выберите город в списке Шага 1', 'info');
             }
           } catch (e) {
             gpsBtn.disabled = false;
-            gpsBtn.innerHTML = '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#ef4444"/></svg> Выберите в списке';
+            gpsBtn.innerHTML = 'Выберите в списке';
           }
         });
       }
@@ -1186,8 +1195,8 @@ export function openProfileHubModal() {
   const ownerMode = isOwnerAdmin(s);
   const adminMode = isUserAdmin(s);
   const savedLogin = s.userProfile?.login || (ident.callsign !== 'Рыболов' ? ident.callsign : '');
-  const modeLabels = { novice: '<svg class="k-ico" style="color:var(--good);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg> Новичок', angler: '<svg class="k-ico" style="color:var(--warn);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg> Рыбак', pro: '<svg class="k-ico" style="color:var(--bad);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg> Профи' };
-  const themeLabels = { auto: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6" stroke-linejoin="round"/></svg> Авто (День/Ночь)', dark: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6" stroke-linejoin="round"/></svg> Тёмная', light: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.5" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> Светлая' };
+  const modeLabels = { novice: 'Новичок', angler: 'Рыбак', pro: 'Профи' };
+  const themeLabels = { auto: 'Авто (День/Ночь)', dark: 'Тёмная', light: 'Светлая' };
   const favCount = Array.isArray(s.favorites) ? s.favorites.length : 0;
   const uaAccepted = isUserAgreementAccepted() || ident.isRegistered;
   const html = `
@@ -1195,10 +1204,10 @@ export function openProfileHubModal() {
       <div style="padding:10px 12px;background:rgba(56,189,248,0.12);border:1.5px solid var(--accent);border-radius:var(--r-sm);">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
           <div style="font-weight:800;font-size:var(--fs-md);color:var(--accent);">
-            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" fill="rgba(56,189,248,0.22)" stroke="currentColor" stroke-width="1.8"/><path d="M4 20c0-3.8 3.6-6.5 8-6.5s8 2.7 8 6.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> ${savedLogin || ident.callsign} ${ownerMode ? '• <svg class="k-ico" style="color:#fbbf24;" viewBox="0 0 24 24" fill="none"><path d="M3 18h18l-2-11-5 4-2-6-2 6-5-4-2 11z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Владелец' : (adminMode ? '• <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2.5l7 3.2v5.8c0 5-3 9.3-7 10.8-4-1.5-7-5.8-7-10.8V5.7l7-3.2z" fill="rgba(56,189,248,0.22)" stroke="#38bdf8" stroke-width="1.8" stroke-linejoin="round"/></svg> Админ' : '')}
+            ${savedLogin || ident.callsign} ${ownerMode ? '• Владелец' : (adminMode ? '• Админ' : '')}
           </div>
           <button type="button" class="btn btn-sm btn-good fisher-id-copy-badge" data-copy-fisher-id="${ident.fisherId}" title="Нажмите для автокопирования вашего ID рыбака" style="min-height:30px;padding:3px 10px;font-family:monospace;font-weight:900;">
-            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> ${ident.fisherId} <svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="9" y="9" width="11" height="11" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Копировать ID
+            ${ident.fisherId} Копировать ID
           </button>
         </div>
         <div style="font-size:var(--fs-xs);color:var(--muted);margin-top:4px;line-height:1.4;">
@@ -1207,12 +1216,12 @@ export function openProfileHubModal() {
       </div>
       <!-- ЗОНА 1: ЛОГИН, ПАРОЛЬ И МОЙ ID -->
       <button type="button" class="settings-hub-card" data-open-hub-zone="auth">
-        <div class="settings-hub-card-icon"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="5" y="11" width="14" height="10" rx="2.5" fill="rgba(251,191,36,0.22)" stroke="#fbbf24" stroke-width="1.8"/><path d="M8 11V7a4 4 0 0 1 8 0v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></div>
+        <div class="settings-hub-card-icon"></div>
         <div class="settings-hub-card-body">
           <div class="settings-hub-card-title">1. Вход, Пароль и Мой ID (${ident.fisherId})</div>
           <div class="settings-hub-card-sub">
             ${ident.isAuthenticated
-              ? `<svg class="k-ico" style="color:var(--good);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg> Вход выполнен (${savedLogin || ident.callsign}) • Доступ со всех устройств, ${ownerMode ? 'База Супер-Админа и ' : ''}Бэкап`
+              ? `Вход выполнен (${savedLogin || ident.callsign}) • Доступ со всех устройств, ${ownerMode ? 'База Супер-Админа и ' : ''}Бэкап`
               : 'Временный резервный ID (гостевой режим): войдите или зарегистрируйтесь для открытия прогноза на 10 дней, слоёв карт, Круга, Чатов и режимов'}
           </div>
         </div>
@@ -1220,22 +1229,22 @@ export function openProfileHubModal() {
       </button>
       <!-- ЗОНА 2: МОЯ РЫБАЛКА (ЛОКАЦИЯ, ВОДОЁМЫ, СНАСТИ, РЫБЫ) -->
       <button type="button" class="settings-hub-card" data-open-hub-zone="fishing">
-        <div class="settings-hub-card-icon"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg></div>
+        <div class="settings-hub-card-icon"></div>
         <div class="settings-hub-card-body">
           <div class="settings-hub-card-title">2. Моя рыбалка: Локация, Снасти и Рыбы</div>
           <div class="settings-hub-card-sub">
-            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#ef4444"/></svg> ${s.locLabel} • Избранных рыб: ${favCount} • Выбрать водоёмы, рабочие снасти и виды рыб
+            ${s.locLabel} • Избранных рыб: ${favCount} • Выбрать водоёмы, рабочие снасти и виды рыб
           </div>
         </div>
         <div class="settings-hub-card-arrow">›</div>
       </button>
       <!-- ЗОНА 3: НАСТРОЙКИ ПРИЛОЖЕНИЯ (РЕЖИМ, ТЕМА И УВЕДОМЛЕНИЯ) -->
       <button type="button" class="settings-hub-card" data-open-hub-zone="app">
-        <div class="settings-hub-card-icon"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3.2" stroke="currentColor" stroke-width="1.9"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.6.77 1.05 1.41 1.19H21a2 2 0 1 1 0 4h-.09c-.64.14-1.15.59-1.51 1.21z" stroke="currentColor" stroke-width="1.6"/></svg></div>
+        <div class="settings-hub-card-icon"></div>
         <div class="settings-hub-card-body">
           <div class="settings-hub-card-title">3. Настройки приложения</div>
           <div class="settings-hub-card-sub">
-            Режим: ${modeLabels[s.appMode] || '<svg class="k-ico" style="color:var(--warn);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg> Рыбак'} • Тема: ${themeLabels[s.theme || 'auto']} • Уведомления и сигналы Круга
+            Режим: ${modeLabels[s.appMode] || 'Рыбак'} • Тема: ${themeLabels[s.theme || 'auto']} • Уведомления и сигналы Круга
           </div>
         </div>
         <div class="settings-hub-card-arrow">›</div>
@@ -1243,7 +1252,7 @@ export function openProfileHubModal() {
       <!-- ЗОНА 4: ФАЗА 2 И 3 (ДОСТУПНО АДМИНУ И УЧАСТНИКАМ БЕТА-ТЕСТА) -->
       ${(adminMode || isCurrentUserBetaTester(s) || (typeof localStorage !== 'undefined' && localStorage.getItem('klev_pro_beta_tester_granted_v1') === '1')) ? `
       <button type="button" class="settings-hub-card" data-open-hub-zone="offgrid" id="hubZoneOffGridBtn" style="border-color:rgba(56,189,248,0.55);">
-        <div class="settings-hub-card-icon"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5M19.1 4.9C23 8.8 23 15.2 19.1 19.1" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="#ef4444"/></svg></div>
+        <div class="settings-hub-card-icon"></div>
         <div class="settings-hub-card-body">
           <div class="settings-hub-card-title" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
             <span>4. Автономная связь и Авто-SOS (Тайга / Море)</span>
@@ -1257,7 +1266,7 @@ export function openProfileHubModal() {
       </button>
       ` : `
       <button type="button" class="settings-hub-card" id="hubZoneOffGridDisabledBtn" disabled aria-disabled="true" style="opacity:0.62;cursor:not-allowed;border-style:dashed;">
-        <div class="settings-hub-card-icon"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5M19.1 4.9C23 8.8 23 15.2 19.1 19.1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="currentColor"/></svg></div>
+        <div class="settings-hub-card-icon"></div>
         <div class="settings-hub-card-body">
           <div class="settings-hub-card-title" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
             <span>4. Автономная связь и Авто-SOS (Тайга / Море)</span>
@@ -1272,21 +1281,21 @@ export function openProfileHubModal() {
       <!-- СОГЛАШЕНИЯ И ПРАВИЛА БЕЗОПАСНОСТИ (В НАСТРОЙКАХ ПРОФИЛЯ) -->
       <div class="card" style="background:var(--card);padding:10px 12px;border:1px solid var(--border);display:flex;flex-direction:column;gap:8px;font-size:11.5px;">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
-          <span style="font-weight:800;color:var(--accent);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" fill="rgba(56,189,248,0.14)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M14 2v6h6M8 13h8M8 17h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> ПОЛЬЗОВАТЕЛЬСКОЕ СОГЛАШЕНИЕ И БЕЗОПАСНОСТЬ</span>
+          <span style="font-weight:800;color:var(--accent);">ПОЛЬЗОВАТЕЛЬСКОЕ СОГЛАШЕНИЕ И БЕЗОПАСНОСТЬ</span>
           <span class="pill ${uaAccepted ? 'pill-good' : 'pill-warn'}" style="font-size:10px;">
-            ${uaAccepted ? '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Ознакомлен и принято' : 'Требуется при регистрации'}
+            ${uaAccepted ? 'Ознакомлен и принято' : 'Требуется при регистрации'}
           </span>
         </div>
         <div style="color:var(--muted);line-height:1.38;">
           Личные точки и уловы хранятся на вашем устройстве и в защищённом профиле. Расчёт толщины льда и прогноза носит справочный характер (проверяйте лёд пешнёй и сверяйтесь со сводками МЧС РФ).
         </div>
         <button type="button" class="btn btn-sm" id="hubOpenUserAgreementBtn" style="width:100%;">
-          <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" fill="rgba(56,189,248,0.14)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M14 2v6h6M8 13h8M8 17h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Открыть Пользовательское соглашение
+          Открыть Пользовательское соглашение
         </button>
       </div>
     </div>
   `;
-  openModal('<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" fill="rgba(56,189,248,0.22)" stroke="currentColor" stroke-width="1.8"/><path d="M4 20c0-3.8 3.6-6.5 8-6.5s8 2.7 8 6.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Профиль и настройки', html, (bodyEl) => {
+  openModal('Профиль и настройки', html, (bodyEl) => {
     if (!bodyEl) return;
     bodyEl.querySelectorAll('[data-open-hub-zone]').forEach(card => {
       card.addEventListener('click', () => {
@@ -1358,7 +1367,7 @@ function buildFishResultsHtml(s, list) {
       return `
         <div style="padding:16px 12px;background:var(--card);border:1px dashed var(--border);border-radius:var(--r-sm);text-align:center;margin:6px 0;">
           <div style="font-size:var(--fs-sm);font-weight:700;color:var(--text);margin-bottom:4px;">
-            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="2"/><path d="M16 16l4.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg> По запросу «${s.fishSearch}» рыб не найдено
+            По запросу «${s.fishSearch}» рыб не найдено
           </div>
           <div style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:10px;">
             Проверьте написание (например: елец, сырок, пелядь, щука, окунь, хариус, щокур) или сбросьте строку поиска.
@@ -1370,16 +1379,16 @@ function buildFishResultsHtml(s, list) {
     return `
       <div style="padding:16px 12px;background:var(--card);border:1px dashed var(--border);border-radius:var(--r-sm);text-align:center;margin:6px 0;">
         <div style="font-size:var(--fs-sm);font-weight:700;color:var(--text);margin-bottom:4px;">
-          <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.1 6.5L12 17.4l-5.8 3.1 1.1-6.5-4.8-4.6 6.6-.9L12 2.5z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6" stroke-linejoin="round"/></svg> Ваш список Избранного пока пуст (или этих рыб нет в водоёме)
+          Ваш список Избранного пока пуст (или этих рыб нет в водоёме)
         </div>
         <div style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:10px;">
-          По умолчанию в Избранном нет рыб. Нажмите «<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.1 6.5L12 17.4l-5.8 3.1 1.1-6.5-4.8-4.6 6.6-.9L12 2.5z" fill="none" stroke="rgba(251,191,36,0.82)" stroke-width="1.8" stroke-linejoin="round"/></svg>» на карточке нужной рыбы или отключите фильтр «Избранное», чтобы увидеть все виды биотопа «${prof.shortName}».
+          По умолчанию в Избранном нет рыб. Нажмите «» на карточке нужной рыбы или отключите фильтр «Избранное», чтобы увидеть все виды биотопа «${prof.shortName}».
         </div>
         <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
           <button type="button" class="btn btn-sm btn-accent" id="fishResetFavFilterBtn">
-            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 12s4-6 11-6c4.2 0 7 2.5 9 6-2 3.5-4.8 6-9 6-7 0-11-6-11-6z" fill="rgba(56,189,248,0.28)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M2 12l-1.5-3.5L5 10.5M2 12l-1.5 3.5L5 13.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="16.5" cy="10.8" r="1.3" fill="currentColor"/></svg> Показать все рыбы водоёма
+            Показать все рыбы водоёма
           </button>
-          <button type="button" class="btn btn-sm" id="fishOpenFavModalEmptyBtn"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.1 6.5L12 17.4l-5.8 3.1 1.1-6.5-4.8-4.6 6.6-.9L12 2.5z" fill="none" stroke="rgba(251,191,36,0.82)" stroke-width="1.8" stroke-linejoin="round"/></svg> Выбрать избранных рыб</button>
+          <button type="button" class="btn btn-sm" id="fishOpenFavModalEmptyBtn">Выбрать избранных рыб</button>
         </div>
       </div>
     `;
@@ -1399,13 +1408,13 @@ function buildFishResultsHtml(s, list) {
             else if (f.legal === 'introduced') badge = createPill({ text: 'Вселенец', tone: 'purple' });
             return `
               <div class="fish-card ${f.id === s.fishId ? 'active' : ''} ${isRed ? 'redbook-muted' : ''}" data-select-fish="${f.id}" role="option" aria-selected="${f.id === s.fishId}">
-                <button type="button" class="fav-btn" data-fav-fish="${f.id}" aria-label="${isFav ? 'Убрать из избранного' : 'В избранное'} ${f.name}">${isFav ? '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.1 6.5L12 17.4l-5.8 3.1 1.1-6.5-4.8-4.6 6.6-.9L12 2.5z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6" stroke-linejoin="round"/></svg>' : '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.1 6.5L12 17.4l-5.8 3.1 1.1-6.5-4.8-4.6 6.6-.9L12 2.5z" fill="none" stroke="rgba(251,191,36,0.82)" stroke-width="1.8" stroke-linejoin="round"/></svg>'}</button>
+                <button type="button" class="fav-btn" data-fav-fish="${f.id}" aria-label="${isFav ? 'Убрать из избранного' : 'В избранное'} ${f.name}">${isFav ? '' : ''}</button>
                 <div class="fish-img-wrap">${renderFishVisual(f)}</div>
                 <div class="fish-name">${f.name}</div>
                 <div class="fish-latin">${f.latin || ''}</div>
                 <div class="fish-badge-wrap" style="margin:2px 0;">${badge}</div>
                 ${renderFiveFish(sc, 14, curTheme, true, isRed ? `Прилов ${sc}% • Отпусти` : null)}
-                <button type="button" class="btn btn-sm" style="width:100%;margin-top:6px;" data-info-fish="${f.id}"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="rgba(56,189,248,0.18)" stroke="#38bdf8" stroke-width="1.8"/><path d="M12 11v5M12 8h.01" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> Подробнее</button>
+                <button type="button" class="btn btn-sm" style="width:100%;margin-top:6px;" data-info-fish="${f.id}">Подробнее</button>
               </div>
             `;
           }).join('')}
@@ -1424,7 +1433,7 @@ function updateFishDynamicParts(container, s, list) {
   const favBtn = container.querySelector('#fishFavFilterBtn');
   if (favBtn) {
     favBtn.className = `btn btn-sm ${s.onlyFavoritesFilter ? 'btn-accent' : ''}`;
-    favBtn.innerHTML = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.1 6.5L12 17.4l-5.8 3.1 1.1-6.5-4.8-4.6 6.6-.9L12 2.5z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6" stroke-linejoin="round"/></svg> Избранное (${(s.favorites || []).length})${s.onlyFavoritesFilter ? ' • ВКЛ' : ''}`;
+    favBtn.innerHTML = `Избранное (${(s.favorites || []).length})${s.onlyFavoritesFilter ? ' • ВКЛ' : ''}`;
   }
   const showAllBtn = container.querySelector('#fishShowAllBtn');
   if (showAllBtn) {
@@ -1438,7 +1447,7 @@ function updateFishDynamicParts(container, s, list) {
   const ecoregion = getSpotEcoregion(s.lat, s.lon, s.basinCode, s.water, s.selectedWaterName);
   const searchInput = container.querySelector('#fishSearchInput');
   if (searchInput) {
-    const nextPlaceholder = ecoregion.searchPlaceholder || '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="2"/><path d="M16 16l4.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg> Поиск рыбы (щука, окунь, плотва, карась, лещ, судак...)';
+    const nextPlaceholder = ecoregion.searchPlaceholder || 'Поиск рыбы (щука, окунь, плотва, карась, лещ, судак...)';
     if (searchInput.getAttribute('placeholder') !== nextPlaceholder) {
       searchInput.setAttribute('placeholder', nextPlaceholder);
     }
@@ -1492,10 +1501,10 @@ export function renderFishStrip(container, state) {
       <!-- Кнопки По фото (ИИ), объединённая кнопка Избранное (открывает список с чекбоксом) и широкая кнопка переключения ихтиобазы -->
       <div class="fish-toolbar-onerow">
         <button type="button" class="btn btn-sm btn-good" id="fishOpenPhotoScannerBtn" title="Нейро-определитель вида рыбы, статуса Красной книги и веса по фото">
-          <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 8V6a2 2 0 0 1 2-2h2M4 16v2a2 2 0 0 0 2 2h2m8-16h2a2 2 0 0 1 2 2v2m-4 12h2a2 2 0 0 0 2-2v-2" stroke="#38bdf8" stroke-width="1.9" stroke-linecap="round"/><path d="M6 12s2.5-3.8 6.5-3.8c2.6 0 4.5 1.5 5.5 3.8-1 2.3-2.9 3.8-5.5 3.8-4 0-6.5-3.8-6.5-3.8z" fill="rgba(16,185,129,0.28)" stroke="#10b981" stroke-width="1.7"/></svg> По фото (ИИ)
+          По фото (ИИ)
         </button>
         <button type="button" class="btn btn-sm ${s.onlyFavoritesFilter ? 'btn-accent' : ''}" id="fishFavFilterBtn" title="Открыть список избранных видов рыб">
-          <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.1 6.5L12 17.4l-5.8 3.1 1.1-6.5-4.8-4.6 6.6-.9L12 2.5z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6" stroke-linejoin="round"/></svg> Избранное (${(s.favorites || []).length})${s.onlyFavoritesFilter ? ' • ВКЛ' : ''}
+          Избранное (${(s.favorites || []).length})${s.onlyFavoritesFilter ? ' • ВКЛ' : ''}
         </button>
         <button type="button" class="btn btn-sm ${s.showAllSpecies ? 'btn-warn' : 'btn-accent'}" id="fishShowAllBtn" style="grid-column:1 / -1;width:100%;" title="Переключить между рыбами вашего водоёма/бассейна и полным справочником 115 видов РФ">
           ${s.showAllSpecies ? 'Включить фильтр по региону' : `Регион (${list.length}) • Все 115 РФ`}
@@ -1628,6 +1637,7 @@ function bindFishResultEvents(container, resultsArea) {
   });
 }
 export function render(container) {
+  if (typeof window !== 'undefined') { window.__KLEV_RENDER_FISH__ = render; }
   renderFishStrip(container, store.getState());
 }
 let unsub = null;
@@ -1644,6 +1654,7 @@ function updateActiveFishSelectionOnly(container, activeFishId) {
   return true;
 }
 export function init(container) {
+  if (typeof window !== 'undefined') { window.__KLEV_RENDER_FISH__ = render; }
   if (typeof window !== 'undefined') {
     window.__KLEV_OPEN_FISH_DETAIL__ = openFishDetail;
     window.__KLEV_OPEN_FISH_SCANNER__ = (opts = {}) => openFishPhotoScannerModal({ onOpenDetail: openFishDetail, ...opts });

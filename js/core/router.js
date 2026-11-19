@@ -338,6 +338,22 @@ export const router = {
     if (typeof window.syncFishDockState === 'function') {
       window.syncFishDockState(false, route);
     }
+    if (route === 'weather') {
+      setTimeout(() => {
+        const secW = document.getElementById('secWeather');
+        if (secW && typeof window.__KLEV_RENDER_WEATHER__ === 'function') {
+          window.__KLEV_RENDER_WEATHER__(secW);
+        }
+      }, 10);
+    }
+    if (route === 'fish') {
+      setTimeout(() => {
+        const secF = document.getElementById('secFish');
+        if (secF && typeof window.__KLEV_RENDER_FISH__ === 'function') {
+          window.__KLEV_RENDER_FISH__(secF);
+        }
+      }, 10);
+    }
     if (route === 'geo') {
       setTimeout(() => {
         const box = document.getElementById('mapBox');

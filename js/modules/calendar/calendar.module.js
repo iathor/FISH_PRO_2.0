@@ -71,19 +71,19 @@ export function renderCalendar(container, fishId) {
     </div>
     <div class="bento-metrics-grid" style="margin-bottom:12px;">
       <div class="bento-metric-tile">
-        <div class="bento-metric-label"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M17 3C11 3 5 7 5 15c0 2.5 1.5 4 4 4 8 0 12-6 12-12 0-2.5-1.5-4-4-4z" fill="rgba(16,185,129,0.25)" stroke="#10b981" stroke-width="1.8"/><path d="M5 19L15 9" stroke="#10b981" stroke-width="1.8" stroke-linecap="round"/></svg> Период нереста</div>
+        <div class="bento-metric-label">Период нереста</div>
         <div class="bento-metric-val" style="color:#f43f5e;">${spawnText}</div>
       </div>
       <div class="bento-metric-tile">
-        <div class="bento-metric-label"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3v18M5 7h14M5 7l-3 6h6l-3-6zm14 0l-3 6h6l-3-6zM8 21h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Правовой статус</div>
+        <div class="bento-metric-label">Правовой статус</div>
         <div class="bento-metric-val" style="font-size:14px;color:${fish.legal === 'redbook' ? 'var(--bad)' : 'var(--warn)'};">${fish.banMonths}</div>
       </div>
       <div class="bento-metric-tile">
-        <div class="bento-metric-label"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2c1.5 3.5 4.5 5.5 4.5 10a5.5 5.5 0 1 1-11 0c0-3 2-5.5 3.5-7 0 2 1.5 3 1.5 3S12 5.5 12 2z" fill="#f97316" stroke="#fbbf24" stroke-width="1.5" stroke-linejoin="round"/></svg> Пик годового клёва</div>
+        <div class="bento-metric-label">Пик годового клёва</div>
         <div class="bento-metric-val" style="color:var(--good);">${bestMonths}</div>
       </div>
       <div class="bento-metric-tile">
-        <div class="bento-metric-label"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> Рабочий горизонт</div>
+        <div class="bento-metric-label">Рабочий горизонт</div>
         <div class="bento-metric-val" style="color:var(--accent);">${fish.depthOpt[0]}–${fish.depthOpt[1]} м <span style="font-size:11px;color:var(--muted);">(до ${fish.depthMax} м)</span></div>
       </div>
     </div>
@@ -131,7 +131,7 @@ export function renderCalendar(container, fishId) {
         <div style="padding:8px 10px;background:var(--card);border-left:4px solid ${c.color};border-radius:4px;font-size:var(--fs-xs);">
           <div style="font-weight:800;font-size:var(--fs-sm);color:${c.color};">${c.fish.name}</div>
           <div style="color:var(--muted);margin-top:2px;">
-            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> Вода: ${c.fish.tWaterOpt[0]}–${c.fish.tWaterOpt[1]}°C • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M17 3C11 3 5 7 5 15c0 2.5 1.5 4 4 4 8 0 12-6 12-12 0-2.5-1.5-4-4-4z" fill="rgba(16,185,129,0.25)" stroke="#10b981" stroke-width="1.8"/><path d="M5 19L15 9" stroke="#10b981" stroke-width="1.8" stroke-linecap="round"/></svg> Нерест: ${(c.spawnMonths || []).map(m => RU.monthsShort[m - 1]).join(', ') || 'нет'}
+            Вода: ${c.fish.tWaterOpt[0]}–${c.fish.tWaterOpt[1]}°C • Нерест: ${(c.spawnMonths || []).map(m => RU.monthsShort[m - 1]).join(', ') || 'нет'}
           </div>
         </div>
       `).join('')}
@@ -141,7 +141,7 @@ export function renderCalendar(container, fishId) {
         const isJointPeak = compared.length >= 2 && compared.every(c => c.monthActivity[idx] >= 2 && !c.spawnMonths.includes(idx + 1));
         return `
           <div class="month-cell ${idx === curMonth ? 'current' : ''}" style="${isJointPeak ? 'border-color:var(--good);background:rgba(16,185,129,0.08);' : ''}">
-            <span style="font-weight:800;font-size:var(--fs-xs);">${mName} ${isJointPeak ? '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2c1.5 3.5 4.5 5.5 4.5 10a5.5 5.5 0 1 1-11 0c0-3 2-5.5 3.5-7 0 2 1.5 3 1.5 3S12 5.5 12 2z" fill="#f97316" stroke="#fbbf24" stroke-width="1.5" stroke-linejoin="round"/></svg>' : ''}</span>
+            <span style="font-weight:800;font-size:var(--fs-xs);">${mName} ${isJointPeak ? '' : ''}</span>
             <div style="display:flex;flex-direction:column;gap:3px;margin:4px 0;">
               ${compared.map(c => {
                 const act = c.monthActivity[idx];
@@ -157,7 +157,7 @@ export function renderCalendar(container, fishId) {
       }).join('')}
     </div>
     <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:10px;font-size:var(--fs-xs);color:var(--muted);padding-top:6px;border-top:1px solid var(--border);">
-      <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2c1.5 3.5 4.5 5.5 4.5 10a5.5 5.5 0 1 1-11 0c0-3 2-5.5 3.5-7 0 2 1.5 3 1.5 3S12 5.5 12 2z" fill="#f97316" stroke="#fbbf24" stroke-width="1.5" stroke-linejoin="round"/></svg> <b>Общий жор</b> — месяцы совпадения высокой кормовой активности всех выбранных видов</span>
+      <span><b>Общий жор</b> — месяцы совпадения высокой кормовой активности всех выбранных видов</span>
     </div>
   `;
   container.innerHTML = `

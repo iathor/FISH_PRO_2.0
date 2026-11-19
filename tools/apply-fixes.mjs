@@ -764,10 +764,10 @@ function patchFrontendAndServiceWorker() {
   }
 
   // 2) 3.5: Функция esc() для экранирования пользовательских данных
-  if (!runtimeCode.includes('const esc=Be;')) {
+  if (!runtimeCode.includes('window.esc=')) {
     runtimeCode = runtimeCode.replace(
-      'function Be(e){return null==e?"":String(e).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/\'/g,"&#39;")}',
-      'function Be(e){return null==e?"":String(e).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/\'/g,"&#39;")}const esc=Be;if("undefined"!=typeof window)window.esc=Be;'
+      /function ([A-Za-z0-9_$]+)\(e\)\{return null==e\?"":String\(e\)\.replace\(\/&\/g,"&amp;"\)\.replace\(\/<\/g,"&lt;"\)\.replace\(\/>\/g,"&gt;"\)\.replace\(\/"\/g,"&quot;"\)\.replace\(\/'\/g,"&#39;"\)\}/,
+      'function $1(e){return null==e?"":String(e).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/\'/g,"&#39;")}const esc=$1;if("undefined"!=typeof window)window.esc=$1;'
     );
   }
 

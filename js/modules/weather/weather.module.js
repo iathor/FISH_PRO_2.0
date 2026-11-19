@@ -6,6 +6,15 @@ import { fetchWithTimeout, fallbackChain } from '../../core/http.js?v=2.9.3-r239
 import { formatLocalYYYYMMDD, fmtHM, fmtDeltaPress } from '../../core/format.js?v=2.9.3-r239';
 import { WATER_PROFILES } from '../../data/waters.js?v=2.9.3-r239';
 import { createPill, showToast } from '../../ui/components.js?v=2.9.3-r239';
+
+function escapeHtml(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 const DIRS = ['С', 'СВ', 'В', 'ЮВ', 'Ю', 'ЮЗ', 'З', 'СЗ'];
 
 /**
@@ -245,12 +254,12 @@ export function computeMoon(dateStr) {
   const riseHour = (transitHour + 18) % 24;
   const setHour = (transitHour + 6) % 24;
   let phaseName = 'Растущая луна';
-  let phaseIcon = '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6" stroke-linejoin="round"/></svg>';
-  if (moonDay === 1 || moonDay >= 29) { phaseName = 'Новолуние'; phaseIcon = '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6" stroke-linejoin="round"/></svg>'; }
-  else if (moonDay >= 14 && moonDay <= 16) { phaseName = 'Полнолуние'; phaseIcon = '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.5" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg>'; }
-  else if (moonDay >= 7 && moonDay <= 8) { phaseName = 'Первая четверть'; phaseIcon = '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6" stroke-linejoin="round"/></svg>'; }
-  else if (moonDay >= 22 && moonDay <= 23) { phaseName = 'Последняя четверть'; phaseIcon = '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6" stroke-linejoin="round"/></svg>'; }
-  else if (moonDay > 16) { phaseName = 'Убывающая луна'; phaseIcon = '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6" stroke-linejoin="round"/></svg>'; }
+  let phaseIcon = '';
+  if (moonDay === 1 || moonDay >= 29) { phaseName = 'Новолуние'; phaseIcon = ''; }
+  else if (moonDay >= 14 && moonDay <= 16) { phaseName = 'Полнолуние'; phaseIcon = ''; }
+  else if (moonDay >= 7 && moonDay <= 8) { phaseName = 'Первая четверть'; phaseIcon = ''; }
+  else if (moonDay >= 22 && moonDay <= 23) { phaseName = 'Последняя четверть'; phaseIcon = ''; }
+  else if (moonDay > 16) { phaseName = 'Убывающая луна'; phaseIcon = ''; }
   return {
     moonDay,
     illum,
@@ -557,8 +566,8 @@ export function computeIceSafetyIndex(day, waterType = "small_river") {
     minSledCm,
     statusText: `Безопасный лёд ~${thick} см (индекс надёжности ${score}/100)`,
     vehicleVerdict: sledSafe
-      ? `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Пешком: РАЗРЕШЕНО (≥${minFootCm} см) • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Мотобуксировщик/снегоход: РАЗРЕШЕНО (≥${minSledCm} см)`
-      : `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Пешком со спасалками: РАЗРЕШЕНО (≥${minFootCm} см) • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Техника/снегоход: ОПАСНО (нужно ≥${minSledCm} см!)`,
+      ? `Пешком: РАЗРЕШЕНО (≥${minFootCm} см) • Мотобуксировщик/снегоход: РАЗРЕШЕНО (≥${minSledCm} см)`
+      : `Пешком со спасалками: РАЗРЕШЕНО (≥${minFootCm} см) • Техника/снегоход: ОПАСНО (нужно ≥${minSledCm} см!)`,
     recommendation: sledSafe
       ? "Монолитный лёд достаточной толщины для пешего перехода и лёгкой мототехники. Избегайте устьев притоков и быстрин."
       : `Толщина ~${thick} см достаточна для одиночного пешего выхода с пешнёй и спасалками, но выезд на мотобуксировщике или снегоходе запрещён (требуется от ${minSledCm} см).`
@@ -1414,6 +1423,7 @@ if (typeof window !== 'undefined') {
 }
 
 export function render(container) {
+  if (typeof window !== 'undefined') { window.__KLEV_RENDER_WEATHER__ = render; }
   if (!container) return;
   if (typeof window !== 'undefined' && typeof window.__KLEV_IS_MOBILE_GUEST__ === 'function' && window.__KLEV_IS_MOBILE_GUEST__()) {
     if (store.getState().dayIdx !== 2) {
@@ -1822,9 +1832,13 @@ export function render(container) {
       </div>
     </div>
   `;
-  container.querySelector('#weatherStickyBackToMapBtn')?.addEventListener('click', () => {
+  container.querySelector('#weatherStickyBackToMapBtn')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (typeof window !== 'undefined' && typeof window.__KLEV_HANDLE_BACK__ === 'function') {
+      if (window.__KLEV_HANDLE_BACK__('ui_back_btn')) return;
+    }
     if (typeof window !== 'undefined' && typeof window.__KLEV_NAVIGATE_SECTION__ === 'function') {
-      window.__KLEV_NAVIGATE_SECTION__('geo');
+      window.__KLEV_NAVIGATE_SECTION__('forecast');
     }
   });
   container.querySelectorAll('[data-weather-pick-day]').forEach(btn => {
@@ -1854,6 +1868,7 @@ export function render(container) {
 }
 let unsub = null;
 export function init(container) {
+  if (typeof window !== 'undefined') { window.__KLEV_RENDER_WEATHER__ = render; }
   const st = store.getState();
   if (!st.weatherDays || st.weatherDays.length !== 12) {
     const fb = buildFallback(st.lat, st.water);

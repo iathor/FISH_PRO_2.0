@@ -1549,7 +1549,7 @@ export function openFishPhotoScannerModal(options = {}) {
   `;
 
   openModal(
-    '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" fill="rgba(56,189,248,0.22)" stroke="#38bdf8" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="13" r="4" stroke="#10b981" stroke-width="2"/></svg> ИИ-определитель рыбы по фото',
+    'ИИ-определитель рыбы по фото',
     html,
     async (bodyEl) => {
       const root = bodyEl.querySelector("#fishScannerModalRoot") || bodyEl;
@@ -1630,7 +1630,7 @@ export function openFishPhotoScannerModal(options = {}) {
             <div class="card" style="padding:16px 14px;text-align:center;background:var(--card);border:1.5px solid var(--accent);display:flex;flex-direction:column;gap:10px;">
               <div style="display:flex;justify-content:center;">
                 <span class="pill pill-good" style="font-size:10.5px;font-weight:800;">
-                  🟢 Нейросеть Gemini Vision ИИ готова к распознаванию
+                   Нейросеть Gemini Vision ИИ готова к распознаванию
                 </span>
               </div>
               <div style="font-weight:900;font-size:15px;color:var(--text);">
@@ -1641,10 +1641,10 @@ export function openFishPhotoScannerModal(options = {}) {
               </div>
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:2px;">
                 <button type="button" class="btn btn-good" id="scannerOpenLiveCamBtn" style="min-height:42px;font-weight:900;">
-                  <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" fill="rgba(16,185,129,0.22)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="13" r="4" stroke="currentColor" stroke-width="1.8"/></svg> Камера
+                  Камера
                 </button>
                 <button type="button" class="btn btn-accent" id="scannerHeroGalleryBtn" style="min-height:42px;font-weight:900;">
-                  <svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="3" stroke="currentColor" stroke-width="1.8"/><circle cx="8.5" cy="8.5" r="1.8" fill="currentColor"/><path d="M21 15l-5-5L5 21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Из галереи
+                  Из галереи
                 </button>
               </div>
 
@@ -1751,7 +1751,7 @@ ${escapeHtml(fullAnalysisText || activeMatch.reason || fish.idTraits || "")}
                             <span style="display:flex;align-items:center;gap:8px;min-width:0;flex:1;">
                               <img src="assets/fish/${m.fish.id}.png" alt="" style="width:36px;height:22px;object-fit:contain;flex-shrink:0;" onerror="this.style.display='none'">
                               <span style="font-weight:800;font-size:12.5px;white-space:normal;line-height:1.25;">
-                                ${isSel ? "✓ " : ""}${idx + 1}. ${escapeHtml(m.displayTitle || m.fish.name)}${escapeHtml(posTag)}
+                                ${isSel ? " " : ""}${idx + 1}. ${escapeHtml(m.displayTitle || m.fish.name)}${escapeHtml(posTag)}
                               </span>
                             </span>
                             <span class="pill ${isSel ? "pill-good" : "pill-neutral"}" style="font-weight:900;font-size:11px;flex-shrink:0;">
@@ -1796,14 +1796,14 @@ ${escapeHtml(fullAnalysisText || activeMatch.reason || fish.idTraits || "")}
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;">
               ${!isRedBook ? `
                 <button type="button" class="btn btn-good" id="scannerApplyToLogBtn" style="min-height:42px;font-weight:900;">
-                  <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg> + Записать в Журнал
+                  + Записать в Журнал
                 </button>
               ` : ""}
               <button type="button" class="btn btn-accent" id="scannerSelectForForecastBtn" style="min-height:42px;font-weight:800;">
-                <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="4.5" stroke="#38bdf8" stroke-width="1.6"/><circle cx="12" cy="12" r="1.8" fill="#10b981"/></svg> Прогноз и снасти
+                Прогноз и снасти
               </button>
               <button type="button" class="btn" id="scannerOpenPassportBtn" style="min-height:42px;font-weight:800;">
-                <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="2"/><path d="M16 16l4.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg> Паспорт вида
+                Паспорт вида
               </button>
             </div>
           ` : ""}

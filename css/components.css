@@ -1834,40 +1834,7 @@ html[data-theme="light"] .seg-bar {
   background: var(--accent);
 }
 
-input[type="checkbox"]:not(.klev-switch input) {
-  appearance: none;
-  -webkit-appearance: none;
-  width: 40px !important;
-  height: 22px !important;
-  border-radius: 999px !important;
-  background: rgba(148, 163, 184, 0.28) !important;
-  border: 1px solid var(--border) !important;
-  position: relative !important;
-  cursor: pointer !important;
-  flex-shrink: 0 !important;
-  vertical-align: middle !important;
-  transition: all 0.2s ease !important;
-}
-input[type="checkbox"]:not(.klev-switch input)::before {
-  content: "";
-  position: absolute;
-  width: 16px;
-  height: 16px;
-  left: 2px;
-  top: 2px;
-  border-radius: 50%;
-  background: #E2E8F0;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
-  transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), background 0.2s ease;
-}
-input[type="checkbox"]:not(.klev-switch input):checked {
-  background: rgba(56, 189, 248, 0.32) !important;
-  border-color: var(--accent) !important;
-}
-input[type="checkbox"]:not(.klev-switch input):checked::before {
-  transform: translateX(18px);
-  background: var(--accent);
-}
+
 
 /* 6. 6 однострочных мини-плашек внизу карты */
 .map-single-pill {

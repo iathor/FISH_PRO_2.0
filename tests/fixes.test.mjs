@@ -110,7 +110,7 @@ test('3.4 & 4.8 Единый источник версии VERSION (2.9.0 r240) 
 });
 
 test('3.5 Экранирование пользовательских данных esc() и белый список URI в MainActivity.java', () => {
-  assert.ok(runtimeSrc.includes('const esc=Be;'));
+  assert.ok(runtimeSrc.includes('window.esc='));
   const esc = (e) => e == null ? '' : String(e)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')

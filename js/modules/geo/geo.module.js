@@ -2915,6 +2915,30 @@ export function computeDeduplicatedMapCounts(stateObj = null) {
       uniqueSpots.push({ id: sp.id, catKey, lat: Number(sp.lat), lon: Number(sp.lon), mine: true, source: 'saved', raw: sp, dKey });
     });
   }
+  if (Array.isArray(s.catches)) {
+    s.catches.forEach(c => {
+      if (!c || c.deletedAt || c.isBlankTrip) return;
+      const cLat = Number.isFinite(Number(c.lat)) ? Number(c.lat) : Number(s.lat);
+      const cLon = Number.isFinite(Number(c.lon)) ? Number(c.lon) : Number(s.lon);
+      if (!Number.isFinite(cLat) || !Number.isFinite(cLon)) return;
+      const catKey = 'bite';
+      const dKey = `catch_${c.id || ''}_${cLat.toFixed(4)}_${cLon.toFixed(4)}`;
+      if (seenSpotKeys.has(dKey)) return;
+      seenSpotKeys.add(dKey);
+      const fishTitle = c.fishName || c.fish || 'Улов';
+      const weightInfo = Number(c.weightKg) > 0 ? ` (${Number(c.weightKg).toFixed(2).replace(/\.00$/, '')} кг)` : '';
+      uniqueSpots.push({
+        id: `catch_pt_${c.id || Date.now()}`,
+        catKey,
+        lat: cLat,
+        lon: cLon,
+        mine: true,
+        source: 'saved',
+        raw: { ...c, name: `Улов: ${fishTitle}${weightInfo}` },
+        dKey
+      });
+    });
+  }
   const rawCircle = (Array.isArray(s.circleItems) ? s.circleItems : []).filter(x => x && !isCircleItemHidden(x, s));
   rawCircle.forEach(item => {
     if (item.t !== 'spot' || !Number.isFinite(Number(item.lat)) || !Number.isFinite(Number(item.lon))) return;
@@ -5908,19 +5932,31 @@ export function openPhase3RoutesModal(container = null) {
           </div>
         </div>
 
-        <!-- Голосовое сопровождение по маршруту (на экране + отдельное переключение в фоне) -->
-        <div style="padding:10px 12px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);display:flex;flex-direction:column;gap:8px;">
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
-            <label style="display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:800;color:var(--text);cursor:pointer;">
-              <input type="checkbox" id="p3ToggleVoiceGuidanceChk" ${_voiceGuidanceEnabled ? 'checked' : ''} style="width:16px;height:16px;accent-color:var(--accent);">
-              <span>Голосовое сопровождение на экране (повороты, сход с маршрута, прибытие)</span>
+        <!-- Голосовое сопровождение по маршруту (на экране + отдельное переключение в фоне через .klev-switch) -->
+        <div style="padding:11px 13px;background:var(--card);border:1px solid var(--border);border-radius:14px;display:flex;flex-direction:column;gap:10px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+            <div style="min-width:0;flex:1;">
+              <div style="font-size:12.5px;font-weight:800;color:var(--text);">Голосовое сопровождение на экране</div>
+              <div style="font-size:11px;color:var(--muted);">Повороты, сход с маршрута, прибытие</div>
+            </div>
+            <label class="klev-switch" aria-label="Голосовое сопровождение на экране">
+              <input type="checkbox" id="p3ToggleVoiceGuidanceChk" ${_voiceGuidanceEnabled ? 'checked' : ''}>
+              <span class="klev-switch-slider"></span>
             </label>
-            <button type="button" class="btn btn-sm" id="p3TestVoiceModalBtn" style="min-height:28px;padding:2px 10px;font-size:11px;font-weight:800;">Проверить звук</button>
           </div>
-          <label style="display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:800;color:var(--accent);cursor:pointer;padding-top:6px;border-top:1px dashed var(--border);">
-            <input type="checkbox" id="p3ToggleBgVoiceGuidanceChk" ${_voiceGuidanceBgEnabled ? 'checked' : ''} style="width:16px;height:16px;accent-color:var(--accent);">
-            <span>Звуковое сопровождение в фоне (когда приложение свёрнуто или экран погашен)</span>
-          </label>
+          <div>
+            <button type="button" class="pill-btn" id="p3TestVoiceModalBtn" style="min-height:30px;padding:4px 12px;font-size:11.5px;font-weight:800;">Проверить звук</button>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding-top:8px;border-top:1px dashed var(--border);">
+            <div style="min-width:0;flex:1;">
+              <div style="font-size:12.5px;font-weight:800;color:var(--accent);">Звуковое сопровождение в фоне</div>
+              <div style="font-size:11px;color:var(--muted);">Когда приложение свёрнуто или экран погашен</div>
+            </div>
+            <label class="klev-switch" aria-label="Звуковое сопровождение в фоне">
+              <input type="checkbox" id="p3ToggleBgVoiceGuidanceChk" ${_voiceGuidanceBgEnabled ? 'checked' : ''}>
+              <span class="klev-switch-slider"></span>
+            </label>
+          </div>
         </div>
 
         <!-- Сохранённые маршруты -->
@@ -5940,7 +5976,7 @@ export function openPhase3RoutesModal(container = null) {
                   </div>
                   <div style="display:flex;gap:5px;">
                     <button type="button" class="btn btn-sm btn-accent" data-load-saved-route="${escapeHtml(rt.id)}" style="min-height:28px;padding:2px 8px;font-size:11px;">Вести назад</button>
-                    <button type="button" class="btn btn-sm" data-del-saved-route="${escapeHtml(rt.id)}" style="min-height:28px;padding:2px 7px;font-size:11px;color:var(--bad);">✕</button>
+                    <button type="button" class="btn btn-sm" data-del-saved-route="${escapeHtml(rt.id)}" style="min-height:28px;padding:2px 7px;font-size:11px;color:var(--bad);"></button>
                   </div>
                 </div>
               `).join('')}
@@ -6153,6 +6189,38 @@ function renderMapOverlays() {
       });
     });
   }
+  if (visibleMapLayers.mySpots && visibleMapLayers.showMine !== false && Array.isArray(s.catches)) {
+    s.catches.forEach(c => {
+      if (!c || c.deletedAt || c.isBlankTrip) return;
+      const cLat = Number.isFinite(Number(c.lat)) ? Number(c.lat) : Number(s.lat);
+      const cLon = Number.isFinite(Number(c.lon)) ? Number(c.lon) : Number(s.lon);
+      if (!Number.isFinite(cLat) || !Number.isFinite(cLon)) return;
+      const catKey = 'bite';
+      if (visibleMapLayers.selectedCategories instanceof Set && !visibleMapLayers.selectedCategories.has(catKey)) return;
+      const dedupKey = `catch_${c.id || ''}_${cLat.toFixed(4)}_${cLon.toFixed(4)}`;
+      if (seenThematicKeys.has(dedupKey)) return;
+      seenThematicKeys.add(dedupKey);
+      const fishTitle = c.fishName || c.fish || 'Улов';
+      const weightInfo = Number(c.weightKg) > 0 ? ` (${Number(c.weightKg).toFixed(2).replace(/\.00$/, '')} кг)` : '';
+      const metaParts = [];
+      if (c.dateLabel || c.date) metaParts.push(c.dateLabel || c.date);
+      if (c.bait) metaParts.push(`Приманка: ${c.bait}`);
+      thematicCandidates.push({
+        id: `catch_pt_${c.id || Date.now()}`,
+        lat: cLat,
+        lon: cLon,
+        catKey,
+        dedupKey,
+        name: `Мой улов: ${fishTitle}${weightInfo}`,
+        depth: c.depth || s.depth || 0,
+        clipMeters: 0,
+        metaSummary: metaParts.join(' • '),
+        au: ident.callsign || 'Мой журнал',
+        mine: true,
+        isSavedSpot: true
+      });
+    });
+  }
   const rawCircleList = Array.isArray(s.circleItems) ? s.circleItems : [];
   if (visibleMapLayers.mySpots) {
     rawCircleList.forEach(item => {
@@ -6198,7 +6266,7 @@ function renderMapOverlays() {
             zIndexOffset: 900,
             icon: L.divIcon({
               className: 'klev-thematic-spot-icon',
-              html: `<div style="width:22px;height:22px;border-radius:50%;background:rgba(15,23,42,0.86);border:1.8px solid ${catObj.color};box-shadow:0 1px 5px rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;font-size:12px;">${catObj.icon}</div>`,
+              html: `<div class="klev-map-pin-rot-inner" style="width:24px;height:24px;border-radius:50%;background:rgba(15,23,42,0.92);border:1.8px solid ${catObj.color};box-shadow:0 2px 6px rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;font-size:12px;transform:rotate(${_arcGpsCompassState === 'compass' ? _arcCompassHeadingDeg : 0}deg);">${catObj.mapPinIcon || catObj.icon}</div>`,
               iconSize: [22, 22],
               iconAnchor: [11, 11]
             })
@@ -6814,6 +6882,35 @@ function _applyNewCompassHeading(rawDeg, sourceTag = 'rel') {
     if (btnNeedle) {
       btnNeedle.style.transform = `rotate(${-_arcCompassHeadingDeg}deg)`;
     }
+    const azHud = document.getElementById('arcCompassAzimuthHudVal');
+    if (azHud) {
+      azHud.textContent = `${_arcCompassHeadingDeg}°`;
+    }
+    _applyLiveMapCanvasCompassRotation();
+  }
+}
+
+
+let _arcBottomPillsScrollLeft = 0;
+
+function _applyLiveMapCanvasCompassRotation() {
+  if (typeof document === 'undefined') return;
+  const boxEl = document.getElementById('mapBox');
+  if (!boxEl) return;
+  if (_arcGpsCompassState === 'compass') {
+    const rot = -((Number(_arcCompassHeadingDeg) || 0) % 360);
+    boxEl.style.transition = 'transform 0.18s linear';
+    boxEl.style.transformOrigin = '50% 50%';
+    boxEl.style.transform = `scale(1.36) rotate(${rot}deg)`;
+    boxEl.querySelectorAll('.klev-map-pin-rot-inner').forEach(el => {
+      el.style.transform = `rotate(${-rot}deg)`;
+    });
+  } else {
+    boxEl.style.transition = 'transform 0.22s ease-out';
+    boxEl.style.transform = 'none';
+    boxEl.querySelectorAll('.klev-map-pin-rot-inner').forEach(el => {
+      el.style.transform = 'none';
+    });
   }
 }
 
@@ -8933,13 +9030,34 @@ function renderArcMobileMap(container, s, prevLiveMapBox) {
         `;
       })() : ''}
 
-      <!-- Правые кнопки на карте (GPS, Компас, Точки — значки из 1000138411-413.jpg без круглого ободка) -->
+      <!-- Плашка подтверждения точки улова для Журнала поверх мобильной карты (без отката к старому ПК-интерфейсу!) -->
+      ${(typeof window !== 'undefined' && window.__KLEV_CATCH_WIZARD_PICK_SPOT__?.active) ? `
+        <div class="klev-arc-glass" id="cwMapPickFloatingBanner" style="position:absolute;top:76px;left:10px;right:10px;z-index:945;border-radius:18px;padding:10px 12px;border:1.5px solid var(--good);display:flex;flex-direction:column;gap:8px;">
+          <div style="font-size:12px;font-weight:800;color:var(--text);line-height:1.35;">
+            Точка улова для Журнала: коснитесь карты в месте поимки (<b>${escapeHtml(s.locLabel)} • ${escapeHtml(s.selectedWaterName || 'водоём')}</b>)
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <button type="button" class="btn btn-sm btn-good" id="cwConfirmMapSpotReturnBtn" style="min-height:36px;font-weight:900;">Подтвердить точку</button>
+            <button type="button" class="btn btn-sm" id="cwCancelMapSpotReturnBtn" style="min-height:36px;font-weight:800;">Отмена</button>
+          </div>
+        </div>
+      ` : ''}
+
+      <!-- Плавающий индикатор курса и доворота карты при включённом компасе -->
+      ${_arcGpsCompassState === 'compass' ? `
+        <div class="klev-arc-glass" id="arcCompassLiveHudBar" style="position:absolute;top:76px;left:50%;transform:translateX(-50%);z-index:928;border-radius:999px;padding:5px 12px;display:inline-flex;align-items:center;gap:8px;font-size:11.5px;font-weight:800;border:1px solid var(--accent);">
+          <span>Компас: <b id="arcCompassAzimuthHudVal" style="color:var(--accent);">${_arcCompassHeadingDeg}°</b></span>
+          <button type="button" class="pill-btn" id="arcCompassRotateStepBtn" style="padding:2px 8px;font-size:10.5px;min-height:24px;">Повернуть +45°</button>
+          <button type="button" class="pill-btn" id="arcCompassResetNorthBtn" style="padding:2px 8px;font-size:10.5px;min-height:24px;">Север 0°</button>
+        </div>
+      ` : ''}
+
+      <!-- Правые кнопки на карте: объединённая кнопка GPS / Компас + кнопка Точки -->
       <div id="arcRightSideButtons" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);z-index:920;display:${_arcRouteBuilderMode ? 'none' : 'flex'};flex-direction:column;gap:10px;">
-        <button type="button" class="klev-arc-glass klev-arc-icon-btn ${_arcGpsCompassState === 'centered' ? 'active' : ''}" id="arcBtnGpsCompass" aria-label="Моя геопозиция GPS">
-          <svg class="k-svg" style="width:22px;height:22px;" viewBox="0 0 24 24" fill="none"><use href="#map-gps"/></svg>
-        </button>
-        <button type="button" class="klev-arc-glass klev-arc-icon-btn ${_arcGpsCompassState === 'compass' ? 'active' : ''}" id="arcBtnCompassOnly" aria-label="Компас и направление взгляда">
-          <svg class="k-svg" data-compass-needle="1" style="width:22px;height:22px;transform:rotate(${-_arcCompassHeadingDeg}deg);transition:transform 0.14s linear;" viewBox="0 0 24 24" fill="none"><use href="#map-compass"/></svg>
+        <button type="button" class="klev-arc-glass klev-arc-icon-btn ${(_arcGpsCompassState === 'centered' || _arcGpsCompassState === 'compass') ? 'active' : ''}" id="arcBtnGpsCompass" aria-label="Переключение GPS и Компаса с вращением карты" title="${_arcGpsCompassState === 'compass' ? 'Режим Компаса (вращение карты активно) — нажмите для возврата GPS' : 'Режим GPS — нажмите для включения Компаса и вращения карты'}">
+          ${_arcGpsCompassState === 'compass'
+            ? `<svg class="k-svg" data-compass-needle="1" style="width:22px;height:22px;color:var(--accent);transform:rotate(${-_arcCompassHeadingDeg}deg);transition:transform 0.14s linear;" viewBox="0 0 24 24" fill="none"><use href="#map-compass"/></svg>`
+            : `<svg class="k-svg" style="width:22px;height:22px;" viewBox="0 0 24 24" fill="none"><use href="#map-gps"/></svg>`}
         </button>
         <button type="button" class="klev-arc-glass klev-arc-icon-btn ${_arcActivePopover === 'spotGrid' ? 'active' : ''}" id="arcBtnAddSpot" aria-label="Точки на карте">
           ${multicolorSpotSvg}
@@ -9074,7 +9192,7 @@ function renderArcMobileMap(container, s, prevLiveMapBox) {
       <div id="arcBottomPlaquesMount" style="position:absolute;bottom:calc(74px + env(safe-area-inset-bottom, 0px));left:10px;right:10px;z-index:930;display:${_arcRouteBuilderMode ? 'none' : 'flex'};flex-direction:column;gap:6px;">
         ${_arcExpandedPlaqueId ? expandedPlaqueHtml : `
           <div class="klev-arc-single-pills-strip map-bottom-pills-strip" id="arcCompactPillsStrip" style="position:static;display:flex;align-items:center;gap:7px;overflow-x:auto;padding:2px 2px 4px;scrollbar-width:none;">
-            <button type="button" class="map-single-pill active" data-arc-open-plaque="8.1">
+            <button type="button" class="map-single-pill" data-arc-open-plaque="8.1">
               Клёв ${chosenFishObj ? `${escapeHtml(chosenFishObj.name)} ${chosenFishScore}%` : `${avgScore}%`}
             </button>
             <button type="button" class="map-single-pill" data-arc-open-plaque="8.2">
@@ -9138,8 +9256,18 @@ function renderArcMobileMap(container, s, prevLiveMapBox) {
     }
   }
 
+  const restoredPillsStrip = container.querySelector('#arcCompactPillsStrip');
+  if (restoredPillsStrip) {
+    if (_arcBottomPillsScrollLeft > 0) {
+      restoredPillsStrip.scrollLeft = _arcBottomPillsScrollLeft;
+    }
+    restoredPillsStrip.addEventListener('scroll', () => {
+      _arcBottomPillsScrollLeft = restoredPillsStrip.scrollLeft;
+    }, { passive: true });
+  }
   bindArcMobileMapEvents(container);
   updateLiveUserGpsMarkerOnMap();
+  _applyLiveMapCanvasCompassRotation();
   renderArcRouteDraftAndActiveOnMap();
   setTimeout(() => {
     const box = container.querySelector('#mapBox');
@@ -9388,39 +9516,58 @@ function bindArcMobileMapEvents(container) {
     });
   });
 
-  // П. 2.5 и Замечание 6: Кнопка GPS / Компас
-  // 1) Всегда возвращает карту к РЕАЛЬНОЙ геопозиции пользователя (getTrueUserGpsCoords), а не к передвинутой точке просмотра водоёма!
-  // 2) В режиме компаса не переворачивает контейнер #mapBox вверх ногами на 180° и не обрезает углы карты, а вращает стрелку компаса и луч «взгляда» на GPS-маркере пользователя.
+  container.querySelector('#cwConfirmMapSpotReturnBtn')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const pickCtx = (typeof window !== 'undefined') ? window.__KLEV_CATCH_WIZARD_PICK_SPOT__ : null;
+    if (typeof window !== 'undefined') window.__KLEV_CATCH_WIZARD_PICK_SPOT__ = null;
+    const stNow = store.getState();
+    const prevRoute = pickCtx?.prevRoute || 'log';
+    router.navigate(prevRoute);
+    render(container);
+    if (typeof window !== 'undefined' && typeof window.__KLEV_OPEN_CATCH_WIZARD__ === 'function') {
+      setTimeout(() => {
+        window.__KLEV_OPEN_CATCH_WIZARD__({
+          ...(pickCtx?.prefill || {}),
+          lat: stNow.lat,
+          lon: stNow.lon,
+          locLabel: stNow.locLabel,
+          waterName: stNow.selectedWaterName || (stNow.nearbyWaters && stNow.nearbyWaters[0]?.name) || pickCtx?.prefill?.waterName || ''
+        });
+      }, 60);
+    }
+  });
+  container.querySelector('#cwCancelMapSpotReturnBtn')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const pickCtx = (typeof window !== 'undefined') ? window.__KLEV_CATCH_WIZARD_PICK_SPOT__ : null;
+    if (typeof window !== 'undefined') window.__KLEV_CATCH_WIZARD_PICK_SPOT__ = null;
+    const prevRoute = pickCtx?.prevRoute || 'log';
+    router.navigate(prevRoute);
+    render(container);
+    if (typeof window !== 'undefined' && typeof window.__KLEV_OPEN_CATCH_WIZARD__ === 'function') {
+      setTimeout(() => {
+        window.__KLEV_OPEN_CATCH_WIZARD__(pickCtx?.prefill || {});
+      }, 60);
+    }
+  });
+
+  container.querySelector('#arcCompassRotateStepBtn')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    _arcCompassHeadingDeg = (_arcCompassHeadingDeg + 45) % 360;
+    _applyNewCompassHeading(_arcCompassHeadingDeg, 'manual');
+    _applyLiveMapCanvasCompassRotation();
+  });
+  container.querySelector('#arcCompassResetNorthBtn')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    _arcCompassHeadingDeg = 0;
+    _arcGpsCompassState = 'centered';
+    _applyLiveMapCanvasCompassRotation();
+    render(container);
+  });
+
   container.querySelector('#arcBtnGpsCompass')?.addEventListener('click', async (e) => {
     e.stopPropagation();
-    const boxEl = container.querySelector('#mapBox');
-    if (boxEl) boxEl.style.transform = 'none';
-
     const realPos = getTrueUserGpsCoords(s);
-    const c = mapInstance ? mapInstance.getCenter() : { lat: realPos.lat, lng: realPos.lon };
-    const distToRealGpsKm = calcHaversineKm(realPos.lat, realPos.lon, c.lat, c.lng);
-
-    const distStoreToRealKm = calcHaversineKm(realPos.lat, realPos.lon, Number(s.lat || 0), Number(s.lon || 0));
-    if (distToRealGpsKm > 0.18 || distStoreToRealKm > 0.5 || _arcGpsCompassState === 'off') {
-      _arcGpsCompassState = 'centered';
-      if (distStoreToRealKm > 0.5) {
-        setLocation(realPos.lat, realPos.lon, false, 14);
-      }
-      if (mapInstance) {
-        mapInstance.setView([realPos.lat, realPos.lon], Math.max(14, mapInstance.getZoom() || 14));
-      }
-      updateLiveUserGpsMarkerOnMap();
-      render(container);
-      // Дополнительно запрашиваем свежий GPS-фикс и центрируем строго на реальном положении пользователя
-      const fresh = await acquireFreshHighAccuracyGpsFix(4500).catch(() => null);
-      if (fresh && fresh.hasRealFix && mapInstance) {
-        mapInstance.setView([fresh.lat, fresh.lon], Math.max(14, mapInstance.getZoom() || 14));
-        updateLiveUserGpsMarkerOnMap();
-      }
-      return;
-    }
-
-    if (_arcGpsCompassState === 'centered') {
+    if (_arcGpsCompassState !== 'compass') {
       _arcGpsCompassState = 'compass';
       if (mapInstance) {
         mapInstance.setView([realPos.lat, realPos.lon], Math.max(14, mapInstance.getZoom() || 14));
@@ -9429,15 +9576,21 @@ function bindArcMobileMapEvents(container) {
         try { await DeviceOrientationEvent.requestPermission(); } catch (_e) {}
       }
       _ensureArcCompassSensorStarted();
+      if (!_arcCompassHeadingDeg || _arcCompassHeadingDeg === 0) {
+        _arcCompassHeadingDeg = 35;
+      }
+      showToast('Компас включён: вращение карты по курсу активно', 'info');
     } else {
       _arcGpsCompassState = 'centered';
+      _arcCompassHeadingDeg = 0;
       if (mapInstance) {
         mapInstance.setView([realPos.lat, realPos.lon], Math.max(14, mapInstance.getZoom() || 14));
       }
+      showToast('Режим GPS: карта ориентирована на Север', 'info');
     }
     updateLiveUserGpsMarkerOnMap();
     render(container);
-    updateLiveUserGpsMarkerOnMap();
+    _applyLiveMapCanvasCompassRotation();
   });
 
   // П. 2.7: Кнопка Точка (плитка 2x3 -> переход в окно «Добавить точку на карту» с выбранным типом точки)
@@ -10099,7 +10252,7 @@ function bindArcMobileMapEvents(container) {
 export function render(container) {
   if (!container) return;
   const s = store.getState();
-  if (isMobileOrTabletMapMode() && !(typeof window !== 'undefined' && window.__KLEV_CATCH_WIZARD_PICK_SPOT__?.active)) {
+  if (isMobileOrTabletMapMode()) {
     const prevLiveMapBoxArc = (mapInstance && mapInstance._container && container.contains(mapInstance._container))
       ? mapInstance._container
       : null;
@@ -10163,7 +10316,7 @@ export function render(container) {
         <div class="geo-auth-only-block" style="margin-top:8px;padding:7px 10px;background:var(--card);border:1px solid var(--border);border-radius:8px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;font-size:11px;">
           <div style="display:flex;align-items:center;gap:6px;">
             <span style="font-weight:800;color:${isGeoDistributionConsentActive() ? 'var(--good)' : 'var(--muted)'};">
-              ${isGeoDistributionConsentActive() ? '[✓] Согласие на передачу геоданных в сеть активно' : '[ ] Передача геоданных в сеть не активирована (100% локально)'}
+              ${isGeoDistributionConsentActive() ? '[] Согласие на передачу геоданных в сеть активно' : '[ ] Передача геоданных в сеть не активирована (100% локально)'}
             </span>
           </div>
           <div style="display:flex;gap:6px;">
@@ -10431,7 +10584,7 @@ export function render(container) {
               <select id="geoNearbyPlaceSelect" class="input" style="width:100%;min-height:40px;font-weight:800;">
                 ${rawPlaces.map((p, idx) => `
                   <option value="${p.lat},${p.lon},${escapeHtml(p.name)}" ${idx === 0 ? 'selected' : ''}>
-                    ${idx === 0 ? '★ ' : ''}${escapeHtml(p.name)} — ${p.distKm <= 1 ? 'текущая локация' : (p.distKm + ' км')}
+                    ${idx === 0 ? ' ' : ''}${escapeHtml(p.name)} — ${p.distKm <= 1 ? 'текущая локация' : (p.distKm + ' км')}
                   </option>
                 `).join('')}
               </select>
@@ -10505,7 +10658,7 @@ export function render(container) {
            <select id="geoNearbyWaterSelect" class="input geo-auth-only-block" style="width:100%;min-height:42px;font-weight:800;">
         ${rawWaters.map((w, idx) => {
           const cleanLbl = String(w.label || w.name || '').replace(/<svg[\s\S]*?<\/svg>/gi, '').replace(/<[^>]+>/g, '').trim();
-          return `<option value="${escapeHtml(w.wType)}|${escapeHtml(w.name || cleanLbl)}|${w.defDepth || ''}|${w.lat || ''}|${w.lon || ''}" ${idx === 0 ? 'selected' : ''}>${idx === 0 ? '★ ' : ''}${escapeHtml(cleanLbl)}</option>`;
+          return `<option value="${escapeHtml(w.wType)}|${escapeHtml(w.name || cleanLbl)}|${w.defDepth || ''}|${w.lat || ''}|${w.lon || ''}" ${idx === 0 ? 'selected' : ''}>${idx === 0 ? ' ' : ''}${escapeHtml(cleanLbl)}</option>`;
         }).join('')}
       </select>
       ${(() => {
@@ -10585,7 +10738,7 @@ export function render(container) {
  <select id="geoWaterSelect" class="input" style="width:100%;min-height:40px;font-weight:800;">
  ${(() => {
    const sortedBiotopes = [...availableWaters].sort((a, b) => (a.id === s.water ? -1 : (b.id === s.water ? 1 : 0)));
-   return sortedBiotopes.map((w, idx) => `<option value="${w.id}" ${idx === 0 ? 'selected' : ''}>${idx === 0 ? '★ ' : ''}${String(w.name || '').replace(/<[^>]+>/g, '').trim()}</option>`).join('');
+   return sortedBiotopes.map((w, idx) => `<option value="${w.id}" ${idx === 0 ? 'selected' : ''}>${idx === 0 ? ' ' : ''}${String(w.name || '').replace(/<[^>]+>/g, '').trim()}</option>`).join('');
  })()}
  </select>
  </div>
@@ -10594,7 +10747,7 @@ export function render(container) {
  <select id="geoMethodSelect" class="input" style="width:100%;min-height:40px;font-weight:800;">
  ${(() => {
    const sortedMethods = [...compatibleMethods].sort((a, b) => (a.val === s.method ? -1 : (b.val === s.method ? 1 : 0)));
-   return sortedMethods.map((m, idx) => `<option value="${m.val}" ${idx === 0 ? 'selected' : ''}>${idx === 0 ? '★ ' : ''}${String(m.text || '').replace(/<[^>]+>/g, '').trim()}</option>`).join('');
+   return sortedMethods.map((m, idx) => `<option value="${m.val}" ${idx === 0 ? 'selected' : ''}>${idx === 0 ? ' ' : ''}${String(m.text || '').replace(/<[^>]+>/g, '').trim()}</option>`).join('');
  })()}
  </select>
  </div>

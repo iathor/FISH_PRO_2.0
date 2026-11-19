@@ -1145,7 +1145,7 @@ export function openCustomSelectSheet(selectEl) {
       return `
         <button type="button" class="klev-select-opt ${isSel ? "selected" : ""}" data-klev-opt-val="${escapeHtml(opt.value)}" ${opt.disabled ? "disabled" : ""}>
           <span style="min-width:0;flex:1;word-break:normal;">${escapeHtml(opt.label)}</span>
-          <span class="klev-select-check">${isSel ? "✓" : ""}</span>
+          <span class="klev-select-check">${isSel ? "" : ""}</span>
         </button>
       `;
     };
@@ -1170,7 +1170,7 @@ export function openCustomSelectSheet(selectEl) {
     <div class="klev-select-sheet" role="listbox" aria-label="${escapeHtml(titleText)}">
       <div class="klev-select-head">
         <div class="klev-select-title">${escapeHtml(titleText)}</div>
-        <button type="button" class="btn btn-sm" id="klevSelectCloseBtn" style="min-height:30px;padding:2px 9px;font-weight:900;">✕</button>
+        <button type="button" class="btn btn-sm" id="klevSelectCloseBtn" style="min-height:30px;padding:2px 9px;font-weight:900;"></button>
       </div>
       ${showSearch ? `
         <div class="klev-select-search-wrap">

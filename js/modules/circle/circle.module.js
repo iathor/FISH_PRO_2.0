@@ -1772,28 +1772,28 @@ export function openWelcomeOnboardingGuideModal(forceOpen = false) {
       title: 'Прогноз на 10 дней и 3 режима работы',
       badge: 'Разблокировано',
       desc: 'Теперь вам доступен полный посуточный календарь клёва на 10 дней вперёд, 5-дневный метеоархив барического шока и переключение режимов «Новичок / Рыбак / Профи» в Настройках с ручной калибровкой весов 8 факторов.',
-      icon: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M3 3v18h18" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/><path d="M7 15l4-5 4 3 5-7" stroke="#10b981" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+      icon: ''
     },
     {
       num: 'Шаг 2 из 4',
       title: 'Слои Яндекс Карт и Офлайн-карты 50 / 120 км',
       badge: 'Картография Z7–Z18',
       desc: 'Во вкладке «Карта» открыты спутниковые и гибридные слои Яндекса без VPN, контраст русел и проток, личные закладки, выгрузка .GPX для эхолотов и загрузка полных офлайн-карт квадратов 50 и 120 км до максимального зума Z18.',
-      icon: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3V6z" fill="rgba(56,189,248,0.25)" stroke="#38bdf8" stroke-width="1.9" stroke-linejoin="round"/><path d="M9 3v15M15 6v15" stroke="#38bdf8" stroke-width="1.6"/></svg>'
+      icon: ''
     },
     {
       num: 'Шаг 3 из 4',
       title: 'Ихтиоатлас 115 видов, Календарь и Журнал уловов',
       badge: 'Аналитика и ИИ',
       desc: 'В верхней панели открыты разделы «Погода», «Рыбы» (115 видов рыб РФ с монтажами и сезонными насадками) и годовой «Календарь», а в нижней панели — личный «Журнал» с автозаполнением метеоусловий и распознаванием рыбы по фото.',
-      icon: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 12s4-6 11-6c4.2 0 7 2.5 9 6-2 3.5-4.8 6-9 6-7 0-11-6-11-6z" fill="rgba(16,185,129,0.28)" stroke="#10b981" stroke-width="1.9" stroke-linejoin="round"/><circle cx="16.5" cy="10.8" r="1.4" fill="#fff"/></svg>'
+      icon: ''
     },
     {
       num: 'Шаг 4 из 4',
       title: 'Радар «Круг ±5 км», Экипажи 72ч и сигнал SOS',
       badge: 'Постоянный ID',
       desc: 'За вашим логином навсегда закреплён постоянный рыболовный ID на всех устройствах. В разделе «Чаты·Круг» вы можете делиться разведкой в гексагонах ±5 км, создавать закрытые Экипажи по ключу KP-XXXX и передавать сигнал SOS на воде.',
-      icon: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#38bdf8" stroke-width="1.9"/><circle cx="12" cy="12" r="4.5" stroke="#10b981" stroke-width="1.6"/><circle cx="12" cy="12" r="1.8" fill="#10b981"/></svg>'
+      icon: ''
     }
   ];
   let curStepIdx = 0;
@@ -1882,7 +1882,7 @@ export function openWelcomeOnboardingGuideModal(forceOpen = false) {
   };
 
   openModal(
-    '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#38bdf8" stroke-width="1.8"/><polygon points="16,8 13.5,13.5 8,16 10.5,10.5" fill="#10b981" stroke="currentColor" stroke-width="1.3"/></svg> Навигация по Клёв ПРО 2.0',
+    'Навигация по Клёв ПРО 2.0',
     '<div id="welcomeGuideMount"></div>',
     (bodyEl) => {
       renderStepContent(bodyEl);
@@ -2360,7 +2360,7 @@ export async function syncNearbyCirclePointsFromServer(showFeedbackToast = false
           if (itemCopy.sos) {
             pushAppNotification({
               category: 'sos',
-              title: `<svg class="k-ico" style="color:var(--bad);" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9.5" fill="#dc2626" stroke="#fca5a5" stroke-width="1.8"/><text x="12" y="15" text-anchor="middle" fill="#fff" font-size="7.5" font-weight="900" font-family="sans-serif">SOS</text></svg> СИГНАЛ SOS НА ВОДЕ (${itemCopy.wn || itemCopy.lb})`,
+              title: `СИГНАЛ SOS НА ВОДЕ (${itemCopy.wn || itemCopy.lb})`,
               body: `Координаты: ${Number(itemCopy.lat).toFixed(4)}°N, ${Number(itemCopy.lon).toFixed(4)}°E • От ${itemCopy.fid}`,
               subTab: 'radar',
               itemId: itemCopy.id || '',
@@ -2371,7 +2371,7 @@ export async function syncNearbyCirclePointsFromServer(showFeedbackToast = false
           } else if (itemCopy.t === 'crew') {
             pushAppNotification({
               category: 'crew',
-              title: `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> Точка Экипажа (${itemCopy.crewKey || '72ч'})`,
+              title: `Точка Экипажа (${itemCopy.crewKey || '72ч'})`,
               body: `${itemCopy.wn || itemCopy.lb}: ${itemCopy.fn} (~${itemCopy.dp} м) • От ${itemCopy.fid}`,
               subTab: 'radar',
               lat: itemCopy.lat,
@@ -2381,7 +2381,7 @@ export async function syncNearbyCirclePointsFromServer(showFeedbackToast = false
           } else if (itemCopy.t === 'circle') {
             pushAppNotification({
               category: 'circle',
-              title: `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3.5" fill="rgba(56,189,248,0.25)" stroke="currentColor" stroke-width="1.8"/><path d="M3 19c0-3.2 2.7-5.5 6-5.5s6 2.3 6 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="17" cy="9" r="2.8" stroke="currentColor" stroke-width="1.6"/><path d="M16 14c2.6.3 4.8 2 5 4.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg> Новая сводка в Круге (${itemCopy.wn || itemCopy.lb})`,
+              title: `Новая сводка в Круге (${itemCopy.wn || itemCopy.lb})`,
               body: `${itemCopy.fn} на «${itemCopy.bt || 'по сезону'}» • От ${itemCopy.fid}`,
               subTab: 'radar',
               lat: itemCopy.lat,
@@ -3352,7 +3352,7 @@ export function getUserExpertRank(catches = []) {
   if (total === 0) {
     return {
       tier: 'new',
-      badge: '<svg class="k-ico" style="color:var(--good);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg> Участник Круга',
+      badge: 'Участник Круга',
       weight: 0.75,
       matchRate: 0,
       totalCatches: 0
@@ -3363,7 +3363,7 @@ export function getUserExpertRank(catches = []) {
   if (total >= 5 && matchRate >= 80) {
     return {
       tier: 'expert',
-      badge: `<svg class="k-ico" style="color:#fbbf24;" viewBox="0 0 24 24" fill="none"><path d="M7 4h10v5a5 5 0 0 1-10 0V4z" fill="rgba(251,191,36,0.28)" stroke="#fbbf24" stroke-width="1.8"/><path d="M7 6H4v2a3 3 0 0 0 3 3M17 6h3v2a3 3 0 0 1-3 3M12 14v4M8 20h8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> Эксперт Круга (${matchRate}%)`,
+      badge: `Эксперт Круга (${matchRate}%)`,
       weight: 1.5,
       matchRate,
       totalCatches: total
@@ -3372,7 +3372,7 @@ export function getUserExpertRank(catches = []) {
   if (total >= 2 && matchRate >= 60) {
     return {
       tier: 'angler',
-      badge: `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg> Опытный рыбак (${matchRate}%)`,
+      badge: `Опытный рыбак (${matchRate}%)`,
       weight: 1.0,
       matchRate,
       totalCatches: total
@@ -3380,7 +3380,7 @@ export function getUserExpertRank(catches = []) {
   }
   return {
     tier: 'new',
-    badge: `<svg class="k-ico" style="color:var(--good);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg> Рыболов (${matchRate}%)`,
+    badge: `Рыболов (${matchRate}%)`,
     weight: 0.75,
     matchRate,
     totalCatches: total
@@ -3394,19 +3394,19 @@ export function evaluateWorkshopRigMatch(rigItem, currentWaterType, currentDepth
   const tempMin = Number.isFinite(rigItem.twMin) ? rigItem.twMin : (rigWT - 4.5);
   const tempMax = Number.isFinite(rigItem.twMax) ? rigItem.twMax : (rigWT + 4.5);
   if (currentWaterTemp >= tempMin && currentWaterTemp <= tempMax) {
-    reasons.push(`<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> Вода ${currentWaterTemp}°C входит в рабочий коридор (${tempMin.toFixed(0)}..${tempMax.toFixed(0)}°C)`);
+    reasons.push(`Вода ${currentWaterTemp}°C входит в рабочий коридор (${tempMin.toFixed(0)}..${tempMax.toFixed(0)}°C)`);
   } else {
     const diff = Math.min(Math.abs(currentWaterTemp - tempMin), Math.abs(currentWaterTemp - tempMax));
     score -= Math.min(45, Math.round(diff * 6));
   }
   if (rigItem.wt && rigItem.wt === currentWaterType) {
-    reasons.push('<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> Точное совпадение типа водоёма и течения');
+    reasons.push('Точное совпадение типа водоёма и течения');
   } else {
     score -= 15;
   }
   const rigDepth = Number.isFinite(rigItem.dp) ? rigItem.dp : currentDepth;
   if (Math.abs(rigDepth - currentDepth) <= 2.0) {
-    reasons.push(`<svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="3" y="8" width="18" height="8" rx="2" transform="rotate(-35 12 12)" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8"/><path d="M8 11l1.5 2M11 9l1.5 2M14 7l1.5 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg> Близкий горизонт глубины (~${rigDepth} м)`);
+    reasons.push(`Близкий горизонт глубины (~${rigDepth} м)`);
   } else {
     score -= 15;
   }
@@ -4038,10 +4038,10 @@ function saveOwnSharePackLocally(finalPack, showFeedbackToast = false) {
   syncToTelegramCloud('klev_circle_v2', updated.slice(0, 8));
   if (showFeedbackToast) {
     const label = item.sos
-      ? '<svg class="k-ico" style="color:var(--bad);" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9.5" fill="#dc2626" stroke="#fca5a5" stroke-width="1.8"/><text x="12" y="15" text-anchor="middle" fill="#fff" font-size="7.5" font-weight="900" font-family="sans-serif">SOS</text></svg> Сигнал SOS опубликован в Круге и отправлен на сервер!'
+      ? 'Сигнал SOS опубликован в Круге и отправлен на сервер!'
       : (item.t === 'crew'
-          ? `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> Точка Экипажа (${item.crewKey}) опубликована!`
-          : `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3.5" fill="rgba(56,189,248,0.25)" stroke="currentColor" stroke-width="1.8"/><path d="M3 19c0-3.2 2.7-5.5 6-5.5s6 2.3 6 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="17" cy="9" r="2.8" stroke="currentColor" stroke-width="1.6"/><path d="M16 14c2.6.3 4.8 2 5 4.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg> Сводка по виду «${item.fn}» (${item.wn || item.lb}) опубликована в Круге!`);
+          ? `Точка Экипажа (${item.crewKey}) опубликована!`
+          : `Сводка по виду «${item.fn}» (${item.wn || item.lb}) опубликована в Круге!`);
     showToast(label, 'good');
   }
   return item;
@@ -4314,7 +4314,7 @@ export function appendIncomingChatMessage(msgObj, notifyIfExternal = true) {
     const isCrew = String(msgObj.channelId || '').startsWith('crew:');
     pushAppNotification({
       category: isCrew ? 'crew' : 'dm',
-      title: isCrew ? `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> Сообщение в Экипаже (${msgObj.crewKey || 'Экипаж'})` : `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> Сообщение от ${msgObj.senderName || msgObj.senderId}`,
+      title: isCrew ? `Сообщение в Экипаже (${msgObj.crewKey || 'Экипаж'})` : `Сообщение от ${msgObj.senderName || msgObj.senderId}`,
       body: `${msgObj.senderName || 'Рыболов'}: ${msgObj.text.slice(0, 65)}`,
       subTab: 'chats',
       channelId: normalizedChanId
@@ -4384,7 +4384,7 @@ export function openShareCatchToChatModal(preselectedCatch = null) {
     const cItem = visibleCrews.find(c => String(c.crewKey || '').toUpperCase() === k);
     channels.push({
       channelId: `crew:${k}`,
-      label: `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> Чат Экипажа ${k}${cItem ? ` (${cItem.wn || cItem.lb})` : ''}`,
+      label: `Чат Экипажа ${k}${cItem ? ` (${cItem.wn || cItem.lb})` : ''}`,
       crewKey: k
     });
   }
@@ -4395,7 +4395,7 @@ export function openShareCatchToChatModal(preselectedCatch = null) {
       const peerName = m.senderId === ident.fisherId ? (m.peerName || peerId) : (m.senderName || peerId);
       channels.push({
         channelId: m.channelId,
-        label: `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> Личный чат: ${peerName} (${peerId})`,
+        label: `Личный чат: ${peerName} (${peerId})`,
         peerId,
         peerName
       });
@@ -4405,7 +4405,7 @@ export function openShareCatchToChatModal(preselectedCatch = null) {
   const html = `
     <div style="display:flex;flex-direction:column;gap:12px;font-size:var(--fs-sm);">
       <div style="padding:9px 11px;background:rgba(16,185,129,0.12);border:1px solid var(--good);border-radius:var(--r-sm);font-size:var(--fs-xs);line-height:1.42;">
-        <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg> <b>Поделиться уловом в зашифрованном чате:</b> напарники увидят карточку вашего трофея (рыба, вес, наживка, температура воды, давление) и смогут в 1 касание открыть сектор поимки на карте!
+        <b>Поделиться уловом в зашифрованном чате:</b> напарники увидят карточку вашего трофея (рыба, вес, наживка, температура воды, давление) и смогут в 1 касание открыть сектор поимки на карте!
       </div>
       <div>
         <label style="display:block;font-weight:800;font-size:var(--fs-xs);color:var(--muted);margin-bottom:4px;">1. ВЫБЕРИТЕ УЛОВ ДЛЯ ОТПРАВКИ:</label>
@@ -4440,12 +4440,12 @@ export function openShareCatchToChatModal(preselectedCatch = null) {
         <input type="text" id="scCommentInput" class="input" maxlength="80" placeholder="Например: Взяла на бровке 3.5 м с утра на паузе!">
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:8px;margin-top:4px;">
-        <button type="button" class="btn btn-good" id="scConfirmSendChatBtn"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> В чат</button>
-        <button type="button" class="btn btn-accent" id="scSendTelegramDirectBtn"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" fill="rgba(56,189,248,0.22)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> В Telegram</button>
+        <button type="button" class="btn btn-good" id="scConfirmSendChatBtn">В чат</button>
+        <button type="button" class="btn btn-accent" id="scSendTelegramDirectBtn">В Telegram</button>
       </div>
     </div>
   `;
-  openModal('<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg> Поделиться уловом в чате', html, (bodyEl) => {
+  openModal('Поделиться уловом в чате', html, (bodyEl) => {
     const chanSel = bodyEl.querySelector('#scChannelSelect');
     const peerInp = bodyEl.querySelector('#scCustomPeerIdInput');
     if (chanSel && peerInp) {
@@ -4558,8 +4558,8 @@ export async function importSharePackToken(rawInput, silent = false, unlockCrewO
   const now = Date.now();
   if (decoded.t === 'crew' && Number.isFinite(decoded.ea) && decoded.ea < now) {
     const expMsg = decoded.isExpedition && decoded.expEnd
-      ? `⛔ Срок действия ссылки на экспедицию истёк (00:01 после ${formatExpeditionDateShort(decoded.expEnd)}).`
-      : '⛔ Срок действия ссылки на экипаж (72 часа) истёк.';
+      ? ` Срок действия ссылки на экспедицию истёк (00:01 после ${formatExpeditionDateShort(decoded.expEnd)}).`
+      : ' Срок действия ссылки на экипаж (72 часа) истёк.';
     if (!silent) showToast(expMsg, 'warn');
     return null;
   }
@@ -4609,7 +4609,7 @@ export async function importSharePackToken(rawInput, silent = false, unlockCrewO
     if (decoded.sos) {
       pushAppNotification({
         category: 'sos',
-        title: `<svg class="k-ico" style="color:var(--bad);" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9.5" fill="#dc2626" stroke="#fca5a5" stroke-width="1.8"/><text x="12" y="15" text-anchor="middle" fill="#fff" font-size="7.5" font-weight="900" font-family="sans-serif">SOS</text></svg> СИГНАЛ SOS НА ВОДЕ (${decoded.wn || decoded.lb})`,
+        title: `СИГНАЛ SOS НА ВОДЕ (${decoded.wn || decoded.lb})`,
         body: `Координаты: ${Number(decoded.lat).toFixed(4)}°N, ${Number(decoded.lon).toFixed(4)}°E • От ${decoded.fid || decoded.au}`,
         subTab: 'radar',
         itemId: decoded.id || '',
@@ -4620,7 +4620,7 @@ export async function importSharePackToken(rawInput, silent = false, unlockCrewO
     } else if (decoded.t === 'crew' && canUserAccessCrewItem(decoded, store.getState())) {
       pushAppNotification({
         category: 'crew',
-        title: `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> Новая точка Экипажа (${decoded.crewKey || '72ч'})`,
+        title: `Новая точка Экипажа (${decoded.crewKey || '72ч'})`,
         body: `${decoded.wn || decoded.lb}: ${decoded.fn} (~${decoded.dp} м) • От ${decoded.fid}`,
         subTab: 'radar',
         itemId: decoded.id || '',
@@ -4631,7 +4631,7 @@ export async function importSharePackToken(rawInput, silent = false, unlockCrewO
     } else if (decoded.t === 'circle' && distKm <= Math.max(120, maxRadius)) {
       pushAppNotification({
         category: 'circle',
-        title: `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3.5" fill="rgba(56,189,248,0.25)" stroke="currentColor" stroke-width="1.8"/><path d="M3 19c0-3.2 2.7-5.5 6-5.5s6 2.3 6 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="17" cy="9" r="2.8" stroke="currentColor" stroke-width="1.6"/><path d="M16 14c2.6.3 4.8 2 5 4.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg> Сводка Круга рядом (${Math.round(distKm)} км)`,
+        title: `Сводка Круга рядом (${Math.round(distKm)} км)`,
         body: `${decoded.wn || decoded.lb}: ${decoded.fn} на «${decoded.bt || 'по сезону'}» • ${decoded.fid}`,
         subTab: 'radar',
         itemId: decoded.id || '',
@@ -4642,7 +4642,7 @@ export async function importSharePackToken(rawInput, silent = false, unlockCrewO
     } else if (decoded.t === 'workshop') {
       pushAppNotification({
         category: 'workshop',
-        title: `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" fill="rgba(56,189,248,0.2)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> Новая оснастка в Мастерской`,
+        title: `Новая оснастка в Мастерской`,
         body: `${decoded.fn}: ${decoded.rw || 'монтаж'} (${decoded.bt || 'приманка'}) • ${decoded.fid}`,
         subTab: 'radar',
         silentToast: !silent
@@ -4652,12 +4652,12 @@ export async function importSharePackToken(rawInput, silent = false, unlockCrewO
   triggerHaptic('success');
   if (!silent) {
     const typeLabel = decoded.sos
-      ? `<svg class="k-ico" style="color:var(--bad);" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9.5" fill="#dc2626" stroke="#fca5a5" stroke-width="1.8"/><text x="12" y="15" text-anchor="middle" fill="#fff" font-size="7.5" font-weight="900" font-family="sans-serif">SOS</text></svg> Сигнал SOS: ${decoded.wn || decoded.lb}`
+      ? `Сигнал SOS: ${decoded.wn || decoded.lb}`
       : (decoded.t === 'crew'
-          ? `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> Точка Экипажа (${decoded.crewKey || '72ч'}): ${decoded.wn || decoded.lb}`
+          ? `Точка Экипажа (${decoded.crewKey || '72ч'}): ${decoded.wn || decoded.lb}`
           : (decoded.t === 'workshop'
-              ? `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" fill="rgba(56,189,248,0.2)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> Снасть Мастерской: ${decoded.fn}`
-              : `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3.5" fill="rgba(56,189,248,0.25)" stroke="currentColor" stroke-width="1.8"/><path d="M3 19c0-3.2 2.7-5.5 6-5.5s6 2.3 6 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="17" cy="9" r="2.8" stroke="currentColor" stroke-width="1.6"/><path d="M16 14c2.6.3 4.8 2 5 4.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg> Сводка Круга (±${getEffectiveCircleRadiusKm(decoded, now)} км): ${decoded.fn}`));
+              ? `Снасть Мастерской: ${decoded.fn}`
+              : `Сводка Круга (±${getEffectiveCircleRadiusKm(decoded, now)} км): ${decoded.fn}`));
     showToast(` Добавлено: ${typeLabel} ( ${decoded.fid})`, 'good');
   }
   return decoded;
@@ -4702,7 +4702,7 @@ export function evaluateCircleFieldConfirmation(fish, lat, lon, circleItems = []
     const boost = Math.max(2, Math.min(10, Math.round(weightedSum)));
     const bestBait = matchingSpeciesCircle[0]?.bt || 'по сезону';
     const authors = Array.from(new Set(matchingSpeciesCircle.map(x => x.fid || x.au).filter(Boolean))).slice(0, 2).join(', ');
-    const expertBadgeNote = expertCount > 0 ? `, из них ${expertCount} от <svg class="k-ico" style="color:#fbbf24;" viewBox="0 0 24 24" fill="none"><path d="M7 4h10v5a5 5 0 0 1-10 0V4z" fill="rgba(251,191,36,0.28)" stroke="#fbbf24" stroke-width="1.8"/><path d="M7 6H4v2a3 3 0 0 0 3 3M17 6h3v2a3 3 0 0 1-3 3M12 14v4M8 20h8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> Экспертов` : '';
+    const expertBadgeNote = expertCount > 0 ? `, из них ${expertCount} от Экспертов` : '';
     return {
       hasSignal: true,
       val: boost,
@@ -4892,7 +4892,6 @@ export function openAddThematicMapPointModal(initialCat = 'slip') {
   const html = `
     <div style="display:flex;flex-direction:column;gap:12px;font-size:var(--fs-sm);">
       <div style="padding:9px 11px;background:rgba(56,189,248,0.10);border:1px solid var(--accent);border-radius:var(--r-sm);font-size:var(--fs-xs);line-height:1.42;">
-        <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#ef4444"/></svg>
         <b>Координаты точки:</b> ${Number(s.lat).toFixed(4)}°N, ${Number(s.lon).toFixed(4)}°E (${escapeHtml(wTitle)})
       </div>
       <div>
@@ -4912,21 +4911,21 @@ export function openAddThematicMapPointModal(initialCat = 'slip') {
         <label style="display:block;font-size:11.5px;font-weight:800;color:var(--muted);margin-bottom:5px;">3. РЕЖИМ ДОСТУПА К ТОЧКЕ:</label>
         <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
           <button type="button" class="btn btn-sm ${chosenScope === 'private' ? 'btn-good' : ''}" data-pick-tscope="private" style="min-height:42px;flex-direction:column;gap:2px;width:100%;">
-            <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="5" y="11" width="14" height="10" rx="2.5" fill="rgba(251,191,36,0.22)" stroke="#fbbf24" stroke-width="1.8"/><path d="M8 11V7a4 4 0 0 1 8 0v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Личная закладка</span>
+            <span>Личная закладка</span>
             
           </button>
           <button type="button" class="btn btn-sm ${chosenScope === 'shared' ? 'btn-accent' : ''}" data-pick-tscope="shared" style="min-height:42px;flex-direction:column;gap:2px;width:100%;">
-            <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" stroke="currentColor" stroke-width="1.6"/></svg> Общая точка региона</span>
+            <span>Общая точка региона</span>
             
           </button>
         </div>
       </div>
       <button type="button" class="btn btn-good" id="thematicSpotSaveConfirmBtn" style="width:100%;min-height:44px;font-weight:900;">
-        <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg> Добавить точку на карту
+        Добавить точку на карту
       </button>
     </div>
   `;
-  openModal('<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#ef4444"/></svg> Добавить точку на карту', html, (bodyEl) => {
+  openModal('Добавить точку на карту', html, (bodyEl) => {
     bodyEl.querySelectorAll('[data-pick-tcat]').forEach(btn => {
       btn.addEventListener('click', () => {
         const prevTitle = (bodyEl.querySelector('#thematicSpotTitleInp')?.value || '').trim();
@@ -5101,33 +5100,33 @@ export function openShareModalForCurrentContext(initialMode = 'circle', override
         <div style="padding:10px 12px;background:rgba(56,189,248,0.10);border:1px solid var(--accent);border-radius:var(--r-sm);font-size:var(--fs-xs);line-height:1.45;">
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:4px;">
             <b>Автопривязка вашего ID к точке:</b>
-            <span class="fisher-id-copy-badge" data-copy-fisher-id="${ident.fisherId}" title="Нажмите для автокопирования ID"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> ${ident.fisherId} <svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="9" y="9" width="11" height="11" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
+            <span class="fisher-id-copy-badge" data-copy-fisher-id="${ident.fisherId}" title="Нажмите для автокопирования ID">${ident.fisherId} </span>
           </div>
           ${currentMode === 'sos'
-            ? '<svg class="k-ico" style="color:var(--bad);" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9.5" fill="#dc2626" stroke="#fca5a5" stroke-width="1.8"/><text x="12" y="15" text-anchor="middle" fill="#fff" font-size="7.5" font-weight="900" font-family="sans-serif">SOS</text></svg> <b>Вспомогательный сигнал SOS для рыболовов поблизости:</b> виден на карте и в Круге при наличии связи. <b>Обязательно дублируйте вызов экстренной помощи по номеру 112 или по морской/речной рации!</b>'
+            ? '<b>Вспомогательный сигнал SOS для рыболовов поблизости:</b> виден на карте и в Круге при наличии связи. <b>Обязательно дублируйте вызов экстренной помощи по номеру 112 или по морской/речной рации!</b>'
             : (currentMode === 'crew'
-                ? `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="8" cy="15" r="4.5" fill="rgba(251,191,36,0.22)" stroke="#fbbf24" stroke-width="1.8"/><path d="M11.5 11.5L20 3m-3 3l2.5 2.5M14.5 8.5L17 11" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> <b>Закрытый Экипаж (${pack.packObj.crewKey}):</b> точные координаты и чат экипажа увидят ТОЛЬКО участники с ключом (и Админы из базы).`
-                : '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2.5l7 3.2v5.8c0 5-3 9.3-7 10.8-4-1.5-7-5.8-7-10.8V5.7l7-3.2z" fill="rgba(56,189,248,0.22)" stroke="#38bdf8" stroke-width="1.8" stroke-linejoin="round"/></svg> <b>Ультракороткая бинарная упаковка V3:</b> вся ссылка занимает ~54 символа (<code>#p=KP1_...</code>) со встроенным ID рыбака и гексагоном ±5/10 км.')}
+                ? `<b>Закрытый Экипаж (${pack.packObj.crewKey}):</b> точные координаты и чат экипажа увидят ТОЛЬКО участники с ключом (и Админы из базы).`
+                : '<b>Ультракороткая бинарная упаковка V3:</b> вся ссылка занимает ~54 символа (<code>#p=KP1_...</code>) со встроенным ID рыбака и гексагоном ±5/10 км.')}
         </div>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:6px;">
           <button type="button" class="btn btn-sm ${currentMode === 'circle' ? 'btn-accent' : ''}" data-share-mode="circle" style="min-height:44px;flex-direction:column;gap:2px;">
-            <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3.5" fill="rgba(56,189,248,0.25)" stroke="currentColor" stroke-width="1.8"/><path d="M3 19c0-3.2 2.7-5.5 6-5.5s6 2.3 6 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="17" cy="9" r="2.8" stroke="currentColor" stroke-width="1.6"/><path d="M16 14c2.6.3 4.8 2 5 4.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg> В Круг (±5/10 км)</span>
+            <span>В Круг (±5/10 км)</span>
             <span style="font-size:10px;opacity:0.85;">Гексагон без пина</span>
           </button>
           <button type="button" class="btn btn-sm ${currentMode === 'crew' ? 'btn-accent' : ''}" data-share-mode="crew" style="min-height:44px;flex-direction:column;gap:2px;">
-            <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> Экипаж (72 ч)</span>
+            <span>Экипаж (72 ч)</span>
             <span style="font-size:10px;opacity:0.85;">По ключу ${pack.packObj.crewKey || ''}</span>
           </button>
           <button type="button" class="btn btn-sm ${currentMode === 'sos' ? 'btn-good' : ''}" data-share-mode="sos" style="min-height:44px;flex-direction:column;gap:2px;border-color:var(--bad);color:${currentMode === 'sos' ? '#fff' : 'var(--bad)'};background:${currentMode === 'sos' ? 'var(--bad)' : 'var(--card)'};">
-            <span><svg class="k-ico" style="color:var(--bad);" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9.5" fill="#dc2626" stroke="#fca5a5" stroke-width="1.8"/><text x="12" y="15" text-anchor="middle" fill="#fff" font-size="7.5" font-weight="900" font-family="sans-serif">SOS</text></svg> SOS</span>
+            <span>SOS</span>
             <span style="font-size:10px;opacity:0.9;">Дублируйте по 112 / рации</span>
           </button>
         </div>
         ${currentMode === 'crew' ? `
           <div style="padding:10px 12px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);display:flex;flex-direction:column;gap:8px;">
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
-              <button type="button" class="btn btn-sm ${!isExpeditionMode ? 'btn-accent' : ''}" data-exp-toggle="0" style="min-height:36px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="13" r="8" stroke="currentColor" stroke-width="1.8"/><path d="M12 9v4l2.5 2.5M9 2h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Экипаж (72 ч)</button>
-              <button type="button" class="btn btn-sm ${isExpeditionMode ? 'btn-accent' : ''}" data-exp-toggle="1" style="min-height:36px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3L2 20h20L12 3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 12l-4 8h8l-4-8z" fill="rgba(56,189,248,0.22)" stroke="currentColor" stroke-width="1.6"/></svg> Экспедиция (по датам)</button>
+              <button type="button" class="btn btn-sm ${!isExpeditionMode ? 'btn-accent' : ''}" data-exp-toggle="0" style="min-height:36px;">Экипаж (72 ч)</button>
+              <button type="button" class="btn btn-sm ${isExpeditionMode ? 'btn-accent' : ''}" data-exp-toggle="1" style="min-height:36px;">Экспедиция (по датам)</button>
             </div>
             ${isExpeditionMode ? `
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
@@ -5152,7 +5151,7 @@ export function openShareModalForCurrentContext(initialMode = 'circle', override
         ` : ''}
         <div>
           <label for="shareCustomNoteInput" style="display:block;font-size:var(--fs-xs);color:${currentMode === 'sos' ? 'var(--bad)' : 'var(--muted)'};font-weight:800;margin-bottom:4px;">
-            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> ${currentMode === 'sos' ? 'ПРИЧИНА ПОДАЧИ СИГНАЛА SOS (ТОЛЬКО ТОЧКА И ПРИЧИНА):' : 'КОРОТКИЙ КОММЕНТАРИЙ (ПО ЖЕЛАНИЮ):'}
+            ${currentMode === 'sos' ? 'ПРИЧИНА ПОДАЧИ СИГНАЛА SOS (ТОЛЬКО ТОЧКА И ПРИЧИНА):' : 'КОРОТКИЙ КОММЕНТАРИЙ (ПО ЖЕЛАНИЮ):'}
           </label>
           ${currentMode === 'sos' ? `
             <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px;">
@@ -5165,7 +5164,7 @@ export function openShareModalForCurrentContext(initialMode = 'circle', override
         </div>
         <div class="card" style="background:var(--card);padding:10px 12px;border:1px solid ${currentMode === 'sos' ? 'var(--bad)' : 'var(--border)'};font-size:var(--fs-xs);line-height:1.45;color:var(--text);">
           <div style="font-size:11.5px;color:var(--accent);font-weight:800;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;" id="shareShortUrlPreview">
-            <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Координаты упакованы (откроются в 1 клик)</span>
+            <span>Координаты упакованы (откроются в 1 клик)</span>
             <span class="pill pill-good" style="font-size:10px;padding:1px 7px;">Готово</span>
           </div>
           <div style="white-space:pre-line;" id="sharePreviewBox">${pack.summaryText}</div>
@@ -5173,18 +5172,18 @@ export function openShareModalForCurrentContext(initialMode = 'circle', override
         <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;margin-bottom:14px;width:100%;box-sizing:border-box;">
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;">
             <button type="button" class="btn ${currentMode === 'sos' ? 'btn-good' : 'btn-accent'}" id="shareSendTelegramBtn" style="min-height:42px;white-space:nowrap;${currentMode === 'sos' ? 'background:var(--bad);border-color:var(--bad);' : ''}">
-              <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" fill="rgba(56,189,248,0.22)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> В Telegram
+              В Telegram
             </button>
             <button type="button" class="btn btn-good" id="shareCopyOrNativeBtn" style="min-height:42px;white-space:nowrap;">
-              <svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="9" y="9" width="11" height="11" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Скопировать
+              Скопировать
             </button>
           </div>
           <button type="button" class="btn btn-primary" id="shareSaveLocalCircleBtn" style="width:100%;min-height:44px;font-weight:800;border:1.5px solid var(--accent);background:var(--panel);">
-            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg> Опубликовать в Круге
+            Опубликовать в Круге
           </button>
           ${currentMode === 'sos' && isUserAdmin(store.getState()) ? `
             <button type="button" class="btn btn-sm" id="shareOpenOffGridCommBtn" style="width:100%;min-height:40px;font-weight:800;border:1.5px solid #ef4444;background:rgba(239,68,68,0.14);color:var(--text);">
-              <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5M19.1 4.9C23 8.8 23 15.2 19.1 19.1" stroke="#ef4444" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="#ef4444"/></svg> Пульт Авто-SOS, Радиомодема и Маяка выживания (Админ)
+              Пульт Авто-SOS, Радиомодема и Маяка выживания (Админ)
             </button>
           ` : ''}
         </div>
@@ -5236,7 +5235,7 @@ export function openShareModalForCurrentContext(initialMode = 'circle', override
         const prevBox = bodyEl.querySelector('#sharePreviewBox');
         const urlBox = bodyEl.querySelector('#shareShortUrlPreview');
         if (prevBox) prevBox.textContent = updatedPack.summaryText;
-        if (urlBox) urlBox.innerHTML = `<span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Координаты упакованы (откроются в 1 клик)</span><span class="pill pill-good" style="font-size:10px;padding:1px 7px;">Готово</span>`;
+        if (urlBox) urlBox.innerHTML = `<span>Координаты упакованы (откроются в 1 клик)</span><span class="pill pill-good" style="font-size:10px;padding:1px 7px;">Готово</span>`;
       });
     }
     const publishToRelayIfApplicable = async (finalPack) => {
@@ -5262,7 +5261,7 @@ export function openShareModalForCurrentContext(initialMode = 'circle', override
       saveOwnSharePackLocally(finalPack, false);
       const publishPromise = publishToRelayIfApplicable(finalPack);
       await shareOrCopyPack({
-        title: currentMode === 'sos' ? '<svg class="k-ico" style="color:var(--bad);" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9.5" fill="#dc2626" stroke="#fca5a5" stroke-width="1.8"/><text x="12" y="15" text-anchor="middle" fill="#fff" font-size="7.5" font-weight="900" font-family="sans-serif">SOS</text></svg> SOS НА ВОДЕ • Клёв ПРО' : 'Клёв ПРО: Круг',
+        title: currentMode === 'sos' ? 'SOS НА ВОДЕ • Клёв ПРО' : 'Клёв ПРО: Круг',
         text: finalPack.summaryText,
         url: finalPack.webUrl,
         token: finalPack.token
@@ -5277,7 +5276,7 @@ export function openShareModalForCurrentContext(initialMode = 'circle', override
       if (btnEl) {
         if (btnEl.disabled) return;
         btnEl.disabled = true;
-        btnEl.innerHTML = '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.5 2" stroke="#38bdf8" stroke-width="1.9" stroke-linecap="round"/></svg> Сохранение в БД...';
+        btnEl.innerHTML = 'Сохранение в БД...';
       }
       const finalPack = createSharePackFromContext(currentMode, customNote, overrideCatch, '', getExpOpts());
       saveOwnSharePackLocally(finalPack, true);
@@ -5285,7 +5284,7 @@ export function openShareModalForCurrentContext(initialMode = 'circle', override
       closeModal();
     });
   }
-  openModal('<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3.5" fill="rgba(56,189,248,0.25)" stroke="currentColor" stroke-width="1.8"/><path d="M3 19c0-3.2 2.7-5.5 6-5.5s6 2.3 6 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="17" cy="9" r="2.8" stroke="currentColor" stroke-width="1.6"/><path d="M16 14c2.6.3 4.8 2 5 4.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg> Поделиться в «Круг / Экипаж / SOS»', '<div id="shareModalMount"></div>', (bodyEl) => {
+  openModal('Поделиться в «Круг / Экипаж / SOS»', '<div id="shareModalMount"></div>', (bodyEl) => {
     renderModalContent(bodyEl);
   });
 }
@@ -5295,10 +5294,10 @@ export function openImportPackModal() {
   const html = `
     <div style="display:flex;flex-direction:column;gap:12px;font-size:var(--fs-sm);">
       <div style="padding:10px 12px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);">
-        <div style="font-weight:800;font-size:var(--fs-xs);color:var(--accent);margin-bottom:6px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="8" cy="15" r="4.5" fill="rgba(251,191,36,0.22)" stroke="#fbbf24" stroke-width="1.8"/><path d="M11.5 11.5L20 3m-3 3l2.5 2.5M14.5 8.5L17 11" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> БЫСТРЫЙ ВВОД КЛЮЧА ЗАКРЫТОГО ЭКИПАЖА (формат KP-XXXX):</div>
+        <div style="font-weight:800;font-size:var(--fs-xs);color:var(--accent);margin-bottom:6px;">БЫСТРЫЙ ВВОД КЛЮЧА ЗАКРЫТОГО ЭКИПАЖА (формат KP-XXXX):</div>
         <div style="display:flex;gap:6px;">
           <input type="text" id="unlockCrewKeyInput" class="input" placeholder="Например: KP-7A3F" style="flex:1;text-transform:uppercase;font-weight:800;">
-          <button type="button" class="btn btn-sm btn-accent" id="unlockCrewKeyConfirmBtn"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="5" y="11" width="14" height="10" rx="2.5" stroke="currentColor" stroke-width="1.8"/><path d="M8 11V7a4 4 0 0 1 7.5-1.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Открыть экипаж</button>
+          <button type="button" class="btn btn-sm btn-accent" id="unlockCrewKeyConfirmBtn">Открыть экипаж</button>
         </div>
         <div style="font-size:11px;color:var(--muted);margin-top:4px;">
           Открытые ключи экипажей: <b>${ident.unlockedCrewKeys.length ? ident.unlockedCrewKeys.join(', ') : 'пока нет'}</b>
@@ -5306,16 +5305,16 @@ export function openImportPackModal() {
       </div>
       <div>
         <label style="display:block;font-weight:800;font-size:var(--fs-xs);color:var(--muted);margin-bottom:4px;">
-          <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg> ИЛИ ВСТАВЬТЕ ССЫЛКУ <code>#p=KP1_...</code> / ЗАШИФРОВАННОЕ СООБЩЕНИЕ <code>KPE2E_...</code>:
+          ИЛИ ВСТАВЬТЕ ССЫЛКУ <code>#p=KP1_...</code> / ЗАШИФРОВАННОЕ СООБЩЕНИЕ <code>KPE2E_...</code>:
         </label>
         <textarea id="importPackTextarea" class="input" rows="3" placeholder="Вставьте короткую ссылку https://klevpro.ru/#p=KP1_... или код..." style="min-height:80px;font-family:monospace;font-size:12px;"></textarea>
       </div>
       <div style="display:flex;gap:8px;">
-        <button type="button" class="btn btn-good" id="importPackConfirmBtn" style="width:100%;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg> Расшифровать и добавить в навигатор</button>
+        <button type="button" class="btn btn-good" id="importPackConfirmBtn" style="width:100%;">Расшифровать и добавить в навигатор</button>
       </div>
     </div>
   `;
-  openModal('<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="8" cy="15" r="4.5" fill="rgba(251,191,36,0.22)" stroke="#fbbf24" stroke-width="1.8"/><path d="M11.5 11.5L20 3m-3 3l2.5 2.5M14.5 8.5L17 11" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> Ключ Экипажа и приём пакета KP1', html, (bodyEl) => {
+  openModal('Ключ Экипажа и приём пакета KP1', html, (bodyEl) => {
     const keyInput = bodyEl.querySelector('#unlockCrewKeyInput');
     const keyBtn = bodyEl.querySelector('#unlockCrewKeyConfirmBtn');
     if (keyBtn && keyInput) {
@@ -5367,29 +5366,29 @@ export function openNotificationsModal(onBackToHub = null) {
       <div style="display:flex;flex-direction:column;gap:12px;font-size:var(--fs-sm);">
         ${renderSettingsZoneTabsHtml('notif')}
         <div style="padding:10px 12px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);display:flex;flex-direction:column;gap:8px;">
-          <div style="font-weight:800;font-size:var(--fs-xs);color:var(--accent);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9z" fill="rgba(251,191,36,0.24)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M13.73 21a2 2 0 0 1-3.46 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> КАТЕГОРИИ ОПОВЕЩЕНИЙ (РАЗДЕЛЬНАЯ НАСТРОЙКА):</div>
+          <div style="font-weight:800;font-size:var(--fs-xs);color:var(--accent);">КАТЕГОРИИ ОПОВЕЩЕНИЙ (РАЗДЕЛЬНАЯ НАСТРОЙКА):</div>
           <label style="display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:pointer;">
-            <span style="min-width:0;line-height:1.3;"><svg class="k-ico" style="color:var(--bad);" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9.5" fill="#dc2626" stroke="#fca5a5" stroke-width="1.8"/><text x="12" y="15" text-anchor="middle" fill="#fff" font-size="7.5" font-weight="900" font-family="sans-serif">SOS</text></svg> <b>Сигналы SOS на воде</b> (экстренно всем рыбакам в регионе)</span>
+            <span style="min-width:0;line-height:1.3;"><b>Сигналы SOS на воде</b> (экстренно всем рыбакам в регионе)</span>
             <input type="checkbox" data-notif-toggle="sos" ${prefs.sos !== false ? 'checked' : ''} style="flex-shrink:0;">
           </label>
           <label style="display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:pointer;">
-            <span style="min-width:0;line-height:1.3;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> <b>Экипаж и сообщения чата Экипажа</b> (по вашим ключам)</span>
+            <span style="min-width:0;line-height:1.3;"><b>Экипаж и сообщения чата Экипажа</b> (по вашим ключам)</span>
             <input type="checkbox" data-notif-toggle="crew" ${prefs.crew !== false ? 'checked' : ''} style="flex-shrink:0;">
           </label>
           <label style="display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:pointer;">
-            <span style="min-width:0;line-height:1.3;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3.5" fill="rgba(56,189,248,0.25)" stroke="currentColor" stroke-width="1.8"/><path d="M3 19c0-3.2 2.7-5.5 6-5.5s6 2.3 6 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="17" cy="9" r="2.8" stroke="currentColor" stroke-width="1.6"/><path d="M16 14c2.6.3 4.8 2 5 4.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg> <b>Сводки Круга на карте рядом</b> (в радиусе 50 / 120 км)</span>
+            <span style="min-width:0;line-height:1.3;"><b>Сводки Круга на карте рядом</b> (в радиусе 50 / 120 км)</span>
             <input type="checkbox" data-notif-toggle="circle" ${prefs.circle !== false ? 'checked' : ''} style="flex-shrink:0;">
           </label>
           <label style="display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:pointer;">
-            <span style="min-width:0;line-height:1.3;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" fill="rgba(56,189,248,0.2)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> <b>Новые оснастки в Мастерской снастей</b></span>
+            <span style="min-width:0;line-height:1.3;"><b>Новые оснастки в Мастерской снастей</b></span>
             <input type="checkbox" data-notif-toggle="workshop" ${prefs.workshop !== false ? 'checked' : ''} style="flex-shrink:0;">
           </label>
           <label style="display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:pointer;">
-            <span style="min-width:0;line-height:1.3;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> <b>Личные сообщения в чатах рыбаков</b> (1-на-1 по ID)</span>
+            <span style="min-width:0;line-height:1.3;"><b>Личные сообщения в чатах рыбаков</b> (1-на-1 по ID)</span>
             <input type="checkbox" data-notif-toggle="dm" ${prefs.dm !== false ? 'checked' : ''} style="flex-shrink:0;">
           </label>
           <label style="display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:pointer;padding-top:6px;border-top:1px dashed var(--border);">
-            <span style="min-width:0;line-height:1.3;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><polygon points="11,5 6,9 2,9 2,15 6,15 11,19" fill="rgba(56,189,248,0.24)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07M19.07 4.93a10 10 0 0 1 0 14.14" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/></svg> <b>Звуковые оповещения и вибрация</b></span>
+            <span style="min-width:0;line-height:1.3;"><b>Звуковые оповещения и вибрация</b></span>
             <input type="checkbox" data-notif-toggle="sound" ${prefs.sound !== false ? 'checked' : ''} style="flex-shrink:0;">
           </label>
           <div style="padding-top:6px;border-top:1px dashed var(--border);display:flex;flex-direction:column;gap:6px;">
@@ -5402,10 +5401,10 @@ export function openNotificationsModal(onBackToHub = null) {
           </div>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
-          <span style="font-weight:800;font-size:var(--fs-xs);color:var(--muted);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="9" y="9" width="11" height="11" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> ПОСЛЕДНИЕ СОБЫТИЯ И СИГНАЛЫ (${notifs.length}):</span>
+          <span style="font-weight:800;font-size:var(--fs-xs);color:var(--muted);">ПОСЛЕДНИЕ СОБЫТИЯ И СИГНАЛЫ (${notifs.length}):</span>
           <div style="display:flex;gap:6px;flex-wrap:wrap;">
-            <button type="button" class="btn btn-sm" id="notifRequestOsPushBtn"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="6" y="2" width="12" height="20" rx="2.5" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="18" r="1.2" fill="#38bdf8"/></svg> Системные Push</button>
-            <button type="button" class="btn btn-sm" id="notifClearAllBtn"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Очистить</button>
+            <button type="button" class="btn btn-sm" id="notifRequestOsPushBtn">Системные Push</button>
+            <button type="button" class="btn btn-sm" id="notifClearAllBtn">Очистить</button>
           </div>
         </div>
         <div style="display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto;">
@@ -5491,7 +5490,7 @@ export function openNotificationsModal(onBackToHub = null) {
       });
     });
   }
-  openModal('<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9z" fill="rgba(251,191,36,0.24)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M13.73 21a2 2 0 0 1-3.46 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Уведомления (SOS, Экипаж, Круг, Чаты)', '<div id="notifModalMount"></div>', (bodyEl) => {
+  openModal('Уведомления (SOS, Экипаж, Круг, Чаты)', '<div id="notifModalMount"></div>', (bodyEl) => {
     renderNotifBody(bodyEl);
   }, true, { onBack: backFn });
 }
@@ -5762,19 +5761,17 @@ export function openAuthAndBackupModal(onBackToHub = null) {
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:6px;">
             <span style="font-weight:900;color:${ident.isOwner ? 'var(--good)' : (ident.isRegistered ? 'var(--accent)' : 'var(--warn)')};">
               ${ident.isOwner
-                ? '<svg class="k-ico" style="color:#fbbf24;" viewBox="0 0 24 24" fill="none"><path d="M3 18h18l-2-11-5 4-2-6-2 6-5-4-2 11z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> ЭКСКЛЮЗИВНЫЙ ID СУПЕР-АДМИНА (ВЛАДЕЛЕЦ):'
+                ? 'ЭКСКЛЮЗИВНЫЙ ID СУПЕР-АДМИНА (ВЛАДЕЛЕЦ):'
                 : (ident.isRegistered
-                    ? '<svg class="k-ico" style="color:var(--good);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg> ВАШ ПОСТОЯННЫЙ ЗАКРЕПЛЁННЫЙ ID РЫБАКА:'
-                    : '<svg class="k-ico" style="color:var(--warn);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg> ВРЕМЕННЫЙ РЕЗЕРВНЫЙ ID (БЕЗ РЕГИСТРАЦИИ):')}
+                    ? 'ВАШ ПОСТОЯННЫЙ ЗАКРЕПЛЁННЫЙ ID РЫБАКА:'
+                    : 'ВРЕМЕННЫЙ РЕЗЕРВНЫЙ ID (БЕЗ РЕГИСТРАЦИИ):')}
             </span>
             <div style="display:flex;gap:6px;flex-wrap:wrap;">
               <button type="button" class="btn btn-sm ${ident.isRegistered ? 'btn-good' : ''}" data-copy-fisher-id="${ident.fisherId}" style="font-family:monospace;font-size:13px;font-weight:900;padding:4px 10px;">
-                <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> ${ident.fisherId} <svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="9" y="9" width="11" height="11" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-              </button>
+                ${ident.fisherId} </button>
               ${ident.isOwner ? `
                 <button type="button" class="btn btn-sm btn-accent" data-copy-fisher-id="${ident.fisherId === OWNER_BOUND_FISHER_ID ? OWNER_SECONDARY_FISHER_ID : OWNER_BOUND_FISHER_ID}" style="font-family:monospace;font-size:12px;font-weight:900;padding:4px 8px;">
-                  <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> ${ident.fisherId === OWNER_BOUND_FISHER_ID ? OWNER_SECONDARY_FISHER_ID : OWNER_BOUND_FISHER_ID} <svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="9" y="9" width="11" height="11" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-                </button>
+                  ${ident.fisherId === OWNER_BOUND_FISHER_ID ? OWNER_SECONDARY_FISHER_ID : OWNER_BOUND_FISHER_ID} </button>
               ` : ''}
             </div>
           </div>
@@ -5788,7 +5785,7 @@ export function openAuthAndBackupModal(onBackToHub = null) {
           ${ident.isOwner ? `
             <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">
               <button type="button" class="btn btn-sm btn-good" id="authOpenSuperAdminTabBtn" style="width:100%;font-weight:900;">
-                <svg class="k-ico" style="color:#fbbf24;" viewBox="0 0 24 24" fill="none"><path d="M3 18h18l-2-11-5 4-2-6-2 6-5-4-2 11z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Открыть вкладку «Супер-Админ и Статистика БД»
+                Открыть вкладку «Супер-Админ и Статистика БД»
               </button>
             </div>
           ` : ''}
@@ -5797,8 +5794,8 @@ export function openAuthAndBackupModal(onBackToHub = null) {
         <div class="card" style="background:var(--card);padding:12px;border:1.5px solid var(--accent);display:flex;flex-direction:column;gap:9px;">
           <div style="font-weight:800;font-size:var(--fs-xs);color:var(--accent);">
             ${ident.isRegistered
-              ? `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="8" cy="15" r="4.5" fill="rgba(251,191,36,0.22)" stroke="#fbbf24" stroke-width="1.8"/><path d="M11.5 11.5L20 3m-3 3l2.5 2.5M14.5 8.5L17 11" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> ВАШ ПРОФИЛЬ АВТОРИЗОВАН (${escapeHtml(savedLogin)} • ${ident.fisherId})`
-              : '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="8" cy="15" r="4.5" fill="rgba(251,191,36,0.22)" stroke="#fbbf24" stroke-width="1.8"/><path d="M11.5 11.5L20 3m-3 3l2.5 2.5M14.5 8.5L17 11" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> РЕГИСТРАЦИЯ ИЛИ ВХОД (ПОЛУЧЕНИЕ ПОСТОЯННОГО ID НАВСЕГДА)'}
+              ? `ВАШ ПРОФИЛЬ АВТОРИЗОВАН (${escapeHtml(savedLogin)} • ${ident.fisherId})`
+              : 'РЕГИСТРАЦИЯ ИЛИ ВХОД (ПОЛУЧЕНИЕ ПОСТОЯННОГО ID НАВСЕГДА)'}
           </div>
           <div style="font-size:11.5px;color:var(--muted);line-height:1.38;">
             Постоянный ID не привязывается к железу телефона — он жёстко привязан <b>только к вашему логину и паролю</b>. Вы можете входить на любых телефонах (Android / iOS), планшетах, компьютерах и в Telegram Mini App.
@@ -5807,20 +5804,20 @@ export function openAuthAndBackupModal(onBackToHub = null) {
             <label style="display:block;font-size:var(--fs-xs);color:var(--muted);font-weight:700;margin-bottom:3px;">ЛОГИН РЫБАКА (ИЛИ ВАШ ПОСТОЯННЫЙ ID ДЛЯ ВХОДА):</label>
             <input type="text" id="authCallsignInput" class="input" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" value="${escapeHtml(savedLogin)}" placeholder="Придумайте логин (или введите свой для входа)">
             <div id="authLoginAvailabilityHint" style="font-size:11px;margin-top:3px;color:var(--muted);">
-              <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2.5l7 3.2v5.8c0 5-3 9.3-7 10.8-4-1.5-7-5.8-7-10.8V5.7l7-3.2z" fill="rgba(56,189,248,0.22)" stroke="#38bdf8" stroke-width="1.8" stroke-linejoin="round"/></svg> При новой регистрации вам навсегда выдаётся персональный региональный ID (например, <code>FP_${resolveRussianRegionCode(s)}AAA001</code>).
+              При новой регистрации вам навсегда выдаётся персональный региональный ID (например, <code>FP_${resolveRussianRegionCode(s)}AAA001</code>).
             </div>
           </div>
           <div>
             <label style="display:block;font-size:var(--fs-xs);color:var(--muted);font-weight:700;margin-bottom:3px;">ПАРОЛЬ (ОТ 3 СИМВОЛОВ):</label>
             <div style="display:flex;gap:6px;align-items:center;width:100%;">
               <input type="password" id="authPinInput" class="input" autocomplete="current-password" placeholder="${ident.isRegistered ? '•••••••• (пароль для синхронизации)' : 'Введите пароль (от 3 симв.)...'}" style="flex:1;min-width:0;font-size:13.5px;">
-              <button type="button" class="btn btn-sm" id="authTogglePassVisBtn" title="Показать / скрыть пароль" style="min-height:40px;width:42px;min-width:42px;padding:0;flex-shrink:0;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/></svg></button>
+              <button type="button" class="btn btn-sm" id="authTogglePassVisBtn" title="Показать / скрыть пароль" style="min-height:40px;width:42px;min-width:42px;padding:0;flex-shrink:0;"></button>
             </div>
           </div>
           ${!ident.isRegistered ? `
             <div style="padding:9px 10px;background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.32);border-radius:var(--r-sm);display:flex;flex-direction:column;gap:6px;">
               <div style="font-size:11.5px;font-weight:800;color:var(--accent);">
-                <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#ef4444"/></svg> РЕГИОНАЛЬНАЯ ГРУППА ИЛИ ТОЧКА НА КАРТЕ (НЕОБЯЗАТЕЛЬНО):
+                РЕГИОНАЛЬНАЯ ГРУППА ИЛИ ТОЧКА НА КАРТЕ (НЕОБЯЗАТЕЛЬНО):
               </div>
               <div style="font-size:11px;color:var(--muted);line-height:1.36;">
                 При регистрации вы можете указать свой регион из списка ниже или выбрать точку на карте для формирования кода региона в вашем постоянном ID (<code>FP_XXAAA001</code>). Параметр <b>необязательный</b> — если не указывать, перед сохранением мы уточним вашу текущую региональную группу: <b>[${resolveRussianRegionCode(s)} — ${getRegionNameByCode(resolveRussianRegionCode(s))}]</b> (${escapeHtml(s.locLabel || 'Новый Уренгой')}).
@@ -5831,7 +5828,7 @@ export function openAuthAndBackupModal(onBackToHub = null) {
                   ${RUSSIA_REGIONS_DIRECTORY.map(r => `<option value="${r.code}">[${r.code}] ${r.name}</option>`).join('')}
                 </select>
                 <button type="button" class="btn btn-sm" id="authPickMapPointBtn" style="white-space:nowrap;font-weight:700;">
-                  <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3V6z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 3v15M15 6v15" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="10" r="2.2" fill="#38bdf8" stroke="#fff" stroke-width="1"/></svg> Точка на карте
+                  Точка на карте
                 </button>
               </div>
             </div>
@@ -5839,24 +5836,24 @@ export function openAuthAndBackupModal(onBackToHub = null) {
           <div style="display:flex;flex-direction:column;gap:8px;width:100%;">
             <button type="button" class="btn btn-accent" id="authSaveBtn" style="width:100%;min-height:42px;padding:8px 12px;font-size:13.5px;font-weight:800;line-height:1.25;white-space:normal;text-align:center;">
               ${ident.isRegistered
-                ? `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M20 11a8 8 0 0 0-14.5-4.5L4 8m0-5v5h5M4 13a8 8 0 0 0 14.5 4.5L20 16m0 5v-5h-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Синхронизировать (${ident.fisherId})`
-                : '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="8" cy="15" r="4.5" fill="rgba(251,191,36,0.22)" stroke="#fbbf24" stroke-width="1.8"/><path d="M11.5 11.5L20 3m-3 3l2.5 2.5M14.5 8.5L17 11" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> Войти / Зарегистрировать ID'}
+                ? `Синхронизировать (${ident.fisherId})`
+                : 'Войти / Зарегистрировать ID'}
             </button>
             ${ident.isRegistered ? `
               <button type="button" class="btn btn-sm" id="authLogoutBtn" style="width:100%;min-height:38px;color:var(--bad);border-color:rgba(239,68,68,0.4);font-weight:800;">
-                <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Выйти
+                Выйти
               </button>
             ` : ''}
           </div>
           <!-- Привязка постоянного ID к Telegram -->
           <div style="margin-top:2px;padding:9px 10px;background:var(--panel);border:1px solid var(--border);border-radius:var(--r-sm);display:flex;flex-direction:column;gap:6px;">
             <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
-              <span style="font-weight:800;font-size:11.5px;color:var(--accent);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" fill="rgba(56,189,248,0.22)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> СВЯЗКА ПОСТОЯННОГО ID С TELEGRAM:</span>
+              <span style="font-weight:800;font-size:11.5px;color:var(--accent);">СВЯЗКА ПОСТОЯННОГО ID С TELEGRAM:</span>
               <div style="display:flex;align-items:center;gap:4px;">
                 ${ident.isRegistered && (ident.tgLinkedId || tgUser?.id || (ident.isOwner && ident.tgUsername))
-                  ? `<span class="pill pill-good" style="font-size:10.5px;"><svg class="k-ico" style="color:var(--good);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg> Связан: ${(ident.tgUsername || tgUser?.username || (ident.isOwner ? 'thorantony82' : '')) ? '@' + (ident.tgUsername || tgUser?.username || 'thorantony82') : 'ID ' + (ident.tgLinkedId || tgUser?.id)}</span>`
-                  : `<span class="pill" style="font-size:10.5px;"><svg class="k-ico" style="color:var(--muted);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg> Не привязан</span>`}
-                <button type="button" class="btn btn-sm" id="authCheckTgBindBtn" style="padding:2px 7px;font-size:10.5px;min-height:24px;" title="Проверить статус привязки в боте @KlevProClubBot"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M20 11a8 8 0 0 0-14.5-4.5L4 8m0-5v5h5M4 13a8 8 0 0 0 14.5 4.5L20 16m0 5v-5h-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Проверить</button>
+                  ? `<span class="pill pill-good" style="font-size:10.5px;">Связан: ${(ident.tgUsername || tgUser?.username || (ident.isOwner ? 'thorantony82' : '')) ? '@' + (ident.tgUsername || tgUser?.username || 'thorantony82') : 'ID ' + (ident.tgLinkedId || tgUser?.id)}</span>`
+                  : `<span class="pill" style="font-size:10.5px;">Не привязан</span>`}
+                <button type="button" class="btn btn-sm" id="authCheckTgBindBtn" style="padding:2px 7px;font-size:10.5px;min-height:24px;" title="Проверить статус привязки в боте @KlevProClubBot">Проверить</button>
               </div>
             </div>
             <div style="font-size:11px;color:var(--muted);line-height:1.35;">
@@ -5866,24 +5863,24 @@ export function openAuthAndBackupModal(onBackToHub = null) {
             </div>
             <button type="button" class="btn btn-sm ${ident.isRegistered ? 'btn-accent' : ''}" id="authBindTelegramBtn" style="width:100%;white-space:normal;line-height:1.35;padding:8px 10px;text-align:center;">
               ${ident.isRegistered && (ident.tgLinkedId || tgUser?.id || (ident.isOwner && ident.tgUsername))
-                ? `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="4" y="8" width="16" height="12" rx="3" fill="rgba(56,189,248,0.2)" stroke="currentColor" stroke-width="1.8"/><path d="M12 3v5M9 3h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="9" cy="14" r="1.5" fill="#38bdf8"/><circle cx="15" cy="14" r="1.5" fill="#38bdf8"/></svg> Открыть @KlevProClubBot (единый ID ${ident.fisherId})`
-                : `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" fill="rgba(56,189,248,0.22)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> Связать постоянный ID с Telegram (@KlevProClubBot)`}
+                ? `Открыть @KlevProClubBot (единый ID ${ident.fisherId})`
+                : `Связать постоянный ID с Telegram (@KlevProClubBot)`}
             </button>
           </div>
         </div>
         <!-- Пользовательское соглашение и Правила безопасности -->
         <div class="card" style="background:var(--card);padding:10px 12px;border:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
           <div style="min-width:0;flex:1;">
-            <div style="font-size:var(--fs-xs);font-weight:800;color:var(--accent);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" fill="rgba(56,189,248,0.14)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M14 2v6h6M8 13h8M8 17h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Пользовательское соглашение «Клёв ПРО 2.0»</div>
+            <div style="font-size:var(--fs-xs);font-weight:800;color:var(--accent);">Пользовательское соглашение «Клёв ПРО 2.0»</div>
             <div style="font-size:11px;color:var(--muted);">Правила сообщества, безопасность на водоёмах и льду, защита данных</div>
           </div>
-          <button type="button" class="btn btn-sm" id="authOpenUserAgreementBtn"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" fill="rgba(56,189,248,0.14)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M14 2v6h6M8 13h8M8 17h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Прочитать</button>
+          <button type="button" class="btn btn-sm" id="authOpenUserAgreementBtn">Прочитать</button>
         </div>
         <!-- Управление согласием на передачу геолокации в сеть (ст. 10.1 152-ФЗ) -->
         <div class="card" style="background:var(--card);padding:10px 12px;border:1px solid ${isGeoDistributionConsentActive() ? 'var(--good)' : 'var(--border)'};display:flex;flex-direction:column;gap:8px;">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
             <div style="font-size:var(--fs-xs);font-weight:800;color:${isGeoDistributionConsentActive() ? 'var(--good)' : 'var(--accent)'};">
-              ${isGeoDistributionConsentActive() ? '[✓] Согласие на передачу геолокации в сеть активно' : '[ ] Согласие на передачу геолокации в сеть не выдано'}
+              ${isGeoDistributionConsentActive() ? '[] Согласие на передачу геолокации в сеть активно' : '[ ] Согласие на передачу геолокации в сеть не выдано'}
             </div>
             <span class="pill ${isGeoDistributionConsentActive() ? 'pill-good' : 'pill-neutral'}" style="font-size:10px;">152-ФЗ ст. 10.1</span>
           </div>
@@ -5943,13 +5940,13 @@ export function openAuthAndBackupModal(onBackToHub = null) {
         const val = (loginInp.value || '').trim();
         if (val.length < 2) {
           loginHint.style.color = 'var(--muted)';
-          loginHint.innerHTML = '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2.5l7 3.2v5.8c0 5-3 9.3-7 10.8-4-1.5-7-5.8-7-10.8V5.7l7-3.2z" fill="rgba(56,189,248,0.22)" stroke="#38bdf8" stroke-width="1.8" stroke-linejoin="round"/></svg> Введите рыболовный позывной (от 2 символов, без телефона и e-mail) или ваш постоянный ID.';
+          loginHint.innerHTML = 'Введите рыболовный позывной (от 2 символов, без телефона и e-mail) или ваш постоянный ID.';
           return;
         }
         const anonChk = isAnonymousCallsignValid(val);
         if (!anonChk.ok) {
           loginHint.style.color = 'var(--bad)';
-          loginHint.innerHTML = `<svg class="k-ico" style="color:var(--bad);" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><path d="M6 6l12 12" stroke="#ef4444" stroke-width="2.1" stroke-linecap="round"/></svg> ${anonChk.error}`;
+          loginHint.innerHTML = `${anonChk.error}`;
           return;
         }
         loginCheckTimer = setTimeout(async () => {
@@ -5968,10 +5965,10 @@ export function openAuthAndBackupModal(onBackToHub = null) {
               }
             } else if (d.available) {
               loginHint.style.color = 'var(--good)';
-              loginHint.innerHTML = `<svg class="k-ico" style="color:var(--good);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg> Логин «${escapeHtml(val)}» свободен! Придумайте пароль, чтобы получить постоянный ID рыбака навсегда.`;
+              loginHint.innerHTML = `Логин «${escapeHtml(val)}» свободен! Придумайте пароль, чтобы получить постоянный ID рыбака навсегда.`;
             } else {
               loginHint.style.color = 'var(--accent)';
-              loginHint.innerHTML = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="8" cy="15" r="4.5" fill="rgba(251,191,36,0.22)" stroke="#fbbf24" stroke-width="1.8"/><path d="M11.5 11.5L20 3m-3 3l2.5 2.5M14.5 8.5L17 11" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> Логин «${escapeHtml(val)}» уже зарегистрирован. Если это ваш профиль — введите ваш пароль для входа и восстановления вашего ID.`;
+              loginHint.innerHTML = `Логин «${escapeHtml(val)}» уже зарегистрирован. Если это ваш профиль — введите ваш пароль для входа и восстановления вашего ID.`;
             }
           } catch (e) {}
         }, 300);
@@ -5983,12 +5980,12 @@ export function openAuthAndBackupModal(onBackToHub = null) {
       toggleVisBtn.addEventListener('click', () => {
         const isPass = passInp.type === 'password';
         passInp.type = isPass ? 'text' : 'password';
-        toggleVisBtn.innerHTML = isPass ? '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 19c-6.4 0-10-7-10-7a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c6.4 0 10 7 10 7a18.5 18.5 0 0 1-2.16 3.19M1 1l22 22" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>' : '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/></svg>';
+        toggleVisBtn.innerHTML = isPass ? '' : '';
       });
     }
     bodyEl.querySelector('#authCheckTgBindBtn')?.addEventListener('click', async () => {
       const btn = bodyEl.querySelector('#authCheckTgBindBtn');
-      if (btn) btn.innerHTML = '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.5 2" stroke="#38bdf8" stroke-width="1.9" stroke-linecap="round"/></svg>...';
+      if (btn) btn.innerHTML = '...';
       const st = await checkServerTelegramBindStatus(false);
       if (st && st.bound) {
         showToast(` Telegram успешно связан (@${st.tgUsername || 'KlevProClubBot'})!`, 'good');
@@ -6035,13 +6032,13 @@ export function openAuthAndBackupModal(onBackToHub = null) {
       const saveBtn = bodyEl.querySelector('#authSaveBtn');
       if (saveBtn) {
         saveBtn.disabled = true;
-        saveBtn.innerHTML = '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.5 2" stroke="#38bdf8" stroke-width="1.9" stroke-linecap="round"/></svg> Синхронизация с сервером...';
+        saveBtn.innerHTML = 'Синхронизация с сервером...';
       }
       const res = await authenticateAndSyncAccount(rawLogin, rawPin, 'login', chosenRegOverride);
       if (!res.ok) {
         if (saveBtn) {
           saveBtn.disabled = false;
-          saveBtn.innerHTML = '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="8" cy="15" r="4.5" fill="rgba(251,191,36,0.22)" stroke="#fbbf24" stroke-width="1.8"/><path d="M11.5 11.5L20 3m-3 3l2.5 2.5M14.5 8.5L17 11" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> Войти / Зарегистрировать ID';
+          saveBtn.innerHTML = 'Войти / Зарегистрировать ID';
         }
         showToast(` ${res.error || 'Ошибка входа'}`, 'bad');
         return;
@@ -6073,7 +6070,7 @@ export function openAuthAndBackupModal(onBackToHub = null) {
         openUserAgreementModal({
           requireVerification: true,
           onAccepted: () => {
-            openModal('<svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="5" y="11" width="14" height="10" rx="2.5" fill="rgba(251,191,36,0.22)" stroke="#fbbf24" stroke-width="1.8"/><path d="M8 11V7a4 4 0 0 1 8 0v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Регистрация, Вход и Постоянный ID', '<div id="authModalMount"></div>', (bEl) => {
+            openModal('Регистрация, Вход и Постоянный ID', '<div id="authModalMount"></div>', (bEl) => {
               renderAuthBody(bEl);
               executeAuthLoginOrRegister(rawLogin, rawPin, chosenRegOverride);
             }, true, { onBack: backFn });
@@ -6128,7 +6125,7 @@ export function openAuthAndBackupModal(onBackToHub = null) {
             <div style="display:flex;flex-direction:column;gap:12px;font-size:var(--fs-sm);line-height:1.48;">
               <div style="padding:12px;background:rgba(245,158,11,0.12);border:1.5px solid var(--warn);border-radius:var(--r-sm);">
                 <div style="font-weight:900;color:var(--warn);font-size:14px;margin-bottom:6px;">
-                  <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#ef4444"/></svg> Подтверждение региональной группы
+                  Подтверждение региональной группы
                 </div>
                 <div style="color:var(--text);font-size:13.5px;font-weight:700;">
                   Вы уверены, что хотите остаться в этой региональной группе: <span style="color:var(--accent);">[${autoRegCode} — ${escapeHtml(autoRegName)}]</span>?
@@ -6139,17 +6136,17 @@ export function openAuthAndBackupModal(onBackToHub = null) {
               </div>
               <div style="display:flex;flex-direction:column;gap:8px;">
                 <button type="button" class="btn btn-good" id="regConfirmStayBtn" style="width:100%;font-weight:900;min-height:42px;">
-                  <svg class="k-ico" style="color:var(--good);" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="rgba(16,185,129,0.24)" stroke="#10b981" stroke-width="1.9"/><path d="M8 12.5l2.7 2.7L16.5 9.5" stroke="#10b981" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg> Да, остаться в группе [${autoRegCode} — ${escapeHtml(autoRegName)}]
+                  Да, остаться в группе [${autoRegCode} — ${escapeHtml(autoRegName)}]
                 </button>
                 <button type="button" class="btn" id="regConfirmChangeBtn" style="width:100%;font-weight:800;min-height:40px;border-color:var(--accent);color:var(--accent);">
-                  <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#ef4444"/></svg> Нет, выбрать другой регион из списка или точку на карте
+                  Нет, выбрать другой регион из списка или точку на карте
                 </button>
               </div>
             </div>
           `;
-          openModal('<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#ef4444"/></svg> Подтверждение региональной группы', confirmHtml, (cBody) => {
+          openModal('Подтверждение региональной группы', confirmHtml, (cBody) => {
             cBody.querySelector('#regConfirmStayBtn')?.addEventListener('click', () => {
-              openModal('<svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="5" y="11" width="14" height="10" rx="2.5" fill="rgba(251,191,36,0.22)" stroke="#fbbf24" stroke-width="1.8"/><path d="M8 11V7a4 4 0 0 1 8 0v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Регистрация, Вход и Постоянный ID', '<div id="authModalMount"></div>', (bEl) => {
+              openModal('Регистрация, Вход и Постоянный ID', '<div id="authModalMount"></div>', (bEl) => {
                 renderAuthBody(bEl);
                 const lInp = bEl.querySelector('#authCallsignInput');
                 const pInp = bEl.querySelector('#authPinInput');
@@ -6159,7 +6156,7 @@ export function openAuthAndBackupModal(onBackToHub = null) {
               }, true, { onBack: backFn });
             });
             cBody.querySelector('#regConfirmChangeBtn')?.addEventListener('click', () => {
-              openModal('<svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="5" y="11" width="14" height="10" rx="2.5" fill="rgba(251,191,36,0.22)" stroke="#fbbf24" stroke-width="1.8"/><path d="M8 11V7a4 4 0 0 1 8 0v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Регистрация, Вход и Постоянный ID', '<div id="authModalMount"></div>', (bEl) => {
+              openModal('Регистрация, Вход и Постоянный ID', '<div id="authModalMount"></div>', (bEl) => {
                 renderAuthBody(bEl);
                 const lInp = bEl.querySelector('#authCallsignInput');
                 const pInp = bEl.querySelector('#authPinInput');
@@ -6211,7 +6208,7 @@ export function openAuthAndBackupModal(onBackToHub = null) {
       });
     }
   }
-  openModal('<svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="5" y="11" width="14" height="10" rx="2.5" fill="rgba(251,191,36,0.22)" stroke="#fbbf24" stroke-width="1.8"/><path d="M8 11V7a4 4 0 0 1 8 0v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Регистрация, Вход и Постоянный ID', '<div id="authModalMount"></div>', (bodyEl) => {
+  openModal('Регистрация, Вход и Постоянный ID', '<div id="authModalMount"></div>', (bodyEl) => {
     renderAuthBody(bodyEl);
   }, true, { onBack: backFn });
 }
@@ -6270,7 +6267,7 @@ export function renderChatsSubView(s, ident, visibleCrews) {
       channelId: chanId,
       type: 'crew',
       crewKey: k,
-      title: k.startsWith('REG-') ? `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" stroke="currentColor" stroke-width="1.6"/></svg> Региональный чат РФ (Регион ${k.replace('REG-', '')})` : `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> Экипаж ${k}${matchingCrew ? ` • ${matchingCrew.wn || matchingCrew.lb}` : ''}`,
+      title: k.startsWith('REG-') ? `Региональный чат РФ (Регион ${k.replace('REG-', '')})` : `Экипаж ${k}${matchingCrew ? ` • ${matchingCrew.wn || matchingCrew.lb}` : ''}`,
       subtitle: lastMsg ? `${String(lastMsg.senderName || 'Рыболов').replace(/<[^>]+>/g, '').trim()}: ${String(lastMsg.text || '').replace(/<svg[\s\S]*?<\/svg>/gi, '').replace(/<[^>]+>/g, '').trim().slice(0, 55)}` : '',
       lastTs: lastMsg?.ts || matchingCrew?.ca || 0
     });
@@ -6293,7 +6290,7 @@ export function renderChatsSubView(s, ident, visibleCrews) {
         type: 'dm',
         peerId,
         peerName: cleanTitle,
-        title: `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> ${cleanTitle}`,
+        title: `${cleanTitle}`,
         subtitle: `${m.senderId === ident.fisherId ? 'Вы' : String(cleanTitle).replace(/<[^>]+>/g, '').trim()}: ${String(m.text || '').replace(/<svg[\s\S]*?<\/svg>/gi, '').replace(/<[^>]+>/g, '').trim().slice(0, 55)}`,
         lastTs: m.ts || 0
       });
@@ -6317,7 +6314,7 @@ export function renderChatsSubView(s, ident, visibleCrews) {
       type: 'dm',
       peerId,
       peerName: cleanTitle,
-      title: `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> ${cleanTitle}`,
+      title: `${cleanTitle}`,
       subtitle: 'Новый личный диалог',
       lastTs: Date.now()
     });
@@ -6327,7 +6324,7 @@ export function renderChatsSubView(s, ident, visibleCrews) {
       channelId: activeChatChannelId,
       type: 'crew',
       crewKey: k,
-      title: k.startsWith('REG-') ? `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" stroke="currentColor" stroke-width="1.6"/></svg> Региональный чат РФ (Регион ${k.replace('REG-', '')})` : `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> Экипаж ${k}`,
+      title: k.startsWith('REG-') ? `Региональный чат РФ (Регион ${k.replace('REG-', '')})` : `Экипаж ${k}`,
       subtitle: 'Чат участников канала',
       lastTs: Date.now()
     });
@@ -6355,13 +6352,13 @@ export function renderChatsSubView(s, ident, visibleCrews) {
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;padding:9px 12px;background:var(--card);border:1px solid ${ident.isRegistered ? 'var(--border)' : 'var(--warn)'};border-radius:var(--r-sm);">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
           <span style="font-size:var(--fs-xs);color:${ident.isRegistered ? 'var(--good)' : 'var(--warn)'};font-weight:800;">
-            ${ident.isRegistered ? `<svg class="k-ico" style="color:var(--good);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg> Профиль: ${escapeHtml(ident.callsign)}` : '<svg class="k-ico" style="color:var(--warn);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg> Гостевой режим (для отправки сообщений войдите в профиль)'}
+            ${ident.isRegistered ? `Профиль: ${escapeHtml(ident.callsign)}` : 'Гостевой режим (для отправки сообщений войдите в профиль)'}
           </span>
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;">
           ${!ident.isRegistered
-            ? `<button type="button" class="btn btn-sm btn-accent" id="chatOpenAuthBtn"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="5" y="11" width="14" height="10" rx="2.5" fill="rgba(251,191,36,0.22)" stroke="#fbbf24" stroke-width="1.8"/><path d="M8 11V7a4 4 0 0 1 8 0v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Войти / Регистрация</button>`
-            : `<button type="button" class="btn btn-sm btn-good" id="chatShareCatchTopBtn"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg> Поделиться уловом</button>`}
+            ? `<button type="button" class="btn btn-sm btn-accent" id="chatOpenAuthBtn">Войти / Регистрация</button>`
+            : `<button type="button" class="btn btn-sm btn-good" id="chatShareCatchTopBtn">Поделиться уловом</button>`}
         </div>
       </div>
       <!-- Пункт 20 Дорожной карты v2.5.0: Общие региональные чаты рыбаков РФ (раскрывающийся список с поиском по коду и названию региона) -->
@@ -6373,11 +6370,11 @@ export function renderChatsSubView(s, ident, visibleCrews) {
       <div class="bento-card" style="padding:10px 12px;border:1.5px solid var(--accent);display:flex;flex-direction:column;gap:8px;">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
           <div>
-            <div style="font-weight:900;font-size:13.5px;color:var(--text);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" stroke="currentColor" stroke-width="1.6"/></svg> Общие региональные чаты рыбаков РФ</div>
+            <div style="font-weight:900;font-size:13.5px;color:var(--text);">Общие региональные чаты рыбаков РФ</div>
             
           </div>
           <button type="button" class="btn btn-sm btn-good" data-open-regional-chat="REG-${curRegCode}" style="min-height:34px;font-weight:900;">
-            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#ef4444"/></svg> Чат моего региона (${curRegCode})
+            Чат моего региона (${curRegCode})
           </button>
         </div>
         <div style="display:grid;grid-template-columns:1fr;gap:6px;">
@@ -6395,7 +6392,7 @@ export function renderChatsSubView(s, ident, visibleCrews) {
       })()}
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:8px;">
         <div class="card" style="background:var(--card);padding:8px 10px;border:1px solid var(--border);">
-          <div style="font-weight:800;font-size:11px;color:var(--accent);margin-bottom:4px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> ЧАТ ЭКИПАЖА ПО КЛЮЧУ (KP-XXXX):</div>
+          <div style="font-weight:800;font-size:11px;color:var(--accent);margin-bottom:4px;">ЧАТ ЭКИПАЖА ПО КЛЮЧУ (KP-XXXX):</div>
           <div style="display:flex;gap:6px;">
             <input type="text" id="chatJoinCrewKeyInput" class="input" placeholder="Напр. KP-7A3F" style="flex:1;min-height:34px;text-transform:uppercase;">
             <button type="button" class="btn btn-sm btn-accent" id="chatJoinCrewKeyBtn" style="min-height:34px;">Открыть</button>
@@ -6403,10 +6400,10 @@ export function renderChatsSubView(s, ident, visibleCrews) {
         </div>
         <div class="card" style="background:var(--card);padding:8px 10px;border:1px solid var(--border);display:flex;flex-direction:column;gap:6px;">
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
-            <div style="font-weight:800;font-size:11px;color:var(--good);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> ЛИЧНЫЙ ДИАЛОГ С РЫБАКОМ:</div>
+            <div style="font-weight:800;font-size:11px;color:var(--good);">ЛИЧНЫЙ ДИАЛОГ С РЫБАКОМ:</div>
             ${isAdminContourActive()
               ? `<span class="pill pill-good" style="font-size:9.5px;">Режим Ответа Супер-Админа</span>`
-              : `<button type="button" class="btn btn-sm" id="chatWriteAdminBtn" style="min-height:28px;padding:2px 8px;font-size:11px;border-color:var(--good);color:var(--good);font-weight:800;"><svg class="k-ico" style="color:#fbbf24;" viewBox="0 0 24 24" fill="none"><path d="M3 18h18l-2-11-5 4-2-6-2 6-5-4-2 11z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Написать Админу</button>`}
+              : `<button type="button" class="btn btn-sm" id="chatWriteAdminBtn" style="min-height:28px;padding:2px 8px;font-size:11px;border-color:var(--good);color:var(--good);font-weight:800;">Написать Админу</button>`}
           </div>
           ${isAdminContourActive() && Array.isArray(_adminDashboardCache?.users) && _adminDashboardCache.users.length > 0 ? `
             <div style="display:flex;gap:6px;">
@@ -6426,7 +6423,7 @@ export function renderChatsSubView(s, ident, visibleCrews) {
       <!-- Вертикальный список чатов сверху вниз -->
       <div style="display:flex;flex-direction:column;gap:8px;">
         <div style="font-weight:800;font-size:var(--fs-xs);color:var(--muted);">
-          <svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="9" y="9" width="11" height="11" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> ВАШИ ДИАЛОГИ И ЧАТЫ ЭКИПАЖЕЙ (${allChannels.length}):
+          ВАШИ ДИАЛОГИ И ЧАТЫ ЭКИПАЖЕЙ (${allChannels.length}):
         </div>
         ${allChannels.length === 0 ? `
           <div style="padding:18px 14px;background:var(--card);border:1px dashed var(--border);border-radius:var(--r-sm);font-size:var(--fs-xs);color:var(--muted);text-align:center;">
@@ -6455,7 +6452,7 @@ export function renderChatsSubView(s, ident, visibleCrews) {
                   Открыть диалог
                 </button>
                 <button type="button" class="btn btn-sm" data-del-chat-chan="${escapeHtml(ch.channelId)}" data-del-chat-title="${escapeHtml(plainTitle)}" title="Удалить чат" style="min-height:34px;padding:4px 12px;font-size:11.5px;color:var(--bad);border-color:rgba(239,68,68,0.4);">
-                  <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Удалить
+                  Удалить
                 </button>
               </div>
             </div>
@@ -6479,16 +6476,16 @@ function renderCompactCircleRow(item, s, ident, now) {
   let rowBorderColor = mine ? 'rgba(16,185,129,0.55)' : 'var(--border)';
   let rowBg = 'var(--card)';
   if (item.t === 'crew' && item.sos) {
-    catBadge = `<span class="pill pill-bad" style="font-size:10px;padding:1px 6px;"><svg class="k-ico" style="color:var(--bad);" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9.5" fill="#dc2626" stroke="#fca5a5" stroke-width="1.8"/><text x="12" y="15" text-anchor="middle" fill="#fff" font-size="7.5" font-weight="900" font-family="sans-serif">SOS</text></svg> SOS</span>`;
+    catBadge = `<span class="pill pill-bad" style="font-size:10px;padding:1px 6px;">SOS</span>`;
     titleText = escapeHtml(`${item.lb || 'Водоём'}${item.wn && item.wn !== item.lb ? ` • ${item.wn}` : ''}`);
-    subMetaText = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="4.5" stroke="#38bdf8" stroke-width="1.6"/><circle cx="12" cy="12" r="1.8" fill="#10b981"/></svg> ${Number(item.lat).toFixed(3)}°N, ${Number(item.lon).toFixed(3)}°E • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.5 2" stroke="#38bdf8" stroke-width="1.9" stroke-linecap="round"/></svg> ${formatRemainingHours(item.ea)}`;
+    subMetaText = `${Number(item.lat).toFixed(3)}°N, ${Number(item.lon).toFixed(3)}°E • ${formatRemainingHours(item.ea)}`;
     rowBorderColor = 'var(--bad)';
     rowBg = 'rgba(239,68,68,0.08)';
   } else if (item.t === 'crew') {
     const cKey = escapeHtml(item.crewKey || formatCrewKeyFromHash(computeCrewKeyHash(item.id)));
-    catBadge = `<span class="pill pill-ice" style="font-size:10px;padding:1px 6px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> Экипаж ${cKey}</span>`;
+    catBadge = `<span class="pill pill-ice" style="font-size:10px;padding:1px 6px;">Экипаж ${cKey}</span>`;
     titleText = escapeHtml(`${item.fn || 'Рыба'} • ${item.wn || item.lb || 'Точка'}`);
-    subMetaText = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="3" y="8" width="18" height="8" rx="2" transform="rotate(-35 12 12)" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8"/><path d="M8 11l1.5 2M11 9l1.5 2M14 7l1.5 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg> ${Number(item.dp) || 2}м • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> ${Number(item.tw ?? 8)}°C • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.5 2" stroke="#38bdf8" stroke-width="1.9" stroke-linecap="round"/></svg> ${formatRemainingHours(item.ea)}`;
+    subMetaText = `${Number(item.dp) || 2}м • ${Number(item.tw ?? 8)}°C • ${formatRemainingHours(item.ea)}`;
   } else if (item.t === 'spot') {
     const normCat = (item.cat === 'hole' || item.cat === 'spot') ? 'bite' : (item.cat || 'slip');
     const spCat = SPOT_CATEGORIES[normCat] || SPOT_CATEGORIES.slip;
@@ -6504,18 +6501,18 @@ function renderCompactCircleRow(item, s, ident, now) {
     subMetaText = `${escapeHtml(cleanSpotNote || fallbackSpotMeta)} • ${ageLabel}`;
     rowBorderColor = spCat.color;
   } else if (item.t === 'workshop') {
-    catBadge = `<span class="pill pill-warn" style="font-size:10px;padding:1px 6px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" fill="rgba(56,189,248,0.2)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> Снасть</span>`;
+    catBadge = `<span class="pill pill-warn" style="font-size:10px;padding:1px 6px;">Снасть</span>`;
     titleText = escapeHtml(`${item.fn || 'Рыба'}: ${(item.rw || 'Монтаж').split(',')[0]}`);
-    subMetaText = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 18c0-4 4-4 4-8s4-4 4-6 5-1 5 3-3 5-3 8 4 4 6 2" stroke="#f43f5e" stroke-width="2.2" stroke-linecap="round"/></svg> ${escapeHtml(item.bt || 'приманка')} • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> ${Number(item.twMin ?? 4)}..${Number(item.twMax ?? 16)}°C`;
+    subMetaText = `${escapeHtml(item.bt || 'приманка')} • ${Number(item.twMin ?? 4)}..${Number(item.twMax ?? 16)}°C`;
   } else {
     const decay = getCircleHexDecayState(item, now);
     catBadge = `<span class="pill pill-good" style="font-size:10px;padding:1px 6px;">⬡ ±${decay.radiusKm}км • ~${decay.hoursLeft}ч</span>`;
     titleText = escapeHtml(`${item.fn || 'Рыба'}${item.kg ? ` (${item.kg} кг)` : ''} • ${item.wn || item.lb || 'Сектор'}`);
-    subMetaText = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 18c0-4 4-4 4-8s4-4 4-6 5-1 5 3-3 5-3 8 4 4 6 2" stroke="#f43f5e" stroke-width="2.2" stroke-linecap="round"/></svg> ${escapeHtml(item.bt || 'по сезону')} • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> ${Number(item.tw ?? 8)}°C • Свежесть ${Math.round(decay.freshness * 100)}% (${ageLabel})`;
+    subMetaText = `${escapeHtml(item.bt || 'по сезону')} • ${Number(item.tw ?? 8)}°C • Свежесть ${Math.round(decay.freshness * 100)}% (${ageLabel})`;
   }
   const ownerPill = mine
-    ? `<span class="pill pill-good" style="font-size:10px;padding:1px 6px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" fill="rgba(56,189,248,0.22)" stroke="currentColor" stroke-width="1.8"/><path d="M4 20c0-3.8 3.6-6.5 8-6.5s8 2.7 8 6.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Моё</span>`
-    : `<span class="pill pill-neutral" style="font-size:10px;padding:1px 6px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" stroke="currentColor" stroke-width="1.6"/></svg> ${escapeHtml(authorDisplay)}</span>`;
+    ? `<span class="pill pill-good" style="font-size:10px;padding:1px 6px;">Моё</span>`
+    : `<span class="pill pill-neutral" style="font-size:10px;padding:1px 6px;">${escapeHtml(authorDisplay)}</span>`;
   const cKey = item.t === 'crew' && !item.sos ? (item.crewKey || formatCrewKeyFromHash(computeCrewKeyHash(item.id))) : '';
   const canApplyRig = !item.sos && item.t !== 'spot' && Boolean(item.t === 'workshop' || (item.fi && FISH_DB.some(f => f.id === item.fi)));
   return `
@@ -6528,15 +6525,15 @@ function renderCompactCircleRow(item, s, ident, now) {
           <span style="font-size:11px;color:var(--muted);">${subMetaText}</span>
         </div>
         <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;flex-wrap:wrap;">
-          ${item.t !== 'workshop' ? `<button type="button" class="btn btn-sm" data-goto-circle="${item.id}" title="Показать на карте" style="min-height:28px;padding:2px 7px;font-size:11px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3V6z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 3v15M15 6v15" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="10" r="2.2" fill="#38bdf8" stroke="#fff" stroke-width="1"/></svg></button>` : ''}
-          ${canApplyRig ? `<button type="button" class="btn btn-sm btn-good" data-apply-workshop="${item.id}" title="Повторить снасть: применить рыбу, метод, глубину и приманку в прогнозе" style="min-height:28px;padding:2px 7px;font-size:11px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg> Снасть</button>` : ''}
-          ${cKey ? `<button type="button" class="btn btn-sm btn-accent" data-open-crew-chat="${cKey}" title="Открыть чат экипажа" style="min-height:26px;padding:2px 7px;font-size:11px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></button>` : (!mine ? `<button type="button" class="btn btn-sm" data-open-dm="${itemFid}" data-open-dm-name="${escapeHtml(authorDisplay)}" title="Написать рыбаку" style="min-height:26px;padding:2px 7px;font-size:11px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></button>` : '')}
+          ${item.t !== 'workshop' ? `<button type="button" class="btn btn-sm" data-goto-circle="${item.id}" title="Показать на карте" style="min-height:28px;padding:2px 7px;font-size:11px;"></button>` : ''}
+          ${canApplyRig ? `<button type="button" class="btn btn-sm btn-good" data-apply-workshop="${item.id}" title="Повторить снасть: применить рыбу, метод, глубину и приманку в прогнозе" style="min-height:28px;padding:2px 7px;font-size:11px;">Снасть</button>` : ''}
+          ${cKey ? `<button type="button" class="btn btn-sm btn-accent" data-open-crew-chat="${cKey}" title="Открыть чат экипажа" style="min-height:26px;padding:2px 7px;font-size:11px;"></button>` : (!mine ? `<button type="button" class="btn btn-sm" data-open-dm="${itemFid}" data-open-dm-name="${escapeHtml(authorDisplay)}" title="Написать рыбаку" style="min-height:26px;padding:2px 7px;font-size:11px;"></button>` : '')}
           ${(mine || ident.isOwner) ? `
-            <button type="button" class="btn btn-sm" data-del-my-circle="${item.id}" title="Удалить запись" style="min-height:26px;padding:2px 7px;font-size:11px;color:var(--bad);border-color:rgba(239,68,68,0.4);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            <button type="button" class="btn btn-sm" data-del-my-circle="${item.id}" title="Удалить запись" style="min-height:26px;padding:2px 7px;font-size:11px;color:var(--bad);border-color:rgba(239,68,68,0.4);"></button>
           ` : (hidden ? `
-            <button type="button" class="btn btn-sm btn-good" data-unhide-circle="${item.id}" title="Вернуть запись" style="min-height:26px;padding:2px 7px;font-size:11px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/></svg></button>
+            <button type="button" class="btn btn-sm btn-good" data-unhide-circle="${item.id}" title="Вернуть запись" style="min-height:26px;padding:2px 7px;font-size:11px;"></button>
           ` : `
-            <button type="button" class="btn btn-sm" data-hide-foreign-circle="${item.id}" title="Скрыть чужую запись" style="min-height:26px;padding:2px 7px;font-size:11px;color:var(--muted);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 19c-6.4 0-10-7-10-7a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c6.4 0 10 7 10 7a18.5 18.5 0 0 1-2.16 3.19M1 1l22 22" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+            <button type="button" class="btn btn-sm" data-hide-foreign-circle="${item.id}" title="Скрыть чужую запись" style="min-height:26px;padding:2px 7px;font-size:11px;color:var(--muted);"></button>
           `)}
           <button type="button" class="btn btn-sm" data-toggle-compact-row="${item.id}" title="Подробности" style="min-height:26px;padding:2px 6px;font-size:11px;">${isExpanded ? '▴' : '▾'}</button>
         </div>
@@ -6567,27 +6564,27 @@ function renderCompactCircleRow(item, s, ident, now) {
             </div>
           ` : `
             <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px;">
-              <span style="font-weight:900;color:var(--accent);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 12s4-6 11-6c4.2 0 7 2.5 9 6-2 3.5-4.8 6-9 6-7 0-11-6-11-6z" fill="rgba(56,189,248,0.28)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M2 12l-1.5-3.5L5 10.5M2 12l-1.5 3.5L5 13.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="16.5" cy="10.8" r="1.3" fill="currentColor"/></svg> ${escapeHtml(item.fn || 'Рыба')}${item.kg ? ` • Вес: ${item.kg} кг` : ''}</span>
-              <span style="color:var(--muted);font-size:11px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.5 2" stroke="#38bdf8" stroke-width="1.9" stroke-linecap="round"/></svg> До истечения: <b>${formatRemainingHours(item.ea || (item.ca ? item.ca + 72*3600000 : now + 72*3600000))}</b></span>
+              <span style="font-weight:900;color:var(--accent);">${escapeHtml(item.fn || 'Рыба')}${item.kg ? ` • Вес: ${item.kg} кг` : ''}</span>
+              <span style="color:var(--muted);font-size:11px;">До истечения: <b>${formatRemainingHours(item.ea || (item.ca ? item.ca + 72*3600000 : now + 72*3600000))}</b></span>
             </div>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:6px;margin:2px 0;">
-              <div><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> <b>Водоём:</b> ${escapeHtml(item.wn || item.lb || 'Водоём')}</div>
-              <div><svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="3" y="8" width="18" height="8" rx="2" transform="rotate(-35 12 12)" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8"/><path d="M8 11l1.5 2M11 9l1.5 2M14 7l1.5 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg> <b>Глубина:</b> ${item.dp || 1.5} м</div>
-              <div><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> <b>Вода:</b> ${item.tw ?? 8}°C</div>
-              <div><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><polygon points="16,8 13.5,13.5 8,16 10.5,10.5" fill="#38bdf8" stroke="currentColor" stroke-width="1.3"/></svg> <b>Атм. давление:</b> ${item.pr ?? 755} мм</div>
-              <div><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> <b>Ветер:</b> ${item.ws ?? 4} м/с</div>
-              <div><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 18c0-4 4-4 4-8s4-4 4-6 5-1 5 3-3 5-3 8 4 4 6 2" stroke="#f43f5e" stroke-width="2.2" stroke-linecap="round"/></svg> <b>Насадка:</b> ${escapeHtml(item.bt || 'мотыль / блесна')}</div>
-              <div><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg> <b>Снасть:</b> ${escapeHtml(item.rw || item.rg || 'по сезону')}</div>
-              <div><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" fill="rgba(56,189,248,0.22)" stroke="currentColor" stroke-width="1.8"/><path d="M4 20c0-3.8 3.6-6.5 8-6.5s8 2.7 8 6.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> <b>Автор:</b> ${escapeHtml(String(authorDisplay).replace(/<[^>]+>/g, '').trim())}</div>
+              <div><b>Водоём:</b> ${escapeHtml(item.wn || item.lb || 'Водоём')}</div>
+              <div><b>Глубина:</b> ${item.dp || 1.5} м</div>
+              <div><b>Вода:</b> ${item.tw ?? 8}°C</div>
+              <div><b>Атм. давление:</b> ${item.pr ?? 755} мм</div>
+              <div><b>Ветер:</b> ${item.ws ?? 4} м/с</div>
+              <div><b>Насадка:</b> ${escapeHtml(item.bt || 'мотыль / блесна')}</div>
+              <div><b>Снасть:</b> ${escapeHtml(item.rw || item.rg || 'по сезону')}</div>
+              <div><b>Автор:</b> ${escapeHtml(String(authorDisplay).replace(/<[^>]+>/g, '').trim())}</div>
             </div>
           `)}
-          ${cKey ? `<div style="color:var(--good);font-weight:800;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="8" cy="15" r="4.5" fill="rgba(251,191,36,0.22)" stroke="#fbbf24" stroke-width="1.8"/><path d="M11.5 11.5L20 3m-3 3l2.5 2.5M14.5 8.5L17 11" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> Ключ закрытого экипажа: <code>${cKey}</code></div>` : ''}
-          ${item.nt ? `<div style="padding:6px 8px;background:var(--card);border-left:3px solid ${item.sos ? 'var(--bad)' : 'var(--accent)'};border-radius:4px;color:var(--text);font-style:italic;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> «${escapeHtml(String(item.nt || '').replace(/<[^>]+>/g, '').trim())}»</div>` : ''}
+          ${cKey ? `<div style="color:var(--good);font-weight:800;">Ключ закрытого экипажа: <code>${cKey}</code></div>` : ''}
+          ${item.nt ? `<div style="padding:6px 8px;background:var(--card);border-left:3px solid ${item.sos ? 'var(--bad)' : 'var(--accent)'};border-radius:4px;color:var(--text);font-style:italic;">«${escapeHtml(String(item.nt || '').replace(/<[^>]+>/g, '').trim())}»</div>` : ''}
           <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;">
-            ${item.t !== 'workshop' ? `<button type="button" class="btn btn-sm btn-accent" data-goto-circle="${item.id}" style="padding:4px 10px;font-size:11.5px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3V6z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 3v15M15 6v15" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="10" r="2.2" fill="#38bdf8" stroke="#fff" stroke-width="1"/></svg> Показать на карте</button>` : ''}
-            ${canApplyRig ? `<button type="button" class="btn btn-sm btn-good" data-apply-workshop="${item.id}" style="padding:4px 10px;font-size:11.5px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg> Применить снасть</button>` : ''}
-            ${cKey ? `<button type="button" class="btn btn-sm btn-good" data-open-crew-chat="${cKey}" style="padding:4px 10px;font-size:11.5px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> Чат экипажа (${cKey})</button>` : (!mine ? `<button type="button" class="btn btn-sm" data-open-dm="${itemFid}" data-open-dm-name="${escapeHtml(authorDisplay)}" style="padding:4px 10px;font-size:11.5px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> Написать в ЛС</button>` : '')}
-            ${(mine || ident.isOwner) ? `<button type="button" class="btn btn-sm" data-del-my-circle="${item.id}" style="padding:4px 10px;font-size:11.5px;color:var(--bad);border-color:rgba(239,68,68,0.4);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Удалить</button>` : ''}
+            ${item.t !== 'workshop' ? `<button type="button" class="btn btn-sm btn-accent" data-goto-circle="${item.id}" style="padding:4px 10px;font-size:11.5px;">Показать на карте</button>` : ''}
+            ${canApplyRig ? `<button type="button" class="btn btn-sm btn-good" data-apply-workshop="${item.id}" style="padding:4px 10px;font-size:11.5px;">Применить снасть</button>` : ''}
+            ${cKey ? `<button type="button" class="btn btn-sm btn-good" data-open-crew-chat="${cKey}" style="padding:4px 10px;font-size:11.5px;">Чат экипажа (${cKey})</button>` : (!mine ? `<button type="button" class="btn btn-sm" data-open-dm="${itemFid}" data-open-dm-name="${escapeHtml(authorDisplay)}" style="padding:4px 10px;font-size:11.5px;">Написать в ЛС</button>` : '')}
+            ${(mine || ident.isOwner) ? `<button type="button" class="btn btn-sm" data-del-my-circle="${item.id}" style="padding:4px 10px;font-size:11.5px;color:var(--bad);border-color:rgba(239,68,68,0.4);">Удалить</button>` : ''}
           </div>
         </div>
       ` : ''}
@@ -6635,14 +6632,14 @@ export function renderCircleChatsHubBar(activeMode = 'radar') {
     </div>
     <div class="circle-chats-hub-bar" role="tablist" aria-label="Единый центр связи: Чаты, Круг и Точки">
       <button type="button" class="btn circle-chats-hub-btn ${activeMode === 'chats' ? 'btn-accent' : ''}" data-hub-switch="chats" role="tab" aria-selected="${activeMode === 'chats' ? 'true' : 'false'}">
-        <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> Чаты</span>
+        <span>Чаты</span>
         ${unreadChats > 0 ? `<span class="pill pill-bad" style="font-size:10px;padding:1px 5px;margin-left:2px;">+${unreadChats}</span>` : ''}
       </button>
       <button type="button" class="btn circle-chats-hub-btn ${activeMode === 'radar' ? 'btn-accent' : ''}" data-hub-switch="radar" role="tab" aria-selected="${activeMode === 'radar' ? 'true' : 'false'}">
-        <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="5" stroke="#38bdf8" stroke-width="1.5"/><path d="M12 12l6-6" stroke="#10b981" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="12" r="1.8" fill="#10b981"/></svg> Круг (${radarCount})</span>
+        <span>Круг (${radarCount})</span>
       </button>
       <button type="button" class="btn circle-chats-hub-btn ${activeMode === 'spots' ? 'btn-accent' : ''}" data-hub-switch="spots" role="tab" aria-selected="${activeMode === 'spots' ? 'true' : 'false'}">
-        <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(245,158,11,0.22)" stroke="#f59e0b" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#f59e0b"/></svg> Слипы (${totalSpotsCount})</span>
+        <span>Слипы (${totalSpotsCount})</span>
       </button>
     </div>
   `;
@@ -6691,8 +6688,8 @@ function renderFullScreenChatWindowHtml(s, ident, visibleCrews) {
       type: 'crew',
       crewKey: isReg ? '' : cKey,
       title: isReg
-        ? `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" stroke="currentColor" stroke-width="1.6"/></svg> Региональный чат РФ (Регион ${regNum})`
-        : `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> Экипаж ${cKey}${crewItem?.wn ? ' • ' + escapeHtml(crewItem.wn) : ''}`
+        ? `Региональный чат РФ (Регион ${regNum})`
+        : `Экипаж ${cKey}${crewItem?.wn ? ' • ' + escapeHtml(crewItem.wn) : ''}`
     };
   } else {
     const parts = activeChatChannelId.replace(/^dm:/, '').split(':');
@@ -6703,7 +6700,7 @@ function renderFullScreenChatWindowHtml(s, ident, visibleCrews) {
       channelId: activeChatChannelId,
       type: 'dm',
       peerId: otherId,
-      title: `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> ${formatCleanPeerTitle(rawName, otherId)}`
+      title: `${formatCleanPeerTitle(rawName, otherId)}`
     };
   }
   const activeMsgs = allMsgs
@@ -6731,8 +6728,7 @@ function renderFullScreenChatWindowHtml(s, ident, visibleCrews) {
           <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">
             ${activeChan.crewKey ? `<span class="fisher-id-copy-badge" data-copy-fisher-id="${activeChan.crewKey}" data-copy-label="Ключ экипажа" style="font-size:11px;font-family:monospace;font-weight:800;cursor:pointer;padding:4px 7px;background:var(--card);border:1px solid var(--border);border-radius:6px;">${activeChan.crewKey}</span>` : ''}
             <button type="button" class="btn btn-sm" id="chatDeleteHistoryBtn" title="Удалить переписку" style="color:var(--bad);border-color:rgba(239,68,68,0.4);min-height:36px;padding:4px 9px;">
-              <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </button>
+              </button>
             <button type="button" class="btn btn-sm" id="chatFullScreenCloseBtn" title="Закрыть окно чата" style="min-height:36px;padding:4px 10px;font-weight:800;">
               <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg> Закрыть
             </button>
@@ -6765,19 +6761,17 @@ function renderFullScreenChatWindowHtml(s, ident, visibleCrews) {
                     <span data-chat-msg-actions="${escapeHtml(m.id)}" style="display:${isSelected ? 'inline-flex' : 'none'};align-items:center;gap:5px;">
                       ${canEditMsg ? `
                         <button type="button" class="btn btn-sm" data-edit-chat-msg="${escapeHtml(m.id)}" title="Редактировать сообщение (доступно 3 ч)" aria-label="Редактировать сообщение" style="width:28px;height:28px;min-height:28px;padding:0;border-radius:7px;justify-content:center;color:var(--accent);border-color:var(--accent);">
-                          <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                        </button>
+                          </button>
                       ` : ''}
                       <button type="button" class="btn btn-sm" data-del-chat-msg="${escapeHtml(m.id)}" title="${isMe ? 'Удалить сообщение (у себя или у всех)' : 'Удалить сообщение у себя'}" aria-label="Удалить сообщение" style="width:28px;height:28px;min-height:28px;padding:0;border-radius:7px;justify-content:center;color:var(--bad);border-color:rgba(239,68,68,0.45);">
-                        <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14zM10 11v6M14 11v6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                      </button>
+                        </button>
                     </span>
                   </div>
                 </div>
                 <div data-chat-msg-text="${escapeHtml(m.id)}" style="white-space:pre-wrap;line-height:1.45;color:var(--text);word-break:break-word;">${escapeHtml(String(m.text || '').replace(/<svg[\s\S]*?<\/svg>/gi, '').replace(/<[^>]+>/g, '').trim())}</div>
                 ${packTok ? `
                   <div style="margin-top:6px;padding-top:5px;border-top:1px dashed var(--border);display:flex;gap:6px;flex-wrap:wrap;">
-                    <button type="button" class="btn btn-sm btn-good" data-chat-import-pack="${packTok}" style="min-height:28px;padding:2px 9px;font-size:11px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3V6z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 3v15M15 6v15" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="10" r="2.2" fill="#38bdf8" stroke="#fff" stroke-width="1"/></svg> Показать на карте</button>
+                    <button type="button" class="btn btn-sm btn-good" data-chat-import-pack="${packTok}" style="min-height:28px;padding:2px 9px;font-size:11px;">Показать на карте</button>
                   </div>
                 ` : ''}
               </div>
@@ -6962,7 +6956,7 @@ export function render(container) {
           <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
             <div>
               <div style="font-weight:900;font-size:var(--fs-sm);color:var(--warn);">
-                <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(245,158,11,0.22)" stroke="#f59e0b" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#f59e0b"/></svg> Точка на карту (6 категорий)
+                Точка на карту (6 категорий)
               </div>
 
             </div>
@@ -6998,7 +6992,7 @@ export function render(container) {
                   </div>
                   <div style="display:flex;gap:5px;align-items:center;">
                     <button type="button" class="btn btn-sm btn-accent" data-goto-saved-spot="${escapeHtml(sp.id)}" style="min-height:32px;padding:4px 10px;font-size:11.5px;">На карту</button>
-                    <button type="button" class="btn btn-sm" data-del-saved-spot="${escapeHtml(sp.id)}" title="Удалить личную точку" style="min-height:32px;padding:4px 8px;font-size:11.5px;color:var(--bad);border-color:rgba(239,68,68,0.4);">✕</button>
+                    <button type="button" class="btn btn-sm" data-del-saved-spot="${escapeHtml(sp.id)}" title="Удалить личную точку" style="min-height:32px;padding:4px 8px;font-size:11.5px;color:var(--bad);border-color:rgba(239,68,68,0.4);"></button>
                   </div>
                 </div>
               `;
@@ -7022,38 +7016,38 @@ export function render(container) {
           <div>
             <div style="font-weight:800;font-size:var(--fs-xs);color:var(--text);">
               ${ident.isOwner
-                ? `<svg class="k-ico" style="color:#fbbf24;" viewBox="0 0 24 24" fill="none"><path d="M3 18h18l-2-11-5 4-2-6-2 6-5-4-2 11z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Супер-Админ Владелец (${escapeHtml(ident.login)})`
+                ? `Супер-Админ Владелец (${escapeHtml(ident.login)})`
                 : (ident.isRegistered
-                    ? `<svg class="k-ico" style="color:var(--good);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg> Профиль активен: «${escapeHtml(ident.login || ident.callsign)}»`
-                    : `<svg class="k-ico" style="color:var(--warn);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg> Гостевой режим (только просмотр)`)}
+                    ? `Профиль активен: «${escapeHtml(ident.login || ident.callsign)}»`
+                    : `Гостевой режим (только просмотр)`)}
             </div>
 
           </div>
           <div class="circle-profile-actions-grid" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;width:100%;">
             ${ident.isOwner ? `
-              <button type="button" class="btn btn-sm btn-good" id="circleGoAdminTabBtn" style="min-height:34px;font-weight:800;white-space:nowrap;"><svg class="k-ico" style="color:#fbbf24;" viewBox="0 0 24 24" fill="none"><path d="M3 18h18l-2-11-5 4-2-6-2 6-5-4-2 11z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Статистика и БД</button>
+              <button type="button" class="btn btn-sm btn-good" id="circleGoAdminTabBtn" style="min-height:34px;font-weight:800;white-space:nowrap;">Статистика и БД</button>
             ` : ''}
             ${!ident.isRegistered ? `
-              <button type="button" class="btn btn-sm btn-accent" id="circleAuthModalBtn" style="min-height:34px;font-weight:800;white-space:nowrap;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="5" y="11" width="14" height="10" rx="2.5" fill="rgba(251,191,36,0.22)" stroke="#fbbf24" stroke-width="1.8"/><path d="M8 11V7a4 4 0 0 1 8 0v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Вход / Профиль</button>
+              <button type="button" class="btn btn-sm btn-accent" id="circleAuthModalBtn" style="min-height:34px;font-weight:800;white-space:nowrap;">Вход / Профиль</button>
             ` : `
-              <button type="button" class="btn btn-sm" id="circleAuthModalBtn" style="min-height:34px;white-space:nowrap;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" fill="rgba(56,189,248,0.22)" stroke="currentColor" stroke-width="1.8"/><path d="M4 20c0-3.8 3.6-6.5 8-6.5s8 2.7 8 6.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Мой профиль</button>
+              <button type="button" class="btn btn-sm" id="circleAuthModalBtn" style="min-height:34px;white-space:nowrap;">Мой профиль</button>
             `}
-            <button type="button" class="btn btn-sm" id="circleImportPackBtn" style="min-height:34px;white-space:nowrap;" title="Ввести 4-значный ключ закрытого Экипажа KP-XXXX"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="8" cy="15" r="4.5" fill="rgba(251,191,36,0.22)" stroke="#fbbf24" stroke-width="1.8"/><path d="M11.5 11.5L20 3m-3 3l2.5 2.5M14.5 8.5L17 11" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> Ключ KP-XXXX</button>
-            <button type="button" class="btn btn-sm" id="circleRefreshRadarBtn" style="min-height:34px;white-space:nowrap;" title="Синхронизировать точки с сервером"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M20 11a8 8 0 0 0-14.5-4.5L4 8m0-5v5h5M4 13a8 8 0 0 0 14.5 4.5L20 16m0 5v-5h-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Обновить радар</button>
+            <button type="button" class="btn btn-sm" id="circleImportPackBtn" style="min-height:34px;white-space:nowrap;" title="Ввести 4-значный ключ закрытого Экипажа KP-XXXX">Ключ KP-XXXX</button>
+            <button type="button" class="btn btn-sm" id="circleRefreshRadarBtn" style="min-height:34px;white-space:nowrap;" title="Синхронизировать точки с сервером">Обновить радар</button>
           </div>
         </div>
         <!-- 2. Две главные карточки Круга и Экипажа (Точки слипов/коряг вынесены в 3-ю вкладку «Слипы») -->
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px;margin-bottom:12px;">
           <button type="button" class="card" data-quick-share="circle" style="text-align:left;cursor:pointer;padding:10px 12px;background:var(--card);border:1.5px solid var(--good);display:flex;flex-direction:column;gap:4px;">
             <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;">
-              <span style="font-weight:900;font-size:var(--fs-sm);color:var(--good);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3.5" fill="rgba(56,189,248,0.25)" stroke="currentColor" stroke-width="1.8"/><path d="M3 19c0-3.2 2.7-5.5 6-5.5s6 2.3 6 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="17" cy="9" r="2.8" stroke="currentColor" stroke-width="1.6"/><path d="M16 14c2.6.3 4.8 2 5 4.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg> Сводка в Круг (±5 км)</span>
+              <span style="font-weight:900;font-size:var(--fs-sm);color:var(--good);">Сводка в Круг (±5 км)</span>
               <span class="pill pill-good" style="font-size:10px;">Приватно</span>
             </div>
 
           </button>
           <button type="button" class="card" data-quick-share="crew" style="text-align:left;cursor:pointer;padding:10px 12px;background:var(--card);border:1.5px solid var(--accent);display:flex;flex-direction:column;gap:4px;">
             <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;">
-              <span style="font-weight:900;font-size:var(--fs-sm);color:var(--accent);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> Экипаж (72 ч)</span>
+              <span style="font-weight:900;font-size:var(--fs-sm);color:var(--accent);">Экипаж (72 ч)</span>
               <span class="pill pill-ice" style="font-size:10px;">По ключу</span>
             </div>
 
@@ -7971,7 +7965,6 @@ export function renderAdminSection(customContainer = null) {
     container.innerHTML = `
       <div class="card" style="max-width:480px;margin:16px auto;border:2px solid var(--accent);padding:18px;display:flex;flex-direction:column;gap:12px;">
         <div style="display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);padding-bottom:10px;">
-          <svg class="k-ico" style="color:#fbbf24;width:26px;height:26px;flex-shrink:0;" viewBox="0 0 24 24" fill="none"><path d="M3 18h18l-2-11-5 4-2-6-2 6-5-4-2 11z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg>
           <div>
             <div style="font-size:var(--fs-md);font-weight:900;color:var(--accent);">Вход в «Клёв ПРО Админ»</div>
             <div style="font-size:11.5px;color:var(--muted);">Введите логин и мастер-пароль Владельца (сохраняются на устройстве)</div>
@@ -9643,9 +9636,9 @@ function bindAdminSectionEvents(container, users) {
       const targetLabel = btn.getAttribute('data-adm-remove-label') || targetId;
       if (!targetId) return;
       openConfirmDeleteModal({
-        title: '<svg class="k-ico" style="color:#fbbf24;" viewBox="0 0 24 24" fill="none"><path d="M3 18h18l-2-11-5 4-2-6-2 6-5-4-2 11z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Удалить модератора из базы админов?',
+        title: 'Удалить модератора из базы админов?',
         message: `Вы действительно хотите снять права модератора с «${escapeHtml(targetLabel)}» (${escapeHtml(targetId)})?`,
-        confirmLabel: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Да, снять права',
+        confirmLabel: 'Да, снять права',
         onConfirm: () => {
           store.dispatch({ type: 'REMOVE_ADMIN_FROM_WHITELIST', payload: targetId });
           syncAdminWhitelistWithCloud({ action: 'remove', targetId });
@@ -9662,9 +9655,9 @@ function bindAdminSectionEvents(container, users) {
       const pTitle = btn.getAttribute('data-adm-del-srv-title') || pid;
       if (!pid) return;
       openConfirmDeleteModal({
-        title: '<svg class="k-ico" style="color:#fbbf24;" viewBox="0 0 24 24" fill="none"><path d="M3 18h18l-2-11-5 4-2-6-2 6-5-4-2 11z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Удалить точку с сервера и карты?',
+        title: 'Удалить точку с сервера и карты?',
         message: `Вы действительно хотите удалить точку «${escapeHtml(pTitle)}» (${escapeHtml(pid)}) из базы сервера D1 и с карты у всех пользователей?`,
-        confirmLabel: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Да, удалить точку',
+        confirmLabel: 'Да, удалить точку',
         onConfirm: async () => {
           await deleteCircleItemFromServer(pid);
           const next = (store.getState().circleItems || []).filter(x => x.id !== pid);
@@ -9682,9 +9675,9 @@ function bindAdminSectionEvents(container, users) {
       const targetName = btn.getAttribute('data-adm-del-name') || targetFid;
       if (!targetFid) return;
       openConfirmDeleteModal({
-        title: '<svg class="k-ico" style="color:#fbbf24;" viewBox="0 0 24 24" fill="none"><path d="M3 18h18l-2-11-5 4-2-6-2 6-5-4-2 11z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Удаление аккаунта пользователя из БД',
+        title: 'Удаление аккаунта пользователя из БД',
         message: `Вы точно хотите удалить пользователя «${escapeHtml(targetName)}» (${escapeHtml(targetFid)}) и все его данные из серверной базы данных D1? Это действие необратимо.`,
-        confirmLabel: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Удалить из БД',
+        confirmLabel: 'Удалить из БД',
         onConfirm: async () => {
           const tok = getActiveAdminToken();
           try {
@@ -10406,10 +10399,10 @@ function bindChatViewEvents(container) {
         peerId,
         peerName: cleanPeerName,
         senderId: peerId === OWNER_BOUND_FISHER_ID ? OWNER_BOUND_FISHER_ID : ident.fisherId,
-        senderName: peerId === OWNER_BOUND_FISHER_ID ? '<svg class="k-ico" style="color:#fbbf24;" viewBox="0 0 24 24" fill="none"><path d="M3 18h18l-2-11-5 4-2-6-2 6-5-4-2 11z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Админ' : ident.callsign,
+        senderName: peerId === OWNER_BOUND_FISHER_ID ? 'Админ' : ident.callsign,
         text: peerId === OWNER_BOUND_FISHER_ID
           ? 'Здравствуйте! Здесь вы можете задать вопрос Администратору «Клёв ПРО». Напишите ваше сообщение ниже.'
-          : `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> Открыт личный диалог с ${cleanPeerName}.`,
+          : `Открыт личный диалог с ${cleanPeerName}.`,
         ts: Date.now(),
         e2ee: true,
         unread: false
@@ -10426,7 +10419,7 @@ function bindChatViewEvents(container) {
   if (writeAdminBtn) {
     writeAdminBtn.addEventListener('click', () => {
       if (!requireRegisteredFisherId('обращения к Администратору')) return;
-      openOrReuseDirectChat(OWNER_BOUND_FISHER_ID, '<svg class="k-ico" style="color:#fbbf24;" viewBox="0 0 24 24" fill="none"><path d="M3 18h18l-2-11-5 4-2-6-2 6-5-4-2 11z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Админ («Клёв ПРО»)');
+      openOrReuseDirectChat(OWNER_BOUND_FISHER_ID, 'Админ («Клёв ПРО»)');
     });
   }
   const admPickSel = q('#chatAdminPickUserSelect');
@@ -10454,7 +10447,7 @@ function bindChatViewEvents(container) {
       }
       const norm = raw.toLowerCase().replace(/^@/, '');
       if (norm === 'admin' || norm === 'админ' || norm === 'iathor' || norm === 'iathor82') {
-        openOrReuseDirectChat(OWNER_BOUND_FISHER_ID, '<svg class="k-ico" style="color:#fbbf24;" viewBox="0 0 24 24" fill="none"><path d="M3 18h18l-2-11-5 4-2-6-2 6-5-4-2 11z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Админ («Клёв ПРО»)');
+        openOrReuseDirectChat(OWNER_BOUND_FISHER_ID, 'Админ («Клёв ПРО»)');
         return;
       }
       let peerId = '';
@@ -10687,9 +10680,9 @@ function bindCircleEvents(container) {
         return;
       }
       openConfirmDeleteModal({
-        title: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Удалить запись из Круга и с карты?',
+        title: 'Удалить запись из Круга и с карты?',
         message: `Запись «${escapeHtml(target?.fn || target?.wn || target?.lb || 'Сводка')}» будет удалена из ленты Круга, с карты и с сервера.`,
-        confirmLabel: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Да, удалить',
+        confirmLabel: 'Да, удалить',
         onConfirm: () => {
           const next = (store.getState().circleItems || []).filter(x => x.id !== id);
           storage.saveCircleItems(next);
@@ -11511,11 +11504,11 @@ export function openOffGridCommModal(initialTab = 'timer') {
     try { courierList = JSON.parse(localStorage.getItem(OFFGRID_COURIER_KEY) || '[]') || []; } catch (_e) {}
 
     const tabs = [
-      { id: 'timer', label: '1. Авто-SOS Таймер', icon: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="13" r="8" stroke="currentColor" stroke-width="1.8"/><path d="M12 9v4l2.5 2.5M9 2h6" stroke="#ef4444" stroke-width="1.8" stroke-linecap="round"/></svg>' },
-      { id: 'afsk', label: '2. Рация и 2G/SMS', icon: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5M19.1 4.9C23 8.8 23 15.2 19.1 19.1" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="#10b981"/></svg>' },
-      { id: 'mesh', label: '3. LoRa и Эстафета', icon: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="6" cy="6" r="3" stroke="#38bdf8" stroke-width="1.8"/><circle cx="18" cy="6" r="3" stroke="#10b981" stroke-width="1.8"/><circle cx="12" cy="18" r="3" stroke="#fbbf24" stroke-width="1.8"/><path d="M8.5 7.5l7 0M7.5 8.5l3.5 7M16.5 8.5l-3.5 7" stroke="currentColor" stroke-width="1.6"/></svg>' },
-      { id: 'crypto', label: '4. Крипто-Защита', icon: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2.5l7 3.2v5.8c0 5-3 9.3-7 10.8-4-1.5-7-5.8-7-10.8V5.7l7-3.2z" fill="rgba(16,185,129,0.2)" stroke="#10b981" stroke-width="1.8"/></svg>' },
-      { id: 'beacon', label: '5. Маяк Выживания', icon: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4" fill="#ef4444"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg>' }
+      { id: 'timer', label: '1. Авто-SOS Таймер', icon: '' },
+      { id: 'afsk', label: '2. Рация и 2G/SMS', icon: '' },
+      { id: 'mesh', label: '3. LoRa и Эстафета', icon: '' },
+      { id: 'crypto', label: '4. Крипто-Защита', icon: '' },
+      { id: 'beacon', label: '5. Маяк Выживания', icon: '' }
     ];
 
     const smsBodyStr = `KP2S:${ident.fisherId};N${Number(curState.lat).toFixed(5)};E${Number(curState.lon).toFixed(5)};SOS;${(dm.routeNote || curState.locLabel || 'Тайга').slice(0, 24)}`;
@@ -11544,7 +11537,7 @@ export function openOffGridCommModal(initialTab = 'timer') {
         <div style="padding:9px 12px;background:rgba(56,189,248,0.10);border:1.5px solid var(--accent);border-radius:var(--r-sm);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
           <div>
             <div style="font-weight:900;color:var(--accent);font-size:12.5px;">
-              <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2.5l7 3.2v5.8c0 5-3 9.3-7 10.8-4-1.5-7-5.8-7-10.8V5.7l7-3.2z" fill="rgba(56,189,248,0.22)" stroke="#38bdf8" stroke-width="1.8"/></svg> АВТОНОМНАЯ СВЯЗЬ И АВТО-SOS (ЭТАП 2)
+              АВТОНОМНАЯ СВЯЗЬ И АВТО-SOS (ЭТАП 2)
             </div>
             <div style="font-size:11px;color:var(--muted);">
               ID: <b>${ident.fisherId}</b> • Координаты: <b>${Number(curState.lat).toFixed(5)}° N, ${Number(curState.lon).toFixed(5)}° E</b> (${escapeHtml(curState.locLabel || '')})
@@ -11556,7 +11549,6 @@ export function openOffGridCommModal(initialTab = 'timer') {
         <!-- Обмен путевыми точками и глубинами эхолота (.GPX / .KML / .JSON) — перенесён в Фазу 2 (только по бета-тесту) -->
         <div style="padding:10px 12px;background:var(--card);border:1.5px dashed var(--accent);border-radius:var(--r-sm);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
           <span style="font-size:12px;font-weight:800;color:var(--accent);">
-            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="5" stroke="#38bdf8" stroke-width="1.5"/><path d="M12 12l6-6" stroke="#10b981" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="12" r="1.8" fill="#10b981"/></svg>
             Обмен путевыми точками и глубинами эхолота (.GPX / .KML / .JSON)
           </span>
           <div style="display:flex;gap:6px;flex-wrap:wrap;">
@@ -12308,7 +12300,7 @@ export function openOffGridCommModal(initialTab = 'timer') {
   }
 
   openModal(
-    '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5M19.1 4.9C23 8.8 23 15.2 19.1 19.1" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="#ef4444"/></svg> Автономная связь и Авто-SOS',
+    'Автономная связь и Авто-SOS',
     '<div id="offGridModalRoot"></div>',
     (bodyEl) => {
       renderOffGridContent(bodyEl);

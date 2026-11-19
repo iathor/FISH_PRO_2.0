@@ -10,7 +10,7 @@ import { formatLocalYYYYMMDD, fmtDeltaPress, fmtHM } from '../../core/format.js?
 import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.9.3-r239';
 import { FISH_DB } from '../../data/species.js?v=2.9.3-r239';
 import { renderFiveFish , renderFishVisual } from '../../ui/svg.js?v=2.9.3-r239';
-import { createPill, showToast, openModal, openFishLightbox, flashHighlightElement } from '../../ui/components.js?v=2.9.3-r239';
+import { createPill, showToast, openModal, closeModal, openFishLightbox, flashHighlightElement } from '../../ui/components.js?v=2.9.3-r239';
 import { computeIceSafetyIndex } from '../weather/weather.module.js?v=2.9.3-r239';
 import { evaluateCircleFieldConfirmation, requireRegisteredFisherId } from '../circle/circle.module.js?v=2.9.3-r239';
 import { isTelegramWebApp, getTelegramUser, shareToTelegramChat, openBotChatInTelegram, buildForecastShareUrls, TELEGRAM_BOT_USERNAME } from '../../core/telegram.js?v=2.9.3-r239';
@@ -1139,36 +1139,36 @@ export function calcDynamicRig(method, water, depth, wind, fish = null, waterTem
 export function generateAdaptiveGuides(fish, water, depth, day, method, globalIceState) {
   const iceState = day.iceState || globalIceState;
   const iceThickness = day.iceThickness ?? 0;
-  const sizeBlock = fish.sizeInfo ? `<div style="margin-top:6px;color:var(--accent);font-weight:700;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="3" y="8" width="18" height="8" rx="2" transform="rotate(-35 12 12)" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8"/><path d="M8 11l1.5 2M11 9l1.5 2M14 7l1.5 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg> ${fish.sizeInfo}</div>` : '';
-  const traitsBlock = fish.idTraits ? `<div style="margin-top:5px;color:var(--muted);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="2"/><path d="M16 16l4.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg> <b>Приметы вида:</b> ${fish.idTraits}</div>` : '';
+  const sizeBlock = fish.sizeInfo ? `<div style="margin-top:6px;color:var(--accent);font-weight:700;">${fish.sizeInfo}</div>` : '';
+  const traitsBlock = fish.idTraits ? `<div style="margin-top:5px;color:var(--muted);"><b>Приметы вида:</b> ${fish.idTraits}</div>` : '';
   const runInfo = RIVER_ENTERING_SPECIES[fish.id];
   const migrationBlock = runInfo
-    ? `<div style="margin-top:5px;color:var(--good);font-weight:700;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> <b>Миграция и заход в реки:</b> ${runInfo.reason}.</div>`
+    ? `<div style="margin-top:5px;color:var(--good);font-weight:700;"><b>Миграция и заход в реки:</b> ${runInfo.reason}.</div>`
     : '';
   let standAdvice = '';
   if (fish.legal === 'redbook') {
-    standAdvice = `<svg class="k-ico" style="color:var(--bad);" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><path d="M6 6l12 12" stroke="#ef4444" stroke-width="2.1" stroke-linecap="round"/></svg> <b>КРАСНАЯ КНИГА (ПОЙМАЛ — ОТПУСТИ):</b> ${fish.baseAdvice} ${fish.handlingAdvice || 'При случайной поимке в прилове бережно отпустите рыбу в воду!'}${migrationBlock}${sizeBlock}${traitsBlock}`;
+    standAdvice = `<b>КРАСНАЯ КНИГА (ПОЙМАЛ — ОТПУСТИ):</b> ${fish.baseAdvice} ${fish.handlingAdvice || 'При случайной поимке в прилове бережно отпустите рыбу в воду!'}${migrationBlock}${sizeBlock}${traitsBlock}`;
   } else if (fish.legal === 'introduced') {
-    standAdvice = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><polygon points="13,2 4,14 11,14 10,22 20,10 13,10" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.5" stroke-linejoin="round"/></svg> <b>Вселенец / Аквакультура:</b> ${fish.baseAdvice} При остывании воды ниже ${fish.tMinStop}°C впадает в оцепенение.${sizeBlock}${traitsBlock}`;
+    standAdvice = `<b>Вселенец / Аквакультура:</b> ${fish.baseAdvice} При остывании воды ниже ${fish.tMinStop}°C впадает в оцепенение.${sizeBlock}${traitsBlock}`;
   } else if (iceState === 'ice_safe') {
-    standAdvice = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1" stroke="#7dd3fc" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="#38bdf8"/></svg> <b>Подлёдный горизонт (лёд ~${iceThickness} см, рабочая глубина ${depth.toFixed(1)} м):</b> ${fish.baseAdvice}${migrationBlock}${sizeBlock}${traitsBlock}`;
+    standAdvice = `<b>Подлёдный горизонт (лёд ~${iceThickness} см, рабочая глубина ${depth.toFixed(1)} м):</b> ${fish.baseAdvice}${migrationBlock}${sizeBlock}${traitsBlock}`;
   } else if (iceState === 'ice_danger') {
-    standAdvice = `<svg class="k-ico" style="color:var(--warn);" viewBox="0 0 24 24" fill="none"><path d="M12 3L2.5 19.5h19L12 3z" fill="rgba(245,158,11,0.24)" stroke="#f59e0b" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9v5M12 17h.01" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/></svg> <b>Опасный лёд:</b> ${day.iceNote || 'Выход на лёд запрещён!'} С берега: ${fish.baseAdvice}${sizeBlock}`;
+    standAdvice = `<b>Опасный лёд:</b> ${day.iceNote || 'Выход на лёд запрещён!'} С берега: ${fish.baseAdvice}${sizeBlock}`;
   } else if (iceState === 'ice_slush') {
-    standAdvice = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1" stroke="#7dd3fc" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="#38bdf8"/></svg> <b>Шуга и забереги (колебания -3..+3°C):</b> ледостава нет, рыба стоит в придонных ямах и затишках на глубине ${depth.toFixed(1)} м. ${fish.baseAdvice}${migrationBlock}${sizeBlock}`;
+    standAdvice = `<b>Шуга и забереги (колебания -3..+3°C):</b> ледостава нет, рыба стоит в придонных ямах и затишках на глубине ${depth.toFixed(1)} м. ${fish.baseAdvice}${migrationBlock}${sizeBlock}`;
   } else {
-    standAdvice = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#ef4444"/></svg> <b>Биотоп (${WATER_PROFILES[water]?.shortName || 'водоём'}, горизонт ${depth.toFixed(1)} м):</b> ${fish.baseAdvice}${migrationBlock}${sizeBlock}${traitsBlock}`;
+    standAdvice = `<b>Биотоп (${WATER_PROFILES[water]?.shortName || 'водоём'}, горизонт ${depth.toFixed(1)} м):</b> ${fish.baseAdvice}${migrationBlock}${sizeBlock}${traitsBlock}`;
   }
   const rigInfo = calcDynamicRig(method, water, depth, day.windMax, fish, day.waterTemp, iceState);
   const tackleAdvice = fish.legal === 'redbook'
-    ? `<div><b>Вероятность прилова на снасть:</b> ${rigInfo.weight} (${rigInfo.line}).</div><div style="margin-top:5px;color:var(--bad);font-weight:700;"><svg class="k-ico" style="color:var(--warn);" viewBox="0 0 24 24" fill="none"><path d="M12 3L2.5 19.5h19L12 3z" fill="rgba(245,158,11,0.24)" stroke="#f59e0b" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9v5M12 17h.01" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/></svg> Целенаправленное изъятие запрещено! Используйте безбородые крючки и отпускайте рыбу прямо в воде.</div>`
+    ? `<div><b>Вероятность прилова на снасть:</b> ${rigInfo.weight} (${rigInfo.line}).</div><div style="margin-top:5px;color:var(--bad);font-weight:700;">Целенаправленное изъятие запрещено! Используйте безбородые крючки и отпускайте рыбу прямо в воде.</div>`
     : `<div><b>Оптимальный монтаж сейчас:</b> ${rigInfo.weight} (${rigInfo.line}).</div><div style="margin-top:5px;"><b>Подача и анимация:</b> ${rigInfo.tactic}.</div><div style="margin-top:5px;color:var(--muted);"><b>Арсенал по виду:</b> ${fish.topGear}</div>`;
   let baitAdvice = '';
   const seasonTone = iceState === 'ice_safe'
-    ? `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1" stroke="#7dd3fc" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="#38bdf8"/></svg> <b>Подлёдный сезон (вода ~${day.waterTemp}°C):</b> приоритет животным насадкам (мотыль, мормыш/бокоплав, опарыш, резка) и деликатным зимним приманкам.`
+    ? `<b>Подлёдный сезон (вода ~${day.waterTemp}°C):</b> приоритет животным насадкам (мотыль, мормыш/бокоплав, опарыш, резка) и деликатным зимним приманкам.`
     : (day.waterTemp <= 10.0
-        ? `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> <b>Холодная вода (~${day.waterTemp}°C):</b> рыба избирательна — лучше всего работают животные насадки, нано-джиг с пассивными слагами/нимфами (0.2–0.8 г) и приманки на длинной паузе.`
-        : `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.5" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> <b>Прогретая вода (~${day.waterTemp}°C):</b> высокая кормовая активность в толще и у дна, отлично работают как животные/растительные насадки, так и мормышинг (нано-джиг), вертушки и мушки.`);
+        ? `<b>Холодная вода (~${day.waterTemp}°C):</b> рыба избирательна — лучше всего работают животные насадки, нано-джиг с пассивными слагами/нимфами (0.2–0.8 г) и приманки на длинной паузе.`
+        : `<b>Прогретая вода (~${day.waterTemp}°C):</b> высокая кормовая активность в толще и у дна, отлично работают как животные/растительные насадки, так и мормышинг (нано-джиг), вертушки и мушки.`);
   baitAdvice = `<div>${fish.feedBase || 'Естественный бентос, зоопланктон и сезонные приманки.'}</div><div style="margin-top:6px;color:var(--accent);">${seasonTone}</div>`;
   return { standAdvice, tackleAdvice, baitAdvice };
 }
@@ -1229,23 +1229,23 @@ export function generateTripChecklist(fish, day, method, water, depth) {
   const iceSafety = computeIceSafetyIndex(day, water);
   const isWinter = (day?.iceState && day.iceState !== "open_water") || (day?.tDay ?? 10) <= 2 || (method && method.startsWith("winter_"));
   const gearItems = [
-    `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg> Основная снасть: ${rig.weight} (${rig.line})`,
-    `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 18c0-4 4-4 4-8s4-4 4-6 5-1 5 3-3 5-3 8 4 4 6 2" stroke="#f43f5e" stroke-width="2.2" stroke-linecap="round"/></svg> Рабочие насадки/приманки: ${baits.slice(0, 3).join("; ")}`,
-    `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="3" y="8" width="18" height="8" rx="2" transform="rotate(-35 12 12)" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8"/><path d="M8 11l1.5 2M11 9l1.5 2M14 7l1.5 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg> Глубиномер / эхолот (целевой горизонт стоянки ${fish.name}: ~${depth.toFixed(1)} м)`,
-    `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 8l-9-5-9 5v8l9 5 9-5V8z" fill="rgba(56,189,248,0.16)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M3 8l9 5 9-5M12 13v8" stroke="currentColor" stroke-width="1.7"/></svg> Запасные поводки, карабины, экстрактор / зевник и рулетка (контроль разрешённого размера)`
+    `Основная снасть: ${rig.weight} (${rig.line})`,
+    `Рабочие насадки/приманки: ${baits.slice(0, 3).join("; ")}`,
+    `Глубиномер / эхолот (целевой горизонт стоянки ${fish.name}: ~${depth.toFixed(1)} м)`,
+    `Запасные поводки, карабины, экстрактор / зевник и рулетка (контроль разрешённого размера)`
   ];
   const safetyItems = isWinter
     ? [
-        `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Спасалки («когти» на шнуре поверх куртки) и пешня для проверки льда (${iceSafety.statusText})`,
-        `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Непродуваемый костюм-поплавок, термобельё и нескользящие шипы на сапоги (воздух ${day?.tDay ?? 0}°/${day?.tNight ?? -3}°C)`,
-        `<svg class="k-ico" style="color:var(--good);" viewBox="0 0 24 24" fill="none"><polygon points="13,2 4,14 11,14 10,22 20,10 13,10" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.5" stroke-linejoin="round"/></svg> Заряженный повербанк во внутреннем тёплом кармане + термос с горячим чаем`,
-        `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3.5" fill="rgba(56,189,248,0.25)" stroke="currentColor" stroke-width="1.8"/><path d="M3 19c0-3.2 2.7-5.5 6-5.5s6 2.3 6 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="17" cy="9" r="2.8" stroke="currentColor" stroke-width="1.6"/><path d="M16 14c2.6.3 4.8 2 5 4.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg> Отправленная точка «<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> Экипаж (72ч)» близким или напарникам перед выходом на лёд`
+        `Спасалки («когти» на шнуре поверх куртки) и пешня для проверки льда (${iceSafety.statusText})`,
+        `Непродуваемый костюм-поплавок, термобельё и нескользящие шипы на сапоги (воздух ${day?.tDay ?? 0}°/${day?.tNight ?? -3}°C)`,
+        `Заряженный повербанк во внутреннем тёплом кармане + термос с горячим чаем`,
+        `Отправленная точка «Экипаж (72ч)» близким или напарникам перед выходом на лёд`
       ]
     : [
-        `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Спасательный жилет (при ловле с лодки или взабродку, ветер до ${day?.windMax || 3} м/с)`,
-        `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Ветровлагозащитная мембрана и поляризационные очки (вода ~${day?.waterTemp ?? 10}°C)`,
-        `<svg class="k-ico" style="color:var(--good);" viewBox="0 0 24 24" fill="none"><polygon points="13,2 4,14 11,14 10,22 20,10 13,10" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.5" stroke-linejoin="round"/></svg> Заряженный телефон с офлайн-кэшем «Клёв ПРО» и аптечка`,
-        `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Пакет под мусор и бережное отношение к прилову («Поймал — отпусти»)`
+        `Спасательный жилет (при ловле с лодки или взабродку, ветер до ${day?.windMax || 3} м/с)`,
+        `Ветровлагозащитная мембрана и поляризационные очки (вода ~${day?.waterTemp ?? 10}°C)`,
+        `Заряженный телефон с офлайн-кэшем «Клёв ПРО» и аптечка`,
+        `Пакет под мусор и бережное отношение к прилову («Поймал — отпусти»)`
       ];
   return { gearItems, safetyItems, iceSafety, rig };
 }
@@ -1253,43 +1253,337 @@ export function openTripChecklistModal() {
   const s = store.getState();
   const fish = FISH_DB.find(f => f.id === s.fishId) || FISH_DB[0];
   const day = s.weatherDays?.[s.dayIdx] || s.weatherDays?.[2] || s.weatherDays?.[0] || {};
-  const cl = generateTripChecklist(fish, day, s.method, s.water, s.depth);
+  const effIce = _normalizeWarmDayIce(day, s.iceState);
+  const effWaterTemp = Number(day.waterTemp ?? 8);
+  const tDay = Number(day.tDay ?? 5);
+  const tNight = Number(day.tNight ?? 0);
+  const windMax = Number(day.windMax ?? 3);
+  const windDir = day.windDir || 'З';
+  const iceCm = effIce === 'open_water' ? 0 : Number(day.iceThickness ?? s.iceThickness ?? 0);
+  const isWinterIce = effIce === 'ice_safe' || effIce === 'ice_danger' || effIce === 'ice_slush' || (tDay <= 1 && tNight <= -2);
+  const rig = calcDynamicRig(s.method, s.water, s.depth, windMax, fish, effWaterTemp, effIce);
+  const seasonalBaits = getSeasonalBaitsForContext(fish, s.method, effWaterTemp, effIce);
+  const waterTitle = s.selectedWaterName || WATER_PROFILES[s.water]?.shortName || 'Водоём';
+  const lat = Number(s.lat || 55.75);
+  const lon = Number(s.lon || 37.62);
+  const basin = String(s.basinCode || '');
+  const isTaigaBearRegion = lat >= 56.0 || lon >= 58.0 || ['ob_lower', 'ob_middle', 'pur_taz', 'nadym', 'yenisei', 'lena', 'amur', 'kamchatka', 'sakhalin', 'karelia', 'kola', 'pechora', 'baikal'].some(k => basin.includes(k));
+  const isBoatOrBigWater = !isWinterIce && ['big_river', 'reservoir', 'lake', 'sea_gulf', 'coastal'].includes(s.water);
+  const isPredator = ['pike', 'zander', 'perch', 'burbot', 'taimen', 'lenok', 'asp', 'catfish', 'trout', 'chub'].includes(fish.id);
+
+  const gearItems = [
+    `Основная снасть под вид «${fish.name}»: ${rig.weight} (${rig.line})`,
+    `Рабочие приманки / насадки: ${seasonalBaits.slice(0, 3).join('; ')}`,
+    isWinterIce
+      ? `Утеплённая мотыльница / термоконтейнер во внутренний карман куртки (защита наживки от промерзания при ${tDay}°C)`
+      : (s.method === 'bottom' || s.method === 'float'
+          ? `Прикормочное ведро, сито, запас кормушек (${rig.weight}), поводочница и термосумка для наживки`
+          : `Коробка с рабочими приманками, запас флюорокарбоновых/титановых поводков, заводные кольца и кусачки-ретривер`),
+    isPredator
+      ? `Зевник, длинный медицинский корцанг (экстрактор) для безопасного извлечения крючка у хищника и багорик/подсачек`
+      : `Экстрактор (петлесшиватель), запасные крючки под «${fish.name}», глубомер и поводочная леска`,
+    `Портативный эхолот / глубомер (целевой горизонт стоянки «${fish.name}»: ~${s.depth.toFixed(1)} м) и рулетка для контроля разрешённого размера`
+  ];
+
+  const seasonItems = [];
+  if (isWinterIce) {
+    seasonItems.push(
+      iceCm < 15 || effIce !== 'ice_safe'
+        ? `Тяжёлая разборная пешня с темляком для проверки каждого шага (лёд ~${iceCm || 5} см) и спасалки («когти») поверх куртки`
+        : `Ледобур по диаметру лунки под «${fish.name}» (130–180 мм) с комплектом запасных ножей, отвёрткой и спасалками на груди`,
+      `Шумовка (черпак) для очистки лунки от шуги, багорик с телескопической ручкой и наколенники из ЭВА`,
+      `Термос с горячим сладким чаем (1.0–1.5 л), калорийный перекус (сало, шоколад, орехи) и химические грелки для рук и стелек`,
+      `Непродуваемый зимний костюм-поплавок, трёхслойное термобельё, флис и сапоги ЭВА со съёмными ледоступами (шипами)`,
+      (windMax >= 4 || tDay <= -12)
+        ? `Зимняя ветрозащитная палатка-куб / зонт с комплектом стальных ввёртышей в лёд и ветровыми растяжками (ветер ${windDir} ${windMax} м/с, воздух ${tDay}°/${tNight}°C)`
+        : `Рыболовный ящик с тёплой сидушкой, ветрозащитные рукавицы-шубенки и полотенце для рук`
+    );
+    if (fish.id === 'burbot' || tDay <= -10) {
+      seasonItems.push(`Налобный фонарь с тёплым/красным светом и запасным аккумулятором во внутреннем кармане (сумеречный и ночной выход)`);
+    }
+  } else {
+    seasonItems.push(
+      `Защита от гнуса: усиленный спрей-репеллент от комаров, мошки и клещей (ДЭТА 30–50% + ванилин от мошки) и шляпа-накомарник с сеткой`,
+      `Поляризационные очки (чтение бровки и защита глаз), мембранный дождевик/штормовка (ветер ${windDir} ${windMax} м/с) и забродные сапоги / вейдерсы`,
+      `Запас чистой питьевой воды (не менее 2 л), термос с горячим чаем/кофе и герметичный пакет для документов и ключей`,
+      isBoatOrBigWater
+        ? `Лодочный комплект безопасности (${waterTitle}): спасательный жилет по размеру, якорь с фалом не менее ${Math.max(15, Math.round(s.depth * 4))} м, черпак и ремкомплект`
+        : `Складное кресло / подставки под удилища (тычки/род-под), подсачек с длинной ручкой и садок`
+    );
+  }
+
+  const safetyItems = [];
+  if (!isWinterIce && isTaigaBearRegion) {
+    safetyItems.push(
+      `Таёжная безопасность (${s.locLabel}): защита от медведей и диких животных — противомедвежий перцовый баллон (Anti-Bear 225–650 мл), сигнал охотника / фальшфейер / фальш-свисток`,
+      `Герметичные контейнеры для продуктов и улова (не оставлять пищевые отходы и запах рыбы открытыми у стоянки и палатки)`
+    );
+  } else if (isWinterIce && lat >= 60.0) {
+    safetyItems.push(
+      `Северная защита (${s.locLabel}): флисовая балаклава, ветрозащитные очки-маска от пурги и снежной слепоты, охотничьи спички в гермотубусе`
+    );
+  }
+  safetyItems.push(
+    `Заряженный повербанк (10 000–20 000 мАч) с коротким кабелем во внутреннем тёплом кармане и загруженная офлайн-карта квадрата в «Клёв ПРО»`,
+    `Походная аптечка (перевязочный пакет, антисептик, пластырь, обезболивающее), острый нож в ножнах и верёвка 15–20 м`,
+    `Контроль возврата: отправьте точку выезда напарникам через «Экипаж (72 ч)» и включите запись тропы на Карте`
+  );
+
+  const iceVerdictLine = isWinterIce
+    ? (effIce === 'ice_safe' ? `Лёд ~${iceCm} см (выход пешком разрешён)` : `Внимание: тонкий лёд / шуга (~${iceCm} см), соблюдайте осторожность`)
+    : `Открытая вода (температура воды ~${effWaterTemp > 0 ? '+' + effWaterTemp : effWaterTemp}°C)`;
+
   const html = `
     <div style="display:flex;flex-direction:column;gap:12px;font-size:var(--fs-sm);">
-      <div style="padding:10px 12px;background:var(--card);border:1px solid var(--accent);border-radius:var(--r-sm);font-size:var(--fs-xs);">
-        <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#ef4444"/></svg> <b>Выезд:</b> ${s.locLabel} (${s.selectedWaterName || WATER_PROFILES[s.water]?.shortName || "водоём"}) • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 12s4-6 11-6c4.2 0 7 2.5 9 6-2 3.5-4.8 6-9 6-7 0-11-6-11-6z" fill="rgba(56,189,248,0.28)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M2 12l-1.5-3.5L5 10.5M2 12l-1.5 3.5L5 13.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="16.5" cy="10.8" r="1.3" fill="currentColor"/></svg> <b>Цель:</b> ${fish.name}<br>
-        <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M14 14.76V5a2 2 0 1 0-4 0v9.76a4 4 0 1 0 4 0z" fill="rgba(56,189,248,0.22)" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="17.5" r="1.8" fill="#ef4444"/></svg> <b>Погода:</b> воздух ${day.tDay > 0 ? "+" + day.tDay : day.tDay}°/${day.tNight > 0 ? "+" + day.tNight : day.tNight}°C, вода ~${day.waterTemp}°C, ветер ${day.windDir} ${day.windMax} м/с<br>
-        <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2.5l7 3.2v5.8c0 5-3 9.3-7 10.8-4-1.5-7-5.8-7-10.8V5.7l7-3.2z" fill="rgba(56,189,248,0.22)" stroke="#38bdf8" stroke-width="1.8" stroke-linejoin="round"/></svg> <b>Безопасность льда/воды:</b> ${cl.iceSafety.vehicleVerdict}
+      <div class="glass-panel" style="padding:11px 13px;border-radius:14px;border:1px solid var(--accent);font-size:12px;line-height:1.45;">
+        <div style="font-weight:900;font-size:13.5px;color:var(--text);width:100%;margin-bottom:4px;">Маршрут и условия выезда</div>
+        <div><b>Локация:</b> ${escapeHtml(s.locLabel)} (${escapeHtml(waterTitle)})</div>
+        <div><b>Целевая рыба и горизонт:</b> ${escapeHtml(fish.name)} (~${s.depth.toFixed(1)} м)</div>
+        <div><b>Метеосводка:</b> воздух ${tDay > 0 ? '+' + tDay : tDay}°/${tNight > 0 ? '+' + tNight : tNight}°C, ветер ${windDir} ${windMax} м/с, давление ${day.pressAvg || 754} мм</div>
+        <div><b>Режим водоёма:</b> <span style="color:var(--accent);font-weight:800;">${iceVerdictLine}</span></div>
       </div>
-      <div>
-        <div style="font-weight:800;font-size:var(--fs-xs);color:var(--accent);text-transform:uppercase;margin-bottom:6px;">
-          <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg> 1. Снасти, оснастка и приманки под условия дня:
+
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <div style="font-weight:900;font-size:13px;color:var(--accent);width:100%;padding:2px 0;">
+          Снасти, оснастка и приманки (${escapeHtml(fish.name)})
         </div>
-        <div style="display:flex;flex-direction:column;gap:6px;">
-          ${cl.gearItems.map(item => `
-            <label style="display:flex;align-items:flex-start;gap:8px;padding:7px 10px;background:var(--card);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:var(--fs-xs);">
-              <input type="checkbox" checked style="margin-top:2px;">
-              <span>${item}</span>
-            </label>
-          `).join("")}
+        ${gearItems.map(item => `
+          <label class="klev-checklist-row" style="display:flex;align-items:flex-start;gap:10px;padding:9px 11px;background:var(--card);border:1px solid var(--border);border-radius:12px;cursor:pointer;font-size:12px;line-height:1.4;">
+            <input type="checkbox" class="klev-check-box" checked>
+            <span style="flex:1;min-width:0;">${item}</span>
+          </label>
+        `).join('')}
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <div style="font-weight:900;font-size:13px;color:var(--good);width:100%;padding:2px 0;">
+          ${isWinterIce ? 'Зимняя экипировка, лёд и обогрев' : 'Сезонная экипировка, защита от гнуса и быт'}
+        </div>
+        ${seasonItems.map(item => `
+          <label class="klev-checklist-row" style="display:flex;align-items:flex-start;gap:10px;padding:9px 11px;background:var(--card);border:1px solid var(--border);border-radius:12px;cursor:pointer;font-size:12px;line-height:1.4;">
+            <input type="checkbox" class="klev-check-box" checked>
+            <span style="flex:1;min-width:0;">${item}</span>
+          </label>
+        `).join('')}
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <div style="font-weight:900;font-size:13px;color:var(--warn);width:100%;padding:2px 0;">
+          Региональная безопасность, дикая природа и связь
+        </div>
+        ${safetyItems.map(item => `
+          <label class="klev-checklist-row" style="display:flex;align-items:flex-start;gap:10px;padding:9px 11px;background:var(--card);border:1px solid var(--border);border-radius:12px;cursor:pointer;font-size:12px;line-height:1.4;">
+            <input type="checkbox" class="klev-check-box" checked>
+            <span style="flex:1;min-width:0;">${item}</span>
+          </label>
+        `).join('')}
+      </div>
+    </div>
+  `;
+  openModal('Чек-лист сборов и безопасности на выезд', html);
+}
+
+export function openRigEncyclopediaModal(fishParam) {
+  const s = store.getState();
+  const fish = fishParam || FISH_DB.find(f => f.id === s.fishId) || FISH_DB[0];
+  const day = s.weatherDays?.[s.dayIdx] || s.weatherDays?.[2] || s.weatherDays?.[0] || {};
+  const effIce = _normalizeWarmDayIce(day, s.iceState);
+  const effWaterTemp = Number(day.waterTemp ?? 8);
+  const isWinterIce = effIce === 'ice_safe' || effIce === 'ice_danger' || effIce === 'ice_slush' || String(s.method || '').startsWith('winter_');
+  const rig = calcDynamicRig(s.method, s.water, s.depth, day.windMax || 3, fish, effWaterTemp, effIce);
+  const seasonalBaits = getSeasonalBaitsForContext(fish, s.method, effWaterTemp, effIce);
+  const activeBait = s.selectedBait && seasonalBaits.includes(s.selectedBait) ? s.selectedBait : (seasonalBaits[0] || '');
+
+  const fid = fish.id;
+  const isCoregonid = ['whitefish', 'muksun', 'peled', 'chir', 'vendace', 'omul', 'tugun', 'smelt', 'grayling', 'nelma'].includes(fid);
+  const isBurbot = fid === 'burbot';
+  const isBigPredator = ['pike', 'zander', 'taimen', 'lenok', 'asp', 'catfish', 'chub'].includes(fid);
+  const isPerchGroup = ['perch', 'volga_zander', 'trout', 'ide', 'rotan', 'ruffe'].includes(fid);
+
+  let primaryCards = [];
+  let knotItems = [];
+
+  if (isBurbot) {
+    primaryCards = [
+      {
+        tone: 'var(--accent)',
+        title: `Тяжёлая блесна-стукалка / Джиг-головка со светонакопителем (${fish.name})`,
+        mount: `Основная монолеска 0.35–0.45 мм (не обмерзает в лунке и не режет руки при вываживании), латунная/свинцовая стукалка или светонакопительная джиг-головка 18–36 г с крупным крючком №1/0–№3/0 и шумовой подвеской.`,
+        baitAndAction: `На крючок подсаживается резка ерша, тюльки, корюшки или пучок червей. Подача: ритмичный стук по твёрдому каменистому/галечному дну с паузой 4–8 секунд на самом дне (налим прижимает добычу подбородком).`
+      },
+      {
+        tone: 'var(--good)',
+        title: `Донная зимняя поставушка / Жерлица со скользящим грузом (${fish.name})`,
+        mount: `Монолеска 0.35–0.40 мм, скользящее грузило-оливка или плоская ложка 25–45 г (по течению), силиконовый стопор и поводок из флюорокарбона 0.30–0.35 мм длиной 35–45 см с одинарным крючком №2–№1/0 с длинным цевьём.`,
+        baitAndAction: `Наживка (живой или давленый ёрш, пескарь, резка рыбы) должна лежать строго на дне на выходе из ямы или каменистой косе.`
+      }
+    ];
+    knotItems = [
+      `<b>Паломар (Palomar):</b> лучший узел для привязывания тяжёлой стукалки и джиг-головки к монолеске 0.35–0.45 мм (прочность до 95% на морозе).`,
+      `<b>Усиленный Клинч (Improved Clinch, 6 витков):</b> надёжная привязка вертлюжка поставушки и заводного кольца.`,
+      `<b>Петля-восьмёрка:</b> быстрое крепление сменного поводка поставушки «петля в петлю» замёрзшими руками.`
+    ];
+  } else if (isCoregonid) {
+    primaryCards = [
+      {
+        tone: 'var(--accent)',
+        title: `Сиговая гирлянда / Тандем микромормышек в толще воды (${fish.name})`,
+        mount: `Основная флюорокарбоновая леска 0.12–0.16 мм. Нижняя вольфрамовая мормышка-якорь 1.5–3.0 г, выше через каждые 35–45 см привязаны 2–4 коротких отвода (3–4 см) с крючками №14–№16 (фосфорная бусина, кембрик, мушка под бокоплава).`,
+        baitAndAction: `Плавный высокий подъём снасти с мягким покачиванием кивка в горизонте 0.5–2.5 м над дном. Подсадка: мотыль, опарыш, мормыш (гаммарус) или ловля на голую бусину.`
+      },
+      {
+        tone: 'var(--good)',
+        title: isWinterIce
+          ? `Тонкая безмотыльная снасть: Гвоздешарик / Чёртик / Нимфа (${fish.name})`
+          : `Сбирулино (Бомбарда) / Нахлыстовая нимфа и микроколебалка (${fish.name})`,
+        mount: isWinterIce
+          ? `Флюорокарбон 0.10–0.12 мм, длинный чувствительный лавсановый или карбоновый кивок, вольфрамовый гвоздешарик (латунь/кошачий глаз/неон) 0.4–0.9 г.`
+          : `Плавающая или медленно тонущая бомбарда 10–20 г, тройной вертлюжок, поводок из флюорокарбона 0.14–0.16 мм длиной 1.2–1.5 м с искусственной мушкой или микроколебалкой 1.5–3.5 г.`,
+        baitAndAction: isWinterIce
+          ? `Высокочастотный дриблинг с короткими контрольными остановками через каждые 15–20 см подъёма.`
+          : `Сплав по струе на границе переката и обратки с лёгкими подтвичиваниями.`
+      }
+    ];
+    knotItems = [
+      `<b>Свободная петля Рапала (Rapala Knot):</b> сохраняет идеальную вертикальную игру микромормышки и мушки на тонком флюорокарбоне 0.10–0.14 мм.`,
+      `<b>Хирургическая петля (Dropper Loop):</b> формирование боковых отводов сиговой гирлянды без потери прочности основной лески.`,
+      `<b>Узел Клинч с двойным продеванием в ушко:</b> предотвращает срез тонкой лески о края отверстия вольфрамовой мормышки.`
+    ];
+  } else if (isBigPredator) {
+    primaryCards = isWinterIce ? [
+      {
+        tone: 'var(--accent)',
+        title: `Зимний Виб (Rattlin 65–95 мм) и Балансир (${fish.name})`,
+        mount: `Жёсткий зимний удильник с мультипликаторной катушкой, флюорокарбон 0.35–0.45 мм (или шнур с зимней пропиткой + шок-лидер). На щуку обязателен титановый или скрученный стальной поводок 20–25 см; на судака — флюорокарбон 0.45–0.55 мм.`,
+        baitAndAction: `Короткий взмах на 15–25 см с плавным сбросом и мормышинговым покачиванием («кач») на паузе 4–10 секунд в 20–50 см от дна.`
+      },
+      {
+        tone: 'var(--good)',
+        title: `Зимняя жерлица / Поставушка на живца (${fish.name})`,
+        mount: `Основная монолеска 0.35–0.40 мм, скользящая оливка 8–16 г, бусина-амортизатор, вертлюжок и поводок 30–35 см (двойной флюорокарбон 0.45–0.50 мм или мягкий вольфрам/титан) с двойником/тройником №6–№4.`,
+        baitAndAction: `Живец (плотвичка, окунь, карасик, пескарь) цепляется за спинку под спинной плавник и выставляется в 25–45 см над дном вдоль бровки или коряжника.`
+      }
+    ] : [
+      {
+        tone: 'var(--accent)',
+        title: `Джиг / Джиг-риг / Чебурашка с силиконом и мандулой (${fish.name})`,
+        mount: `8-жильный PE-шнур #1.0–#1.5 + поводок-струна №2 (20–25 см на щуку) или флюорокарбон 0.45–0.60 мм (на судака в ракушечнике). Груз: ${rig.weight}.`,
+        baitAndAction: `Ступенчатая проводка: 2 оборота катушки — пауза 2–6 сек (по холодной воде ниже +8°C лучшую реализацию даёт мандула и поролон с паузой до 6–8 сек).`
+      },
+      {
+        tone: 'var(--good)',
+        title: `Твичинг воблеров-минноу и крупных блёсен (${fish.name})`,
+        mount: `Спиннинг быстрого строя (Fast / Extra-Fast), шнур PE #1.2–#1.5, жёсткий поводок-струна 20–25 см со скруткой (исключает перехлёст тройников воблера при рывках).`,
+        baitAndAction: `Серия из 2 резких рывков с отдачей шнура и паузой 2–5 секунд (суспендер зависает в горизонте атаки хищника).`
+      }
+    ];
+    knotItems = [
+      `<b>Паломар (Palomar):</b> максимальная разрывная прочность на застёжке, поводке и джиг-головке.`,
+      `<b>Морковка (Mahin / Улучшенный Олбрайт):</b> надёжное соединение основного PE-шнура с толстым шок-лидером из флюорокарбона (10 витков вперёд, 6 назад).`,
+      `<b>Свободная петля Рапала:</b> привязка воблеров и балансиров к флюорокарбоновому поводку без зажима игры.`
+    ];
+  } else if (isPerchGroup) {
+    primaryCards = isWinterIce ? [
+      {
+        tone: 'var(--accent)',
+        title: `Вертикальная зимняя блесна (Маропедка / Листик) и Балансир №3–№5 (${fish.name})`,
+        mount: `Монолеска или флюорокарбон 0.14–0.18 мм, блесна 30–45 мм с подвесным тройничком и яркой каплей-кембриком (красно-жёлтый / светонакопитель).`,
+        baitAndAction: `Серия однотипных коротких взмахов (10–15 см) с возвратом точно в одну точку и паузой 2–4 секунды (при раскачке лунки — переход на КД, короткий дроч).`
+      },
+      {
+        tone: 'var(--good)',
+        title: `Вольфрамовая мормышка (Капля / Уралка / Безмотылка) (${fish.name})`,
+        mount: `Леска 0.10–0.12 мм, приталенный лавсановый кивок, вольфрамовая мормышка 0.3–0.8 г (медь, серебро, чёрный никель).`,
+        baitAndAction: `Подсадка 1–2 личинок мотыля (или ловля на бисер) с активной высокочастотной проводкой от дна до 50 см выше.`
+      }
+    ] : [
+      {
+        tone: 'var(--accent)',
+        title: `Отводной поводок (Московская оснастка) и Дроп-шот (${fish.name})`,
+        mount: `Тройной вертлюжок -> груз-палочка/балерина (${rig.weight}) на отводе 20–25 см (леска 0.22 мм) -> рабочий поводок 90–110 см из флюорокарбона 0.14–0.18 мм с офсетным крючком №6–№4.`,
+        baitAndAction: `Медленное волочение по ракушечнику и каменистой бровке с двойными подёргиваниями кончиком спиннинга и паузами 2–4 секунды.`
+      },
+      {
+        tone: 'var(--good)',
+        title: `Микроджиг / Вращающаяся блесна и Тейл-спиннер (${fish.name})`,
+        mount: `Шнур PE #0.3–#0.6, поводок из флюорокарбона 0.16–0.20 мм длиной 50–60 см, шарнирный монтаж Чебурашка 2–6 г или тейл-спиннер 4–10 г.`,
+        baitAndAction: `Пелагическая волнообразная проводка в толще воды или двойной подрыв со дна.`
+      }
+    ];
+    knotItems = [
+      `<b>Улучшенный Клинч (Improved Clinch):</b> быстрая и надёжная фиксация застёжек, вертлюжков и мормышек.`,
+      `<b>Узел Паломар (Palomar):</b> для офсетного крючка в оснастке Дроп-шот (жало крючка всегда смотрит строго вверх).`,
+      `<b>Узел Олбрайт / Хирургический узел:</b> привязка тонкого флюорокарбонового поводка 0.14–0.18 мм к шнуру.`
+    ];
+  } else {
+    primaryCards = isWinterIce ? [
+      {
+        tone: 'var(--accent)',
+        title: `Зимний поплавок / Коромысло со дна (${fish.name})`,
+        mount: `Основная леска 0.14–0.16 мм, двухсоставной тонущий поплавок или кивок Щербакова, свинцовое коромысло 2–10 г (под течение) с двумя поводками 5–7 см из плетёнки/лески 0.10–0.12 мм и крючками №12–№14.`,
+        baitAndAction: `Точечный закорм лунки кормушкой-самосвалом в 20 см от дна. Насадка: пучок уральского мотыля или бутерброд с опарышем; поклёвка — классический подъём поплавка.`
+      },
+      {
+        tone: 'var(--good)',
+        title: `Тандем («Паровоз») из двух чёртиков / Мормышка с кивком (${fish.name})`,
+        mount: `Леска 0.10–0.13 мм, нижний чёртик 0.5–0.9 г и верхний мелкий чёртик/коза в 25–30 см выше (скользящий или глухой монтаж), длинный металлический или карбоновый кивок.`,
+        baitAndAction: `Плавный «лещовый» кач с медленным подъёмом до 60–80 см от дна и контрольной подсечкой в верхней точке.`
+      }
+    ] : [
+      {
+        tone: 'var(--accent)',
+        title: `Фидерный монтаж: Инлайн (In-Line) и Патерностер Гарднера (${fish.name})`,
+        mount: `Основной шнур PE #0.8–#1.0 (или монолеска 0.22–0.25 мм), скользящая кормушка (${rig.weight}) с отводом из фидергама 8–10 см. Поводок из флюорокарбона 0.10–0.14 мм длиной 50–80 см (на течении) или 30–45 см (в стоячей воде), крючок №12–№16.`,
+        baitAndAction: `Стартовый закорм точки из 5–7 кормушек на клипсе, далее темповый перезаброс каждые 3–7 минут (по плотве/лещу) или ожидание 12–20 минут (по крупному лещу и карасю).`
+      },
+      {
+        tone: 'var(--good)',
+        title: `Флэт-Метод (Flat Method) и Безопасная карповая оснастка (${fish.name})`,
+        mount: `Кормушка Flat 30–70 г, мягкий поводковый материал 15–25 lb длиной 8–12 см, крючок Wide Gape / Curve Shank №6–№10 с волосяным монтажом под бойл, вафтерс или кукурузу.`,
+        baitAndAction: `Крючок с насадкой запрессовывается топтушкой в верхний слой методного пеллетса/прикормки — рыба находит насадку прямо в центре кормового пятна.`
+      }
+    ];
+    knotItems = [
+      `<b>Петля Гарднера (Восьмёрка):</b> базовый узел для формирования патерностера и соединения поводка «петля в петлю».`,
+      `<b>Безузловой узел (Knotless Knot):</b> эталонный монтаж волосяной оснастки для карпа, сазана и флэт-фидера (100% засекаемость).`,
+      `<b>Узел Лопатка (Spade End Knot) / Паломар:</b> надёжная привязка тонких фидерных и поплавочных крючков №12–№16.`
+    ];
+  }
+
+  const html = `
+    <div style="display:flex;flex-direction:column;gap:10px;font-size:var(--fs-sm);line-height:1.45;">
+      <div class="glass-panel" style="padding:10px 12px;border-radius:14px;border:1.5px solid var(--accent);">
+        <div style="font-weight:900;font-size:13.5px;color:var(--text);width:100%;margin-bottom:4px;">
+          Текущая выбранная снасть (${escapeHtml(fish.name)})
+        </div>
+        <div style="font-size:12px;color:var(--text);">
+          <b>Оснастка:</b> ${escapeHtml(rig.weight)} (${escapeHtml(rig.line)})<br>
+          <b>Рекомендуемая приманка / насадка:</b> ${escapeHtml(activeBait)}<br>
+          <b>Тактика подачи (горизонт ~${s.depth.toFixed(1)} м):</b> ${escapeHtml(rig.tactic)}
         </div>
       </div>
-      <div>
-        <div style="font-weight:800;font-size:var(--fs-xs);color:var(--good);text-transform:uppercase;margin-bottom:6px;">
-          <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> 2. Экипировка и безопасность на водоёме:
+
+      ${primaryCards.map((c) => `
+        <div style="padding:11px 13px;background:var(--panel);border:1.5px solid ${c.tone};border-radius:14px;">
+          <div style="font-weight:900;font-size:13px;color:${c.tone};width:100%;margin-bottom:4px;">${c.title}</div>
+          <div style="font-size:12px;color:var(--text);">
+            <b>Схема монтажа:</b> ${c.mount}<br>
+            <b>Насадка и подача:</b> ${c.baitAndAction}
+          </div>
         </div>
-        <div style="display:flex;flex-direction:column;gap:6px;">
-          ${cl.safetyItems.map(item => `
-            <label style="display:flex;align-items:flex-start;gap:8px;padding:7px 10px;background:var(--card);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:var(--fs-xs);">
-              <input type="checkbox" checked style="margin-top:2px;">
-              <span>${item}</span>
-            </label>
-          `).join("")}
+      `).join('')}
+
+      <div style="padding:11px 13px;background:var(--panel);border:1.5px solid var(--ice);border-radius:14px;">
+        <div style="font-weight:900;font-size:13px;color:var(--ice);width:100%;margin-bottom:4px;">
+          Проверенные узлы под оснастку «${escapeHtml(fish.name)}»
+        </div>
+        <div style="font-size:12px;color:var(--text);display:flex;flex-direction:column;gap:5px;">
+          ${knotItems.map(k => `<div>• ${k}</div>`).join('')}
         </div>
       </div>
     </div>
   `;
-  openModal("<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><rect x=\"6\" y=\"7\" width=\"12\" height=\"14\" rx=\"3\" fill=\"rgba(56,189,248,0.16)\" stroke=\"currentColor\" stroke-width=\"1.8\"/><path d=\"M9 7V5a3 3 0 0 1 6 0v2M9 14h6\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\"/></svg> Чек-лист сборов и безопасности на выезд", html);
+  openModal(`Монтажи и узлы: ${fish.name}`, html);
 }
 function computeDayKpAndDaylight(day) {
   const sr = Number.isFinite(day?.sunriseHr) ? day.sunriseHr : 7.5;
@@ -1368,147 +1662,55 @@ function stopCarpRecastTimer() {
   showToast('Таймер перезаброса остановлен', 'info');
 }
 function buildSpecializedTacticalHtml(fish, s, day, waterTemp, iceState) {
-  const m = String(s.method || 'spin_jig');
-  const wind = Number(day?.windMax ?? 3);
-  const windDir = day?.windDir || 'З';
-  const prof = WATER_PROFILES[s.water] || WATER_PROFILES.small_river;
-  const flow = Number(prof.flow || 1.0);
-  if (iceState === 'ice_safe' || iceState === 'ice_danger' || m.startsWith('winter_')) {
-    const isDanger = iceState === 'ice_danger' || (day?.iceThickness || 0) < 7;
-    return `
-      <div class="bento-card" style="padding:11px 13px;border:1.5px solid ${isDanger ? 'var(--bad)' : 'var(--ice)'};">
-        <div class="bento-card-title" style="font-size:14px;margin-bottom:6px;">
-          <span>Зимняя тактика и Безопасность льда (${fish.name})</span>
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px;font-size:12px;line-height:1.4;">
-          <div style="padding:8px 10px;background:var(--panel);border-radius:11px;border:1px solid var(--border);">
-            <b style="color:${isDanger ? 'var(--bad)' : 'var(--good)'};"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2.5l7 3.2v5.8c0 5-3 9.3-7 10.8-4-1.5-7-5.8-7-10.8V5.7l7-3.2z" fill="rgba(56,189,248,0.22)" stroke="#38bdf8" stroke-width="1.8" stroke-linejoin="round"/></svg> Контроль льда:</b>
-            ${isDanger
-              ? 'Опасная толщина льда! Избегайте устьев притоков, тёплых сбросов, камыша и снежных наддувов. Пешня и спасалки обязательны.'
-              : `Безопасный монолитный лёд (~${day?.iceThickness || 12} см). На течении (${prof.shortName}) проверяйте закраины и промоины у мостов и кос.`}
-          </div>
-          <div style="padding:8px 10px;background:var(--panel);border-radius:11px;border:1px solid var(--border);">
-            <b style="color:var(--accent);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg> Тактика поиска со льда:</b>
-            Вода ~${waterTemp}°C — бурите серию из 5–7 лунок поперёк руслового свала (шаг 6–8 м). Начинайте облов с верхней бровки, пауза в нижней точке 3–5 сек.
-          </div>
-        </div>
-      </div>
-    `;
-  }
-  const isCarpSpecies = ['carp', 'grass_carp', 'silver_carp', 'crucian', 'bream', 'tench', 'buffalo', 'black_carp'].includes(fish.id);
-  if (m === 'bottom' || m === 'float' || isCarpSpecies) {
-    const isCold = waterTemp < 12.0;
-    const savedClip = Number(s.userProfile?.carpClipMeters || 42);
-    const savedBottom = s.userProfile?.carpBottomType || 'Ракушечник / Бровка';
-    const timerLeftSec = _recastTimerTargetTs > Date.now() ? Math.ceil((_recastTimerTargetTs - Date.now()) / 1000) : 0;
-    const timerMm = String(Math.floor(timerLeftSec / 60)).padStart(2, '0');
-    const timerSs = String(timerLeftSec % 60).padStart(2, '0');
-    const carpProgramAdvice = isCarpSpecies
-      ? (isCold
-          ? `Холодная вода (+${waterTemp}°C): одиночный подрезанный Поп-ап или Вафтерс 8–10 мм (специи, робин ред, чеснок, криль) + компактный ПВА-стик с микро-пеллетсом 1.5–2 мм. Исключите жирные рыбные масла и обильный закорм спомбом!`
-          : `Прогретая вода (+${waterTemp}°C): тонущие и нейтральные бойлы 14–20 мм (рыбная мука / палтус / клубника / слива / тигровый орех) или «снеговик» с поп-апом 10 мм. Активный стартовый закорм спомбом (зерновые, конопля, резаные бойлы, пеллетс).`)
-      : (isCold
-          ? `Холодная вода (+${waterTemp}°C): тёмная мелкофракционная инертная смесь (чёрный лещ/плотва) со щепоткой кормового мотыля без сладкой ароматики.`
-          : `Прогретая вода (+${waterTemp}°C): активная средне- и крупнофракционная прикормка с добавлением опарыша, резаного червя или сладкой кукурузы.`);
-    const surfShoreAdvice = (wind >= 2.5 && wind <= 7.5)
-      ? `Активный «Прибойный берег» (${windDir} ${wind} м/с): волна насыщает бровку кислородом и вымывает донный корм — карп, сазан и крупный лещ выходят кормиться на границу прибойной мути!`
-      : (wind < 2.5
-          ? `Штиль / слабый ветер (${windDir} ${wind} м/с): рыба осторожна — используйте флюорокарбоновый поводок, нейтральную презентацию Wafters и точечный ПВА-стик.`
-          : `Сильный ветер (${windDir} ${wind} м/с): используйте тяжёлую кормушку-пулю / флэт 60–90 г и опустите вершинку удилища к воде.`);
-    return `
-      <div class="bento-card" style="padding:11px 13px;border:1.5px solid var(--good);">
-        <div class="bento-card-title" style="font-size:14px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
-          <div style="display:flex;align-items:center;gap:6px;">
-            <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg></span>
-            <span>Карпфишинг, Сазан и Флэт-Фидер: Программа питания и Свим (${fish.name})</span>
-          </div>
-          <span class="pill pill-good" style="font-size:10.5px;">Клипса: <b id="fcCarpClipBadgeVal">${savedClip} м</b> • ${savedBottom}</span>
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:8px;font-size:12px;line-height:1.42;">
-          <div style="padding:8px 10px;background:var(--panel);border-radius:11px;border:1px solid var(--border);">
-            <b style="color:var(--good);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M17 3C11 3 5 7 5 15c0 2.5 1.5 4 4 4 8 0 12-6 12-12 0-2.5-1.5-4-4-4z" fill="rgba(16,185,129,0.25)" stroke="#10b981" stroke-width="1.8"/><path d="M5 19L15 9" stroke="#10b981" stroke-width="1.8" stroke-linecap="round"/></svg> Программа бойлов и прикормки:</b> ${carpProgramAdvice}
-          </div>
-          <div style="padding:8px 10px;background:var(--panel);border-radius:11px;border:1px solid var(--border);">
-            <b style="color:var(--accent);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Фактор ветра «Прибойный берег»:</b> ${surfShoreAdvice}
-          </div>
-        </div>
-        <div style="margin-top:8px;padding:8px 10px;background:var(--panel);border-radius:11px;border:1px solid var(--border);display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;font-size:11.5px;">
-          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-            <b style="color:var(--text);">Карта свима (клипса, м):</b>
-            <input type="number" id="fcCarpClipInput" class="input" min="5" max="220" step="1" value="${savedClip}" style="width:68px;min-height:30px;padding:2px 6px;font-size:12px;font-weight:800;">
-            <select id="fcCarpBottomSelect" class="input" style="width:auto;min-width:155px;min-height:30px;padding:2px 6px;font-size:11.5px;">
-              ${['Ракушечник / Бровка', 'Выход из ила на твёрдое', 'Русловой свал / Яма', 'Граница камыша / Коряга'].map(opt => `<option value="${opt}" ${opt === savedBottom ? 'selected' : ''}>${opt}</option>`).join('')}
-            </select>
-            <button type="button" class="btn btn-sm btn-good" id="fcSaveCarpSwimBtn" style="min-height:30px;padding:2px 9px;font-size:11px;font-weight:800;">Запомнить свим</button>
-          </div>
-          <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
-            <b style="color:var(--accent);">Таймер перезаброса:</b>
-            <button type="button" class="btn btn-sm" data-recast-timer-min="10" style="min-height:28px;padding:2px 7px;font-size:11px;">10 мин</button>
-            <button type="button" class="btn btn-sm" data-recast-timer-min="15" style="min-height:28px;padding:2px 7px;font-size:11px;">15 мин</button>
-            <button type="button" class="btn btn-sm" data-recast-timer-min="45" style="min-height:28px;padding:2px 7px;font-size:11px;">45 мин</button>
-            <button type="button" class="btn btn-sm" data-recast-timer-min="120" style="min-height:28px;padding:2px 7px;font-size:11px;">2 ч</button>
-            <span id="fcRecastTimerDisplay" class="pill ${timerLeftSec > 0 ? 'pill-good' : 'pill-neutral'}" style="font-family:monospace;font-size:11.5px;font-weight:900;">${timerLeftSec > 0 ? `${timerMm}:${timerSs}` : 'Выкл'}</span>
-            ${timerLeftSec > 0 ? `<button type="button" class="btn btn-sm" id="fcStopRecastTimerBtn" style="min-height:26px;padding:1px 6px;font-size:10.5px;color:var(--bad);">Стоп</button>` : ''}
-          </div>
-        </div>
-      </div>
-    `;
-  }
-  const pauseSec = waterTemp <= 4.0 ? '5–8 сек (с плавным волочением и подбросом мандулы/поролона)' : (waterTemp <= 10.0 ? '3–5 сек (классическая медленная ступенька)' : '1.5–2.5 сек (активная проводка с подрывом)');
-  const windAdvice = wind >= 5
-    ? `Свежий ветер ${windDir} ${wind} м/с: выбирайте прибойный берег (туда сгоняет тёплую воду и малька), но увеличьте вес груза на +2..4 г и опустите вершинку спиннинга к воде против выдува дуги шнура.`
-    : `Комфортный ветер ${windDir} ${wind} м/с: идеальный контроль касания дна по кончику удилища и звонкому шнуру PE #0.6–1.0.`;
+  const savedClip = Number(s.userProfile?.carpClipMeters || 42);
+  const savedBottom = s.userProfile?.carpBottomType || 'Ракушечник / Русловая бровка';
+  const timerLeftSec = _recastTimerTargetTs > Date.now() ? Math.ceil((_recastTimerTargetTs - Date.now()) / 1000) : 0;
+  const timerMm = String(Math.floor(timerLeftSec / 60)).padStart(2, '0');
+  const timerSs = String(timerLeftSec % 60).padStart(2, '0');
   return `
-    <div class="bento-card" style="padding:11px 13px;border:1.5px solid var(--accent);">
-      <div class="bento-card-title" style="font-size:14px;margin-bottom:6px;">
-        <span>Тактика Спиннинга и Джига: Пауза и Ветровой вектор</span>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px;font-size:12px;line-height:1.4;">
-        <div style="padding:8px 10px;background:var(--panel);border-radius:11px;border:1px solid var(--border);">
-          <b style="color:var(--accent);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.5 2" stroke="#38bdf8" stroke-width="1.9" stroke-linecap="round"/></svg> Пауза на ступеньке (вода +${waterTemp}°C):</b> <b>${pauseSec}</b>. По холодной воде хищник атакует на длинной паузе со дна.
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <div class="bento-card" style="padding:12px 14px;display:flex;flex-direction:column;gap:9px;">
+        <div style="width:100%;display:flex;flex-direction:column;gap:4px;">
+          <div style="font-size:14px;font-weight:800;width:100%;">Карта свима и клипса</div>
+          <div style="font-size:11.5px;color:var(--accent);font-weight:800;">Клипса: <b id="fcCarpClipBadgeVal">${savedClip} м</b> • Глубина ${s.depth.toFixed(1)} м • ${escapeHtml(savedBottom)}</div>
         </div>
-        <div style="padding:8px 10px;background:var(--panel);border-radius:11px;border:1px solid var(--border);">
-          <b style="color:var(--good);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Ветровой вектор (${windDir} ${wind} м/с, теч. ${flow} м/с):</b> ${windAdvice}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <div>
+            <label for="fcCarpClipInput" style="display:block;font-size:11px;color:var(--muted);font-weight:700;margin-bottom:3px;">Дистанция / Клипса (м):</label>
+            <input type="number" id="fcCarpClipInput" class="input" min="5" max="220" step="1" value="${savedClip}" style="width:100%;min-height:38px;font-weight:800;">
+          </div>
+          <div>
+            <label style="display:block;font-size:11px;color:var(--muted);font-weight:700;margin-bottom:3px;">Рабочая глубина (м):</label>
+            <input type="text" class="input" value="${s.depth.toFixed(1)}" readonly style="width:100%;min-height:38px;font-weight:800;opacity:0.85;">
+          </div>
         </div>
-      </div>
-    </div>
-  `;
-}
-export function openRigEncyclopediaModal(fish) {
-  const html = `
-    <div style="display:flex;flex-direction:column;gap:10px;font-size:var(--fs-sm);line-height:1.45;">
-      <div style="padding:10px 12px;background:var(--panel);border:1.5px solid var(--accent);border-radius:12px;">
-        <div style="font-weight:900;color:var(--accent);margin-bottom:3px;">1. Джиг-риг / Чебурашка с мандулой или силиконом (Щука, Судак, Окунь)</div>
-        <div style="font-size:12px;color:var(--text);">
-          • <b>Шнур:</b> 8-жильный PE #0.8–#1.2 + поводок струна 20–25 см (на щуку) или флюорокарбон 0.35–0.45 мм (на судака/окуня в корягах).<br>
-          • <b>Подача:</b> 2 оборота катушки — пауза 2–6 сек (по температуре воды). В холодной воде (ниже +6°C) лучший результат даёт контрастная мандула «Билайн» (жёлто-чёрная) с паузой до 6–8 секунд.
+        <div>
+          <label for="fcCarpBottomSelect" style="display:block;font-size:11px;color:var(--muted);font-weight:700;margin-bottom:3px;">Характер рельефа и дна:</label>
+          <select id="fcCarpBottomSelect" class="form-select" style="width:100%;min-height:40px;">
+            ${['Ракушечник / Русловая бровка', 'Выход из ила на твёрдое плато', 'Русловой свал / Яма', 'Граница камыша / Коряжник'].map(opt => `<option value="${opt}" ${opt === savedBottom ? 'selected' : ''}>${opt}</option>`).join('')}
+          </select>
         </div>
+        <button type="button" class="pill-btn" id="fcSaveCarpSwimBtn" style="width:100%;min-height:40px;font-weight:800;font-size:12.5px;">Запомнить свим и привязать к точке</button>
       </div>
-      <div style="padding:10px 12px;background:var(--panel);border:1.5px solid var(--good);border-radius:12px;">
-        <div style="font-weight:900;color:var(--good);margin-bottom:3px;">2. Отводной поводок / Московская оснастка (Пассивный Окунь, Судак)</div>
-        <div style="font-size:12px;color:var(--text);">
-          • <b>Монтаж:</b> Тройной вертлюжок -> груз-палочка/балерина на отводе 25 см (флюр 0.22 мм) -> рабочий поводок 90–120 см из флюорокарбона 0.16–0.20 мм с офсетным крючком №6–№2.<br>
-          • <b>Подача:</b> Медленное волочение по ракушечнику и каменистой бровке с короткими подёргиваниями и паузами до 5 секунд.
+
+      <div class="bento-card" style="padding:12px 14px;display:flex;flex-direction:column;gap:9px;">
+        <div style="width:100%;display:flex;justify-content:space-between;align-items:center;gap:8px;">
+          <span style="font-size:14px;font-weight:800;">Таймер перезаброса / проверки</span>
+          <span id="fcRecastTimerDisplay" class="pill ${timerLeftSec > 0 ? 'pill-good' : 'pill-neutral'}" style="font-family:monospace;font-size:13.5px;font-weight:900;">${timerLeftSec > 0 ? `${timerMm}:${timerSs}` : '15:00'}</span>
         </div>
-      </div>
-      <div style="padding:10px 12px;background:var(--panel);border:1.5px solid var(--warn);border-radius:12px;">
-        <div style="font-weight:900;color:var(--warn);margin-bottom:3px;">3. Асимметричная петля / Инлайн и Патерностер (Лещ, Плотва, Язь, Карась)</div>
-        <div style="font-size:12px;color:var(--text);">
-          • <b>Монтаж:</b> Скользящая кормушка (Инлайн) с отводом под фидергам 8–10 см или классический Патерностер Гарднера на основной леске.<br>
-          • <b>Крючок и поводок:</b> На течении поводок 50–80 см (0.12–0.14 мм), крючок №12–№16 под пучок мотыля или бутерброд с опарышем.
+        <div class="seg-bar" style="display:grid;grid-template-columns:repeat(4,1fr);">
+          <button type="button" class="seg-btn" data-recast-timer-min="10">10 мин</button>
+          <button type="button" class="seg-btn active" data-recast-timer-min="15">15 мин</button>
+          <button type="button" class="seg-btn" data-recast-timer-min="45">45 мин</button>
+          <button type="button" class="seg-btn" data-recast-timer-min="120">2 ч</button>
         </div>
-      </div>
-      <div style="padding:10px 12px;background:var(--panel);border:1.5px solid var(--ice);border-radius:12px;">
-        <div style="font-weight:900;color:var(--ice);margin-bottom:3px;">4. Проверенные рыболовные узлы (100% прочность на морозе и течении)</div>
-        <div style="font-size:12px;color:var(--text);">
-          • <b>Паломар (Palomar):</b> лучший узел для привязывания застёжки/вертлюжка к плетёному шнуру (прочность до 95%).<br>
-          • <b>Улучшенный Олбрайт / Морковка:</b> надёжная связка плетёного шнура с шок-лидером из флюорокарбона.<br>
-          • <b>Петля Гарднера (восьмёрка):</b> быстрое соединение поводка «петля в петлю».
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <button type="button" class="pill-btn" data-recast-timer-min="15" style="min-height:38px;font-weight:800;color:var(--good);border-color:var(--good);">Старт таймера</button>
+          <button type="button" class="pill-btn" id="fcStopRecastTimerBtn" style="min-height:38px;font-weight:800;">Сброс</button>
         </div>
       </div>
     </div>
   `;
-  openModal(`<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M7 7a4 4 0 1 0 0 8h10a4 4 0 1 0 0-8H7z" stroke="#38bdf8" stroke-width="1.9"/><path d="M17 7a4 4 0 1 1 0 8H7a4 4 0 1 1 0-8" stroke="currentColor" stroke-width="1.6" stroke-dasharray="3 2"/></svg> Справочник рабочих монтажей и узлов (${fish?.name || 'Все виды'})`, html);
 }
 export function renderExpress(container) {
   if (typeof document !== 'undefined' && document.documentElement.getAttribute('data-desktop-web') !== '1') {
@@ -1546,25 +1748,25 @@ export function renderExpress(container) {
     let verdictTone = 'good';
     let customRatingWord = null;
     if (fish.legal === 'redbook') {
-      verdict = `<svg class="k-ico" style="color:var(--bad);" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><path d="M6 6l12 12" stroke="#ef4444" stroke-width="2.1" stroke-linecap="round"/></svg> Кр. книга (прилов ~${score}%)`;
+      verdict = `Кр. книга (прилов ~${score}%)`;
       verdictTone = 'bad';
       customRatingWord = `Активность ${score}% • Отпусти`;
     } else if (isIceDanger) {
       verdict = d.iceSubState === 'spring_rotten_ice'
-        ? `<svg class="k-ico" style="color:var(--warn);" viewBox="0 0 24 24" fill="none"><path d="M12 3L2.5 19.5h19L12 3z" fill="rgba(245,158,11,0.24)" stroke="#f59e0b" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9v5M12 17h.01" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/></svg> Рыхлый лёд и промоины`
-        : `<svg class="k-ico" style="color:var(--warn);" viewBox="0 0 24 24" fill="none"><path d="M12 3L2.5 19.5h19L12 3z" fill="rgba(245,158,11,0.24)" stroke="#f59e0b" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9v5M12 17h.01" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/></svg> Опасный лёд (~${d.iceThickness} см)`;
+        ? `Рыхлый лёд и промоины`
+        : `Опасный лёд (~${d.iceThickness} см)`;
       verdictTone = 'bad';
       customRatingWord = 'Выход на лёд опасен';
     } else if (isPressJump) {
-      verdict = `<svg class="k-ico" style="color:var(--warn);" viewBox="0 0 24 24" fill="none"><path d="M12 3L2.5 19.5h19L12 3z" fill="rgba(245,158,11,0.24)" stroke="#f59e0b" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9v5M12 17h.01" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/></svg> Скачок давления (${d.dP > 0 ? '+' : ''}${d.dP} мм)`;
+      verdict = `Скачок давления (${d.dP > 0 ? '+' : ''}${d.dP} мм)`;
       verdictTone = Math.abs(d.dP) >= 8 ? 'bad' : 'warn';
       customRatingWord = score < 35 ? 'Клёва нет' : (score < 50 ? 'Слабый клёв' : 'Умеренный клёв • Нестабильно');
     } else if (isArchiveShock && score < 62) {
-      verdict = `<svg class="k-ico" style="color:var(--warn);" viewBox="0 0 24 24" fill="none"><path d="M12 3L2.5 19.5h19L12 3z" fill="rgba(245,158,11,0.24)" stroke="#f59e0b" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9v5M12 17h.01" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/></svg> Барический «шок» (архив)`;
+      verdict = `Барический «шок» (архив)`;
       verdictTone = 'warn';
       customRatingWord = score < 40 ? 'Слабый клёв • В «шоке»' : 'Осторожный клёв';
     } else if (isGale) {
-      verdict = `<svg class="k-ico" style="color:var(--warn);" viewBox="0 0 24 24" fill="none"><path d="M12 3L2.5 19.5h19L12 3z" fill="rgba(245,158,11,0.24)" stroke="#f59e0b" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9v5M12 17h.01" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/></svg> Штормовой ветер (${d.windMax} м/с)`;
+      verdict = `Штормовой ветер (${d.windMax} м/с)`;
       verdictTone = 'bad';
       customRatingWord = score < 35 ? 'Клёва нет' : 'Слабый клёв • Шторм';
     } else if (score < 38) {
@@ -1586,17 +1788,17 @@ export function renderExpress(container) {
           ${createPill({ text: verdict, tone: verdictTone })}
         </div>
         <div class="express-chips">
-          ${createPill({ icon: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg>', text: `Вода ${d.waterTemp}°C`, tone: wtTone })}
-          ${createPill({ icon: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><polygon points="16,8 13.5,13.5 8,16 10.5,10.5" fill="#38bdf8" stroke="currentColor" stroke-width="1.3"/></svg>', text: `${d.pressAvg} мм (${fmtDeltaPress(d.dP)})`, tone: pTone })}
-          ${createPill({ icon: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>', text: `${d.windDir} ${d.windMax} м/с`, tone: wTone })}
+          ${createPill({ icon: '', text: `Вода ${d.waterTemp}°C`, tone: wtTone })}
+          ${createPill({ icon: '', text: `${d.pressAvg} мм (${fmtDeltaPress(d.dP)})`, tone: pTone })}
+          ${createPill({ icon: '', text: `${d.windDir} ${d.windMax} м/с`, tone: wTone })}
           ${createPill({ icon: d.moon.phaseIcon, text: `${d.moon.moonDay} л.д.`, tone: 'neutral' })}
-          ${createPill({ icon: dayIce === 'open_water' ? '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg>' : '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1" stroke="#7dd3fc" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="#38bdf8"/></svg>', text: iceText, tone: iceTone })}
+          ${createPill({ icon: dayIce === 'open_water' ? '' : '', text: iceText, tone: iceTone })}
         </div>
         <p style="font-size:var(--fs-xs);color:var(--muted);line-height:1.42;">
           ${fish.legal === 'redbook'
-            ? `<svg class="k-ico" style="color:var(--bad);" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><path d="M6 6l12 12" stroke="#ef4444" stroke-width="2.1" stroke-linecap="round"/></svg> Поймал — отпусти! Биоактивность вида: ${topNotes}.`
+            ? `Поймал — отпусти! Биоактивность вида: ${topNotes}.`
             : (dayIce === 'ice_danger'
-                ? (d.iceNote || '<svg class="k-ico" style="color:var(--warn);" viewBox="0 0 24 24" fill="none"><path d="M12 3L2.5 19.5h19L12 3z" fill="rgba(245,158,11,0.24)" stroke="#f59e0b" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9v5M12 17h.01" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/></svg> Выход на тонкий или весенний рыхлый лёд смертельно опасен! Допустима только береговая ловля.')
+                ? (d.iceNote || 'Выход на тонкий или весенний рыхлый лёд смертельно опасен! Допустима только береговая ловля.')
                 : `${topNotes}.`)}
         </p>
         <div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;border-top:1px solid var(--border);gap:8px;">
@@ -1738,7 +1940,7 @@ export function renderExpress(container) {
         </button>
       `).join('')}
       <button type="button" class="w-chip" id="bentoOpenAllFishBtn" style="padding:4px 10px;min-height:36px;color:var(--accent);border-color:var(--accent);flex-shrink:0;white-space:nowrap;">
-        <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 12s4-6 11-6c4.2 0 7 2.5 9 6-2 3.5-4.8 6-9 6-7 0-11-6-11-6z" fill="rgba(56,189,248,0.28)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M2 12l-1.5-3.5L5 10.5M2 12l-1.5 3.5L5 13.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="16.5" cy="10.8" r="1.3" fill="currentColor"/></svg> Все 115 рыб →
+        Все 115 рыб →
       </button>
     </div>
   `;
@@ -1754,7 +1956,7 @@ export function renderExpress(container) {
   modeBannerHtml += `
     <div class="bento-dashboard-wrap">
       ${stickyRoot ? '' : stickySpeciesHtml}
-      <!-- КАРТОЧКА 1 (По Фото 1 + Свайп рыбы v2.5.0): <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="4.5" stroke="#38bdf8" stroke-width="1.6"/><circle cx="12" cy="12" r="1.8" fill="#10b981"/></svg> Ихтиологический Прогноз Клёва -->
+      <!-- КАРТОЧКА 1 (По Фото 1 + Свайп рыбы v2.5.0): Ихтиологический Прогноз Клёва -->
       <div class="bento-card bento-hero-card" id="bentoSwipeHeroCard">
         <div class="bento-card-head">
           <div>
@@ -1776,7 +1978,7 @@ export function renderExpress(container) {
             <div class="bento-active-status-row">
               <div class="bento-splash-fish-box" data-open-fish-zoom="${fish.id}" style="cursor:zoom-in;position:relative;" title="Нажмите для просмотра карточки рыбы или увеличения">
                 ${renderFishVisual(fish)}
-                <span data-open-fish-lightbox="${fish.id}" title="Увеличить изображение на весь экран" style="position:absolute;bottom:2px;right:2px;width:20px;height:20px;border-radius:6px;background:rgba(7,17,31,0.78);border:1px solid rgba(56,189,248,0.45);display:inline-flex;align-items:center;justify-content:center;font-size:10px;opacity:0.92;cursor:zoom-in;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="2"/><path d="M16 16l4.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>
+                <span data-open-fish-lightbox="${fish.id}" title="Увеличить изображение на весь экран" style="position:absolute;bottom:2px;right:2px;width:20px;height:20px;border-radius:6px;background:rgba(7,17,31,0.78);border:1px solid rgba(56,189,248,0.45);display:inline-flex;align-items:center;justify-content:center;font-size:10px;opacity:0.92;cursor:zoom-in;"></span>
               </div>
               <div data-open-fish-zoom="${fish.id}" style="cursor:pointer;" title="Открыть карточку вида (Справка ихтиолога)">
                 <div class="bento-status-verdict" style="color:${heroTone};">${heroStatusShort}</div>
@@ -1905,16 +2107,16 @@ export function renderExpress(container) {
             const astro = computeDayKpAndDaylight(activeDayForTackle);
             return `
               <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-top:6px;padding-top:6px;border-top:1px dashed var(--border);font-size:11px;font-weight:800;">
-                <span style="color:var(--muted);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.5" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> Восход <b>${fmtHM(astro.sr)}</b> • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.5" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> Закат <b>${fmtHM(astro.ss)}</b> (День: ${astro.daylightStr})</span>
-                <span style="color:${astro.kpTone};"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="5" r="2.5" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5V21M5 13c0 4.5 3.1 8 7 8s7-3.5 7-8M8 10h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Геомагнитный Kp-${astro.kpVal} (${astro.kpLabel})</span>
+                <span style="color:var(--muted);">Восход <b>${fmtHM(astro.sr)}</b> • Закат <b>${fmtHM(astro.ss)}</b> (День: ${astro.daylightStr})</span>
+                <span style="color:${astro.kpTone};">Геомагнитный Kp-${astro.kpVal} (${astro.kpLabel})</span>
               </div>
             `;
           })()}
         </div>
       </div>
-      <!-- КАРТОЧКА 3 (По Фото 1): Двойной нижний ряд «<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> Карта & Радар» + «<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="9" r="4" fill="#fbbf24" opacity="0.9"/><path d="M9 2v2M9 14v2M2 9h2M14 9h2M4.2 4.2l1.4 1.4M12.4 12.4l1.4 1.4" stroke="#fbbf24" stroke-width="1.6" stroke-linecap="round"/><path d="M10 18h8.5a3.5 3.5 0 0 0 .4-6.97A5 5 0 0 0 9.2 9.5 4 4 0 0 0 10 18z" fill="rgba(56,189,248,0.28)" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg> Погода & Лёд» -->
+      <!-- КАРТОЧКА 3 (По Фото 1): Двойной нижний ряд «Карта & Радар» + «Погода & Лёд» -->
       <div class="bento-bottom-duo">
-        <!-- Левая карточка: <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> Карта & Радар -->
+        <!-- Левая карточка: Карта & Радар -->
         <div class="bento-card bento-radar-card" id="bentoMapRadarCard" title="Нажмите для перехода к Карте и Радару Круга">
           <div class="bento-card-title" style="margin-bottom:8px;font-size:14.5px;">
             <span>Карта & Радар</span>
@@ -1943,7 +2145,7 @@ export function renderExpress(container) {
         <!-- Правая карточка: Автоматически меняет название по сезону (летом — Погода & Вода, в межсезонье — Погода & Шуга, зимой — Погода & Лёд) -->
         <div class="bento-card bento-weather-card" id="bentoWeatherIceCard" title="Нажмите для перехода в подробный раздел Погода и состояние водоёма">
           <div class="bento-card-title" style="margin-bottom:8px;font-size:14.5px;">
-            <span>${effIceForTackle === 'ice_safe' || effIceForTackle === 'ice_danger' ? '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1" stroke="#7dd3fc" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="#38bdf8"/></svg>' : (effIceForTackle === 'ice_slush' ? '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1" stroke="#7dd3fc" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="#38bdf8"/></svg>' : '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg>')}</span>
+            <span>${effIceForTackle === 'ice_safe' || effIceForTackle === 'ice_danger' ? '' : (effIceForTackle === 'ice_slush' ? '' : '')}</span>
             <span>${effIceForTackle === 'ice_safe' || effIceForTackle === 'ice_danger' ? 'Погода & Лёд' : (effIceForTackle === 'ice_slush' ? 'Погода & Шуга' : 'Погода & Вода')}</span>
           </div>
           <div class="bento-weather-rows">
@@ -1953,19 +2155,19 @@ export function renderExpress(container) {
                 <div style="font-size:10.5px;color:var(--muted);font-weight:700;">Воздух (${activeDayForTackle.windDir || 'З'} ${activeDayForTackle.windMax || 3} м/с)</div>
               </div>
               <div class="bento-temp-water-box">
-                <div style="font-size:13.5px;font-weight:900;color:var(--accent);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> ${tWatStr}</div>
+                <div style="font-size:13.5px;font-weight:900;color:var(--accent);">${tWatStr}</div>
                 <div style="font-size:10.5px;color:var(--muted);font-weight:700;">Вода</div>
               </div>
             </div>
             <div class="bento-weather-item-row">
-              <span style="font-size:17px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><polygon points="16,8 13.5,13.5 8,16 10.5,10.5" fill="#38bdf8" stroke="currentColor" stroke-width="1.3"/></svg></span>
+              <span style="font-size:17px;"></span>
               <div>
                 <div style="font-weight:900;color:var(--text);">${activeDayForTackle.pressAvg || 750} мм рт. ст.</div>
                 <div style="font-size:10.5px;color:var(--muted);">Давление (${fmtDeltaPress(activeDayForTackle.dP)})</div>
               </div>
             </div>
             <div class="bento-weather-item-row bento-ice-hazard">
-              <span style="font-size:17px;">${effIceForTackle === 'open_water' ? '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg>' : '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1" stroke="#7dd3fc" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="#38bdf8"/></svg>'}</span>
+              <span style="font-size:17px;">${effIceForTackle === 'open_water' ? '' : ''}</span>
               <div>
                 <div style="font-weight:900;color:var(--text);">${iceMainTitle}</div>
                 <div style="font-size:10.5px;color:var(--muted);">${iceSubTitle}</div>
@@ -1998,13 +2200,13 @@ export function renderExpress(container) {
         </div>
         <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;">
           <button type="button" class="btn" id="fcOpenRigGuideBtn" style="min-height:42px;font-weight:800;font-size:12px;padding:6px 8px;">
-            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M7 7a4 4 0 1 0 0 8h10a4 4 0 1 0 0-8H7z" stroke="#38bdf8" stroke-width="1.9"/><path d="M17 7a4 4 0 1 1 0 8H7a4 4 0 1 1 0-8" stroke="currentColor" stroke-width="1.6" stroke-dasharray="3 2"/></svg> Монтажи и узлы
+            Монтажи и узлы
           </button>
           <button type="button" class="btn" id="fcOpenChecklistBtn" style="min-height:42px;font-weight:800;font-size:12px;padding:6px 8px;">
-            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="6" y="7" width="12" height="14" rx="3" fill="rgba(56,189,248,0.16)" stroke="currentColor" stroke-width="1.8"/><path d="M9 7V5a3 3 0 0 1 6 0v2M9 14h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Чек-лист
+            Чек-лист
           </button>
           <button type="button" class="btn btn-accent" id="fcShareForecastTgBtn" style="min-height:42px;font-weight:800;font-size:12px;padding:6px 8px;">
-            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 15V3m0 0L8 7m4-4l4 4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg> Поделиться
+            Поделиться
           </button>
         </div>
       </div>
@@ -2022,14 +2224,14 @@ export function renderExpress(container) {
           return `
             <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:8px;">
               <div>
-                <span style="font-size:var(--fs-xs);font-weight:800;color:var(--accent);"><svg class="k-ico" style="color:var(--bad);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg> ПАНЕЛЬ ПРОФИ: РУЧНАЯ КАЛИБРОВКА ВЕСОВ 8-ФАКТОРНОЙ МОДЕЛИ</span>
-                <div style="font-size:11px;color:var(--good);font-weight:700;margin-top:2px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="4.5" stroke="#38bdf8" stroke-width="1.6"/><circle cx="12" cy="12" r="1.8" fill="#10b981"/></svg> ${val30.label}</div>
+                <span style="font-size:var(--fs-xs);font-weight:800;color:var(--accent);">ПАНЕЛЬ ПРОФИ: РУЧНАЯ КАЛИБРОВКА ВЕСОВ 8-ФАКТОРНОЙ МОДЕЛИ</span>
+                <div style="font-size:11px;color:var(--good);font-weight:700;margin-top:2px;">${val30.label}</div>
                 <div id="proCalibLiveSummary" style="font-size:11.5px;color:var(--accent);font-weight:800;margin-top:3px;">
-                  <svg class="k-ico" viewBox="0 0 24 24" fill="none"><polygon points="13,2 4,14 11,14 10,22 20,10 13,10" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.5" stroke-linejoin="round"/></svg> Активность «${fish.name}» с текущей калибровкой весов: <b>${calScoreNow}%</b>
+                  Активность «${fish.name}» с текущей калибровкой весов: <b>${calScoreNow}%</b>
                 </div>
               </div>
               <div style="display:flex;gap:6px;">
-                <button type="button" class="btn btn-sm" id="proOpenChecklistBtn" style="min-height:26px;padding:2px 8px;font-size:11px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="6" y="7" width="12" height="14" rx="3" fill="rgba(56,189,248,0.16)" stroke="currentColor" stroke-width="1.8"/><path d="M9 7V5a3 3 0 0 1 6 0v2M9 14h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Чек-лист выезда</button>
+                <button type="button" class="btn btn-sm" id="proOpenChecklistBtn" style="min-height:26px;padding:2px 8px;font-size:11px;">Чек-лист выезда</button>
                 <button type="button" class="btn btn-sm" id="proResetWeightsBtn" style="min-height:26px;padding:2px 8px;font-size:11px;">Сбросить (1.0x)</button>
               </div>
             </div>
@@ -2038,25 +2240,25 @@ export function renderExpress(container) {
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:10px;font-size:var(--fs-xs);">
           <div>
             <label style="display:flex;justify-content:space-between;font-weight:700;">
-              <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> Термика воды:</span><b id="proWTempVal" style="color:var(--accent);">${Number(pw.temp ?? 1).toFixed(1)}x</b>
+              <span>Термика воды:</span><b id="proWTempVal" style="color:var(--accent);">${Number(pw.temp ?? 1).toFixed(1)}x</b>
             </label>
             <input type="range" min="0.5" max="1.5" step="0.1" value="${pw.temp ?? 1}" data-pro-weight="temp" style="width:100%;">
           </div>
           <div>
             <label style="display:flex;justify-content:space-between;font-weight:700;">
-              <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><polygon points="16,8 13.5,13.5 8,16 10.5,10.5" fill="#38bdf8" stroke="currentColor" stroke-width="1.3"/></svg> Давление (сутки):</span><b id="proWPressVal" style="color:var(--accent);">${Number(pw.press ?? 1).toFixed(1)}x</b>
+              <span>Давление (сутки):</span><b id="proWPressVal" style="color:var(--accent);">${Number(pw.press ?? 1).toFixed(1)}x</b>
             </label>
             <input type="range" min="0.5" max="1.5" step="0.1" value="${pw.press ?? 1}" data-pro-weight="press" style="width:100%;">
           </div>
           <div>
             <label style="display:flex;justify-content:space-between;font-weight:700;">
-              <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M3 3v18h18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M7 15l4-5 4 3 5-7" stroke="#38bdf8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg> Барический шок (5 дн.):</span><b id="proWShockVal" style="color:var(--accent);">${Number(pw.archive_shock ?? 1).toFixed(1)}x</b>
+              <span>Барический шок (5 дн.):</span><b id="proWShockVal" style="color:var(--accent);">${Number(pw.archive_shock ?? 1).toFixed(1)}x</b>
             </label>
             <input type="range" min="0.5" max="1.5" step="0.1" value="${pw.archive_shock ?? 1}" data-pro-weight="archive_shock" style="width:100%;">
           </div>
           <div>
             <label style="display:flex;justify-content:space-between;font-weight:700;">
-              <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="5" stroke="#38bdf8" stroke-width="1.5"/><path d="M12 12l6-6" stroke="#10b981" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="12" r="1.8" fill="#10b981"/></svg> Сигналы Круга (35 км):</span><b id="proWCircleVal" style="color:var(--accent);">${Number(pw.circle_field ?? 1).toFixed(1)}x</b>
+              <span>Сигналы Круга (35 км):</span><b id="proWCircleVal" style="color:var(--accent);">${Number(pw.circle_field ?? 1).toFixed(1)}x</b>
             </label>
             <input type="range" min="0.5" max="1.5" step="0.1" value="${pw.circle_field ?? 1}" data-pro-weight="circle_field" style="width:100%;">
           </div>
@@ -2102,11 +2304,11 @@ export function renderWeek(container) {
             return `
               <div class="day-card archive-day ${idx === s.dayIdx ? 'active' : ''}" data-week-day="${idx}" data-guest-locked-day="1">
                 <div class="day-status-stripe" style="background:${col};"></div>
-                <div style="font-weight:800;font-size:11.5px;color:var(--muted);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="5" y="3" width="14" height="18" rx="2.5" fill="rgba(56,189,248,0.16)" stroke="currentColor" stroke-width="1.8"/><path d="M9 7h6M9 11h6M9 15h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> ${d.relTitle}</div>
+                <div style="font-weight:800;font-size:11.5px;color:var(--muted);">${d.relTitle}</div>
                 <div style="font-weight:700;font-size:12px;">${d.label}</div>
                 <div style="font-size:var(--fs-sm);font-weight:800;">${d.tDay > 0 ? '+' + d.tDay : d.tDay}° / ${d.tNight > 0 ? '+' + d.tNight : d.tNight}°C</div>
                 <div style="font-size:11px;color:var(--muted);line-height:1.3;">
-                  <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> ${d.waterTemp}°C • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><polygon points="16,8 13.5,13.5 8,16 10.5,10.5" fill="#38bdf8" stroke="currentColor" stroke-width="1.3"/></svg> ${d.pressAvg} мм
+                  ${d.waterTemp}°C • ${d.pressAvg} мм
                 </div>
                 <div style="margin-top:auto;padding-top:4px;border-top:1px dashed var(--border);display:flex;justify-content:space-between;align-items:center;gap:4px;">
                   <span style="color:var(--accent);font-size:11px;font-weight:800;">Архив (шаг 4ч)</span>
@@ -2116,9 +2318,9 @@ export function renderWeek(container) {
             `;
           }
           const topBadge = idx === 2
-            ? `<span class="pill pill-good" style="font-size:11px;padding:2px 8px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2c1.5 3.5 4.5 5.5 4.5 10a5.5 5.5 0 1 1-11 0c0-3 2-5.5 3.5-7 0 2 1.5 3 1.5 3S12 5.5 12 2z" fill="#f97316" stroke="#fbbf24" stroke-width="1.5" stroke-linejoin="round"/></svg> Сегодня</span>`
+            ? `<span class="pill pill-good" style="font-size:11px;padding:2px 8px;">Сегодня</span>`
             : (idx === 3
-                ? `<span class="pill pill-ice" style="font-size:11px;padding:2px 8px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><polygon points="13,2 4,14 11,14 10,22 20,10 13,10" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.5" stroke-linejoin="round"/></svg> Завтра</span>`
+                ? `<span class="pill pill-ice" style="font-size:11px;padding:2px 8px;">Завтра</span>`
                 : (d.relTitle ? `<span style="font-size:var(--fs-xs);color:var(--accent);font-weight:700;">${d.relTitle}</span>` : ''));
           const bestWindow = isPriority ? getBestBiteWindowText(fish, d, s.method, s.water, s.depth, s.normPress, s.iceState) : '';
           return `
@@ -2130,14 +2332,14 @@ export function renderWeek(container) {
               </div>
               <div style="font-size:var(--fs-md);font-weight:800;">${d.tDay > 0 ? '+' + d.tDay : d.tDay}° / ${d.tNight > 0 ? '+' + d.tNight : d.tNight}°C</div>
               <div style="font-size:var(--fs-xs);color:var(--muted);line-height:1.38;">
-                <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> Вода ${d.waterTemp}°C<br>
-                <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><polygon points="16,8 13.5,13.5 8,16 10.5,10.5" fill="#38bdf8" stroke="currentColor" stroke-width="1.3"/></svg> ${d.pressAvg} мм (${fmtDeltaPress(d.dP)})<br>
-                <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> ${d.windDir} ${d.windMax} м/с
+                Вода ${d.waterTemp}°C<br>
+                ${d.pressAvg} мм (${fmtDeltaPress(d.dP)})<br>
+                ${d.windDir} ${d.windMax} м/с
               </div>
               ${isPriority ? `
                 <div style="padding:4px 7px;border-radius:6px;background:var(--panel);border:1px solid var(--border);font-size:11.5px;line-height:1.35;">
-                  <div style="color:var(--accent);font-weight:800;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.5 2" stroke="#38bdf8" stroke-width="1.9" stroke-linecap="round"/></svg> Пик клёва: ${bestWindow}</div>
-                  <div style="color:var(--muted);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.5" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg> ${fmtHM(d.sunriseHr)}–${fmtHM(d.sunsetHr)} • ${d.moon.phaseIcon} ${d.moon.moonDay} л.д.</div>
+                  <div style="color:var(--accent);font-weight:800;">Пик клёва: ${bestWindow}</div>
+                  <div style="color:var(--muted);">${fmtHM(d.sunriseHr)}–${fmtHM(d.sunsetHr)} • ${d.moon.phaseIcon} ${d.moon.moonDay} л.д.</div>
                 </div>
               ` : ''}
               <div style="margin-top:auto;padding-top:6px;border-top:1px solid var(--border);">
@@ -2197,7 +2399,7 @@ export function renderHourly(container) {
       </div>
       ${fish.legal === 'redbook' ? `
         <div style="padding:10px 12px;margin-bottom:10px;border-radius:var(--r-sm);background:var(--pill-bad-bg);border:1px solid var(--bad);color:var(--pill-bad-text);font-weight:700;line-height:1.42;font-size:var(--fs-xs);">
-          <svg class="k-ico" style="color:var(--bad);" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><path d="M6 6l12 12" stroke="#ef4444" stroke-width="2.1" stroke-linecap="round"/></svg> <b>${fish.name} — Красная книга (изъятие запрещено).</b> Ниже показан биологический прогноз активности вида (вероятность поклёвки в прилове). При поимке бережно отпустите рыбу!
+          <b>${fish.name} — Красная книга (изъятие запрещено).</b> Ниже показан биологический прогноз активности вида (вероятность поклёвки в прилове). При поимке бережно отпустите рыбу!
         </div>
       ` : ''}
       <div class="bite-timeline" role="listbox" aria-label="Почасовой график клёва">
@@ -2207,7 +2409,7 @@ export function renderHourly(container) {
           const isNow = s.dayIdx === 2 && hr.hour === curH;
           const isTw = Math.abs(hr.hour + 0.5 - day.sunriseHr) <= 1.1 || Math.abs(hr.hour + 0.5 - day.sunsetHr) <= 1.1;
           const isLunar = hr.hour === day.moon.transitHour || hr.hour === day.moon.underfootHour;
-          const mark = isTw ? '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.5" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg>' : (isLunar ? '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.5" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg>' : '·');
+          const mark = isTw ? '' : (isLunar ? '' : '·');
           return `
             <button type="button" class="hour-slot ${hr.hour === selH ? 'active' : ''} ${isNow ? 'now' : ''}" data-scrub-hour="${hr.hour}" aria-label="${hr.hour}:00, активность ${sc}%">
               <span style="font-weight:800;">${String(hr.hour).padStart(2, '0')}</span>
@@ -2222,13 +2424,13 @@ export function renderHourly(container) {
         <div style="flex:1;min-width:240px;">
           <div style="font-size:var(--fs-xs);color:var(--muted);font-weight:700;">УСЛОВИЯ В ВЫБРАННЫЙ ЧАС: ${String(selH).padStart(2, '0')}:00 (${day.label})</div>
           <div style="font-size:var(--fs-md);font-weight:800;margin-top:2px;">
-            Воздух ${selHrObj.tAir > 0 ? '+' + selHrObj.tAir : selHrObj.tAir}°C • Вода ~${day.waterTemp}°C • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><polygon points="16,8 13.5,13.5 8,16 10.5,10.5" fill="#38bdf8" stroke="currentColor" stroke-width="1.3"/></svg> ${selHrObj.press} мм (за 3ч: ${fmtDeltaPress(selHrObj.dp3h)}) • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> ${selHrObj.windDir} ${selHrObj.wind} м/с
+            Воздух ${selHrObj.tAir > 0 ? '+' + selHrObj.tAir : selHrObj.tAir}°C • Вода ~${day.waterTemp}°C • ${selHrObj.press} мм (за 3ч: ${fmtDeltaPress(selHrObj.dp3h)}) • ${selHrObj.windDir} ${selHrObj.wind} м/с
           </div>
           <div style="font-size:var(--fs-xs);color:var(--accent);margin-top:5px;line-height:1.42;">
             Рекомендуемая оснастка: <b>${rig.weight}</b> (${rig.line}) • ${rig.tactic}
           </div>
           <div style="margin-top:6px;font-size:var(--fs-xs);color:var(--good);font-weight:800;display:flex;align-items:center;flex-wrap:wrap;gap:4px;">
-            <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 18c0-4 4-4 4-8s4-4 4-6 5-1 5 3-3 5-3 8 4 4 6 2" stroke="#f43f5e" stroke-width="2.2" stroke-linecap="round"/></svg> Рабочая приманка в этот час:</span> <b>${renderBaitWithColorDots(activeBait)}</b>
+            <span>Рабочая приманка в этот час:</span> <b>${renderBaitWithColorDots(activeBait)}</b>
           </div>
         </div>
         <div>
@@ -2237,19 +2439,19 @@ export function renderHourly(container) {
       </div>
       <details class="forecast-why-spoiler" ${s.appMode === 'pro' ? 'open' : ''} style="margin-top:12px;">
         <summary>
-          <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M3 3v18h18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M7 15l4-5 4 3 5-7" stroke="#38bdf8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg> Почему такой прогноз? (Разбор 8 факторов + архив 10 км на ${String(selH).padStart(2, '0')}:00)</span>
+          <span>Почему такой прогноз? (Разбор 8 факторов + архив 10 км на ${String(selH).padStart(2, '0')}:00)</span>
           <span class="pill ${selBreakdown.total >= 60 ? 'pill-good' : (selBreakdown.total >= 38 ? 'pill-warn' : 'pill-bad')}">Итог ${selBreakdown.total}% ▾</span>
         </summary>
         <div style="margin-top:8px;padding:12px;background:var(--card);border-radius:var(--r-sm);">
           ${selBreakdown.hasRealArchive === false ? `
             <div style="padding:9px 11px;margin-bottom:10px;border-radius:var(--r-sm);background:var(--pill-warn-bg);border:1px solid var(--warn);color:var(--pill-warn-text);font-size:var(--fs-xs);font-weight:800;line-height:1.42;">
-              <svg class="k-ico" style="color:var(--warn);" viewBox="0 0 24 24" fill="none"><path d="M12 3L2.5 19.5h19L12 3z" fill="rgba(245,158,11,0.24)" stroke="#f59e0b" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9v5M12 17h.01" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/></svg> Прогноз может быть менее точным из-за отсутствия архивных данных по погоде (это первый запрос в данной локации 10 км при недоступности внешнего сервера архива; со следующего дня архив накопится автоматически на вашем устройстве).
+              Прогноз может быть менее точным из-за отсутствия архивных данных по погоде (это первый запрос в данной локации 10 км при недоступности внешнего сервера архива; со следующего дня архив накопится автоматически на вашем устройстве).
             </div>
           ` : ''}
           <div style="padding:9px 11px;margin-bottom:10px;border-radius:var(--r-sm);background:var(--panel);border:1px solid var(--border);font-size:var(--fs-xs);line-height:1.45;">
-            <div><b><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M3 3v18h18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M7 15l4-5 4 3 5-7" stroke="#38bdf8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg> Анализ 5-дневного метеоархива (радиус 10 км):</b> ${selBreakdown.archiveEval?.commentary || ''}</div>
-            <div style="margin-top:5px;color:var(--accent);"><b><svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="5" y="3" width="14" height="18" rx="2.5" fill="rgba(56,189,248,0.16)" stroke="currentColor" stroke-width="1.8"/><path d="M9 7h6M9 11h6M9 15h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Анализ вашего Журнала уловов:</b> ${selBreakdown.logInsight?.commentary || ''}</div>
-            <div style="margin-top:5px;color:var(--good);"><b><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3.5" fill="rgba(56,189,248,0.25)" stroke="currentColor" stroke-width="1.8"/><path d="M3 19c0-3.2 2.7-5.5 6-5.5s6 2.3 6 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="17" cy="9" r="2.8" stroke="currentColor" stroke-width="1.6"/><path d="M16 14c2.6.3 4.8 2 5 4.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg> Полевая сводка «Круга» (радиус 35 км):</b> ${selBreakdown.circleEval?.commentary || ''}</div>
+            <div><b>Анализ 5-дневного метеоархива (радиус 10 км):</b> ${selBreakdown.archiveEval?.commentary || ''}</div>
+            <div style="margin-top:5px;color:var(--accent);"><b>Анализ вашего Журнала уловов:</b> ${selBreakdown.logInsight?.commentary || ''}</div>
+            <div style="margin-top:5px;color:var(--good);"><b>Полевая сводка «Круга» (радиус 35 км):</b> ${selBreakdown.circleEval?.commentary || ''}</div>
           </div>
           ${(() => {
             const sumFactors = (selBreakdown.factors || []).reduce((acc, f) => acc + (Number(f.val) || 0), 0);
@@ -2280,7 +2482,7 @@ export function renderHourly(container) {
             `;
           }).join('')}
           <p style="margin-top:10px;font-size:var(--fs-xs);color:var(--muted);">
-            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3v18M5 7h14M5 7l-3 6h6l-3-6zm14 0l-3 6h6l-3-6zM8 21h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> ${RU.forecastDisclaimer}
+            ${RU.forecastDisclaimer}
           </p>
         </div>
       </details>
@@ -2371,12 +2573,12 @@ function renderArchiveDayLogger(container, s, defaultDay, currentFish) {
     const precipVal = Number(hObj.precip ?? 0);
     const scColor = sc >= 70 ? '#10b981' : (sc >= 50 ? '#38bdf8' : (sc >= 25 ? '#f59e0b' : '#94a3b8'));
     const skyIcon = precipVal > 0.2
-      ? `<svg class="k-ico" style="width:20px;height:20px;color:#38bdf8;" viewBox="0 0 24 24" fill="none"><path d="M7 15h9.5a3.5 3.5 0 0 0 .4-6.97A5 5 0 0 0 7.2 6.5 4 4 0 0 0 7 15z" fill="rgba(148,163,184,0.28)" stroke="currentColor" stroke-width="1.7"/><path d="M9 18v2M13 18v2M17 18v2" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/></svg>`
+      ? ``
       : (isDaySlot
           ? (cloudVal >= 75
-              ? `<svg class="k-ico" style="width:20px;height:20px;color:#94a3b8;" viewBox="0 0 24 24" fill="none"><path d="M7 17h10a4 4 0 0 0 .4-7.97A5.5 5.5 0 0 0 6.8 7.5 4.5 4.5 0 0 0 7 17z" fill="rgba(148,163,184,0.32)" stroke="currentColor" stroke-width="1.7"/></svg>`
-              : `<svg class="k-ico" style="width:20px;height:20px;color:#fbbf24;" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.5" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.6"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/></svg>`)
-          : `<svg class="k-ico" style="width:20px;height:20px;color:#cbd5e1;" viewBox="0 0 24 24" fill="none"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z" fill="rgba(251,191,36,0.28)" stroke="currentColor" stroke-width="1.6"/></svg>`);
+              ? ``
+              : ``)
+          : ``);
     return `
       <div class="bento-metric-tile arch-4h-slot" style="padding:8px 6px;display:flex;flex-direction:column;align-items:center;justify-content:space-between;text-align:center;gap:4px;border-radius:12px;">
         <div style="font-size:12px;font-weight:900;color:var(--text);">${String(hIdx).padStart(2, '0')}:00</div>
@@ -2712,54 +2914,6 @@ export function initOrUpdateHeroSonarCanvas(scorePct) {
   _heroSonarAnimId = requestAnimationFrame(drawFrame);
 }
 
-function buildMobileSelectedHourDetailCardInnerHtml(fish, s, activeDayForTackle, selH, selHrObj, selBreakdown, guides, shortMethodName, rigTop, activeBaitTop) {
-  return `
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-      <span style="font-size:13.5px;font-weight:800;">Тактика и 8 факторов в выбранный час</span>
-      <span style="font-size:12px;font-weight:800;color:${selBreakdown.total >= 60 ? 'var(--good)' : (selBreakdown.total >= 38 ? 'var(--accent)' : 'var(--warn)')};">Клёв ${selBreakdown.total}% в ${String(selH).padStart(2, '0')}:00</span>
-    </div>
-    ${fish.legal === 'redbook' ? `
-      <div style="padding:8px 10px;border-radius:10px;background:var(--pill-bad-bg);border:1px solid var(--bad);color:var(--pill-bad-text);font-weight:700;font-size:11.5px;">
-        <b>${fish.name} — Красная книга (изъятие запрещено).</b> При поимке бережно отпустите рыбу.
-      </div>
-    ` : ''}
-    <div style="font-size:12.5px;color:var(--muted);line-height:1.45;">
-      Рекомендуемая снасть: <b style="color:var(--text);">${shortMethodName} (${rigTop.weight}, ${rigTop.line})</b> • Насадка: <b>${renderBaitWithColorDots(activeBaitTop)}</b> • Горизонт: ${s.depth.toFixed(1)} м (${rigTop.tactic}).
-    </div>
-    <div style="display:flex;flex-direction:column;gap:6px;margin-top:2px;">
-      ${selBreakdown.factors.map((f, fIdx) => {
-        const isPos = f.val >= 0;
-        const col = isPos ? 'var(--good)' : 'var(--bad)';
-        const pctScore = Math.max(15, Math.min(99, 72 + f.val * 2));
-        return `
-          <div style="display:flex;flex-direction:column;gap:3px;padding:5px 0;border-bottom:1px dashed var(--border);">
-            <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:12px;font-weight:800;">
-              <span>${fIdx + 1}. ${f.name}</span>
-              <span style="color:var(--accent);font-weight:900;">${pctScore}% (${isPos ? '+' + f.val : f.val}%)</span>
-            </div>
-            <div style="font-size:11px;color:var(--muted);line-height:1.3;">${f.note}</div>
-            <div style="width:100%;height:5px;border-radius:99px;background:rgba(148,163,184,0.16);overflow:hidden;">
-              <div style="width:${pctScore}%;height:100%;background:${col};border-radius:99px;"></div>
-            </div>
-          </div>
-        `;
-      }).join('')}
-    </div>
-    <details class="forecast-why-spoiler" style="margin-top:4px;">
-      <summary style="font-size:12px;font-weight:800;cursor:pointer;">
-        <span>Ихтиология, стоянки и архив 10 км (${fish.name})</span>
-      </summary>
-      <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px;font-size:12px;line-height:1.45;color:var(--muted);">
-        <div><b>Метеоархив (5 дней):</b> ${selBreakdown.archiveEval?.commentary || ''}</div>
-        <div><b>Журнал уловов:</b> ${selBreakdown.logInsight?.commentary || ''}</div>
-        <div><b>Радар «Круг» (35 км):</b> ${selBreakdown.circleEval?.commentary || ''}</div>
-        <div><b>Гидробиология и стоянки:</b> ${guides.standAdvice}</div>
-        <div><b>Подача снасти:</b> ${guides.tackleAdvice}</div>
-      </div>
-    </details>
-  `;
-}
-
 function updateMobileSelectedHourInPlace(container) {
   if (!container) return false;
   const detailCard = container.querySelector('#fcSelectedHourDetailCard');
@@ -2831,7 +2985,175 @@ function updateMobileSelectedHourInPlace(container) {
   detailCard.innerHTML = buildMobileSelectedHourDetailCardInnerHtml(
     fish, s, activeDayForTackle, selH, selHrObj, selBreakdown, guides, shortMethodName, rigTop, activeBaitTop
   );
+  const accEl = detailCard.querySelector('#fcTacticsAccordionDetails');
+  if (accEl) {
+    accEl.addEventListener('toggle', () => {
+      _mobileTacticsExpanded = accEl.open;
+    });
+  }
   return true;
+}
+
+let _mobileTacticsExpanded = false;
+
+export function openShareForecastAndTackleModal() {
+  const s = store.getState();
+  const fish = FISH_DB.find(f => f.id === s.fishId) || FISH_DB[0];
+  const day = s.weatherDays?.[s.dayIdx] || s.weatherDays?.[2] || s.weatherDays?.[0] || {};
+  const effIce = _normalizeWarmDayIce(day, s.iceState);
+  const effWaterTemp = Number(day.waterTemp ?? 8);
+  const sc = calcDayBest(fish, day, s.method, s.water, s.depth, s.normPress, effIce);
+  const win = getBestBiteWindowText(fish, day, s.method, s.water, s.depth, s.normPress, effIce);
+  const rig = calcDynamicRig(s.method, s.water, s.depth, day.windMax || 3, fish, effWaterTemp, effIce);
+  const seasonalBaits = getSeasonalBaitsForContext(fish, s.method, effWaterTemp, effIce);
+  const activeBait = s.selectedBait && seasonalBaits.includes(s.selectedBait) ? s.selectedBait : (seasonalBaits[0] || 'По сезону');
+  const waterTitle = s.selectedWaterName || WATER_PROFILES[s.water]?.shortName || 'водоём';
+  const dayLabel = day.relTitle ? `${day.relTitle} (${day.label})` : (day.label || 'Сегодня');
+  const { botStartUrl } = buildForecastShareUrls(s.lat, s.lon, s.locLabel, fish.id);
+
+  const summaryText =
+    `Клёв ПРО 2.0 • Прогноз и снасть (${dayLabel})\n` +
+    `Водоём: ${s.locLabel}${waterTitle && waterTitle !== s.locLabel ? ' • ' + waterTitle : ''}\n` +
+    `Рыба: ${fish.name} — прогноз клёва ${sc}% (лучшее окно: ${win})\n` +
+    `Условия: вода ~${effWaterTemp > 0 ? '+' + effWaterTemp : effWaterTemp}°C • давление ${day.pressAvg || 754} мм • ветер ${day.windDir || 'З'} ${day.windMax || 3} м/с\n` +
+    `Снасть: ${rig.weight} (${rig.line}) • Насадка: ${activeBait}`;
+
+  const html = `
+    <div style="display:flex;flex-direction:column;gap:12px;font-size:var(--fs-sm);">
+      <div class="glass-panel" style="padding:12px 14px;border-radius:16px;border:1.5px solid var(--accent);display:flex;flex-direction:column;gap:6px;">
+        <div style="font-size:13.5px;font-weight:900;color:var(--text);width:100%;">Предпросмотр карточки для отправки</div>
+        <div style="font-size:12px;line-height:1.48;color:var(--text);">
+          <div><b>Водоём и дата:</b> ${escapeHtml(s.locLabel)} (${escapeHtml(waterTitle)}) • ${escapeHtml(dayLabel)}</div>
+          <div><b>Целевая рыба:</b> <span style="color:var(--accent);font-weight:800;">${escapeHtml(fish.name)} — клёв ${sc}%</span> (пик: ${escapeHtml(win)})</div>
+          <div><b>Погода и вода:</b> воздух ${day.tDay > 0 ? '+' + day.tDay : day.tDay}°C, вода ~${effWaterTemp > 0 ? '+' + effWaterTemp : effWaterTemp}°C, ${day.pressAvg || 754} мм, ветер ${day.windDir || 'З'} ${day.windMax || 3} м/с</div>
+          <div><b>Рабочая снасть:</b> ${escapeHtml(rig.weight)} (${escapeHtml(rig.line)})</div>
+          <div><b>Насадка / приманка:</b> ${escapeHtml(activeBait)}</div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <button type="button" class="btn btn-good" id="fcSharePublishCircleBtn" style="width:100%;min-height:44px;font-weight:900;">
+          Опубликовать в Круге (±5/10 км)
+        </button>
+        <button type="button" class="btn btn-accent" id="fcSharePublishCrewBtn" style="width:100%;min-height:44px;font-weight:900;">
+          Отправить в Экипаж (72 ч)
+        </button>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <button type="button" class="btn" id="fcShareCopyTextBtn" style="min-height:42px;font-weight:800;">
+            Скопировать сводку
+          </button>
+          <button type="button" class="btn" id="fcShareSendTgExternalBtn" style="min-height:42px;font-weight:800;">
+            В Telegram
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  openModal('Поделиться прогнозом и снастью', html, (bodyEl) => {
+    const publishToFeed = (mode) => {
+      const stNow = store.getState();
+      const up = stNow.userProfile || {};
+      const newItem = {
+        id: `${mode}_${Date.now()}`,
+        t: mode,
+        ts: Date.now(),
+        ea: mode === 'crew' ? (Date.now() + 72 * 3600 * 1000) : (Date.now() + 48 * 3600 * 1000),
+        fid: up.fisherId || 'FP_89AAA014',
+        au: up.callsign || up.login || 'Рыболов',
+        lat: Number(stNow.lat || 66.08),
+        lon: Number(stNow.lon || 76.68),
+        lb: stNow.locLabel || 'Водоём',
+        wn: waterTitle,
+        fi: fish.id,
+        fn: fish.name,
+        sc,
+        mt: stNow.method,
+        bt: activeBait,
+        dp: stNow.depth || 2.5,
+        nt: `Прогноз клёва ${sc}% (${win}) • Снасть: ${rig.weight} • Насадка: ${activeBait}`,
+        crewKey: up.crewKey || 'KP-7777'
+      };
+      const curList = Array.isArray(stNow.circleItems) ? [...stNow.circleItems] : [];
+      curList.unshift(newItem);
+      store.dispatch({ type: 'SET_CIRCLE_ITEMS', payload: curList });
+      try { storage.putToStore('circle', newItem); } catch (_e) {}
+      closeModal();
+      showToast(mode === 'crew' ? 'Сводка прогноза и снасти отправлена в Экипаж (72 ч)' : 'Сводка прогноза и снасти опубликована в Круге', 'good');
+    };
+
+    bodyEl.querySelector('#fcSharePublishCircleBtn')?.addEventListener('click', () => publishToFeed('circle'));
+    bodyEl.querySelector('#fcSharePublishCrewBtn')?.addEventListener('click', () => publishToFeed('crew'));
+    bodyEl.querySelector('#fcShareCopyTextBtn')?.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(summaryText);
+        showToast('Сводка прогноза и снасти скопирована в буфер обмена', 'good');
+      } catch (_e) {
+        showToast('Текст сводки готов к отправке', 'info');
+      }
+      closeModal();
+    });
+    bodyEl.querySelector('#fcShareSendTgExternalBtn')?.addEventListener('click', () => {
+      closeModal();
+      shareToTelegramChat(botStartUrl, summaryText);
+    });
+  });
+}
+
+function buildMobileSelectedHourDetailCardInnerHtml(fish, s, activeDayForTackle, selH, selHrObj, selBreakdown, guides, shortMethodName, rigTop, activeBaitTop) {
+  const tAirVal = Math.round(Number(selHrObj.tAir ?? activeDayForTackle.tDay ?? 0));
+  const tAirStr = `${tAirVal > 0 ? '+' + tAirVal : tAirVal}°C`;
+  const scTone = selBreakdown.total >= 60 ? 'var(--good)' : (selBreakdown.total >= 38 ? 'var(--accent)' : 'var(--warn)');
+  return `
+    <details class="klev-tactics-accordion" id="fcTacticsAccordionDetails" ${_mobileTacticsExpanded ? 'open' : ''}>
+      <summary style="list-style:none;cursor:pointer;display:flex;flex-direction:column;gap:4px;width:100%;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;">
+          <span style="font-size:14px;font-weight:800;color:var(--text);">Тактика и 8 факторов клёва</span>
+          <span style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:900;color:${scTone};">
+            <span>${String(selH).padStart(2, '0')}:00 • ${selBreakdown.total}%</span>
+            <svg class="k-svg klev-acc-chevron" style="width:16px;height:16px;transition:transform 0.2s ease;" viewBox="0 0 24 24" fill="none"><polyline points="6 9 12 15 18 9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+        </div>
+        <div style="font-size:11.5px;color:var(--muted);line-height:1.35;">
+          ${escapeHtml(shortMethodName)} (${escapeHtml(rigTop.weight)}) • ${tAirStr} • ${selHrObj.press ?? activeDayForTackle.pressAvg ?? 754} мм • Нажмите для разбора
+        </div>
+      </summary>
+      <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:8px;">
+        ${fish.legal === 'redbook' ? `
+          <div style="padding:8px 10px;border-radius:10px;background:var(--pill-bad-bg);border:1px solid var(--bad);color:var(--pill-bad-text);font-weight:700;font-size:11.5px;">
+            <b>${fish.name} — Красная книга (изъятие запрещено).</b> При поимке бережно отпустите рыбу.
+          </div>
+        ` : ''}
+        <div style="font-size:12px;color:var(--muted);line-height:1.45;">
+          Рекомендуемая снасть: <b style="color:var(--text);">${shortMethodName} (${rigTop.weight}, ${rigTop.line})</b> • Насадка: <b>${renderBaitWithColorDots(activeBaitTop)}</b> • Горизонт: ${s.depth.toFixed(1)} м (${rigTop.tactic}).
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          ${selBreakdown.factors.map((f) => {
+            const isPos = f.val >= 0;
+            const col = isPos ? 'var(--good)' : 'var(--bad)';
+            const pctScore = Math.max(15, Math.min(99, 72 + f.val * 2));
+            return `
+              <div style="display:flex;flex-direction:column;gap:3px;padding:5px 0;border-bottom:1px dashed var(--border);">
+                <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:12px;font-weight:800;">
+                  <span>${f.name}</span>
+                  <span style="color:var(--accent);font-weight:900;">${pctScore}% (${isPos ? '+' + f.val : f.val}%)</span>
+                </div>
+                <div style="font-size:11px;color:var(--muted);line-height:1.3;">${f.note}</div>
+                <div style="width:100%;height:5px;border-radius:99px;background:rgba(148,163,184,0.16);overflow:hidden;">
+                  <div style="width:${pctScore}%;height:100%;background:${col};border-radius:99px;"></div>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+        <div style="margin-top:4px;padding:8px 10px;border-radius:12px;background:var(--panel);border:1px solid var(--border);display:flex;flex-direction:column;gap:5px;font-size:11.5px;line-height:1.42;color:var(--muted);">
+          <div><b style="color:var(--text);">Метеоархив (5 дней):</b> ${selBreakdown.archiveEval?.commentary || ''}</div>
+          <div><b style="color:var(--text);">Гидробиология и стоянки:</b> ${guides.standAdvice}</div>
+          <div><b style="color:var(--text);">Подача снасти:</b> ${guides.tackleAdvice}</div>
+        </div>
+      </div>
+    </details>
+  `;
 }
 
 function renderMobileRedesignForecast(container) {
@@ -2921,14 +3243,8 @@ function renderMobileRedesignForecast(container) {
   const guides = generateAdaptiveGuides(fish, s.water, s.depth, activeDayForTackle, s.method, effIceForTackle);
 
   const tWatStr = `${effWaterTempForTackle > 0 ? '+' + effWaterTempForTackle : effWaterTempForTackle}°C`;
-  const iceThickVal = effIceForTackle === 'open_water' ? 0 : (activeDayForTackle.iceThickness ?? s.iceThickness ?? 0);
-  const iceSubtitleLine = effIceForTackle === 'ice_safe'
-    ? `Лёд ~${iceThickVal || 12} см • Вода ${tWatStr} • ${nearWaterTitle}`
-    : (effIceForTackle === 'ice_danger'
-        ? `Опасный лёд ~${iceThickVal || 4} см • Вода ${tWatStr} • ${nearWaterTitle}`
-        : (effIceForTackle === 'ice_slush'
-            ? `Шуга и забереги • Вода ${tWatStr} • ${nearWaterTitle}`
-            : `Открытая вода • Вода ${tWatStr} • ${nearWaterTitle}`));
+  const iceThickVal = effIceForTackle === 'open_water' ? 0 : Number(activeDayForTackle.iceThickness ?? s.iceThickness ?? 0);
+  const hasRealIceNow = (effIceForTackle === 'ice_safe' || effIceForTackle === 'ice_danger' || effIceForTackle === 'ice_slush') && iceThickVal > 0;
 
   const methodLabelsShort = {
     spin_micro: 'Микроджиг / Мормышинг',
@@ -2975,7 +3291,7 @@ function renderMobileRedesignForecast(container) {
     const tWatS = `${d.waterTemp > 0 ? '+' + d.waterTemp : d.waterTemp}°C`;
     const scColor = sc >= 65 ? 'var(--good)' : (sc >= 42 ? 'var(--accent)' : 'var(--warn)');
     return `
-      <div class="glass-panel klev-day-row-card ${isAct ? 'active' : ''}" data-week-day="${idx}" data-guest-locked-day="${idx === 2 ? '0' : '1'}" style="padding:11px 14px;border-radius:18px;display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;border:1.5px solid ${isAct ? 'var(--accent)' : 'var(--border)'};">
+      <div class="glass-panel klev-day-row-card ${isAct ? 'active' : ''}" data-week-day="${idx}" data-guest-locked-day="${idx === 2 ? '0' : '1'}" style="padding:10px 13px;border-radius:16px;display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;border:1.5px solid ${isAct ? 'var(--accent)' : 'var(--border)'};">
         <div style="min-width:0;flex:1;">
           <div style="font-size:13.5px;font-weight:800;color:var(--text);">${dayHeader}</div>
           <div style="font-size:11.5px;color:var(--muted);margin-top:2px;line-height:1.35;">
@@ -2987,18 +3303,35 @@ function renderMobileRedesignForecast(container) {
     `;
   }).join('');
 
-  const step4Hours = [0, 4, 8, 12, 16, 20];
-  const pressRowHtml = step4Hours.map(hIdx => {
-    const hObj = hrsArr[hIdx] || hrsArr[0] || {};
-    const pVal = Math.round(Number(hObj.press ?? activeDayForTackle.pressAvg ?? 754));
-    const isSelSlot = Math.abs(selH - hIdx) <= 2;
-    return `
-      <div class="glass-panel" style="padding:7px 4px;border-radius:12px;text-align:center;border:1px solid ${isSelSlot ? 'var(--accent)' : 'var(--border)'};">
-        <div style="font-size:11px;color:${isSelSlot ? 'var(--accent)' : 'var(--muted)'};font-weight:700;">${String(hIdx).padStart(2, '0')}:00</div>
-        <div style="font-size:13px;font-weight:900;margin-top:2px;">${pVal}</div>
-      </div>
-    `;
-  }).join('');
+  const pVals = hrsArr.map(h => Number(h.press ?? activeDayForTackle.pressAvg ?? 754));
+  const minP = Math.min(...pVals);
+  const maxP = Math.max(...pVals);
+  const spanP = Math.max(3, maxP - minP);
+  const floorP = minP - Math.max(1, spanP * 0.22);
+  const ceilP = maxP + Math.max(1, spanP * 0.22);
+  const rangeP = Math.max(4, ceilP - floorP);
+  const pSvgW = 340, pSvgH = 92, pPadL = 14, pPadR = 14, pPadT = 18, pPadB = 16;
+  const pPlotW = pSvgW - pPadL - pPadR;
+  const pPlotH = pSvgH - pPadT - pPadB;
+  const pPts = pVals.map((pv, idx) => {
+    const x = Math.round((pPadL + (idx / 23) * pPlotW) * 10) / 10;
+    const norm = Math.max(0.08, Math.min(0.92, (pv - floorP) / rangeP));
+    const y = Math.round((pPadT + (1 - norm) * pPlotH) * 10) / 10;
+    return { x, y, p: Math.round(pv), hr: idx };
+  });
+  let pPathD = `M ${pPts[0].x} ${pPts[0].y}`;
+  for (let i = 0; i < pPts.length - 1; i++) {
+    const a = pPts[i], b = pPts[i + 1];
+    const cx = Math.round(((a.x + b.x) / 2) * 10) / 10;
+    pPathD += ` C ${cx} ${a.y}, ${cx} ${b.y}, ${b.x} ${b.y}`;
+  }
+  const pAreaD = `${pPathD} L ${pPts[pPts.length - 1].x} ${pSvgH - 4} L ${pPts[0].x} ${pSvgH - 4} Z`;
+  const normPVal = Number(s.normPress || 754);
+  const normPY = Math.round((pPadT + (1 - Math.max(0.08, Math.min(0.92, (normPVal - floorP) / rangeP))) * pPlotH) * 10) / 10;
+
+  const windDirAngles = { 'С': 180, 'СВ': 225, 'В': 270, 'ЮВ': 315, 'Ю': 0, 'ЮЗ': 45, 'З': 90, 'СЗ': 135 };
+  const windRotDeg = windDirAngles[String(activeDayForTackle.windDir || 'З').toUpperCase()] ?? 90;
+  const daylightPct = Math.max(12, Math.min(92, Math.round(((astro.ss - astro.sr) / 24) * 100)));
 
   const prevSpeciesScroll = container.querySelector('.bento-top-species-strip')?.scrollLeft || 0;
 
@@ -3018,13 +3351,10 @@ function renderMobileRedesignForecast(container) {
         <!-- ЛЕВАЯ КОЛОНКА: Центрированная Hero-карточка с Живым Радаром-Сонаром + Лента видов рыб -->
         <div style="display:flex;flex-direction:column;gap:10px;min-width:0;">
           <div class="bento-card fc-hero-box" id="bentoSwipeHeroCard" style="padding:12px 14px 13px;display:flex;flex-direction:column;align-items:center;text-align:center;">
-            <div style="font-size:16.5px;font-weight:900;letter-spacing:-0.2px;margin-bottom:2px;">Прогноз клёва • ${fish.name}</div>
-            <div id="bentoWeatherIceCard" style="font-size:11.5px;color:var(--muted);cursor:pointer;text-decoration:underline;text-underline-offset:3px;margin-bottom:4px;" title="Нажмите для перехода в полный раздел Погода">
-              ${iceSubtitleLine}
-            </div>
+            <div style="font-size:16.5px;font-weight:900;letter-spacing:-0.2px;width:100%;margin-bottom:4px;">Прогноз клёва • ${fish.name}</div>
 
-            <!-- Живой сонарный радар 236x236px (в центре только процент клёва и мягкая полупрозрачная градиентная шкала) -->
-            <div class="bento-hero-sonar-stage" id="bentoHeroSonarStage" style="position:relative;width:236px;height:236px;display:flex;align-items:center;justify-content:center;margin:4px auto 10px;">
+            <!-- Живой сонарный радар 236x236px (без ссылки над сонаром; в центре только процент клёва и мягкая полупрозрачная градиентная шкала) -->
+            <div class="bento-hero-sonar-stage" id="bentoHeroSonarStage" style="position:relative;width:236px;height:236px;display:flex;align-items:center;justify-content:center;margin:2px auto 10px;">
               <canvas id="bentoHeroSonarCanvas" width="472" height="472" style="width:236px;height:236px;display:block;border-radius:50%;"></canvas>
               <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;">
                 <span id="bentoHeroSonarPctText" style="font-size:38px;font-weight:900;letter-spacing:-1.2px;line-height:1;font-variant-numeric:tabular-nums;">${activeHeroScore}%</span>
@@ -3073,7 +3403,7 @@ function renderMobileRedesignForecast(container) {
 
           <!-- ВКЛАДКА 1: ОБЗОР -->
           <div class="fc-subtab-pane" data-fc-pane="overview" style="display:${_activeForecastSubTab === 'overview' ? 'flex' : 'none'};flex-direction:column;gap:10px;">
-            <div class="bento-card bento-chart-card" id="bentoWaveChartCard" data-hourly-points="${scrubPtsJson}" style="padding:12px 13px;">
+            <div class="bento-card bento-chart-card" id="bentoWaveChartCard" data-hourly-points="${scrubPtsJson}" style="padding:11px 13px;">
               <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
                 <div class="chart-floating-badge" id="bentoChartTimeRangeLabel" style="margin-bottom:0;">
                   ${String(selH).padStart(2, '0')}:00 • ${selHrObj.press ?? activeDayForTackle.pressAvg ?? 754} мм • ${(selHrObj.tAir ?? activeDayForTackle.tDay ?? 0) > 0 ? '+' + (selHrObj.tAir ?? activeDayForTackle.tDay ?? 0) : (selHrObj.tAir ?? activeDayForTackle.tDay ?? 0)}°C • ${selHrObj.windDir || activeDayForTackle.windDir || 'З'} ${selHrObj.wind ?? activeDayForTackle.windMax ?? 3} м/с
@@ -3118,8 +3448,8 @@ function renderMobileRedesignForecast(container) {
               <div id="bentoChartScrubLiveRow" style="display:none;justify-content:space-between;align-items:center;padding:5px 8px;margin-top:5px;border-radius:8px;background:rgba(56,189,248,0.12);border:1px solid var(--accent);font-size:11.5px;font-weight:800;color:var(--text);flex-wrap:wrap;gap:6px;"></div>
             </div>
 
-            <!-- Карточка: Тактика и 8 факторов в выбранный час -->
-            <div class="bento-card" id="fcSelectedHourDetailCard" style="padding:13px 14px;display:flex;flex-direction:column;gap:8px;">
+            <!-- Карточка: Тактика и 8 факторов (свёрнута по умолчанию!) -->
+            <div class="bento-card" id="fcSelectedHourDetailCard" style="padding:11px 13px;display:flex;flex-direction:column;gap:6px;">
               ${buildMobileSelectedHourDetailCardInnerHtml(fish, s, activeDayForTackle, selH, selHrObj, selBreakdown, guides, shortMethodName, rigTop, activeBaitTop)}
             </div>
 
@@ -3131,10 +3461,10 @@ function renderMobileRedesignForecast(container) {
 
           <!-- ВКЛАДКА 2: СНАСТИ -->
           <div class="fc-subtab-pane" data-fc-pane="tackle" style="display:${_activeForecastSubTab === 'tackle' ? 'flex' : 'none'};flex-direction:column;gap:10px;">
-            <div class="bento-card" style="padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
-              <div>
-                <div style="font-size:13px;font-weight:800;">Сезон открытой воды (Фидер / Карп)</div>
-                <div style="font-size:11px;color:var(--muted);">${showCarpSwimBlock ? 'Карта свима, клипса и таймер перезаброса активны' : 'Зимой (лёд) карта свима и таймер скрыты'}</div>
+            <div class="bento-card" style="padding:11px 13px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
+              <div style="min-width:0;flex:1;">
+                <div style="font-size:13.5px;font-weight:800;width:100%;">Сезон открытой воды (Фидер / Карп)</div>
+                <div style="font-size:11px;color:var(--muted);margin-top:2px;">${showCarpSwimBlock ? 'Карта свима, клипса и таймер перезаброса активны' : 'Зимой (лёд) карта свима и таймер скрыты'}</div>
               </div>
               <label class="klev-switch" aria-label="Режим открытой воды для карты свима и таймера">
                 <input type="checkbox" id="fcOpenWaterCarpToggle" ${showCarpSwimBlock ? 'checked' : ''}>
@@ -3142,20 +3472,24 @@ function renderMobileRedesignForecast(container) {
               </label>
             </div>
 
-            <div class="bento-card" id="fcTackleControlsCard" style="padding:13px 14px;display:flex;flex-direction:column;gap:10px;">
-              <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-                <span style="font-size:14px;font-weight:800;">1. Снасть и сезонная насадка</span>
-                <span class="pill pill-good" style="font-size:11px;font-weight:800;">${rigTop.weight} • ${s.depth.toFixed(1)} м</span>
+            <div class="bento-card" id="fcTackleControlsCard" style="padding:12px 14px;display:flex;flex-direction:column;gap:9px;">
+              <div style="width:100%;display:flex;flex-direction:column;gap:4px;">
+                <div style="font-size:14.5px;font-weight:800;width:100%;">Снасть и сезонная насадка</div>
+                <div><span class="pill pill-good" style="font-size:11px;font-weight:800;display:inline-flex;">${rigTop.weight} • Глубина ${s.depth.toFixed(1)} м</span></div>
               </div>
-              <div style="display:flex;flex-direction:column;gap:8px;">
-                <label for="fcTopMethodSelect" style="font-size:11.5px;color:var(--muted);font-weight:700;">Метод ловли (адаптивно под лёд/открытую воду):</label>
-                <select id="fcTopMethodSelect" class="form-select" style="width:100%;min-height:42px;">
-                  ${compatibleMethodsTop.map(m => `<option value="${m.val}" ${m.val === s.method ? 'selected' : ''}>${String(m.text || '').replace(/<[^>]+>/g, '').trim()}</option>`).join('')}
-                </select>
-                <label for="fcTopBaitSelect" style="font-size:11.5px;color:var(--muted);font-weight:700;">Рабочая приманка / насадка:</label>
-                <select id="fcTopBaitSelect" class="form-select" style="width:100%;min-height:42px;">
-                  ${seasonalBaitsTop.map(b => `<option value="${b}" ${b === activeBaitTop ? 'selected' : ''}>${b}</option>`).join('')}
-                </select>
+              <div style="display:flex;flex-direction:column;gap:7px;">
+                <div>
+                  <label for="fcTopMethodSelect" style="display:block;font-size:11.5px;color:var(--muted);font-weight:700;margin-bottom:3px;">Метод ловли (адаптивно под лёд/открытую воду):</label>
+                  <select id="fcTopMethodSelect" class="form-select" style="width:100%;min-height:40px;">
+                    ${compatibleMethodsTop.map(m => `<option value="${m.val}" ${m.val === s.method ? 'selected' : ''}>${String(m.text || '').replace(/<[^>]+>/g, '').trim()}</option>`).join('')}
+                  </select>
+                </div>
+                <div>
+                  <label for="fcTopBaitSelect" style="display:block;font-size:11.5px;color:var(--muted);font-weight:700;margin-bottom:3px;">Рабочая приманка / насадка:</label>
+                  <select id="fcTopBaitSelect" class="form-select" style="width:100%;min-height:40px;">
+                    ${seasonalBaitsTop.map(b => `<option value="${b}" ${b === activeBaitTop ? 'selected' : ''}>${b}</option>`).join('')}
+                  </select>
+                </div>
               </div>
             </div>
 
@@ -3172,7 +3506,7 @@ function renderMobileRedesignForecast(container) {
 
           <!-- ВКЛАДКА 3: 10 ДНЕЙ -->
           <div class="fc-subtab-pane" data-fc-pane="days" id="fcRedesignWeekPane" style="display:${_activeForecastSubTab === 'days' ? 'flex' : 'none'};flex-direction:column;gap:9px;">
-            <div style="font-size:13.5px;font-weight:800;padding:2px 2px;">Прогноз на 10 дней и архив • ${fish.name}</div>
+            <div style="font-size:14px;font-weight:800;width:100%;padding:2px 2px;">Прогноз на 10 дней и архив • ${fish.name}</div>
             <div style="display:flex;flex-direction:column;gap:8px;">
               ${daysCardsHtml}
             </div>
@@ -3181,49 +3515,101 @@ function renderMobileRedesignForecast(container) {
 
           <!-- ВКЛАДКА 4: ПОГОДА -->
           <div class="fc-subtab-pane" data-fc-pane="ice" style="display:${_activeForecastSubTab === 'ice' ? 'flex' : 'none'};flex-direction:column;gap:10px;">
-            <button type="button" class="cta-full-btn" id="fcOpenFullWeatherScreenBtn" style="padding:11px 14px;font-size:13px;">
-              <svg class="k-svg" style="width:18px;height:18px;"><use href="#icon-weather"></use></svg>
-              <span>Открыть полный экран «Погода» (все 6 карточек)</span>
-            </button>
-
-            <div class="bento-card" style="padding:14px;display:flex;flex-direction:column;gap:10px;">
-              <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-                <span style="font-size:13.5px;font-weight:800;">Модель льда Стефана — Быдина (WMO)</span>
-                <span class="code-tag">Росгидромет D1</span>
-              </div>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-                <div class="glass-panel" style="padding:10px 12px;border-radius:14px;">
-                  <div style="font-size:11px;color:var(--muted);">Река (${nearWaterTitle})</div>
-                  <div style="font-size:19px;font-weight:900;color:var(--accent);margin:2px 0;">${iceThickVal > 0 ? `~${iceThickVal} см` : `Вода ${tWatStr}`}</div>
-                  <div style="font-size:11px;color:${effIceForTackle === 'ice_safe' ? 'var(--good)' : (effIceForTackle === 'open_water' ? 'var(--accent)' : 'var(--bad)')};font-weight:700;">
-                    ${effIceForTackle === 'ice_safe' ? 'Безопасный лёд (Пешком)' : (effIceForTackle === 'open_water' ? 'Открытая вода (С берега / лодки)' : 'Выход на лёд запрещён')}
+            ${hasRealIceNow ? `
+              <div class="bento-card" style="padding:12px 14px;display:flex;flex-direction:column;gap:8px;">
+                <div style="font-size:14px;font-weight:800;width:100%;">Ледовая обстановка</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                  <div class="glass-panel" style="padding:9px 11px;border-radius:14px;">
+                    <div style="font-size:11px;color:var(--muted);">Река (${escapeHtml(nearWaterTitle)})</div>
+                    <div style="font-size:18px;font-weight:900;color:var(--accent);margin:2px 0;">~${iceThickVal} см</div>
+                    <div style="font-size:11px;color:${effIceForTackle === 'ice_safe' ? 'var(--good)' : 'var(--bad)'};font-weight:700;">
+                      ${effIceForTackle === 'ice_safe' ? 'Безопасный лёд' : 'Опасный лёд'}
+                    </div>
+                  </div>
+                  <div class="glass-panel" style="padding:9px 11px;border-radius:14px;">
+                    <div style="font-size:11px;color:var(--muted);">Озёра и заливы</div>
+                    <div style="font-size:18px;font-weight:900;color:var(--accent);margin:2px 0;">~${Math.round(iceThickVal * 1.25)} см</div>
+                    <div style="font-size:11px;color:var(--muted);font-weight:700;">Вода подо льдом ${tWatStr}</div>
                   </div>
                 </div>
-                <div class="glass-panel" style="padding:10px 12px;border-radius:14px;">
-                  <div style="font-size:11px;color:var(--muted);">Озёра и карьеры</div>
-                  <div style="font-size:19px;font-weight:900;color:var(--accent);margin:2px 0;">${iceThickVal > 0 ? `~${Math.round(iceThickVal * 1.25)} см` : `Вода ${tWatStr}`}</div>
-                  <div style="font-size:11px;color:var(--muted);font-weight:700;">Течение и термоклин учтены</div>
+              </div>
+            ` : ''}
+
+            <div class="bento-card" style="padding:12px 14px;display:flex;flex-direction:column;gap:8px;">
+              <div style="width:100%;display:flex;flex-direction:column;gap:2px;">
+                <div style="font-size:14px;font-weight:800;width:100%;">Давление</div>
+                <div style="font-size:11.5px;color:var(--muted);font-weight:700;">
+                  Среднее: <b style="color:var(--text);">${activeDayForTackle.pressAvg || 754} мм</b> • Норма: ${s.normPress} мм • Тренд: <b style="color:${Math.abs(activeDayForTackle.dP || 0) <= 3 ? 'var(--good)' : 'var(--warn)'};">${fmtDeltaPress(activeDayForTackle.dP)}</b>
                 </div>
               </div>
+              <div class="bento-chart-stage" style="position:relative;width:100%;height:96px;">
+                <svg viewBox="0 0 ${pSvgW} ${pSvgH}" width="100%" height="100%" preserveAspectRatio="none" style="display:block;width:100%;height:100%;">
+                  <defs>
+                    <linearGradient id="fcPressSubGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stop-color="rgba(56,189,248,0.34)"/>
+                      <stop offset="100%" stop-color="rgba(56,189,248,0.02)"/>
+                    </linearGradient>
+                  </defs>
+                  <line x1="${pPadL}" y1="${normPY}" x2="${pSvgW - pPadR}" y2="${normPY}" stroke="var(--accent)" stroke-dasharray="4 3" stroke-width="1.2" vector-effect="non-scaling-stroke" opacity="0.65"/>
+                  <path d="${pAreaD}" fill="url(#fcPressSubGrad)"/>
+                  <path d="${pPathD}" fill="none" stroke="var(--accent)" stroke-width="2.6" vector-effect="non-scaling-stroke" stroke-linecap="round"/>
+                </svg>
+              </div>
+              <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:4px;text-align:center;">
+                ${[0, 4, 8, 12, 16, 20].map(hIdx => {
+                  const pObj = pPts[hIdx] || pPts[0];
+                  return `
+                    <div style="display:flex;flex-direction:column;gap:1px;">
+                      <span style="font-size:10.5px;color:var(--muted);font-weight:700;">${String(hIdx).padStart(2, '0')}:00</span>
+                      <span style="font-size:12px;font-weight:900;color:var(--text);">${pObj.p}</span>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
             </div>
 
-            <div class="bento-card" style="padding:14px;display:flex;flex-direction:column;gap:8px;">
-              <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-                <span style="font-size:13.5px;font-weight:800;">Суточный ход давления (норма ${s.normPress} мм)</span>
-                <span style="font-size:11.5px;font-weight:800;color:${Math.abs(activeDayForTackle.dP || 0) <= 3 ? 'var(--good)' : 'var(--warn)'};">${fmtDeltaPress(activeDayForTackle.dP)}</span>
-              </div>
-              <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px;">
-                ${pressRowHtml}
-              </div>
-            </div>
+            <div class="bento-card" style="padding:12px 14px;display:flex;flex-direction:column;gap:10px;">
+              <div style="font-size:14px;font-weight:800;width:100%;">Ветер и геомагнитный фон</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                <div class="glass-panel" style="padding:10px 11px;border-radius:14px;display:flex;align-items:center;gap:10px;">
+                  <div style="width:42px;height:42px;border-radius:50%;border:1.5px solid var(--accent);background:rgba(56,189,248,0.10);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="transform:rotate(${windRotDeg}deg);">
+                      <path d="M12 3L16.5 19L12 15.8L7.5 19L12 3Z" fill="rgba(56,189,248,0.35)" stroke="var(--accent)" stroke-width="1.8" stroke-linejoin="round"/>
+                    </svg>
+                  </div>
+                  <div style="min-width:0;flex:1;">
+                    <div style="font-size:11px;color:var(--muted);font-weight:700;">Ветер и воздух</div>
+                    <div style="font-size:15px;font-weight:900;color:var(--text);white-space:nowrap;">${activeDayForTackle.windDir || 'З'} ${activeDayForTackle.windMax || 3} м/с</div>
+                    <div style="font-size:11px;color:var(--accent);font-weight:800;white-space:nowrap;">${activeDayForTackle.tDay > 0 ? '+' + activeDayForTackle.tDay : activeDayForTackle.tDay}° / ${activeDayForTackle.tNight > 0 ? '+' + activeDayForTackle.tNight : activeDayForTackle.tNight}°C</div>
+                  </div>
+                </div>
 
-            <div class="bento-card" style="padding:14px;display:flex;flex-direction:column;gap:6px;">
-              <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-                <span style="font-size:13.5px;font-weight:800;">Ветер и Геомагнитный фон</span>
-                <span class="code-tag" style="color:${astro.kpTone};">Kp = ${astro.kpVal} (${astro.kpLabel})</span>
+                <div class="glass-panel" style="padding:10px 11px;border-radius:14px;display:flex;flex-direction:column;justify-content:space-between;gap:5px;">
+                  <div style="display:flex;justify-content:space-between;align-items:center;gap:4px;">
+                    <span style="font-size:11px;color:var(--muted);font-weight:700;">Магнитосфера</span>
+                    <span style="font-size:12px;font-weight:900;color:${astro.kpTone};">Kp ${astro.kpVal}</span>
+                  </div>
+                  <div style="display:grid;grid-template-columns:repeat(9,1fr);gap:2px;height:10px;align-items:end;">
+                    ${[1, 2, 3, 4, 5, 6, 7, 8, 9].map(k => {
+                      const barCol = k <= 2 ? '#10b981' : (k <= 4 ? '#f59e0b' : '#ef4444');
+                      const isOn = k <= astro.kpVal;
+                      const hPct = 35 + k * 7;
+                      return `<div style="height:${hPct}%;border-radius:2px;background:${isOn ? barCol : 'rgba(148,163,184,0.22)'};"></div>`;
+                    }).join('')}
+                  </div>
+                  <div style="font-size:11px;font-weight:800;color:${astro.kpTone};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${astro.kpLabel}</div>
+                </div>
               </div>
-              <div style="font-size:12px;color:var(--muted);line-height:1.45;">
-                Ветер ${activeDayForTackle.windDir || 'З'} ${activeDayForTackle.windMax || 3} м/с • Воздух днём ${activeDayForTackle.tDay > 0 ? '+' + activeDayForTackle.tDay : activeDayForTackle.tDay}°C, ночью ${activeDayForTackle.tNight > 0 ? '+' + activeDayForTackle.tNight : activeDayForTackle.tNight}°C • Световой день ${astro.daylightStr} (${fmtHM(astro.sr)}–${fmtHM(astro.ss)}).
+
+              <div class="glass-panel" style="padding:9px 12px;border-radius:14px;display:flex;flex-direction:column;gap:5px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;font-size:11.5px;font-weight:800;">
+                  <span style="color:var(--muted);">Восход <b style="color:var(--text);">${fmtHM(astro.sr)}</b></span>
+                  <span style="color:var(--accent);">Световой день ${astro.daylightStr}</span>
+                  <span style="color:var(--muted);">Закат <b style="color:var(--text);">${fmtHM(astro.ss)}</b></span>
+                </div>
+                <div style="width:100%;height:6px;border-radius:99px;background:rgba(148,163,184,0.18);overflow:hidden;">
+                  <div style="width:${daylightPct}%;height:100%;border-radius:99px;background:linear-gradient(90deg, #38bdf8, #fbbf24, #0284c7);"></div>
+                </div>
               </div>
             </div>
           </div>
@@ -3242,6 +3628,13 @@ function renderMobileRedesignForecast(container) {
   if (prevSpeciesScroll > 0) {
     const spStrip = container.querySelector('.bento-top-species-strip');
     if (spStrip) spStrip.scrollLeft = prevSpeciesScroll;
+  }
+
+  const accEl = container.querySelector('#fcTacticsAccordionDetails');
+  if (accEl) {
+    accEl.addEventListener('toggle', () => {
+      _mobileTacticsExpanded = accEl.open;
+    });
   }
 
   initOrUpdateHeroSonarCanvas(activeHeroScore);
@@ -3324,7 +3717,7 @@ function updateLiveWeightLabelsAndScores(container) {
     const calScoreNow = calcDayBest(fish, activeDayObj, s.method, s.water, s.depth, s.normPress, s.iceState);
     const sumEl = container.querySelector('#proCalibLiveSummary');
     if (sumEl) {
-      sumEl.innerHTML = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><polygon points="13,2 4,14 11,14 10,22 20,10 13,10" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.5" stroke-linejoin="round"/></svg> Активность «${fish.name}» с текущей калибровкой весов: <b>${calScoreNow}%</b>`;
+      sumEl.innerHTML = `Активность «${fish.name}» с текущей калибровкой весов: <b>${calScoreNow}%</b>`;
     }
   }
   const savedWinScrollY = typeof window !== 'undefined' ? window.scrollY : 0;
@@ -3448,7 +3841,7 @@ function bindForecastEvents(container) {
     if (modeBtn) {
       const m = modeBtn.getAttribute('data-set-app-mode');
       store.dispatch({ type: 'SET_APP_MODE', payload: m });
-      const titles = { novice: '<svg class="k-ico" style="color:var(--good);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg> Режим «Новичок»', angler: '<svg class="k-ico" style="color:var(--warn);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg> Режим «Рыбак»', pro: '<svg class="k-ico" style="color:var(--bad);" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor" stroke="rgba(255,255,255,0.65)" stroke-width="1.4"/></svg> Режим «Профи»' };
+      const titles = { novice: 'Режим «Новичок»', angler: 'Режим «Рыбак»', pro: 'Режим «Профи»' };
       showToast(`Включён ${titles[m] || m}`, 'good');
       return;
     }
@@ -3594,23 +3987,8 @@ function bindForecastEvents(container) {
       return;
     }
     if (target.closest('#fcShareForecastTgBtn')) {
-      if (!requireRegisteredFisherId('отправки прогноза в Telegram')) return;
-      const s = store.getState();
-      const fish = FISH_DB.find(f => f.id === s.fishId) || FISH_DB[0];
-      const day = s.weatherDays[s.dayIdx] || s.weatherDays[2] || s.weatherDays[0];
-      if (!day) return;
-      const sc = calcDayBest(fish, day, s.method, s.water, s.depth, s.normPress, s.iceState);
-      const win = getBestBiteWindowText(fish, day, s.method, s.water, s.depth, s.normPress, s.iceState);
-      const rig = calcDynamicRig(s.method, s.water, s.depth, day.windMax, fish, day.waterTemp, day.iceState || s.iceState);
-      const waterTitle = s.selectedWaterName || WATER_PROFILES[s.water]?.shortName || 'водоём';
-      const { botStartUrl } = buildForecastShareUrls(s.lat, s.lon, s.locLabel, fish.id);
-      const summary =
-        '🎣 Клёв ПРО 2.0 • Прогноз (' + (day.relTitle || day.label) + ')\n' +
-        '📍 ' + s.locLabel + (waterTitle && waterTitle !== s.locLabel ? ' • ' + waterTitle : '') + '\n' +
-        '🐟 ' + fish.name + ' — клёв ' + sc + '% (' + win + ')\n' +
-        '💧 Вода ~' + day.waterTemp + '°C • 🧭 ' + day.pressAvg + ' мм • 💨 ' + day.windDir + ' ' + day.windMax + ' м/с\n' +
-        '🎯 Снасть: ' + rig.weight;
-      shareToTelegramChat(botStartUrl, summary);
+      e.stopPropagation();
+      openShareForecastAndTackleModal();
       return;
     }
     const archQuickBtn = target.closest('[data-arch-quick-date]');
