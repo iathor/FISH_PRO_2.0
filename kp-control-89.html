@@ -125,7 +125,7 @@
   <link id="dynamicFavicon" rel="icon" type="image/png" sizes="192x192" href="icon-admin-192.png?v=2.9.1-r241">
   <link id="dynamicTouchIcon" rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=2.9.1-r241">
   <script>
-    window.__KLEV_ADMIN_CONTOUR__ = true; document.documentElement.setAttribute('data-admin-contour', '1'); document.documentElement.setAttribute('data-admin-contour', '1');
+    window.__KLEV_ADMIN_CONTOUR__ = true;
     try { localStorage.setItem('klev_pro_admin_contour_unlocked_v1', '1'); } catch (_) {}
     (function() {
       try {
@@ -4433,1585 +4433,420 @@ html[data-scroll-compact="1"]:not([data-arc-map-active="1"]) .bottom-nav {
     .leaflet-div-icon{background:transparent;border:none}
     #mapBox[data-ymap-layer="yandex_dark"] img.klev-base-tile-layer[data-offline-hit="1"],#mapBox[data-ymap-layer="yandex_dark"] img.klev-base-tile-layer[data-offline-overzoom]{filter:invert(0.92) hue-rotate(185deg) saturate(1.15) brightness(0.88) contrast(1.15)}
 
-
-    
-    /* ==========================================================================
-       1. СИСТЕМА ДИЗАЙН-ТОКЕНОВ ИЗ ПАПКИ FISHING/UX_UI/ (Tactile Glassmorphism)
-       ========================================================================== */
-    :root {
-      --radius-pill: 9999px;
-      --radius-card: 20px;
-      --radius-md: 14px;
-      --radius-sm: 10px;
-      --blur-glass: blur(14px);
-      --stroke-icon: 1.6px;
-      --toast-bottom: 84px;
-      --font-ui: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-      --fs-xs: 12px;
-      --fs-sm: 13.5px;
-      --fs-md: 15.5px;
-      --fs-lg: 18px;
-      --good: #10B981;
-      --warn: #F59E0B;
-      --bad: #EF4444;
-      --info: #38BDF8;
-    }
-
-    /* А. ТЁМНАЯ ТЕМА (DARK MODE — data-theme="dark") */
-    [data-theme="dark"] {
-      --bg-app: #0F172A;
-      --bg-outer: #070C17;
-      --bg-surface: linear-gradient(145deg, #1E293B, #131C2E);
-      --bg-surface-solid: #172133;
-      --bg-glass: radial-gradient(circle at 30% 25%, rgba(56, 189, 248, 0.18), rgba(15, 23, 42, 0.72));
-      --bg-glass-card: linear-gradient(155deg, rgba(30, 41, 59, 0.78), rgba(15, 23, 42, 0.86));
-      --border-tactile: rgba(255, 255, 255, 0.08);
-      --border-glass: rgba(56, 189, 248, 0.45);
-      --border-subtle: rgba(148, 163, 184, 0.16);
-      --shadow-tactile: 0 6px 14px rgba(0, 0, 0, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.12);
-      --shadow-glass: 0 0 18px rgba(56, 189, 248, 0.25), inset 0 1px 2px rgba(255, 255, 255, 0.32), inset 0 -4px 10px rgba(56, 189, 248, 0.16);
-      --text-primary: #F8FAFC;
-      --text-secondary: #94A3B8;
-      --text-label-tactile: #94A3B8;
-      --text-label-glass: #38BDF8;
-      --accent: #38BDF8;
-      --accent-glow: rgba(56, 189, 248, 0.32);
-      --icon-stroke: #E2E8F0;
-      --map-water: #112A46;
-      --map-water-deep: #0B1D33;
-      --map-land: #0F172A;
-      --map-contour: rgba(56, 189, 248, 0.18);
-      --dock-bg: rgba(15, 23, 42, 0.84);
-      --sheet-bg: rgba(17, 25, 42, 0.96);
-    }
-
-    /* Б. СВЕТЛАЯ ТЕМА (LIGHT MODE — data-theme="light") */
-    [data-theme="light"] {
-      --bg-app: #F1F5F9;
-      --bg-outer: #DCE5F0;
-      --bg-surface: linear-gradient(145deg, #FFFFFF, #E2E8F0);
-      --bg-surface-solid: #FFFFFF;
-      --bg-glass: radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.88), rgba(224, 242, 254, 0.62));
-      --bg-glass-card: linear-gradient(155deg, rgba(255, 255, 255, 0.92), rgba(235, 245, 255, 0.82));
-      --border-tactile: rgba(255, 255, 255, 0.9);
-      --border-glass: rgba(56, 189, 248, 0.42);
-      --border-subtle: rgba(15, 23, 42, 0.11);
-      --shadow-tactile: 0 6px 14px rgba(15, 23, 42, 0.10), inset 0 2px 3px #FFFFFF;
-      --shadow-glass: 0 4px 16px rgba(56, 189, 248, 0.22), inset 0 2px 4px rgba(255, 255, 255, 0.95);
-      --text-primary: #0F172A;
-      --text-secondary: #475569;
-      --text-label-tactile: #334155;
-      --text-label-glass: #0284C7;
-      --accent: #0284C7;
-      --accent-glow: rgba(2, 132, 199, 0.24);
-      --icon-stroke: #1E293B;
-      --map-water: #CBE4FD;
-      --map-water-deep: #A5D0FA;
-      --map-land: #F4F7FB;
-      --map-contour: rgba(2, 132, 199, 0.16);
-      --dock-bg: rgba(255, 255, 255, 0.88);
-      --sheet-bg: rgba(248, 250, 252, 0.97);
-    }
-
-    /* В. КОНТРАСТНАЯ ТЕМА (CONTRAST / OLED MODE — data-theme="contrast") */
-    [data-theme="contrast"] {
-      --bg-app: #000000;
-      --bg-outer: #000000;
-      --bg-surface: #0D0D0D;
-      --bg-surface-solid: #0D0D0D;
-      --bg-glass: radial-gradient(circle at 30% 25%, rgba(245, 158, 11, 0.18), rgba(10, 10, 10, 0.82));
-      --bg-glass-card: linear-gradient(155deg, rgba(22, 18, 10, 0.86), rgba(8, 8, 8, 0.94));
-      --border-tactile: rgba(245, 158, 11, 0.25);
-      --border-glass: rgba(251, 191, 36, 0.48);
-      --border-subtle: rgba(245, 158, 11, 0.22);
-      --shadow-tactile: 0 0 16px rgba(245, 158, 11, 0.32), inset 0 1px 1px rgba(255, 255, 255, 0.15);
-      --shadow-glass: 0 0 20px rgba(245, 158, 11, 0.35), inset 0 2px 5px rgba(255, 255, 255, 0.32), inset 0 -4px 12px rgba(245, 158, 11, 0.22);
-      --text-primary: #FFFFFF;
-      --text-secondary: #D97706;
-      --text-label-tactile: #F59E0B;
-      --text-label-glass: #FBBF24;
-      --accent: #F59E0B;
-      --accent-glow: rgba(245, 158, 11, 0.34);
-      --icon-stroke: #FFFFFF;
-      --map-water: #111F30;
-      --map-water-deep: #091320;
-      --map-land: #000000;
-      --map-contour: rgba(245, 158, 11, 0.22);
-      --dock-bg: rgba(10, 10, 10, 0.92);
-      --sheet-bg: rgba(12, 12, 12, 0.98);
-    }
-
-    * {
-      box-sizing: border-box;
-      -webkit-tap-highlight-color: transparent;
-    }
-
-    html, body {
-      margin: 0;
-      padding: 0;
-      min-height: 100%;
-      font-family: var(--font-ui);
-      background: var(--bg-outer);
-      color: var(--text-primary);
-      transition: background 0.25s ease, color 0.25s ease;
-      overflow-x: hidden;
-    }
-
-    button, input, select, textarea {
-      font-family: inherit;
-      color: inherit;
-    }
-
-    /* ==========================================================================
-       2. ВЕРХНИЙ ИНЖЕНЕРНЫЙ ПУЛЬТ УПРАВЛЕНИЯ СТЕНДОМ
-       ========================================================================== */
-    .studio-topbar {
-      position: sticky;
-      top: 0;
-      z-index: 9000;
-      background: rgba(9, 14, 24, 0.94);
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
-      border-bottom: 1px solid rgba(56, 189, 248, 0.24);
-      padding: 8px 14px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      flex-wrap: wrap;
-      color: #F8FAFC;
-    }
-
-    .studio-brand {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .studio-badge {
-      padding: 4px 10px;
-      border-radius: var(--radius-pill);
-      font-size: 11px;
-      font-weight: 800;
-      letter-spacing: 0.4px;
-      background: rgba(56, 189, 248, 0.16);
-      border: 1px solid rgba(56, 189, 248, 0.45);
-      color: #38BDF8;
-      white-space: nowrap;
-    }
-
-    .studio-controls {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-
-    .studio-seg {
-      display: inline-flex;
-      background: rgba(30, 41, 59, 0.78);
-      border: 1px solid rgba(148, 163, 184, 0.22);
-      border-radius: var(--radius-pill);
-      padding: 2px;
-      gap: 2px;
-    }
-
-    .studio-seg button {
-      border: none;
-      background: transparent;
-      color: #94A3B8;
-      font-size: 11.5px;
-      font-weight: 600;
-      padding: 5px 11px;
-      border-radius: var(--radius-pill);
-      cursor: pointer;
-      transition: all 0.18s ease;
-      white-space: nowrap;
-    }
-
-    .studio-seg button.active {
-      background: #38BDF8;
-      color: #07111F;
-      font-weight: 800;
-      box-shadow: 0 2px 10px rgba(56, 189, 248, 0.35);
-    }
-
-    [data-theme="contrast"] .studio-seg button.active {
-      background: #F59E0B;
-      color: #000000;
-      box-shadow: 0 2px 10px rgba(245, 158, 11, 0.4);
-    }
-
-    /* ==========================================================================
-       3. КОНТЕЙНЕР ПРИЛОЖЕНИЯ (СМАРТФОН / ПЛАНШЕТ BENTO / СТЕНД АУДИТА)
-       ========================================================================== */
-    .workspace-stage {
-      display: flex;
-      justify-content: center;
-      align-items: flex-start;
-      padding: 16px 12px 40px;
-      min-height: calc(100vh - 56px);
-    }
-
-    .app-frame {
-      position: relative;
-      width: 100%;
-      max-width: 420px;
-      min-height: 780px;
-      background: var(--bg-app);
-      border-radius: 36px;
-      border: 1.5px solid var(--border-glass);
-      box-shadow: 0 22px 60px rgba(0, 0, 0, 0.55), 0 0 28px var(--accent-glow);
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      transition: max-width 0.28s cubic-bezier(0.22, 1, 0.36, 1), background 0.25s ease;
-    }
-
-    /* Лёгкий фон приложения (отключён на экране Карты, чтобы не перекрывать реальную карту) */
-    .app-frame::before {
-      content: "";
-      position: absolute;
-      inset: 0;
-      pointer-events: none;
-      background-image: radial-gradient(circle at 50% 0%, var(--accent-glow) 0%, transparent 38%);
-      opacity: 0.45;
-      z-index: 0;
-    }
-    .app-frame.on-map-screen::before {
-      display: none;
-    }
-
-    html[data-viewport="desktop"] .app-frame {
-      max-width: 1140px;
-      border-radius: 24px;
-      min-height: 760px;
-    }
-
-    html[data-viewport="audit"] .app-frame {
-      display: none;
-    }
-
-    .audit-frame {
-      display: none;
-      width: 100%;
-      max-width: 1220px;
-      background: var(--bg-app);
-      border: 1.5px solid var(--border-glass);
-      border-radius: 24px;
-      padding: 22px;
-      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
-    }
-
-    html[data-viewport="audit"] .audit-frame {
-      display: block;
-    }
-
-    /* Смартфонный статус-бар */
-    .phone-statusbar {
-      position: relative;
-      z-index: 10;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 10px 22px 6px;
-      font-size: 12px;
-      font-weight: 700;
-      color: var(--text-primary);
-      opacity: 0.9;
-    }
-
-    .phone-status-right {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 11px;
-    }
-
-    /* ==========================================================================
-       4. КОМПОНЕНТЫ TACTILE GLASSMORPHISM (КАРТОЧКИ, КНОПКИ-ЛИНЗЫ, СЕГМЕНТЫ)
-       ========================================================================== */
-    .glass-panel {
-      background: var(--bg-glass-card);
-      backdrop-filter: var(--blur-glass);
-      -webkit-backdrop-filter: var(--blur-glass);
-      border: 1px solid var(--border-glass);
-      box-shadow: var(--shadow-glass);
-      border-radius: var(--radius-card);
-      transition: all 0.22s ease;
-    }
-
-    html[data-glass="off"] .glass-panel {
-      backdrop-filter: none;
-      -webkit-backdrop-filter: none;
-      background: var(--bg-surface);
-      border: 1px solid var(--border-tactile);
-      box-shadow: var(--shadow-tactile);
-    }
-
-    /* Круглая навигационная кнопка-линза (56x56 для меню 3x3, 48x48 для контролов карты) */
-    .lens-btn {
-      width: 56px;
-      height: 56px;
-      border-radius: 50%;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      position: relative;
-      padding: 0;
-      background: var(--bg-glass);
-      backdrop-filter: var(--blur-glass);
-      -webkit-backdrop-filter: var(--blur-glass);
-      border: 1px solid var(--border-glass);
-      box-shadow: var(--shadow-glass);
-      color: var(--icon-stroke);
-      transition: transform 0.16s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.2s ease, border-color 0.2s ease;
-    }
-
-    html[data-glass="off"] .lens-btn {
-      backdrop-filter: none;
-      -webkit-backdrop-filter: none;
-      background: var(--bg-surface);
-      border: 1px solid var(--border-tactile);
-      box-shadow: var(--shadow-tactile);
-    }
-
-    .lens-btn:hover {
-      transform: translateY(-2px) scale(1.03);
-    }
-
-    .lens-btn:active {
-      transform: scale(0.95);
-    }
-
-    .lens-btn.lens-48 {
-      width: 48px;
-      height: 48px;
-    }
-
-    .lens-btn.active {
-      border-color: var(--accent);
-      box-shadow: 0 0 22px var(--accent-glow), inset 0 2px 5px rgba(255, 255, 255, 0.45);
-      color: var(--accent);
-    }
-
-    .lens-btn svg, .k-svg {
-      width: 24px;
-      height: 24px;
-      stroke: currentColor;
-      stroke-width: var(--stroke-icon);
-      stroke-linecap: round;
-      stroke-linejoin: round;
-      fill: none;
-      flex-shrink: 0;
-    }
-
-    .lens-item-wrap {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      cursor: pointer;
-      user-select: none;
-    }
-
-    .lens-label {
-      margin-top: 6px;
-      font-size: 11.5px;
-      font-weight: 600;
-      color: var(--text-label-glass);
-      transition: color 0.2s ease;
-      line-height: 1.2;
-    }
-
-    html[data-glass="off"] .lens-label {
-      color: var(--text-label-tactile);
-    }
-
-    /* Капсульные переключатели (Segmented Control) */
-    /* Стильный тумблер-переключатель вместо стандартных чекбоксов */
-    .klev-switch {
-      position: relative;
-      display: inline-block;
-      width: 44px;
-      height: 24px;
-      flex-shrink: 0;
-      cursor: pointer;
-    }
-    .klev-switch input {
-      opacity: 0;
-      width: 0;
-      height: 0;
-      position: absolute;
-    }
-    .klev-switch-slider {
-      position: absolute;
-      inset: 0;
-      border-radius: 999px;
-      background: rgba(148, 163, 184, 0.25);
-      border: 1px solid var(--border-subtle);
-      transition: all 0.22s ease;
-    }
-    .klev-switch-slider::before {
-      content: "";
-      position: absolute;
-      width: 18px;
-      height: 18px;
-      left: 2px;
-      top: 2px;
-      border-radius: 50%;
-      background: #E2E8F0;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.35);
-      transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), background 0.22s ease;
-    }
-    .klev-switch input:checked + .klev-switch-slider {
-      background: var(--accent-glow);
-      border-color: var(--accent);
-      box-shadow: 0 0 12px var(--accent-glow);
-    }
-    .klev-switch input:checked + .klev-switch-slider::before {
-      transform: translateX(20px);
-      background: var(--accent);
-    }
-
-    /* Миниатюра фото улова в карточке Журнала */
-    .catch-photo-thumb {
-      width: 72px;
-      height: 54px;
-      border-radius: 12px;
-      border: 1px solid var(--border-glass);
-      overflow: hidden;
-      position: relative;
-      cursor: pointer;
-      background: var(--bg-surface-solid);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .catch-photo-thumb img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      display: block;
-    }
-    .catch-photo-badge {
-      position: absolute;
-      bottom: 2px;
-      right: 2px;
-      font-size: 9px;
-      font-weight: 800;
-      padding: 1px 4px;
-      border-radius: 5px;
-      background: rgba(15, 23, 42, 0.78);
-      color: #F8FAFC;
-    }
-
-    .seg-bar {
-      display: flex;
-      align-items: center;
-      background: rgba(15, 23, 42, 0.42);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-pill);
-      padding: 3px;
-      gap: 3px;
-    }
-
-    [data-theme="light"] .seg-bar {
-      background: rgba(226, 232, 240, 0.75);
-    }
-
-    [data-theme="contrast"] .seg-bar {
-      background: #0B0B0B;
-      border-color: rgba(245, 158, 11, 0.28);
-    }
-
-    .seg-btn {
-      flex: 1;
-      min-width: 0;
-      border: none;
-      background: transparent;
-      color: var(--text-secondary);
-      font-size: 11.5px;
-      font-weight: 600;
-      padding: 7px 4px;
-      border-radius: var(--radius-pill);
-      cursor: pointer;
-      transition: all 0.2s ease;
-      text-align: center;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .seg-btn.active {
-      background: var(--bg-glass);
-      border: 1px solid var(--border-glass);
-      box-shadow: var(--shadow-glass);
-      color: var(--text-primary);
-      font-weight: 700;
-    }
-
-    html[data-glass="off"] .seg-btn.active {
-      background: var(--bg-surface);
-      border-color: var(--border-tactile);
-      box-shadow: var(--shadow-tactile);
-    }
-
-    /* Пилюли и кнопки */
-    .pill-btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 7px;
-      padding: 8px 14px;
-      border-radius: var(--radius-pill);
-      font-size: 12.5px;
-      font-weight: 600;
-      cursor: pointer;
-      background: var(--bg-glass);
-      backdrop-filter: var(--blur-glass);
-      -webkit-backdrop-filter: var(--blur-glass);
-      border: 1px solid var(--border-glass);
-      box-shadow: var(--shadow-glass);
-      color: var(--text-primary);
-      transition: all 0.18s ease;
-    }
-
-    html[data-glass="off"] .pill-btn {
-      backdrop-filter: none;
-      background: var(--bg-surface);
-      border-color: var(--border-tactile);
-      box-shadow: var(--shadow-tactile);
-    }
-
-    .pill-btn:hover {
-      transform: translateY(-1px);
-    }
-
-    .pill-btn.active {
-      border-color: var(--accent);
-      color: var(--accent);
-      font-weight: 700;
-    }
-
-    .status-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: var(--good);
-      box-shadow: 0 0 8px var(--good);
-      display: inline-block;
-      flex-shrink: 0;
-    }
-
-    /* ==========================================================================
-       5. ОСНОВНАЯ РАБОЧАЯ ОБЛАСТЬ И ЭКРАНЫ
-       ========================================================================== */
-    .app-viewport {
-      position: relative;
-      z-index: 2;
-      flex: 1;
-      overflow-y: auto;
-      overflow-x: hidden;
-      padding: 10px 14px 76px;
-      display: flex;
-      flex-direction: column;
-      gap: 9px;
-    }
-
-    .app-viewport.map-fullscreen {
-      padding: 0 0 64px;
-    }
-
-    .screen-sec {
-      display: none;
-      flex-direction: column;
-      gap: 12px;
-      animation: klevSlideFade 0.24s cubic-bezier(0.22, 1, 0.36, 1);
-    }
-
-    .screen-sec.active {
-      display: flex;
-    }
-
-    @keyframes klevSlideFade {
-      from { opacity: 0; transform: translateY(6px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    /* На широком экране (Desktop Bento) — двухколоночная сетка внутри экранов */
-    html[data-viewport="desktop"] .desktop-bento-grid {
-      display: grid;
-      grid-template-columns: 1.05fr 1.25fr;
-      gap: 16px;
-      align-items: start;
-    }
-
-    /* ==========================================================================
-       6. ЭКРАН 1: «ПРОГНОЗ КЛЁВА» (ТОЧКА ВХОДА)
-       ========================================================================== */
-    .fc-top-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-    }
-
-    .fc-hero-box {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      text-align: center;
-      padding: 10px 12px 11px;
-      position: relative;
-    }
-
-    .fc-title-main {
-      font-size: 16px;
-      font-weight: 800;
-      margin: 0 0 2px;
-      letter-spacing: -0.2px;
-    }
-
-    .fc-ice-sub {
-      font-size: 11px;
-      color: var(--text-secondary);
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      margin-bottom: 6px;
-    }
-
-    /* Живой сонарный радар прогноза клёва (крупный 236x236px, точная копия заставки по темам) */
-    .radial-gauge-wrap {
-      position: relative;
-      width: 236px;
-      height: 236px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin: 4px auto 10px;
-    }
-    #fcHeroSonarCanvas {
-      width: 236px;
-      height: 236px;
-      display: block;
-      border-radius: 50%;
-    }
-
-    .radial-gauge-svg {
-      width: 100%;
-      height: 100%;
-      overflow: visible;
-    }
-
-    .radial-gauge-center {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      pointer-events: none;
-    }
-
-    .radial-pct-val {
-      font-size: 34px;
-      font-weight: 900;
-      letter-spacing: -1px;
-      line-height: 1;
-      font-variant-numeric: tabular-nums;
-    }
-
-    .radial-status-lbl {
-      margin-top: 3px;
-      font-size: 12px;
-      font-weight: 700;
-      color: var(--text-secondary);
-    }
-
-    /* Компактные капсулы Утро / Вечер */
-    .bite-windows-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-      width: 100%;
-      margin-top: 0;
-    }
-
-    .bite-window-pill {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 7px 11px;
-      border-radius: 14px;
-      text-align: left;
-    }
-
-    .bite-window-meta {
-      display: flex;
-      flex-direction: column;
-      line-height: 1.25;
-    }
-
-    .bite-window-title {
-      font-size: 12px;
-      font-weight: 700;
-      color: var(--text-primary);
-    }
-
-    .bite-window-time {
-      font-size: 12.5px;
-      font-weight: 600;
-      color: var(--accent);
-      font-variant-numeric: tabular-nums;
-    }
-
-    /* Горизонтальная лента выбора вида рыбы */
-    .species-strip-wrap {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      overflow-x: auto;
-      padding: 4px 2px 6px;
-      scrollbar-width: none;
-    }
-
-    .species-strip-wrap::-webkit-scrollbar {
-      display: none;
-    }
-
-    .fish-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 7px 13px;
-      border-radius: var(--radius-pill);
-      font-size: 12.5px;
-      font-weight: 600;
-      white-space: nowrap;
-      cursor: pointer;
-      background: var(--bg-glass);
-      border: 1px solid var(--border-subtle);
-      color: var(--text-secondary);
-      transition: all 0.18s ease;
-      flex-shrink: 0;
-    }
-
-    html[data-glass="off"] .fish-chip {
-      background: var(--bg-surface);
-    }
-
-    .fish-chip.active {
-      border-color: var(--accent);
-      box-shadow: var(--shadow-glass);
-      color: var(--text-primary);
-      font-weight: 700;
-    }
-
-    .fish-chip-visual {
-      width: 28px;
-      height: 16px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-    }
-
-    .fish-chip-visual img {
-      max-width: 100%;
-      max-height: 100%;
-      object-fit: contain;
-    }
-
-    /* Почасовой график 00:00–24:00 со скраббером */
-    .chart-card {
-      padding: 14px;
-      position: relative;
-    }
-
-    .chart-floating-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 5px 11px;
-      border-radius: var(--radius-pill);
-      font-size: 12px;
-      font-weight: 700;
-      background: var(--bg-surface-solid);
-      border: 1px solid var(--border-glass);
-      color: var(--text-primary);
-      margin-bottom: 8px;
-      font-variant-numeric: tabular-nums;
-    }
-
-    .hourly-svg-wrap {
-      position: relative;
-      width: 100%;
-      height: 135px;
-      cursor: ew-resize;
-      user-select: none;
-    }
-
-    .hourly-time-axis {
-      display: flex;
-      justify-content: space-between;
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--text-secondary);
-      margin-top: 6px;
-      font-variant-numeric: tabular-nums;
-    }
-
-    .cta-full-btn {
-      width: 100%;
-      padding: 13px 16px;
-      border-radius: 16px;
-      font-size: 14px;
-      font-weight: 700;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 9px;
-      cursor: pointer;
-      background: var(--bg-glass);
-      border: 1.5px solid var(--accent);
-      box-shadow: var(--shadow-glass);
-      color: var(--text-primary);
-      transition: all 0.18s ease;
-    }
-
-    .cta-full-btn:hover {
-      transform: translateY(-1px);
-    }
-
-    /* ==========================================================================
-       7. ЭКРАН 2: «КАРТА» (НАВИГАЦИЯ, ТОЧКИ, WATERNAVMESH A*, ОФФЛАЙН)
-       ========================================================================== */
-    .map-stage-container {
-      position: relative;
-      width: 100%;
-      height: 740px;
-      background: var(--map-land);
-      overflow: hidden;
-      user-select: none;
-    }
-
-    html[data-viewport="desktop"] .map-stage-container {
-      height: 670px;
-      border-radius: 20px;
-    }
-
-    #realLeafletMap {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      z-index: 1;
-      background: var(--map-land);
-    }
-
-    .leaflet-control-attribution {
-      font-size: 9px !important;
-      background: rgba(15, 23, 42, 0.55) !important;
-      color: #94A3B8 !important;
-      padding: 1px 5px !important;
-    }
-    .leaflet-control-attribution a { color: #38BDF8 !important; }
-    .leaflet-control-zoom { display: none !important; }
-
-    /* Горизонтальная свайпаемая лента из 6 компактных мини-плашек (1 короткая надпись на каждой) */
-    .map-bottom-pills-strip {
-      position: absolute;
-      left: 10px;
-      right: 10px;
-      bottom: 10px;
-      z-index: 450;
-      display: flex;
-      align-items: center;
-      gap: 7px;
-      overflow-x: auto;
-      padding: 2px 2px 4px;
-      scrollbar-width: none;
-    }
-    .map-bottom-pills-strip::-webkit-scrollbar { display: none; }
-
-    .map-single-pill {
-      flex-shrink: 0;
-      padding: 9px 14px;
-      border-radius: var(--radius-pill);
-      font-size: 12.5px;
-      font-weight: 700;
-      white-space: nowrap;
-      cursor: pointer;
-      background: var(--bg-glass-card);
-      backdrop-filter: var(--blur-glass);
-      -webkit-backdrop-filter: var(--blur-glass);
-      border: 1px solid var(--border-glass);
-      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
-      color: var(--text-primary);
-      transition: transform 0.15s ease, border-color 0.15s ease;
-    }
-    html[data-glass="off"] .map-single-pill {
-      backdrop-filter: none;
-      background: var(--bg-surface);
-      border-color: var(--border-tactile);
-    }
-    .map-single-pill.active {
-      border-color: var(--accent);
-      color: var(--accent);
-    }
-
-    .map-top-overlay {
-      position: absolute;
-      top: 10px;
-      left: 12px;
-      right: 12px;
-      z-index: 450;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      pointer-events: none;
-    }
-
-    .map-top-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      pointer-events: auto;
-    }
-
-    .map-search-box {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 9px 13px;
-      border-radius: 16px;
-    }
-
-    .map-search-box input {
-      border: none;
-      background: transparent;
-      outline: none;
-      width: 100%;
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--text-primary);
-    }
-
-    .map-search-box input::placeholder {
-      color: var(--text-secondary);
-    }
-
-    .map-weather-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 7px;
-      padding: 9px 13px;
-      border-radius: 16px;
-      font-size: 13px;
-      font-weight: 700;
-      white-space: nowrap;
-      cursor: pointer;
-    }
-
-    /* Правый вертикальный стек из 4 круглых стеклянных кнопок без текста (Thumb Zone) */
-    .map-right-stack {
-      position: absolute;
-      right: 14px;
-      bottom: 66px;
-      z-index: 450;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    /* Левая зона большого пальца (Транспорт, Изобаты, Трек/Я потерялся) */
-    .map-left-stack {
-      position: absolute;
-      left: 14px;
-      bottom: 66px;
-      z-index: 450;
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 8px;
-    }
-
-    /* Нижний док карты (Карточка выбранной точки + 2 компактные шторки) */
-    .map-bottom-sheet-card {
-      position: absolute;
-      left: 10px;
-      right: 10px;
-      bottom: 10px;
-      z-index: 22;
-      padding: 12px 14px;
-      border-radius: 22px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .sheet-grabber {
-      width: 38px;
-      height: 4px;
-      border-radius: 99px;
-      background: rgba(148, 163, 184, 0.38);
-      margin: 0 auto 2px;
-    }
-
-    .map-spot-summary-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-    }
-
-    .map-route-cta {
-      padding: 10px 16px;
-      border-radius: var(--radius-pill);
-      font-size: 13px;
-      font-weight: 700;
-      border: 1px solid var(--border-glass);
-      background: var(--accent);
-      color: #061320;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      box-shadow: 0 4px 16px var(--accent-glow);
-      white-space: nowrap;
-    }
-
-    .map-dual-docks {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-    }
-
-    .map-mini-dock-btn {
-      padding: 8px 10px;
-      border-radius: 14px;
-      font-size: 11.5px;
-      font-weight: 700;
-      text-align: left;
-      cursor: pointer;
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-      border: 1px solid var(--border-subtle);
-      background: rgba(15, 23, 42, 0.35);
-    }
-
-    [data-theme="light"] .map-mini-dock-btn {
-      background: rgba(255, 255, 255, 0.65);
-    }
-
-    /* ==========================================================================
-       8. ЭКРАН 3: «ЖУРНАЛ УЛОВОВ И ИИ-КАЛИБРОВКА»
-       ========================================================================== */
-    .journal-kpi-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 9px;
-    }
-
-    .journal-kpi-card {
-      padding: 12px 11px;
-      border-radius: 18px;
-      position: relative;
-      display: flex;
-      flex-direction: column;
-      justify-content: flex-end;
-      min-height: 82px;
-    }
-
-    .journal-kpi-ico {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      opacity: 0.65;
-      color: var(--text-secondary);
-    }
-
-    .journal-kpi-val {
-      font-size: 20px;
-      font-weight: 800;
-      letter-spacing: -0.5px;
-      line-height: 1.1;
-    }
-
-    .journal-kpi-lbl {
-      font-size: 11.5px;
-      font-weight: 500;
-      color: var(--text-secondary);
-      margin-top: 2px;
-    }
-
-    .catch-entry-card {
-      padding: 13px 14px;
-      border-radius: 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .catch-entry-meta {
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--text-secondary);
-      padding-bottom: 8px;
-      border-bottom: 1px solid var(--border-subtle);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-    }
-
-    .catch-entry-body {
-      display: grid;
-      grid-template-columns: 74px 1fr 64px;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .catch-minimap-thumb {
-      width: 64px;
-      height: 64px;
-      border-radius: 14px;
-      border: 1px solid var(--border-glass);
-      overflow: hidden;
-      background: var(--map-land);
-    }
-
-    /* ==========================================================================
-       9. ЭКРАН 4: «МЕНЮ И ИНСТРУМЕНТЫ» (СЕТКА 3x3 + ЗАЩИЩЁННЫЙ СЛАЙДЕР SOS 2 СЕК)
-       ========================================================================== */
-    .menu-hub-header {
-      text-align: center;
-      padding: 4px 6px 2px;
-    }
-
-    .menu-hub-title {
-      font-size: 16px;
-      font-weight: 800;
-      letter-spacing: 0.6px;
-      text-transform: uppercase;
-      margin: 0 0 6px;
-    }
-
-    .menu-hub-sub {
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--text-secondary);
-      display: inline-flex;
-      align-items: center;
-      gap: 7px;
-    }
-
-    /* Компактное всплывающее Меню над нижним доком (не перекрывает весь экран) */
-    .compact-menu-backdrop {
-      position: absolute;
-      inset: 0;
-      bottom: 64px;
-      z-index: 180;
-      background: rgba(4, 9, 18, 0.32);
-      display: none;
-      align-items: flex-end;
-      justify-content: center;
-      padding: 10px 12px;
-    }
-    .compact-menu-backdrop.open {
-      display: flex;
-    }
-    .compact-menu-popover {
-      width: 100%;
-      max-width: 396px;
-      padding: 14px 14px 14px;
-      border-radius: 24px;
-      background: var(--sheet-bg);
-      backdrop-filter: blur(18px);
-      -webkit-backdrop-filter: blur(18px);
-      border: 1.5px solid var(--border-glass);
-      box-shadow: 0 -10px 34px rgba(0, 0, 0, 0.55), 0 0 22px var(--accent-glow);
-      display: flex;
-      flex-direction: column;
-      gap: 11px;
-      animation: sheetSlideUp 0.2s cubic-bezier(0.22, 1, 0.36, 1);
-    }
-    .menu-grid-5 {
-      display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      gap: 8px 6px;
-      padding: 4px 0;
-      justify-items: center;
-    }
-    .menu-grid-5 .lens-btn {
-      width: 52px;
-      height: 52px;
-    }
-    .menu-grid-5 .lens-btn svg {
-      width: 23px;
-      height: 23px;
-    }
-
-    /* Защищённый слайдер SOS (Удерживайте 2 сек для SOS) */
-    .sos-hold-track {
-      position: relative;
-      width: 100%;
-      height: 54px;
-      border-radius: var(--radius-pill);
-      background: linear-gradient(135deg, rgba(127, 29, 29, 0.72), rgba(69, 10, 10, 0.85));
-      border: 1px solid rgba(248, 113, 113, 0.45);
-      box-shadow: 0 0 20px rgba(239, 68, 68, 0.25), inset 0 1px 2px rgba(255, 255, 255, 0.22);
-      display: flex;
-      align-items: center;
-      padding: 5px;
-      overflow: hidden;
-      cursor: pointer;
-      user-select: none;
-    }
-
-    .sos-hold-progress {
-      position: absolute;
-      left: 0;
-      top: 0;
-      bottom: 0;
-      width: 0%;
-      background: linear-gradient(90deg, rgba(239, 68, 68, 0.65), rgba(245, 158, 11, 0.75));
-      transition: width 0.08s linear;
-      pointer-events: none;
-    }
-
-    .sos-hold-knob {
-      position: relative;
-      z-index: 2;
-      width: 44px;
-      height: 44px;
-      border-radius: 50%;
-      background: radial-gradient(circle at 30% 25%, #F87171, #DC2626);
-      border: 1px solid rgba(255, 255, 255, 0.5);
-      box-shadow: 0 0 14px rgba(239, 68, 68, 0.6);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #FFFFFF;
-      flex-shrink: 0;
-    }
-
-    .sos-hold-text {
-      position: relative;
-      z-index: 2;
-      flex: 1;
-      text-align: center;
-      font-size: 13.5px;
-      font-weight: 700;
-      color: #FEE2E2;
-      padding-right: 24px;
-    }
-
-    /* ==========================================================================
-       10. НИЖНИЙ ТАБ-БАР (4 ИКОНКИ — height: 64px + ДВУХПРУЖИННЫЙ ГЛАЙДЕР)
-       ========================================================================== */
-    .bottom-dock {
-      position: absolute;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      height: 64px;
-      z-index: 100;
-      background: var(--dock-bg);
-      backdrop-filter: blur(18px);
-      -webkit-backdrop-filter: blur(18px);
-      border-top: 1px solid var(--border-subtle);
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      align-items: center;
-      padding: 0 8px;
-    }
-
-    .dock-tab-btn {
-      position: relative;
-      z-index: 2;
-      border: none;
-      background: transparent;
-      height: 52px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 3px;
-      color: var(--text-secondary);
-      cursor: pointer;
-      transition: color 0.18s ease, transform 0.18s ease;
-    }
-
-    .dock-tab-btn svg {
-      width: 24px;
-      height: 24px;
-      stroke: currentColor;
-      stroke-width: var(--stroke-icon);
-      stroke-linecap: round;
-      stroke-linejoin: round;
-      fill: none;
-      transition: transform 0.22s cubic-bezier(0.16, 1.14, 0.3, 1), filter 0.22s ease;
-    }
-
-    .dock-tab-btn.active {
-      color: var(--accent);
-    }
-
-    .dock-tab-btn.active svg {
-      transform: translateY(-1px) scale(1.08);
-      filter: drop-shadow(0 0 8px var(--accent-glow));
-    }
-
-    .dock-tab-lbl {
-      font-size: 10.5px;
-      font-weight: 600;
-      line-height: 1;
-      display: none;
-    }
-
-    /* Позволяет переключать режим «Строго без подписей (по ТЗ п. 2)» и «С подписями (как на референс-шотах)» */
-    html[data-dock-labels="on"] .dock-tab-lbl {
-      display: block;
-    }
-
-    /* ==========================================================================
-       11. ВЫДВИЖНЫЕ ШТОРКИ (BOTTOM SHEETS), МОДАЛЬНЫЕ ОКНА И БЕЗОПАСНЫЕ ТОСТЫ
-       ========================================================================== */
-    .sheet-backdrop {
-      position: absolute;
-      inset: 0;
-      z-index: 200;
-      background: rgba(4, 9, 18, 0.62);
-      backdrop-filter: blur(4px);
-      display: none;
-      align-items: flex-end;
-      justify-content: center;
-    }
-
-    .sheet-backdrop.open {
-      display: flex;
-    }
-
-    .bottom-sheet-panel {
-      width: 100%;
-      max-height: 82%;
-      background: var(--sheet-bg);
-      border-top: 1.5px solid var(--border-glass);
-      border-radius: 26px 26px 0 0;
-      padding: 12px 16px 22px;
-      overflow-y: auto;
-      box-shadow: 0 -12px 36px rgba(0, 0, 0, 0.55);
-      animation: sheetSlideUp 0.22s cubic-bezier(0.22, 1, 0.36, 1);
-    }
-
-    @keyframes sheetSlideUp {
-      from { transform: translateY(100%); }
-      to { transform: translateY(0); }
-    }
-
-    /* Безопасный тост строго на bottom: 84px (не перекрывает нижний док 64px) */
-    .safe-toast-host {
-      position: absolute;
-      left: 14px;
-      right: 14px;
-      bottom: var(--toast-bottom);
-      z-index: 350;
-      pointer-events: none;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    .safe-toast-card {
-      pointer-events: auto;
-      padding: 11px 14px;
-      border-radius: 16px;
-      background: var(--sheet-bg);
-      border: 1.5px solid var(--accent);
-      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      font-size: 12.5px;
-      font-weight: 600;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .toast-timer-bar {
-      position: absolute;
-      left: 0;
-      bottom: 0;
-      height: 3px;
-      background: var(--accent);
-      width: 100%;
-      animation: toastCountdown 3.4s linear forwards;
-    }
-
-    @keyframes toastCountdown {
-      from { width: 100%; }
-      to { width: 0%; }
-    }
-
-    /* Таблицы и карточки инженерного стенда аудита */
-    .audit-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 12.5px;
-    }
-
-    .audit-table th, .audit-table td {
-      padding: 10px 12px;
-      border-bottom: 1px solid var(--border-subtle);
-      text-align: left;
-      vertical-align: top;
-    }
-
-    .audit-table th {
-      font-weight: 800;
-      color: var(--accent);
-      background: rgba(56, 189, 248, 0.08);
-    }
-
-    .code-tag {
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      font-size: 11.5px;
-      padding: 2px 6px;
-      border-radius: 6px;
-      background: rgba(56, 189, 248, 0.14);
-      color: var(--accent);
-    }
-
-    .subscreen-nav-bar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      padding-bottom: 6px;
-      border-bottom: 1px solid var(--border-subtle);
-    }
-
-    .form-input, .form-select {
-      width: 100%;
-      padding: 9px 12px;
-      border-radius: 12px;
-      border: 1px solid var(--border-glass);
-      background: rgba(15, 23, 42, 0.45);
-      color: var(--text-primary);
-      font-size: 13px;
-      font-weight: 600;
-      outline: none;
-    }
-
-    [data-theme="light"] .form-input, [data-theme="light"] .form-select {
-      background: #FFFFFF;
-    }
-  
-
 /* ==========================================================================
-   КЛЁВ ПРО 2.0 • v2.9.1 (r241) PRODUCTION FULLSCREEN MOBILE/TABLET SHELL
-   1-в-1 с эталоном Видео 1 (#klevAppFrame), с сохранением Десктопа (data-desktop-web="1")
+   КЛЁВ ПРО 2.0 • v2.9.1 (r241) TACTILE GLASSMORPHISM & ADAPTIVE VIEWPORTS
+   Десктопный режим (html[data-desktop-web="1"]) сохранён без изменений.
    ========================================================================== */
-html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) > body > .app-header,
-html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) > body > main#app,
-html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) > body > nav.bottom-nav,
-html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) > body > #klevCompactMenuBackdrop {
+
+/* 1. Замена всех чекбоксов на стеклянные тумблеры-переключатели (.klev-switch) */
+input[type="checkbox"],
+.klev-switch {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  width: 38px !important;
+  height: 22px !important;
+  min-width: 38px !important;
+  min-height: 22px !important;
+  border-radius: 999px !important;
+  background: rgba(148, 163, 184, 0.28) !important;
+  border: 1px solid rgba(148, 163, 184, 0.45) !important;
+  position: relative !important;
+  cursor: pointer !important;
+  transition: background 0.22s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.22s ease, box-shadow 0.22s ease !important;
+  flex-shrink: 0 !important;
+  vertical-align: middle !important;
+  margin: 0 !important;
+  outline: none !important;
+}
+input[type="checkbox"]::after,
+.klev-switch::after {
+  content: "" !important;
+  position: absolute !important;
+  top: 2px !important;
+  left: 2px !important;
+  width: 16px !important;
+  height: 16px !important;
+  border-radius: 50% !important;
+  background: #ffffff !important;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.32) !important;
+  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+input[type="checkbox"]:checked,
+.klev-switch:checked {
+  background: linear-gradient(135deg, var(--accent, #38bdf8), var(--good, #10b981)) !important;
+  border-color: var(--accent, #38bdf8) !important;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.35) !important;
+}
+input[type="checkbox"]:checked::after,
+.klev-switch:checked::after {
+  transform: translateX(16px) !important;
+}
+
+/* 2. Безопасная позиция тост-уведомлений над нижним доком (bottom: 84px) */
+.toast-container,
+#toastContainer {
+  bottom: calc(84px + env(safe-area-inset-bottom, 0px)) !important;
+  max-width: min(420px, 92vw) !important;
+  z-index: 2200 !important;
+}
+
+/* 3. Живой сонар на главном экране прогноза (#bentoHeroSonarStage) */
+.bento-hero-sonar-stage {
+  position: relative;
+  width: 228px;
+  height: 228px;
+  margin: 4px auto 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.bento-hero-sonar-canvas {
+  width: 228px;
+  height: 228px;
+  display: block;
+}
+.bento-hero-sonar-center-pct {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  font-weight: 900;
+  font-size: 32px;
+  letter-spacing: -0.03em;
+  color: var(--text, #f8fafc);
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+}
+[data-theme="light"] .bento-hero-sonar-center-pct {
+  color: #0f172a;
+  text-shadow: 0 1px 4px rgba(255, 255, 255, 0.85);
+}
+[data-theme="contrast"] .bento-hero-sonar-center-pct {
+  color: #ffffff;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.9);
+}
+
+/* Утренний и вечерний пики под живым сонаром */
+.bento-hero-peaks-duo {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  width: 100%;
+  margin-top: 6px;
+}
+.bento-hero-peak-pill {
+  padding: 8px 10px;
+  border-radius: 14px;
+  background: var(--panel, rgba(15, 23, 42, 0.72));
+  border: 1px solid var(--border, rgba(56, 189, 248, 0.25));
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 4. Внутренние 4 вкладки экрана «Прогноз» (Обзор | Снасти | 10 дней | Погода) */
+.klev-fc-subtabs-bar {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  border-radius: 14px;
+  background: var(--panel, rgba(15, 23, 42, 0.78));
+  border: 1px solid var(--border, rgba(56, 189, 248, 0.24));
+  margin: 8px 0 10px;
+}
+.klev-fc-subtab-btn {
+  appearance: none;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted, #94a3b8);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  min-height: 34px;
+  padding: 4px 2px;
+  border-radius: 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.klev-fc-subtab-btn.active {
+  background: var(--card, rgba(30, 41, 59, 0.92));
+  color: var(--text, #f8fafc);
+  border-color: var(--accent, #38bdf8);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.22);
+}
+
+/* На десктопе (html[data-desktop-web="1"]) 4 подвкладки скрыты, все блоки прогноза видны одновременно */
+html[data-desktop-web="1"] .klev-fc-subtabs-bar,
+html[data-desktop-web="1"] .klev-mobile-only-loc-bar {
   display: none !important;
 }
 
-html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) body {
-  padding-top: 0 !important;
-  padding-bottom: 0 !important;
-  margin: 0 !important;
-  overflow: hidden !important;
-  background: var(--bg-app, #0F172A) !important;
+/* На мобильных, планшетах и раскладушках (html:not([data-desktop-web="1"])) — чистая шапка и фильтрация по 4 вкладкам */
+html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) #topSectionNavBar {
+  display: none !important;
 }
-
-html[data-desktop-web="1"] #klevAppFrame,
-html[data-admin-contour="1"] #klevAppFrame {
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="overview"] #fcTackleControlsCard,
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="overview"] .bento-tactical-advice-wrap,
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="overview"] #fcWeekBox,
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="overview"] .bento-bottom-duo {
+  display: none !important;
+}
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="tackle"] #bentoWaveChartCard,
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="tackle"] #fcHourlyBox,
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="tackle"] #fcWeekBox,
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="tackle"] .bento-bottom-duo {
+  display: none !important;
+}
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="days10"] #bentoWaveChartCard,
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="days10"] #fcTackleControlsCard,
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="days10"] .bento-tactical-advice-wrap,
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="days10"] .bento-bottom-duo {
+  display: none !important;
+}
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="weather"] #bentoWaveChartCard,
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="weather"] #fcHourlyBox,
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="weather"] #fcTackleControlsCard,
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="weather"] .bento-tactical-advice-wrap,
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="weather"] #fcWeekBox {
   display: none !important;
 }
 
-html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) #klevAppFrame {
-  position: fixed !important;
-  inset: 0 !important;
-  width: 100vw !important;
-  max-width: 100vw !important;
-  height: 100dvh !important;
-  min-height: 100dvh !important;
-  border-radius: 0 !important;
-  border: none !important;
-  box-shadow: none !important;
-  z-index: 1400 !important;
-  margin: 0 !important;
-  display: flex !important;
-  flex-direction: column !important;
+/* 5. Нижний док из 4 разделов на мобильных/планшетах (Прогноз | Карта | Журнал | Меню) */
+html:not([data-desktop-web="1"]) .bottom-nav #navCircleChatsHubBtn,
+html:not([data-desktop-web="1"]) .bottom-nav #bottomQuickSosBtn {
+  display: none !important;
+}
+html:not([data-desktop-web="1"]) .bottom-nav-inner {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  height: 64px !important;
+  min-height: 64px !important;
+  align-items: center !important;
+}
+html[data-desktop-web="1"] #bottomNavMenuTriggerBtn {
+  display: none !important;
 }
 
-html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) #klevAppFrame .app-viewport {
-  padding-top: max(10px, env(safe-area-inset-top, 10px)) !important;
-  padding-bottom: calc(74px + env(safe-area-inset-bottom, 0px)) !important;
+/* 6. Компактное всплывающее окно «Меню» (#klevCompactMenuBackdrop — НЕ перекрывает весь экран, без дублей) */
+#klevCompactMenuBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1950;
+  background: rgba(2, 6, 23, 0.36);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: none;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 12px 12px calc(76px + env(safe-area-inset-bottom, 0px));
+}
+#klevCompactMenuBackdrop.open {
+  display: flex;
+}
+.klev-compact-menu-sheet {
+  width: 100%;
+  max-width: 386px;
+  border-radius: 22px;
+  padding: 13px 14px;
+  background: var(--panel, rgba(15, 23, 42, 0.92));
+  border: 1px solid var(--border, rgba(56, 189, 248, 0.34));
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  animation: klevMenuPopUp 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes klevMenuPopUp {
+  from { opacity: 0; transform: translateY(16px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.klev-compact-menu-grid5 {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+.klev-compact-menu-item {
+  appearance: none;
+  background: var(--card, rgba(30, 41, 59, 0.75));
+  border: 1px solid var(--border, rgba(56, 189, 248, 0.24));
+  border-radius: 14px;
+  padding: 8px 3px 7px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  color: var(--text, #f8fafc);
+  font-family: inherit;
+  font-size: 10.5px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+}
+.klev-compact-menu-item:active,
+.klev-compact-menu-item.active {
+  transform: scale(0.96);
+  border-color: var(--accent, #38bdf8);
+}
+.klev-compact-menu-ico {
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(56, 189, 248, 0.12);
+  color: var(--accent, #38bdf8);
+}
+.klev-compact-menu-ico svg {
+  width: 20px;
+  height: 20px;
 }
 
-html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) #klevAppFrame .app-viewport.map-fullscreen {
-  padding-top: 0 !important;
-  padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)) !important;
+/* Гибридный защищённый ползунок SOS (свайп вправо ИЛИ удержание 2 сек) */
+.klev-hybrid-sos-track {
+  position: relative;
+  height: 46px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(127, 29, 29, 0.72), rgba(220, 38, 38, 0.28));
+  border: 1.5px solid rgba(239, 68, 68, 0.58);
+  display: flex;
+  align-items: center;
+  padding: 3px;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: pan-y;
+}
+.klev-hybrid-sos-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 0%;
+  background: linear-gradient(90deg, rgba(239, 68, 68, 0.65), rgba(220, 38, 38, 0.85));
+  pointer-events: none;
+  transition: width 0.08s linear;
+}
+.klev-hybrid-sos-knob {
+  position: relative;
+  z-index: 2;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ef4444, #b91c1c);
+  border: 1.5px solid #fca5a5;
+  color: #ffffff;
+  font-weight: 900;
+  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 3px 10px rgba(220, 38, 38, 0.55);
+  cursor: grab;
+  flex-shrink: 0;
+}
+.klev-hybrid-sos-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-left: 34px;
+  font-size: 11.5px;
+  font-weight: 800;
+  color: #fecaca;
+  pointer-events: none;
+  text-align: center;
 }
 
-html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) #klevAppFrame .map-stage-container {
-  height: calc(100dvh - 64px - env(safe-area-inset-bottom, 0px)) !important;
+/* 7. Компактная однострочная лента 6 плашек внизу карты (#arcCompactPillsStrip) */
+.klev-arc-single-pills-strip {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  overflow-x: auto;
+  padding: 4px 2px 6px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.klev-arc-single-pills-strip::-webkit-scrollbar {
+  display: none;
+}
+.klev-arc-single-pill {
+  appearance: none;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: var(--panel, rgba(15, 23, 42, 0.86));
+  border: 1px solid var(--border, rgba(56, 189, 248, 0.32));
+  color: var(--text, #f8fafc);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  flex-shrink: 0;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+.klev-arc-single-pill.active {
+  border-color: var(--accent, #38bdf8);
+  color: var(--accent, #38bdf8);
 }
 
-html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) #klevAppFrame .bottom-dock {
-  height: calc(64px + env(safe-area-inset-bottom, 0px)) !important;
-  padding-bottom: env(safe-area-inset-bottom, 0px) !important;
-}
-
-html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) #klevAppFrame .compact-menu-backdrop {
-  bottom: calc(64px + env(safe-area-inset-bottom, 0px)) !important;
-}
-
-/* Системные модальные окна (авторизация D1, выбор 491 водоёма, ИИ-сканер, лайтбокс) поверх #klevAppFrame */
-#appModalBackdrop,
-#fishImageLightbox,
-#klevUserAgreementBackdrop,
-#klevConfirmDeleteBackdrop,
-#klevCustomSelectBackdrop,
-#releaseUpdateModal {
-  z-index: 3200 !important;
-}
-
-/* Горизонтальный режим (Landscape) для планшетов, больших смартфонов и раскладушек (Flip / Fold) */
+/* 8. Горизонтальный режим (Landscape) для планшетов, больших смартфонов и складных экранов (Flip / Fold) */
 @media (orientation: landscape) and (max-width: 1180px) {
-  html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) #klevAppFrame .desktop-bento-grid {
+  html:not([data-desktop-web="1"]) #secForecast .bento-dashboard-wrap {
     display: grid !important;
-    grid-template-columns: minmax(260px, 310px) minmax(0, 1fr) !important;
+    grid-template-columns: minmax(275px, 340px) minmax(0, 1fr) !important;
     gap: 12px !important;
     align-items: start !important;
   }
-  html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) #klevAppFrame .radial-gauge-wrap,
-  html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) #klevAppFrame #fcHeroSonarCanvas {
+  html:not([data-desktop-web="1"]) #secForecast .bento-top-species-strip,
+  html:not([data-desktop-web="1"]) #secForecast .klev-fc-subtabs-bar {
+    grid-column: 1 / -1 !important;
+  }
+  html:not([data-desktop-web="1"]) #secForecast #bentoSwipeHeroCard {
+    grid-column: 1 / 2 !important;
+    position: sticky !important;
+    top: 64px !important;
+    margin-bottom: 0 !important;
+  }
+  html:not([data-desktop-web="1"]) #secForecast #bentoWaveChartCard,
+  html:not([data-desktop-web="1"]) #secForecast #fcTackleControlsCard,
+  html:not([data-desktop-web="1"]) #secForecast .bento-tactical-advice-wrap,
+  html:not([data-desktop-web="1"]) #secForecast .bento-bottom-duo {
+    grid-column: 2 / 3 !important;
+  }
+  html:not([data-desktop-web="1"]) .bento-hero-sonar-stage,
+  html:not([data-desktop-web="1"]) .bento-hero-sonar-canvas {
     width: 196px !important;
     height: 196px !important;
   }
 }
 
-/* Режим внешнего мини-экрана (Xiaomi 18 Pro Max Rear Screen & Flip Cover Screen) */
+/* 9. Задний / Внешний мини-экран (Xiaomi 18 Pro Max Rear Screen & Flip Cover Screen: <= 340x360 или data-rear-screen="1") */
 #klevRearScreenHud {
   display: none;
   position: fixed;
   inset: 0;
   z-index: 2600;
-  background: var(--bg-app, #0F172A);
-  color: var(--text-primary, #F8FAFC);
+  background: var(--bg, #07111f);
+  background-image: var(--bg-grad);
+  color: var(--text, #f8fafc);
   padding: 10px;
   flex-direction: column;
   align-items: center;
@@ -6702,262 +5537,149 @@ html[data-rear-screen="1"] #klevRearScreenHud {
     })();
   </script>
 </head>
-  <svg id="klevRedesignSvgSprite" xmlns="http://www.w3.org/2000/svg" style="display: none;">
-    <!-- === 9 ИКОНОК ГЛАВНОГО МЕНЮ === -->
-    <!-- 1. Карта (icon-map) -->
+  <!-- СПРАЙТ 26 ВЕКТОРНЫХ ИКОНОК КЛЁВ ПРО 2.0 (v2.9.1 r241 Tactile Glassmorphism: 9 меню + 17 карта) -->
+  <svg id="klevRedesignSvgSprite" xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+    <!-- 9 ИКОНОК МЕНЮ + ИКОНКА СЕТКИ МЕНЮ -->
     <symbol id="icon-map" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
       <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21 3 6"/>
       <line x1="9" y1="3" x2="9" y2="18"/>
       <line x1="15" y1="6" x2="15" y2="21"/>
-      <path d="M12 11.5s2.5-2.2 2.5-4a2.5 2.5 0 0 0-5 0c0 1.8 2.5 4 2.5 4z"/>
-      <circle cx="12" cy="7.5" r="0.8"/>
     </symbol>
-
-    <!-- 2. Погода (icon-weather) -->
     <symbol id="icon-weather" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M17.5 19H9a5 5 0 1 1 4.9-6H17.5a3.5 3.5 0 0 1 0 7z"/>
-      <path d="M15 7a3 3 0 0 1 4.2 3.8"/>
-      <line x1="17" y1="3" x2="17" y2="4.5"/>
-      <line x1="21" y1="7" x2="19.5" y2="7"/>
-      <line x1="20" y1="4" x2="19" y2="5"/>
+      <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>
+      <path d="M12 3v1.5M5.6 5.6l1.1 1.1M3 12h1.5"/>
     </symbol>
-
-    <!-- 3. Прогноз (icon-forecast) -->
     <symbol id="icon-forecast" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M4 20L18 6c1.5-1.5 3-.5 2.5 1.5L19 11"/>
-      <circle cx="7" cy="17" r="1.5"/>
-      <path d="M11 19c1.5-3 3-3 4.5 0s3 3 4.5 0"/>
+      <path d="M4 20C5 11 11 5 20 4"/>
+      <path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3"/>
+      <circle cx="14" cy="16" r="2.2"/>
     </symbol>
-
-    <!-- 4. Чаты (icon-chats) -->
     <symbol id="icon-chats" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M14 9a2 2 0 0 1-2 2H6l-3 3V5a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v4z"/>
-      <path d="M18 9h1a2 2 0 0 1 2 2v9l-3-3h-6a2 2 0 0 1-2-2v-1"/>
-      <circle cx="7" cy="7" r="0.5" fill="currentColor"/>
-      <circle cx="9.5" cy="7" r="0.5" fill="currentColor"/>
-      <circle cx="14" cy="13" r="0.5" fill="currentColor"/>
-      <circle cx="16.5" cy="13" r="0.5" fill="currentColor"/>
+      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
     </symbol>
-
-    <!-- 5. SOS (icon-sos) -->
     <symbol id="icon-sos" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
       <circle cx="12" cy="12" r="9"/>
-      <text x="12" y="14.5" text-anchor="middle" font-size="6.5" font-family="sans-serif" font-weight="600" stroke="none" fill="currentColor">SOS</text>
+      <path d="M8.5 10.5c-.8-.6-2-.2-2 .7 0 1.3 2.5.9 2.5 2.3 0 .9-1.2 1.3-2 .7"/>
+      <circle cx="12" cy="12" r="1.7"/>
+      <path d="M17.5 10.5c-.8-.6-2-.2-2 .7 0 1.3 2.5.9 2.5 2.3 0 .9-1.2 1.3-2 .7"/>
     </symbol>
-
-    <!-- 6. Журнал (icon-journal) -->
     <symbol id="icon-journal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <rect x="6" y="3" width="13" height="18" rx="2"/>
-      <path d="M4 7h2M4 11h2M4 15h2M4 19h2"/>
-      <path d="M13 3v7l2-1.5L17 10V3"/>
+      <rect x="5" y="3" width="14" height="18" rx="2.5"/>
+      <line x1="9" y1="8" x2="15" y2="8"/>
+      <line x1="9" y1="12" x2="15" y2="12"/>
+      <line x1="9" y1="16" x2="13" y2="16"/>
+      <line x1="3" y1="7" x2="5" y2="7"/>
+      <line x1="3" y1="12" x2="5" y2="12"/>
+      <line x1="3" y1="17" x2="5" y2="17"/>
     </symbol>
-
-    <!-- 7. Рыбы (icon-fish) -->
     <symbol id="icon-fish" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M3 12c3.5-4.5 9.5-5 14-1.5L21 8v8l-4-2.5C12.5 17 6.5 16.5 3 12z"/>
-      <path d="M10 8.5c-1 2-1 5 0 7"/>
-      <circle cx="7" cy="11.5" r="0.8" fill="currentColor"/>
+      <path d="M3 12s4-6 10.5-6c4 0 6.8 2.4 8.5 6-1.7 3.6-4.5 6-8.5 6C7 18 3 12 3 12Z"/>
+      <path d="M3 12 1.2 8.8M3 12l-1.8 3.2"/>
+      <circle cx="16.5" cy="10.8" r="1"/>
     </symbol>
-
-    <!-- 8. Календарь (icon-calendar) -->
     <symbol id="icon-calendar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <rect x="4" y="5" width="16" height="16" rx="2"/>
-      <line x1="8" y1="3" x2="8" y2="7"/>
-      <line x1="16" y1="3" x2="16" y2="7"/>
-      <line x1="4" y1="10" x2="20" y2="10"/>
-      <text x="12" y="17.5" text-anchor="middle" font-size="6.5" font-family="sans-serif" font-weight="600" stroke="none" fill="currentColor">17</text>
+      <rect x="3" y="5" width="18" height="16" rx="2.5"/>
+      <line x1="3" y1="10" x2="21" y2="10"/>
+      <line x1="8" y1="3" x2="8" y2="6.5"/>
+      <line x1="16" y1="3" x2="16" y2="6.5"/>
+      <circle cx="8.5" cy="14.5" r="1"/>
+      <circle cx="12" cy="14.5" r="1"/>
+      <circle cx="15.5" cy="14.5" r="1"/>
     </symbol>
-
-    <!-- 9. Настройки (icon-settings) -->
     <symbol id="icon-settings" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
       <circle cx="12" cy="12" r="3"/>
-      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.6.77 1.05 1.41 1.19H21a2 2 0 1 1 0 4h-.09c-.64.14-1.15.59-1.51 1.21z"/>
     </symbol>
-
-    <!-- Иконка 4-й вкладки дока: Меню 3x3 (icon-menu-grid) -->
     <symbol id="icon-menu-grid" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
       <rect x="4" y="4" width="6.5" height="6.5" rx="1.8"/>
-      <rect x="13.5" y="4" width="6.5" height="6.5" rx="1.8" transform="rotate(15 16.75 7.25)"/>
+      <rect x="13.5" y="4" width="6.5" height="6.5" rx="1.8"/>
       <rect x="4" y="13.5" width="6.5" height="6.5" rx="1.8"/>
       <rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.8"/>
     </symbol>
 
-    <!-- === 17 ИКОНОК ИНТЕРФЕЙСА КАРТЫ === -->
-    <!-- 1. GPS (map-gps) -->
+    <!-- 17 ИКОНОК КАРТЫ И ТРАНСПОРТА -->
     <symbol id="map-gps" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
       <circle cx="12" cy="12" r="7"/>
+      <circle cx="12" cy="12" r="2.2"/>
       <line x1="12" y1="2" x2="12" y2="5"/>
       <line x1="12" y1="19" x2="12" y2="22"/>
       <line x1="2" y1="12" x2="5" y2="12"/>
       <line x1="19" y1="12" x2="22" y2="12"/>
-      <polygon points="12 8.5 14.5 15 12 13.5 9.5 15 12 8.5"/>
     </symbol>
-
-    <!-- 2. Компас (map-compass) -->
     <symbol id="map-compass" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
       <circle cx="12" cy="12" r="9"/>
-      <polygon points="15.5 8.5 13.5 13.5 8.5 15.5 10.5 10.5 15.5 8.5"/>
-      <line x1="12" y1="3" x2="12" y2="4.5"/>
-      <line x1="12" y1="19.5" x2="12" y2="21"/>
-      <line x1="3" y1="12" x2="4.5" y2="12"/>
-      <line x1="19.5" y1="12" x2="21" y2="12"/>
+      <polygon points="15.8 8.2 13.5 13.5 8.2 15.8 10.5 10.5 15.8 8.2"/>
     </symbol>
-
-    <!-- 3. Точки на карте (map-pins) -->
     <symbol id="map-pins" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M7.5 11.5s2.5-2.1 2.5-3.8a2.5 2.5 0 0 0-5 0c0 1.7 2.5 3.8 2.5 3.8z"/>
-      <circle cx="7.5" cy="7.7" r="0.6"/>
-      <path d="M16.5 11.5s2.5-2.1 2.5-3.8a2.5 2.5 0 0 0-5 0c0 1.7 2.5 3.8 2.5 3.8z"/>
-      <circle cx="16.5" cy="7.7" r="0.6"/>
-      <path d="M12 19.5s2.8-2.4 2.8-4.3a2.8 2.8 0 0 0-5.6 0c0 1.9 2.8 4.3 2.8 4.3z"/>
-      <circle cx="12" cy="15.2" r="0.7"/>
+      <path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10Z"/>
+      <line x1="12" y1="8.5" x2="12" y2="13.5"/>
+      <line x1="9.5" y1="11" x2="14.5" y2="11"/>
     </symbol>
-
-    <!-- 4. Слои карты (map-layers) -->
     <symbol id="map-layers" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <polygon points="12 3 21 8 12 13 3 8 12 3"/>
-      <polyline points="3 12 12 17 21 12"/>
-      <polyline points="3 16 12 21 21 16"/>
+      <polygon points="12 3 3 8 12 13 21 8 12 3"/>
+      <polyline points="3 13 12 18 21 13"/>
+      <polyline points="3 17.5 12 22.5 21 17.5"/>
     </symbol>
-
-    <!-- 5. Поиск (map-search) -->
     <symbol id="map-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
       <circle cx="11" cy="11" r="7"/>
-      <line x1="20" y1="20" x2="16.2" y2="16.2"/>
+      <line x1="16.2" y1="16.2" x2="21" y2="21"/>
     </symbol>
-
-    <!-- 6. Слип / Спуск лодки (point-slip) -->
     <symbol id="point-slip" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <polygon points="3 18 3 11 16 18 3 18"/>
-      <path d="M9 10.5l8 3.2 2-1.8-7.5-3L9 10.5z"/>
-      <path d="M14 19.5c1.5-.8 3-.8 4.5 0s3 .8 4.5 0"/>
+      <path d="M3 17l18 3"/>
+      <path d="M6 12h11l3 4H8l-2-4Z"/>
+      <path d="M9 12l2-3h4l1 3"/>
     </symbol>
-
-    <!-- 7. Коряга / Бровка / Зацеп (point-snag) -->
     <symbol id="point-snag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M3 10c3-1.2 6 1.2 9 0s6-1.2 9 0"/>
-      <path d="M7 19l5.5-7.5L16 6"/>
-      <path d="M12.5 11.5L9 7.5"/>
-      <path d="M10.5 14.2l5.5 1.8"/>
+      <path d="M3 18c2-1.2 4-1.2 6 0s4 1.2 6 0 4-1.2 6 0"/>
+      <path d="M11 18V7l-4-3M11 12l5-4M14 10l3 2"/>
     </symbol>
-
-    <!-- 8. Стоянка / Подъезд / Лагерь (point-camp) -->
     <symbol id="point-camp" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <rect x="3" y="4" width="7" height="8" rx="1.5"/>
-      <path d="M5.5 9.5V6.5h1.5a1 1 0 0 1 0 2H5.5"/>
-      <path d="M6.5 12v6M4.5 16.5a2.5 2.5 0 0 0 4 0"/>
-      <polygon points="15.5 10 10.5 19 20.5 19 15.5 10"/>
-      <polyline points="14 19 15.5 15.5 17 19"/>
+      <polygon points="12 4 3 19 21 19 12 4"/>
+      <polyline points="9.5 19 12 13.5 14.5 19"/>
     </symbol>
-
-    <!-- 9. Опасность / Промоина / Сеть (point-danger) -->
     <symbol id="point-danger" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M10.3 3.8L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.8a2 2 0 0 0-3.4 0z"/>
+      <polygon points="12 3.5 2.8 19.5 21.2 19.5 12 3.5"/>
       <line x1="12" y1="9" x2="12" y2="14"/>
-      <circle cx="12" cy="17.5" r="0.6" fill="currentColor"/>
+      <circle cx="12" cy="16.8" r="0.8"/>
     </symbol>
-
-    <!-- 10. Клёв / Рабочая яма / Свим (point-spot) -->
     <symbol id="point-spot" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="12" cy="12" r="9"/>
-      <circle cx="12" cy="12" r="6"/>
-      <path d="M8.5 12c1.5-1.8 4-2 5.8-.6L16 10.2v3.6l-1.7-1.2c-1.8 1.4-4.3 1.2-5.8-.6z"/>
+      <path d="M12 4v11a3.5 3.5 0 0 1-7 0v-1"/>
+      <polyline points="5 14 5 11.5 7.5 13"/>
+      <circle cx="12" cy="4" r="1.5"/>
+      <path d="M15 9s2-1.5 4.5 0c-1 1.5-2.5 2-4.5 0Z"/>
     </symbol>
-
-    <!-- 11. Магазин / База (point-shop) -->
     <symbol id="point-shop" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <rect x="4" y="8" width="16" height="11" rx="2"/>
-      <path d="M9 8V6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/>
-      <line x1="4" y1="12.5" x2="20" y2="12.5"/>
-      <rect x="11" y="11" width="2" height="3" rx="0.5"/>
+      <path d="M6 8h12l-1 12H7L6 8Z"/>
+      <path d="M9 8V6a3 3 0 0 1 6 0v2"/>
     </symbol>
-
-    <!-- 12. Погода на карте (map-weather) -->
     <symbol id="map-weather" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M17.5 19H9a5 5 0 1 1 4.9-6H17.5a3.5 3.5 0 0 1 0 7z"/>
-      <path d="M15 7a3 3 0 0 1 4.2 3.8"/>
-      <line x1="17" y1="3" x2="17" y2="4.5"/>
-      <line x1="21" y1="7" x2="19.5" y2="7"/>
+      <path d="M14 14.76V5.5a2.5 2.5 0 0 0-5 0v9.26a4.5 4.5 0 1 0 5 0Z"/>
+      <line x1="11.5" y1="8" x2="11.5" y2="16"/>
     </symbol>
-
-    <!-- 13. Машина (transport-car) -->
     <symbol id="transport-car" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M3 13l1.5-5h9l2.5 3.5H20a1.5 1.5 0 0 1 1.5 1.5v2.5H19m-12 0h8m-12 0H2v-2.5"/>
-      <circle cx="6.5" cy="16" r="2"/>
-      <circle cx="17.5" cy="16" r="2"/>
+      <path d="M5 16l1.5-5.5A2 2 0 0 1 8.4 9h7.2a2 2 0 0 1 1.9 1.5L19 16"/>
+      <rect x="3" y="15" width="18" height="4" rx="1.5"/>
+      <circle cx="7" cy="19" r="1.8"/>
+      <circle cx="17" cy="19" r="1.8"/>
     </symbol>
-
-    <!-- 14. Снегоход / Мотособака (transport-snowmobile) -->
     <symbol id="transport-snowmobile" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M4 15h11l3-4-3.5-2.5-2 2H6L4 15z"/>
-      <rect x="4" y="15" width="10" height="2.5" rx="1.2"/>
-      <path d="M14 17.5h6c1 0 1.5-.8 1.5-1.5"/>
-      <line x1="16" y1="13" x2="17.5" y2="17.5"/>
+      <path d="M4 15h11l3-4-4-2-3 2H6l-2 4Z"/>
+      <path d="M14 9l-2-3H9"/>
+      <rect x="3" y="17" width="11" height="2.5" rx="1.2"/>
+      <path d="M15 19.5h6l1.5-1.5"/>
     </symbol>
-
-    <!-- 15. Лодка (transport-boat) -->
     <symbol id="transport-boat" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M5 12h15l-2.5 4H6.5L5 12z"/>
-      <path d="M3 10h2.5v3.5H3V10z"/>
-      <polygon points="10 12 12.5 8.5 15.5 12 10 12"/>
-      <path d="M3 19c2-1 4-1 6 0s4 1 6 0 4-1 6 0"/>
+      <path d="M3 14h18l-3 4H6l-3-4Z"/>
+      <path d="M12 4v10M12 5l6 6h-6"/>
     </symbol>
-
-    <!-- 16. Велосипед (transport-bicycle) -->
     <symbol id="transport-bicycle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="6" cy="16" r="3.5"/>
-      <circle cx="18" cy="16" r="3.5"/>
-      <polyline points="6 16 10.5 10 15.5 10 18 16"/>
-      <polyline points="10.5 10 12 16 6 16"/>
-      <line x1="9.5" y1="8" x2="11.5" y2="8"/>
-      <polyline points="15 7.5 16.5 7.5 15.5 10"/>
+      <circle cx="6.5" cy="17.5" r="3.2"/>
+      <circle cx="17.5" cy="17.5" r="3.2"/>
+      <path d="M6.5 17.5 10 11h5l2.5 6.5M10 11l2 6.5h-5.5"/>
     </symbol>
-
-    <!-- 17. Пешком (transport-walk) -->
     <symbol id="transport-walk" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="12.5" cy="5" r="2"/>
-      <path d="M10 9.5l2.5-1 2.5 2.5 2 1"/>
-      <path d="M12.5 8.5l-1 5.5-2.5 5"/>
-      <path d="M11.5 14l3 2.5 1 3.5"/>
-      <path d="M9.5 9.5l-1.5 3.5h2"/>
-    </symbol>
-
-    <!-- === ДОПОЛНИТЕЛЬНЫЕ ТЕХНИЧЕСКИЕ ИКОНКИ UI === -->
-    <symbol id="ui-sunrise" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M17 18a5 5 0 0 0-10 0"/>
-      <line x1="12" y1="9" x2="12" y2="11"/>
-      <line x1="4.2" y1="13.2" x2="5.6" y2="14.6"/>
-      <line x1="1" y1="18" x2="23" y2="18"/>
-      <line x1="18.4" y1="14.6" x2="19.8" y2="13.2"/>
-    </symbol>
-    <symbol id="ui-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-      <line x1="3" y1="20" x2="21" y2="20"/>
-    </symbol>
-    <symbol id="ui-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z"/>
-      <circle cx="12" cy="11" r="2.2"/>
-    </symbol>
-    <symbol id="ui-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="12" cy="12" r="9"/>
-      <line x1="12" y1="8" x2="12" y2="16"/>
-      <line x1="8" y1="12" x2="16" y2="12"/>
-    </symbol>
-    <symbol id="ui-arrow-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-      <polyline points="15 18 9 12 15 6"/>
-    </symbol>
-    <symbol id="ui-arrow-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-      <line x1="5" y1="12" x2="19" y2="12"/>
-      <polyline points="13 6 19 12 13 18"/>
-    </symbol>
-    <symbol id="ui-camera" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-      <circle cx="12" cy="13" r="4"/>
-    </symbol>
-    <symbol id="ui-scale" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <rect x="4" y="6" width="16" height="14" rx="2"/>
-      <circle cx="12" cy="13" r="4"/>
-      <line x1="12" y1="13" x2="14" y2="11"/>
+      <circle cx="12" cy="4.5" r="1.8"/>
+      <path d="M10 9.5 12 8l3 2.5 1.8 3M12 8l-1 5.5 3.5 3 1 4.5M11 13.5 8 21"/>
     </symbol>
   </svg>
 <body>
@@ -7783,757 +6505,80 @@ html[data-rear-screen="1"] #klevRearScreenHud {
     <section id="secAdmin" data-route-section="admin" class="section active" aria-label="Панель управления Администратора"></section>
   </main>
 
-  <div class="app-frame" id="klevAppFrame">
-
-
-      <!-- Безопасный стек тостов (bottom: 84px, не перекрывает нижний док 64px) -->
-      <div class="safe-toast-host" id="safeToastHost" aria-live="polite"></div>
-
-      <!-- ГЛАВНЫЙ VIEWPORT ЭКРАНОВ -->
-      <main class="app-viewport" id="appViewport">
-
-        <!-- ====================================================================
-             ЭКРАН 1. «ПРОГНОЗ КЛЁВА» (Точка входа по умолчанию — #sec-forecast)
-             ==================================================================== -->
-        <section class="screen-sec active" id="sec-forecast" data-screen="forecast">
-          <!-- Компактная шапка в 1 строку: только выбор водоёма и даты (переключатель опытности перенесён в Настройки) -->
-          <div class="fc-top-header" style="justify-content:center;">
-            <button type="button" class="pill-btn" id="fcOpenLocationSheetBtn" style="padding:6px 14px;font-size:12.5px;" title="Сменить водоём, населённый пункт или бассейн РФ">
-              <span class="status-dot"></span>
-              <span id="fcCurrentWaterLabel">Река Пур • 18 ноя</span>
-            </button>
-          </div>
-
-          <div class="desktop-bento-grid">
-            <!-- ЛЕВАЯ КОЛОНКА (Hero-зона + Лента видов рыб) -->
-            <div style="display:flex;flex-direction:column;gap:12px;">
-              <div class="glass-panel fc-hero-box">
-                <div class="fc-title-main" id="fcHeroTitle">Прогноз клёва</div>
-                <div class="fc-ice-sub" id="fcIceWaterBadge" style="cursor:pointer;text-decoration:underline;text-underline-offset:3px;" title="Нажмите для перехода в полный раздел Погода">
-                  <span>Лёд: Река ~24 см • Озёра ~32 см • Вода +0.4°C</span>
-                </div>
-
-                <!-- Живой сонарный радар 0-100% (точная копия заставки по темам, в центре только процент и мягкая полупрозрачная градиентная шкала) -->
-                <div class="radial-gauge-wrap">
-                  <canvas id="fcHeroSonarCanvas" width="472" height="472"></canvas>
-                  <div class="radial-gauge-center">
-                    <div class="radial-pct-val" id="fcRadialPctText" style="font-size:38px;font-weight:900;letter-spacing:-1.2px;">78%</div>
-                  </div>
-                </div>
-
-                <!-- Две капсулы окон активности: Утро и Вечер -->
-                <div class="bite-windows-row">
-                  <div class="glass-panel bite-window-pill">
-                    <svg class="k-svg" style="color:var(--accent);"><use href="#ui-sunrise"></use></svg>
-                    <div class="bite-window-meta">
-                      <span class="bite-window-title">Утро</span>
-                      <span class="bite-window-time" id="fcMorningWindowText">06:30–09:00</span>
-                    </div>
-                  </div>
-                  <div class="glass-panel bite-window-pill">
-                    <svg class="k-svg" style="color:var(--accent);"><use href="#ui-moon"></use></svg>
-                    <div class="bite-window-meta">
-                      <span class="bite-window-title">Вечер</span>
-                      <span class="bite-window-time" id="fcEveningWindowText">16:00–18:30</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Компактная горизонтальная лента выбора вида рыбы (без лишних кнопок — справка доступна в разделе «Рыбы») -->
-              <div class="species-strip-wrap" id="fcSpeciesStrip"></div>
-            </div>
-
-            <!-- ПРАВАЯ КОЛОНКА (4 Внутренние вкладки Segmented Control без перегруза скролла) -->
-            <div style="display:flex;flex-direction:column;gap:12px;">
-              <div class="seg-bar" role="tablist" aria-label="Внутренние вкладки прогноза" style="display:grid;grid-template-columns:repeat(4,1fr);">
-                <button type="button" class="seg-btn active" data-fc-subtab="overview">Обзор</button>
-                <button type="button" class="seg-btn" data-fc-subtab="tackle">Снасти</button>
-                <button type="button" class="seg-btn" data-fc-subtab="days">10 дней</button>
-                <button type="button" class="seg-btn" data-fc-subtab="ice">Погода</button>
-              </div>
-
-              <!-- ВКЛАДКА 1.1: ОБЗОР (Почасовой график 00:00-24:00 со скраббером + 8 факторов) -->
-              <div class="fc-subtab-pane" id="fc-pane-overview" style="display:flex;flex-direction:column;gap:12px;">
-                <div class="glass-panel chart-card">
-                  <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
-                    <div class="chart-floating-badge" id="fcScrubHudBadge">08:00 • 758 мм • -14°C • ЮЗ 3 м/с</div>
-                    <span style="font-size:11.5px;font-weight:700;color:var(--accent);" id="fcPolarSunBadge">Восход 08:48 • Закат 14:27</span>
-                  </div>
-
-                  <!-- Интерактивный SVG-график 00:00-24:00 -->
-                  <div class="hourly-svg-wrap" id="fcHourlyChartStage" style="height:105px;">
-                    <svg viewBox="0 0 360 130" width="100%" height="100%" preserveAspectRatio="none">
-                      <defs>
-                        <linearGradient id="fcWaveAreaGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stop-color="#38BDF8" stop-opacity="0.38"/>
-                          <stop offset="100%" stop-color="#38BDF8" stop-opacity="0.02"/>
-                        </linearGradient>
-                      </defs>
-                      <!-- Вертикальные направляющие сетки -->
-                      <g stroke="currentColor" stroke-opacity="0.10" stroke-width="1">
-                        <line x1="0" y1="15" x2="0" y2="120"/>
-                        <line x1="60" y1="15" x2="60" y2="120"/>
-                        <line x1="120" y1="15" x2="120" y2="120"/>
-                        <line x1="180" y1="15" x2="180" y2="120"/>
-                        <line x1="240" y1="15" x2="240" y2="120"/>
-                        <line x1="300" y1="15" x2="300" y2="120"/>
-                        <line x1="360" y1="15" x2="360" y2="120"/>
-                      </g>
-                      <!-- Заливка под волной и кривая клёва -->
-                      <path id="fcWaveAreaPath" d="" fill="url(#fcWaveAreaGrad)"/>
-                      <path id="fcWaveStrokePath" d="" fill="none" stroke="var(--accent)" stroke-width="3" stroke-linecap="round"/>
-                      <!-- Линия и точка скраббера -->
-                      <line id="fcScrubLine" x1="120" y1="10" x2="120" y2="122" stroke="var(--text-primary)" stroke-width="1.8" stroke-opacity="0.75"/>
-                      <circle id="fcScrubDot" cx="120" cy="42" r="5.5" fill="var(--bg-app)" stroke="var(--accent)" stroke-width="3"/>
-                    </svg>
-                  </div>
-
-                  <div class="hourly-time-axis">
-                    <span>00:00</span>
-                    <span>04:00</span>
-                    <span>08:00</span>
-                    <span>12:00</span>
-                    <span>16:00</span>
-                    <span>20:00</span>
-                    <span>24:00</span>
-                  </div>
-
-
-                </div>
-
-                <!-- Рекомендуемая оснастка в выбранный час + 8 факторов Либиха-Шелфорда -->
-                <div class="glass-panel" style="padding:13px 14px;display:flex;flex-direction:column;gap:8px;">
-                  <div style="display:flex;align-items:center;justify-content:space-between;">
-                    <span style="font-size:13px;font-weight:800;">Тактика и 8 факторов в выбранный час</span>
-                    <span style="font-size:11.5px;font-weight:700;color:var(--good);" id="fcHourScoreBadge">Клёв 86%</span>
-                  </div>
-                  <div style="font-size:12.5px;color:var(--text-secondary);line-height:1.45;" id="fcHourRigSummary">
-                    Снасть: Тяжёлая стукалка со дна / Жерлица • Насадка: Ёрш живой или свежая резка тюльки • Глубина: 4.5–6.5 м (русловая бровка).
-                  </div>
-                  <div id="fc8FactorsList" style="display:flex;flex-direction:column;gap:6px;margin-top:4px;"></div>
-                </div>
-
-                <!-- Кнопка перехода к точкам на карте (как на макете ux_forecast.jpg) -->
-                <button type="button" class="cta-full-btn" id="fcShowSpotsOnMapBtn">
-                  <svg class="k-svg"><use href="#ui-pin"></use></svg>
-                  <span>Показать точки на карте</span>
-                </button>
-              </div>
-
-              <!-- ВКЛАДКА 1.2: СНАСТИ И СВИМ (Свим и таймер открываются в сезон открытой воды или по переключателю) -->
-              <div class="fc-subtab-pane" id="fc-pane-tackle" style="display:none;flex-direction:column;gap:12px;">
-                <div class="glass-panel" style="padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
-                  <div>
-                    <div style="font-size:13px;font-weight:800;">Сезон открытой воды (Фидер / Карп)</div>
-                    <div style="font-size:11px;color:var(--text-secondary);" id="fcSeasonSwimHint">Зимой (лёд) карта свима и таймер скрыты</div>
-                  </div>
-                  <label class="klev-switch" aria-label="Режим открытой воды для свима и таймера">
-                    <input type="checkbox" id="fcOpenWaterSwitch">
-                    <span class="klev-switch-slider"></span>
-                  </label>
-                </div>
-
-                <div class="glass-panel" style="padding:14px;display:flex;flex-direction:column;gap:10px;">
-                  <div style="font-size:14px;font-weight:800;">1. Снасть и сезонная насадка</div>
-                  <div style="display:grid;grid-template-columns:1fr;gap:8px;">
-                    <label style="font-size:11.5px;color:var(--text-secondary);font-weight:600;">Метод ловли (адаптивно под лёд/открытую воду):</label>
-                    <select class="form-select" id="fcMethodSelect"></select>
-                    <label style="font-size:11.5px;color:var(--text-secondary);font-weight:600;">Рабочая приманка / насадка:</label>
-                    <select class="form-select" id="fcBaitSelect"></select>
-                  </div>
-                </div>
-
-                <!-- Контейнер Карты свима и Таймера перезаброса (скрыт при ледоставе, активен на открытой воде) -->
-                <div id="fcOpenWaterCarpBlock" style="display:none;flex-direction:column;gap:12px;">
-                <!-- Карта свима и клипса -->
-                <div class="glass-panel" style="padding:14px;display:flex;flex-direction:column;gap:10px;">
-                  <div style="display:flex;align-items:center;justify-content:space-between;">
-                    <span style="font-size:14px;font-weight:800;">2. Карта свима и клипса</span>
-                    <span class="code-tag" id="fcSwimSavedBadge">Клипса: 42 м • 4.5 м</span>
-                  </div>
-                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-                    <div>
-                      <label style="font-size:11px;color:var(--text-secondary);">Дистанция / Клипса (м):</label>
-                      <input type="number" class="form-input" id="fcClipDistInput" value="42" min="2" max="180">
-                    </div>
-                    <div>
-                      <label style="font-size:11px;color:var(--text-secondary);">Рабочая глубина (м):</label>
-                      <input type="number" class="form-input" id="fcSwimDepthInput" value="4.5" step="0.5" min="0.5" max="40">
-                    </div>
-                  </div>
-                  <div>
-                    <label style="font-size:11px;color:var(--text-secondary);">Характер рельефа и дна:</label>
-                    <select class="form-select" id="fcBottomReliefSelect">
-                      <option value="Ракушечник / Русловая бровка">Ракушечник / Русловая бровка</option>
-                      <option value="Закоряженная яма (обратка)">Закоряженная яма (обратка)</option>
-                      <option value="Песчаная коса / Выход из ямы">Песчаная коса / Выход из ямы</option>
-                      <option value="Твёрдый глинистый свал">Твёрдый глинистый свал</option>
-                    </select>
-                  </div>
-                  <button type="button" class="pill-btn" id="fcSaveSwimBtn" style="width:100%;justify-content:center;border-color:var(--accent);">
-                    <span>Запомнить свим и привязать к точке</span>
-                  </button>
-                </div>
-
-                <!-- Таймер перезаброса (10 мин, 15 мин, 45 мин, 2 ч) -->
-                <div class="glass-panel" style="padding:14px;display:flex;flex-direction:column;gap:10px;">
-                  <div style="display:flex;align-items:center;justify-content:space-between;">
-                    <span style="font-size:14px;font-weight:800;">3. Таймер перезаброса / проверки</span>
-                    <span style="font-size:18px;font-weight:900;color:var(--accent);font-variant-numeric:tabular-nums;" id="fcTimerReadout">15:00</span>
-                  </div>
-                  <div class="seg-bar">
-                    <button type="button" class="seg-btn" data-timer-sec="600">10 мин</button>
-                    <button type="button" class="seg-btn active" data-timer-sec="900">15 мин</button>
-                    <button type="button" class="seg-btn" data-timer-sec="2700">45 мин</button>
-                    <button type="button" class="seg-btn" data-timer-sec="7200">2 ч</button>
-                  </div>
-                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-                    <button type="button" class="pill-btn" id="fcTimerToggleBtn" style="border-color:var(--good);color:var(--good);">Старт таймера</button>
-                    <button type="button" class="pill-btn" id="fcTimerResetBtn">Сброс</button>
-                  </div>
-                </div>
-
-                </div>
-                <!-- Быстрые справочники: Монтажи и узлы, Чек-лист, Поделиться -->
-                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
-                  <button type="button" class="pill-btn" id="fcOpenRigsModalBtn">Монтажи и узлы</button>
-                  <button type="button" class="pill-btn" id="fcOpenChecklistModalBtn">Чек-лист</button>
-                  <button type="button" class="pill-btn" id="fcShareTackleBtn">Поделиться</button>
-                </div>
-              </div>
-
-              <!-- ВКЛАДКА 1.3: 10 ДНЕЙ + АРХИВ (2 дня архива с шагом 4 часа + 10 дней прогноза) -->
-              <div class="fc-subtab-pane" id="fc-pane-days" style="display:none;flex-direction:column;gap:12px;">
-                <div style="display:flex;align-items:center;justify-content:space-between;">
-                  <span style="font-size:13px;font-weight:800;">Прогноз на 10 дней и архив</span>
-                </div>
-                <div id="fcDaysCardsList" style="display:flex;flex-direction:column;gap:8px;"></div>
-                <!-- Контейнер архива с шагом 4 часа (открывается при выборе Вчера/Позавчера, как в r239) -->
-                <div class="glass-panel" id="fcArchive4hCard" style="padding:13px;display:none;flex-direction:column;gap:8px;"></div>
-              </div>
-
-              <!-- ВКЛАДКА 1.4: ПОГОДА И ЛЁД (Полная сводка + кнопка разворота экрана Погоды) -->
-              <div class="fc-subtab-pane" id="fc-pane-ice" style="display:none;flex-direction:column;gap:11px;">
-                <button type="button" class="cta-full-btn" id="fcOpenFullWeatherScreenBtn" style="padding:10px 14px;font-size:13px;">
-                  <svg class="k-svg" style="width:18px;height:18px;"><use href="#icon-weather"></use></svg>
-                  <span>Открыть полный экран «Погода» (все 6 карточек)</span>
-                </button>
-                <div class="glass-panel" style="padding:14px;display:flex;flex-direction:column;gap:10px;">
-                  <div style="display:flex;align-items:center;justify-content:space-between;">
-                    <span style="font-size:14px;font-weight:800;">Модель льда Стефана — Быдина (WMO 23358)</span>
-                    <span class="code-tag">Росгидромет D1</span>
-                  </div>
-                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-                    <div class="glass-panel" style="padding:10px 12px;">
-                      <div style="font-size:11px;color:var(--text-secondary);">Река (течение р. Пур)</div>
-                      <div style="font-size:20px;font-weight:800;color:var(--accent);" id="iceRiverCmVal">~24 см</div>
-                      <div style="font-size:11px;color:var(--good);">Пеший выход безопасен</div>
-                    </div>
-                    <div class="glass-panel" style="padding:10px 12px;">
-                      <div style="font-size:11px;color:var(--text-secondary);">Озёра и карьеры</div>
-                      <div style="font-size:20px;font-weight:800;color:var(--good);" id="iceLakeCmVal">~32 см</div>
-                      <div style="font-size:11px;color:var(--good);">Допуск снегохода</div>
-                    </div>
-                  </div>
-                  <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12.5px;font-weight:600;">
-                    <span>Корректировка по снежному покрову (18 см)</span>
-                    <label class="klev-switch" aria-label="Корректировка по снегу">
-                      <input type="checkbox" id="iceSnowCorrectionToggle" checked>
-                      <span class="klev-switch-slider"></span>
-                    </label>
-                  </div>
-                </div>
-
-                <!-- График: Суточный ход атмосферного давления и Барический шок -->
-                <div class="glass-panel" style="padding:14px;display:flex;flex-direction:column;gap:8px;">
-                  <div style="display:flex;align-items:center;justify-content:space-between;">
-                    <span style="font-size:13.5px;font-weight:800;">Суточный ход давления (норма 750 мм)</span>
-                    <span style="font-size:11.5px;font-weight:700;color:var(--good);">Ровный фон (-1 мм/3ч)</span>
-                  </div>
-                  <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px;text-align:center;font-size:11.5px;padding-top:4px;">
-                    <div class="glass-panel" style="padding:7px 4px;"><div style="color:var(--text-secondary);">00:00</div><div style="font-weight:800;">759</div></div>
-                    <div class="glass-panel" style="padding:7px 4px;"><div style="color:var(--text-secondary);">04:00</div><div style="font-weight:800;">759</div></div>
-                    <div class="glass-panel" style="padding:7px 4px;border-color:var(--accent);"><div style="color:var(--accent);">08:00</div><div style="font-weight:800;">758</div></div>
-                    <div class="glass-panel" style="padding:7px 4px;"><div style="color:var(--text-secondary);">12:00</div><div style="font-weight:800;">757</div></div>
-                    <div class="glass-panel" style="padding:7px 4px;"><div style="color:var(--text-secondary);">16:00</div><div style="font-weight:800;">757</div></div>
-                    <div class="glass-panel" style="padding:7px 4px;"><div style="color:var(--text-secondary);">20:00</div><div style="font-weight:800;">756</div></div>
-                  </div>
-                </div>
-
-                <!-- Геомагнитный индекс Kp и Дорожно-штормовая обстановка -->
-                <div class="glass-panel" style="padding:14px;display:flex;flex-direction:column;gap:6px;">
-                  <div style="display:flex;align-items:center;justify-content:space-between;">
-                    <span style="font-size:13.5px;font-weight:800;">Дорожная и штормовая обстановка</span>
-                    <span class="code-tag">Kp = 3 (Спокойно)</span>
-                  </div>
-                  <div style="font-size:12px;color:var(--text-secondary);line-height:1.45;">
-                    Трасса Сургут — Салехард (участок Коротчаево): снежный накат, видимость 8 км, ветер ЮЗ 3–5 м/с, порывы до 8 м/с. Штормовых предупреждений нет.
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- ====================================================================
-             ЭКРАН 2. «КАРТА» (Реальная карта Leaflet + чистый экран без пятен + 6 нижних мини-плашек — #sec-geo)
-             ==================================================================== -->
-        <section class="screen-sec" id="sec-geo" data-screen="geo">
-          <div class="map-stage-container" id="tacticalMapStage">
-            <!-- Реальная интерактивная карта Leaflet -->
-            <div id="realLeafletMap"></div>
-
-            <!-- ВЕРХНЯЯ ПАНЕЛЬ КАРТЫ (Поиск + Погода + Быстрый возврат) -->
-            <div class="map-top-overlay">
-              <div class="map-top-row">
-                <div class="glass-panel map-search-box" style="padding:7px 11px;">
-                  <svg class="k-svg" style="width:17px;height:17px;color:var(--accent);"><use href="#map-search"></use></svg>
-                  <input type="text" id="mapSearchInput" placeholder="Поиск точки, реки, города...">
-                  <span class="status-dot" title="Офлайн-карты ЯНАО активны"></span>
-                </div>
-                <button type="button" class="glass-panel map-weather-pill" id="mapTopWeatherBtn" style="padding:7px 11px;font-size:12px;" title="Открыть сводку погоды и льда">
-                  <svg class="k-svg" style="width:18px;height:18px;color:var(--accent);"><use href="#map-weather"></use></svg>
-                  <span>-14°C</span>
-                </button>
-              </div>
-
-
-            </div>
-
-            <!-- ЛЕВАЯ КНОПКА ТРАНСПОРТА (Компактная, не закрывает карту) -->
-            <div class="map-left-stack">
-              <button type="button" class="pill-btn" id="mapOpenTransportSheetBtn" style="padding:8px 13px;border-color:var(--accent);">
-                <svg class="k-svg" id="mapActiveTransportIcon"><use href="#transport-boat"></use></svg>
-                <span id="mapActiveTransportLabel" style="font-weight:800;">Лодка</span>
-              </button>
-            </div>
-
-            <!-- ПРАВЫЙ СТЕК ИЗ 4 КРУГЛЫХ СТЕКЛЯННЫХ КНОПОК БЕЗ ТЕКСТА (48x48px) -->
-            <div class="map-right-stack" aria-label="Управление картой">
-              <button type="button" class="lens-btn lens-48" id="mapBtnGps" title="GPS: возврат к реальным координатам (±12 м)">
-                <svg><use href="#map-gps"></use></svg>
-              </button>
-              <button type="button" class="lens-btn lens-48 active" id="mapBtnCompass" title="Компас: направление взгляда">
-                <svg><use href="#map-compass"></use></svg>
-              </button>
-              <button type="button" class="lens-btn lens-48" id="mapBtnLayers" title="Слои карты: Топо, Спутник, Ночь, Яндекс">
-                <svg><use href="#map-layers"></use></svg>
-              </button>
-              <button type="button" class="lens-btn lens-48" id="mapBtnAddSpot" title="Добавить точку на карту (6 категорий)">
-                <svg><use href="#ui-plus"></use></svg>
-              </button>
-            </div>
-
-            <!-- НИЖНЯЯ ЛЕНТА ИЗ 6 МИНИ-ПЛАШЕК (Строго 1 короткая надпись на каждой: нажал -> посмотрел в шторке) -->
-            <div class="map-bottom-pills-strip" aria-label="Нижние плашки карты">
-              <button type="button" class="map-single-pill active" id="mapOpenTop10SheetBtn">Клёв 78%</button>
-              <button type="button" class="map-single-pill" id="mapOpenOfflineSheetBtn">База 4.8 км</button>
-              <button type="button" class="map-single-pill" id="mapOpenPinsFilterSheetBtn">Точки (6)</button>
-              <button type="button" class="map-single-pill" id="mapOpenTrackSheetBtn">Трек 0.8м</button>
-              <button type="button" class="map-single-pill" id="mapToggleBathymetryBtn">Глубины</button>
-              <button type="button" class="map-single-pill" id="mapOpenAreaCatchSheetBtn">Улов 120км</button>
-            </div>
-          </div>
-        </section>
-
-        <!-- ====================================================================
-             ЭКРАН 3. «ЖУРНАЛ УЛОВОВ И ИИ-КАЛИБРОВКА» (#sec-log)
-             ==================================================================== -->
-        <section class="screen-sec" id="sec-log" data-screen="log">
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
-            <h1 style="font-size:24px;font-weight:900;margin:0;letter-spacing:-0.5px;">Журнал</h1>
-            <div style="display:flex;align-items:center;gap:6px;">
-              <button type="button" class="pill-btn" id="logOpenAiScannerBtn" title="Распознать рыбу и вес по фото (Гибридный ИИ Gemini Vision)">
-                <svg class="k-svg" style="width:17px;height:17px;"><use href="#ui-camera"></use></svg>
-                <span>По фото (ИИ)</span>
-              </button>
-              <button type="button" class="pill-btn" id="logAddBlankTripBtn" title="Зафиксировать выезд без улова для калибровки прогноза">
-                <span>0 поклёвок</span>
-              </button>
-              <button type="button" class="pill-btn active" id="logOpenAddCatchModalBtn">
-                <span>+ Запись</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- 3 KPI-карточки (как на макете ux_journal.jpg) -->
-          <div class="journal-kpi-grid">
-            <div class="glass-panel journal-kpi-card">
-              <span class="journal-kpi-ico"><svg class="k-svg"><use href="#icon-forecast"></use></svg></span>
-              <div class="journal-kpi-val" id="logKpiTripsVal">18</div>
-              <div class="journal-kpi-lbl">выездов (15/3)</div>
-            </div>
-            <div class="glass-panel journal-kpi-card">
-              <span class="journal-kpi-ico"><svg class="k-svg"><use href="#ui-scale"></use></svg></span>
-              <div class="journal-kpi-val" id="logKpiWeightVal">42.5 кг</div>
-              <div class="journal-kpi-lbl">общий улов</div>
-            </div>
-            <div class="glass-panel journal-kpi-card">
-              <span class="journal-kpi-ico"><svg class="k-svg"><use href="#icon-fish"></use></svg></span>
-              <div class="journal-kpi-val" id="logKpiPressVal">758 мм</div>
-              <div class="journal-kpi-lbl">лучший клёв</div>
-            </div>
-          </div>
-
-          <!-- Фильтры и Резервное копирование (.JSON с фото и точками, .CSV) -->
-          <div class="glass-panel" style="padding:11px 13px;display:flex;flex-direction:column;gap:8px;">
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;">
-              <div style="display:flex;gap:6px;flex-wrap:wrap;">
-                <select class="form-select" id="logFilterFishSelect" style="width:auto;padding:5px 9px;font-size:11.5px;">
-                  <option value="all">Все виды</option>
-                  <option value="pike">Щука</option>
-                  <option value="perch">Окунь</option>
-                  <option value="burbot">Налим</option>
-                  <option value="chir">Чир</option>
-                </select>
-                <select class="form-select" id="logFilterWeatherSelect" style="width:auto;padding:5px 9px;font-size:11.5px;">
-                  <option value="all">Любая погода</option>
-                  <option value="frost">Мороз / Лёд</option>
-                  <option value="stable">Ровное давление</option>
-                </select>
-                <select class="form-select" id="logFilterViewSelect" style="width:auto;padding:5px 9px;font-size:11.5px;">
-                  <option value="active">Активные</option>
-                  <option value="trash">Корзина</option>
-                </select>
-              </div>
-              <div style="display:flex;gap:6px;flex-wrap:wrap;">
-                <button type="button" class="pill-btn" style="padding:5px 9px;font-size:11.5px;" id="logExportJsonBtn">Архив .JSON</button>
-                <button type="button" class="pill-btn" style="padding:5px 9px;font-size:11.5px;" id="logExportCsvBtn">Экспорт .CSV</button>
-                <button type="button" class="pill-btn" style="padding:5px 9px;font-size:11.5px;" id="logImportJsonBtn">Загрузить с устройства</button>
-              </div>
-              <div style="width:100%;font-size:11.5px;color:var(--text-secondary);padding-top:4px;border-top:1px solid var(--border-subtle);">
-                Рабочие приманки: <b style="color:var(--accent);">Стукалка + ёрш, Балансир 7см, Раттлин 75мм</b> • Точность прогноза ИИ: <b style="color:var(--good);">91.6%</b>
-              </div>
-            </div>
-          </div>
-
-          <!-- Список записей уловов -->
-          <div id="logEntriesContainer" style="display:flex;flex-direction:column;gap:10px;"></div>
-        </section>
-
-        <!-- Компактное всплывающее Меню (не перекрывает весь экран, без дублей Карта/Прогноз/Журнал/SOS-иконки) -->
-        <div class="compact-menu-backdrop" id="compactMenuBackdrop" role="dialog" aria-label="Быстрое меню инструментов">
-          <div class="compact-menu-popover">
-            <div class="sheet-grabber"></div>
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-              <span style="font-size:13px;font-weight:800;letter-spacing:0.4px;">ИНСТРУМЕНТЫ И РАЗДЕЛЫ</span>
-              <span style="font-size:11px;color:var(--text-secondary);display:inline-flex;align-items:center;gap:5px;">
-                <span class="status-dot"></span><span>Оффлайн ЯНАО</span>
-              </span>
-            </div>
-
-            <!-- 5 уникальных разделов без дублирования нижнего дока (Погода, Чаты, Рыбы, Календарь, Настройки) -->
-            <div class="menu-grid-5" role="navigation" aria-label="Инструменты">
-              <div class="lens-item-wrap" data-hub-action="weather-sub">
-                <button type="button" class="lens-btn" aria-label="Погода">
-                  <svg><use href="#icon-weather"></use></svg>
-                </button>
-                <span class="lens-label">Погода</span>
-              </div>
-
-              <div class="lens-item-wrap" data-hub-action="sub-chats">
-                <button type="button" class="lens-btn" aria-label="Чаты и Круг">
-                  <svg><use href="#icon-chats"></use></svg>
-                </button>
-                <span class="lens-label">Чаты</span>
-              </div>
-
-              <div class="lens-item-wrap" data-hub-action="sub-fish">
-                <button type="button" class="lens-btn" aria-label="Рыбы">
-                  <svg><use href="#icon-fish"></use></svg>
-                </button>
-                <span class="lens-label">Рыбы</span>
-              </div>
-
-              <div class="lens-item-wrap" data-hub-action="sub-calendar">
-                <button type="button" class="lens-btn" aria-label="Календарь">
-                  <svg><use href="#icon-calendar"></use></svg>
-                </button>
-                <span class="lens-label">Календарь</span>
-              </div>
-
-              <div class="lens-item-wrap" data-hub-action="sub-settings">
-                <button type="button" class="lens-btn" aria-label="Настройки">
-                  <svg><use href="#icon-settings"></use></svg>
-                </button>
-                <span class="lens-label">Настройки</span>
-              </div>
-            </div>
-
-            <!-- Компактный ряд переключения Темы и Режима стекла -->
-            <div style="display:grid;grid-template-columns:1.45fr 1fr;gap:6px;">
-              <div class="seg-bar" aria-label="Выбор темы">
-                <button type="button" class="seg-btn active" data-menu-theme="dark">Тёмная</button>
-                <button type="button" class="seg-btn" data-menu-theme="light">Светлая</button>
-                <button type="button" class="seg-btn" data-menu-theme="contrast">OLED</button>
-              </div>
-              <div class="seg-bar" aria-label="Режим стекла">
-                <button type="button" class="seg-btn active" data-menu-glass="on">Стекло</button>
-                <button type="button" class="seg-btn" data-menu-glass="off">Обычный</button>
-              </div>
-            </div>
-
-            <!-- Защищённый ползунок SOS: работает И свайпом/перетаскиванием вправо, И удержанием 2 сек -->
-            <div class="sos-hold-track" id="sosHoldSlider" role="button" tabindex="0" aria-label="Свайп вправо или удержание 2 секунды для SOS" style="height:48px;">
-              <div class="sos-hold-progress" id="sosHoldProgressFill"></div>
-              <div class="sos-hold-knob" id="sosHoldKnob" style="width:38px;height:38px;transition:transform 0.08s linear;">
-                <svg class="k-svg" style="width:18px;height:18px;"><use href="#ui-arrow-right"></use></svg>
-              </div>
-              <div class="sos-hold-text" id="sosHoldStatusText" style="font-size:12.5px;">Свайп вправо или 2 сек для SOS</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- ====================================================================
-             ПОЛНЫЙ ЭКРАН «ПОГОДА» (100% данных weather.module.js в новом дизайне — #sec-sub-weather)
-             ==================================================================== -->
-        <section class="screen-sec" id="sec-sub-weather" data-screen="sub-weather">
-          <!-- Закреплённая верхняя панель с умной кнопкой «< Назад» (возвращает в Прогноз, Карту или Меню) -->
-          <div class="subscreen-nav-bar" style="position:sticky;top:0;z-index:80;background:var(--bg-app);padding:6px 0 8px;">
-            <button type="button" class="pill-btn" id="weatherSmartBackBtn">
-              <svg class="k-svg" style="width:16px;height:16px;"><use href="#ui-arrow-left"></use></svg>
-              <span id="weatherSmartBackLbl">Назад</span>
-            </button>
-            <span style="font-size:14.5px;font-weight:800;">Погода и Гидрология</span>
-            <button type="button" class="pill-btn" id="weatherRefreshBtn" style="padding:5px 10px;font-size:11.5px;">Обновить</button>
-          </div>
-
-          <!-- Горизонтальная лента быстрого выбора дня с температурами -->
-          <div class="species-strip-wrap" id="wxFullDaysStrip"></div>
-
-          <!--Контейнер всех 6 карточек Погоды (рендерится динамически под выбранный водоём и день) -->
-          <div id="wxFullCardsMount" style="display:flex;flex-direction:column;gap:11px;"></div>
-        </section>
-
-        <!-- ====================================================================
-             ВЛОЖЕННЫЙ РАЗДЕЛ 4.1: «КРУГ И ЧАТЫ» (#sec-sub-chats)
-             ==================================================================== -->
-        <section class="screen-sec" id="sec-sub-chats" data-screen="sub-chats">
-          <div class="subscreen-nav-bar">
-            <button type="button" class="pill-btn" data-back-to="menu">
-              <svg class="k-svg" style="width:16px;height:16px;"><use href="#ui-arrow-left"></use></svg>
-              <span>Меню</span>
-            </button>
-            <span style="font-size:15px;font-weight:800;">Круг (±5 км) и Чаты</span>
-            <span class="code-tag">E2E1 • D1</span>
-          </div>
-
-          <!-- Радар Круг и Ключ Экипажа (80 бит Base32) -->
-          <div class="glass-panel" style="padding:14px;display:flex;flex-direction:column;gap:10px;">
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
-              <div>
-                <div style="font-size:13.5px;font-weight:800;">Позывной: Север-89 • ID: FP_89VIP089</div>
-                <div style="font-size:11.5px;color:var(--text-secondary);">Ключ экипажа (80 бит): <span class="code-tag" id="crewKeyDisplay">KP-89NV-UREN-2026-X7A9</span></div>
-              </div>
-              <button type="button" class="pill-btn" id="circleRefreshRadarBtn" style="padding:6px 12px;font-size:12px;">Обновить радар</button>
-            </div>
-
-            <!-- Фильтры сигналов за 72 часа -->
-            <div class="seg-bar" id="circleSignalsFilterBar">
-              <button type="button" class="seg-btn active" data-circle-filter="all">Все (72ч)</button>
-              <button type="button" class="seg-btn" data-circle-filter="circle">Круг ±5км</button>
-              <button type="button" class="seg-btn" data-circle-filter="crew">Экипаж</button>
-              <button type="button" class="seg-btn" data-circle-filter="sos">SOS</button>
-            </div>
-
-            <div id="circleSignalsList" style="display:flex;flex-direction:column;gap:8px;"></div>
-          </div>
-
-          <!-- Каналы чатов (Регион 89 ЯНАО, Чат экипажа, Личный диалог по ID, Поддержка) -->
-          <div class="glass-panel" style="padding:14px;display:flex;flex-direction:column;gap:10px;">
-            <div style="font-size:14px;font-weight:800;">Каналы связи (Транзитный E2E-релей D1)</div>
-            <div class="seg-bar" id="chatChannelTabs">
-              <button type="button" class="seg-btn active" data-chat-chan="reg89">Регион 89 ЯНАО</button>
-              <button type="button" class="seg-btn" data-chat-chan="crew">Экипаж</button>
-              <button type="button" class="seg-btn" data-chat-chan="dm">Диалог по ID</button>
-              <button type="button" class="seg-btn" data-chat-chan="support">Поддержка</button>
-            </div>
-            <div id="chatMessagesBox" style="display:flex;flex-direction:column;gap:8px;max-height:210px;overflow-y:auto;padding:4px 0;"></div>
-            <div style="display:flex;gap:8px;">
-              <input type="text" class="form-input" id="chatMessageInput" placeholder="Сообщение в защищённый канал (экранирование esc())...">
-              <button type="button" class="pill-btn active" id="chatSendMsgBtn">Отправить</button>
-            </div>
-          </div>
-        </section>
-
-        <!-- ====================================================================
-             ВЛОЖЕННЫЙ РАЗДЕЛ 4.2: «SOS-ЦЕНТР И АВТО-SOS» (#sec-sub-sos)
-             ==================================================================== -->
-        <section class="screen-sec" id="sec-sub-sos" data-screen="sub-sos">
-          <div class="subscreen-nav-bar">
-            <button type="button" class="pill-btn" data-back-to="menu">
-              <svg class="k-svg" style="width:16px;height:16px;"><use href="#ui-arrow-left"></use></svg>
-              <span>Меню</span>
-            </button>
-            <span style="font-size:15px;font-weight:800;color:var(--bad);">Экстренный SOS-центр</span>
-            <span class="code-tag">FP_89VIP089</span>
-          </div>
-
-          <div class="glass-panel" style="padding:14px;border-color:rgba(239,68,68,0.55);display:flex;flex-direction:column;gap:10px;">
-            <div style="display:flex;align-items:center;justify-content:space-between;">
-              <span style="font-size:13.5px;font-weight:800;">Автопривязка координат и Рыболовного ID</span>
-              <span class="code-tag" style="color:#FCA5A5;">66.0833°N, 76.6800°E (±12 м)</span>
-            </div>
-
-            <label style="font-size:12px;font-weight:700;color:var(--text-secondary);">Причина сигнала бедствия:</label>
-            <select class="form-select" id="sosReasonSelect">
-              <option value="Поломка мотора / техники (снегоход, лодка)">Поломка мотора / техники (снегоход, лодка)</option>
-              <option value="Наледь / Промоина / Опасный лёд">Наледь / Промоина / Опасный лёд</option>
-              <option value="Нужна буксировка / закончилось топливо">Нужна буксировка / закончилось топливо</option>
-              <option value="Травма / Требуется медпомощь">Травма / Требуется медпомощь</option>
-            </select>
-
-            <input type="text" class="form-input" id="sosCommentInput" value="Район стрелки р. Пур и Седэяхи, у береговой вешки, 2 человека">
-
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px;">
-              <button type="button" class="pill-btn" id="sosSendCircleBtn" style="border-color:var(--bad);color:#FCA5A5;justify-content:center;">В Круг (±10 км)</button>
-              <button type="button" class="pill-btn" id="sosSendCrewBtn" style="border-color:var(--warn);color:#FCD34D;justify-content:center;">В Экипаж (72 ч)</button>
-              <button type="button" class="pill-btn" id="sosSendTgBtn" style="border-color:var(--accent);justify-content:center;">В Telegram-бот</button>
-              <button type="button" class="pill-btn" id="sosCopyCoordsBtn" style="justify-content:center;">Скопировать GPS</button>
-            </div>
-
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;padding-top:6px;border-top:1px solid var(--border-subtle);">
-              <button type="button" class="pill-btn" id="sosCall112Btn" style="justify-content:center;font-weight:800;">Экстренный вызов 112</button>
-              <button type="button" class="pill-btn" id="sosOpenAfskModemBtn" style="justify-content:center;">Авто-SOS / Радиомодем AFSK</button>
-            </div>
-          </div>
-        </section>
-
-        <!-- ====================================================================
-             ВЛОЖЕННЫЙ РАЗДЕЛ 4.3: «ИХТИОБАЗА (115 ВИДОВ РЫБ РФ)» (#sec-sub-fish)
-             ==================================================================== -->
-        <section class="screen-sec" id="sec-sub-fish" data-screen="sub-fish">
-          <div class="subscreen-nav-bar">
-            <button type="button" class="pill-btn" data-back-to="menu">
-              <svg class="k-svg" style="width:16px;height:16px;"><use href="#ui-arrow-left"></use></svg>
-              <span>Меню</span>
-            </button>
-            <span style="font-size:15px;font-weight:800;">Ихтиобаза (115 видов РФ)</span>
-            <button type="button" class="pill-btn" style="padding:5px 10px;font-size:11.5px;" id="fishSubOpenScannerBtn">По фото (ИИ)</button>
-          </div>
-
-          <div class="glass-panel" style="padding:12px;display:flex;flex-direction:column;gap:8px;">
-            <input type="text" class="form-input" id="fishAtlasSearchInput" placeholder="Поиск по названию, латыни или народному имени (щёкур, сорога, сырок)...">
-            <div class="seg-bar" id="fishAtlasCatBar">
-              <button type="button" class="seg-btn active" data-fish-cat="all">Все (115 РФ)</button>
-              <button type="button" class="seg-btn" data-fish-cat="predator">Хищные</button>
-              <button type="button" class="seg-btn" data-fish-cat="peace">Мирные</button>
-              <button type="button" class="seg-btn" data-fish-cat="salmonid">Сиговые</button>
-              <button type="button" class="seg-btn" data-fish-cat="fav">Избранное</button>
-            </div>
-          </div>
-
-          <div id="fishAtlasGrid" style="display:flex;flex-direction:column;gap:10px;"></div>
-        </section>
-
-        <!-- ====================================================================
-             ВЛОЖЕННЫЙ РАЗДЕЛ 4.4: «ГОДОВОЙ БИО-КАЛЕНДАРЬ И НЕРЕСТ» (#sec-sub-calendar)
-             ==================================================================== -->
-        <section class="screen-sec" id="sec-sub-calendar" data-screen="sub-calendar">
-          <div class="subscreen-nav-bar">
-            <button type="button" class="pill-btn" data-back-to="menu">
-              <svg class="k-svg" style="width:16px;height:16px;"><use href="#ui-arrow-left"></use></svg>
-              <span>Меню</span>
-            </button>
-            <span style="font-size:15px;font-weight:800;">Годовой био-календарь</span>
-            <span class="code-tag">Обь-Тазовский</span>
-          </div>
-
-          <div class="seg-bar" id="calModeBar">
-            <button type="button" class="seg-btn active" data-cal-mode="single">Одна рыба (12 мес.)</button>
-            <button type="button" class="seg-btn" data-cal-mode="compare">Сравнить 3 вида</button>
-          </div>
-
-          <div id="calendarContentMount" style="display:flex;flex-direction:column;gap:12px;"></div>
-        </section>
-
-        <!-- ====================================================================
-             ВЛОЖЕННЫЙ РАЗДЕЛ 4.5: «НАСТРОЙКИ ПРИЛОЖЕНИЯ (4 РАЗДЕЛА) + АДМИН» (#sec-sub-settings)
-             ==================================================================== -->
-        <section class="screen-sec" id="sec-sub-settings" data-screen="sub-settings">
-          <div class="subscreen-nav-bar">
-            <button type="button" class="pill-btn" data-back-to="menu">
-              <svg class="k-svg" style="width:16px;height:16px;"><use href="#ui-arrow-left"></use></svg>
-              <span>Меню</span>
-            </button>
-            <span style="font-size:15px;font-weight:800;">Настройки и Профиль</span>
-            <span class="code-tag">v2.9.1 r241</span>
-          </div>
-
-          <!-- 4 раздела настроек по ТЗ + 5-я вкладка Админ-контур kp-control-89 -->
-          <div class="seg-bar" id="settingsSubTabs" style="flex-wrap:wrap;">
-            <button type="button" class="seg-btn active" data-set-tab="profile">1. Профиль·ID</button>
-            <button type="button" class="seg-btn" data-set-tab="fishing">2. Рыбалка</button>
-            <button type="button" class="seg-btn" data-set-tab="app">3. Веса·Звук</button>
-            <button type="button" class="seg-btn" data-set-tab="offgrid">4. Авто-SOS</button>
-            <button type="button" class="seg-btn" data-set-tab="admin">5. Админ D1</button>
-          </div>
-
-          <div id="settingsTabContentMount" style="display:flex;flex-direction:column;gap:12px;"></div>
-        </section>
-
-      </main>
-
-      <!-- ====================================================================
-           НИЖНИЙ ТАБ-БАР (4 МОНОХРОМНЫЕ ИКОНКИ — height: 64px)
-           1. Прогноз (#icon-forecast), 2. Карта (#icon-map), 3. Журнал (#icon-journal), 4. Меню (#icon-menu-grid)
-           ==================================================================== -->
-      <nav class="bottom-dock" aria-label="Главное нижнее меню (4 вкладки)">
-        <button type="button" class="dock-tab-btn active" data-dock-target="forecast" aria-label="Прогноз клёва">
-          <svg><use href="#icon-forecast"></use></svg>
-          <span class="dock-tab-lbl">Прогноз</span>
-        </button>
-        <button type="button" class="dock-tab-btn" data-dock-target="geo" aria-label="Карта и навигация">
-          <svg><use href="#icon-map"></use></svg>
-          <span class="dock-tab-lbl">Карта</span>
-        </button>
-        <button type="button" class="dock-tab-btn" data-dock-target="log" aria-label="Журнал уловов">
-          <svg><use href="#icon-journal"></use></svg>
-          <span class="dock-tab-lbl">Журнал</span>
-        </button>
-        <button type="button" class="dock-tab-btn" data-dock-target="menu" aria-label="Меню и инструменты 3 на 3">
-          <svg><use href="#icon-menu-grid"></use></svg>
-          <span class="dock-tab-lbl">Меню</span>
-        </button>
-      </nav>
-
-      <!-- ====================================================================
-           КОНТЕКСТНЫЕ ШТОРКИ (BOTTOM SHEETS) И МОДАЛЬНЫЕ ОКНА ВНУТРИ ПРИЛОЖЕНИЯ
-           ==================================================================== -->
-      <div class="sheet-backdrop" id="appSheetBackdrop" role="dialog" aria-modal="true">
-        <div class="bottom-sheet-panel" id="appSheetPanel">
-          <div class="sheet-grabber"></div>
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-            <span style="font-size:15.5px;font-weight:800;" id="appSheetTitle">Детали</span>
-            <button type="button" class="pill-btn" id="appSheetCloseBtn" style="padding:4px 11px;font-size:12px;">Закрыть</button>
-          </div>
-          <div id="appSheetBody" style="display:flex;flex-direction:column;gap:10px;"></div>
+  <!-- КОМПАКТНОЕ ВСПЛЫВАЮЩЕЕ МЕНЮ v2.9.1 (5 уникальных разделов без дублей нижнего дока + гибридный ползунок SOS) -->
+  <div id="klevCompactMenuBackdrop" aria-hidden="true">
+    <div class="klev-compact-menu-sheet" role="dialog" aria-label="Меню и инструменты">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+        <span style="font-size:12px;font-weight:900;letter-spacing:0.04em;color:var(--accent);">МЕНЮ И ИНСТРУМЕНТЫ</span>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <button type="button" class="btn btn-sm" id="klevMenuRearScreenToggleBtn" style="min-height:26px;padding:2px 8px;font-size:10.5px;font-weight:800;" title="Режим внешнего мини-экрана (Xiaomi 18 Pro Max / Flip)">Мини-экран</button>
+          <button type="button" class="btn btn-sm" id="klevCompactMenuCloseBtn" style="min-height:26px;padding:2px 8px;font-size:12px;font-weight:900;" aria-label="Закрыть меню">&times;</button>
         </div>
       </div>
+
+      <!-- Быстрые переключатели Темы и Режима стекла -->
+      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;">
+        <button type="button" class="btn btn-sm" data-klev-menu-theme="dark" style="min-height:30px;font-size:11px;font-weight:800;">Тёмная</button>
+        <button type="button" class="btn btn-sm" data-klev-menu-theme="light" style="min-height:30px;font-size:11px;font-weight:800;">Светлая</button>
+        <button type="button" class="btn btn-sm" data-klev-menu-theme="contrast" style="min-height:30px;font-size:11px;font-weight:800;">Контраст</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;">
+        <button type="button" class="btn btn-sm" data-klev-menu-glass="1" style="min-height:28px;font-size:11px;font-weight:800;">Стекло (Glass)</button>
+        <button type="button" class="btn btn-sm" data-klev-menu-glass="0" style="min-height:28px;font-size:11px;font-weight:800;">Обычный (Tactile)</button>
+      </div>
+
+      <!-- 5 уникальных разделов (без дублей Карта / Прогноз / Журнал / центральной кнопки SOS) -->
+      <div class="klev-compact-menu-grid5">
+        <button type="button" class="klev-compact-menu-item" data-klev-menu-route="weather">
+          <span class="klev-compact-menu-ico"><svg viewBox="0 0 24 24"><use href="#icon-weather"/></svg></span>
+          <span>Погода</span>
+        </button>
+        <button type="button" class="klev-compact-menu-item" data-klev-menu-route="chats">
+          <span class="klev-compact-menu-ico"><svg viewBox="0 0 24 24"><use href="#icon-chats"/></svg></span>
+          <span>Чаты</span>
+        </button>
+        <button type="button" class="klev-compact-menu-item" data-klev-menu-route="fish">
+          <span class="klev-compact-menu-ico"><svg viewBox="0 0 24 24"><use href="#icon-fish"/></svg></span>
+          <span>Рыбы</span>
+        </button>
+        <button type="button" class="klev-compact-menu-item" data-klev-menu-route="calendar">
+          <span class="klev-compact-menu-ico"><svg viewBox="0 0 24 24"><use href="#icon-calendar"/></svg></span>
+          <span>Календарь</span>
+        </button>
+        <button type="button" class="klev-compact-menu-item" data-klev-menu-action="settings">
+          <span class="klev-compact-menu-ico"><svg viewBox="0 0 24 24"><use href="#icon-settings"/></svg></span>
+          <span>Настройки</span>
+        </button>
+      </div>
+
+      <!-- Гибридный защищённый ползунок SOS (свайп вправо ИЛИ удержание 2 сек) -->
+      <div class="klev-hybrid-sos-track" id="klevHybridSosTrack" role="slider" aria-label="Экстренный сигнал SOS: свайп вправо или удержание 2 секунды" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <div class="klev-hybrid-sos-fill" id="klevHybridSosFill"></div>
+        <div class="klev-hybrid-sos-knob" id="klevHybridSosKnob">SOS</div>
+        <div class="klev-hybrid-sos-label" id="klevHybridSosLabel">Свайп вправо или 2 сек для SOS</div>
+      </div>
     </div>
+  </div>
 
   <!-- РЕЖИМ ЗАДНЕГО / ВНЕШНЕГО МИНИ-ЭКРАНА (Xiaomi 18 Pro Max Rear Screen & Flip Cover Screen) -->
   <div id="klevRearScreenHud" aria-label="Мини-экран Клёв ПРО 2.0">
     <div style="width:100%;display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:11px;font-weight:800;">
-      <span id="klevRearLocText" style="color:var(--accent);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Река Пур</span>
-      <button type="button" class="pill-btn" id="klevRearExitBtn" style="min-height:22px;padding:2px 8px;font-size:10px;font-weight:800;">На основной</button>
+      <span id="klevRearLocText" style="color:var(--accent);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Водоём РФ</span>
+      <button type="button" class="btn btn-sm" id="klevRearExitBtn" style="min-height:22px;padding:1px 7px;font-size:10px;font-weight:800;">На основной</button>
     </div>
     <div style="position:relative;width:138px;height:138px;display:flex;align-items:center;justify-content:center;margin:2px auto;">
       <canvas id="klevRearSonarCanvas" width="276" height="276" style="width:138px;height:138px;display:block;"></canvas>
-      <div id="klevRearPctText" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:900;pointer-events:none;">84%</div>
+      <div id="klevRearPctText" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:900;pointer-events:none;">78%</div>
     </div>
     <div style="width:100%;display:flex;flex-direction:column;gap:3px;">
-      <div id="klevRearFishAndWin" style="font-size:12px;font-weight:900;">Налим • Пик 17:00–23:30</div>
-      <div id="klevRearWaterIce" style="font-size:10.5px;color:var(--text-secondary);font-weight:800;">Вода +0.4°C • Лёд ~24 см</div>
+      <div id="klevRearFishAndWin" style="font-size:12px;font-weight:900;">Щука • Пик 07:00–10:00</div>
+      <div id="klevRearWaterIce" style="font-size:10.5px;color:var(--muted);font-weight:800;">Вода +0.4°C • Лёд ~24 см</div>
     </div>
     <div style="width:100%;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;">
-      <button type="button" class="pill-btn active" id="klevRearNextFishBtn" style="min-height:28px;font-size:10.5px;font-weight:800;">Сменить рыбу</button>
-      <button type="button" class="pill-btn" id="klevRearQuickSosBtn" style="min-height:28px;font-size:10.5px;font-weight:900;border-color:var(--bad);color:var(--bad);">SOS на воде</button>
+      <button type="button" class="btn btn-sm btn-accent" id="klevRearNextFishBtn" style="min-height:28px;font-size:10.5px;font-weight:800;">Сменить рыбу</button>
+      <button type="button" class="btn btn-sm" id="klevRearQuickSosBtn" style="min-height:28px;font-size:10.5px;font-weight:900;border-color:var(--bad);color:var(--bad);">SOS на воде</button>
     </div>
   </div>
-  <!-- Совместимые ID для автотестов -->
-  <div id="klevCompactMenuBackdrop" style="display:none;" aria-hidden="true"><div id="klevHybridSosTrack"></div></div>
 
   <script id="klevBundledAppRuntime" src="app-runtime.js?v=2.9.1-r241"></script>
 </body>

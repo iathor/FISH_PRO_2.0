@@ -1499,3176 +1499,420 @@ html[data-liquid-glass="0"] .bottom-nav-inner {
   text-size-adjust: 100% !important;
 }
 
-    /* ==========================================================================
-       1. СИСТЕМА ДИЗАЙН-ТОКЕНОВ ИЗ ПАПКИ FISHING/UX_UI/ (Tactile Glassmorphism)
-       ========================================================================== */
-    :root {
-      --radius-pill: 9999px;
-      --radius-card: 20px;
-      --radius-md: 14px;
-      --radius-sm: 10px;
-      --blur-glass: blur(14px);
-      --stroke-icon: 1.6px;
-      --toast-bottom: 84px;
-      --font-ui: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-      --fs-xs: 12px;
-      --fs-sm: 13.5px;
-      --fs-md: 15.5px;
-      --fs-lg: 18px;
-      --good: #10B981;
-      --warn: #F59E0B;
-      --bad: #EF4444;
-      --info: #38BDF8;
-    }
-
-    /* А. ТЁМНАЯ ТЕМА (DARK MODE — data-theme="dark") */
-    [data-theme="dark"] {
-      --bg-app: #0F172A;
-      --bg-outer: #070C17;
-      --bg-surface: linear-gradient(145deg, #1E293B, #131C2E);
-      --bg-surface-solid: #172133;
-      --bg-glass: radial-gradient(circle at 30% 25%, rgba(56, 189, 248, 0.18), rgba(15, 23, 42, 0.72));
-      --bg-glass-card: linear-gradient(155deg, rgba(30, 41, 59, 0.78), rgba(15, 23, 42, 0.86));
-      --border-tactile: rgba(255, 255, 255, 0.08);
-      --border-glass: rgba(56, 189, 248, 0.45);
-      --border-subtle: rgba(148, 163, 184, 0.16);
-      --shadow-tactile: 0 6px 14px rgba(0, 0, 0, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.12);
-      --shadow-glass: 0 0 18px rgba(56, 189, 248, 0.25), inset 0 1px 2px rgba(255, 255, 255, 0.32), inset 0 -4px 10px rgba(56, 189, 248, 0.16);
-      --text-primary: #F8FAFC;
-      --text-secondary: #94A3B8;
-      --text-label-tactile: #94A3B8;
-      --text-label-glass: #38BDF8;
-      --accent: #38BDF8;
-      --accent-glow: rgba(56, 189, 248, 0.32);
-      --icon-stroke: #E2E8F0;
-      --map-water: #112A46;
-      --map-water-deep: #0B1D33;
-      --map-land: #0F172A;
-      --map-contour: rgba(56, 189, 248, 0.18);
-      --dock-bg: rgba(15, 23, 42, 0.84);
-      --sheet-bg: rgba(17, 25, 42, 0.96);
-    }
-
-    /* Б. СВЕТЛАЯ ТЕМА (LIGHT MODE — data-theme="light") */
-    [data-theme="light"] {
-      --bg-app: #F1F5F9;
-      --bg-outer: #DCE5F0;
-      --bg-surface: linear-gradient(145deg, #FFFFFF, #E2E8F0);
-      --bg-surface-solid: #FFFFFF;
-      --bg-glass: radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.88), rgba(224, 242, 254, 0.62));
-      --bg-glass-card: linear-gradient(155deg, rgba(255, 255, 255, 0.92), rgba(235, 245, 255, 0.82));
-      --border-tactile: rgba(255, 255, 255, 0.9);
-      --border-glass: rgba(56, 189, 248, 0.42);
-      --border-subtle: rgba(15, 23, 42, 0.11);
-      --shadow-tactile: 0 6px 14px rgba(15, 23, 42, 0.10), inset 0 2px 3px #FFFFFF;
-      --shadow-glass: 0 4px 16px rgba(56, 189, 248, 0.22), inset 0 2px 4px rgba(255, 255, 255, 0.95);
-      --text-primary: #0F172A;
-      --text-secondary: #475569;
-      --text-label-tactile: #334155;
-      --text-label-glass: #0284C7;
-      --accent: #0284C7;
-      --accent-glow: rgba(2, 132, 199, 0.24);
-      --icon-stroke: #1E293B;
-      --map-water: #CBE4FD;
-      --map-water-deep: #A5D0FA;
-      --map-land: #F4F7FB;
-      --map-contour: rgba(2, 132, 199, 0.16);
-      --dock-bg: rgba(255, 255, 255, 0.88);
-      --sheet-bg: rgba(248, 250, 252, 0.97);
-    }
-
-    /* В. КОНТРАСТНАЯ ТЕМА (CONTRAST / OLED MODE — data-theme="contrast") */
-    [data-theme="contrast"] {
-      --bg-app: #000000;
-      --bg-outer: #000000;
-      --bg-surface: #0D0D0D;
-      --bg-surface-solid: #0D0D0D;
-      --bg-glass: radial-gradient(circle at 30% 25%, rgba(245, 158, 11, 0.18), rgba(10, 10, 10, 0.82));
-      --bg-glass-card: linear-gradient(155deg, rgba(22, 18, 10, 0.86), rgba(8, 8, 8, 0.94));
-      --border-tactile: rgba(245, 158, 11, 0.25);
-      --border-glass: rgba(251, 191, 36, 0.48);
-      --border-subtle: rgba(245, 158, 11, 0.22);
-      --shadow-tactile: 0 0 16px rgba(245, 158, 11, 0.32), inset 0 1px 1px rgba(255, 255, 255, 0.15);
-      --shadow-glass: 0 0 20px rgba(245, 158, 11, 0.35), inset 0 2px 5px rgba(255, 255, 255, 0.32), inset 0 -4px 12px rgba(245, 158, 11, 0.22);
-      --text-primary: #FFFFFF;
-      --text-secondary: #D97706;
-      --text-label-tactile: #F59E0B;
-      --text-label-glass: #FBBF24;
-      --accent: #F59E0B;
-      --accent-glow: rgba(245, 158, 11, 0.34);
-      --icon-stroke: #FFFFFF;
-      --map-water: #111F30;
-      --map-water-deep: #091320;
-      --map-land: #000000;
-      --map-contour: rgba(245, 158, 11, 0.22);
-      --dock-bg: rgba(10, 10, 10, 0.92);
-      --sheet-bg: rgba(12, 12, 12, 0.98);
-    }
-
-    * {
-      box-sizing: border-box;
-      -webkit-tap-highlight-color: transparent;
-    }
-
-    html, body {
-      margin: 0;
-      padding: 0;
-      min-height: 100%;
-      font-family: var(--font-ui);
-      background: var(--bg-outer);
-      color: var(--text-primary);
-      transition: background 0.25s ease, color 0.25s ease;
-      overflow-x: hidden;
-    }
-
-    button, input, select, textarea {
-      font-family: inherit;
-      color: inherit;
-    }
-
-    /* ==========================================================================
-       2. ВЕРХНИЙ ИНЖЕНЕРНЫЙ ПУЛЬТ УПРАВЛЕНИЯ СТЕНДОМ
-       ========================================================================== */
-    .studio-topbar {
-      position: sticky;
-      top: 0;
-      z-index: 9000;
-      background: rgba(9, 14, 24, 0.94);
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
-      border-bottom: 1px solid rgba(56, 189, 248, 0.24);
-      padding: 8px 14px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      flex-wrap: wrap;
-      color: #F8FAFC;
-    }
-
-    .studio-brand {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .studio-badge {
-      padding: 4px 10px;
-      border-radius: var(--radius-pill);
-      font-size: 11px;
-      font-weight: 800;
-      letter-spacing: 0.4px;
-      background: rgba(56, 189, 248, 0.16);
-      border: 1px solid rgba(56, 189, 248, 0.45);
-      color: #38BDF8;
-      white-space: nowrap;
-    }
-
-    .studio-controls {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-
-    .studio-seg {
-      display: inline-flex;
-      background: rgba(30, 41, 59, 0.78);
-      border: 1px solid rgba(148, 163, 184, 0.22);
-      border-radius: var(--radius-pill);
-      padding: 2px;
-      gap: 2px;
-    }
-
-    .studio-seg button {
-      border: none;
-      background: transparent;
-      color: #94A3B8;
-      font-size: 11.5px;
-      font-weight: 600;
-      padding: 5px 11px;
-      border-radius: var(--radius-pill);
-      cursor: pointer;
-      transition: all 0.18s ease;
-      white-space: nowrap;
-    }
-
-    .studio-seg button.active {
-      background: #38BDF8;
-      color: #07111F;
-      font-weight: 800;
-      box-shadow: 0 2px 10px rgba(56, 189, 248, 0.35);
-    }
-
-    [data-theme="contrast"] .studio-seg button.active {
-      background: #F59E0B;
-      color: #000000;
-      box-shadow: 0 2px 10px rgba(245, 158, 11, 0.4);
-    }
-
-    /* ==========================================================================
-       3. КОНТЕЙНЕР ПРИЛОЖЕНИЯ (СМАРТФОН / ПЛАНШЕТ BENTO / СТЕНД АУДИТА)
-       ========================================================================== */
-    .workspace-stage {
-      display: flex;
-      justify-content: center;
-      align-items: flex-start;
-      padding: 16px 12px 40px;
-      min-height: calc(100vh - 56px);
-    }
-
-    .app-frame {
-      position: relative;
-      width: 100%;
-      max-width: 420px;
-      min-height: 780px;
-      background: var(--bg-app);
-      border-radius: 36px;
-      border: 1.5px solid var(--border-glass);
-      box-shadow: 0 22px 60px rgba(0, 0, 0, 0.55), 0 0 28px var(--accent-glow);
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      transition: max-width 0.28s cubic-bezier(0.22, 1, 0.36, 1), background 0.25s ease;
-    }
-
-    /* Лёгкий фон приложения (отключён на экране Карты, чтобы не перекрывать реальную карту) */
-    .app-frame::before {
-      content: "";
-      position: absolute;
-      inset: 0;
-      pointer-events: none;
-      background-image: radial-gradient(circle at 50% 0%, var(--accent-glow) 0%, transparent 38%);
-      opacity: 0.45;
-      z-index: 0;
-    }
-    .app-frame.on-map-screen::before {
-      display: none;
-    }
-
-    html[data-viewport="desktop"] .app-frame {
-      max-width: 1140px;
-      border-radius: 24px;
-      min-height: 760px;
-    }
-
-    html[data-viewport="audit"] .app-frame {
-      display: none;
-    }
-
-    .audit-frame {
-      display: none;
-      width: 100%;
-      max-width: 1220px;
-      background: var(--bg-app);
-      border: 1.5px solid var(--border-glass);
-      border-radius: 24px;
-      padding: 22px;
-      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
-    }
-
-    html[data-viewport="audit"] .audit-frame {
-      display: block;
-    }
-
-    /* Смартфонный статус-бар */
-    .phone-statusbar {
-      position: relative;
-      z-index: 10;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 10px 22px 6px;
-      font-size: 12px;
-      font-weight: 700;
-      color: var(--text-primary);
-      opacity: 0.9;
-    }
-
-    .phone-status-right {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 11px;
-    }
-
-    /* ==========================================================================
-       4. КОМПОНЕНТЫ TACTILE GLASSMORPHISM (КАРТОЧКИ, КНОПКИ-ЛИНЗЫ, СЕГМЕНТЫ)
-       ========================================================================== */
-    .glass-panel {
-      background: var(--bg-glass-card);
-      backdrop-filter: var(--blur-glass);
-      -webkit-backdrop-filter: var(--blur-glass);
-      border: 1px solid var(--border-glass);
-      box-shadow: var(--shadow-glass);
-      border-radius: var(--radius-card);
-      transition: all 0.22s ease;
-    }
-
-    html[data-glass="off"] .glass-panel {
-      backdrop-filter: none;
-      -webkit-backdrop-filter: none;
-      background: var(--bg-surface);
-      border: 1px solid var(--border-tactile);
-      box-shadow: var(--shadow-tactile);
-    }
-
-    /* Круглая навигационная кнопка-линза (56x56 для меню 3x3, 48x48 для контролов карты) */
-    .lens-btn {
-      width: 56px;
-      height: 56px;
-      border-radius: 50%;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      position: relative;
-      padding: 0;
-      background: var(--bg-glass);
-      backdrop-filter: var(--blur-glass);
-      -webkit-backdrop-filter: var(--blur-glass);
-      border: 1px solid var(--border-glass);
-      box-shadow: var(--shadow-glass);
-      color: var(--icon-stroke);
-      transition: transform 0.16s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.2s ease, border-color 0.2s ease;
-    }
-
-    html[data-glass="off"] .lens-btn {
-      backdrop-filter: none;
-      -webkit-backdrop-filter: none;
-      background: var(--bg-surface);
-      border: 1px solid var(--border-tactile);
-      box-shadow: var(--shadow-tactile);
-    }
-
-    .lens-btn:hover {
-      transform: translateY(-2px) scale(1.03);
-    }
-
-    .lens-btn:active {
-      transform: scale(0.95);
-    }
-
-    .lens-btn.lens-48 {
-      width: 48px;
-      height: 48px;
-    }
-
-    .lens-btn.active {
-      border-color: var(--accent);
-      box-shadow: 0 0 22px var(--accent-glow), inset 0 2px 5px rgba(255, 255, 255, 0.45);
-      color: var(--accent);
-    }
-
-    .lens-btn svg, .k-svg {
-      width: 24px;
-      height: 24px;
-      stroke: currentColor;
-      stroke-width: var(--stroke-icon);
-      stroke-linecap: round;
-      stroke-linejoin: round;
-      fill: none;
-      flex-shrink: 0;
-    }
-
-    .lens-item-wrap {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      cursor: pointer;
-      user-select: none;
-    }
-
-    .lens-label {
-      margin-top: 6px;
-      font-size: 11.5px;
-      font-weight: 600;
-      color: var(--text-label-glass);
-      transition: color 0.2s ease;
-      line-height: 1.2;
-    }
-
-    html[data-glass="off"] .lens-label {
-      color: var(--text-label-tactile);
-    }
-
-    /* Капсульные переключатели (Segmented Control) */
-    /* Стильный тумблер-переключатель вместо стандартных чекбоксов */
-    .klev-switch {
-      position: relative;
-      display: inline-block;
-      width: 44px;
-      height: 24px;
-      flex-shrink: 0;
-      cursor: pointer;
-    }
-    .klev-switch input {
-      opacity: 0;
-      width: 0;
-      height: 0;
-      position: absolute;
-    }
-    .klev-switch-slider {
-      position: absolute;
-      inset: 0;
-      border-radius: 999px;
-      background: rgba(148, 163, 184, 0.25);
-      border: 1px solid var(--border-subtle);
-      transition: all 0.22s ease;
-    }
-    .klev-switch-slider::before {
-      content: "";
-      position: absolute;
-      width: 18px;
-      height: 18px;
-      left: 2px;
-      top: 2px;
-      border-radius: 50%;
-      background: #E2E8F0;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.35);
-      transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), background 0.22s ease;
-    }
-    .klev-switch input:checked + .klev-switch-slider {
-      background: var(--accent-glow);
-      border-color: var(--accent);
-      box-shadow: 0 0 12px var(--accent-glow);
-    }
-    .klev-switch input:checked + .klev-switch-slider::before {
-      transform: translateX(20px);
-      background: var(--accent);
-    }
-
-    /* Миниатюра фото улова в карточке Журнала */
-    .catch-photo-thumb {
-      width: 72px;
-      height: 54px;
-      border-radius: 12px;
-      border: 1px solid var(--border-glass);
-      overflow: hidden;
-      position: relative;
-      cursor: pointer;
-      background: var(--bg-surface-solid);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .catch-photo-thumb img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      display: block;
-    }
-    .catch-photo-badge {
-      position: absolute;
-      bottom: 2px;
-      right: 2px;
-      font-size: 9px;
-      font-weight: 800;
-      padding: 1px 4px;
-      border-radius: 5px;
-      background: rgba(15, 23, 42, 0.78);
-      color: #F8FAFC;
-    }
-
-    .seg-bar {
-      display: flex;
-      align-items: center;
-      background: rgba(15, 23, 42, 0.42);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-pill);
-      padding: 3px;
-      gap: 3px;
-    }
-
-    [data-theme="light"] .seg-bar {
-      background: rgba(226, 232, 240, 0.75);
-    }
-
-    [data-theme="contrast"] .seg-bar {
-      background: #0B0B0B;
-      border-color: rgba(245, 158, 11, 0.28);
-    }
-
-    .seg-btn {
-      flex: 1;
-      min-width: 0;
-      border: none;
-      background: transparent;
-      color: var(--text-secondary);
-      font-size: 11.5px;
-      font-weight: 600;
-      padding: 7px 4px;
-      border-radius: var(--radius-pill);
-      cursor: pointer;
-      transition: all 0.2s ease;
-      text-align: center;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .seg-btn.active {
-      background: var(--bg-glass);
-      border: 1px solid var(--border-glass);
-      box-shadow: var(--shadow-glass);
-      color: var(--text-primary);
-      font-weight: 700;
-    }
-
-    html[data-glass="off"] .seg-btn.active {
-      background: var(--bg-surface);
-      border-color: var(--border-tactile);
-      box-shadow: var(--shadow-tactile);
-    }
-
-    /* Пилюли и кнопки */
-    .pill-btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 7px;
-      padding: 8px 14px;
-      border-radius: var(--radius-pill);
-      font-size: 12.5px;
-      font-weight: 600;
-      cursor: pointer;
-      background: var(--bg-glass);
-      backdrop-filter: var(--blur-glass);
-      -webkit-backdrop-filter: var(--blur-glass);
-      border: 1px solid var(--border-glass);
-      box-shadow: var(--shadow-glass);
-      color: var(--text-primary);
-      transition: all 0.18s ease;
-    }
-
-    html[data-glass="off"] .pill-btn {
-      backdrop-filter: none;
-      background: var(--bg-surface);
-      border-color: var(--border-tactile);
-      box-shadow: var(--shadow-tactile);
-    }
-
-    .pill-btn:hover {
-      transform: translateY(-1px);
-    }
-
-    .pill-btn.active {
-      border-color: var(--accent);
-      color: var(--accent);
-      font-weight: 700;
-    }
-
-    .status-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: var(--good);
-      box-shadow: 0 0 8px var(--good);
-      display: inline-block;
-      flex-shrink: 0;
-    }
-
-    /* ==========================================================================
-       5. ОСНОВНАЯ РАБОЧАЯ ОБЛАСТЬ И ЭКРАНЫ
-       ========================================================================== */
-    .app-viewport {
-      position: relative;
-      z-index: 2;
-      flex: 1;
-      overflow-y: auto;
-      overflow-x: hidden;
-      padding: 10px 14px 76px;
-      display: flex;
-      flex-direction: column;
-      gap: 9px;
-    }
-
-    .app-viewport.map-fullscreen {
-      padding: 0 0 64px;
-    }
-
-    .screen-sec {
-      display: none;
-      flex-direction: column;
-      gap: 12px;
-      animation: klevSlideFade 0.24s cubic-bezier(0.22, 1, 0.36, 1);
-    }
-
-    .screen-sec.active {
-      display: flex;
-    }
-
-    @keyframes klevSlideFade {
-      from { opacity: 0; transform: translateY(6px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    /* На широком экране (Desktop Bento) — двухколоночная сетка внутри экранов */
-    html[data-viewport="desktop"] .desktop-bento-grid {
-      display: grid;
-      grid-template-columns: 1.05fr 1.25fr;
-      gap: 16px;
-      align-items: start;
-    }
-
-    /* ==========================================================================
-       6. ЭКРАН 1: «ПРОГНОЗ КЛЁВА» (ТОЧКА ВХОДА)
-       ========================================================================== */
-    .fc-top-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-    }
-
-    .fc-hero-box {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      text-align: center;
-      padding: 10px 12px 11px;
-      position: relative;
-    }
-
-    .fc-title-main {
-      font-size: 16px;
-      font-weight: 800;
-      margin: 0 0 2px;
-      letter-spacing: -0.2px;
-    }
-
-    .fc-ice-sub {
-      font-size: 11px;
-      color: var(--text-secondary);
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      margin-bottom: 6px;
-    }
-
-    /* Живой сонарный радар прогноза клёва (крупный 236x236px, точная копия заставки по темам) */
-    .radial-gauge-wrap {
-      position: relative;
-      width: 236px;
-      height: 236px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin: 4px auto 10px;
-    }
-    #fcHeroSonarCanvas {
-      width: 236px;
-      height: 236px;
-      display: block;
-      border-radius: 50%;
-    }
-
-    .radial-gauge-svg {
-      width: 100%;
-      height: 100%;
-      overflow: visible;
-    }
-
-    .radial-gauge-center {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      pointer-events: none;
-    }
-
-    .radial-pct-val {
-      font-size: 34px;
-      font-weight: 900;
-      letter-spacing: -1px;
-      line-height: 1;
-      font-variant-numeric: tabular-nums;
-    }
-
-    .radial-status-lbl {
-      margin-top: 3px;
-      font-size: 12px;
-      font-weight: 700;
-      color: var(--text-secondary);
-    }
-
-    /* Компактные капсулы Утро / Вечер */
-    .bite-windows-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-      width: 100%;
-      margin-top: 0;
-    }
-
-    .bite-window-pill {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 7px 11px;
-      border-radius: 14px;
-      text-align: left;
-    }
-
-    .bite-window-meta {
-      display: flex;
-      flex-direction: column;
-      line-height: 1.25;
-    }
-
-    .bite-window-title {
-      font-size: 12px;
-      font-weight: 700;
-      color: var(--text-primary);
-    }
-
-    .bite-window-time {
-      font-size: 12.5px;
-      font-weight: 600;
-      color: var(--accent);
-      font-variant-numeric: tabular-nums;
-    }
-
-    /* Горизонтальная лента выбора вида рыбы */
-    .species-strip-wrap {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      overflow-x: auto;
-      padding: 4px 2px 6px;
-      scrollbar-width: none;
-    }
-
-    .species-strip-wrap::-webkit-scrollbar {
-      display: none;
-    }
-
-    .fish-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 7px 13px;
-      border-radius: var(--radius-pill);
-      font-size: 12.5px;
-      font-weight: 600;
-      white-space: nowrap;
-      cursor: pointer;
-      background: var(--bg-glass);
-      border: 1px solid var(--border-subtle);
-      color: var(--text-secondary);
-      transition: all 0.18s ease;
-      flex-shrink: 0;
-    }
-
-    html[data-glass="off"] .fish-chip {
-      background: var(--bg-surface);
-    }
-
-    .fish-chip.active {
-      border-color: var(--accent);
-      box-shadow: var(--shadow-glass);
-      color: var(--text-primary);
-      font-weight: 700;
-    }
-
-    .fish-chip-visual {
-      width: 28px;
-      height: 16px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-    }
-
-    .fish-chip-visual img {
-      max-width: 100%;
-      max-height: 100%;
-      object-fit: contain;
-    }
-
-    /* Почасовой график 00:00–24:00 со скраббером */
-    .chart-card {
-      padding: 14px;
-      position: relative;
-    }
-
-    .chart-floating-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 5px 11px;
-      border-radius: var(--radius-pill);
-      font-size: 12px;
-      font-weight: 700;
-      background: var(--bg-surface-solid);
-      border: 1px solid var(--border-glass);
-      color: var(--text-primary);
-      margin-bottom: 8px;
-      font-variant-numeric: tabular-nums;
-    }
-
-    .hourly-svg-wrap {
-      position: relative;
-      width: 100%;
-      height: 135px;
-      cursor: ew-resize;
-      user-select: none;
-    }
-
-    .hourly-time-axis {
-      display: flex;
-      justify-content: space-between;
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--text-secondary);
-      margin-top: 6px;
-      font-variant-numeric: tabular-nums;
-    }
-
-    .cta-full-btn {
-      width: 100%;
-      padding: 13px 16px;
-      border-radius: 16px;
-      font-size: 14px;
-      font-weight: 700;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 9px;
-      cursor: pointer;
-      background: var(--bg-glass);
-      border: 1.5px solid var(--accent);
-      box-shadow: var(--shadow-glass);
-      color: var(--text-primary);
-      transition: all 0.18s ease;
-    }
-
-    .cta-full-btn:hover {
-      transform: translateY(-1px);
-    }
-
-    /* ==========================================================================
-       7. ЭКРАН 2: «КАРТА» (НАВИГАЦИЯ, ТОЧКИ, WATERNAVMESH A*, ОФФЛАЙН)
-       ========================================================================== */
-    .map-stage-container {
-      position: relative;
-      width: 100%;
-      height: 740px;
-      background: var(--map-land);
-      overflow: hidden;
-      user-select: none;
-    }
-
-    html[data-viewport="desktop"] .map-stage-container {
-      height: 670px;
-      border-radius: 20px;
-    }
-
-    #realLeafletMap {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      z-index: 1;
-      background: var(--map-land);
-    }
-
-    .leaflet-control-attribution {
-      font-size: 9px !important;
-      background: rgba(15, 23, 42, 0.55) !important;
-      color: #94A3B8 !important;
-      padding: 1px 5px !important;
-    }
-    .leaflet-control-attribution a { color: #38BDF8 !important; }
-    .leaflet-control-zoom { display: none !important; }
-
-    /* Горизонтальная свайпаемая лента из 6 компактных мини-плашек (1 короткая надпись на каждой) */
-    .map-bottom-pills-strip {
-      position: absolute;
-      left: 10px;
-      right: 10px;
-      bottom: 10px;
-      z-index: 450;
-      display: flex;
-      align-items: center;
-      gap: 7px;
-      overflow-x: auto;
-      padding: 2px 2px 4px;
-      scrollbar-width: none;
-    }
-    .map-bottom-pills-strip::-webkit-scrollbar { display: none; }
-
-    .map-single-pill {
-      flex-shrink: 0;
-      padding: 9px 14px;
-      border-radius: var(--radius-pill);
-      font-size: 12.5px;
-      font-weight: 700;
-      white-space: nowrap;
-      cursor: pointer;
-      background: var(--bg-glass-card);
-      backdrop-filter: var(--blur-glass);
-      -webkit-backdrop-filter: var(--blur-glass);
-      border: 1px solid var(--border-glass);
-      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
-      color: var(--text-primary);
-      transition: transform 0.15s ease, border-color 0.15s ease;
-    }
-    html[data-glass="off"] .map-single-pill {
-      backdrop-filter: none;
-      background: var(--bg-surface);
-      border-color: var(--border-tactile);
-    }
-    .map-single-pill.active {
-      border-color: var(--accent);
-      color: var(--accent);
-    }
-
-    .map-top-overlay {
-      position: absolute;
-      top: 10px;
-      left: 12px;
-      right: 12px;
-      z-index: 450;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      pointer-events: none;
-    }
-
-    .map-top-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      pointer-events: auto;
-    }
-
-    .map-search-box {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 9px 13px;
-      border-radius: 16px;
-    }
-
-    .map-search-box input {
-      border: none;
-      background: transparent;
-      outline: none;
-      width: 100%;
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--text-primary);
-    }
-
-    .map-search-box input::placeholder {
-      color: var(--text-secondary);
-    }
-
-    .map-weather-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 7px;
-      padding: 9px 13px;
-      border-radius: 16px;
-      font-size: 13px;
-      font-weight: 700;
-      white-space: nowrap;
-      cursor: pointer;
-    }
-
-    /* Правый вертикальный стек из 4 круглых стеклянных кнопок без текста (Thumb Zone) */
-    .map-right-stack {
-      position: absolute;
-      right: 14px;
-      bottom: 66px;
-      z-index: 450;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    /* Левая зона большого пальца (Транспорт, Изобаты, Трек/Я потерялся) */
-    .map-left-stack {
-      position: absolute;
-      left: 14px;
-      bottom: 66px;
-      z-index: 450;
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 8px;
-    }
-
-    /* Нижний док карты (Карточка выбранной точки + 2 компактные шторки) */
-    .map-bottom-sheet-card {
-      position: absolute;
-      left: 10px;
-      right: 10px;
-      bottom: 10px;
-      z-index: 22;
-      padding: 12px 14px;
-      border-radius: 22px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .sheet-grabber {
-      width: 38px;
-      height: 4px;
-      border-radius: 99px;
-      background: rgba(148, 163, 184, 0.38);
-      margin: 0 auto 2px;
-    }
-
-    .map-spot-summary-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-    }
-
-    .map-route-cta {
-      padding: 10px 16px;
-      border-radius: var(--radius-pill);
-      font-size: 13px;
-      font-weight: 700;
-      border: 1px solid var(--border-glass);
-      background: var(--accent);
-      color: #061320;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      box-shadow: 0 4px 16px var(--accent-glow);
-      white-space: nowrap;
-    }
-
-    .map-dual-docks {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-    }
-
-    .map-mini-dock-btn {
-      padding: 8px 10px;
-      border-radius: 14px;
-      font-size: 11.5px;
-      font-weight: 700;
-      text-align: left;
-      cursor: pointer;
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-      border: 1px solid var(--border-subtle);
-      background: rgba(15, 23, 42, 0.35);
-    }
-
-    [data-theme="light"] .map-mini-dock-btn {
-      background: rgba(255, 255, 255, 0.65);
-    }
-
-    /* ==========================================================================
-       8. ЭКРАН 3: «ЖУРНАЛ УЛОВОВ И ИИ-КАЛИБРОВКА»
-       ========================================================================== */
-    .journal-kpi-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 9px;
-    }
-
-    .journal-kpi-card {
-      padding: 12px 11px;
-      border-radius: 18px;
-      position: relative;
-      display: flex;
-      flex-direction: column;
-      justify-content: flex-end;
-      min-height: 82px;
-    }
-
-    .journal-kpi-ico {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      opacity: 0.65;
-      color: var(--text-secondary);
-    }
-
-    .journal-kpi-val {
-      font-size: 20px;
-      font-weight: 800;
-      letter-spacing: -0.5px;
-      line-height: 1.1;
-    }
-
-    .journal-kpi-lbl {
-      font-size: 11.5px;
-      font-weight: 500;
-      color: var(--text-secondary);
-      margin-top: 2px;
-    }
-
-    .catch-entry-card {
-      padding: 13px 14px;
-      border-radius: 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .catch-entry-meta {
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--text-secondary);
-      padding-bottom: 8px;
-      border-bottom: 1px solid var(--border-subtle);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-    }
-
-    .catch-entry-body {
-      display: grid;
-      grid-template-columns: 74px 1fr 64px;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .catch-minimap-thumb {
-      width: 64px;
-      height: 64px;
-      border-radius: 14px;
-      border: 1px solid var(--border-glass);
-      overflow: hidden;
-      background: var(--map-land);
-    }
-
-    /* ==========================================================================
-       9. ЭКРАН 4: «МЕНЮ И ИНСТРУМЕНТЫ» (СЕТКА 3x3 + ЗАЩИЩЁННЫЙ СЛАЙДЕР SOS 2 СЕК)
-       ========================================================================== */
-    .menu-hub-header {
-      text-align: center;
-      padding: 4px 6px 2px;
-    }
-
-    .menu-hub-title {
-      font-size: 16px;
-      font-weight: 800;
-      letter-spacing: 0.6px;
-      text-transform: uppercase;
-      margin: 0 0 6px;
-    }
-
-    .menu-hub-sub {
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--text-secondary);
-      display: inline-flex;
-      align-items: center;
-      gap: 7px;
-    }
-
-    /* Компактное всплывающее Меню над нижним доком (не перекрывает весь экран) */
-    .compact-menu-backdrop {
-      position: absolute;
-      inset: 0;
-      bottom: 64px;
-      z-index: 180;
-      background: rgba(4, 9, 18, 0.32);
-      display: none;
-      align-items: flex-end;
-      justify-content: center;
-      padding: 10px 12px;
-    }
-    .compact-menu-backdrop.open {
-      display: flex;
-    }
-    .compact-menu-popover {
-      width: 100%;
-      max-width: 396px;
-      padding: 14px 14px 14px;
-      border-radius: 24px;
-      background: var(--sheet-bg);
-      backdrop-filter: blur(18px);
-      -webkit-backdrop-filter: blur(18px);
-      border: 1.5px solid var(--border-glass);
-      box-shadow: 0 -10px 34px rgba(0, 0, 0, 0.55), 0 0 22px var(--accent-glow);
-      display: flex;
-      flex-direction: column;
-      gap: 11px;
-      animation: sheetSlideUp 0.2s cubic-bezier(0.22, 1, 0.36, 1);
-    }
-    .menu-grid-5 {
-      display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      gap: 8px 6px;
-      padding: 4px 0;
-      justify-items: center;
-    }
-    .menu-grid-5 .lens-btn {
-      width: 52px;
-      height: 52px;
-    }
-    .menu-grid-5 .lens-btn svg {
-      width: 23px;
-      height: 23px;
-    }
-
-    /* Защищённый слайдер SOS (Удерживайте 2 сек для SOS) */
-    .sos-hold-track {
-      position: relative;
-      width: 100%;
-      height: 54px;
-      border-radius: var(--radius-pill);
-      background: linear-gradient(135deg, rgba(127, 29, 29, 0.72), rgba(69, 10, 10, 0.85));
-      border: 1px solid rgba(248, 113, 113, 0.45);
-      box-shadow: 0 0 20px rgba(239, 68, 68, 0.25), inset 0 1px 2px rgba(255, 255, 255, 0.22);
-      display: flex;
-      align-items: center;
-      padding: 5px;
-      overflow: hidden;
-      cursor: pointer;
-      user-select: none;
-    }
-
-    .sos-hold-progress {
-      position: absolute;
-      left: 0;
-      top: 0;
-      bottom: 0;
-      width: 0%;
-      background: linear-gradient(90deg, rgba(239, 68, 68, 0.65), rgba(245, 158, 11, 0.75));
-      transition: width 0.08s linear;
-      pointer-events: none;
-    }
-
-    .sos-hold-knob {
-      position: relative;
-      z-index: 2;
-      width: 44px;
-      height: 44px;
-      border-radius: 50%;
-      background: radial-gradient(circle at 30% 25%, #F87171, #DC2626);
-      border: 1px solid rgba(255, 255, 255, 0.5);
-      box-shadow: 0 0 14px rgba(239, 68, 68, 0.6);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #FFFFFF;
-      flex-shrink: 0;
-    }
-
-    .sos-hold-text {
-      position: relative;
-      z-index: 2;
-      flex: 1;
-      text-align: center;
-      font-size: 13.5px;
-      font-weight: 700;
-      color: #FEE2E2;
-      padding-right: 24px;
-    }
-
-    /* ==========================================================================
-       10. НИЖНИЙ ТАБ-БАР (4 ИКОНКИ — height: 64px + ДВУХПРУЖИННЫЙ ГЛАЙДЕР)
-       ========================================================================== */
-    .bottom-dock {
-      position: absolute;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      height: 64px;
-      z-index: 100;
-      background: var(--dock-bg);
-      backdrop-filter: blur(18px);
-      -webkit-backdrop-filter: blur(18px);
-      border-top: 1px solid var(--border-subtle);
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      align-items: center;
-      padding: 0 8px;
-    }
-
-    .dock-tab-btn {
-      position: relative;
-      z-index: 2;
-      border: none;
-      background: transparent;
-      height: 52px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 3px;
-      color: var(--text-secondary);
-      cursor: pointer;
-      transition: color 0.18s ease, transform 0.18s ease;
-    }
-
-    .dock-tab-btn svg {
-      width: 24px;
-      height: 24px;
-      stroke: currentColor;
-      stroke-width: var(--stroke-icon);
-      stroke-linecap: round;
-      stroke-linejoin: round;
-      fill: none;
-      transition: transform 0.22s cubic-bezier(0.16, 1.14, 0.3, 1), filter 0.22s ease;
-    }
-
-    .dock-tab-btn.active {
-      color: var(--accent);
-    }
-
-    .dock-tab-btn.active svg {
-      transform: translateY(-1px) scale(1.08);
-      filter: drop-shadow(0 0 8px var(--accent-glow));
-    }
-
-    .dock-tab-lbl {
-      font-size: 10.5px;
-      font-weight: 600;
-      line-height: 1;
-      display: none;
-    }
-
-    /* Позволяет переключать режим «Строго без подписей (по ТЗ п. 2)» и «С подписями (как на референс-шотах)» */
-    html[data-dock-labels="on"] .dock-tab-lbl {
-      display: block;
-    }
-
-    /* ==========================================================================
-       11. ВЫДВИЖНЫЕ ШТОРКИ (BOTTOM SHEETS), МОДАЛЬНЫЕ ОКНА И БЕЗОПАСНЫЕ ТОСТЫ
-       ========================================================================== */
-    .sheet-backdrop {
-      position: absolute;
-      inset: 0;
-      z-index: 200;
-      background: rgba(4, 9, 18, 0.62);
-      backdrop-filter: blur(4px);
-      display: none;
-      align-items: flex-end;
-      justify-content: center;
-    }
-
-    .sheet-backdrop.open {
-      display: flex;
-    }
-
-    .bottom-sheet-panel {
-      width: 100%;
-      max-height: 82%;
-      background: var(--sheet-bg);
-      border-top: 1.5px solid var(--border-glass);
-      border-radius: 26px 26px 0 0;
-      padding: 12px 16px 22px;
-      overflow-y: auto;
-      box-shadow: 0 -12px 36px rgba(0, 0, 0, 0.55);
-      animation: sheetSlideUp 0.22s cubic-bezier(0.22, 1, 0.36, 1);
-    }
-
-    @keyframes sheetSlideUp {
-      from { transform: translateY(100%); }
-      to { transform: translateY(0); }
-    }
-
-    /* Безопасный тост строго на bottom: 84px (не перекрывает нижний док 64px) */
-    .safe-toast-host {
-      position: absolute;
-      left: 14px;
-      right: 14px;
-      bottom: var(--toast-bottom);
-      z-index: 350;
-      pointer-events: none;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    .safe-toast-card {
-      pointer-events: auto;
-      padding: 11px 14px;
-      border-radius: 16px;
-      background: var(--sheet-bg);
-      border: 1.5px solid var(--accent);
-      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      font-size: 12.5px;
-      font-weight: 600;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .toast-timer-bar {
-      position: absolute;
-      left: 0;
-      bottom: 0;
-      height: 3px;
-      background: var(--accent);
-      width: 100%;
-      animation: toastCountdown 3.4s linear forwards;
-    }
-
-    @keyframes toastCountdown {
-      from { width: 100%; }
-      to { width: 0%; }
-    }
-
-    /* Таблицы и карточки инженерного стенда аудита */
-    .audit-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 12.5px;
-    }
-
-    .audit-table th, .audit-table td {
-      padding: 10px 12px;
-      border-bottom: 1px solid var(--border-subtle);
-      text-align: left;
-      vertical-align: top;
-    }
-
-    .audit-table th {
-      font-weight: 800;
-      color: var(--accent);
-      background: rgba(56, 189, 248, 0.08);
-    }
-
-    .code-tag {
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      font-size: 11.5px;
-      padding: 2px 6px;
-      border-radius: 6px;
-      background: rgba(56, 189, 248, 0.14);
-      color: var(--accent);
-    }
-
-    .subscreen-nav-bar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      padding-bottom: 6px;
-      border-bottom: 1px solid var(--border-subtle);
-    }
-
-    .form-input, .form-select {
-      width: 100%;
-      padding: 9px 12px;
-      border-radius: 12px;
-      border: 1px solid var(--border-glass);
-      background: rgba(15, 23, 42, 0.45);
-      color: var(--text-primary);
-      font-size: 13px;
-      font-weight: 600;
-      outline: none;
-    }
-
-    [data-theme="light"] .form-input, [data-theme="light"] .form-select {
-      background: #FFFFFF;
-    }
-  
-
 /* ==========================================================================
-   КЛЁВ ПРО 2.0 • v2.9.1 (r241) PRODUCTION FULLSCREEN MOBILE/TABLET SHELL
-   1-в-1 с эталоном Видео 1 (#klevAppFrame), с сохранением Десктопа (data-desktop-web="1")
+   КЛЁВ ПРО 2.0 • v2.9.1 (r241) TACTILE GLASSMORPHISM & ADAPTIVE VIEWPORTS
+   Десктопный режим (html[data-desktop-web="1"]) сохранён без изменений.
    ========================================================================== */
-html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) > body > .app-header,
-html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) > body > main#app,
-html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) > body > nav.bottom-nav,
-html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) > body > #klevCompactMenuBackdrop {
+
+/* 1. Замена всех чекбоксов на стеклянные тумблеры-переключатели (.klev-switch) */
+input[type="checkbox"],
+.klev-switch {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  width: 38px !important;
+  height: 22px !important;
+  min-width: 38px !important;
+  min-height: 22px !important;
+  border-radius: 999px !important;
+  background: rgba(148, 163, 184, 0.28) !important;
+  border: 1px solid rgba(148, 163, 184, 0.45) !important;
+  position: relative !important;
+  cursor: pointer !important;
+  transition: background 0.22s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.22s ease, box-shadow 0.22s ease !important;
+  flex-shrink: 0 !important;
+  vertical-align: middle !important;
+  margin: 0 !important;
+  outline: none !important;
+}
+input[type="checkbox"]::after,
+.klev-switch::after {
+  content: "" !important;
+  position: absolute !important;
+  top: 2px !important;
+  left: 2px !important;
+  width: 16px !important;
+  height: 16px !important;
+  border-radius: 50% !important;
+  background: #ffffff !important;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.32) !important;
+  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+input[type="checkbox"]:checked,
+.klev-switch:checked {
+  background: linear-gradient(135deg, var(--accent, #38bdf8), var(--good, #10b981)) !important;
+  border-color: var(--accent, #38bdf8) !important;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.35) !important;
+}
+input[type="checkbox"]:checked::after,
+.klev-switch:checked::after {
+  transform: translateX(16px) !important;
+}
+
+/* 2. Безопасная позиция тост-уведомлений над нижним доком (bottom: 84px) */
+.toast-container,
+#toastContainer {
+  bottom: calc(84px + env(safe-area-inset-bottom, 0px)) !important;
+  max-width: min(420px, 92vw) !important;
+  z-index: 2200 !important;
+}
+
+/* 3. Живой сонар на главном экране прогноза (#bentoHeroSonarStage) */
+.bento-hero-sonar-stage {
+  position: relative;
+  width: 228px;
+  height: 228px;
+  margin: 4px auto 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.bento-hero-sonar-canvas {
+  width: 228px;
+  height: 228px;
+  display: block;
+}
+.bento-hero-sonar-center-pct {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  font-weight: 900;
+  font-size: 32px;
+  letter-spacing: -0.03em;
+  color: var(--text, #f8fafc);
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+}
+[data-theme="light"] .bento-hero-sonar-center-pct {
+  color: #0f172a;
+  text-shadow: 0 1px 4px rgba(255, 255, 255, 0.85);
+}
+[data-theme="contrast"] .bento-hero-sonar-center-pct {
+  color: #ffffff;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.9);
+}
+
+/* Утренний и вечерний пики под живым сонаром */
+.bento-hero-peaks-duo {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  width: 100%;
+  margin-top: 6px;
+}
+.bento-hero-peak-pill {
+  padding: 8px 10px;
+  border-radius: 14px;
+  background: var(--panel, rgba(15, 23, 42, 0.72));
+  border: 1px solid var(--border, rgba(56, 189, 248, 0.25));
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 4. Внутренние 4 вкладки экрана «Прогноз» (Обзор | Снасти | 10 дней | Погода) */
+.klev-fc-subtabs-bar {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  border-radius: 14px;
+  background: var(--panel, rgba(15, 23, 42, 0.78));
+  border: 1px solid var(--border, rgba(56, 189, 248, 0.24));
+  margin: 8px 0 10px;
+}
+.klev-fc-subtab-btn {
+  appearance: none;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted, #94a3b8);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  min-height: 34px;
+  padding: 4px 2px;
+  border-radius: 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.klev-fc-subtab-btn.active {
+  background: var(--card, rgba(30, 41, 59, 0.92));
+  color: var(--text, #f8fafc);
+  border-color: var(--accent, #38bdf8);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.22);
+}
+
+/* На десктопе (html[data-desktop-web="1"]) 4 подвкладки скрыты, все блоки прогноза видны одновременно */
+html[data-desktop-web="1"] .klev-fc-subtabs-bar,
+html[data-desktop-web="1"] .klev-mobile-only-loc-bar {
   display: none !important;
 }
 
-html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) body {
-  padding-top: 0 !important;
-  padding-bottom: 0 !important;
-  margin: 0 !important;
-  overflow: hidden !important;
-  background: var(--bg-app, #0F172A) !important;
+/* На мобильных, планшетах и раскладушках (html:not([data-desktop-web="1"])) — чистая шапка и фильтрация по 4 вкладкам */
+html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) #topSectionNavBar {
+  display: none !important;
 }
-
-html[data-desktop-web="1"] #klevAppFrame,
-html[data-admin-contour="1"] #klevAppFrame {
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="overview"] #fcTackleControlsCard,
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="overview"] .bento-tactical-advice-wrap,
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="overview"] #fcWeekBox,
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="overview"] .bento-bottom-duo {
+  display: none !important;
+}
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="tackle"] #bentoWaveChartCard,
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="tackle"] #fcHourlyBox,
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="tackle"] #fcWeekBox,
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="tackle"] .bento-bottom-duo {
+  display: none !important;
+}
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="days10"] #bentoWaveChartCard,
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="days10"] #fcTackleControlsCard,
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="days10"] .bento-tactical-advice-wrap,
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="days10"] .bento-bottom-duo {
+  display: none !important;
+}
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="weather"] #bentoWaveChartCard,
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="weather"] #fcHourlyBox,
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="weather"] #fcTackleControlsCard,
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="weather"] .bento-tactical-advice-wrap,
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="weather"] #fcWeekBox {
   display: none !important;
 }
 
-html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) #klevAppFrame {
-  position: fixed !important;
-  inset: 0 !important;
-  width: 100vw !important;
-  max-width: 100vw !important;
-  height: 100dvh !important;
-  min-height: 100dvh !important;
-  border-radius: 0 !important;
-  border: none !important;
-  box-shadow: none !important;
-  z-index: 1400 !important;
-  margin: 0 !important;
-  display: flex !important;
-  flex-direction: column !important;
+/* 5. Нижний док из 4 разделов на мобильных/планшетах (Прогноз | Карта | Журнал | Меню) */
+html:not([data-desktop-web="1"]) .bottom-nav #navCircleChatsHubBtn,
+html:not([data-desktop-web="1"]) .bottom-nav #bottomQuickSosBtn {
+  display: none !important;
+}
+html:not([data-desktop-web="1"]) .bottom-nav-inner {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  height: 64px !important;
+  min-height: 64px !important;
+  align-items: center !important;
+}
+html[data-desktop-web="1"] #bottomNavMenuTriggerBtn {
+  display: none !important;
 }
 
-html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) #klevAppFrame .app-viewport {
-  padding-top: max(10px, env(safe-area-inset-top, 10px)) !important;
-  padding-bottom: calc(74px + env(safe-area-inset-bottom, 0px)) !important;
-}
-
-html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) #klevAppFrame .app-viewport.map-fullscreen {
-  padding-top: 0 !important;
-  padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)) !important;
-}
-
-html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) #klevAppFrame .map-stage-container {
-  height: calc(100dvh - 64px - env(safe-area-inset-bottom, 0px)) !important;
-}
-
-html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) #klevAppFrame .bottom-dock {
-  height: calc(64px + env(safe-area-inset-bottom, 0px)) !important;
-  padding-bottom: env(safe-area-inset-bottom, 0px) !important;
-}
-
-html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) #klevAppFrame .compact-menu-backdrop {
-  bottom: calc(64px + env(safe-area-inset-bottom, 0px)) !important;
-}
-
-/* Системные модальные окна (авторизация D1, выбор 491 водоёма, ИИ-сканер, лайтбокс) поверх #klevAppFrame */
-#appModalBackdrop,
-#fishImageLightbox,
-#klevUserAgreementBackdrop,
-#klevConfirmDeleteBackdrop,
-#klevCustomSelectBackdrop,
-#releaseUpdateModal {
-  z-index: 3200 !important;
-}
-
-/* Горизонтальный режим (Landscape) для планшетов, больших смартфонов и раскладушек (Flip / Fold) */
-@media (orientation: landscape) and (max-width: 1180px) {
-  html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) #klevAppFrame .desktop-bento-grid {
-    display: grid !important;
-    grid-template-columns: minmax(260px, 310px) minmax(0, 1fr) !important;
-    gap: 12px !important;
-    align-items: start !important;
-  }
-  html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) #klevAppFrame .radial-gauge-wrap,
-  html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) #klevAppFrame #fcHeroSonarCanvas {
-    width: 196px !important;
-    height: 196px !important;
-  }
-}
-
-/* Режим внешнего мини-экрана (Xiaomi 18 Pro Max Rear Screen & Flip Cover Screen) */
-#klevRearScreenHud {
-  display: none;
+/* 6. Компактное всплывающее окно «Меню» (#klevCompactMenuBackdrop — НЕ перекрывает весь экран, без дублей) */
+#klevCompactMenuBackdrop {
   position: fixed;
   inset: 0;
-  z-index: 2600;
-  background: var(--bg-app, #0F172A);
-  color: var(--text-primary, #F8FAFC);
-  padding: 10px;
+  z-index: 1950;
+  background: rgba(2, 6, 23, 0.36);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: none;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 12px 12px calc(76px + env(safe-area-inset-bottom, 0px));
+}
+#klevCompactMenuBackdrop.open {
+  display: flex;
+}
+.klev-compact-menu-sheet {
+  width: 100%;
+  max-width: 386px;
+  border-radius: 22px;
+  padding: 13px 14px;
+  background: var(--panel, rgba(15, 23, 42, 0.92));
+  border: 1px solid var(--border, rgba(56, 189, 248, 0.34));
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  animation: klevMenuPopUp 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes klevMenuPopUp {
+  from { opacity: 0; transform: translateY(16px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.klev-compact-menu-grid5 {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+.klev-compact-menu-item {
+  appearance: none;
+  background: var(--card, rgba(30, 41, 59, 0.75));
+  border: 1px solid var(--border, rgba(56, 189, 248, 0.24));
+  border-radius: 14px;
+  padding: 8px 3px 7px;
+  display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  text-align: center;
+  justify-content: center;
+  gap: 5px;
+  color: var(--text, #f8fafc);
+  font-family: inherit;
+  font-size: 10.5px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+}
+.klev-compact-menu-item:active,
+.klev-compact-menu-item.active {
+  transform: scale(0.96);
+  border-color: var(--accent, #38bdf8);
+}
+.klev-compact-menu-ico {
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(56, 189, 248, 0.12);
+  color: var(--accent, #38bdf8);
+}
+.klev-compact-menu-ico svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* Гибридный защищённый ползунок SOS (свайп вправо ИЛИ удержание 2 сек) */
+.klev-hybrid-sos-track {
+  position: relative;
+  height: 46px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(127, 29, 29, 0.72), rgba(220, 38, 38, 0.28));
+  border: 1.5px solid rgba(239, 68, 68, 0.58);
+  display: flex;
+  align-items: center;
+  padding: 3px;
   overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: pan-y;
 }
-html[data-rear-screen="1"] #klevRearScreenHud {
-  display: flex !important;
+.klev-hybrid-sos-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 0%;
+  background: linear-gradient(90deg, rgba(239, 68, 68, 0.65), rgba(220, 38, 38, 0.85));
+  pointer-events: none;
+  transition: width 0.08s linear;
 }
-@media (max-width: 340px) and (max-height: 360px) {
-  #klevRearScreenHud {
-    display: flex !important;
-  }
+.klev-hybrid-sos-knob {
+  position: relative;
+  z-index: 2;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ef4444, #b91c1c);
+  border: 1.5px solid #fca5a5;
+  color: #ffffff;
+  font-weight: 900;
+  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 3px 10px rgba(220, 38, 38, 0.55);
+  cursor: grab;
+  flex-shrink: 0;
 }
-
-    /* ==========================================================================
-       1. СИСТЕМА ДИЗАЙН-ТОКЕНОВ ИЗ ПАПКИ FISHING/UX_UI/ (Tactile Glassmorphism)
-       ========================================================================== */
-    :root {
-      --radius-pill: 9999px;
-      --radius-card: 20px;
-      --radius-md: 14px;
-      --radius-sm: 10px;
-      --blur-glass: blur(14px);
-      --stroke-icon: 1.6px;
-      --toast-bottom: 84px;
-      --font-ui: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-      --fs-xs: 12px;
-      --fs-sm: 13.5px;
-      --fs-md: 15.5px;
-      --fs-lg: 18px;
-      --good: #10B981;
-      --warn: #F59E0B;
-      --bad: #EF4444;
-      --info: #38BDF8;
-    }
-
-    /* А. ТЁМНАЯ ТЕМА (DARK MODE — data-theme="dark") */
-    [data-theme="dark"] {
-      --bg-app: #0F172A;
-      --bg-outer: #070C17;
-      --bg-surface: linear-gradient(145deg, #1E293B, #131C2E);
-      --bg-surface-solid: #172133;
-      --bg-glass: radial-gradient(circle at 30% 25%, rgba(56, 189, 248, 0.18), rgba(15, 23, 42, 0.72));
-      --bg-glass-card: linear-gradient(155deg, rgba(30, 41, 59, 0.78), rgba(15, 23, 42, 0.86));
-      --border-tactile: rgba(255, 255, 255, 0.08);
-      --border-glass: rgba(56, 189, 248, 0.45);
-      --border-subtle: rgba(148, 163, 184, 0.16);
-      --shadow-tactile: 0 6px 14px rgba(0, 0, 0, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.12);
-      --shadow-glass: 0 0 18px rgba(56, 189, 248, 0.25), inset 0 1px 2px rgba(255, 255, 255, 0.32), inset 0 -4px 10px rgba(56, 189, 248, 0.16);
-      --text-primary: #F8FAFC;
-      --text-secondary: #94A3B8;
-      --text-label-tactile: #94A3B8;
-      --text-label-glass: #38BDF8;
-      --accent: #38BDF8;
-      --accent-glow: rgba(56, 189, 248, 0.32);
-      --icon-stroke: #E2E8F0;
-      --map-water: #112A46;
-      --map-water-deep: #0B1D33;
-      --map-land: #0F172A;
-      --map-contour: rgba(56, 189, 248, 0.18);
-      --dock-bg: rgba(15, 23, 42, 0.84);
-      --sheet-bg: rgba(17, 25, 42, 0.96);
-    }
-
-    /* Б. СВЕТЛАЯ ТЕМА (LIGHT MODE — data-theme="light") */
-    [data-theme="light"] {
-      --bg-app: #F1F5F9;
-      --bg-outer: #DCE5F0;
-      --bg-surface: linear-gradient(145deg, #FFFFFF, #E2E8F0);
-      --bg-surface-solid: #FFFFFF;
-      --bg-glass: radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.88), rgba(224, 242, 254, 0.62));
-      --bg-glass-card: linear-gradient(155deg, rgba(255, 255, 255, 0.92), rgba(235, 245, 255, 0.82));
-      --border-tactile: rgba(255, 255, 255, 0.9);
-      --border-glass: rgba(56, 189, 248, 0.42);
-      --border-subtle: rgba(15, 23, 42, 0.11);
-      --shadow-tactile: 0 6px 14px rgba(15, 23, 42, 0.10), inset 0 2px 3px #FFFFFF;
-      --shadow-glass: 0 4px 16px rgba(56, 189, 248, 0.22), inset 0 2px 4px rgba(255, 255, 255, 0.95);
-      --text-primary: #0F172A;
-      --text-secondary: #475569;
-      --text-label-tactile: #334155;
-      --text-label-glass: #0284C7;
-      --accent: #0284C7;
-      --accent-glow: rgba(2, 132, 199, 0.24);
-      --icon-stroke: #1E293B;
-      --map-water: #CBE4FD;
-      --map-water-deep: #A5D0FA;
-      --map-land: #F4F7FB;
-      --map-contour: rgba(2, 132, 199, 0.16);
-      --dock-bg: rgba(255, 255, 255, 0.88);
-      --sheet-bg: rgba(248, 250, 252, 0.97);
-    }
-
-    /* В. КОНТРАСТНАЯ ТЕМА (CONTRAST / OLED MODE — data-theme="contrast") */
-    [data-theme="contrast"] {
-      --bg-app: #000000;
-      --bg-outer: #000000;
-      --bg-surface: #0D0D0D;
-      --bg-surface-solid: #0D0D0D;
-      --bg-glass: radial-gradient(circle at 30% 25%, rgba(245, 158, 11, 0.18), rgba(10, 10, 10, 0.82));
-      --bg-glass-card: linear-gradient(155deg, rgba(22, 18, 10, 0.86), rgba(8, 8, 8, 0.94));
-      --border-tactile: rgba(245, 158, 11, 0.25);
-      --border-glass: rgba(251, 191, 36, 0.48);
-      --border-subtle: rgba(245, 158, 11, 0.22);
-      --shadow-tactile: 0 0 16px rgba(245, 158, 11, 0.32), inset 0 1px 1px rgba(255, 255, 255, 0.15);
-      --shadow-glass: 0 0 20px rgba(245, 158, 11, 0.35), inset 0 2px 5px rgba(255, 255, 255, 0.32), inset 0 -4px 12px rgba(245, 158, 11, 0.22);
-      --text-primary: #FFFFFF;
-      --text-secondary: #D97706;
-      --text-label-tactile: #F59E0B;
-      --text-label-glass: #FBBF24;
-      --accent: #F59E0B;
-      --accent-glow: rgba(245, 158, 11, 0.34);
-      --icon-stroke: #FFFFFF;
-      --map-water: #111F30;
-      --map-water-deep: #091320;
-      --map-land: #000000;
-      --map-contour: rgba(245, 158, 11, 0.22);
-      --dock-bg: rgba(10, 10, 10, 0.92);
-      --sheet-bg: rgba(12, 12, 12, 0.98);
-    }
-
-    * {
-      box-sizing: border-box;
-      -webkit-tap-highlight-color: transparent;
-    }
-
-    html, body {
-      margin: 0;
-      padding: 0;
-      min-height: 100%;
-      font-family: var(--font-ui);
-      background: var(--bg-outer);
-      color: var(--text-primary);
-      transition: background 0.25s ease, color 0.25s ease;
-      overflow-x: hidden;
-    }
-
-    button, input, select, textarea {
-      font-family: inherit;
-      color: inherit;
-    }
-
-    /* ==========================================================================
-       2. ВЕРХНИЙ ИНЖЕНЕРНЫЙ ПУЛЬТ УПРАВЛЕНИЯ СТЕНДОМ
-       ========================================================================== */
-    .studio-topbar {
-      position: sticky;
-      top: 0;
-      z-index: 9000;
-      background: rgba(9, 14, 24, 0.94);
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
-      border-bottom: 1px solid rgba(56, 189, 248, 0.24);
-      padding: 8px 14px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      flex-wrap: wrap;
-      color: #F8FAFC;
-    }
-
-    .studio-brand {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .studio-badge {
-      padding: 4px 10px;
-      border-radius: var(--radius-pill);
-      font-size: 11px;
-      font-weight: 800;
-      letter-spacing: 0.4px;
-      background: rgba(56, 189, 248, 0.16);
-      border: 1px solid rgba(56, 189, 248, 0.45);
-      color: #38BDF8;
-      white-space: nowrap;
-    }
-
-    .studio-controls {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-
-    .studio-seg {
-      display: inline-flex;
-      background: rgba(30, 41, 59, 0.78);
-      border: 1px solid rgba(148, 163, 184, 0.22);
-      border-radius: var(--radius-pill);
-      padding: 2px;
-      gap: 2px;
-    }
-
-    .studio-seg button {
-      border: none;
-      background: transparent;
-      color: #94A3B8;
-      font-size: 11.5px;
-      font-weight: 600;
-      padding: 5px 11px;
-      border-radius: var(--radius-pill);
-      cursor: pointer;
-      transition: all 0.18s ease;
-      white-space: nowrap;
-    }
-
-    .studio-seg button.active {
-      background: #38BDF8;
-      color: #07111F;
-      font-weight: 800;
-      box-shadow: 0 2px 10px rgba(56, 189, 248, 0.35);
-    }
-
-    [data-theme="contrast"] .studio-seg button.active {
-      background: #F59E0B;
-      color: #000000;
-      box-shadow: 0 2px 10px rgba(245, 158, 11, 0.4);
-    }
-
-    /* ==========================================================================
-       3. КОНТЕЙНЕР ПРИЛОЖЕНИЯ (СМАРТФОН / ПЛАНШЕТ BENTO / СТЕНД АУДИТА)
-       ========================================================================== */
-    .workspace-stage {
-      display: flex;
-      justify-content: center;
-      align-items: flex-start;
-      padding: 16px 12px 40px;
-      min-height: calc(100vh - 56px);
-    }
-
-    .app-frame {
-      position: relative;
-      width: 100%;
-      max-width: 420px;
-      min-height: 780px;
-      background: var(--bg-app);
-      border-radius: 36px;
-      border: 1.5px solid var(--border-glass);
-      box-shadow: 0 22px 60px rgba(0, 0, 0, 0.55), 0 0 28px var(--accent-glow);
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      transition: max-width 0.28s cubic-bezier(0.22, 1, 0.36, 1), background 0.25s ease;
-    }
-
-    /* Лёгкий фон приложения (отключён на экране Карты, чтобы не перекрывать реальную карту) */
-    .app-frame::before {
-      content: "";
-      position: absolute;
-      inset: 0;
-      pointer-events: none;
-      background-image: radial-gradient(circle at 50% 0%, var(--accent-glow) 0%, transparent 38%);
-      opacity: 0.45;
-      z-index: 0;
-    }
-    .app-frame.on-map-screen::before {
-      display: none;
-    }
-
-    html[data-viewport="desktop"] .app-frame {
-      max-width: 1140px;
-      border-radius: 24px;
-      min-height: 760px;
-    }
-
-    html[data-viewport="audit"] .app-frame {
-      display: none;
-    }
-
-    .audit-frame {
-      display: none;
-      width: 100%;
-      max-width: 1220px;
-      background: var(--bg-app);
-      border: 1.5px solid var(--border-glass);
-      border-radius: 24px;
-      padding: 22px;
-      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
-    }
-
-    html[data-viewport="audit"] .audit-frame {
-      display: block;
-    }
-
-    /* Смартфонный статус-бар */
-    .phone-statusbar {
-      position: relative;
-      z-index: 10;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 10px 22px 6px;
-      font-size: 12px;
-      font-weight: 700;
-      color: var(--text-primary);
-      opacity: 0.9;
-    }
-
-    .phone-status-right {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 11px;
-    }
-
-    /* ==========================================================================
-       4. КОМПОНЕНТЫ TACTILE GLASSMORPHISM (КАРТОЧКИ, КНОПКИ-ЛИНЗЫ, СЕГМЕНТЫ)
-       ========================================================================== */
-    .glass-panel {
-      background: var(--bg-glass-card);
-      backdrop-filter: var(--blur-glass);
-      -webkit-backdrop-filter: var(--blur-glass);
-      border: 1px solid var(--border-glass);
-      box-shadow: var(--shadow-glass);
-      border-radius: var(--radius-card);
-      transition: all 0.22s ease;
-    }
-
-    html[data-glass="off"] .glass-panel {
-      backdrop-filter: none;
-      -webkit-backdrop-filter: none;
-      background: var(--bg-surface);
-      border: 1px solid var(--border-tactile);
-      box-shadow: var(--shadow-tactile);
-    }
-
-    /* Круглая навигационная кнопка-линза (56x56 для меню 3x3, 48x48 для контролов карты) */
-    .lens-btn {
-      width: 56px;
-      height: 56px;
-      border-radius: 50%;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      position: relative;
-      padding: 0;
-      background: var(--bg-glass);
-      backdrop-filter: var(--blur-glass);
-      -webkit-backdrop-filter: var(--blur-glass);
-      border: 1px solid var(--border-glass);
-      box-shadow: var(--shadow-glass);
-      color: var(--icon-stroke);
-      transition: transform 0.16s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.2s ease, border-color 0.2s ease;
-    }
-
-    html[data-glass="off"] .lens-btn {
-      backdrop-filter: none;
-      -webkit-backdrop-filter: none;
-      background: var(--bg-surface);
-      border: 1px solid var(--border-tactile);
-      box-shadow: var(--shadow-tactile);
-    }
-
-    .lens-btn:hover {
-      transform: translateY(-2px) scale(1.03);
-    }
-
-    .lens-btn:active {
-      transform: scale(0.95);
-    }
-
-    .lens-btn.lens-48 {
-      width: 48px;
-      height: 48px;
-    }
-
-    .lens-btn.active {
-      border-color: var(--accent);
-      box-shadow: 0 0 22px var(--accent-glow), inset 0 2px 5px rgba(255, 255, 255, 0.45);
-      color: var(--accent);
-    }
-
-    .lens-btn svg, .k-svg {
-      width: 24px;
-      height: 24px;
-      stroke: currentColor;
-      stroke-width: var(--stroke-icon);
-      stroke-linecap: round;
-      stroke-linejoin: round;
-      fill: none;
-      flex-shrink: 0;
-    }
-
-    .lens-item-wrap {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      cursor: pointer;
-      user-select: none;
-    }
-
-    .lens-label {
-      margin-top: 6px;
-      font-size: 11.5px;
-      font-weight: 600;
-      color: var(--text-label-glass);
-      transition: color 0.2s ease;
-      line-height: 1.2;
-    }
-
-    html[data-glass="off"] .lens-label {
-      color: var(--text-label-tactile);
-    }
-
-    /* Капсульные переключатели (Segmented Control) */
-    /* Стильный тумблер-переключатель вместо стандартных чекбоксов */
-    .klev-switch {
-      position: relative;
-      display: inline-block;
-      width: 44px;
-      height: 24px;
-      flex-shrink: 0;
-      cursor: pointer;
-    }
-    .klev-switch input {
-      opacity: 0;
-      width: 0;
-      height: 0;
-      position: absolute;
-    }
-    .klev-switch-slider {
-      position: absolute;
-      inset: 0;
-      border-radius: 999px;
-      background: rgba(148, 163, 184, 0.25);
-      border: 1px solid var(--border-subtle);
-      transition: all 0.22s ease;
-    }
-    .klev-switch-slider::before {
-      content: "";
-      position: absolute;
-      width: 18px;
-      height: 18px;
-      left: 2px;
-      top: 2px;
-      border-radius: 50%;
-      background: #E2E8F0;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.35);
-      transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), background 0.22s ease;
-    }
-    .klev-switch input:checked + .klev-switch-slider {
-      background: var(--accent-glow);
-      border-color: var(--accent);
-      box-shadow: 0 0 12px var(--accent-glow);
-    }
-    .klev-switch input:checked + .klev-switch-slider::before {
-      transform: translateX(20px);
-      background: var(--accent);
-    }
-
-    /* Миниатюра фото улова в карточке Журнала */
-    .catch-photo-thumb {
-      width: 72px;
-      height: 54px;
-      border-radius: 12px;
-      border: 1px solid var(--border-glass);
-      overflow: hidden;
-      position: relative;
-      cursor: pointer;
-      background: var(--bg-surface-solid);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .catch-photo-thumb img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      display: block;
-    }
-    .catch-photo-badge {
-      position: absolute;
-      bottom: 2px;
-      right: 2px;
-      font-size: 9px;
-      font-weight: 800;
-      padding: 1px 4px;
-      border-radius: 5px;
-      background: rgba(15, 23, 42, 0.78);
-      color: #F8FAFC;
-    }
-
-    .seg-bar {
-      display: flex;
-      align-items: center;
-      background: rgba(15, 23, 42, 0.42);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-pill);
-      padding: 3px;
-      gap: 3px;
-    }
-
-    [data-theme="light"] .seg-bar {
-      background: rgba(226, 232, 240, 0.75);
-    }
-
-    [data-theme="contrast"] .seg-bar {
-      background: #0B0B0B;
-      border-color: rgba(245, 158, 11, 0.28);
-    }
-
-    .seg-btn {
-      flex: 1;
-      min-width: 0;
-      border: none;
-      background: transparent;
-      color: var(--text-secondary);
-      font-size: 11.5px;
-      font-weight: 600;
-      padding: 7px 4px;
-      border-radius: var(--radius-pill);
-      cursor: pointer;
-      transition: all 0.2s ease;
-      text-align: center;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .seg-btn.active {
-      background: var(--bg-glass);
-      border: 1px solid var(--border-glass);
-      box-shadow: var(--shadow-glass);
-      color: var(--text-primary);
-      font-weight: 700;
-    }
-
-    html[data-glass="off"] .seg-btn.active {
-      background: var(--bg-surface);
-      border-color: var(--border-tactile);
-      box-shadow: var(--shadow-tactile);
-    }
-
-    /* Пилюли и кнопки */
-    .pill-btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 7px;
-      padding: 8px 14px;
-      border-radius: var(--radius-pill);
-      font-size: 12.5px;
-      font-weight: 600;
-      cursor: pointer;
-      background: var(--bg-glass);
-      backdrop-filter: var(--blur-glass);
-      -webkit-backdrop-filter: var(--blur-glass);
-      border: 1px solid var(--border-glass);
-      box-shadow: var(--shadow-glass);
-      color: var(--text-primary);
-      transition: all 0.18s ease;
-    }
-
-    html[data-glass="off"] .pill-btn {
-      backdrop-filter: none;
-      background: var(--bg-surface);
-      border-color: var(--border-tactile);
-      box-shadow: var(--shadow-tactile);
-    }
-
-    .pill-btn:hover {
-      transform: translateY(-1px);
-    }
-
-    .pill-btn.active {
-      border-color: var(--accent);
-      color: var(--accent);
-      font-weight: 700;
-    }
-
-    .status-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: var(--good);
-      box-shadow: 0 0 8px var(--good);
-      display: inline-block;
-      flex-shrink: 0;
-    }
-
-    /* ==========================================================================
-       5. ОСНОВНАЯ РАБОЧАЯ ОБЛАСТЬ И ЭКРАНЫ
-       ========================================================================== */
-    .app-viewport {
-      position: relative;
-      z-index: 2;
-      flex: 1;
-      overflow-y: auto;
-      overflow-x: hidden;
-      padding: 10px 14px 76px;
-      display: flex;
-      flex-direction: column;
-      gap: 9px;
-    }
-
-    .app-viewport.map-fullscreen {
-      padding: 0 0 64px;
-    }
-
-    .screen-sec {
-      display: none;
-      flex-direction: column;
-      gap: 12px;
-      animation: klevSlideFade 0.24s cubic-bezier(0.22, 1, 0.36, 1);
-    }
-
-    .screen-sec.active {
-      display: flex;
-    }
-
-    @keyframes klevSlideFade {
-      from { opacity: 0; transform: translateY(6px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    /* На широком экране (Desktop Bento) — двухколоночная сетка внутри экранов */
-    html[data-viewport="desktop"] .desktop-bento-grid {
-      display: grid;
-      grid-template-columns: 1.05fr 1.25fr;
-      gap: 16px;
-      align-items: start;
-    }
-
-    /* ==========================================================================
-       6. ЭКРАН 1: «ПРОГНОЗ КЛЁВА» (ТОЧКА ВХОДА)
-       ========================================================================== */
-    .fc-top-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-    }
-
-    .fc-hero-box {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      text-align: center;
-      padding: 10px 12px 11px;
-      position: relative;
-    }
-
-    .fc-title-main {
-      font-size: 16px;
-      font-weight: 800;
-      margin: 0 0 2px;
-      letter-spacing: -0.2px;
-    }
-
-    .fc-ice-sub {
-      font-size: 11px;
-      color: var(--text-secondary);
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      margin-bottom: 6px;
-    }
-
-    /* Живой сонарный радар прогноза клёва (крупный 236x236px, точная копия заставки по темам) */
-    .radial-gauge-wrap {
-      position: relative;
-      width: 236px;
-      height: 236px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin: 4px auto 10px;
-    }
-    #fcHeroSonarCanvas {
-      width: 236px;
-      height: 236px;
-      display: block;
-      border-radius: 50%;
-    }
-
-    .radial-gauge-svg {
-      width: 100%;
-      height: 100%;
-      overflow: visible;
-    }
-
-    .radial-gauge-center {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      pointer-events: none;
-    }
-
-    .radial-pct-val {
-      font-size: 34px;
-      font-weight: 900;
-      letter-spacing: -1px;
-      line-height: 1;
-      font-variant-numeric: tabular-nums;
-    }
-
-    .radial-status-lbl {
-      margin-top: 3px;
-      font-size: 12px;
-      font-weight: 700;
-      color: var(--text-secondary);
-    }
-
-    /* Компактные капсулы Утро / Вечер */
-    .bite-windows-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-      width: 100%;
-      margin-top: 0;
-    }
-
-    .bite-window-pill {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 7px 11px;
-      border-radius: 14px;
-      text-align: left;
-    }
-
-    .bite-window-meta {
-      display: flex;
-      flex-direction: column;
-      line-height: 1.25;
-    }
-
-    .bite-window-title {
-      font-size: 12px;
-      font-weight: 700;
-      color: var(--text-primary);
-    }
-
-    .bite-window-time {
-      font-size: 12.5px;
-      font-weight: 600;
-      color: var(--accent);
-      font-variant-numeric: tabular-nums;
-    }
-
-    /* Горизонтальная лента выбора вида рыбы */
-    .species-strip-wrap {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      overflow-x: auto;
-      padding: 4px 2px 6px;
-      scrollbar-width: none;
-    }
-
-    .species-strip-wrap::-webkit-scrollbar {
-      display: none;
-    }
-
-    .fish-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 7px 13px;
-      border-radius: var(--radius-pill);
-      font-size: 12.5px;
-      font-weight: 600;
-      white-space: nowrap;
-      cursor: pointer;
-      background: var(--bg-glass);
-      border: 1px solid var(--border-subtle);
-      color: var(--text-secondary);
-      transition: all 0.18s ease;
-      flex-shrink: 0;
-    }
-
-    html[data-glass="off"] .fish-chip {
-      background: var(--bg-surface);
-    }
-
-    .fish-chip.active {
-      border-color: var(--accent);
-      box-shadow: var(--shadow-glass);
-      color: var(--text-primary);
-      font-weight: 700;
-    }
-
-    .fish-chip-visual {
-      width: 28px;
-      height: 16px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-    }
-
-    .fish-chip-visual img {
-      max-width: 100%;
-      max-height: 100%;
-      object-fit: contain;
-    }
-
-    /* Почасовой график 00:00–24:00 со скраббером */
-    .chart-card {
-      padding: 14px;
-      position: relative;
-    }
-
-    .chart-floating-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 5px 11px;
-      border-radius: var(--radius-pill);
-      font-size: 12px;
-      font-weight: 700;
-      background: var(--bg-surface-solid);
-      border: 1px solid var(--border-glass);
-      color: var(--text-primary);
-      margin-bottom: 8px;
-      font-variant-numeric: tabular-nums;
-    }
-
-    .hourly-svg-wrap {
-      position: relative;
-      width: 100%;
-      height: 135px;
-      cursor: ew-resize;
-      user-select: none;
-    }
-
-    .hourly-time-axis {
-      display: flex;
-      justify-content: space-between;
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--text-secondary);
-      margin-top: 6px;
-      font-variant-numeric: tabular-nums;
-    }
-
-    .cta-full-btn {
-      width: 100%;
-      padding: 13px 16px;
-      border-radius: 16px;
-      font-size: 14px;
-      font-weight: 700;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 9px;
-      cursor: pointer;
-      background: var(--bg-glass);
-      border: 1.5px solid var(--accent);
-      box-shadow: var(--shadow-glass);
-      color: var(--text-primary);
-      transition: all 0.18s ease;
-    }
-
-    .cta-full-btn:hover {
-      transform: translateY(-1px);
-    }
-
-    /* ==========================================================================
-       7. ЭКРАН 2: «КАРТА» (НАВИГАЦИЯ, ТОЧКИ, WATERNAVMESH A*, ОФФЛАЙН)
-       ========================================================================== */
-    .map-stage-container {
-      position: relative;
-      width: 100%;
-      height: 740px;
-      background: var(--map-land);
-      overflow: hidden;
-      user-select: none;
-    }
-
-    html[data-viewport="desktop"] .map-stage-container {
-      height: 670px;
-      border-radius: 20px;
-    }
-
-    #realLeafletMap {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      z-index: 1;
-      background: var(--map-land);
-    }
-
-    .leaflet-control-attribution {
-      font-size: 9px !important;
-      background: rgba(15, 23, 42, 0.55) !important;
-      color: #94A3B8 !important;
-      padding: 1px 5px !important;
-    }
-    .leaflet-control-attribution a { color: #38BDF8 !important; }
-    .leaflet-control-zoom { display: none !important; }
-
-    /* Горизонтальная свайпаемая лента из 6 компактных мини-плашек (1 короткая надпись на каждой) */
-    .map-bottom-pills-strip {
-      position: absolute;
-      left: 10px;
-      right: 10px;
-      bottom: 10px;
-      z-index: 450;
-      display: flex;
-      align-items: center;
-      gap: 7px;
-      overflow-x: auto;
-      padding: 2px 2px 4px;
-      scrollbar-width: none;
-    }
-    .map-bottom-pills-strip::-webkit-scrollbar { display: none; }
-
-    .map-single-pill {
-      flex-shrink: 0;
-      padding: 9px 14px;
-      border-radius: var(--radius-pill);
-      font-size: 12.5px;
-      font-weight: 700;
-      white-space: nowrap;
-      cursor: pointer;
-      background: var(--bg-glass-card);
-      backdrop-filter: var(--blur-glass);
-      -webkit-backdrop-filter: var(--blur-glass);
-      border: 1px solid var(--border-glass);
-      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
-      color: var(--text-primary);
-      transition: transform 0.15s ease, border-color 0.15s ease;
-    }
-    html[data-glass="off"] .map-single-pill {
-      backdrop-filter: none;
-      background: var(--bg-surface);
-      border-color: var(--border-tactile);
-    }
-    .map-single-pill.active {
-      border-color: var(--accent);
-      color: var(--accent);
-    }
-
-    .map-top-overlay {
-      position: absolute;
-      top: 10px;
-      left: 12px;
-      right: 12px;
-      z-index: 450;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      pointer-events: none;
-    }
-
-    .map-top-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      pointer-events: auto;
-    }
-
-    .map-search-box {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 9px 13px;
-      border-radius: 16px;
-    }
-
-    .map-search-box input {
-      border: none;
-      background: transparent;
-      outline: none;
-      width: 100%;
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--text-primary);
-    }
-
-    .map-search-box input::placeholder {
-      color: var(--text-secondary);
-    }
-
-    .map-weather-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 7px;
-      padding: 9px 13px;
-      border-radius: 16px;
-      font-size: 13px;
-      font-weight: 700;
-      white-space: nowrap;
-      cursor: pointer;
-    }
-
-    /* Правый вертикальный стек из 4 круглых стеклянных кнопок без текста (Thumb Zone) */
-    .map-right-stack {
-      position: absolute;
-      right: 14px;
-      bottom: 66px;
-      z-index: 450;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    /* Левая зона большого пальца (Транспорт, Изобаты, Трек/Я потерялся) */
-    .map-left-stack {
-      position: absolute;
-      left: 14px;
-      bottom: 66px;
-      z-index: 450;
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 8px;
-    }
-
-    /* Нижний док карты (Карточка выбранной точки + 2 компактные шторки) */
-    .map-bottom-sheet-card {
-      position: absolute;
-      left: 10px;
-      right: 10px;
-      bottom: 10px;
-      z-index: 22;
-      padding: 12px 14px;
-      border-radius: 22px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .sheet-grabber {
-      width: 38px;
-      height: 4px;
-      border-radius: 99px;
-      background: rgba(148, 163, 184, 0.38);
-      margin: 0 auto 2px;
-    }
-
-    .map-spot-summary-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-    }
-
-    .map-route-cta {
-      padding: 10px 16px;
-      border-radius: var(--radius-pill);
-      font-size: 13px;
-      font-weight: 700;
-      border: 1px solid var(--border-glass);
-      background: var(--accent);
-      color: #061320;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      box-shadow: 0 4px 16px var(--accent-glow);
-      white-space: nowrap;
-    }
-
-    .map-dual-docks {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-    }
-
-    .map-mini-dock-btn {
-      padding: 8px 10px;
-      border-radius: 14px;
-      font-size: 11.5px;
-      font-weight: 700;
-      text-align: left;
-      cursor: pointer;
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-      border: 1px solid var(--border-subtle);
-      background: rgba(15, 23, 42, 0.35);
-    }
-
-    [data-theme="light"] .map-mini-dock-btn {
-      background: rgba(255, 255, 255, 0.65);
-    }
-
-    /* ==========================================================================
-       8. ЭКРАН 3: «ЖУРНАЛ УЛОВОВ И ИИ-КАЛИБРОВКА»
-       ========================================================================== */
-    .journal-kpi-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 9px;
-    }
-
-    .journal-kpi-card {
-      padding: 12px 11px;
-      border-radius: 18px;
-      position: relative;
-      display: flex;
-      flex-direction: column;
-      justify-content: flex-end;
-      min-height: 82px;
-    }
-
-    .journal-kpi-ico {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      opacity: 0.65;
-      color: var(--text-secondary);
-    }
-
-    .journal-kpi-val {
-      font-size: 20px;
-      font-weight: 800;
-      letter-spacing: -0.5px;
-      line-height: 1.1;
-    }
-
-    .journal-kpi-lbl {
-      font-size: 11.5px;
-      font-weight: 500;
-      color: var(--text-secondary);
-      margin-top: 2px;
-    }
-
-    .catch-entry-card {
-      padding: 13px 14px;
-      border-radius: 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .catch-entry-meta {
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--text-secondary);
-      padding-bottom: 8px;
-      border-bottom: 1px solid var(--border-subtle);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-    }
-
-    .catch-entry-body {
-      display: grid;
-      grid-template-columns: 74px 1fr 64px;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .catch-minimap-thumb {
-      width: 64px;
-      height: 64px;
-      border-radius: 14px;
-      border: 1px solid var(--border-glass);
-      overflow: hidden;
-      background: var(--map-land);
-    }
-
-    /* ==========================================================================
-       9. ЭКРАН 4: «МЕНЮ И ИНСТРУМЕНТЫ» (СЕТКА 3x3 + ЗАЩИЩЁННЫЙ СЛАЙДЕР SOS 2 СЕК)
-       ========================================================================== */
-    .menu-hub-header {
-      text-align: center;
-      padding: 4px 6px 2px;
-    }
-
-    .menu-hub-title {
-      font-size: 16px;
-      font-weight: 800;
-      letter-spacing: 0.6px;
-      text-transform: uppercase;
-      margin: 0 0 6px;
-    }
-
-    .menu-hub-sub {
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--text-secondary);
-      display: inline-flex;
-      align-items: center;
-      gap: 7px;
-    }
-
-    /* Компактное всплывающее Меню над нижним доком (не перекрывает весь экран) */
-    .compact-menu-backdrop {
-      position: absolute;
-      inset: 0;
-      bottom: 64px;
-      z-index: 180;
-      background: rgba(4, 9, 18, 0.32);
-      display: none;
-      align-items: flex-end;
-      justify-content: center;
-      padding: 10px 12px;
-    }
-    .compact-menu-backdrop.open {
-      display: flex;
-    }
-    .compact-menu-popover {
-      width: 100%;
-      max-width: 396px;
-      padding: 14px 14px 14px;
-      border-radius: 24px;
-      background: var(--sheet-bg);
-      backdrop-filter: blur(18px);
-      -webkit-backdrop-filter: blur(18px);
-      border: 1.5px solid var(--border-glass);
-      box-shadow: 0 -10px 34px rgba(0, 0, 0, 0.55), 0 0 22px var(--accent-glow);
-      display: flex;
-      flex-direction: column;
-      gap: 11px;
-      animation: sheetSlideUp 0.2s cubic-bezier(0.22, 1, 0.36, 1);
-    }
-    .menu-grid-5 {
-      display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      gap: 8px 6px;
-      padding: 4px 0;
-      justify-items: center;
-    }
-    .menu-grid-5 .lens-btn {
-      width: 52px;
-      height: 52px;
-    }
-    .menu-grid-5 .lens-btn svg {
-      width: 23px;
-      height: 23px;
-    }
-
-    /* Защищённый слайдер SOS (Удерживайте 2 сек для SOS) */
-    .sos-hold-track {
-      position: relative;
-      width: 100%;
-      height: 54px;
-      border-radius: var(--radius-pill);
-      background: linear-gradient(135deg, rgba(127, 29, 29, 0.72), rgba(69, 10, 10, 0.85));
-      border: 1px solid rgba(248, 113, 113, 0.45);
-      box-shadow: 0 0 20px rgba(239, 68, 68, 0.25), inset 0 1px 2px rgba(255, 255, 255, 0.22);
-      display: flex;
-      align-items: center;
-      padding: 5px;
-      overflow: hidden;
-      cursor: pointer;
-      user-select: none;
-    }
-
-    .sos-hold-progress {
-      position: absolute;
-      left: 0;
-      top: 0;
-      bottom: 0;
-      width: 0%;
-      background: linear-gradient(90deg, rgba(239, 68, 68, 0.65), rgba(245, 158, 11, 0.75));
-      transition: width 0.08s linear;
-      pointer-events: none;
-    }
-
-    .sos-hold-knob {
-      position: relative;
-      z-index: 2;
-      width: 44px;
-      height: 44px;
-      border-radius: 50%;
-      background: radial-gradient(circle at 30% 25%, #F87171, #DC2626);
-      border: 1px solid rgba(255, 255, 255, 0.5);
-      box-shadow: 0 0 14px rgba(239, 68, 68, 0.6);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #FFFFFF;
-      flex-shrink: 0;
-    }
-
-    .sos-hold-text {
-      position: relative;
-      z-index: 2;
-      flex: 1;
-      text-align: center;
-      font-size: 13.5px;
-      font-weight: 700;
-      color: #FEE2E2;
-      padding-right: 24px;
-    }
-
-    /* ==========================================================================
-       10. НИЖНИЙ ТАБ-БАР (4 ИКОНКИ — height: 64px + ДВУХПРУЖИННЫЙ ГЛАЙДЕР)
-       ========================================================================== */
-    .bottom-dock {
-      position: absolute;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      height: 64px;
-      z-index: 100;
-      background: var(--dock-bg);
-      backdrop-filter: blur(18px);
-      -webkit-backdrop-filter: blur(18px);
-      border-top: 1px solid var(--border-subtle);
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      align-items: center;
-      padding: 0 8px;
-    }
-
-    .dock-tab-btn {
-      position: relative;
-      z-index: 2;
-      border: none;
-      background: transparent;
-      height: 52px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 3px;
-      color: var(--text-secondary);
-      cursor: pointer;
-      transition: color 0.18s ease, transform 0.18s ease;
-    }
-
-    .dock-tab-btn svg {
-      width: 24px;
-      height: 24px;
-      stroke: currentColor;
-      stroke-width: var(--stroke-icon);
-      stroke-linecap: round;
-      stroke-linejoin: round;
-      fill: none;
-      transition: transform 0.22s cubic-bezier(0.16, 1.14, 0.3, 1), filter 0.22s ease;
-    }
-
-    .dock-tab-btn.active {
-      color: var(--accent);
-    }
-
-    .dock-tab-btn.active svg {
-      transform: translateY(-1px) scale(1.08);
-      filter: drop-shadow(0 0 8px var(--accent-glow));
-    }
-
-    .dock-tab-lbl {
-      font-size: 10.5px;
-      font-weight: 600;
-      line-height: 1;
-      display: none;
-    }
-
-    /* Позволяет переключать режим «Строго без подписей (по ТЗ п. 2)» и «С подписями (как на референс-шотах)» */
-    html[data-dock-labels="on"] .dock-tab-lbl {
-      display: block;
-    }
-
-    /* ==========================================================================
-       11. ВЫДВИЖНЫЕ ШТОРКИ (BOTTOM SHEETS), МОДАЛЬНЫЕ ОКНА И БЕЗОПАСНЫЕ ТОСТЫ
-       ========================================================================== */
-    .sheet-backdrop {
-      position: absolute;
-      inset: 0;
-      z-index: 200;
-      background: rgba(4, 9, 18, 0.62);
-      backdrop-filter: blur(4px);
-      display: none;
-      align-items: flex-end;
-      justify-content: center;
-    }
-
-    .sheet-backdrop.open {
-      display: flex;
-    }
-
-    .bottom-sheet-panel {
-      width: 100%;
-      max-height: 82%;
-      background: var(--sheet-bg);
-      border-top: 1.5px solid var(--border-glass);
-      border-radius: 26px 26px 0 0;
-      padding: 12px 16px 22px;
-      overflow-y: auto;
-      box-shadow: 0 -12px 36px rgba(0, 0, 0, 0.55);
-      animation: sheetSlideUp 0.22s cubic-bezier(0.22, 1, 0.36, 1);
-    }
-
-    @keyframes sheetSlideUp {
-      from { transform: translateY(100%); }
-      to { transform: translateY(0); }
-    }
-
-    /* Безопасный тост строго на bottom: 84px (не перекрывает нижний док 64px) */
-    .safe-toast-host {
-      position: absolute;
-      left: 14px;
-      right: 14px;
-      bottom: var(--toast-bottom);
-      z-index: 350;
-      pointer-events: none;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    .safe-toast-card {
-      pointer-events: auto;
-      padding: 11px 14px;
-      border-radius: 16px;
-      background: var(--sheet-bg);
-      border: 1.5px solid var(--accent);
-      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      font-size: 12.5px;
-      font-weight: 600;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .toast-timer-bar {
-      position: absolute;
-      left: 0;
-      bottom: 0;
-      height: 3px;
-      background: var(--accent);
-      width: 100%;
-      animation: toastCountdown 3.4s linear forwards;
-    }
-
-    @keyframes toastCountdown {
-      from { width: 100%; }
-      to { width: 0%; }
-    }
-
-    /* Таблицы и карточки инженерного стенда аудита */
-    .audit-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 12.5px;
-    }
-
-    .audit-table th, .audit-table td {
-      padding: 10px 12px;
-      border-bottom: 1px solid var(--border-subtle);
-      text-align: left;
-      vertical-align: top;
-    }
-
-    .audit-table th {
-      font-weight: 800;
-      color: var(--accent);
-      background: rgba(56, 189, 248, 0.08);
-    }
-
-    .code-tag {
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      font-size: 11.5px;
-      padding: 2px 6px;
-      border-radius: 6px;
-      background: rgba(56, 189, 248, 0.14);
-      color: var(--accent);
-    }
-
-    .subscreen-nav-bar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      padding-bottom: 6px;
-      border-bottom: 1px solid var(--border-subtle);
-    }
-
-    .form-input, .form-select {
-      width: 100%;
-      padding: 9px 12px;
-      border-radius: 12px;
-      border: 1px solid var(--border-glass);
-      background: rgba(15, 23, 42, 0.45);
-      color: var(--text-primary);
-      font-size: 13px;
-      font-weight: 600;
-      outline: none;
-    }
-
-    [data-theme="light"] .form-input, [data-theme="light"] .form-select {
-      background: #FFFFFF;
-    }
-  
-
-/* ==========================================================================
-   КЛЁВ ПРО 2.0 • v2.9.1 (r241) PRODUCTION FULLSCREEN MOBILE/TABLET SHELL
-   1-в-1 с эталоном Видео 1 (#klevAppFrame), с сохранением Десктопа (data-desktop-web="1")
-   ========================================================================== */
-html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) > body > .app-header,
-html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) > body > main#app,
-html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) > body > nav.bottom-nav,
-html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) > body > #klevCompactMenuBackdrop {
-  display: none !important;
+.klev-hybrid-sos-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-left: 34px;
+  font-size: 11.5px;
+  font-weight: 800;
+  color: #fecaca;
+  pointer-events: none;
+  text-align: center;
 }
 
-html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) body {
-  padding-top: 0 !important;
-  padding-bottom: 0 !important;
-  margin: 0 !important;
-  overflow: hidden !important;
-  background: var(--bg-app, #0F172A) !important;
+/* 7. Компактная однострочная лента 6 плашек внизу карты (#arcCompactPillsStrip) */
+.klev-arc-single-pills-strip {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  overflow-x: auto;
+  padding: 4px 2px 6px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.klev-arc-single-pills-strip::-webkit-scrollbar {
+  display: none;
+}
+.klev-arc-single-pill {
+  appearance: none;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: var(--panel, rgba(15, 23, 42, 0.86));
+  border: 1px solid var(--border, rgba(56, 189, 248, 0.32));
+  color: var(--text, #f8fafc);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  flex-shrink: 0;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+.klev-arc-single-pill.active {
+  border-color: var(--accent, #38bdf8);
+  color: var(--accent, #38bdf8);
 }
 
-html[data-desktop-web="1"] #klevAppFrame,
-html[data-admin-contour="1"] #klevAppFrame {
-  display: none !important;
-}
-
-html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) #klevAppFrame {
-  position: fixed !important;
-  inset: 0 !important;
-  width: 100vw !important;
-  max-width: 100vw !important;
-  height: 100dvh !important;
-  min-height: 100dvh !important;
-  border-radius: 0 !important;
-  border: none !important;
-  box-shadow: none !important;
-  z-index: 1400 !important;
-  margin: 0 !important;
-  display: flex !important;
-  flex-direction: column !important;
-}
-
-html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) #klevAppFrame .app-viewport {
-  padding-top: max(10px, env(safe-area-inset-top, 10px)) !important;
-  padding-bottom: calc(74px + env(safe-area-inset-bottom, 0px)) !important;
-}
-
-html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) #klevAppFrame .app-viewport.map-fullscreen {
-  padding-top: 0 !important;
-  padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)) !important;
-}
-
-html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) #klevAppFrame .map-stage-container {
-  height: calc(100dvh - 64px - env(safe-area-inset-bottom, 0px)) !important;
-}
-
-html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) #klevAppFrame .bottom-dock {
-  height: calc(64px + env(safe-area-inset-bottom, 0px)) !important;
-  padding-bottom: env(safe-area-inset-bottom, 0px) !important;
-}
-
-html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) #klevAppFrame .compact-menu-backdrop {
-  bottom: calc(64px + env(safe-area-inset-bottom, 0px)) !important;
-}
-
-/* Системные модальные окна (авторизация D1, выбор 491 водоёма, ИИ-сканер, лайтбокс) поверх #klevAppFrame */
-#appModalBackdrop,
-#fishImageLightbox,
-#klevUserAgreementBackdrop,
-#klevConfirmDeleteBackdrop,
-#klevCustomSelectBackdrop,
-#releaseUpdateModal {
-  z-index: 3200 !important;
-}
-
-/* Горизонтальный режим (Landscape) для планшетов, больших смартфонов и раскладушек (Flip / Fold) */
+/* 8. Горизонтальный режим (Landscape) для планшетов, больших смартфонов и складных экранов (Flip / Fold) */
 @media (orientation: landscape) and (max-width: 1180px) {
-  html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) #klevAppFrame .desktop-bento-grid {
+  html:not([data-desktop-web="1"]) #secForecast .bento-dashboard-wrap {
     display: grid !important;
-    grid-template-columns: minmax(260px, 310px) minmax(0, 1fr) !important;
+    grid-template-columns: minmax(275px, 340px) minmax(0, 1fr) !important;
     gap: 12px !important;
     align-items: start !important;
   }
-  html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) #klevAppFrame .radial-gauge-wrap,
-  html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) #klevAppFrame #fcHeroSonarCanvas {
+  html:not([data-desktop-web="1"]) #secForecast .bento-top-species-strip,
+  html:not([data-desktop-web="1"]) #secForecast .klev-fc-subtabs-bar {
+    grid-column: 1 / -1 !important;
+  }
+  html:not([data-desktop-web="1"]) #secForecast #bentoSwipeHeroCard {
+    grid-column: 1 / 2 !important;
+    position: sticky !important;
+    top: 64px !important;
+    margin-bottom: 0 !important;
+  }
+  html:not([data-desktop-web="1"]) #secForecast #bentoWaveChartCard,
+  html:not([data-desktop-web="1"]) #secForecast #fcTackleControlsCard,
+  html:not([data-desktop-web="1"]) #secForecast .bento-tactical-advice-wrap,
+  html:not([data-desktop-web="1"]) #secForecast .bento-bottom-duo {
+    grid-column: 2 / 3 !important;
+  }
+  html:not([data-desktop-web="1"]) .bento-hero-sonar-stage,
+  html:not([data-desktop-web="1"]) .bento-hero-sonar-canvas {
     width: 196px !important;
     height: 196px !important;
   }
 }
 
-/* Режим внешнего мини-экрана (Xiaomi 18 Pro Max Rear Screen & Flip Cover Screen) */
+/* 9. Задний / Внешний мини-экран (Xiaomi 18 Pro Max Rear Screen & Flip Cover Screen: <= 340x360 или data-rear-screen="1") */
 #klevRearScreenHud {
   display: none;
   position: fixed;
   inset: 0;
   z-index: 2600;
-  background: var(--bg-app, #0F172A);
-  color: var(--text-primary, #F8FAFC);
+  background: var(--bg, #07111f);
+  background-image: var(--bg-grad);
+  color: var(--text, #f8fafc);
   padding: 10px;
   flex-direction: column;
   align-items: center;
