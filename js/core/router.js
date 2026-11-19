@@ -24,7 +24,7 @@ export function handleAppBackAction(source = 'popstate') {
     document.getElementById('bottomNavMenuTriggerBtn')?.classList.remove('active');
     return true;
   }
-  const arcExpandedClose = document.getElementById('arcCloseExpandedPlaqueBtn');
+  const arcExpandedClose = document.getElementById('arcExpandedPlaqueHeader');
   if (arcExpandedClose && arcExpandedClose.offsetParent !== null) {
     arcExpandedClose.click();
     return true;
@@ -187,10 +187,21 @@ export const router = {
         pushBackGuardState('nav');
       } catch (e) {}
     }
-    if (prevRoute !== target && typeof window !== 'undefined' && typeof window.scrollTo === 'function') {
-      try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) {}
+    const menuBackdrop = document.getElementById('klevCompactMenuBackdrop');
+    if (menuBackdrop) menuBackdrop.classList.remove('open');
+    const modalCloseBtn = document.querySelector('#appModalBackdrop.open [data-modal-close], #appModalBackdrop.open .modal-close');
+    if (modalCloseBtn && typeof modalCloseBtn.click === 'function') {
+      try { modalCloseBtn.click(); } catch (_e) {}
+    }
+    const arcWxClose = document.getElementById('arcCloseWeatherModalBtn');
+    if (arcWxClose && arcWxClose.offsetParent !== null) {
+      try { arcWxClose.click(); } catch (_e) {}
     }
     this.applyVisibility(target);
+    if (typeof window !== 'undefined' && typeof window.scrollTo === 'function') {
+      try { window.scrollTo(0, 0); } catch (e) {}
+      try { document.documentElement.scrollTop = 0; document.body.scrollTop = 0; } catch (e) {}
+    }
     store.dispatch({ type: 'SET_ROUTE', payload: target });
     if (typeof window.syncFishDockState === 'function') {
       window.syncFishDockState(true, target);
@@ -299,14 +310,7 @@ export const router = {
       if (secName === route) {
         sec.style.display = '';
         sec.classList.remove('klev-sec-slide-right', 'klev-sec-slide-left', 'klev-sec-slide-fade');
-        if (route !== 'geo') {
-          void sec.offsetWidth;
-          sec.classList.add(
-            slideDir === 'right'
-              ? 'klev-sec-slide-right'
-              : (slideDir === 'left' ? 'klev-sec-slide-left' : 'klev-sec-slide-fade')
-          );
-        }
+        // Без тяжёлой GPU-перерастеризации огромных секций (0 мс переключение вкладок)
       } else {
         sec.style.display = 'none';
         sec.classList.remove('klev-sec-slide-right', 'klev-sec-slide-left', 'klev-sec-slide-fade');

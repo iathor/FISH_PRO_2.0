@@ -355,14 +355,21 @@ export function evaluateDayIce(historyMeanTemps, tDayMax, tNightMin, waterTemp, 
   const avgTailMean = tailSlice.reduce((a, b) => a + b, 0) / tailSlice.length;
   const isWinterSeason = (monthNum >= 10 || monthNum <= 4);
 
-  if (!isWinterSeason && waterTemp > 2.4 && avgTailMean > 1.2 && tCurMean > 0.5) {
+  if (
+    (!isWinterSeason && waterTemp > 2.4 && avgTailMean > 1.2 && tCurMean > 0.5) ||
+    avgTailMean >= 4.0 ||
+    (tDayMax >= 6.5 && tNightMin >= 1.0) ||
+    (effLat < 49.0 && avgTailMean >= 1.5 && tCurMean >= 1.5) ||
+    (waterTemp >= 4.0 && tCurMean >= 2.0)
+  ) {
+    const cleanWt = Math.max(waterTemp, tCurMean >= 5 ? Math.round((tCurMean * 0.58 + 2.2) * 10) / 10 : waterTemp);
     return {
       iceState: 'open_water',
       iceSubState: 'open_water',
       iceThickness: 0,
       lakeIceThickness: 0,
       riverIceThickness: 0,
-      iceNote: `Открытая вода (+${waterTemp.toFixed(1)}°C, ${flowLabel})`
+      iceNote: `Открытая вода (+${cleanWt.toFixed(1)}°C, ${flowLabel})`
     };
   }
 
@@ -1415,6 +1422,21 @@ export function render(container) {
   }
   const s = store.getState();
   const days = s.weatherDays || [];
+  if (Array.isArray(s.weatherDays)) {
+    s.weatherDays.forEach(d => {
+      if (d && (Number(d.tDay) >= 6 || (Number(d.tDay) >= 4 && Number(d.tNight) >= 0.5) || Number(d.waterTemp) >= 3.5)) {
+        d.iceState = 'open_water';
+        d.iceSubState = 'open_water';
+        d.iceThickness = 0;
+        d.lakeIceThickness = 0;
+        d.riverIceThickness = 0;
+        if (Number(d.waterTemp) < 2.0 && Number(d.tDay) >= 6) {
+          d.waterTemp = Math.round((Number(d.tDay) * 0.58 + 2.2) * 10) / 10;
+        }
+        d.iceNote = `Открытая вода (+${Number(d.waterTemp || 8).toFixed(1)}°C)`;
+      }
+    });
+  }
   const dayIdx = Number.isFinite(s.dayIdx) ? s.dayIdx : 2;
   const day = days[dayIdx] || days[2] || days[0];
   if (!day) return;

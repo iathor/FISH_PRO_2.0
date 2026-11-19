@@ -1087,28 +1087,62 @@ export function renderLog(container) {
           </button>
         </div>
       </div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
-        <button type="button" class="pill-btn" style="padding:5px 10px;font-size:11.5px;" id="logExportJsonBtn">Архив .JSON</button>
-        <button type="button" class="pill-btn" style="padding:5px 10px;font-size:11.5px;" id="logExportCsvBtn">Экспорт .CSV</button>
-        <label class="pill-btn" id="logImportFileLabel" style="padding:5px 10px;font-size:11.5px;cursor:pointer;margin:0;">
-          <span>Загрузить с устройства</span>
-          <input type="file" id="logImportFileInput" accept=".json,.csv,application/json,text/csv,*/*" style="display:none;">
-        </label>
-      </div>
-      <!-- Переключатель: Основной журнал vs Помеченные на удаление (защита от случайного удаления) -->
-      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;padding:8px 10px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);">
-        <div style="display:flex;gap:6px;flex-wrap:wrap;">
-          <button type="button" class="btn btn-sm ${activeLogTab === 'active' ? 'btn-accent' : ''}" id="logTabActiveBtn">
-            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="5" y="3" width="14" height="18" rx="2.5" fill="rgba(56,189,248,0.16)" stroke="currentColor" stroke-width="1.8"/><path d="M9 7h6M9 11h6M9 15h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Активные записи (${activeRecords.length})
-          </button>
-          <button type="button" class="btn btn-sm ${activeLogTab === 'trash' ? 'btn-accent' : ''}" id="logTabTrashBtn" style="${trashRecords.length > 0 ? 'border-color:var(--warn);color:var(--warn);' : ''}">
-            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Помеченные на удаление (${trashRecords.length})
-          </button>
+
+      <!-- 3 KPI-карточки в ряд строго по макету ux_journal.jpg -->
+      ${(() => {
+        const totalKg = Math.round(activeRecords.reduce((acc, r) => acc + (parseFloat(r.weightKg) || 0), 0) * 10) / 10;
+        const bestPressVal = statsAll.avgPress || statsFish.avgPress || 756;
+        return `
+          <div class="journal-kpi-grid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:10px;">
+            <div class="glass-panel" style="position:relative;padding:11px 12px;border-radius:18px;">
+              <span style="position:absolute;top:9px;right:10px;color:var(--muted);opacity:0.85;"><svg class="k-svg" style="width:18px;height:18px;"><use href="#icon-forecast"></use></svg></span>
+              <div style="font-size:20px;font-weight:900;line-height:1.15;margin-top:6px;">${activeRecords.length}</div>
+              <div style="font-size:11.5px;color:var(--muted);font-weight:700;">выездов (${statsAll.successCount}/${statsAll.blankCount})</div>
+            </div>
+            <div class="glass-panel" style="position:relative;padding:11px 12px;border-radius:18px;">
+              <span style="position:absolute;top:9px;right:10px;color:var(--muted);opacity:0.85;"><svg class="k-svg" style="width:18px;height:18px;"><use href="#ui-scale"></use></svg></span>
+              <div style="font-size:20px;font-weight:900;line-height:1.15;margin-top:6px;">${totalKg} кг</div>
+              <div style="font-size:11.5px;color:var(--muted);font-weight:700;">общий улов</div>
+            </div>
+            <div class="glass-panel" style="position:relative;padding:11px 12px;border-radius:18px;">
+              <span style="position:absolute;top:9px;right:10px;color:var(--muted);opacity:0.85;"><svg class="k-svg" style="width:18px;height:18px;"><use href="#icon-fish"></use></svg></span>
+              <div style="font-size:20px;font-weight:900;line-height:1.15;margin-top:6px;">${bestPressVal} мм</div>
+              <div style="font-size:11.5px;color:var(--muted);font-weight:700;">лучший клёв</div>
+            </div>
+          </div>
+        `;
+      })()}
+
+      <!-- Панель вкладок Активные / Корзина и резервного копирования (.JSON, .CSV) -->
+      <div class="glass-panel" style="padding:10px 12px;margin-bottom:10px;display:flex;flex-direction:column;gap:8px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <button type="button" class="pill-btn ${activeLogTab === 'active' ? 'active' : ''}" style="padding:5px 11px;font-size:11.5px;" id="logTabActiveBtn">
+              Активные (${activeRecords.length})
+            </button>
+            <button type="button" class="pill-btn ${activeLogTab === 'trash' ? 'active' : ''}" style="padding:5px 11px;font-size:11.5px;" id="logTabTrashBtn">
+              Корзина (${trashRecords.length})
+            </button>
+            ${activeLogTab === 'trash' && trashRecords.length > 0 ? `
+              <button type="button" class="pill-btn" id="logPurgeAllTrashBtn" style="padding:5px 11px;font-size:11.5px;color:var(--bad);border-color:var(--bad);">
+                Очистить корзину
+              </button>
+            ` : ''}
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <button type="button" class="pill-btn" style="padding:5px 10px;font-size:11.5px;" id="logExportJsonBtn">Архив .JSON</button>
+            <button type="button" class="pill-btn" style="padding:5px 10px;font-size:11.5px;" id="logExportCsvBtn">Экспорт .CSV</button>
+            <label class="pill-btn" id="logImportFileLabel" style="padding:5px 10px;font-size:11.5px;cursor:pointer;margin:0;">
+              <span>Загрузить</span>
+              <input type="file" id="logImportFileInput" accept=".json,.csv,application/json,text/csv,*/*" style="display:none;">
+            </label>
+          </div>
         </div>
-        ${activeLogTab === 'trash' && trashRecords.length > 0 ? `
-          <button type="button" class="btn btn-sm" id="logPurgeAllTrashBtn" style="color:var(--bad);border-color:rgba(239,68,68,0.45);">
-            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Удалить все помеченные навсегда
-          </button>
+        ${statsAll.top3Baits.length > 0 ? `
+          <div style="font-size:11.5px;color:var(--muted);padding-top:4px;border-top:1px solid var(--border);">
+            Рабочие приманки: <b style="color:var(--accent);">${statsAll.top3Baits.map(escapeHtml).join(' • ')}</b>
+            ${statsAll.matchRate !== null ? ` • Точность прогноза: <b style="color:var(--good);">${statsAll.matchRate}%</b>` : ''}
+          </div>
         ` : ''}
       </div>
       ${activeLogTab === 'trash' ? `
@@ -1140,32 +1174,7 @@ export function renderLog(container) {
           </div>
         `}
       ` : `
-        <div class="bento-metrics-grid" style="margin-bottom:12px;">
-          <div class="bento-metric-tile" style="display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:12px 10px;gap:4px;">
-            <div class="bento-metric-val" style="color:var(--good);font-size:19px;font-weight:900;">
-              ${statsAll.matchRate !== null ? `${statsAll.matchRate}%` : `${statsAll.successCount} / ${statsAll.blankCount}`}
-            </div>
-            <div class="bento-metric-sub" style="font-size:11.5px;font-weight:800;color:var(--muted);">
-              Уловов: <b>${statsAll.successCount}</b> • Пустых: <b>${statsAll.blankCount}</b>
-            </div>
-          </div>
-          <div class="bento-metric-tile" style="display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:12px 10px;gap:4px;">
-            <div class="bento-metric-val" style="font-size:17px;font-weight:900;color:var(--accent);">
-              ${statsFish.count ? `~${statsFish.avgPress} мм • ~${statsFish.avgWaterTemp}°` : activeFish.name}
-            </div>
-            <div class="bento-metric-sub" style="font-size:11.5px;font-weight:800;color:var(--muted);">
-              ${statsFish.count ? escapeHtml(activeFish.name) : 'Нет записей по рыбе'}
-            </div>
-          </div>
-          <div class="bento-metric-tile" style="display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:12px 10px;gap:4px;">
-            <div class="bento-metric-val" style="font-size:14px;font-weight:900;color:#fbbf24;line-height:1.3;">
-              ${statsAll.top3Baits.length > 0 ? statsAll.top3Baits.join(' • ') : 'Приманки'}
-            </div>
-            <div class="bento-metric-sub" style="font-size:11.5px;font-weight:800;color:var(--muted);">
-              ${statsAll.top3Baits.length > 0 ? 'Топ-3 по уловам' : 'Нет данных'}
-            </div>
-          </div>
-        </div>
+
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
           <select id="logFilterFish" style="max-width:220px;">
             <option value="all" ${currentFilter.fishId === 'all' ? 'selected' : ''}>Все рыбы (${activeRecords.length})</option>
@@ -1226,9 +1235,9 @@ export function renderLog(container) {
                   <div class="catch-photo-thumb-placeholder" style="margin-top:4px;padding:7px 10px;border-radius:12px;background:rgba(15,23,42,0.32);border:1px dashed var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11.5px;color:var(--muted);">
                     <span style="display:inline-flex;align-items:center;gap:6px;">
                       <svg class="k-svg" style="width:15px;height:15px;color:var(--accent);"><use href="#ui-camera"></use></svg>
-                      <span>Фото улова</span>
+                      <span>Фото улова и точка на карте</span>
                     </span>
-                    <span style="font-weight:700;color:var(--accent);">Прикрепляется в записи / ИИ-сканере</span>
+                    <span style="font-weight:700;color:var(--accent);">${escapeHtml(c.waterName || c.locLabel || 'Водоём')}</span>
                   </div>
                 `}
               </div>

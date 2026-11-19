@@ -643,6 +643,15 @@ function bindGlobalShellEvents() {
       e.preventDefault();
       e.stopPropagation();
       triggerHaptic('selection');
+      // Закрываем открытые модальные окна или полноэкранную погоду на карте, если они были открыты
+      const openModalEl = document.getElementById('appModalBackdrop');
+      if (openModalEl && openModalEl.classList.contains('open')) {
+        closeModal();
+      }
+      const arcWxClose = document.getElementById('arcCloseWeatherModalBtn');
+      if (arcWxClose && arcWxClose.offsetParent !== null) {
+        try { arcWxClose.click(); } catch (_e) {}
+      }
       const willOpen = !menuBackdrop.classList.contains('open');
       if (willOpen) {
         syncCompactMenuControls();
@@ -1008,6 +1017,7 @@ function initScrollCompactMenus() {
   if (typeof window === 'undefined' || typeof document === 'undefined') return;
   const rootEl = document.documentElement;
   const applyScrollDelta = (curY) => {
+    if (rootEl.getAttribute('data-desktop-web') !== '1') return;
     if (rootEl.getAttribute('data-arc-map-active') === '1') return;
     const dy = curY - _lastScrollYForPeek;
     if (curY <= 24 || dy < -10) {

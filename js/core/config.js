@@ -96,43 +96,43 @@ export const SPOT_CATEGORIES = {
     id: 'slip',
     short: 'Слип',
     color: '#38bdf8',
-    icon: '<svg class="k-ico" style="color:#38bdf8;" viewBox="0 0 24 24" fill="none"><path d="M3 17l18-5v7H3v-2z" fill="rgba(56,189,248,0.25)" stroke="#38bdf8" stroke-width="1.8" stroke-linejoin="round"/><path d="M6 12l9-3 3 3-12 2v-2z" fill="#38bdf8"/></svg>',
-    label: '<svg class="k-ico" style="color:#38bdf8;" viewBox="0 0 24 24" fill="none"><path d="M3 17l18-5v7H3v-2z" fill="rgba(56,189,248,0.25)" stroke="#38bdf8" stroke-width="1.8" stroke-linejoin="round"/><path d="M6 12l9-3 3 3-12 2v-2z" fill="#38bdf8"/></svg> Слип / Спуск лодки'
+    icon: '<svg class="k-svg" style="width:18px;height:18px;" viewBox="0 0 24 24" fill="none"><use href="#point-slip"/></svg>',
+    label: '<svg class="k-svg" style="width:18px;height:18px;" viewBox="0 0 24 24" fill="none"><use href="#point-slip"/></svg> Слип / Спуск лодки'
   },
   snag: {
     id: 'snag',
     short: 'Коряга',
-    color: '#d97706',
-    icon: '<svg class="k-ico" style="color:#d97706;" viewBox="0 0 24 24" fill="none"><path d="M12 20V8m0 4l-5-4m5 6l5-5M7 20h10" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-    label: '<svg class="k-ico" style="color:#d97706;" viewBox="0 0 24 24" fill="none"><path d="M12 20V8m0 4l-5-4m5 6l5-5M7 20h10" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Коряга / Бровка / Зацеп'
+    color: '#f59e0b',
+    icon: '<svg class="k-svg" style="width:18px;height:18px;" viewBox="0 0 24 24" fill="none"><use href="#point-snag"/></svg>',
+    label: '<svg class="k-svg" style="width:18px;height:18px;" viewBox="0 0 24 24" fill="none"><use href="#point-snag"/></svg> Коряга / Бровка / Зацеп'
   },
   camp: {
     id: 'camp',
     short: 'Стоянка',
     color: '#10b981',
-    icon: '<svg class="k-ico" style="color:#10b981;" viewBox="0 0 24 24" fill="none"><path d="M12 4L3 19h18L12 4z" fill="rgba(16,185,129,0.24)" stroke="#10b981" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 12l-3 7h6l-3-7z" fill="#10b981"/></svg>',
-    label: '<svg class="k-ico" style="color:#10b981;" viewBox="0 0 24 24" fill="none"><path d="M12 4L3 19h18L12 4z" fill="rgba(16,185,129,0.24)" stroke="#10b981" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 12l-3 7h6l-3-7z" fill="#10b981"/></svg> Стоянка / Подъезд / Лагерь'
+    icon: '<svg class="k-svg" style="width:18px;height:18px;" viewBox="0 0 24 24" fill="none"><use href="#point-camp"/></svg>',
+    label: '<svg class="k-svg" style="width:18px;height:18px;" viewBox="0 0 24 24" fill="none"><use href="#point-camp"/></svg> Стоянка / Подъезд / Лагерь'
   },
   hazard: {
     id: 'hazard',
-    short: 'Опасно',
+    short: 'Опасность',
     color: '#ef4444',
-    icon: '<svg class="k-ico" style="color:#ef4444;" viewBox="0 0 24 24" fill="none"><path d="M12 3L2.5 19.5h19L12 3z" fill="rgba(239,68,68,0.24)" stroke="#ef4444" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9v5M12 17h.01" stroke="#fca5a5" stroke-width="2" stroke-linecap="round"/></svg>',
-    label: '<svg class="k-ico" style="color:#ef4444;" viewBox="0 0 24 24" fill="none"><path d="M12 3L2.5 19.5h19L12 3z" fill="rgba(239,68,68,0.24)" stroke="#ef4444" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9v5M12 17h.01" stroke="#fca5a5" stroke-width="2" stroke-linecap="round"/></svg> Опасность / Промоина / Сеть'
+    icon: '<svg class="k-svg" style="width:18px;height:18px;" viewBox="0 0 24 24" fill="none"><use href="#point-danger"/></svg>',
+    label: '<svg class="k-svg" style="width:18px;height:18px;" viewBox="0 0 24 24" fill="none"><use href="#point-danger"/></svg> Опасность / Промоина / Сеть'
   },
   bite: {
     id: 'bite',
-    short: 'Яма / Клёв',
+    short: 'Клёв',
     color: '#06b6d4',
-    icon: '<svg class="k-ico" style="color:#06b6d4;" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8" fill="rgba(6,182,212,0.22)" stroke="#06b6d4" stroke-width="1.8"/><circle cx="12" cy="12" r="3" fill="#06b6d4"/></svg>',
-    label: '<svg class="k-ico" style="color:#06b6d4;" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8" fill="rgba(6,182,212,0.22)" stroke="#06b6d4" stroke-width="1.8"/><circle cx="12" cy="12" r="3" fill="#06b6d4"/></svg> Клёв / Рабочая яма / Свим'
+    icon: '<svg class="k-svg" style="width:18px;height:18px;" viewBox="0 0 24 24" fill="none"><use href="#point-spot"/></svg>',
+    label: '<svg class="k-svg" style="width:18px;height:18px;" viewBox="0 0 24 24" fill="none"><use href="#point-spot"/></svg> Клёв / Рабочая яма / Свим'
   },
   shop: {
     id: 'shop',
     short: 'Магазин',
-    color: '#a855f7',
-    icon: '<svg class="k-ico" style="color:#a855f7;" viewBox="0 0 24 24" fill="none"><rect x="4" y="8" width="16" height="12" rx="2" fill="rgba(168,85,247,0.22)" stroke="#a855f7" stroke-width="1.8"/><path d="M8 8V6a4 4 0 0 1 8 0v2" stroke="#a855f7" stroke-width="1.8"/></svg>',
-    label: '<svg class="k-ico" style="color:#a855f7;" viewBox="0 0 24 24" fill="none"><rect x="4" y="8" width="16" height="12" rx="2" fill="rgba(168,85,247,0.22)" stroke="#a855f7" stroke-width="1.8"/><path d="M8 8V6a4 4 0 0 1 8 0v2" stroke="#a855f7" stroke-width="1.8"/></svg> Магазин снастей / База'
+    color: '#38bdf8',
+    icon: '<svg class="k-svg" style="width:18px;height:18px;" viewBox="0 0 24 24" fill="none"><use href="#point-shop"/></svg>',
+    label: '<svg class="k-svg" style="width:18px;height:18px;" viewBox="0 0 24 24" fill="none"><use href="#point-shop"/></svg> Магазин снастей / База'
   }
 };
 export const SEASONAL_BAITS = {

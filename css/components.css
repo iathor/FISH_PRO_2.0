@@ -1506,7 +1506,17 @@ html[data-liquid-glass="0"] .bottom-nav-inner {
    с полным сохранением десктопной веб-версии (html[data-desktop-web="1"])
    ========================================================================== */
 
-/* 1. На мобильных и планшетах скрываем старую двухэтажную шапку .app-header (все её разделы и переключатели темы/стекла перенесены в компактное Меню) */
+/* 1. Отключаем тяжёлую GPU-перерастеризацию огромных секций (устранение тормозов и фризов при переключении вкладок) */
+.klev-sec-slide-right,
+.klev-sec-slide-left,
+.klev-sec-slide-fade {
+  animation: none !important;
+  transform: none !important;
+  will-change: auto !important;
+  opacity: 1 !important;
+}
+
+/* 2. На мобильных и планшетах скрываем старую двухэтажную шапку .app-header */
 html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .app-header {
   display: none !important;
 }
@@ -1524,7 +1534,7 @@ html[data-desktop-web="1"] #klevCompactMenuBackdrop {
   display: none !important;
 }
 
-/* 2. Постоянный нижний док из 4 разделов (Прогноз, Карта, Журнал, Меню) высотой 64px на всех мобильных экранах (включая Карту) */
+/* 3. Постоянный нижний док из 4 разделов (Прогноз, Карта, Журнал, Меню) высотой 64px с монохромными SVG-иконками UX_UI */
 html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav {
   position: fixed !important;
   left: 0 !important;
@@ -1532,12 +1542,12 @@ html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav {
   bottom: 0 !important;
   height: calc(64px + env(safe-area-inset-bottom, 0px)) !important;
   padding: 0 8px env(safe-area-inset-bottom, 0px) !important;
-  background: rgba(15, 23, 42, 0.88) !important;
-  backdrop-filter: blur(18px) !important;
-  -webkit-backdrop-filter: blur(18px) !important;
+  background: rgba(15, 23, 42, 0.90) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
   border-top: 1px solid rgba(148, 163, 184, 0.18) !important;
   border-radius: 0 !important;
-  z-index: 1200 !important;
+  z-index: 4600 !important;
   transform: none !important;
   opacity: 1 !important;
   visibility: visible !important;
@@ -1547,18 +1557,19 @@ html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav {
 }
 
 html[data-theme="light"]:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav {
-  background: rgba(255, 255, 255, 0.90) !important;
+  background: rgba(255, 255, 255, 0.92) !important;
   border-top-color: rgba(15, 23, 42, 0.12) !important;
 }
 
 html[data-theme="contrast"]:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav {
-  background: rgba(8, 8, 8, 0.95) !important;
+  background: rgba(8, 8, 8, 0.96) !important;
   border-top-color: rgba(245, 158, 11, 0.28) !important;
 }
 
 html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav .quick-dock-tab-label,
 html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav #navCircleChatsHubBtn,
-html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav #bottomQuickSosBtn {
+html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav #bottomQuickSosBtn,
+html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav .klev-nav-glider {
   display: none !important;
 }
 
@@ -1575,7 +1586,69 @@ html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav [data
 html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav [data-nav-tab="log"] { order: 3; }
 html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav #bottomNavMenuTriggerBtn { order: 4; }
 
-/* 3. Компоненты Tactile Glassmorphism (линзы, пилюли, сегменты, переключатели .klev-switch) */
+html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav .nav-tab {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: var(--muted) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 3px !important;
+  padding: 4px 2px !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+}
+
+html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav .nav-tab.active {
+  color: var(--accent) !important;
+  font-weight: 800 !important;
+}
+
+html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav .nav-tab.active .dock-ico svg {
+  filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.45));
+}
+
+html[data-theme="contrast"]:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav .nav-tab.active .dock-ico svg {
+  filter: drop-shadow(0 0 8px rgba(245, 158, 11, 0.55));
+}
+
+/* 4. Кнопки и панели на Карте (#secGeo) в едином стиле UX_UI Tactile Glassmorphism */
+.klev-arc-map-stage .klev-arc-icon-btn {
+  width: 46px !important;
+  height: 46px !important;
+  border-radius: 50% !important;
+  color: var(--text) !important;
+}
+
+.klev-arc-map-stage .klev-arc-icon-btn svg,
+.klev-arc-map-stage #arcBtnWeather svg,
+.klev-arc-map-stage #arcBtnSearchToggle svg {
+  stroke: currentColor !important;
+  fill: none !important;
+}
+
+.klev-arc-map-stage #arcPopoverTransport .btn,
+.klev-arc-map-stage #arcPopoverLayers .btn,
+.klev-arc-map-stage #arcPopoverSpotGrid .btn {
+  background: var(--card) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 14px !important;
+  color: var(--text) !important;
+  box-shadow: none !important;
+}
+
+.klev-arc-map-stage #arcPopoverTransport .btn.btn-accent,
+.klev-arc-map-stage #arcPopoverLayers .btn.btn-accent,
+.klev-arc-map-stage #arcPopoverSpotGrid .btn.btn-accent {
+  background: rgba(56, 189, 248, 0.16) !important;
+  border-color: var(--accent) !important;
+  color: var(--accent) !important;
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.24) !important;
+}
+
+/* 5. Компоненты Tactile Glassmorphism (линзы, пилюли, сегменты, переключатели .klev-switch) */
 .k-svg {
   width: 22px;
   height: 22px;
@@ -1621,7 +1694,7 @@ html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav #bott
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 18px;
-  transition: all 0.2s ease;
+  transition: border-color 0.18s ease;
 }
 
 .pill-btn {
@@ -1637,7 +1710,7 @@ html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav #bott
   background: var(--card);
   border: 1px solid var(--border);
   color: var(--text);
-  transition: all 0.18s ease;
+  transition: border-color 0.18s ease, color 0.18s ease;
 }
 
 .pill-btn.active {
@@ -1671,7 +1744,7 @@ html[data-theme="light"] .seg-bar {
   padding: 7px 4px;
   border-radius: 9999px;
   cursor: pointer;
-  transition: all 0.18s ease;
+  transition: all 0.16s ease;
   text-align: center;
   white-space: nowrap;
   overflow: hidden;
@@ -1796,7 +1869,7 @@ input[type="checkbox"]:not(.klev-switch input):checked::before {
   background: var(--accent);
 }
 
-/* 4. 6 однострочных мини-плашек внизу карты */
+/* 6. 6 однострочных мини-плашек внизу карты */
 .map-single-pill {
   flex-shrink: 0;
   padding: 9px 14px;
@@ -1818,20 +1891,22 @@ input[type="checkbox"]:not(.klev-switch input):checked::before {
   color: var(--accent);
 }
 
-/* 5. Компактное всплывающее Меню над нижним доком (5 разделов + гибридный SOS) */
+/* 7. Компактное всплывающее Меню над нижним доком (всегда фиксировано во вьюпорте, z-index 4500) */
 .compact-menu-backdrop {
-  position: fixed;
-  inset: 0;
-  bottom: calc(64px + env(safe-area-inset-bottom, 0px));
-  z-index: 1300;
-  background: rgba(4, 9, 18, 0.42);
+  position: fixed !important;
+  left: 0 !important;
+  right: 0 !important;
+  top: 0 !important;
+  bottom: calc(64px + env(safe-area-inset-bottom, 0px)) !important;
+  z-index: 4500 !important;
+  background: rgba(4, 9, 18, 0.48);
   display: none;
   align-items: flex-end;
   justify-content: center;
   padding: 10px 12px;
 }
 .compact-menu-backdrop.open {
-  display: flex;
+  display: flex !important;
 }
 .compact-menu-popover {
   width: 100%;
@@ -1957,7 +2032,7 @@ input[type="checkbox"]:not(.klev-switch input):checked::before {
   padding-right: 18px;
 }
 
-/* 6. Горизонтальный режим (Landscape) для планшетов, больших смартфонов и раскладушек (Flip / Fold) */
+/* 8. Горизонтальный режим (Landscape) для планшетов, больших смартфонов и раскладушек (Flip / Fold) */
 .klev-fc-mobile-bento-grid {
   display: flex;
   flex-direction: column;

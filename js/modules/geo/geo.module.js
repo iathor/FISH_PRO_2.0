@@ -1671,7 +1671,7 @@ async function fetchTileDataUrlWithFallback(task, attemptSeed = 0) {
   }
 
   // Уровень 3: Cloudflare Worker /api/tile-proxy
-  if (_workerTileProxyState !== 'unavailable') {
+  if (_workerTileProxyState !== 'unavailable' && typeof window !== 'undefined' && window.__KLEV_USE_TILE_PROXY_FALLBACK__ === true) {
     const workerProxyUrl = `https://klevprohbot.thorantony82.workers.dev/api/tile-proxy?url=${encodeURIComponent(primaryYandexUrl)}`;
     const workerBlob = await tryFetchBinaryImageBlob(workerProxyUrl, _workerTileProxyState === 'untested' ? 1800 : 3200);
     if (workerBlob && workerBlob.size > 250) {
@@ -6962,31 +6962,31 @@ const ARC_TRANSPORT_MODES = {
     id: 'car',
     label: 'Автомобиль',
     avgSpeedKmh: 45,
-    svg: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M5 11l2-5h10l2 5m-15 0h16a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-1v2a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1v-2H8v2a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-2H4a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1z" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><circle cx="7.5" cy="14" r="1.3" fill="currentColor"/><circle cx="16.5" cy="14" r="1.3" fill="currentColor"/></svg>'
+    svg: '<svg class="k-svg" viewBox="0 0 24 24" fill="none"><use href="#transport-car"/></svg>'
   },
   snowmobile: {
     id: 'snowmobile',
     label: 'Снегоход/Мотособака',
     avgSpeedKmh: 28,
-    svg: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M3 16h11l3-4-4-3H9L6 13H3v3z" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><path d="M12 6l3 3m2 8h4l1-2" stroke="#38bdf8" stroke-width="1.9" stroke-linecap="round"/><rect x="3" y="17" width="11" height="2.5" rx="1.2" fill="currentColor"/></svg>'
-  },
-  bike: {
-    id: 'bike',
-    label: 'Велосипед',
-    avgSpeedKmh: 16,
-    svg: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="6.5" cy="16.5" r="3.5" stroke="currentColor" stroke-width="1.9"/><circle cx="17.5" cy="16.5" r="3.5" stroke="currentColor" stroke-width="1.9"/><path d="M6.5 16.5l3.5-6.5h4.5l-2.5 6.5m-2-6.5L9 7.5H7m7.5 2.5l3 6.5M14 7h2.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+    svg: '<svg class="k-svg" viewBox="0 0 24 24" fill="none"><use href="#transport-snowmobile"/></svg>'
   },
   boat: {
     id: 'boat',
     label: 'Лодка',
     avgSpeedKmh: 20,
-    svg: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M3 14l3 4h12l3-4-9-2-9 2z" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><path d="M12 6v6m0-6l4 4h-4" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 20c2-1 4-1 6 0s4 1 6 0 4-1 6 0" stroke="#38bdf8" stroke-width="1.7" stroke-linecap="round"/></svg>'
+    svg: '<svg class="k-svg" viewBox="0 0 24 24" fill="none"><use href="#transport-boat"/></svg>'
+  },
+  bike: {
+    id: 'bike',
+    label: 'Велосипед',
+    avgSpeedKmh: 16,
+    svg: '<svg class="k-svg" viewBox="0 0 24 24" fill="none"><use href="#transport-bicycle"/></svg>'
   },
   walk: {
     id: 'walk',
     label: 'Пешком',
     avgSpeedKmh: 4.5,
-    svg: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="4.5" r="2" fill="currentColor"/><path d="M10 9l-2 4m2-4l3 1.5 2 2.5M10 9l-.5 5.5-2.5 5m3-5l2.5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+    svg: '<svg class="k-svg" viewBox="0 0 24 24" fill="none"><use href="#transport-walk"/></svg>'
   }
 };
 
@@ -8695,24 +8695,11 @@ function renderArcMobileMap(container, s, prevLiveMapBox) {
   const catches120Count = countCatchesIn120KmSquare(s);
 
   const gpsIconSvg = _arcGpsCompassState === 'compass'
-    ? `<svg class="k-ico" data-compass-needle="1" style="width:22px;height:22px;transform:rotate(${-_arcCompassHeadingDeg}deg);transition:transform 0.14s linear;" viewBox="0 0 24 24" fill="none">
-         <polygon points="12,2 15.5,12 8.5,12" fill="#ef4444"/>
-         <polygon points="12,22 15.5,12 8.5,12" fill="#cbd5e1"/>
-         <circle cx="12" cy="12" r="2.2" fill="#ffffff"/>
-       </svg>`
-    : `<svg class="k-ico" style="width:20px;height:20px;color:${_arcGpsCompassState === 'centered' ? 'var(--accent)' : 'var(--text)'};" viewBox="0 0 24 24" fill="currentColor">
-         <path d="M3 11l19-9-9 19-2-8-8-2z"/>
-       </svg>`;
+    ? `<svg class="k-svg" data-compass-needle="1" style="width:22px;height:22px;color:var(--accent);transform:rotate(${-_arcCompassHeadingDeg}deg);transition:transform 0.14s linear;" viewBox="0 0 24 24" fill="none"><use href="#map-compass"/></svg>`
+    : `<svg class="k-svg" style="width:22px;height:22px;color:${_arcGpsCompassState === 'centered' ? 'var(--accent)' : 'currentColor'};" viewBox="0 0 24 24" fill="none"><use href="#map-gps"/></svg>`;
 
-  // Разноцветная иконка для кнопки «Точка» (п. 2.7)
-  const multicolorSpotSvg = `
-    <svg class="k-ico" style="width:22px;height:22px;" viewBox="0 0 24 24" fill="none">
-      <circle cx="7.5" cy="7.5" r="3.8" fill="#38bdf8" stroke="#ffffff" stroke-width="1.2"/>
-      <circle cx="16.5" cy="7.5" r="3.8" fill="#10b981" stroke="#ffffff" stroke-width="1.2"/>
-      <circle cx="7.5" cy="16.5" r="3.8" fill="#fbbf24" stroke="#ffffff" stroke-width="1.2"/>
-      <circle cx="16.5" cy="16.5" r="3.8" fill="#ef4444" stroke="#ffffff" stroke-width="1.2"/>
-    </svg>
-  `;
+  // Монохромный векторный значок «Точки» из референса 1000138411-413.jpg (без круглого ободка)
+  const multicolorSpotSvg = `<svg class="k-svg" style="width:22px;height:22px;" viewBox="0 0 24 24" fill="none"><use href="#map-pins"/></svg>`;
 
   // Отрисовка содержимого раскрытой плашки (п. 7: без кнопки Возврата, только наименование; закрытие по клику на заголовок, свайпу вниз или клику по карте)
   let expandedPlaqueHtml = '';
@@ -8883,34 +8870,25 @@ function renderArcMobileMap(container, s, prevLiveMapBox) {
         <svg class="k-ico" style="width:12px;height:12px;" viewBox="0 0 24 24" fill="none"><polyline points="6 9 12 15 18 9" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
 
-      <!-- Верхняя Арка кнопок на карте (без лишних надписей, п. 2.1, 2.4, 2.8) -->
-      <div id="arcTopFloatingBar" style="position:absolute;top:max(10px, env(safe-area-inset-top, 10px));left:10px;right:10px;z-index:920;display:${_arcRouteBuilderMode ? 'none' : 'flex'};align-items:center;justify-content:space-between;gap:8px;pointer-events:none;">
+      <!-- Верхняя панель карты UX_UI (Слои, Погода, Поиск, Транспорт — векторные значки из 1000138411-413.jpg без круглого ободка) -->
+      <div id="arcTopFloatingBar" style="position:absolute;top:max(10px, env(safe-area-inset-top, 10px));left:10px;right:10px;z-index:920;display:${_arcRouteBuilderMode ? 'none' : 'flex'};align-items:center;justify-content:space-between;gap:7px;pointer-events:none;">
         <div style="display:flex;align-items:center;gap:7px;pointer-events:auto;">
-          <!-- П. 2.1: Слои — только кнопка без надписи -->
           <button type="button" class="klev-arc-glass klev-arc-icon-btn ${_arcActivePopover === 'layers' ? 'active' : ''}" id="arcBtnLayers" aria-label="Слои карты">
-            <svg class="k-ico" style="width:20px;height:20px;" viewBox="0 0 24 24" fill="none">
-              <polygon points="12 2 2 7 12 12 22 7 12 2" stroke="#38bdf8" stroke-width="2" stroke-linejoin="round"/>
-              <polyline points="2 17 12 22 22 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <polyline points="2 12 12 17 22 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
+            <svg class="k-svg" style="width:21px;height:21px;" viewBox="0 0 24 24" fill="none"><use href="#map-layers"/></svg>
           </button>
 
-          <!-- П. 2.4: Погода — только значок и температура со знаком градуса (без C и без текста) -->
-          <button type="button" class="klev-arc-glass" id="arcBtnWeather" style="height:44px;padding:0 12px;border-radius:16px;display:inline-flex;align-items:center;gap:6px;font-weight:900;font-size:15px;cursor:pointer;" aria-label="Погода">
-            <svg class="k-ico" style="width:19px;height:19px;color:#38bdf8;" viewBox="0 0 24 24" fill="none">
-              <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" fill="rgba(56,189,248,0.24)" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-            </svg>
+          <button type="button" class="klev-arc-glass" id="arcBtnWeather" style="height:44px;padding:0 12px;border-radius:999px;display:inline-flex;align-items:center;gap:6px;font-weight:800;font-size:14px;cursor:pointer;" aria-label="Погода">
+            <svg class="k-svg" style="width:20px;height:20px;" viewBox="0 0 24 24" fill="none"><use href="#map-weather"/></svg>
             <span>${tAirFormatted}</span>
           </button>
         </div>
 
-        <!-- Центральная капсула быстрого поиска реки/озера/города -->
-        <button type="button" class="klev-arc-glass ${_arcActivePopover === 'search' ? 'active' : ''}" id="arcBtnSearchToggle" style="pointer-events:auto;height:44px;padding:0 12px;border-radius:16px;display:inline-flex;align-items:center;gap:6px;flex:1;max-width:210px;min-width:0;cursor:pointer;font-weight:800;font-size:12px;">
-          <svg class="k-ico" style="width:16px;height:16px;color:#38bdf8;flex-shrink:0;" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2.2"/><line x1="16.5" y1="16.5" x2="21" y2="21" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
-          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(s.selectedWaterName || s.locLabel || 'Поиск водоёма')}</span>
+        <button type="button" class="klev-arc-glass ${_arcActivePopover === 'search' ? 'active' : ''}" id="arcBtnSearchToggle" style="pointer-events:auto;height:44px;padding:0 13px;border-radius:999px;display:inline-flex;align-items:center;gap:7px;flex:1;max-width:220px;min-width:0;cursor:pointer;font-weight:700;font-size:12.5px;">
+          <svg class="k-svg" style="width:17px;height:17px;flex-shrink:0;" viewBox="0 0 24 24" fill="none"><use href="#map-search"/></svg>
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;text-align:left;">${escapeHtml(s.selectedWaterName || s.locLabel || 'Поиск точки...')}</span>
+          <span class="status-dot"></span>
         </button>
 
-        <!-- П. 2.8: Кнопка выбора способа передвижения (по умолчанию Автомобиль) -->
         <button type="button" class="klev-arc-glass klev-arc-icon-btn ${_arcActivePopover === 'transport' ? 'active' : ''}" id="arcBtnTransport" style="pointer-events:auto;" aria-label="Способ передвижения">
           ${curTransport.svg}
         </button>
@@ -8955,12 +8933,15 @@ function renderArcMobileMap(container, s, prevLiveMapBox) {
         `;
       })() : ''}
 
-      <!-- Правые кнопки на карте: П. 2.5 (GPS без надписи) и П. 2.7 (Точка с разными цветами; Кнопка Улов убрана по п. 2.6) -->
+      <!-- Правые кнопки на карте (GPS, Компас, Точки — значки из 1000138411-413.jpg без круглого ободка) -->
       <div id="arcRightSideButtons" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);z-index:920;display:${_arcRouteBuilderMode ? 'none' : 'flex'};flex-direction:column;gap:10px;">
-        <button type="button" class="klev-arc-glass klev-arc-icon-btn ${_arcGpsCompassState === 'compass' ? 'active' : ''}" id="arcBtnGpsCompass" aria-label="GPS и Компас">
-          ${gpsIconSvg}
+        <button type="button" class="klev-arc-glass klev-arc-icon-btn ${_arcGpsCompassState === 'centered' ? 'active' : ''}" id="arcBtnGpsCompass" aria-label="Моя геопозиция GPS">
+          <svg class="k-svg" style="width:22px;height:22px;" viewBox="0 0 24 24" fill="none"><use href="#map-gps"/></svg>
         </button>
-        <button type="button" class="klev-arc-glass klev-arc-icon-btn ${_arcActivePopover === 'spotGrid' ? 'active' : ''}" id="arcBtnAddSpot" aria-label="Добавить точку">
+        <button type="button" class="klev-arc-glass klev-arc-icon-btn ${_arcGpsCompassState === 'compass' ? 'active' : ''}" id="arcBtnCompassOnly" aria-label="Компас и направление взгляда">
+          <svg class="k-svg" data-compass-needle="1" style="width:22px;height:22px;transform:rotate(${-_arcCompassHeadingDeg}deg);transition:transform 0.14s linear;" viewBox="0 0 24 24" fill="none"><use href="#map-compass"/></svg>
+        </button>
+        <button type="button" class="klev-arc-glass klev-arc-icon-btn ${_arcActivePopover === 'spotGrid' ? 'active' : ''}" id="arcBtnAddSpot" aria-label="Точки на карте">
           ${multicolorSpotSvg}
         </button>
       </div>
@@ -9273,12 +9254,28 @@ function bindArcMobileMapEvents(container) {
     render(container);
   });
 
-  // П. 2.4: Кнопка Погоды (раскрывается на весь экран и закрывается обратно на карту)
+  // П. 2.4: Кнопка Погоды на карте — прямой переход на полный экран «Погода» с умным возвратом «< Назад» на Карту
   container.querySelector('#arcBtnWeather')?.addEventListener('click', (e) => {
     e.stopPropagation();
-    _arcFullScreenWeatherOpen = true;
+    _arcFullScreenWeatherOpen = false;
     _arcActivePopover = null;
+    router.navigate('weather');
+  });
+  container.querySelector('#arcBtnCompassOnly')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const boxEl = container.querySelector('#mapBox');
+    if (boxEl) boxEl.style.transform = 'none';
+    if (_arcGpsCompassState !== 'compass') {
+      _arcGpsCompassState = 'compass';
+      startArcDeviceCompassListener();
+      showToast('Компас включён: луч показывает направление вашего взгляда', 'info');
+    } else {
+      _arcGpsCompassState = 'centered';
+      stopArcDeviceCompassListener();
+      showToast('Режим компаса выключен', 'info');
+    }
     render(container);
+    updateLiveUserGpsMarkerOnMap();
   });
 
   container.querySelector('#arcCloseWeatherModalBtn')?.addEventListener('click', (e) => {

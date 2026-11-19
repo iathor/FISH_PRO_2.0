@@ -20,8 +20,8 @@ const runtimeSrc = fs.existsSync(path.join(ROOT, 'app-runtime.js'))
 
 test('3.1 Лимитер запросов checkWorkerRateLimit соблюдает переданный maxPerMin и не задирает лимит до 240', () => {
   assert.ok(
-    !workerSrc.includes('Math.max(241, Number(maxPerMin) || 240)'),
-    'В воркере не должно оставаться Math.max(241, ...)'
+    !workerSrc.includes('Math.max(240, Number(maxPerMin) || 240)'),
+    'В воркере не должно оставаться Math.max(240, ...)'
   );
   assert.ok(
     workerSrc.includes('const limit = Math.max(1, Number(maxPerMin) || 60);'),
@@ -74,7 +74,7 @@ test('3.3 Регулярка прокси тайлов блокирует чуж
   assert.ok(runtimeSrc.includes('window.__KLEV_USE_TILE_PROXY_FALLBACK__'), 'Прокси тайлов в клиенте должен быть закрыт флагом резерва');
 });
 
-test('3.4 & 4.8 Единый источник версии VERSION (2.9.1 r241) синхронизирован во всех файлах и ссылка на APK валидна', () => {
+test('3.4 & 4.8 Единый источник версии VERSION (2.9.0 r240) синхронизирован во всех файлах и ссылка на APK валидна', () => {
   assert.equal(verData.version, '2.9.1');
   assert.equal(verData.revision, 'r241');
   assert.equal(verData.versionCode, 293241);
@@ -196,7 +196,7 @@ test('4.5 Совпадение хешей SHA-256 через crypto.subtle со 
     return Array.from(new Uint8Array(buf), b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
   }
 
-  for (const sample of ['', 'KlevPro_2.9.1_r241', 'Рыболов Новый Уренгой 66.08N 76.68E', 'ADM_SESS_V3:1790000000000:A1B2C3D4E5F60718']) {
+  for (const sample of ['', 'KlevPro_2.9.0_r240', 'Рыболов Новый Уренгой 66.08N 76.68E', 'ADM_SESS_V3:1790000000000:A1B2C3D4E5F60718']) {
     const expected = legacySha256Hex(sample);
     const actual = await subtleSha256Hex(sample);
     assert.equal(actual, expected, `Хеш SHA-256 для "${sample}" должен совпадать 1-в-1`);
@@ -265,7 +265,7 @@ test("2.3 Синтаксическая валидность YAML в .github/work
   }
 });
 
-test("6.1 Редизайн v2.9.1 (r241): 26 SVG-иконок, живой сонар в forecast.module.js, компактное меню без дублей, гибридный SOS, < Назад в Погоде, 6 однострочных плашек карты и сохранение десктопа", () => {
+test("6.1 Редизайн v2.9.1 (r241): 16 векторных значков карты без лишних ободков, живой сонар в forecast.module.js без мигания старого UI, компактное меню без дублей, гибридный SOS, < Назад в Погоде и сохранение десктопа", () => {
   const indexSrc = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
   const runtimeSrc = fs.readFileSync(path.join(ROOT, 'app-runtime.js'), 'utf8');
 
@@ -275,19 +275,21 @@ test("6.1 Редизайн v2.9.1 (r241): 26 SVG-иконок, живой сон
   assert.ok(!indexSrc.includes('id="klevAppFrame"'), 'В index.html не должно быть статической демо-заглушки #klevAppFrame');
   assert.ok(!indexSrc.includes('id="klevRearScreenHud"'), 'В index.html не должно быть выдуманной мини-панели #klevRearScreenHud');
 
-  // 2. Компактное меню из 5 уникальных разделов + гибридный ползунок SOS
+  // 2. Компактное меню из 5 уникальных разделов + гибридный ползунок SOS + новые монохромные иконки нижнего дока
   assert.ok(indexSrc.includes('id="bottomNavMenuTriggerBtn"'), 'В нижнем доке должна быть 4-я кнопка Меню');
   assert.ok(indexSrc.includes('id="klevCompactMenuBackdrop"'), 'Должно присутствовать компактное всплывающее окно Меню');
   assert.ok(indexSrc.includes('id="klevHybridSosTrack"'), 'В компактном меню должен быть гибридный свайп-ползунок SOS');
+  assert.ok(indexSrc.includes('href="#icon-forecast"') && indexSrc.includes('href="#icon-map"') && indexSrc.includes('href="#icon-journal"'), 'Нижний док должен использовать монохромные векторные значки UX_UI');
 
   // 3. Сохранение десктопного режима (html[data-desktop-web="1"]) и горизонтальный режим для планшетов/раскладушек
   assert.ok(indexSrc.includes('html[data-desktop-web="1"] .klev-fc-subtabs-bar'), 'На десктопе мобильные подвкладки должны скрываться без поломки десктопного интерфейса');
   assert.ok(indexSrc.includes('@media (orientation: landscape) and (max-width: 1180px)'), 'Должна поддерживаться горизонтальная двухколоночная сетка для планшетов и раскладушек');
 
-  // 4. Живой сонар в скомпилированном боевом движке forecast.module.js, удаление кнопки Очистить кэш, < Назад в Погоде и 6 плашек на карте
+  // 4. Живой сонар в forecast.module.js, защита от мигания старого UI (#fcRedesignMobileRoot), новые значки карты и транспорта без ободков
   assert.ok(runtimeSrc.includes('bentoHeroSonarCanvas'), 'В боевом forecast.module.js должен рендериться живой сонар #bentoHeroSonarCanvas');
-  assert.ok(runtimeSrc.includes('bentoHeroSonarPctText'), 'В центре сонара должен отображаться процент клёва #bentoHeroSonarPctText');
+  assert.ok(runtimeSrc.includes('fcRedesignMobileRoot'), 'Мобильный прогноз должен рендериться в изолированный контейнер #fcRedesignMobileRoot без перезаписи старым renderExpress');
   assert.ok(!runtimeSrc.includes('id="fcCleanArchiveBtn"'), 'Кнопка Очистить кэш должна быть навсегда убрана из 10-дневного прогноза');
   assert.ok(runtimeSrc.includes('arcCompactPillsStrip'), 'В боевом geo.module.js должна рендериться лента из 6 однострочных плашек #arcCompactPillsStrip');
+  assert.ok(runtimeSrc.includes('#transport-car') && runtimeSrc.includes('#transport-snowmobile') && runtimeSrc.includes('#map-pins'), 'Кнопки карты и транспорта должны использовать новые векторные значки UX_UI без лишнего круглого ободка');
 });
 

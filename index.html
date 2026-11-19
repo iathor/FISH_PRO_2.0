@@ -4437,7 +4437,17 @@ html[data-scroll-compact="1"]:not([data-arc-map-active="1"]) .bottom-nav {
    с полным сохранением десктопной веб-версии (html[data-desktop-web="1"])
    ========================================================================== */
 
-/* 1. На мобильных и планшетах скрываем старую двухэтажную шапку .app-header (все её разделы и переключатели темы/стекла перенесены в компактное Меню) */
+/* 1. Отключаем тяжёлую GPU-перерастеризацию огромных секций (устранение тормозов и фризов при переключении вкладок) */
+.klev-sec-slide-right,
+.klev-sec-slide-left,
+.klev-sec-slide-fade {
+  animation: none !important;
+  transform: none !important;
+  will-change: auto !important;
+  opacity: 1 !important;
+}
+
+/* 2. На мобильных и планшетах скрываем старую двухэтажную шапку .app-header */
 html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .app-header {
   display: none !important;
 }
@@ -4455,7 +4465,7 @@ html[data-desktop-web="1"] #klevCompactMenuBackdrop {
   display: none !important;
 }
 
-/* 2. Постоянный нижний док из 4 разделов (Прогноз, Карта, Журнал, Меню) высотой 64px на всех мобильных экранах (включая Карту) */
+/* 3. Постоянный нижний док из 4 разделов (Прогноз, Карта, Журнал, Меню) высотой 64px с монохромными SVG-иконками UX_UI */
 html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav {
   position: fixed !important;
   left: 0 !important;
@@ -4463,12 +4473,12 @@ html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav {
   bottom: 0 !important;
   height: calc(64px + env(safe-area-inset-bottom, 0px)) !important;
   padding: 0 8px env(safe-area-inset-bottom, 0px) !important;
-  background: rgba(15, 23, 42, 0.88) !important;
-  backdrop-filter: blur(18px) !important;
-  -webkit-backdrop-filter: blur(18px) !important;
+  background: rgba(15, 23, 42, 0.90) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
   border-top: 1px solid rgba(148, 163, 184, 0.18) !important;
   border-radius: 0 !important;
-  z-index: 1200 !important;
+  z-index: 4600 !important;
   transform: none !important;
   opacity: 1 !important;
   visibility: visible !important;
@@ -4478,18 +4488,19 @@ html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav {
 }
 
 html[data-theme="light"]:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav {
-  background: rgba(255, 255, 255, 0.90) !important;
+  background: rgba(255, 255, 255, 0.92) !important;
   border-top-color: rgba(15, 23, 42, 0.12) !important;
 }
 
 html[data-theme="contrast"]:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav {
-  background: rgba(8, 8, 8, 0.95) !important;
+  background: rgba(8, 8, 8, 0.96) !important;
   border-top-color: rgba(245, 158, 11, 0.28) !important;
 }
 
 html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav .quick-dock-tab-label,
 html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav #navCircleChatsHubBtn,
-html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav #bottomQuickSosBtn {
+html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav #bottomQuickSosBtn,
+html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav .klev-nav-glider {
   display: none !important;
 }
 
@@ -4506,7 +4517,69 @@ html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav [data
 html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav [data-nav-tab="log"] { order: 3; }
 html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav #bottomNavMenuTriggerBtn { order: 4; }
 
-/* 3. Компоненты Tactile Glassmorphism (линзы, пилюли, сегменты, переключатели .klev-switch) */
+html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav .nav-tab {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: var(--muted) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 3px !important;
+  padding: 4px 2px !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+}
+
+html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav .nav-tab.active {
+  color: var(--accent) !important;
+  font-weight: 800 !important;
+}
+
+html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav .nav-tab.active .dock-ico svg {
+  filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.45));
+}
+
+html[data-theme="contrast"]:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav .nav-tab.active .dock-ico svg {
+  filter: drop-shadow(0 0 8px rgba(245, 158, 11, 0.55));
+}
+
+/* 4. Кнопки и панели на Карте (#secGeo) в едином стиле UX_UI Tactile Glassmorphism */
+.klev-arc-map-stage .klev-arc-icon-btn {
+  width: 46px !important;
+  height: 46px !important;
+  border-radius: 50% !important;
+  color: var(--text) !important;
+}
+
+.klev-arc-map-stage .klev-arc-icon-btn svg,
+.klev-arc-map-stage #arcBtnWeather svg,
+.klev-arc-map-stage #arcBtnSearchToggle svg {
+  stroke: currentColor !important;
+  fill: none !important;
+}
+
+.klev-arc-map-stage #arcPopoverTransport .btn,
+.klev-arc-map-stage #arcPopoverLayers .btn,
+.klev-arc-map-stage #arcPopoverSpotGrid .btn {
+  background: var(--card) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 14px !important;
+  color: var(--text) !important;
+  box-shadow: none !important;
+}
+
+.klev-arc-map-stage #arcPopoverTransport .btn.btn-accent,
+.klev-arc-map-stage #arcPopoverLayers .btn.btn-accent,
+.klev-arc-map-stage #arcPopoverSpotGrid .btn.btn-accent {
+  background: rgba(56, 189, 248, 0.16) !important;
+  border-color: var(--accent) !important;
+  color: var(--accent) !important;
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.24) !important;
+}
+
+/* 5. Компоненты Tactile Glassmorphism (линзы, пилюли, сегменты, переключатели .klev-switch) */
 .k-svg {
   width: 22px;
   height: 22px;
@@ -4552,7 +4625,7 @@ html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav #bott
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 18px;
-  transition: all 0.2s ease;
+  transition: border-color 0.18s ease;
 }
 
 .pill-btn {
@@ -4568,7 +4641,7 @@ html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav #bott
   background: var(--card);
   border: 1px solid var(--border);
   color: var(--text);
-  transition: all 0.18s ease;
+  transition: border-color 0.18s ease, color 0.18s ease;
 }
 
 .pill-btn.active {
@@ -4602,7 +4675,7 @@ html[data-theme="light"] .seg-bar {
   padding: 7px 4px;
   border-radius: 9999px;
   cursor: pointer;
-  transition: all 0.18s ease;
+  transition: all 0.16s ease;
   text-align: center;
   white-space: nowrap;
   overflow: hidden;
@@ -4727,7 +4800,7 @@ input[type="checkbox"]:not(.klev-switch input):checked::before {
   background: var(--accent);
 }
 
-/* 4. 6 однострочных мини-плашек внизу карты */
+/* 6. 6 однострочных мини-плашек внизу карты */
 .map-single-pill {
   flex-shrink: 0;
   padding: 9px 14px;
@@ -4749,20 +4822,22 @@ input[type="checkbox"]:not(.klev-switch input):checked::before {
   color: var(--accent);
 }
 
-/* 5. Компактное всплывающее Меню над нижним доком (5 разделов + гибридный SOS) */
+/* 7. Компактное всплывающее Меню над нижним доком (всегда фиксировано во вьюпорте, z-index 4500) */
 .compact-menu-backdrop {
-  position: fixed;
-  inset: 0;
-  bottom: calc(64px + env(safe-area-inset-bottom, 0px));
-  z-index: 1300;
-  background: rgba(4, 9, 18, 0.42);
+  position: fixed !important;
+  left: 0 !important;
+  right: 0 !important;
+  top: 0 !important;
+  bottom: calc(64px + env(safe-area-inset-bottom, 0px)) !important;
+  z-index: 4500 !important;
+  background: rgba(4, 9, 18, 0.48);
   display: none;
   align-items: flex-end;
   justify-content: center;
   padding: 10px 12px;
 }
 .compact-menu-backdrop.open {
-  display: flex;
+  display: flex !important;
 }
 .compact-menu-popover {
   width: 100%;
@@ -4888,7 +4963,7 @@ input[type="checkbox"]:not(.klev-switch input):checked::before {
   padding-right: 18px;
 }
 
-/* 6. Горизонтальный режим (Landscape) для планшетов, больших смартфонов и раскладушек (Flip / Fold) */
+/* 8. Горизонтальный режим (Landscape) для планшетов, больших смартфонов и раскладушек (Flip / Fold) */
 .klev-fc-mobile-bento-grid {
   display: flex;
   flex-direction: column;
@@ -5583,263 +5658,265 @@ input[type="checkbox"]:not(.klev-switch input):checked::before {
   </script>
 </head>
   <svg id="klevRedesignSvgSprite" xmlns="http://www.w3.org/2000/svg" style="display:none;" aria-hidden="true">
-    <!-- === 9 ИКОНОК ГЛАВНОГО МЕНЮ === -->
-    <!-- 1. Карта (icon-map) -->
-    <symbol id="icon-map" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21 3 6"/>
-      <line x1="9" y1="3" x2="9" y2="18"/>
-      <line x1="15" y1="6" x2="15" y2="21"/>
-      <path d="M12 11.5s2.5-2.2 2.5-4a2.5 2.5 0 0 0-5 0c0 1.8 2.5 4 2.5 4z"/>
-      <circle cx="12" cy="7.5" r="0.8"/>
-    </symbol>
+  <!-- === 9 ИКОНОК ГЛАВНОГО МЕНЮ И ДОКА === -->
+  <symbol id="icon-map" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21 3 6"/>
+    <line x1="9" y1="3" x2="9" y2="18"/>
+    <line x1="15" y1="6" x2="15" y2="21"/>
+    <path d="M12 11.5s2.5-2.2 2.5-4a2.5 2.5 0 0 0-5 0c0 1.8 2.5 4 2.5 4z"/>
+    <circle cx="12" cy="7.5" r="0.8"/>
+  </symbol>
+  <symbol id="icon-weather" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M17.5 19H9a5 5 0 1 1 4.9-6H17.5a3.5 3.5 0 0 1 0 7z"/>
+    <path d="M15 7a3 3 0 0 1 4.2 3.8"/>
+    <line x1="17" y1="3" x2="17" y2="4.5"/>
+    <line x1="21" y1="7" x2="19.5" y2="7"/>
+    <line x1="20" y1="4" x2="19" y2="5"/>
+  </symbol>
+  <symbol id="icon-forecast" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4 20L18 6c1.5-1.5 3-.5 2.5 1.5L19 11"/>
+    <circle cx="7" cy="17" r="1.5"/>
+    <path d="M11 19c1.5-3 3-3 4.5 0s3 3 4.5 0"/>
+  </symbol>
+  <symbol id="icon-chats" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M14 9a2 2 0 0 1-2 2H6l-3 3V5a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v4z"/>
+    <path d="M18 9h1a2 2 0 0 1 2 2v9l-3-3h-6a2 2 0 0 1-2-2v-1"/>
+    <circle cx="7" cy="7" r="0.5" fill="currentColor"/>
+    <circle cx="9.5" cy="7" r="0.5" fill="currentColor"/>
+    <circle cx="14" cy="13" r="0.5" fill="currentColor"/>
+    <circle cx="16.5" cy="13" r="0.5" fill="currentColor"/>
+  </symbol>
+  <symbol id="icon-sos" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <text x="12" y="15" text-anchor="middle" font-size="8" font-family="sans-serif" font-weight="800" stroke="none" fill="currentColor">SOS</text>
+  </symbol>
+  <symbol id="icon-journal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="6" y="3" width="13" height="18" rx="2"/>
+    <path d="M4 7h2M4 11h2M4 15h2M4 19h2"/>
+    <path d="M13 3v7l2-1.5L17 10V3"/>
+  </symbol>
+  <symbol id="icon-fish" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3 12c3.5-4.5 9.5-5 14-1.5L21 8v8l-4-2.5C12.5 17 6.5 16.5 3 12z"/>
+    <path d="M10 8.5c-1 2-1 5 0 7"/>
+    <circle cx="7" cy="11.5" r="0.8" fill="currentColor"/>
+  </symbol>
+  <symbol id="icon-calendar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="4" y="5" width="16" height="16" rx="2"/>
+    <line x1="8" y1="3" x2="8" y2="7"/>
+    <line x1="16" y1="3" x2="16" y2="7"/>
+    <line x1="4" y1="10" x2="20" y2="10"/>
+    <text x="12" y="17.5" text-anchor="middle" font-size="6.5" font-family="sans-serif" font-weight="600" stroke="none" fill="currentColor">17</text>
+  </symbol>
+  <symbol id="icon-settings" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="3"/>
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+  </symbol>
+  <symbol id="icon-menu-grid" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="4" y="4" width="6.5" height="6.5" rx="1.8"/>
+    <rect x="13.5" y="4" width="6.5" height="6.5" rx="1.8" transform="rotate(15 16.75 7.25)"/>
+    <rect x="4" y="13.5" width="6.5" height="6.5" rx="1.8"/>
+    <rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.8"/>
+  </symbol>
 
-    <!-- 2. Погода (icon-weather) -->
-    <symbol id="icon-weather" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M17.5 19H9a5 5 0 1 1 4.9-6H17.5a3.5 3.5 0 0 1 0 7z"/>
-      <path d="M15 7a3 3 0 0 1 4.2 3.8"/>
-      <line x1="17" y1="3" x2="17" y2="4.5"/>
-      <line x1="21" y1="7" x2="19.5" y2="7"/>
-      <line x1="20" y1="4" x2="19" y2="5"/>
-    </symbol>
+  <!-- === 16 ЭТАЛОННЫХ ИКОНОК КАРТЫ ПО РЕФЕРЕНСАМ 1000138411-413.JPG (БЕЗ КРУГЛОГО ОБОДКА, ТОЛЬКО ЗНАЧОК) === -->
+  <!-- 1. GPS (прицел + стрелка курсора без внешнего ободка кнопки) -->
+  <symbol id="map-gps" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="6.8"/>
+    <line x1="12" y1="2.2" x2="12" y2="7.2"/>
+    <line x1="12" y1="16.8" x2="12" y2="21.8"/>
+    <line x1="2.2" y1="12" x2="7.2" y2="12"/>
+    <line x1="16.8" y1="12" x2="21.8" y2="12"/>
+    <polygon points="14.6 9.4 12.6 15.2 11.4 12.6 8.8 11.4 14.6 9.4"/>
+  </symbol>
 
-    <!-- 3. Прогноз (icon-forecast) -->
-    <symbol id="icon-forecast" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M4 20L18 6c1.5-1.5 3-.5 2.5 1.5L19 11"/>
-      <circle cx="7" cy="17" r="1.5"/>
-      <path d="M11 19c1.5-3 3-3 4.5 0s3 3 4.5 0"/>
-    </symbol>
+  <!-- 2. Компас (шкала румбов и стрелка компаса без внешнего ободка кнопки) -->
+  <symbol id="map-compass" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <polygon points="16.2 7.8 13.6 13.6 7.8 16.2 10.4 10.4 16.2 7.8"/>
+    <circle cx="12" cy="12" r="1.1"/>
+    <line x1="12" y1="3" x2="12" y2="4.8"/>
+    <line x1="12" y1="19.2" x2="12" y2="21"/>
+    <line x1="3" y1="12" x2="4.8" y2="12"/>
+    <line x1="19.2" y1="12" x2="21" y2="12"/>
+    <line x1="5.6" y1="5.6" x2="6.9" y2="6.9"/>
+    <line x1="18.4" y1="5.6" x2="17.1" y2="6.9"/>
+    <line x1="5.6" y1="18.4" x2="6.9" y2="17.1"/>
+    <line x1="18.4" y1="18.4" x2="17.1" y2="17.1"/>
+  </symbol>
 
-    <!-- 4. Чаты (icon-chats) -->
-    <symbol id="icon-chats" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M14 9a2 2 0 0 1-2 2H6l-3 3V5a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v4z"/>
-      <path d="M18 9h1a2 2 0 0 1 2 2v9l-3-3h-6a2 2 0 0 1-2-2v-1"/>
-      <circle cx="7" cy="7" r="0.5" fill="currentColor"/>
-      <circle cx="9.5" cy="7" r="0.5" fill="currentColor"/>
-      <circle cx="14" cy="13" r="0.5" fill="currentColor"/>
-      <circle cx="16.5" cy="13" r="0.5" fill="currentColor"/>
-    </symbol>
+  <!-- 3. Точки (3 пина локации без круглого ободка) -->
+  <symbol id="map-pins" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M6.8 11.8s2.6-2.3 2.6-4.2a2.6 2.6 0 0 0-5.2 0c0 1.9 2.6 4.2 2.6 4.2z"/>
+    <circle cx="6.8" cy="7.6" r="0.7"/>
+    <path d="M17.2 11.8s2.6-2.3 2.6-4.2a2.6 2.6 0 0 0-5.2 0c0 1.9 2.6 4.2 2.6 4.2z"/>
+    <circle cx="17.2" cy="7.6" r="0.7"/>
+    <path d="M12 20.5s3.2-2.8 3.2-5a3.2 3.2 0 0 0-6.4 0c0 2.2 3.2 5 3.2 5z"/>
+    <circle cx="12" cy="15.5" r="0.9"/>
+  </symbol>
 
-    <!-- 5. SOS (icon-sos) -->
-    <symbol id="icon-sos" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="12" cy="12" r="9"/>
-      <text x="12" y="14.5" text-anchor="middle" font-size="6.5" font-family="sans-serif" font-weight="600" stroke="none" fill="currentColor">SOS</text>
-    </symbol>
+  <!-- 4. Слип (лодка на наклонном пандусе с волнами) -->
+  <symbol id="point-slip" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <polygon points="3 18.5 3 12 18.5 18.5 3 18.5"/>
+    <path d="M8.2 10.2l9.8 4.1 2.2-1.8-9.2-3.8-2.8 1.5z"/>
+    <path d="M12.5 8.8l2.2-.8 1.4 2.1"/>
+    <path d="M15.5 16.5c1.2-.6 2.4-.6 3.6 0s2.4.6 3.4 0"/>
+  </symbol>
 
-    <!-- 6. Журнал (icon-journal) -->
-    <symbol id="icon-journal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <rect x="6" y="3" width="13" height="18" rx="2"/>
-      <path d="M4 7h2M4 11h2M4 15h2M4 19h2"/>
-      <path d="M13 3v7l2-1.5L17 10V3"/>
-    </symbol>
+  <!-- 5. Коряга (ветвистая коряга над и под водой) -->
+  <symbol id="point-snag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M6.5 19.5l5-6.2 4.8-8.3"/>
+    <path d="M13.5 9.8L10.5 5.5"/>
+    <path d="M14.8 7.5l3.4-1.5"/>
+    <path d="M11.5 13.3l5.2-2.1"/>
+    <path d="M3 13.8c2-.9 4 .9 6 0"/>
+    <path d="M15.5 13.8c1.8-.8 3.6.8 5.5 0"/>
+    <path d="M4.5 16.8c2-.7 4 .7 6 0"/>
+  </symbol>
 
-    <!-- 7. Рыбы (icon-fish) -->
-    <symbol id="icon-fish" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M3 12c3.5-4.5 9.5-5 14-1.5L21 8v8l-4-2.5C12.5 17 6.5 16.5 3 12z"/>
-      <path d="M10 8.5c-1 2-1 5 0 7"/>
-      <circle cx="7" cy="11.5" r="0.8" fill="currentColor"/>
-    </symbol>
+  <!-- 6. Стоянка (знак P, якорь и палатка) -->
+  <symbol id="point-camp" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="3.5" y="4" width="6.8" height="7.5" rx="1.4"/>
+    <path d="M5.7 9.5V6.2h1.6a1.1 1.1 0 0 1 0 2.2H5.7"/>
+    <line x1="6.9" y1="13.2" x2="6.9" y2="18.8"/>
+    <line x1="5.3" y1="14.8" x2="8.5" y2="14.8"/>
+    <path d="M4.6 17.2a2.4 2.4 0 0 0 4.6 0"/>
+    <polygon points="15.8 9.2 10.5 19 21 19 15.8 9.2"/>
+    <polyline points="13.8 19 15.8 14.8 17.8 19"/>
+  </symbol>
 
-    <!-- 8. Календарь (icon-calendar) -->
-    <symbol id="icon-calendar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <rect x="4" y="5" width="16" height="16" rx="2"/>
-      <line x1="8" y1="3" x2="8" y2="7"/>
-      <line x1="16" y1="3" x2="16" y2="7"/>
-      <line x1="4" y1="10" x2="20" y2="10"/>
-      <text x="12" y="17.5" text-anchor="middle" font-size="6.5" font-family="sans-serif" font-weight="600" stroke="none" fill="currentColor">17</text>
-    </symbol>
+  <!-- 7. Опасность (треугольник с восклицательным знаком) -->
+  <symbol id="point-danger" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M10.3 4.2L2.3 18a2 2 0 0 0 1.7 3h16a2 2 0 0 0 1.7-3L13.7 4.2a2 2 0 0 0-3.4 0z"/>
+    <line x1="12" y1="9.2" x2="12" y2="14.2"/>
+    <circle cx="12" cy="17.4" r="0.7" fill="currentColor"/>
+  </symbol>
 
-    <!-- 9. Настройки (icon-settings) -->
-    <symbol id="icon-settings" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="12" cy="12" r="3"/>
-      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-    </symbol>
+  <!-- 8. Клёв (рыба с акустическими дугами сонара без внешнего круглого ободка) -->
+  <symbol id="point-spot" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M6.8 12c2.2-2.8 6-3.1 8.8-.9L18.2 9v6l-2.6-2.1c-2.8 2.2-6.6 1.9-8.8-.9z"/>
+    <circle cx="9.2" cy="11.6" r="0.6" fill="currentColor"/>
+    <path d="M4.2 8.2a6.5 6.5 0 0 0 0 7.6"/>
+    <path d="M19.8 8.2a6.5 6.5 0 0 1 0 7.6"/>
+  </symbol>
 
-    <!-- Иконка 4-й вкладки дока: Меню 3x3 (icon-menu-grid) -->
-    <symbol id="icon-menu-grid" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <rect x="4" y="4" width="6.5" height="6.5" rx="1.8"/>
-      <rect x="13.5" y="4" width="6.5" height="6.5" rx="1.8" transform="rotate(15 16.75 7.25)"/>
-      <rect x="4" y="13.5" width="6.5" height="6.5" rx="1.8"/>
-      <rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.8"/>
-    </symbol>
+  <!-- 9. Магазин (ящик со снастями) -->
+  <symbol id="point-shop" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="3.5" y="7.5" width="17" height="11.5" rx="2"/>
+    <path d="M8.8 7.5V5.6a1.8 1.8 0 0 1 1.8-1.8h2.8a1.8 1.8 0 0 1 1.8 1.8v1.9"/>
+    <line x1="3.5" y1="12.2" x2="20.5" y2="12.2"/>
+    <rect x="10.8" y="10.7" width="2.4" height="3.2" rx="0.6"/>
+  </symbol>
 
-    <!-- === 17 ИКОНОК ИНТЕРФЕЙСА КАРТЫ === -->
-    <!-- 1. GPS (map-gps) -->
-    <symbol id="map-gps" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="12" cy="12" r="7"/>
-      <line x1="12" y1="2" x2="12" y2="5"/>
-      <line x1="12" y1="19" x2="12" y2="22"/>
-      <line x1="2" y1="12" x2="5" y2="12"/>
-      <line x1="19" y1="12" x2="22" y2="12"/>
-      <polygon points="12 8.5 14.5 15 12 13.5 9.5 15 12 8.5"/>
-    </symbol>
+  <!-- 10. Погода на карте -->
+  <symbol id="map-weather" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M17.5 19H8.8a4.8 4.8 0 1 1 4.7-5.8H17.5a3.4 3.4 0 0 1 0 6.8z"/>
+    <path d="M14.8 7.2a3 3 0 0 1 4.2 3.8"/>
+    <line x1="17" y1="3.2" x2="17" y2="4.7"/>
+    <line x1="21" y1="7.2" x2="19.5" y2="7.2"/>
+    <line x1="20" y1="4.2" x2="18.9" y2="5.3"/>
+  </symbol>
 
-    <!-- 2. Компас (map-compass) -->
-    <symbol id="map-compass" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="12" cy="12" r="9"/>
-      <polygon points="15.5 8.5 13.5 13.5 8.5 15.5 10.5 10.5 15.5 8.5"/>
-      <line x1="12" y1="3" x2="12" y2="4.5"/>
-      <line x1="12" y1="19.5" x2="12" y2="21"/>
-      <line x1="3" y1="12" x2="4.5" y2="12"/>
-      <line x1="19.5" y1="12" x2="21" y2="12"/>
-    </symbol>
+  <!-- 11. Слои карты (3 ромбовидных слоя) -->
+  <symbol id="map-layers" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <polygon points="12 3.5 21 8.5 12 13.5 3 8.5 12 3.5"/>
+    <polyline points="3 12.5 12 17.5 21 12.5"/>
+    <polyline points="3 16.2 12 21.2 21 16.2"/>
+  </symbol>
 
-    <!-- 3. Точки на карте (map-pins) -->
-    <symbol id="map-pins" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M7.5 11.5s2.5-2.1 2.5-3.8a2.5 2.5 0 0 0-5 0c0 1.7 2.5 3.8 2.5 3.8z"/>
-      <circle cx="7.5" cy="7.7" r="0.6"/>
-      <path d="M16.5 11.5s2.5-2.1 2.5-3.8a2.5 2.5 0 0 0-5 0c0 1.7 2.5 3.8 2.5 3.8z"/>
-      <circle cx="16.5" cy="7.7" r="0.6"/>
-      <path d="M12 19.5s2.8-2.4 2.8-4.3a2.8 2.8 0 0 0-5.6 0c0 1.9 2.8 4.3 2.8 4.3z"/>
-      <circle cx="12" cy="15.2" r="0.7"/>
-    </symbol>
+  <!-- 12. Машина (внедорожник в профиль из 1000138411-413.jpg) -->
+  <symbol id="transport-car" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3.5 15.5V9.2a1.2 1.2 0 0 1 1.2-1.2h8.8l2.4 3.2h3.4a1.5 1.5 0 0 1 1.5 1.5v2.8h-2.1"/>
+    <line x1="9.2" y1="15.5" x2="14.5" y2="15.5"/>
+    <line x1="3.5" y1="15.5" x2="4.6" y2="15.5"/>
+    <rect x="5.2" y="9.4" width="3.4" height="2.4" rx="0.4"/>
+    <polygon points="10 9.4 12.8 9.4 14.3 11.8 10 11.8 10 9.4"/>
+    <rect x="2.3" y="10.2" width="1.2" height="3.6" rx="0.5"/>
+    <circle cx="6.9" cy="15.8" r="2.3"/>
+    <circle cx="6.9" cy="15.8" r="0.8"/>
+    <circle cx="16.6" cy="15.8" r="2.3"/>
+    <circle cx="16.6" cy="15.8" r="0.8"/>
+  </symbol>
 
-    <!-- 4. Слои карты (map-layers) -->
-    <symbol id="map-layers" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <polygon points="12 3 21 8 12 13 3 8 12 3"/>
-      <polyline points="3 12 12 17 21 12"/>
-      <polyline points="3 16 12 21 21 16"/>
-    </symbol>
+  <!-- 13. Снегоход (снегоход в профиль с гусеницей и лыжей из 1000138411-413.jpg) -->
+  <symbol id="transport-snowmobile" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4 14.2h10.5l3.2-3.4-3.6-2.4-1.8 1.8H5.5L4 14.2z"/>
+    <path d="M12.2 8.4l-1.4-2"/>
+    <rect x="3.5" y="14.5" width="9.8" height="2.8" rx="1.4"/>
+    <circle cx="5.2" cy="15.9" r="0.5" fill="currentColor"/>
+    <circle cx="7.3" cy="15.9" r="0.5" fill="currentColor"/>
+    <circle cx="9.4" cy="15.9" r="0.5" fill="currentColor"/>
+    <circle cx="11.5" cy="15.9" r="0.5" fill="currentColor"/>
+    <line x1="15.5" y1="12.5" x2="17.4" y2="17.2"/>
+    <path d="M14.2 17.3h5.6c1.1 0 1.8-.7 2-1.6"/>
+  </symbol>
 
-    <!-- 5. Поиск (map-search) -->
-    <symbol id="map-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="11" cy="11" r="7"/>
-      <line x1="20" y1="20" x2="16.2" y2="16.2"/>
-    </symbol>
+  <!-- 14. Лодка (моторная лодка на волнах из 1000138411-413.jpg) -->
+  <symbol id="transport-boat" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M5.2 12.2h15.3l-2.6 3.8H6.6l-1.4-3.8z"/>
+    <rect x="3" y="10.4" width="2.2" height="3.2" rx="0.5"/>
+    <polyline points="11.2 12.2 13.6 9.2 15.8 12.2"/>
+    <path d="M3 18.2c1.8-.9 3.6-.9 5.4 0s3.6.9 5.4 0 3.6-.9 5.4 0"/>
+    <path d="M4.5 20.4c1.8-.7 3.6-.7 5.4 0s3.6.7 5.4 0 3.6-.7 4.8 0"/>
+  </symbol>
 
-    <!-- 6. Слип / Спуск лодки (point-slip) -->
-    <symbol id="point-slip" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <polygon points="3 18 3 11 16 18 3 18"/>
-      <path d="M9 10.5l8 3.2 2-1.8-7.5-3L9 10.5z"/>
-      <path d="M14 19.5c1.5-.8 3-.8 4.5 0s3 .8 4.5 0"/>
-    </symbol>
+  <!-- 15. Велосипед (из 1000138411-413.jpg) -->
+  <symbol id="transport-bicycle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="6.2" cy="15.8" r="3.4"/>
+    <circle cx="17.8" cy="15.8" r="3.4"/>
+    <polyline points="6.2 15.8 10.4 10.2 15.4 10.2 11.6 15.8 6.2 15.8"/>
+    <line x1="10.4" y1="10.2" x2="11.6" y2="15.8"/>
+    <line x1="9.2" y1="8.4" x2="11.4" y2="8.4"/>
+    <polyline points="14.6 7.8 16.4 7.8 17.8 15.8"/>
+  </symbol>
 
-    <!-- 7. Коряга / Бровка / Зацеп (point-snag) -->
-    <symbol id="point-snag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M3 10c3-1.2 6 1.2 9 0s6-1.2 9 0"/>
-      <path d="M7 19l5.5-7.5L16 6"/>
-      <path d="M12.5 11.5L9 7.5"/>
-      <path d="M10.5 14.2l5.5 1.8"/>
-    </symbol>
+  <!-- 16. Пешком (рыболов с рюкзаком из 1000138411-413.jpg) -->
+  <symbol id="transport-walk" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="13" cy="4.8" r="1.9"/>
+    <path d="M11.8 8.2l-1.2 5.4-2.6 5.4"/>
+    <path d="M11 13.6l3.2 2.4 1.2 3.2"/>
+    <path d="M12.2 8.6l2.6 2.4 2.2.8"/>
+    <rect x="7.8" y="8.2" width="3.2" height="5.2" rx="1.1"/>
+  </symbol>
 
-    <!-- 8. Стоянка / Подъезд / Лагерь (point-camp) -->
-    <symbol id="point-camp" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <rect x="3" y="4" width="7" height="8" rx="1.5"/>
-      <path d="M5.5 9.5V6.5h1.5a1 1 0 0 1 0 2H5.5"/>
-      <path d="M6.5 12v6M4.5 16.5a2.5 2.5 0 0 0 4 0"/>
-      <polygon points="15.5 10 10.5 19 20.5 19 15.5 10"/>
-      <polyline points="14 19 15.5 15.5 17 19"/>
-    </symbol>
-
-    <!-- 9. Опасность / Промоина / Сеть (point-danger) -->
-    <symbol id="point-danger" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M10.3 3.8L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.8a2 2 0 0 0-3.4 0z"/>
-      <line x1="12" y1="9" x2="12" y2="14"/>
-      <circle cx="12" cy="17.5" r="0.6" fill="currentColor"/>
-    </symbol>
-
-    <!-- 10. Клёв / Рабочая яма / Свим (point-spot) -->
-    <symbol id="point-spot" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="12" cy="12" r="9"/>
-      <circle cx="12" cy="12" r="6"/>
-      <path d="M8.5 12c1.5-1.8 4-2 5.8-.6L16 10.2v3.6l-1.7-1.2c-1.8 1.4-4.3 1.2-5.8-.6z"/>
-    </symbol>
-
-    <!-- 11. Магазин / База (point-shop) -->
-    <symbol id="point-shop" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <rect x="4" y="8" width="16" height="11" rx="2"/>
-      <path d="M9 8V6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/>
-      <line x1="4" y1="12.5" x2="20" y2="12.5"/>
-      <rect x="11" y="11" width="2" height="3" rx="0.5"/>
-    </symbol>
-
-    <!-- 12. Погода на карте (map-weather) -->
-    <symbol id="map-weather" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M17.5 19H9a5 5 0 1 1 4.9-6H17.5a3.5 3.5 0 0 1 0 7z"/>
-      <path d="M15 7a3 3 0 0 1 4.2 3.8"/>
-      <line x1="17" y1="3" x2="17" y2="4.5"/>
-      <line x1="21" y1="7" x2="19.5" y2="7"/>
-    </symbol>
-
-    <!-- 13. Машина (transport-car) -->
-    <symbol id="transport-car" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M3 13l1.5-5h9l2.5 3.5H20a1.5 1.5 0 0 1 1.5 1.5v2.5H19m-12 0h8m-12 0H2v-2.5"/>
-      <circle cx="6.5" cy="16" r="2"/>
-      <circle cx="17.5" cy="16" r="2"/>
-    </symbol>
-
-    <!-- 14. Снегоход / Мотособака (transport-snowmobile) -->
-    <symbol id="transport-snowmobile" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M4 15h11l3-4-3.5-2.5-2 2H6L4 15z"/>
-      <rect x="4" y="15" width="10" height="2.5" rx="1.2"/>
-      <path d="M14 17.5h6c1 0 1.5-.8 1.5-1.5"/>
-      <line x1="16" y1="13" x2="17.5" y2="17.5"/>
-    </symbol>
-
-    <!-- 15. Лодка (transport-boat) -->
-    <symbol id="transport-boat" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M5 12h15l-2.5 4H6.5L5 12z"/>
-      <path d="M3 10h2.5v3.5H3V10z"/>
-      <polygon points="10 12 12.5 8.5 15.5 12 10 12"/>
-      <path d="M3 19c2-1 4-1 6 0s4 1 6 0 4-1 6 0"/>
-    </symbol>
-
-    <!-- 16. Велосипед (transport-bicycle) -->
-    <symbol id="transport-bicycle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="6" cy="16" r="3.5"/>
-      <circle cx="18" cy="16" r="3.5"/>
-      <polyline points="6 16 10.5 10 15.5 10 18 16"/>
-      <polyline points="10.5 10 12 16 6 16"/>
-      <line x1="9.5" y1="8" x2="11.5" y2="8"/>
-      <polyline points="15 7.5 16.5 7.5 15.5 10"/>
-    </symbol>
-
-    <!-- 17. Пешком (transport-walk) -->
-    <symbol id="transport-walk" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="12.5" cy="5" r="2"/>
-      <path d="M10 9.5l2.5-1 2.5 2.5 2 1"/>
-      <path d="M12.5 8.5l-1 5.5-2.5 5"/>
-      <path d="M11.5 14l3 2.5 1 3.5"/>
-      <path d="M9.5 9.5l-1.5 3.5h2"/>
-    </symbol>
-
-    <!-- === ДОПОЛНИТЕЛЬНЫЕ ТЕХНИЧЕСКИЕ ИКОНКИ UI === -->
-    <symbol id="ui-sunrise" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M17 18a5 5 0 0 0-10 0"/>
-      <line x1="12" y1="9" x2="12" y2="11"/>
-      <line x1="4.2" y1="13.2" x2="5.6" y2="14.6"/>
-      <line x1="1" y1="18" x2="23" y2="18"/>
-      <line x1="18.4" y1="14.6" x2="19.8" y2="13.2"/>
-    </symbol>
-    <symbol id="ui-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-      <line x1="3" y1="20" x2="21" y2="20"/>
-    </symbol>
-    <symbol id="ui-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z"/>
-      <circle cx="12" cy="11" r="2.2"/>
-    </symbol>
-    <symbol id="ui-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="12" cy="12" r="9"/>
-      <line x1="12" y1="8" x2="12" y2="16"/>
-      <line x1="8" y1="12" x2="16" y2="12"/>
-    </symbol>
-    <symbol id="ui-arrow-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-      <polyline points="15 18 9 12 15 6"/>
-    </symbol>
-    <symbol id="ui-arrow-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-      <line x1="5" y1="12" x2="19" y2="12"/>
-      <polyline points="13 6 19 12 13 18"/>
-    </symbol>
-    <symbol id="ui-camera" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-      <circle cx="12" cy="13" r="4"/>
-    </symbol>
-    <symbol id="ui-scale" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <rect x="4" y="6" width="16" height="14" rx="2"/>
-      <circle cx="12" cy="13" r="4"/>
-      <line x1="12" y1="13" x2="14" y2="11"/>
-    </symbol>
-  </svg>
+  <!-- === ДОПОЛНИТЕЛЬНЫЕ ИКОНКИ UI БЕЗ КРУГЛОГО ОБОДКА === -->
+  <symbol id="map-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="11" cy="11" r="6.8"/>
+    <line x1="19.8" y1="19.8" x2="15.9" y2="15.9"/>
+  </symbol>
+  <symbol id="ui-sunrise" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M17 18a5 5 0 0 0-10 0"/>
+    <line x1="12" y1="9" x2="12" y2="11"/>
+    <line x1="4.2" y1="13.2" x2="5.6" y2="14.6"/>
+    <line x1="1" y1="18" x2="23" y2="18"/>
+    <line x1="18.4" y1="14.6" x2="19.8" y2="13.2"/>
+  </symbol>
+  <symbol id="ui-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+    <line x1="3" y1="20" x2="21" y2="20"/>
+  </symbol>
+  <symbol id="ui-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z"/>
+    <circle cx="12" cy="11" r="2.2"/>
+  </symbol>
+  <symbol id="ui-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <line x1="12" y1="6" x2="12" y2="18"/>
+    <line x1="6" y1="12" x2="18" y2="12"/>
+  </symbol>
+  <symbol id="ui-arrow-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="15 18 9 12 15 6"/>
+  </symbol>
+  <symbol id="ui-arrow-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <line x1="5" y1="12" x2="19" y2="12"/>
+    <polyline points="13 6 19 12 13 18"/>
+  </symbol>
+  <symbol id="ui-camera" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+    <circle cx="12" cy="13" r="4"/>
+  </symbol>
+  <symbol id="ui-scale" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="4" y="6" width="16" height="14" rx="2"/>
+    <circle cx="12" cy="13" r="4"/>
+    <line x1="12" y1="13" x2="14" y2="11"/>
+  </symbol>
+</svg>
 <body>
   <style id="klevDynamicSonarSplashCss">
     #appSplashScreen.app-splash-screen {
@@ -6714,19 +6791,19 @@ input[type="checkbox"]:not(.klev-switch input):checked::before {
     <div class="bottom-nav-inner">
       <button type="button" class="nav-tab" data-nav-tab="geo" aria-label="Карта водоёмов">
         <span class="dock-ico">
-          <svg class="k-ico" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3V6z" fill="rgba(56,189,248,0.28)" stroke="#38bdf8" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 3v15M15 6v15" stroke="#38bdf8" stroke-width="1.5"/></svg>
+          <svg class="k-svg" width="22" height="22" viewBox="0 0 24 24" fill="none"><use href="#icon-map"/></svg>
         </span>
         <span>Карта</span>
       </button>
       <button type="button" class="nav-tab" data-nav-tab="chats" id="navCircleChatsHubBtn" aria-label="Чаты, Круг и Экипажи">
         <span class="dock-ico">
-          <svg class="k-ico" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M13 7L9 3 5 7l4 4M17 11l4 4-4 4-4-4" fill="rgba(56,189,248,0.25)" stroke="#94a3b8" stroke-width="1.8" stroke-linejoin="round"/><rect x="8.5" y="8.5" width="7" height="7" rx="1.5" transform="rotate(-45 12 12)" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.5"/><path d="M4 20a6 6 0 0 1 6-6" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/></svg>
+          <svg class="k-svg" width="22" height="22" viewBox="0 0 24 24" fill="none"><use href="#icon-chats"/></svg>
         </span>
         <span>Чаты·Круг</span>
       </button>
       <button type="button" class="nav-tab active" data-nav-tab="forecast" id="navForecastMainBtn" aria-label="Главный экран Прогноз клёва">
         <span class="dock-ico">
-          <svg class="k-ico" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="#38bdf8" stroke-width="2.1" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#94a3b8" stroke-width="1.7" stroke-linecap="round"/><circle cx="14" cy="16" r="2.4" fill="#10b981"/></svg>
+          <svg class="k-svg" width="22" height="22" viewBox="0 0 24 24" fill="none"><use href="#icon-forecast"/></svg>
         </span>
         <span>Прогноз</span>
       </button>
@@ -6736,13 +6813,13 @@ input[type="checkbox"]:not(.klev-switch input):checked::before {
       </button>
       <button type="button" class="nav-tab" data-nav-tab="log" aria-label="Журнал уловов">
         <span class="dock-ico">
-          <svg class="k-ico" width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="5" y="3" width="14" height="18" rx="2.5" fill="rgba(148,163,184,0.24)" stroke="#cbd5e1" stroke-width="1.8"/><path d="M9 7h6M9 11h6M9 15h4M3 7h2M3 12h2M3 17h2" stroke="#cbd5e1" stroke-width="1.8" stroke-linecap="round"/></svg>
+          <svg class="k-svg" width="22" height="22" viewBox="0 0 24 24" fill="none"><use href="#icon-journal"/></svg>
         </span>
         <span>Журнал</span>
       </button>
       <button type="button" class="nav-tab" id="bottomNavMenuTriggerBtn" aria-label="Меню и инструменты">
         <span class="dock-ico">
-          <svg class="k-ico" width="16" height="16" viewBox="0 0 24 24" fill="none"><use href="#icon-menu-grid"/></svg>
+          <svg class="k-svg" width="22" height="22" viewBox="0 0 24 24" fill="none"><use href="#icon-menu-grid"/></svg>
         </span>
         <span>Меню</span>
       </button>
@@ -6798,7 +6875,7 @@ input[type="checkbox"]:not(.klev-switch input):checked::before {
         </div>
       </div>
 
-      <!-- Компактный ряд переключения Темы и Режима стекла (без назойливых всплывающих тостов) -->
+      <!-- Компактный ряд переключения Темы и Режима стекла -->
       <div style="display:grid;grid-template-columns:1.45fr 1fr;gap:6px;">
         <div class="seg-bar" aria-label="Выбор темы">
           <button type="button" class="seg-btn active" data-klev-menu-theme="dark">Тёмная</button>

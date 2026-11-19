@@ -1311,15 +1311,15 @@ export function openOnboardingModal(isEditMode = false, initialZone = '') {
     return;
   }
   if (initialZone === 'auth') {
-    openAuthAndBackupModal(() => openProfileHubModal());
+    openAuthAndBackupModal(null);
     return;
   }
   if (initialZone === 'fishing') {
-    openFishingPrefsModal(true, () => openProfileHubModal());
+    openFishingPrefsModal(true, null);
     return;
   }
   if (initialZone === 'app' || initialZone === 'notif') {
-    openAppParamsModal(() => openProfileHubModal());
+    openAppParamsModal(null);
     return;
   }
   if (initialZone === 'notif_history') {

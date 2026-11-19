@@ -1511,6 +1511,13 @@ export function openRigEncyclopediaModal(fish) {
   openModal(`<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M7 7a4 4 0 1 0 0 8h10a4 4 0 1 0 0-8H7z" stroke="#38bdf8" stroke-width="1.9"/><path d="M17 7a4 4 0 1 1 0 8H7a4 4 0 1 1 0-8" stroke="currentColor" stroke-width="1.6" stroke-dasharray="3 2"/></svg> Справочник рабочих монтажей и узлов (${fish?.name || 'Все виды'})`, html);
 }
 export function renderExpress(container) {
+  if (typeof document !== 'undefined' && document.documentElement.getAttribute('data-desktop-web') !== '1') {
+    const rootSec = document.getElementById('secForecast') || container;
+    if (rootSec && rootSec.id === 'secForecast') {
+      renderMobileRedesignForecast(rootSec);
+    }
+    return;
+  }
   if (!container) return;
   const s = store.getState();
   const fish = FISH_DB.find(f => f.id === s.fishId) || FISH_DB[0];
@@ -2064,6 +2071,13 @@ export function renderExpress(container) {
   `;
 }
 export function renderWeek(container) {
+  if (typeof document !== 'undefined' && document.documentElement.getAttribute('data-desktop-web') !== '1') {
+    const rootSec = document.getElementById('secForecast') || container;
+    if (rootSec && rootSec.id === 'secForecast') {
+      renderMobileRedesignForecast(rootSec);
+    }
+    return;
+  }
   if (!container) return;
   const prevScroll = container.querySelector('.week-strip')?.scrollLeft || 0;
   const s = store.getState();
@@ -2147,6 +2161,13 @@ export function renderWeek(container) {
   }
 }
 export function renderHourly(container) {
+  if (typeof document !== 'undefined' && document.documentElement.getAttribute('data-desktop-web') !== '1') {
+    const rootSec = document.getElementById('secForecast') || container;
+    if (rootSec && rootSec.id === 'secForecast') {
+      renderMobileRedesignForecast(rootSec);
+    }
+    return;
+  }
   if (!container) return;
   const prevScroll = container.querySelector('.bite-timeline')?.scrollLeft || 0;
   const s = store.getState();
@@ -2411,6 +2432,27 @@ let _heroSonarAnimId = null;
 let _heroSonarSweepAngle = 0;
 let _heroSonarTargetScore = 75;
 let _heroSonarBlips = [];
+let _heroSonarStaticCanvas = null;
+let _heroSonarStaticKey = '';
+let _heroSonarLastFrameMs = 0;
+
+function _normalizeWarmDayIce(dayObj, sIceState) {
+  if (!dayObj) return sIceState || 'open_water';
+  const tD = Number(dayObj.tDay ?? 0);
+  const tN = Number(dayObj.tNight ?? 0);
+  const wT = Number(dayObj.waterTemp ?? 5);
+  if (tD >= 6 || (tD >= 4 && tN >= 0.5) || wT >= 3.5) {
+    dayObj.iceState = 'open_water';
+    dayObj.iceThickness = 0;
+    dayObj.lakeIceThickness = 0;
+    dayObj.riverIceThickness = 0;
+    if (wT < 2.0 && tD >= 6) {
+      dayObj.waterTemp = Math.round((tD * 0.58 + 2.2) * 10) / 10;
+    }
+    return 'open_water';
+  }
+  return dayObj.iceState || sIceState || 'open_water';
+}
 
 function _rebuildHeroSonarBlips(scorePct) {
   const sc = Math.max(0, Math.min(100, Number(scorePct) || 50));
@@ -2425,6 +2467,113 @@ function _rebuildHeroSonarBlips(scorePct) {
   _heroSonarBlips = arr;
 }
 
+function _ensureHeroSonarStaticDial(w, h, scorePct, theme) {
+  const key = `${w}x${h}_${scorePct}_${theme}`;
+  if (_heroSonarStaticCanvas && _heroSonarStaticKey === key) {
+    return _heroSonarStaticCanvas;
+  }
+  const off = _heroSonarStaticCanvas || document.createElement('canvas');
+  off.width = w;
+  off.height = h;
+  _heroSonarStaticCanvas = off;
+  _heroSonarStaticKey = key;
+
+  const ctx = off.getContext('2d');
+  if (!ctx) return off;
+  const cx = w / 2;
+  const cy = h / 2;
+  const R = Math.min(cx, cy) - 14;
+  const isLight = theme === 'light';
+  const isContrast = theme === 'contrast';
+
+  ctx.clearRect(0, 0, w, h);
+
+  // 1. Фон радара
+  const bgGrad = ctx.createRadialGradient(cx, cy, R * 0.08, cx, cy, R);
+  if (isLight) {
+    bgGrad.addColorStop(0, 'rgba(224, 242, 254, 0.95)');
+    bgGrad.addColorStop(1, 'rgba(186, 230, 253, 0.72)');
+  } else if (isContrast) {
+    bgGrad.addColorStop(0, 'rgba(18, 16, 8, 0.96)');
+    bgGrad.addColorStop(1, 'rgba(5, 8, 14, 0.98)');
+  } else {
+    bgGrad.addColorStop(0, 'rgba(12, 34, 58, 0.92)');
+    bgGrad.addColorStop(1, 'rgba(6, 17, 32, 0.96)');
+  }
+  ctx.fillStyle = bgGrad;
+  ctx.beginPath();
+  ctx.arc(cx, cy, R, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 2. Концентрические кольца и перекрестие
+  const ringStroke = isLight
+    ? 'rgba(2, 132, 199, 0.25)'
+    : (isContrast ? 'rgba(245, 158, 11, 0.30)' : 'rgba(56, 189, 248, 0.24)');
+  ctx.strokeStyle = ringStroke;
+  ctx.lineWidth = 1.4;
+  [0.32, 0.56, 0.78, 0.98].forEach(f => {
+    ctx.beginPath();
+    ctx.arc(cx, cy, R * f, 0, Math.PI * 2);
+    ctx.stroke();
+  });
+
+  ctx.beginPath();
+  ctx.moveTo(cx - R * 0.95, cy);
+  ctx.lineTo(cx + R * 0.95, cy);
+  ctx.moveTo(cx, cy - R * 0.95);
+  ctx.lineTo(cx, cy + R * 0.95);
+  ctx.stroke();
+
+  // 72 деления азимутальной шкалы (рендерятся 1 раз в буфер!)
+  for (let d = 0; d < 360; d += 5) {
+    const rad = (d - 90) * (Math.PI / 180);
+    const isMajor = d % 30 === 0;
+    const r1 = R * (isMajor ? 0.91 : 0.945);
+    const r2 = R * 0.98;
+    ctx.beginPath();
+    ctx.moveTo(cx + Math.cos(rad) * r1, cy + Math.sin(rad) * r1);
+    ctx.lineTo(cx + Math.cos(rad) * r2, cy + Math.sin(rad) * r2);
+    ctx.strokeStyle = isMajor
+      ? (isLight ? 'rgba(2, 132, 199, 0.62)' : (isContrast ? 'rgba(251, 191, 36, 0.72)' : 'rgba(56, 189, 248, 0.65)'))
+      : ringStroke;
+    ctx.lineWidth = isMajor ? 2.2 : 1.1;
+    ctx.stroke();
+  }
+
+  // 3. Мягкая полупрозрачная градиентная шкала заполнения клёва (0..100%)
+  const trackR = R * 0.855;
+  ctx.beginPath();
+  ctx.arc(cx, cy, trackR, 0, Math.PI * 2);
+  ctx.strokeStyle = isLight ? 'rgba(15, 23, 42, 0.09)' : 'rgba(148, 163, 184, 0.14)';
+  ctx.lineWidth = 13;
+  ctx.stroke();
+
+  const startAng = -Math.PI / 2;
+  const endAng = startAng + (Math.PI * 2) * (scorePct / 100);
+  const scaleGrad = ctx.createLinearGradient(cx - trackR, cy + trackR, cx + trackR, cy - trackR);
+  if (isContrast) {
+    scaleGrad.addColorStop(0, 'rgba(245, 158, 11, 0.50)');
+    scaleGrad.addColorStop(0.6, 'rgba(251, 191, 36, 0.58)');
+    scaleGrad.addColorStop(1, 'rgba(16, 185, 129, 0.62)');
+  } else if (isLight) {
+    scaleGrad.addColorStop(0, 'rgba(2, 132, 199, 0.45)');
+    scaleGrad.addColorStop(0.55, 'rgba(14, 165, 233, 0.54)');
+    scaleGrad.addColorStop(1, 'rgba(16, 185, 129, 0.58)');
+  } else {
+    scaleGrad.addColorStop(0, 'rgba(14, 165, 233, 0.44)');
+    scaleGrad.addColorStop(0.55, 'rgba(56, 189, 248, 0.54)');
+    scaleGrad.addColorStop(1, 'rgba(16, 185, 129, 0.60)');
+  }
+  ctx.beginPath();
+  ctx.arc(cx, cy, trackR, startAng, endAng, false);
+  ctx.strokeStyle = scaleGrad;
+  ctx.lineWidth = 13;
+  ctx.lineCap = 'round';
+  ctx.stroke();
+
+  return off;
+}
+
 export function initOrUpdateHeroSonarCanvas(scorePct) {
   if (typeof document === 'undefined') return;
   const sc = Math.max(0, Math.min(100, Math.round(Number(scorePct) || 50)));
@@ -2435,15 +2584,29 @@ export function initOrUpdateHeroSonarCanvas(scorePct) {
   const pctEl = document.getElementById('bentoHeroSonarPctText');
   if (pctEl) {
     pctEl.textContent = `${sc}%`;
+    const theme = document.documentElement.getAttribute('data-theme') || 'dark';
+    pctEl.style.color = theme === 'light' ? '#0F172A' : (theme === 'contrast' ? '#FBBF24' : '#F8FAFC');
   }
   if (_heroSonarAnimId) return;
 
-  const drawFrame = () => {
+  const drawFrame = (nowMs) => {
+    const curRoute = store.getState().route;
+    if (document.hidden || (curRoute && curRoute !== 'forecast')) {
+      _heroSonarAnimId = null;
+      return;
+    }
     const canvas = document.getElementById('bentoHeroSonarCanvas');
     if (!canvas || !canvas.isConnected) {
       _heroSonarAnimId = null;
       return;
     }
+    // Ограничиваем частоту кадров сонара до ~28 FPS (35 мс), снижая нагрузку на CPU/GPU более чем на 90%
+    if (nowMs - _heroSonarLastFrameMs < 35) {
+      _heroSonarAnimId = requestAnimationFrame(drawFrame);
+      return;
+    }
+    _heroSonarLastFrameMs = nowMs;
+
     const ctx = canvas.getContext('2d');
     if (!ctx) {
       _heroSonarAnimId = null;
@@ -2458,101 +2621,20 @@ export function initOrUpdateHeroSonarCanvas(scorePct) {
     const isLight = theme === 'light';
     const isContrast = theme === 'contrast';
 
+    // 1. Копируем закэшированный статический циферблат за 0.05 мс
+    const staticDial = _ensureHeroSonarStaticDial(w, h, _heroSonarTargetScore, theme);
     ctx.clearRect(0, 0, w, h);
+    ctx.drawImage(staticDial, 0, 0);
 
-    // 1. Фон радара по теме
-    const bgGrad = ctx.createRadialGradient(cx, cy, R * 0.08, cx, cy, R);
-    if (isLight) {
-      bgGrad.addColorStop(0, 'rgba(224, 242, 254, 0.95)');
-      bgGrad.addColorStop(1, 'rgba(186, 230, 253, 0.72)');
-    } else if (isContrast) {
-      bgGrad.addColorStop(0, 'rgba(18, 16, 8, 0.96)');
-      bgGrad.addColorStop(1, 'rgba(5, 8, 14, 0.98)');
-    } else {
-      bgGrad.addColorStop(0, 'rgba(12, 34, 58, 0.92)');
-      bgGrad.addColorStop(1, 'rgba(6, 17, 32, 0.96)');
-    }
-    ctx.fillStyle = bgGrad;
-    ctx.beginPath();
-    ctx.arc(cx, cy, R, 0, Math.PI * 2);
-    ctx.fill();
-
-    // 2. Внешняя градусная шкала и концентрические кольца
-    const ringStroke = isLight
-      ? 'rgba(2, 132, 199, 0.25)'
-      : (isContrast ? 'rgba(245, 158, 11, 0.30)' : 'rgba(56, 189, 248, 0.24)');
-    ctx.strokeStyle = ringStroke;
-    ctx.lineWidth = 1.4;
-    [0.32, 0.56, 0.78, 0.98].forEach(f => {
-      ctx.beginPath();
-      ctx.arc(cx, cy, R * f, 0, Math.PI * 2);
-      ctx.stroke();
-    });
-
-    // Перекрестие
-    ctx.beginPath();
-    ctx.moveTo(cx - R * 0.95, cy);
-    ctx.lineTo(cx + R * 0.95, cy);
-    ctx.moveTo(cx, cy - R * 0.95);
-    ctx.lineTo(cx, cy + R * 0.95);
-    ctx.stroke();
-
-    // 72 деления азимутальной шкалы
-    for (let d = 0; d < 360; d += 5) {
-      const rad = (d - 90) * (Math.PI / 180);
-      const isMajor = d % 30 === 0;
-      const r1 = R * (isMajor ? 0.91 : 0.945);
-      const r2 = R * 0.98;
-      ctx.beginPath();
-      ctx.moveTo(cx + Math.cos(rad) * r1, cy + Math.sin(rad) * r1);
-      ctx.lineTo(cx + Math.cos(rad) * r2, cy + Math.sin(rad) * r2);
-      ctx.strokeStyle = isMajor
-        ? (isLight ? 'rgba(2, 132, 199, 0.62)' : (isContrast ? 'rgba(251, 191, 36, 0.72)' : 'rgba(56, 189, 248, 0.65)'))
-        : ringStroke;
-      ctx.lineWidth = isMajor ? 2.2 : 1.1;
-      ctx.stroke();
-    }
-
-    // 3. Мягкая полупрозрачная градиентная шкала заполнения клёва (0..100%)
-    const trackR = R * 0.855;
-    ctx.beginPath();
-    ctx.arc(cx, cy, trackR, 0, Math.PI * 2);
-    ctx.strokeStyle = isLight ? 'rgba(15, 23, 42, 0.09)' : 'rgba(148, 163, 184, 0.14)';
-    ctx.lineWidth = 13;
-    ctx.stroke();
-
-    const startAng = -Math.PI / 2;
-    const endAng = startAng + (Math.PI * 2) * (_heroSonarTargetScore / 100);
-    const scaleGrad = ctx.createLinearGradient(cx - trackR, cy + trackR, cx + trackR, cy - trackR);
-    if (isContrast) {
-      scaleGrad.addColorStop(0, 'rgba(245, 158, 11, 0.50)');
-      scaleGrad.addColorStop(0.6, 'rgba(251, 191, 36, 0.58)');
-      scaleGrad.addColorStop(1, 'rgba(16, 185, 129, 0.62)');
-    } else if (isLight) {
-      scaleGrad.addColorStop(0, 'rgba(2, 132, 199, 0.45)');
-      scaleGrad.addColorStop(0.55, 'rgba(14, 165, 233, 0.54)');
-      scaleGrad.addColorStop(1, 'rgba(16, 185, 129, 0.58)');
-    } else {
-      scaleGrad.addColorStop(0, 'rgba(14, 165, 233, 0.44)');
-      scaleGrad.addColorStop(0.55, 'rgba(56, 189, 248, 0.54)');
-      scaleGrad.addColorStop(1, 'rgba(16, 185, 129, 0.60)');
-    }
-    ctx.beginPath();
-    ctx.arc(cx, cy, trackR, startAng, endAng, false);
-    ctx.strokeStyle = scaleGrad;
-    ctx.lineWidth = 13;
-    ctx.lineCap = 'round';
-    ctx.stroke();
-
-    // 4. Вращающийся луч сонара (спокойная скорость 0.52)
-    _heroSonarSweepAngle = (_heroSonarSweepAngle + 0.0085) % (Math.PI * 2);
-    const sweepSteps = 26;
-    const sweepSpan = 0.68;
+    // 2. Вращающийся луч сонара (спокойная скорость 0.52)
+    _heroSonarSweepAngle = (_heroSonarSweepAngle + 0.017) % (Math.PI * 2);
+    const sweepSteps = 14;
+    const sweepSpan = 0.65;
     for (let s = 0; s < sweepSteps; s++) {
       const frac = s / sweepSteps;
       const a0 = _heroSonarSweepAngle - frac * sweepSpan;
       const a1 = _heroSonarSweepAngle - ((s + 1) / sweepSteps) * sweepSpan;
-      const alpha = (1 - frac) * (isLight ? 0.20 : 0.25);
+      const alpha = (1 - frac) * (isLight ? 0.19 : 0.24);
       ctx.beginPath();
       ctx.moveTo(cx, cy);
       ctx.arc(cx, cy, R * 0.78, a1, a0);
@@ -2563,7 +2645,6 @@ export function initOrUpdateHeroSonarCanvas(scorePct) {
       ctx.fill();
     }
 
-    // Ведущая линия луча
     ctx.beginPath();
     ctx.moveTo(cx, cy);
     ctx.lineTo(cx + Math.cos(_heroSonarSweepAngle) * (R * 0.79), cy + Math.sin(_heroSonarSweepAngle) * (R * 0.79));
@@ -2571,7 +2652,7 @@ export function initOrUpdateHeroSonarCanvas(scorePct) {
     ctx.lineWidth = 2.4;
     ctx.stroke();
 
-    // 5. Силуэты рыб на радаре (количество зависит от % клёва)
+    // 3. Силуэты рыб на радаре
     for (let i = 0; i < _heroSonarBlips.length; i++) {
       const b = _heroSonarBlips[i];
       const bx = cx + Math.cos(b.ang) * (R * b.dist);
@@ -2606,7 +2687,7 @@ export function initOrUpdateHeroSonarCanvas(scorePct) {
       ctx.restore();
     }
 
-    // 6. Центральный медальон под процент клёва (читаемый на всех темах)
+    // 4. Центральный медальон под процент клёва
     const centerR = R * 0.39;
     ctx.beginPath();
     ctx.arc(cx, cy, centerR, 0, Math.PI * 2);
@@ -2620,8 +2701,9 @@ export function initOrUpdateHeroSonarCanvas(scorePct) {
     ctx.lineWidth = 1.6;
     ctx.stroke();
 
-    if (pctEl) {
-      pctEl.style.color = isLight ? '#0F172A' : (isContrast ? '#FBBF24' : '#F8FAFC');
+    const pctNode = document.getElementById('bentoHeroSonarPctText');
+    if (pctNode) {
+      pctNode.style.color = isLight ? '#0F172A' : (isContrast ? '#FBBF24' : '#F8FAFC');
     }
 
     _heroSonarAnimId = requestAnimationFrame(drawFrame);
@@ -2630,19 +2712,141 @@ export function initOrUpdateHeroSonarCanvas(scorePct) {
   _heroSonarAnimId = requestAnimationFrame(drawFrame);
 }
 
+function buildMobileSelectedHourDetailCardInnerHtml(fish, s, activeDayForTackle, selH, selHrObj, selBreakdown, guides, shortMethodName, rigTop, activeBaitTop) {
+  return `
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+      <span style="font-size:13.5px;font-weight:800;">Тактика и 8 факторов в выбранный час</span>
+      <span style="font-size:12px;font-weight:800;color:${selBreakdown.total >= 60 ? 'var(--good)' : (selBreakdown.total >= 38 ? 'var(--accent)' : 'var(--warn)')};">Клёв ${selBreakdown.total}% в ${String(selH).padStart(2, '0')}:00</span>
+    </div>
+    ${fish.legal === 'redbook' ? `
+      <div style="padding:8px 10px;border-radius:10px;background:var(--pill-bad-bg);border:1px solid var(--bad);color:var(--pill-bad-text);font-weight:700;font-size:11.5px;">
+        <b>${fish.name} — Красная книга (изъятие запрещено).</b> При поимке бережно отпустите рыбу.
+      </div>
+    ` : ''}
+    <div style="font-size:12.5px;color:var(--muted);line-height:1.45;">
+      Рекомендуемая снасть: <b style="color:var(--text);">${shortMethodName} (${rigTop.weight}, ${rigTop.line})</b> • Насадка: <b>${renderBaitWithColorDots(activeBaitTop)}</b> • Горизонт: ${s.depth.toFixed(1)} м (${rigTop.tactic}).
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px;margin-top:2px;">
+      ${selBreakdown.factors.map((f, fIdx) => {
+        const isPos = f.val >= 0;
+        const col = isPos ? 'var(--good)' : 'var(--bad)';
+        const pctScore = Math.max(15, Math.min(99, 72 + f.val * 2));
+        return `
+          <div style="display:flex;flex-direction:column;gap:3px;padding:5px 0;border-bottom:1px dashed var(--border);">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:12px;font-weight:800;">
+              <span>${fIdx + 1}. ${f.name}</span>
+              <span style="color:var(--accent);font-weight:900;">${pctScore}% (${isPos ? '+' + f.val : f.val}%)</span>
+            </div>
+            <div style="font-size:11px;color:var(--muted);line-height:1.3;">${f.note}</div>
+            <div style="width:100%;height:5px;border-radius:99px;background:rgba(148,163,184,0.16);overflow:hidden;">
+              <div style="width:${pctScore}%;height:100%;background:${col};border-radius:99px;"></div>
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+    <details class="forecast-why-spoiler" style="margin-top:4px;">
+      <summary style="font-size:12px;font-weight:800;cursor:pointer;">
+        <span>Ихтиология, стоянки и архив 10 км (${fish.name})</span>
+      </summary>
+      <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px;font-size:12px;line-height:1.45;color:var(--muted);">
+        <div><b>Метеоархив (5 дней):</b> ${selBreakdown.archiveEval?.commentary || ''}</div>
+        <div><b>Журнал уловов:</b> ${selBreakdown.logInsight?.commentary || ''}</div>
+        <div><b>Радар «Круг» (35 км):</b> ${selBreakdown.circleEval?.commentary || ''}</div>
+        <div><b>Гидробиология и стоянки:</b> ${guides.standAdvice}</div>
+        <div><b>Подача снасти:</b> ${guides.tackleAdvice}</div>
+      </div>
+    </details>
+  `;
+}
+
+function updateMobileSelectedHourInPlace(container) {
+  if (!container) return false;
+  const detailCard = container.querySelector('#fcSelectedHourDetailCard');
+  const waveCard = container.querySelector('#bentoWaveChartCard');
+  if (!detailCard || !waveCard) return false;
+
+  const s = store.getState();
+  const fish = FISH_DB.find(f => f.id === s.fishId) || FISH_DB[0];
+  const todayObj = s.weatherDays?.[2] || s.weatherDays?.[0] || {};
+  const activeDayForTackle = s.weatherDays?.[s.dayIdx] || todayObj || {};
+  const effIceForTackle = _normalizeWarmDayIce(activeDayForTackle, s.iceState);
+  const effWaterTempForTackle = activeDayForTackle.waterTemp ?? 8;
+  const seasonalBaitsTop = getSeasonalBaitsForContext(fish, s.method, effWaterTempForTackle, effIceForTackle);
+  const activeBaitTop = s.selectedBait && seasonalBaitsTop.includes(s.selectedBait) ? s.selectedBait : (seasonalBaitsTop[0] || '');
+  const rigTop = calcDynamicRig(s.method, s.water, s.depth, activeDayForTackle.windMax || 3, fish, effWaterTempForTackle, effIceForTackle);
+  const hrsArr = Array.isArray(activeDayForTackle.hours) && activeDayForTackle.hours.length === 24
+    ? activeDayForTackle.hours
+    : Array.from({ length: 24 }, (_, h) => ({ hour: h, tAir: 3, press: 754, wind: 3, windDir: 'З' }));
+  const selH = clampHour(s.selectedHour);
+  const selHrObj = hrsArr[selH] || hrsArr[12] || {};
+  const selBreakdown = computeHourFactors(fish, activeDayForTackle, selHrObj, s.method, s.water, s.depth, s.normPress, effIceForTackle);
+  const guides = generateAdaptiveGuides(fish, s.water, s.depth, activeDayForTackle, s.method, effIceForTackle);
+
+  const methodLabelsShort = {
+    spin_micro: 'Микроджиг / Мормышинг',
+    spin_jig: 'Спиннинг (Джиг)',
+    spin_lure: 'Спиннинг (Блесна/Воблер)',
+    bottom: 'Донка / Фидер',
+    float: 'Поплавочная снасть',
+    fly: 'Нахлыст / Бомбарда',
+    winter_jig: 'Зимняя мормышка',
+    winter_lure: 'Зимний балансир / Виб',
+    winter_livebait: 'Жерлица (Живец)',
+    winter_stuka: 'Зимняя стукалка',
+    winter_cisco: 'Зимняя гирлянда',
+    sea_rock: 'Морской рокфишинг',
+    sea_surf: 'Морская донка',
+    sea_boat: 'Морской лов с лодки'
+  };
+  const shortMethodName = methodLabelsShort[s.method] || 'Снасть по сезону';
+
+  const headLbl = waveCard.querySelector('#bentoChartTimeRangeLabel');
+  if (headLbl) {
+    const tAirVal = Math.round(Number(selHrObj.tAir ?? activeDayForTackle.tDay ?? 0));
+    const tAirStr = `${tAirVal > 0 ? '+' + tAirVal : tAirVal}°C`;
+    const txt = `${String(selH).padStart(2, '0')}:00 • ${selHrObj.press ?? activeDayForTackle.pressAvg ?? 754} мм • ${tAirStr} • ${selHrObj.windDir || activeDayForTackle.windDir || 'З'} ${selHrObj.wind ?? activeDayForTackle.windMax ?? 3} м/с`;
+    headLbl.textContent = txt;
+    headLbl.dataset.origText = txt;
+    headLbl.style.color = 'var(--text)';
+  }
+
+  try {
+    const ptsAttr = waveCard.getAttribute('data-hourly-points');
+    if (ptsAttr) {
+      const ptsArr = JSON.parse(ptsAttr);
+      const pt = ptsArr[selH];
+      if (pt) {
+        const lineEl = waveCard.querySelector('#bentoScrubCursorLine');
+        const dotEl = waveCard.querySelector('#bentoScrubCursorDot');
+        if (lineEl) lineEl.style.left = `${pt.xPct}%`;
+        if (dotEl) {
+          dotEl.style.left = `${pt.xPct}%`;
+          dotEl.style.top = `${pt.yPct}%`;
+        }
+      }
+    }
+  } catch (_e) {}
+
+  detailCard.innerHTML = buildMobileSelectedHourDetailCardInnerHtml(
+    fish, s, activeDayForTackle, selH, selHrObj, selBreakdown, guides, shortMethodName, rigTop, activeBaitTop
+  );
+  return true;
+}
+
 function renderMobileRedesignForecast(container) {
   const s = store.getState();
   const fish = FISH_DB.find(f => f.id === s.fishId) || FISH_DB[0];
   const todayObj = s.weatherDays?.[2] || s.weatherDays?.[0] || {};
   const activeDayForTackle = s.weatherDays?.[s.dayIdx] || todayObj || {};
-  const effIceForTackle = activeDayForTackle.iceState || s.iceState || 'open_water';
+  const effIceForTackle = _normalizeWarmDayIce(activeDayForTackle, s.iceState);
   const effWaterTempForTackle = activeDayForTackle.waterTemp ?? 8;
   const nearWaterTitle = s.selectedWaterName || s.nearbyWaters?.[0]?.name || WATER_PROFILES[s.water]?.shortName || s.locLabel || 'Водоём';
   const compatibleMethodsTop = getCompatibleMethods(fish, effIceForTackle, s.water, effWaterTempForTackle);
   const seasonalBaitsTop = getSeasonalBaitsForContext(fish, s.method, effWaterTempForTackle, effIceForTackle);
   const activeBaitTop = s.selectedBait && seasonalBaitsTop.includes(s.selectedBait) ? s.selectedBait : (seasonalBaitsTop[0] || '');
   const rigTop = calcDynamicRig(s.method, s.water, s.depth, activeDayForTackle.windMax || 3, fish, effWaterTempForTackle, effIceForTackle);
-  const activeHeroScore = calcDayBest(fish, activeDayForTackle, s.method, s.water, s.depth, s.normPress, s.iceState);
+  const activeHeroScore = calcDayBest(fish, activeDayForTackle, s.method, s.water, s.depth, s.normPress, effIceForTackle);
 
   const ecoregBento = getSpotEcoregion(s.lat, s.lon, s.basinCode, s.water, s.selectedWaterName);
   const sigOrderBento = ecoregBento.signatureSpecies || [];
@@ -2655,7 +2859,7 @@ function renderMobileRedesignForecast(container) {
   );
   const speciesStripList = (regionalPool.length ? regionalPool : FISH_DB.slice(0, 12))
     .map(f => {
-      const scDay = calcDayBest(f, activeDayForTackle, s.method, s.water, s.depth, s.normPress, s.iceState);
+      const scDay = calcDayBest(f, activeDayForTackle, s.method, s.water, s.depth, s.normPress, effIceForTackle);
       const sigIdx = sigMapBento.has(f.id) ? sigMapBento.get(f.id) : -1;
       const bonus = sigIdx >= 0 ? Math.max(6, 24 - sigIdx * 2) : -6;
       return { fish: f, scDay, rankSc: scDay + bonus };
@@ -2669,7 +2873,7 @@ function renderMobileRedesignForecast(container) {
   const hrsArr = Array.isArray(activeDayForTackle.hours) && activeDayForTackle.hours.length === 24
     ? activeDayForTackle.hours
     : Array.from({ length: 24 }, (_, h) => ({ hour: h, tAir: 3, press: 754, wind: 3, windDir: 'З' }));
-  const hrScores = hrsArr.map(hr => calcHourly(fish, activeDayForTackle, hr, s.method, s.water, s.depth, s.normPress, s.iceState));
+  const hrScores = hrsArr.map(hr => calcHourly(fish, activeDayForTackle, hr, s.method, s.water, s.depth, s.normPress, effIceForTackle));
 
   let morningPeakHr = 7, morningPeakSc = -1;
   let eveningPeakHr = 17, eveningPeakSc = -1;
@@ -2712,12 +2916,12 @@ function renderMobileRedesignForecast(container) {
   const selH = clampHour(s.selectedHour);
   const selPt = pts[selH] || pts[8] || pts[0];
   const selHrObj = hrsArr[selH] || hrsArr[12] || {};
-  const selBreakdown = computeHourFactors(fish, activeDayForTackle, selHrObj, s.method, s.water, s.depth, s.normPress, s.iceState);
+  const selBreakdown = computeHourFactors(fish, activeDayForTackle, selHrObj, s.method, s.water, s.depth, s.normPress, effIceForTackle);
   const astro = computeDayKpAndDaylight(activeDayForTackle);
-  const guides = generateAdaptiveGuides(fish, s.water, s.depth, activeDayForTackle, s.method, s.iceState);
+  const guides = generateAdaptiveGuides(fish, s.water, s.depth, activeDayForTackle, s.method, effIceForTackle);
 
   const tWatStr = `${effWaterTempForTackle > 0 ? '+' + effWaterTempForTackle : effWaterTempForTackle}°C`;
-  const iceThickVal = activeDayForTackle.iceThickness ?? s.iceThickness ?? 0;
+  const iceThickVal = effIceForTackle === 'open_water' ? 0 : (activeDayForTackle.iceThickness ?? s.iceThickness ?? 0);
   const iceSubtitleLine = effIceForTackle === 'ice_safe'
     ? `Лёд ~${iceThickVal || 12} см • Вода ${tWatStr} • ${nearWaterTitle}`
     : (effIceForTackle === 'ice_danger'
@@ -2763,7 +2967,8 @@ function renderMobileRedesignForecast(container) {
 
   const daysArr = s.weatherDays || [];
   const daysCardsHtml = daysArr.map((d, idx) => {
-    const sc = calcDayBest(fish, d, s.method, s.water, s.depth, s.normPress, s.iceState);
+    const dIce = _normalizeWarmDayIce(d, s.iceState);
+    const sc = calcDayBest(fish, d, s.method, s.water, s.depth, s.normPress, dIce);
     const isAct = idx === s.dayIdx;
     const dayHeader = `${d.relTitle ? d.relTitle + ' • ' : ''}${d.label}${d.isArchive ? ' (Архив)' : ''}`;
     const tDayS = `${d.tDay > 0 ? '+' + d.tDay : d.tDay}°C`;
@@ -2799,7 +3004,7 @@ function renderMobileRedesignForecast(container) {
 
   container.innerHTML = `
     <div id="fcStickySpeciesBar" style="display:none;"></div>
-    <div id="fcExpressBox" class="klev-v291-forecast-shell" style="display:flex;flex-direction:column;gap:10px;">
+    <div id="fcRedesignMobileRoot" class="klev-v291-forecast-shell" style="display:flex;flex-direction:column;gap:10px;">
       <!-- 1. Компактная верхняя капсула выбора водоёма и даты (1 строка) -->
       <div style="display:flex;align-items:center;justify-content:center;padding-top:2px;">
         <button type="button" class="pill-btn" id="fcOpenLocationSheetBtn" style="padding:7px 15px;border-radius:999px;font-size:12.5px;font-weight:700;display:inline-flex;align-items:center;gap:8px;">
@@ -2808,7 +3013,7 @@ function renderMobileRedesignForecast(container) {
         </button>
       </div>
 
-      <!-- 2. Адаптивная Bento-сетка (1 колонка на смартфоне портретно, 2 колонки в горизонтальном виде планшетов/раскладушек) -->
+      <!-- 2. Адаптивная Bento-сетка -->
       <div class="klev-fc-mobile-bento-grid">
         <!-- ЛЕВАЯ КОЛОНКА: Центрированная Hero-карточка с Живым Радаром-Сонаром + Лента видов рыб -->
         <div style="display:flex;flex-direction:column;gap:10px;min-width:0;">
@@ -2866,7 +3071,7 @@ function renderMobileRedesignForecast(container) {
             <button type="button" class="seg-btn ${_activeForecastSubTab === 'ice' ? 'active' : ''}" data-klev-fc-subtab="ice">Погода</button>
           </div>
 
-          <!-- ВКЛАДКА 1: ОБЗОР (Почасовой график 00:00-24:00 со скраббером пальцем по графику + Тактика и 8 факторов) -->
+          <!-- ВКЛАДКА 1: ОБЗОР -->
           <div class="fc-subtab-pane" data-fc-pane="overview" style="display:${_activeForecastSubTab === 'overview' ? 'flex' : 'none'};flex-direction:column;gap:10px;">
             <div class="bento-card bento-chart-card" id="bentoWaveChartCard" data-hourly-points="${scrubPtsJson}" style="padding:12px 13px;">
               <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
@@ -2915,59 +3120,16 @@ function renderMobileRedesignForecast(container) {
 
             <!-- Карточка: Тактика и 8 факторов в выбранный час -->
             <div class="bento-card" id="fcSelectedHourDetailCard" style="padding:13px 14px;display:flex;flex-direction:column;gap:8px;">
-              <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-                <span style="font-size:13.5px;font-weight:800;">Тактика и 8 факторов в выбранный час</span>
-                <span style="font-size:12px;font-weight:800;color:${selBreakdown.total >= 60 ? 'var(--good)' : (selBreakdown.total >= 38 ? 'var(--accent)' : 'var(--warn)')};">Клёв ${selBreakdown.total}% в ${String(selH).padStart(2, '0')}:00</span>
-              </div>
-              ${fish.legal === 'redbook' ? `
-                <div style="padding:8px 10px;border-radius:10px;background:var(--pill-bad-bg);border:1px solid var(--bad);color:var(--pill-bad-text);font-weight:700;font-size:11.5px;">
-                  <b>${fish.name} — Красная книга (изъятие запрещено).</b> При поимке бережно отпустите рыбу.
-                </div>
-              ` : ''}
-              <div style="font-size:12.5px;color:var(--muted);line-height:1.45;">
-                Рекомендуемая снасть: <b style="color:var(--text);">${shortMethodName} (${rigTop.weight}, ${rigTop.line})</b> • Насадка: <b>${renderBaitWithColorDots(activeBaitTop)}</b> • Горизонт: ${s.depth.toFixed(1)} м (${rigTop.tactic}).
-              </div>
-              <div style="display:flex;flex-direction:column;gap:6px;margin-top:2px;">
-                ${selBreakdown.factors.map((f, fIdx) => {
-                  const isPos = f.val >= 0;
-                  const col = isPos ? 'var(--good)' : 'var(--bad)';
-                  const pctScore = Math.max(15, Math.min(99, 72 + f.val * 2));
-                  return `
-                    <div style="display:flex;flex-direction:column;gap:3px;padding:5px 0;border-bottom:1px dashed var(--border);">
-                      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:12px;font-weight:800;">
-                        <span>${fIdx + 1}. ${f.name}</span>
-                        <span style="color:var(--accent);font-weight:900;">${pctScore}% (${isPos ? '+' + f.val : f.val}%)</span>
-                      </div>
-                      <div style="font-size:11px;color:var(--muted);line-height:1.3;">${f.note}</div>
-                      <div style="width:100%;height:5px;border-radius:99px;background:rgba(148,163,184,0.16);overflow:hidden;">
-                        <div style="width:${pctScore}%;height:100%;background:${col};border-radius:99px;"></div>
-                      </div>
-                    </div>
-                  `;
-                }).join('')}
-              </div>
-              <details class="forecast-why-spoiler" style="margin-top:4px;">
-                <summary style="font-size:12px;font-weight:800;cursor:pointer;">
-                  <span>Ихтиология, стоянки и архив 10 км (${fish.name})</span>
-                </summary>
-                <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px;font-size:12px;line-height:1.45;color:var(--muted);">
-                  <div><b>Метеоархив (5 дней):</b> ${selBreakdown.archiveEval?.commentary || ''}</div>
-                  <div><b>Журнал уловов:</b> ${selBreakdown.logInsight?.commentary || ''}</div>
-                  <div><b>Радар «Круг» (35 км):</b> ${selBreakdown.circleEval?.commentary || ''}</div>
-                  <div><b>Гидробиология и стоянки:</b> ${guides.standAdvice}</div>
-                  <div><b>Подача снасти:</b> ${guides.tackleAdvice}</div>
-                </div>
-              </details>
+              ${buildMobileSelectedHourDetailCardInnerHtml(fish, s, activeDayForTackle, selH, selHrObj, selBreakdown, guides, shortMethodName, rigTop, activeBaitTop)}
             </div>
 
-            <!-- Кнопка перехода к точкам на карте -->
             <button type="button" class="cta-full-btn" id="bentoMapRadarCard">
               <svg class="k-svg" style="width:18px;height:18px;"><use href="#ui-pin"></use></svg>
               <span>Показать точки на карте</span>
             </button>
           </div>
 
-          <!-- ВКЛАДКА 2: СНАСТИ (Снасть + Сезонная насадка + Переключатель сезона открытой воды для карты свима и таймера) -->
+          <!-- ВКЛАДКА 2: СНАСТИ -->
           <div class="fc-subtab-pane" data-fc-pane="tackle" style="display:${_activeForecastSubTab === 'tackle' ? 'flex' : 'none'};flex-direction:column;gap:10px;">
             <div class="bento-card" style="padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
               <div>
@@ -3008,8 +3170,8 @@ function renderMobileRedesignForecast(container) {
             </div>
           </div>
 
-          <!-- ВКЛАДКА 3: 10 ДНЕЙ (Вертикальный список дней + архив с шагом 4ч без кнопки Очистить кэш) -->
-          <div class="fc-subtab-pane" data-fc-pane="days" id="fcWeekBox" style="display:${_activeForecastSubTab === 'days' ? 'flex' : 'none'};flex-direction:column;gap:9px;">
+          <!-- ВКЛАДКА 3: 10 ДНЕЙ -->
+          <div class="fc-subtab-pane" data-fc-pane="days" id="fcRedesignWeekPane" style="display:${_activeForecastSubTab === 'days' ? 'flex' : 'none'};flex-direction:column;gap:9px;">
             <div style="font-size:13.5px;font-weight:800;padding:2px 2px;">Прогноз на 10 дней и архив • ${fish.name}</div>
             <div style="display:flex;flex-direction:column;gap:8px;">
               ${daysCardsHtml}
@@ -3017,7 +3179,7 @@ function renderMobileRedesignForecast(container) {
             <div id="fcMobileArchive4hSlot"></div>
           </div>
 
-          <!-- ВКЛАДКА 4: ПОГОДА (Кнопка полного экрана Погоды + Модель льда Стефана-Быдина + Суточный ход давления + Kp) -->
+          <!-- ВКЛАДКА 4: ПОГОДА -->
           <div class="fc-subtab-pane" data-fc-pane="ice" style="display:${_activeForecastSubTab === 'ice' ? 'flex' : 'none'};flex-direction:column;gap:10px;">
             <button type="button" class="cta-full-btn" id="fcOpenFullWeatherScreenBtn" style="padding:11px 14px;font-size:13px;">
               <svg class="k-svg" style="width:18px;height:18px;"><use href="#icon-weather"></use></svg>
@@ -3033,26 +3195,24 @@ function renderMobileRedesignForecast(container) {
                 <div class="glass-panel" style="padding:10px 12px;border-radius:14px;">
                   <div style="font-size:11px;color:var(--muted);">Река (${nearWaterTitle})</div>
                   <div style="font-size:19px;font-weight:900;color:var(--accent);margin:2px 0;">${iceThickVal > 0 ? `~${iceThickVal} см` : `Вода ${tWatStr}`}</div>
-                  <div style="font-size:11px;color:${effIceForTackle === 'ice_danger' ? 'var(--bad)' : 'var(--good)'};font-weight:700;">
-                    ${effIceForTackle === 'ice_safe' ? 'Пеший выход безопасен' : (effIceForTackle === 'ice_danger' ? 'Опасный лёд' : 'Открытая вода')}
+                  <div style="font-size:11px;color:${effIceForTackle === 'ice_safe' ? 'var(--good)' : (effIceForTackle === 'open_water' ? 'var(--accent)' : 'var(--bad)')};font-weight:700;">
+                    ${effIceForTackle === 'ice_safe' ? 'Безопасный лёд (Пешком)' : (effIceForTackle === 'open_water' ? 'Открытая вода (С берега / лодки)' : 'Выход на лёд запрещён')}
                   </div>
                 </div>
                 <div class="glass-panel" style="padding:10px 12px;border-radius:14px;">
                   <div style="font-size:11px;color:var(--muted);">Озёра и карьеры</div>
-                  <div style="font-size:19px;font-weight:900;color:var(--good);margin:2px 0;">${iceThickVal > 0 ? `~${Math.round(iceThickVal * 1.28)} см` : `Вода ${tWatStr}`}</div>
-                  <div style="font-size:11px;color:var(--good);font-weight:700;">
-                    ${iceThickVal >= 22 ? 'Допуск снегохода' : (iceThickVal >= 10 ? 'Пеший выход' : 'Лодка и берег')}
-                  </div>
+                  <div style="font-size:19px;font-weight:900;color:var(--accent);margin:2px 0;">${iceThickVal > 0 ? `~${Math.round(iceThickVal * 1.25)} см` : `Вода ${tWatStr}`}</div>
+                  <div style="font-size:11px;color:var(--muted);font-weight:700;">Течение и термоклин учтены</div>
                 </div>
               </div>
             </div>
 
             <div class="bento-card" style="padding:14px;display:flex;flex-direction:column;gap:8px;">
               <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-                <span style="font-size:13.5px;font-weight:800;">Суточный ход давления (норма ${s.normPress || 754} мм)</span>
-                <span style="font-size:11.5px;font-weight:700;color:var(--good);">${activeDayForTackle.pressAvg || 754} мм (${fmtDeltaPress(activeDayForTackle.dP)})</span>
+                <span style="font-size:13.5px;font-weight:800;">Суточный ход давления (норма ${s.normPress} мм)</span>
+                <span style="font-size:11.5px;font-weight:800;color:${Math.abs(activeDayForTackle.dP || 0) <= 3 ? 'var(--good)' : 'var(--warn)'};">${fmtDeltaPress(activeDayForTackle.dP)}</span>
               </div>
-              <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px;padding-top:2px;">
+              <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px;">
                 ${pressRowHtml}
               </div>
             </div>
@@ -3070,7 +3230,6 @@ function renderMobileRedesignForecast(container) {
         </div>
       </div>
     </div>
-    <div id="fcHourlyBox" style="display:none;"></div>
   `;
 
   if (activeDayForTackle.isArchive) {
@@ -3135,6 +3294,13 @@ export function render(container) {
   }
 }
 function updateLiveWeightLabelsAndScores(container) {
+  if (typeof document !== 'undefined' && document.documentElement.getAttribute('data-desktop-web') !== '1') {
+    const rootSec = document.getElementById('secForecast') || container;
+    if (rootSec && rootSec.id === 'secForecast') {
+      renderMobileRedesignForecast(rootSec);
+    }
+    return;
+  }
   if (!container) return;
   const s = store.getState();
   const pw = s.proFactorWeights || { temp: 1.0, press: 1.0, archive_shock: 1.0, circle_field: 1.0 };
@@ -3255,7 +3421,11 @@ function bindForecastEvents(container) {
         const timeline = container.querySelector('.bite-timeline');
         const savedLeft = timeline ? timeline.scrollLeft : 0;
         store.dispatch({ type: 'SET_HOUR', payload: hr });
-        renderHourly(container.querySelector('#fcHourlyBox'));
+        if (typeof document !== 'undefined' && document.documentElement.getAttribute('data-desktop-web') === '1') {
+          renderHourly(container.querySelector('#fcHourlyBox'));
+        } else {
+          updateMobileSelectedHourInPlace(container);
+        }
         const nextTimeline = container.querySelector('.bite-timeline');
         if (nextTimeline && savedLeft > 0) nextTimeline.scrollLeft = savedLeft;
         flashHighlightElement('#fcSelectedHourDetailCard', { scroll: true, block: 'nearest', delayMs: 50 });
@@ -3596,12 +3766,14 @@ function bindForecastEvents(container) {
         const nextHr = parseInt(scrubbedHrStr, 10);
         if (Number.isFinite(nextHr) && nextHr !== store.getState().selectedHour) {
           store.dispatch({ type: 'SET_HOUR', payload: nextHr });
+        } else {
+          updateMobileSelectedHourInPlace(container);
         }
-      }
-      const headLbl = waveCard.querySelector('#bentoChartTimeRangeLabel');
-      if (headLbl && headLbl.dataset.origText) {
-        headLbl.textContent = headLbl.dataset.origText;
-        headLbl.style.color = 'var(--muted)';
+      } else {
+        const headLbl = waveCard.querySelector('#bentoChartTimeRangeLabel');
+        if (headLbl && headLbl.dataset.origText) {
+          headLbl.textContent = headLbl.dataset.origText;
+        }
       }
       const peaksRow = waveCard.querySelector('#bentoChartPeaksRow');
       const liveRow = waveCard.querySelector('#bentoChartScrubLiveRow');
@@ -3864,6 +4036,19 @@ export function init(container) {
           next.weatherDays === prev.weatherDays &&
           next.proFactorWeights === prev.proFactorWeights) {
         if (container) {
+          const isDesktopWeb = typeof document !== 'undefined' && document.documentElement.getAttribute('data-desktop-web') === '1';
+          if (!isDesktopWeb) {
+            if (next.dayIdx === prev.dayIdx && next.selectedHour !== prev.selectedHour) {
+              updateMobileSelectedHourInPlace(container);
+              return;
+            }
+            const savedWinY = typeof window !== 'undefined' ? window.scrollY : 0;
+            renderMobileRedesignForecast(container);
+            if (typeof window !== 'undefined' && savedWinY > 0 && Math.abs(window.scrollY - savedWinY) > 4) {
+              window.scrollTo({ top: savedWinY, behavior: 'instant' });
+            }
+            return;
+          }
           const savedWinY = typeof window !== 'undefined' ? window.scrollY : 0;
           container.querySelectorAll('[data-week-day]').forEach(cd => {
             const d = parseInt(cd.getAttribute('data-week-day'), 10);

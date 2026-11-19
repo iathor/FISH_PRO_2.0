@@ -2900,25 +2900,18 @@ export function renderSettingsZoneTabsHtml(activeZone = 'auth') {
   const effZone = activeZone === 'notif' ? 'app' : activeZone;
   const betaOrAdmin = isCurrentUserBetaTester(store.getState());
   const zones = [
-    { id: 'auth', icon: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="5" y="11" width="14" height="10" rx="2.5" fill="rgba(251,191,36,0.22)" stroke="#fbbf24" stroke-width="1.8"/><path d="M8 11V7a4 4 0 0 1 8 0v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>', label: '1. Профиль и ID', locked: false },
-    { id: 'fishing', icon: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg>', label: '2. Рыбалка и Калибровка', locked: false },
-    { id: 'app', icon: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3.2" stroke="currentColor" stroke-width="1.9"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.6.77 1.05 1.41 1.19H21a2 2 0 1 1 0 4h-.09c-.64.14-1.15.59-1.51 1.21z" stroke="currentColor" stroke-width="1.6"/></svg>', label: '3. Приложение и Звук', locked: false },
-    { id: 'offgrid', icon: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5M19.1 4.9C23 8.8 23 15.2 19.1 19.1" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="#ef4444"/></svg>', label: '4. Автономная связь и Авто-SOS', locked: !betaOrAdmin }
+    { id: 'auth', label: '1. Профиль·ID', locked: false },
+    { id: 'fishing', label: '2. Рыбалка', locked: false },
+    { id: 'app', label: '3. Веса·Звук', locked: false },
+    { id: 'offgrid', label: '4. Авто-SOS', locked: !betaOrAdmin }
   ];
   return `
-    <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:4px;" role="tablist" aria-label="Зоны настроек">
-      <button type="button" class="btn btn-sm ${effZone === 'hub' ? 'btn-accent' : ''}" data-switch-settings-zone="hub" style="width:100%;min-height:36px;font-weight:800;justify-content:center;">
-        <svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="1.5" fill="rgba(56,189,248,0.22)" stroke="currentColor" stroke-width="1.8"/><rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="14" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/></svg>
-        <span>Все разделы настроек (Главное меню)</span>
-      </button>
-      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;">
-        ${zones.map(z => `
-          <button type="button" class="btn btn-sm settings-zone-tab ${effZone === z.id ? 'btn-accent' : ''}" data-switch-settings-zone="${z.id}" ${z.locked ? 'disabled aria-disabled="true" style="min-height:38px;opacity:0.55;cursor:not-allowed;justify-content:center;" title="Доступно участникам бета-тестирования"' : 'style="min-height:38px;font-weight:800;justify-content:center;"'} role="tab" aria-selected="${effZone === z.id ? 'true' : 'false'}">
-            <span>${z.icon}</span>
-            <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${z.label}</span>
-          </button>
-        `).join('')}
-      </div>
+    <div class="seg-bar" role="tablist" aria-label="Зоны настроек" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));margin-bottom:8px;">
+      ${zones.map(z => `
+        <button type="button" class="seg-btn settings-zone-tab ${effZone === z.id ? 'active' : ''}" data-switch-settings-zone="${z.id}" ${z.locked ? 'disabled aria-disabled="true" style="opacity:0.45;cursor:not-allowed;" title="Доступно участникам бета-тестирования"' : ''} role="tab" aria-selected="${effZone === z.id ? 'true' : 'false'}">
+          <span>${z.label}</span>
+        </button>
+      `).join('')}
     </div>
   `;
 }
