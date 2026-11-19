@@ -71,7 +71,7 @@
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta http-equiv="X-Content-Type-Options" content="nosniff">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: blob:; script-src 'self' 'unsafe-inline' https://telegram.org https://yastatic.net https://cdn.jsdelivr.net https://appassets.androidplatform.net; style-src 'self' 'unsafe-inline' https://yastatic.net https://cdn.jsdelivr.net https://appassets.androidplatform.net; img-src 'self' data: blob: https:; connect-src 'self' https: data: blob: https://klevpro.ru https://www.klevpro.ru https://xn--b1apdneg0j.xn--p1ai https://api.github.com https://klevprohbot.thorantony82.workers.dev https://*.workers.dev https://generativelanguage.googleapis.com https://text.pollinations.ai https://ia-thor.github.io https://api.open-meteo.com https://archive-api.open-meteo.com https://api.met.no https://allorigins.hexlet.app https://*.hexlet.app https://corsproxy-seven.vercel.app https://every-origin.vercel.app https://*.vercel.app https://script.google.com https://script.googleusercontent.com https://*.yandexcloud.net https://maps.mail.ru https://overpass.kumi.systems https://overpass.private.coffee https://overpass-api.de https://nominatim.openstreetmap.org https://api.bigdatacloud.net https://ipwho.is https://ipapi.co https://raw.githubusercontent.com https://github.com https://*.githubusercontent.com https://appassets.androidplatform.net;">
-    <meta http-equiv="Content-Security-Policy-Report-Only" content="default-src 'self' https: data: blob:; script-src 'self' https://telegram.org https://yastatic.net https://cdn.jsdelivr.net 'unsafe-inline' 'sha256-pWKZ46dD0R3uv61NCqhg1MHP4J923JawuTmmWbluAow=' 'sha256-uVErl6iKuVjV5O5MVKeUizPkSUPuChBGdaJ76pQfiqY=' 'sha256-R1kHqnyRfUGr0K34JNjLoGcS2pGaCYyFoPFh941cyb4=' 'sha256-OG7YhXtKbyYnZ5GautT/oaA7nAp5wnCu8KFhe6u08fM=' 'sha256-Q/auiEQiE8rU0ewycQaOnEtBXLOMe6wEDXa95O6E7oI='; style-src 'self' https: 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'self' https: wss:;">
+    <meta http-equiv="Content-Security-Policy-Report-Only" content="default-src 'self' https: data: blob:; script-src 'self' https://telegram.org https://yastatic.net https://cdn.jsdelivr.net 'unsafe-inline' 'sha256-pWKZ46dD0R3uv61NCqhg1MHP4J923JawuTmmWbluAow=' 'sha256-uVErl6iKuVjV5O5MVKeUizPkSUPuChBGdaJ76pQfiqY=' 'sha256-R1kHqnyRfUGr0K34JNjLoGcS2pGaCYyFoPFh941cyb4=' 'sha256-OG7YhXtKbyYnZ5GautT/oaA7nAp5wnCu8KFhe6u08fM=' 'sha256-gYfTUGBDbO/mKBC3ZvkBpIUL3whdX0ALziCnGDl8rSc='; style-src 'self' https: 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'self' https: wss:;">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
   <meta name="theme-color" content="#0b1120">
   <meta name="mobile-web-app-capable" content="yes">
@@ -111,7 +111,7 @@
     "softwareVersion": "2.9.1-r241",
     "contentRating": "12+",
     "image": "https://klevpro.ru/icon-512.png",
-    "downloadUrl": "https://klevpro.ru/apk/klev-pro-v2.5.6.apk",
+    "downloadUrl": "https://klevpro.ru/apk/klev-pro-v2.9.1.apk",
     "offers": {
       "@type": "Offer",
       "price": "0",
@@ -6198,7 +6198,7 @@ html[data-rear-screen="1"] #klevRearScreenHud {
         if (pct < 50) return 'Синхронизация метеорадара, давления и ледовой обстановки...';
         if (pct < 76) return 'Загрузка ихтиобазы (115 видов рыб и 491 водоём РФ)...';
         if (pct < 96) return 'Проверка спутников GPS/ГЛОНАСС и офлайн-кэша...';
-        return 'Система Клёв ПРО 2.0 (v2.9.0) готова к выходу на водоём';
+        return 'Система Клёв ПРО 2.0 (v2.9.1) готова к выходу на водоём';
       }
 
       function renderFrame(now) {

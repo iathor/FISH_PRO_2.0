@@ -654,6 +654,22 @@ function patchVersionAndAndroidFiles() {
     wf = wf.replace(/VER_CODE=\$\(\(\d+\s*\+\s*RUN_NUM\)\)/g, `VER_CODE=$((${V_CODE} + RUN_NUM))`);
     wf = wf.replace(/versionName\s+"[0-9.a-zA-Z_-]+"/g, `versionName "${V_FULL}"`);
     wf = wf.replace(/publish v[0-9.a-zA-Z_-]+ web & signed apks/g, `publish v${V_FULL} web & signed apks`);
+    wf = wf.replace(/apk\/klev-pro-v[0-9.a-zA-Z_-]+\.apk/g, `apk/${V_APK_FILE}`);
+    wf = wf.replace(/apk\/klev-pro-admin-v[0-9.a-zA-Z_-]+\.apk/g, `apk/${V_ADMIN_APK_FILE}`);
+    wf = wf.replace(/\/tmp\/klev-apk-dist\/klev-pro-v[0-9.a-zA-Z_-]+\.apk/g, `/tmp/klev-apk-dist/${V_APK_FILE}`);
+    wf = wf.replace(/\/tmp\/klev-apk-dist\/klev-pro-admin-v[0-9.a-zA-Z_-]+\.apk/g, `/tmp/klev-apk-dist/${V_ADMIN_APK_FILE}`);
+    wf = wf.replace(/\$REL_DIR\/klev-pro-v[0-9.a-zA-Z_-]+\.apk/g, `$REL_DIR/${V_APK_FILE}`);
+    wf = wf.replace(/\$REL_DIR\/klev-pro-admin-v[0-9.a-zA-Z_-]+\.apk/g, `$REL_DIR/${V_ADMIN_APK_FILE}`);
+    wf = wf.replace(/KlevPro-User-v[0-9.a-zA-Z_-]+-Android-APK/g, `KlevPro-User-v${V_NUM}-Android-APK`);
+    wf = wf.replace(/KlevPro-Admin-v[0-9.a-zA-Z_-]+-Android-APK/g, `KlevPro-Admin-v${V_NUM}-Android-APK`);
+    wf = wf.replace(/Build Signed User APK \(klev-pro-v[0-9.a-zA-Z_-]+\.apk/g, `Build Signed User APK (${V_APK_FILE}`);
+    wf = wf.replace(/Build Signed Owner Admin APK \(klev-pro-admin-v[0-9.a-zA-Z_-]+\.apk/g, `Build Signed Owner Admin APK (${V_ADMIN_APK_FILE}`);
+    wf = wf.replace(/Upload Signed User APK Artifact \(klev-pro-v[0-9.a-zA-Z_-]+\.apk\)/g, `Upload Signed User APK Artifact (${V_APK_FILE})`);
+    wf = wf.replace(/Upload Signed Owner Admin APK Artifact \(klev-pro-admin-v[0-9.a-zA-Z_-]+\.apk\)/g, `Upload Signed Owner Admin APK Artifact (${V_ADMIN_APK_FILE})`);
+    wf = wf.replace(/rm -rf android\/app\/src\/main\/assets\/www android\/build/g, 'rm -rf android/buildSrc android/app/src/main/assets/www android/build');
+    if (!wf.includes('FORCE_JAVASCRIPT_ACTIONS_TO_NODE24')) {
+      wf = wf.replace('permissions:', "env:\n  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'\n\npermissions:");
+    }
     // Включаем копирование внешнего скрипта app-runtime.js и VERSION в ассеты Android APK
     wf = wf.replace(
       /for f in index\.html kp-control-89\.html([^\n]*); do/,
@@ -948,6 +964,8 @@ function patchFrontendAndServiceWorker() {
   }
 
   idx = idx.replace(/"softwareVersion":\s*"[^"]+"/g, `"softwareVersion": "${V_FULL}"`);
+  idx = idx.replace(/https:\/\/klevpro\.ru\/apk\/klev-pro-v[0-9.a-zA-Z_-]+\.apk/g, V_APK_URL);
+  idx = idx.replace(/Система Клёв ПРО 2\.0 \(v2\.[0-9]+\.[0-9]+\)/g, `Система Клёв ПРО 2.0 (v${V_NUM})`);
   idx = idx.replace(/\?v=2\.[0-9]+\.[0-9]+-r\d+/g, `?v=${V_FULL}`);
   idx = idx.replace(/klev-pro-v2\.[0-9]+\.[0-9]+-r\d+-static/g, `klev-pro-v${V_FULL}-static`);
   idx = idx.replace(/Приложение «Клёв ПРО 2\.0» для Android \(v2\.[0-9]+\.[0-9]+\s+r\d+\)/g, `Приложение «Клёв ПРО 2.0» для Android (${V_DISPLAY})`);

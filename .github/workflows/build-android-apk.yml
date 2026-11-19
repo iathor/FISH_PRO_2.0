@@ -7,6 +7,9 @@ on:
     paths-ignore:
       - 'apk/**.apk'
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
 permissions:
   contents: write
   pages: write
@@ -2122,7 +2125,7 @@ jobs:
             done
           fi
 
-      - name: Build Signed User APK (klev-pro-v2.5.6.apk — Pure User Contour)
+      - name: Build Signed User APK (klev-pro-v2.9.1.apk — Pure User Contour)
         working-directory: ${{ steps.locate.outputs.proj_dir }}
         run: |
           mkdir -p /tmp/klev-apk-dist
@@ -2149,10 +2152,10 @@ jobs:
           /tmp/gradle-8.7/bin/gradle assembleRelease --no-daemon --console=plain
           REL_DIR="app/build/outputs/apk/release"
           SRC_APK=$(ls -t "$REL_DIR"/*.apk | head -n 1)
-          cp -f "$SRC_APK" /tmp/klev-apk-dist/klev-pro-v2.5.6.apk
-          ls -lh /tmp/klev-apk-dist/klev-pro-v2.5.6.apk
+          cp -f "$SRC_APK" /tmp/klev-apk-dist/klev-pro-v2.9.1.apk
+          ls -lh /tmp/klev-apk-dist/klev-pro-v2.9.1.apk
 
-      - name: Build Signed Owner Admin APK (klev-pro-admin-v2.5.6.apk — Separate Admin Contour)
+      - name: Build Signed Owner Admin APK (klev-pro-admin-v2.9.1.apk — Separate Admin Contour)
         working-directory: ${{ steps.locate.outputs.proj_dir }}
         run: |
           mkdir -p /tmp/klev-apk-dist
@@ -2184,23 +2187,23 @@ jobs:
           /tmp/gradle-8.7/bin/gradle clean assembleRelease --no-daemon --console=plain
           REL_DIR="app/build/outputs/apk/release"
           ADMIN_SRC=$(ls -t "$REL_DIR"/*.apk | head -n 1)
-          cp -f "$ADMIN_SRC" /tmp/klev-apk-dist/klev-pro-admin-v2.5.6.apk
-          cp -f /tmp/klev-apk-dist/klev-pro-v2.5.6.apk "$REL_DIR/klev-pro-v2.5.6.apk"
-          cp -f /tmp/klev-apk-dist/klev-pro-admin-v2.5.6.apk "$REL_DIR/klev-pro-admin-v2.5.6.apk"
+          cp -f "$ADMIN_SRC" /tmp/klev-apk-dist/klev-pro-admin-v2.9.1.apk
+          cp -f /tmp/klev-apk-dist/klev-pro-v2.9.1.apk "$REL_DIR/klev-pro-v2.9.1.apk"
+          cp -f /tmp/klev-apk-dist/klev-pro-admin-v2.9.1.apk "$REL_DIR/klev-pro-admin-v2.9.1.apk"
           ls -lh /tmp/klev-apk-dist/
 
       - name: Auto-Save User & Admin APKs and Publish Clean Release to GitHub Pages
         run: |
           # Clean temporary duplicated Android assets/www and build dirs before committing to Git so GitHub Pages artifact stays fast & compact
-          rm -rf android/app/src/main/assets/www android/build android/app/build android/.gradle FISH_PRO_2.0*.zip
+          rm -rf android/buildSrc android/app/src/main/assets/www android/build android/app/build android/.gradle FISH_PRO_2.0*.zip
           touch .nojekyll
           mkdir -p apk
           rm -f apk/*.apk
-          if [ -f "/tmp/klev-apk-dist/klev-pro-v2.5.6.apk" ]; then
-            cp -f "/tmp/klev-apk-dist/klev-pro-v2.5.6.apk" apk/klev-pro-v2.9.0.apk
+          if [ -f "/tmp/klev-apk-dist/klev-pro-v2.9.1.apk" ]; then
+            cp -f "/tmp/klev-apk-dist/klev-pro-v2.9.1.apk" apk/klev-pro-v2.9.1.apk
           fi
-          if [ -f "/tmp/klev-apk-dist/klev-pro-admin-v2.5.6.apk" ]; then
-            cp -f "/tmp/klev-apk-dist/klev-pro-admin-v2.5.6.apk" apk/klev-pro-admin-v2.9.0.apk
+          if [ -f "/tmp/klev-apk-dist/klev-pro-admin-v2.9.1.apk" ]; then
+            cp -f "/tmp/klev-apk-dist/klev-pro-admin-v2.9.1.apk" apk/klev-pro-admin-v2.9.1.apk
           fi
           ls -lh apk/
           EXPECTED_APK_NAME=$(node -e "const v=JSON.parse(require('fs').readFileSync('version.json','utf8')); console.log(new URL(v.apkUrl).pathname.replace(/^\/+/, ''));")
@@ -2224,16 +2227,16 @@ jobs:
           sleep 3
           curl -sSL -X POST -H "Accept: application/vnd.github+json" -o /dev/null -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/${GITHUB_REPOSITORY}/pages/builds" || true
 
-      - name: Upload Signed User APK Artifact (klev-pro-v2.5.6.apk)
+      - name: Upload Signed User APK Artifact (klev-pro-v2.9.1.apk)
         uses: actions/upload-artifact@v4
         with:
-          name: KlevPro-User-v2.5.6-Android-APK
-          path: /tmp/klev-apk-dist/klev-pro-v2.5.6.apk
+          name: KlevPro-User-v2.9.1-Android-APK
+          path: /tmp/klev-apk-dist/klev-pro-v2.9.1.apk
           retention-days: 1
 
-      - name: Upload Signed Owner Admin APK Artifact (klev-pro-admin-v2.5.6.apk)
+      - name: Upload Signed Owner Admin APK Artifact (klev-pro-admin-v2.9.1.apk)
         uses: actions/upload-artifact@v4
         with:
-          name: KlevPro-Admin-v2.5.6-Android-APK
-          path: /tmp/klev-apk-dist/klev-pro-admin-v2.5.6.apk
+          name: KlevPro-Admin-v2.9.1-Android-APK
+          path: /tmp/klev-apk-dist/klev-pro-admin-v2.9.1.apk
           retention-days: 1
