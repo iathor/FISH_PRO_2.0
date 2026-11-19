@@ -1,0 +1,4687 @@
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: var(--card);
+  color: var(--text);
+  border: 1.5px solid var(--border);
+  min-height: 42px;
+  padding: 7px 10px;
+  border-radius: var(--r-sm);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  line-height: 1.22;
+  text-align: center;
+  cursor: pointer;
+  white-space: normal;
+  overflow-wrap: normal;
+  word-break: normal;
+  max-width: 100%;
+  transition: transform 0.12s ease, border-color 0.15s ease, background-color 0.15s ease;
+  text-decoration: none;
+  user-select: none;
+}
+.btn:hover { border-color: var(--accent); }
+.btn:active { transform: scale(0.98); }
+.btn-accent { background: var(--accent-strong); border-color: var(--accent); color: #ffffff; }
+.btn-good { background: var(--good); border-color: var(--good); color: #ffffff; }
+.btn-install, .btn-install-header { border-color: var(--good); color: var(--good); display: inline-flex; }
+.btn-install:hover, .btn-install-header:hover { background: var(--pill-good-bg); border-color: var(--good); }
+@media (display-mode: standalone), (display-mode: fullscreen), (display-mode: minimal-ui) {
+  [data-install-app], #installAppBtn, .btn-install, .btn-install-header {
+    display: none !important;
+  }
+}
+html[data-pwa-installed="1"] [data-install-app],
+html[data-pwa-installed="1"] #installAppBtn,
+html[data-pwa-installed="1"] .btn-install,
+html[data-pwa-installed="1"] .btn-install-header {
+  display: none !important;
+}
+
+.guide-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(265px, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+.guide-block {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 12px 13px;
+  font-size: var(--fs-xs);
+  line-height: 1.50;
+}
+.guide-block h4 {
+  font-size: var(--fs-xs);
+  font-weight: 800;
+  color: var(--accent);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.btn-sm {
+  min-height: 36px;
+  padding: 5px 11px;
+  font-size: var(--fs-xs);
+  border-radius: 7px;
+}
+.btn-icon {
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+  min-height: 38px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  border-radius: var(--r-sm);
+}
+
+.w-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 34px;
+  padding: 5px 11px;
+  border-radius: var(--r-pill);
+  background: var(--card);
+  border: 1px solid var(--border);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+.w-chip:hover { border-color: var(--accent); }
+.w-chip.active { background: var(--accent-strong); border-color: var(--accent); color: #ffffff; }
+
+.chip-scroll-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+}
+
+.toolbar-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: var(--r-pill);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  border: 1px solid transparent;
+  line-height: 1.2;
+  white-space: nowrap;
+  flex-shrink: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pill-good { background: var(--pill-good-bg); color: var(--pill-good-text); border-color: rgba(16,185,129,0.35); }
+.pill-warn { background: var(--pill-warn-bg); color: var(--pill-warn-text); border-color: rgba(245,158,11,0.35); }
+.pill-bad { background: var(--pill-bad-bg); color: var(--pill-bad-text); border-color: rgba(239,68,68,0.40); }
+.pill-purple { background: var(--pill-purple-bg); color: var(--pill-purple-text); border-color: rgba(168,85,247,0.35); }
+.pill-ice { background: var(--pill-ice-bg); color: var(--pill-ice-text); border-color: rgba(103,232,249,0.40); }
+.pill-neutral { background: var(--card); color: var(--muted); border-color: var(--border); }
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 12px 14px;
+  box-shadow: var(--shadow-card);
+}
+
+.section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.section-title {
+  font-size: var(--fs-sm);
+  font-weight: 800;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.input, select {
+  width: 100%;
+  min-height: 40px;
+  background: var(--input-bg);
+  color: var(--text);
+  border: 1.5px solid var(--border);
+  padding: 7px 11px;
+  border-radius: var(--r-sm);
+  font-size: var(--fs-sm);
+}
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 32px !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2338bdf8' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 9px center !important;
+  background-size: 16px 16px !important;
+  cursor: pointer;
+  font-weight: 800;
+  text-overflow: ellipsis;
+}
+input[type="checkbox"], input[type="radio"] {
+  width: 18px !important;
+  height: 18px !important;
+  min-width: 18px !important;
+  min-height: 18px !important;
+  flex: 0 0 18px !important;
+  padding: 0 !important;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.fish-strip {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 8px 2px;
+  scrollbar-width: thin;
+}
+.fish-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--chip-bg);
+  border: 1.5px solid var(--chip-border);
+  border-radius: var(--r-md);
+  padding: 10px 9px;
+  min-width: 168px;
+  max-width: 182px;
+  flex-shrink: 0;
+  cursor: pointer;
+  position: relative;
+  text-align: center;
+  transition: border-color 0.15s ease, transform 0.15s ease, height 0.14s ease, padding 0.14s ease, min-width 0.14s ease;
+}
+.fish-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+.fish-card.active {
+  border-color: var(--accent);
+  background: rgba(56, 189, 248, 0.12);
+  box-shadow: 0 0 0 2px var(--accent);
+}
+.fish-card.redbook-muted {
+  opacity: 0.88;
+  border-style: dashed;
+  border-color: var(--bad);
+}
+.fav-btn {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-pill);
+}
+.fish-img-wrap {
+  width: 118px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 4px;
+  overflow: hidden;
+  flex-shrink: 0;
+  transition: width 0.14s ease, height 0.14s ease, margin-top 0.14s ease;
+}
+.fish-img-wrap svg,
+.fish-img-wrap img,
+.fish-visual-hybrid,
+.fish-visual-svg-layer,
+.fish-visual-img,
+.fish-visual-svg {
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  display: block;
+}
+@media (hover: hover) and (min-width: 821px) {
+  .fish-visual-img,
+  .fish-visual-svg {
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.35));
+  }
+}
+
+/* Ревизия 2.0.13 (Пункт 1a, 1b): Крупная витрина рыбы в модальном окне «Подробнее» и смещённые вниз названия */
+.fish-detail-header {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 12px;
+}
+.fish-detail-img-banner {
+  width: 100%;
+  height: 156px;
+  min-height: 142px;
+  max-height: 168px;
+  background: var(--panel);
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 10px 14px 24px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+  cursor: zoom-in;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+.fish-detail-img-banner:hover {
+  border-color: var(--accent);
+}
+.fish-detail-img-banner .fish-visual-hybrid,
+.fish-detail-img-banner img,
+.fish-detail-img-banner .fish-visual-svg-layer svg {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 310px !important;
+  max-height: 118px !important;
+  object-fit: contain !important;
+  display: block !important;
+  margin: 0 auto !important;
+  filter: drop-shadow(0 4px 10px rgba(0,0,0,0.48));
+}
+.fish-detail-zoom-hint {
+  position: absolute;
+  bottom: 6px;
+  right: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10.5px;
+  font-weight: 800;
+  color: var(--accent);
+  background: rgba(15, 23, 42, 0.82);
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  padding: 2px 8px;
+  pointer-events: none;
+  z-index: 2;
+}
+.fish-detail-zoom-hint svg.k-ico {
+  width: 12px !important;
+  height: 12px !important;
+  min-width: 12px !important;
+  min-height: 12px !important;
+  max-width: 12px !important;
+  max-height: 12px !important;
+  display: inline-block !important;
+  margin: 0 !important;
+  filter: none !important;
+}
+[data-theme="light"] .fish-detail-zoom-hint {
+  background: rgba(255, 255, 255, 0.88);
+}
+.fish-detail-title-col {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.fish-detail-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  font-size: var(--fs-sm);
+}
+@media (max-width: 440px) {
+  .fish-detail-stats-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Ревизия 2.0.13 (Пункт 1d): Полноразмерный лайтбокс рыбы (50vw на ПК, по экрану на смартфоне) */
+.fish-lightbox-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.88);
+  z-index: 14500 !important;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 14px;
+}
+.fish-lightbox-backdrop.open {
+  display: flex;
+}
+.fish-lightbox-box {
+  background: var(--panel);
+  border: 1.5px solid var(--accent);
+  border-radius: var(--r-md);
+  padding: 16px;
+  box-shadow: var(--shadow-header);
+  width: 94vw;
+  max-width: 94vw;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+@media (min-width: 769px) {
+  .fish-lightbox-box {
+    width: 50vw;
+    max-width: 50vw;
+  }
+}
+.fish-lightbox-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.fish-lightbox-stage {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 18px;
+  min-height: 220px;
+  max-height: 68vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: zoom-out;
+  overflow: hidden;
+}
+.fish-lightbox-stage .fish-visual-hybrid,
+.fish-lightbox-stage img,
+.fish-lightbox-stage svg {
+  width: 100% !important;
+  height: auto !important;
+  max-height: 60vh !important;
+  object-fit: contain !important;
+  display: block !important;
+  filter: drop-shadow(0 6px 16px rgba(0,0,0,0.55));
+}
+
+.fish-name {
+  font-size: var(--fs-sm);
+  font-weight: 800;
+  color: var(--text);
+  margin-top: 4px;
+  line-height: 1.24;
+}
+.fish-latin {
+  font-size: 12px;
+  color: var(--muted);
+  font-style: italic;
+  margin-bottom: 3px;
+}
+.fish-rating-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  margin-top: 3px;
+}
+.fish-rating-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.factor-row {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 5px;
+  padding: 7px 0;
+  border-bottom: 1px dashed var(--border);
+  font-size: var(--fs-sm);
+}
+.factor-bar-track {
+  height: 10px;
+  background: var(--input-bg);
+  border-radius: var(--r-pill);
+  overflow: hidden;
+}
+.factor-bar-fill {
+  height: 100%;
+  border-radius: var(--r-pill);
+}
+
+.bite-timeline {
+  display: flex;
+  gap: 5px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+}
+.hour-slot {
+  flex: 0 0 42px;
+  min-width: 42px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 82px;
+  padding: 6px 2px;
+  border-radius: var(--r-sm);
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  cursor: pointer;
+  font-size: var(--fs-xs);
+}
+.hour-slot.active { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+.hour-slot.now { border-color: var(--good); }
+.hour-bar-wrap {
+  width: 12px;
+  height: 36px;
+  background: var(--input-bg);
+  border-radius: 6px;
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+}
+.hour-bar { width: 100%; border-radius: 6px; }
+
+.toast-container {
+  position: fixed;
+  bottom: max(82px, calc(env(safe-area-inset-bottom, 10px) + 72px));
+  right: 12px;
+  left: 12px;
+  margin-left: auto;
+  z-index: 13500;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 380px;
+  pointer-events: none;
+}
+.toast {
+  pointer-events: auto;
+  position: relative;
+  overflow: hidden;
+  background: var(--panel);
+  color: var(--text);
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  padding: 11px 12px 15px 14px;
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.22s ease;
+  animation: klevToastSlideIn 0.26s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.toast.toast-clickable {
+  cursor: pointer;
+}
+.toast.toast-dismissing {
+  opacity: 0;
+  transform: translateX(110%) scale(0.95);
+}
+.toast-body {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex: 1;
+  min-width: 0;
+  line-height: 1.35;
+  word-break: break-word;
+}
+.toast-close-btn {
+  width: 26px;
+  height: 26px;
+  min-width: 26px;
+  min-height: 26px;
+  border-radius: 7px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.toast-close-btn:hover, .toast-close-btn:active {
+  background: var(--card);
+  color: var(--text);
+  border-color: var(--border);
+}
+.toast-progress-track {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 5px;
+  height: 2.5px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.18);
+  overflow: hidden;
+  pointer-events: none;
+}
+.toast-progress-bar {
+  height: 100%;
+  width: 100%;
+  border-radius: 999px;
+  background: var(--muted);
+  transform-origin: left center;
+  transition: width 0.08s linear;
+}
+@keyframes klevToastSlideIn {
+  from { opacity: 0; transform: translateY(16px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.80);
+  z-index: 11500;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+}
+.modal-backdrop.open { display: flex; }
+.modal-box {
+  background: var(--panel);
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-md);
+  max-width: 580px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 16px;
+  box-shadow: var(--shadow-header);
+  position: relative;
+}
+.modal-box.modal-has-sticky-footer {
+  padding-bottom: 0;
+}
+/* Ревизия 2.0.13 (Пункт 1c): Закреплённая нижняя полоса кнопок «Я поймал» и «Закрыть» */
+.modal-sticky-footer {
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  margin: 14px -16px 0 -16px;
+  padding: 10px 16px 12px 16px;
+  background: var(--panel);
+  border-top: 1.5px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 20;
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.28);
+}
+
+
+.fish-visual-hybrid.has-png .fish-visual-svg-layer,
+.fish-visual-svg-layer[data-hidden="1"] {
+  display: none !important;
+}
+
+/* Ревизия 2.1.1: Полное скрытие кнопок установки в APK, Telegram Mini App и установленном PWA */
+[data-pwa-installed="1"] [data-install-app],
+[data-pwa-installed="1"] #installAppBtn,
+[data-pwa-installed="1"] #onbInstallAppBtn,
+[data-tg-webapp="1"] [data-install-app],
+[data-tg-webapp="1"] #installAppBtn,
+[data-tg-webapp="1"] #onbInstallAppBtn,
+[data-apk-webview="1"] [data-install-app],
+[data-apk-webview="1"] #installAppBtn,
+[data-apk-webview="1"] #onbInstallAppBtn {
+  display: none !important;
+}
+
+
+/* Ревизия 2.1.1: Полная защита модальных окон и подменю от горизонтального переполнения на смартфонах */
+.modal-box {
+  overflow-x: hidden !important;
+  box-sizing: border-box !important;
+}
+.modal-dynamic-body {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
+  padding-bottom: 4px;
+}
+.modal-box .w-chip,
+.modal-chip-wrap .w-chip {
+  white-space: normal !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  flex-shrink: 1 !important;
+  text-align: left;
+  height: auto;
+  line-height: 1.28;
+  word-break: break-word;
+  padding: 6px 10px;
+}
+.modal-box .chip-scroll-row .w-chip,
+.chip-scroll-row > .w-chip,
+.chip-scroll-row > .btn {
+  white-space: nowrap !important;
+  flex-shrink: 0 !important;
+  word-break: normal !important;
+}
+.cw-date-plaques-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  width: 100%;
+}
+@media (min-width: 560px) {
+  .cw-date-plaques-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+.cw-date-plaque {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-height: 36px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--panel);
+  border: 1.5px solid var(--border);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+.cw-date-plaque:hover {
+  border-color: var(--accent);
+}
+.cw-date-plaque.active {
+  background: rgba(56, 189, 248, 0.22);
+  border-color: var(--accent);
+  color: #ffffff;
+  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.25);
+}
+.modal-chip-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  width: 100%;
+  max-width: 100%;
+}
+.modal-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  width: 100%;
+}
+.modal-grid-3 .btn,
+.modal-box .btn {
+  min-width: 0;
+  max-width: 100%;
+}
+.modal-grid-3 .btn {
+  padding: 6px 4px;
+  font-size: 12px;
+  white-space: normal;
+  text-align: center;
+  line-height: 1.2;
+  word-break: break-word;
+}
+
+/* Шапка переключения 4 раздельных зон настроек (Вход и ID | Рыбалка | Параметры | Уведомления) */
+.settings-zone-bar {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 5px;
+  width: 100%;
+  padding: 4px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}
+.settings-zone-tab {
+  min-width: 0 !important;
+  width: 100%;
+  min-height: 40px !important;
+  padding: 4px 2px !important;
+  font-size: 11px !important;
+  font-weight: 800 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 2px !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Карточки хаба 4 разделов профиля и настроек */
+.settings-hub-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 11px 12px;
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-md);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.12s ease, background-color 0.15s ease;
+}
+.settings-hub-card:hover,
+.settings-hub-card:active {
+  border-color: var(--accent);
+  background: rgba(56, 189, 248, 0.08);
+}
+.settings-hub-card-icon {
+  font-size: 22px;
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}
+.settings-hub-card-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.settings-hub-card-title {
+  font-size: var(--fs-sm);
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1.25;
+}
+.settings-hub-card-sub {
+  font-size: 11.5px;
+  color: var(--muted);
+  line-height: 1.35;
+  word-break: break-word;
+}
+.settings-hub-card-arrow {
+  font-size: 20px;
+  font-weight: 900;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.nav-popup-close-btn {
+  margin-top: 2px;
+  border-top: 1px solid var(--border) !important;
+  color: var(--muted) !important;
+  justify-content: center !important;
+}
+
+
+/* Зимний стандарт под перчатки (48x48px) и 5-кнопочная нижняя панель (v2.5.0 r186) */
+.bottom-nav .nav-tab {
+  min-height: 48px !important;
+  padding: 5px 4px !important;
+}
+.circle-chats-hub-bar {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 6px;
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-md);
+  margin-bottom: 12px;
+}
+.circle-chats-hub-btn {
+  min-height: 46px !important;
+  font-weight: 800 !important;
+  font-size: 13px !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border-radius: var(--r-sm);
+  position: relative;
+}
+/* Цветовые кружки-маркеры расцветок приманок (Билайн, Триколор, Кислотник, Машинное масло и др.) */
+.bait-color-dot {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  vertical-align: -2px;
+  margin-right: 4px;
+  border: 1.5px solid rgba(255,255,255,0.65);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.45);
+  flex-shrink: 0;
+}
+/* Спойлер «Почему такой прогноз?» в виде крупной тактической кнопки */
+details.forecast-why-spoiler > summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 48px;
+  padding: 10px 14px;
+  background: var(--card);
+  border: 1.5px solid var(--accent);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  font-weight: 800;
+  font-size: var(--fs-sm);
+  color: var(--accent);
+  user-select: none;
+}
+details.forecast-why-spoiler > summary::-webkit-details-marker {
+  display: none;
+}
+details.forecast-why-spoiler[open] > summary {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+
+/* ==========================================================================
+   3D LIQUID GLASS DESIGN SYSTEM (v2.5.0 r187 — по эталону Фото 2)
+   Объёмные стеклянные кнопки, выпуклые блики, вдавленные поля и 3D-карточки
+   ========================================================================== */
+a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 700;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+.card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 18px;
+  border: 1.5px solid rgba(56, 189, 248, 0.26);
+  background: linear-gradient(155deg, rgba(22, 41, 68, 0.88) 0%, rgba(10, 22, 40, 0.94) 55%, rgba(6, 14, 27, 0.97) 100%);
+  box-shadow:
+    0 14px 32px rgba(2, 6, 18, 0.62),
+    inset 0 1.5px 1px rgba(255, 255, 255, 0.22),
+    inset 0 -1.5px 2px rgba(0, 0, 0, 0.48);
+  backdrop-filter: blur(18px) saturate(155%);
+  -webkit-backdrop-filter: blur(18px) saturate(155%);
+}
+.card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -18%;
+  width: 65%;
+  height: 100%;
+  background: linear-gradient(115deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.02) 42%, transparent 65%);
+  pointer-events: none;
+  z-index: 0;
+}
+.card > * {
+  position: relative;
+  z-index: 1;
+}
+[data-theme="light"] .card {
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.94) 0%, rgba(240, 247, 255, 0.90) 60%, rgba(228, 240, 252, 0.94) 100%);
+  border-color: rgba(2, 132, 199, 0.25);
+  box-shadow:
+    0 10px 26px rgba(15, 23, 42, 0.10),
+    inset 0 2px 2px rgba(255, 255, 255, 0.95),
+    inset 0 -1px 2px rgba(14, 116, 144, 0.10);
+}
+[data-theme="contrast"] .card {
+  background: linear-gradient(155deg, rgba(30, 41, 59, 0.94) 0%, rgba(15, 23, 36, 0.97) 100%);
+  border-color: rgba(245, 158, 11, 0.36);
+  box-shadow:
+    0 12px 28px rgba(0, 0, 0, 0.68),
+    inset 0 1.5px 1px rgba(255, 255, 255, 0.18),
+    inset 0 -1.5px 2px rgba(0, 0, 0, 0.55);
+}
+
+/* Выпуклые 3D-стеклянные кнопки (.btn) */
+.btn {
+  position: relative;
+  border-radius: 13px;
+  border: 1.5px solid rgba(56, 189, 248, 0.30);
+  background: linear-gradient(180deg, rgba(30, 56, 90, 0.88) 0%, rgba(13, 27, 48, 0.95) 100%);
+  color: var(--text);
+  box-shadow:
+    0 5px 14px rgba(0, 0, 0, 0.42),
+    inset 0 1.5px 1.5px rgba(255, 255, 255, 0.28),
+    inset 0 -2px 3px rgba(0, 0, 0, 0.48);
+  transition: transform 0.12s ease, border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+.btn:hover {
+  border-color: var(--accent);
+  box-shadow:
+    0 6px 16px rgba(0, 180, 216, 0.24),
+    inset 0 1.5px 2px rgba(255, 255, 255, 0.38),
+    inset 0 -2px 3px rgba(0, 0, 0, 0.45);
+}
+.btn:active {
+  transform: translateY(1px) scale(0.985);
+}
+[data-theme="light"] .btn {
+  background: linear-gradient(180deg, #ffffff 0%, #e4f0fb 100%);
+  border-color: rgba(2, 132, 199, 0.28);
+  color: var(--text);
+  box-shadow:
+    0 4px 10px rgba(15, 23, 42, 0.08),
+    inset 0 1.5px 1px #ffffff,
+    inset 0 -1.5px 2px rgba(2, 132, 199, 0.10);
+}
+[data-theme="contrast"] .btn {
+  background: linear-gradient(180deg, #273549 0%, #162030 100%);
+  border-color: rgba(245, 158, 11, 0.38);
+  color: var(--text);
+}
+
+/* Акцентные 3D-кнопки (.btn-accent) с внутренним неоновым свечением */
+.btn-accent {
+  background: linear-gradient(180deg, #22d3ee 0%, #0284c7 52%, #0369a1 100%) !important;
+  border-color: #7dd3fc !important;
+  color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.38);
+  box-shadow:
+    0 6px 18px rgba(2, 132, 199, 0.45),
+    inset 0 1.5px 2px rgba(255, 255, 255, 0.58),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.42) !important;
+}
+[data-theme="contrast"] .btn-accent {
+  background: linear-gradient(180deg, #fbbf24 0%, #d97706 55%, #b45309 100%) !important;
+  border-color: #fde68a !important;
+  color: #ffffff !important;
+  box-shadow:
+    0 6px 16px rgba(217, 119, 6, 0.40),
+    inset 0 1.5px 2px rgba(255, 255, 255, 0.50),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.45) !important;
+}
+
+/* Изумрудные 3D-кнопки (.btn-good) */
+.btn-good {
+  background: linear-gradient(180deg, #34d399 0%, #059669 52%, #047857 100%) !important;
+  border-color: #6ee7b7 !important;
+  color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  box-shadow:
+    0 6px 18px rgba(5, 150, 105, 0.42),
+    inset 0 1.5px 2px rgba(255, 255, 255, 0.55),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.40) !important;
+}
+
+/* Выпуклые стеклянные чипы (.w-chip) */
+.w-chip {
+  background: linear-gradient(180deg, rgba(28, 52, 84, 0.85) 0%, rgba(12, 25, 45, 0.94) 100%);
+  border: 1.5px solid rgba(56, 189, 248, 0.25);
+  color: var(--text);
+  box-shadow:
+    0 4px 10px rgba(0, 0, 0, 0.35),
+    inset 0 1px 1px rgba(255, 255, 255, 0.22),
+    inset 0 -1.5px 2px rgba(0, 0, 0, 0.42);
+}
+[data-theme="light"] .w-chip {
+  background: linear-gradient(180deg, #ffffff 0%, #e6f1fc 100%);
+  border-color: rgba(2, 132, 199, 0.25);
+  box-shadow:
+    0 3px 8px rgba(15, 23, 42, 0.06),
+    inset 0 1px 1px #ffffff;
+}
+[data-theme="contrast"] .w-chip {
+  background: linear-gradient(180deg, #263449 0%, #151f2e 100%);
+  border-color: rgba(245, 158, 11, 0.32);
+}
+.w-chip.active {
+  background: linear-gradient(180deg, #22d3ee 0%, #0284c7 55%, #0369a1 100%) !important;
+  border-color: #7dd3fc !important;
+  color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.32);
+  box-shadow:
+    0 5px 14px rgba(2, 132, 199, 0.42),
+    inset 0 1.5px 1.5px rgba(255, 255, 255, 0.52),
+    inset 0 -1.5px 3px rgba(0, 0, 0, 0.38) !important;
+}
+[data-theme="contrast"] .w-chip.active {
+  background: linear-gradient(180deg, #fbbf24 0%, #d97706 55%, #b45309 100%) !important;
+  border-color: #fde68a !important;
+  color: #ffffff !important;
+}
+
+/* Вдавленные стеклянные инпуты и селекты (.input, select) */
+.input, select {
+  border-radius: 12px;
+  border: 1.5px solid rgba(56, 189, 248, 0.28);
+  background: linear-gradient(180deg, rgba(6, 13, 25, 0.92) 0%, rgba(12, 25, 44, 0.88) 100%);
+  box-shadow:
+    inset 0 2px 5px rgba(0, 0, 0, 0.55),
+    0 1px 1px rgba(255, 255, 255, 0.12);
+}
+.input:focus, select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow:
+    inset 0 2px 5px rgba(0, 0, 0, 0.55),
+    0 0 0 2px rgba(56, 189, 248, 0.25);
+}
+[data-theme="light"] .input, [data-theme="light"] select {
+  background: linear-gradient(180deg, #eef5fc 0%, #ffffff 100%);
+  border-color: rgba(2, 132, 199, 0.28);
+  box-shadow:
+    inset 0 2px 4px rgba(15, 23, 42, 0.06),
+    0 1px 1px #ffffff;
+}
+[data-theme="contrast"] .input, [data-theme="contrast"] select {
+  background: linear-gradient(180deg, #0d1420 0%, #172234 100%);
+  border-color: rgba(245, 158, 11, 0.38);
+}
+
+/* 3D-карточки рыб в карусели (.fish-card) и почасовые слоты (.hour-slot) */
+.fish-card {
+  border-radius: 16px;
+  background: linear-gradient(160deg, rgba(24, 45, 74, 0.88) 0%, rgba(10, 21, 38, 0.95) 100%);
+  border: 1.5px solid rgba(56, 189, 248, 0.24);
+  box-shadow:
+    0 8px 18px rgba(0, 0, 0, 0.42),
+    inset 0 1.5px 1px rgba(255, 255, 255, 0.20),
+    inset 0 -1.5px 2px rgba(0, 0, 0, 0.45);
+}
+[data-theme="light"] .fish-card {
+  background: linear-gradient(160deg, #ffffff 0%, #e6f1fc 100%);
+  border-color: rgba(2, 132, 199, 0.24);
+  box-shadow:
+    0 6px 14px rgba(15, 23, 42, 0.08),
+    inset 0 1.5px 1px #ffffff;
+}
+[data-theme="contrast"] .fish-card {
+  background: linear-gradient(160deg, #243246 0%, #131c2b 100%);
+  border-color: rgba(245, 158, 11, 0.32);
+}
+.fish-card.active {
+  border-color: #7dd3fc;
+  background: linear-gradient(160deg, rgba(2, 132, 199, 0.38) 0%, rgba(12, 28, 52, 0.95) 100%);
+  box-shadow:
+    0 8px 22px rgba(2, 132, 199, 0.38),
+    0 0 0 2px var(--accent),
+    inset 0 1.5px 2px rgba(255, 255, 255, 0.42);
+}
+[data-theme="light"] .fish-card.active {
+  background: linear-gradient(160deg, #e0f2fe 0%, #bae6fd 100%);
+  border-color: #0284c7;
+}
+[data-theme="contrast"] .fish-card.active {
+  background: linear-gradient(160deg, rgba(217, 119, 6, 0.32) 0%, #172234 100%);
+  border-color: #fbbf24;
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+/* Выравнивание тостов с векторными иконками */
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 14px;
+  background: linear-gradient(160deg, rgba(20, 38, 64, 0.96) 0%, rgba(9, 19, 35, 0.98) 100%);
+  box-shadow:
+    0 12px 28px rgba(0, 0, 0, 0.65),
+    inset 0 1.5px 1px rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(14px);
+}
+[data-theme="light"] .toast {
+  background: linear-gradient(160deg, #ffffff 0%, #e8f3fd 100%);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.16), inset 0 1px 1px #ffffff;
+}
+
+/* ==========================================================================
+   РЕЖИМ «ЖИДКОЕ СТЕКЛО» (LIQUID GLASS) И ТУМБЛЕР КЛАССИЧЕСКОЙ ОТРИСОВКИ
+   ========================================================================== */
+html[data-liquid-glass="1"] .btn {
+  background: linear-gradient(155deg, rgba(56, 189, 248, 0.16) 0%, rgba(30, 52, 82, 0.62) 48%, rgba(15, 27, 46, 0.78) 100%);
+  border: 1.5px solid rgba(148, 218, 255, 0.42);
+  box-shadow:
+    inset 0 1.5px 1.5px rgba(255, 255, 255, 0.38),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.36),
+    0 5px 14px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(14px) saturate(160%);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+  position: relative;
+  overflow: hidden;
+}
+html[data-liquid-glass="1"][data-theme="light"] .btn {
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.84) 0%, rgba(224, 240, 254, 0.68) 100%);
+  border-color: rgba(96, 165, 250, 0.48);
+  box-shadow:
+    inset 0 1.5px 1px rgba(255, 255, 255, 0.95),
+    inset 0 -1px 3px rgba(59, 130, 246, 0.12),
+    0 4px 12px rgba(30, 58, 138, 0.09);
+}
+html[data-liquid-glass="1"] .btn.btn-accent {
+  background: linear-gradient(155deg, rgba(56, 189, 248, 0.88) 0%, rgba(2, 132, 199, 0.82) 55%, rgba(3, 105, 161, 0.90) 100%);
+  border-color: rgba(186, 230, 253, 0.72);
+  color: #ffffff;
+  box-shadow:
+    inset 0 2px 2px rgba(255, 255, 255, 0.52),
+    inset 0 -2px 5px rgba(0, 0, 0, 0.35),
+    0 6px 16px rgba(2, 132, 199, 0.38);
+}
+html[data-liquid-glass="1"] .btn.btn-good {
+  background: linear-gradient(155deg, rgba(52, 211, 153, 0.88) 0%, rgba(16, 185, 129, 0.82) 55%, rgba(5, 150, 105, 0.90) 100%);
+  border-color: rgba(167, 243, 208, 0.72);
+  color: #ffffff;
+  box-shadow:
+    inset 0 2px 2px rgba(255, 255, 255, 0.52),
+    inset 0 -2px 5px rgba(0, 0, 0, 0.35),
+    0 6px 16px rgba(16, 185, 129, 0.36);
+}
+html[data-liquid-glass="1"] .w-chip {
+  background: linear-gradient(155deg, rgba(56, 189, 248, 0.14) 0%, rgba(22, 40, 64, 0.66) 100%);
+  border-color: rgba(125, 211, 252, 0.36);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.32), 0 3px 8px rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(12px) saturate(150%);
+  -webkit-backdrop-filter: blur(12px) saturate(150%);
+}
+html[data-liquid-glass="1"][data-theme="light"] .w-chip {
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.86) 0%, rgba(226, 239, 252, 0.72) 100%);
+  border-color: rgba(96, 165, 250, 0.44);
+  box-shadow: inset 0 1px 0 #ffffff, 0 2px 6px rgba(30, 58, 138, 0.08);
+}
+html[data-liquid-glass="1"] .w-chip.active {
+  background: linear-gradient(155deg, rgba(56, 189, 248, 0.90) 0%, rgba(2, 132, 199, 0.85) 100%);
+  border-color: rgba(186, 230, 253, 0.75);
+  color: #ffffff;
+  box-shadow: inset 0 1.5px 1.5px rgba(255, 255, 255, 0.5), 0 4px 12px rgba(2, 132, 199, 0.35);
+}
+html[data-liquid-glass="1"] .bento-card,
+html[data-liquid-glass="1"] .card {
+  background: linear-gradient(155deg, rgba(30, 58, 92, 0.74) 0%, rgba(14, 29, 52, 0.82) 55%, rgba(8, 18, 34, 0.88) 100%);
+  border-color: rgba(125, 211, 252, 0.40);
+  backdrop-filter: blur(20px) saturate(170%);
+  -webkit-backdrop-filter: blur(20px) saturate(170%);
+  box-shadow:
+    inset 0 2px 2px rgba(255, 255, 255, 0.32),
+    inset 0 -2px 6px rgba(0, 0, 0, 0.48),
+    0 12px 28px rgba(0, 0, 0, 0.48);
+}
+html[data-liquid-glass="1"][data-theme="light"] .bento-card,
+html[data-liquid-glass="1"][data-theme="light"] .card {
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.84) 0%, rgba(235, 245, 255, 0.76) 100%);
+  border-color: rgba(147, 197, 253, 0.68);
+  box-shadow:
+    inset 0 2px 1.5px rgba(255, 255, 255, 0.98),
+    0 8px 24px rgba(30, 58, 138, 0.11);
+}
+
+/* Отключение эффекта «Жидкое стекло» (data-liquid-glass="0"): возврат к классическому сценарию отрисовки */
+html[data-liquid-glass="0"] .bento-card::before,
+html[data-liquid-glass="0"] .card::before,
+html[data-liquid-glass="0"] .top-nav-item::before {
+  display: none !important;
+}
+html[data-liquid-glass="0"] .btn,
+html[data-liquid-glass="0"] .w-chip,
+html[data-liquid-glass="0"] .bento-card,
+html[data-liquid-glass="0"] .card,
+html[data-liquid-glass="0"] .top-nav-item,
+html[data-liquid-glass="0"] .bottom-nav-inner {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Кастомный 3D Liquid Glass список выбора (вместо системного Android/iOS <select>) */
+.klev-select-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 13500;
+  background: rgba(3, 8, 18, 0.78);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+}
+.klev-select-backdrop.open {
+  display: flex;
+}
+.klev-select-sheet {
+  width: 100%;
+  max-width: 480px;
+  max-height: 82vh;
+  background: var(--panel);
+  border: 1.5px solid var(--accent);
+  border-radius: 18px;
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.72), inset 0 1px 1px rgba(255, 255, 255, 0.22);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.klev-select-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--card);
+}
+.klev-select-title {
+  font-size: 13.5px;
+  font-weight: 900;
+  color: var(--accent);
+  line-height: 1.25;
+}
+.klev-select-search-wrap {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+}
+.klev-select-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.klev-select-group-lbl {
+  font-size: 10.5px;
+  font-weight: 900;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 6px 6px 2px;
+}
+.klev-select-opt {
+  width: 100%;
+  text-align: left;
+  padding: 9px 12px;
+  border-radius: 11px;
+  border: 1.5px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.3;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: border-color 0.12s ease, background-color 0.12s ease, transform 0.1s ease;
+}
+.klev-select-opt:hover {
+  border-color: var(--accent);
+}
+.klev-select-opt:active {
+  transform: scale(0.99);
+}
+.klev-select-opt.selected {
+  border-color: var(--accent);
+  background: rgba(56, 189, 248, 0.15);
+  color: var(--text);
+  font-weight: 900;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 0 0 1px rgba(56, 189, 248, 0.28);
+}
+.klev-select-check {
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  border: 1.5px solid var(--border);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 11px;
+  color: transparent;
+}
+.klev-select-opt.selected .klev-select-check {
+  background: var(--accent-strong);
+  border-color: var(--accent);
+  color: #ffffff;
+}
+
+/* ==========================================================================
+   БАЛУНЫ LEAFLET И ФИЛЬТРЫ ТАЙЛОВ ЯНДЕКС КАРТ (100% ЧИТАЕМОСТЬ + 60FPS PAN)
+   ========================================================================== */
+.leaflet-popup-content-wrapper {
+  background: #0f172a !important;
+  color: #f8fafc !important;
+  border: 1.5px solid rgba(56, 189, 248, 0.45) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.55) !important;
+  padding: 2px !important;
+}
+.leaflet-popup-tip {
+  background: #0f172a !important;
+}
+.leaflet-popup-content {
+  margin: 10px 12px !important;
+  color: #f8fafc !important;
+  font-weight: 600;
+}
+.klev-popup-title {
+  color: #f8fafc !important;
+  font-weight: 800 !important;
+}
+.klev-popup-detail {
+  color: #e2e8f0 !important;
+  font-weight: 700 !important;
+}
+.klev-popup-sub {
+  color: #94a3b8 !important;
+  font-weight: 600 !important;
+}
+[data-theme="light"] .leaflet-popup-content-wrapper {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 1.5px solid #94a3b8 !important;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.22) !important;
+}
+[data-theme="light"] .leaflet-popup-tip {
+  background: #ffffff !important;
+}
+[data-theme="light"] .leaflet-popup-content,
+[data-theme="light"] .klev-popup-title {
+  color: #0f172a !important;
+}
+[data-theme="light"] .klev-popup-detail {
+  color: #1e293b !important;
+  font-weight: 700 !important;
+}
+[data-theme="light"] .klev-popup-sub {
+  color: #475569 !important;
+  font-weight: 700 !important;
+}
+#mapBox[data-ymap-hydro="1"] img.klev-base-tile-layer {
+  filter: contrast(1.22) saturate(1.38);
+}
+#mapBox[data-ymap-dim="1"] img.klev-base-tile-layer {
+  filter: brightness(0.82) contrast(1.08);
+}
+#mapBox[data-ymap-hydro="1"][data-ymap-dim="1"] img.klev-base-tile-layer {
+  filter: brightness(0.84) contrast(1.25) saturate(1.35);
+}
+
+
+/* v2.9.3 (r239): Крупные читаемые заголовки (17px) и тексты (13–15px), единый шрифт, удаление SVG из заголовков, лайтбокс поверх модалок */
+.fish-lightbox-backdrop {
+  z-index: 14500 !important;
+}
+
+.bento-card-title svg,
+.bento-card-title .k-ico,
+.section-title svg,
+.section-title .k-ico,
+.unified-modal-title svg,
+.unified-modal-title .k-ico,
+#appModalTitle svg,
+#appModalTitle .k-ico,
+.adm-card-title svg,
+.adm-card-title .k-ico,
+.guide-block h4 svg,
+.guide-block h4 .k-ico {
+  display: none !important;
+}
+
+.bento-card-title,
+.section-title,
+.unified-modal-title,
+.adm-card-title {
+  font-family: var(--font-ui) !important;
+  font-size: var(--fs-md) !important;
+  font-weight: 800 !important;
+  line-height: 1.26 !important;
+  letter-spacing: -0.01em !important;
+}
+
+.bento-card-sub,
+.section-sub {
+  font-family: var(--font-ui) !important;
+  font-size: var(--fs-xs) !important;
+  font-weight: 600 !important;
+  line-height: 1.35 !important;
+}
+
+.btn,
+.w-chip,
+.top-nav-item,
+.bottom-nav-inner .nav-tab,
+.adm-sec-tab {
+  font-family: var(--font-ui) !important;
+  -webkit-text-size-adjust: 100% !important;
+  text-size-adjust: 100% !important;
+}
+
+    /* ==========================================================================
+       1. СИСТЕМА ДИЗАЙН-ТОКЕНОВ ИЗ ПАПКИ FISHING/UX_UI/ (Tactile Glassmorphism)
+       ========================================================================== */
+    :root {
+      --radius-pill: 9999px;
+      --radius-card: 20px;
+      --radius-md: 14px;
+      --radius-sm: 10px;
+      --blur-glass: blur(14px);
+      --stroke-icon: 1.6px;
+      --toast-bottom: 84px;
+      --font-ui: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      --fs-xs: 12px;
+      --fs-sm: 13.5px;
+      --fs-md: 15.5px;
+      --fs-lg: 18px;
+      --good: #10B981;
+      --warn: #F59E0B;
+      --bad: #EF4444;
+      --info: #38BDF8;
+    }
+
+    /* А. ТЁМНАЯ ТЕМА (DARK MODE — data-theme="dark") */
+    [data-theme="dark"] {
+      --bg-app: #0F172A;
+      --bg-outer: #070C17;
+      --bg-surface: linear-gradient(145deg, #1E293B, #131C2E);
+      --bg-surface-solid: #172133;
+      --bg-glass: radial-gradient(circle at 30% 25%, rgba(56, 189, 248, 0.18), rgba(15, 23, 42, 0.72));
+      --bg-glass-card: linear-gradient(155deg, rgba(30, 41, 59, 0.78), rgba(15, 23, 42, 0.86));
+      --border-tactile: rgba(255, 255, 255, 0.08);
+      --border-glass: rgba(56, 189, 248, 0.45);
+      --border-subtle: rgba(148, 163, 184, 0.16);
+      --shadow-tactile: 0 6px 14px rgba(0, 0, 0, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.12);
+      --shadow-glass: 0 0 18px rgba(56, 189, 248, 0.25), inset 0 1px 2px rgba(255, 255, 255, 0.32), inset 0 -4px 10px rgba(56, 189, 248, 0.16);
+      --text-primary: #F8FAFC;
+      --text-secondary: #94A3B8;
+      --text-label-tactile: #94A3B8;
+      --text-label-glass: #38BDF8;
+      --accent: #38BDF8;
+      --accent-glow: rgba(56, 189, 248, 0.32);
+      --icon-stroke: #E2E8F0;
+      --map-water: #112A46;
+      --map-water-deep: #0B1D33;
+      --map-land: #0F172A;
+      --map-contour: rgba(56, 189, 248, 0.18);
+      --dock-bg: rgba(15, 23, 42, 0.84);
+      --sheet-bg: rgba(17, 25, 42, 0.96);
+    }
+
+    /* Б. СВЕТЛАЯ ТЕМА (LIGHT MODE — data-theme="light") */
+    [data-theme="light"] {
+      --bg-app: #F1F5F9;
+      --bg-outer: #DCE5F0;
+      --bg-surface: linear-gradient(145deg, #FFFFFF, #E2E8F0);
+      --bg-surface-solid: #FFFFFF;
+      --bg-glass: radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.88), rgba(224, 242, 254, 0.62));
+      --bg-glass-card: linear-gradient(155deg, rgba(255, 255, 255, 0.92), rgba(235, 245, 255, 0.82));
+      --border-tactile: rgba(255, 255, 255, 0.9);
+      --border-glass: rgba(56, 189, 248, 0.42);
+      --border-subtle: rgba(15, 23, 42, 0.11);
+      --shadow-tactile: 0 6px 14px rgba(15, 23, 42, 0.10), inset 0 2px 3px #FFFFFF;
+      --shadow-glass: 0 4px 16px rgba(56, 189, 248, 0.22), inset 0 2px 4px rgba(255, 255, 255, 0.95);
+      --text-primary: #0F172A;
+      --text-secondary: #475569;
+      --text-label-tactile: #334155;
+      --text-label-glass: #0284C7;
+      --accent: #0284C7;
+      --accent-glow: rgba(2, 132, 199, 0.24);
+      --icon-stroke: #1E293B;
+      --map-water: #CBE4FD;
+      --map-water-deep: #A5D0FA;
+      --map-land: #F4F7FB;
+      --map-contour: rgba(2, 132, 199, 0.16);
+      --dock-bg: rgba(255, 255, 255, 0.88);
+      --sheet-bg: rgba(248, 250, 252, 0.97);
+    }
+
+    /* В. КОНТРАСТНАЯ ТЕМА (CONTRAST / OLED MODE — data-theme="contrast") */
+    [data-theme="contrast"] {
+      --bg-app: #000000;
+      --bg-outer: #000000;
+      --bg-surface: #0D0D0D;
+      --bg-surface-solid: #0D0D0D;
+      --bg-glass: radial-gradient(circle at 30% 25%, rgba(245, 158, 11, 0.18), rgba(10, 10, 10, 0.82));
+      --bg-glass-card: linear-gradient(155deg, rgba(22, 18, 10, 0.86), rgba(8, 8, 8, 0.94));
+      --border-tactile: rgba(245, 158, 11, 0.25);
+      --border-glass: rgba(251, 191, 36, 0.48);
+      --border-subtle: rgba(245, 158, 11, 0.22);
+      --shadow-tactile: 0 0 16px rgba(245, 158, 11, 0.32), inset 0 1px 1px rgba(255, 255, 255, 0.15);
+      --shadow-glass: 0 0 20px rgba(245, 158, 11, 0.35), inset 0 2px 5px rgba(255, 255, 255, 0.32), inset 0 -4px 12px rgba(245, 158, 11, 0.22);
+      --text-primary: #FFFFFF;
+      --text-secondary: #D97706;
+      --text-label-tactile: #F59E0B;
+      --text-label-glass: #FBBF24;
+      --accent: #F59E0B;
+      --accent-glow: rgba(245, 158, 11, 0.34);
+      --icon-stroke: #FFFFFF;
+      --map-water: #111F30;
+      --map-water-deep: #091320;
+      --map-land: #000000;
+      --map-contour: rgba(245, 158, 11, 0.22);
+      --dock-bg: rgba(10, 10, 10, 0.92);
+      --sheet-bg: rgba(12, 12, 12, 0.98);
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      min-height: 100%;
+      font-family: var(--font-ui);
+      background: var(--bg-outer);
+      color: var(--text-primary);
+      transition: background 0.25s ease, color 0.25s ease;
+      overflow-x: hidden;
+    }
+
+    button, input, select, textarea {
+      font-family: inherit;
+      color: inherit;
+    }
+
+    /* ==========================================================================
+       2. ВЕРХНИЙ ИНЖЕНЕРНЫЙ ПУЛЬТ УПРАВЛЕНИЯ СТЕНДОМ
+       ========================================================================== */
+    .studio-topbar {
+      position: sticky;
+      top: 0;
+      z-index: 9000;
+      background: rgba(9, 14, 24, 0.94);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border-bottom: 1px solid rgba(56, 189, 248, 0.24);
+      padding: 8px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      color: #F8FAFC;
+    }
+
+    .studio-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .studio-badge {
+      padding: 4px 10px;
+      border-radius: var(--radius-pill);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.4px;
+      background: rgba(56, 189, 248, 0.16);
+      border: 1px solid rgba(56, 189, 248, 0.45);
+      color: #38BDF8;
+      white-space: nowrap;
+    }
+
+    .studio-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .studio-seg {
+      display: inline-flex;
+      background: rgba(30, 41, 59, 0.78);
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      border-radius: var(--radius-pill);
+      padding: 2px;
+      gap: 2px;
+    }
+
+    .studio-seg button {
+      border: none;
+      background: transparent;
+      color: #94A3B8;
+      font-size: 11.5px;
+      font-weight: 600;
+      padding: 5px 11px;
+      border-radius: var(--radius-pill);
+      cursor: pointer;
+      transition: all 0.18s ease;
+      white-space: nowrap;
+    }
+
+    .studio-seg button.active {
+      background: #38BDF8;
+      color: #07111F;
+      font-weight: 800;
+      box-shadow: 0 2px 10px rgba(56, 189, 248, 0.35);
+    }
+
+    [data-theme="contrast"] .studio-seg button.active {
+      background: #F59E0B;
+      color: #000000;
+      box-shadow: 0 2px 10px rgba(245, 158, 11, 0.4);
+    }
+
+    /* ==========================================================================
+       3. КОНТЕЙНЕР ПРИЛОЖЕНИЯ (СМАРТФОН / ПЛАНШЕТ BENTO / СТЕНД АУДИТА)
+       ========================================================================== */
+    .workspace-stage {
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 16px 12px 40px;
+      min-height: calc(100vh - 56px);
+    }
+
+    .app-frame {
+      position: relative;
+      width: 100%;
+      max-width: 420px;
+      min-height: 780px;
+      background: var(--bg-app);
+      border-radius: 36px;
+      border: 1.5px solid var(--border-glass);
+      box-shadow: 0 22px 60px rgba(0, 0, 0, 0.55), 0 0 28px var(--accent-glow);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: max-width 0.28s cubic-bezier(0.22, 1, 0.36, 1), background 0.25s ease;
+    }
+
+    /* Лёгкий фон приложения (отключён на экране Карты, чтобы не перекрывать реальную карту) */
+    .app-frame::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background-image: radial-gradient(circle at 50% 0%, var(--accent-glow) 0%, transparent 38%);
+      opacity: 0.45;
+      z-index: 0;
+    }
+    .app-frame.on-map-screen::before {
+      display: none;
+    }
+
+    html[data-viewport="desktop"] .app-frame {
+      max-width: 1140px;
+      border-radius: 24px;
+      min-height: 760px;
+    }
+
+    html[data-viewport="audit"] .app-frame {
+      display: none;
+    }
+
+    .audit-frame {
+      display: none;
+      width: 100%;
+      max-width: 1220px;
+      background: var(--bg-app);
+      border: 1.5px solid var(--border-glass);
+      border-radius: 24px;
+      padding: 22px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+    }
+
+    html[data-viewport="audit"] .audit-frame {
+      display: block;
+    }
+
+    /* Смартфонный статус-бар */
+    .phone-statusbar {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 22px 6px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-primary);
+      opacity: 0.9;
+    }
+
+    .phone-status-right {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+    }
+
+    /* ==========================================================================
+       4. КОМПОНЕНТЫ TACTILE GLASSMORPHISM (КАРТОЧКИ, КНОПКИ-ЛИНЗЫ, СЕГМЕНТЫ)
+       ========================================================================== */
+    .glass-panel {
+      background: var(--bg-glass-card);
+      backdrop-filter: var(--blur-glass);
+      -webkit-backdrop-filter: var(--blur-glass);
+      border: 1px solid var(--border-glass);
+      box-shadow: var(--shadow-glass);
+      border-radius: var(--radius-card);
+      transition: all 0.22s ease;
+    }
+
+    html[data-glass="off"] .glass-panel {
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-tactile);
+      box-shadow: var(--shadow-tactile);
+    }
+
+    /* Круглая навигационная кнопка-линза (56x56 для меню 3x3, 48x48 для контролов карты) */
+    .lens-btn {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      position: relative;
+      padding: 0;
+      background: var(--bg-glass);
+      backdrop-filter: var(--blur-glass);
+      -webkit-backdrop-filter: var(--blur-glass);
+      border: 1px solid var(--border-glass);
+      box-shadow: var(--shadow-glass);
+      color: var(--icon-stroke);
+      transition: transform 0.16s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+
+    html[data-glass="off"] .lens-btn {
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-tactile);
+      box-shadow: var(--shadow-tactile);
+    }
+
+    .lens-btn:hover {
+      transform: translateY(-2px) scale(1.03);
+    }
+
+    .lens-btn:active {
+      transform: scale(0.95);
+    }
+
+    .lens-btn.lens-48 {
+      width: 48px;
+      height: 48px;
+    }
+
+    .lens-btn.active {
+      border-color: var(--accent);
+      box-shadow: 0 0 22px var(--accent-glow), inset 0 2px 5px rgba(255, 255, 255, 0.45);
+      color: var(--accent);
+    }
+
+    .lens-btn svg, .k-svg {
+      width: 24px;
+      height: 24px;
+      stroke: currentColor;
+      stroke-width: var(--stroke-icon);
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      fill: none;
+      flex-shrink: 0;
+    }
+
+    .lens-item-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .lens-label {
+      margin-top: 6px;
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--text-label-glass);
+      transition: color 0.2s ease;
+      line-height: 1.2;
+    }
+
+    html[data-glass="off"] .lens-label {
+      color: var(--text-label-tactile);
+    }
+
+    /* Капсульные переключатели (Segmented Control) */
+    /* Стильный тумблер-переключатель вместо стандартных чекбоксов */
+    .klev-switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+      flex-shrink: 0;
+      cursor: pointer;
+    }
+    .klev-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+      position: absolute;
+    }
+    .klev-switch-slider {
+      position: absolute;
+      inset: 0;
+      border-radius: 999px;
+      background: rgba(148, 163, 184, 0.25);
+      border: 1px solid var(--border-subtle);
+      transition: all 0.22s ease;
+    }
+    .klev-switch-slider::before {
+      content: "";
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      left: 2px;
+      top: 2px;
+      border-radius: 50%;
+      background: #E2E8F0;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.35);
+      transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), background 0.22s ease;
+    }
+    .klev-switch input:checked + .klev-switch-slider {
+      background: var(--accent-glow);
+      border-color: var(--accent);
+      box-shadow: 0 0 12px var(--accent-glow);
+    }
+    .klev-switch input:checked + .klev-switch-slider::before {
+      transform: translateX(20px);
+      background: var(--accent);
+    }
+
+    /* Миниатюра фото улова в карточке Журнала */
+    .catch-photo-thumb {
+      width: 72px;
+      height: 54px;
+      border-radius: 12px;
+      border: 1px solid var(--border-glass);
+      overflow: hidden;
+      position: relative;
+      cursor: pointer;
+      background: var(--bg-surface-solid);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .catch-photo-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .catch-photo-badge {
+      position: absolute;
+      bottom: 2px;
+      right: 2px;
+      font-size: 9px;
+      font-weight: 800;
+      padding: 1px 4px;
+      border-radius: 5px;
+      background: rgba(15, 23, 42, 0.78);
+      color: #F8FAFC;
+    }
+
+    .seg-bar {
+      display: flex;
+      align-items: center;
+      background: rgba(15, 23, 42, 0.42);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-pill);
+      padding: 3px;
+      gap: 3px;
+    }
+
+    [data-theme="light"] .seg-bar {
+      background: rgba(226, 232, 240, 0.75);
+    }
+
+    [data-theme="contrast"] .seg-bar {
+      background: #0B0B0B;
+      border-color: rgba(245, 158, 11, 0.28);
+    }
+
+    .seg-btn {
+      flex: 1;
+      min-width: 0;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      font-size: 11.5px;
+      font-weight: 600;
+      padding: 7px 4px;
+      border-radius: var(--radius-pill);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .seg-btn.active {
+      background: var(--bg-glass);
+      border: 1px solid var(--border-glass);
+      box-shadow: var(--shadow-glass);
+      color: var(--text-primary);
+      font-weight: 700;
+    }
+
+    html[data-glass="off"] .seg-btn.active {
+      background: var(--bg-surface);
+      border-color: var(--border-tactile);
+      box-shadow: var(--shadow-tactile);
+    }
+
+    /* Пилюли и кнопки */
+    .pill-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      padding: 8px 14px;
+      border-radius: var(--radius-pill);
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+      background: var(--bg-glass);
+      backdrop-filter: var(--blur-glass);
+      -webkit-backdrop-filter: var(--blur-glass);
+      border: 1px solid var(--border-glass);
+      box-shadow: var(--shadow-glass);
+      color: var(--text-primary);
+      transition: all 0.18s ease;
+    }
+
+    html[data-glass="off"] .pill-btn {
+      backdrop-filter: none;
+      background: var(--bg-surface);
+      border-color: var(--border-tactile);
+      box-shadow: var(--shadow-tactile);
+    }
+
+    .pill-btn:hover {
+      transform: translateY(-1px);
+    }
+
+    .pill-btn.active {
+      border-color: var(--accent);
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--good);
+      box-shadow: 0 0 8px var(--good);
+      display: inline-block;
+      flex-shrink: 0;
+    }
+
+    /* ==========================================================================
+       5. ОСНОВНАЯ РАБОЧАЯ ОБЛАСТЬ И ЭКРАНЫ
+       ========================================================================== */
+    .app-viewport {
+      position: relative;
+      z-index: 2;
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 10px 14px 76px;
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+    }
+
+    .app-viewport.map-fullscreen {
+      padding: 0 0 64px;
+    }
+
+    .screen-sec {
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+      animation: klevSlideFade 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .screen-sec.active {
+      display: flex;
+    }
+
+    @keyframes klevSlideFade {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* На широком экране (Desktop Bento) — двухколоночная сетка внутри экранов */
+    html[data-viewport="desktop"] .desktop-bento-grid {
+      display: grid;
+      grid-template-columns: 1.05fr 1.25fr;
+      gap: 16px;
+      align-items: start;
+    }
+
+    /* ==========================================================================
+       6. ЭКРАН 1: «ПРОГНОЗ КЛЁВА» (ТОЧКА ВХОДА)
+       ========================================================================== */
+    .fc-top-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .fc-hero-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      padding: 10px 12px 11px;
+      position: relative;
+    }
+
+    .fc-title-main {
+      font-size: 16px;
+      font-weight: 800;
+      margin: 0 0 2px;
+      letter-spacing: -0.2px;
+    }
+
+    .fc-ice-sub {
+      font-size: 11px;
+      color: var(--text-secondary);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 6px;
+    }
+
+    /* Живой сонарный радар прогноза клёва (крупный 236x236px, точная копия заставки по темам) */
+    .radial-gauge-wrap {
+      position: relative;
+      width: 236px;
+      height: 236px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 4px auto 10px;
+    }
+    #fcHeroSonarCanvas {
+      width: 236px;
+      height: 236px;
+      display: block;
+      border-radius: 50%;
+    }
+
+    .radial-gauge-svg {
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+    }
+
+    .radial-gauge-center {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+
+    .radial-pct-val {
+      font-size: 34px;
+      font-weight: 900;
+      letter-spacing: -1px;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .radial-status-lbl {
+      margin-top: 3px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-secondary);
+    }
+
+    /* Компактные капсулы Утро / Вечер */
+    .bite-windows-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      width: 100%;
+      margin-top: 0;
+    }
+
+    .bite-window-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 11px;
+      border-radius: 14px;
+      text-align: left;
+    }
+
+    .bite-window-meta {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.25;
+    }
+
+    .bite-window-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .bite-window-time {
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--accent);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Горизонтальная лента выбора вида рыбы */
+    .species-strip-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      overflow-x: auto;
+      padding: 4px 2px 6px;
+      scrollbar-width: none;
+    }
+
+    .species-strip-wrap::-webkit-scrollbar {
+      display: none;
+    }
+
+    .fish-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 13px;
+      border-radius: var(--radius-pill);
+      font-size: 12.5px;
+      font-weight: 600;
+      white-space: nowrap;
+      cursor: pointer;
+      background: var(--bg-glass);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      transition: all 0.18s ease;
+      flex-shrink: 0;
+    }
+
+    html[data-glass="off"] .fish-chip {
+      background: var(--bg-surface);
+    }
+
+    .fish-chip.active {
+      border-color: var(--accent);
+      box-shadow: var(--shadow-glass);
+      color: var(--text-primary);
+      font-weight: 700;
+    }
+
+    .fish-chip-visual {
+      width: 28px;
+      height: 16px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .fish-chip-visual img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+
+    /* Почасовой график 00:00–24:00 со скраббером */
+    .chart-card {
+      padding: 14px;
+      position: relative;
+    }
+
+    .chart-floating-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 11px;
+      border-radius: var(--radius-pill);
+      font-size: 12px;
+      font-weight: 700;
+      background: var(--bg-surface-solid);
+      border: 1px solid var(--border-glass);
+      color: var(--text-primary);
+      margin-bottom: 8px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .hourly-svg-wrap {
+      position: relative;
+      width: 100%;
+      height: 135px;
+      cursor: ew-resize;
+      user-select: none;
+    }
+
+    .hourly-time-axis {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-top: 6px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .cta-full-btn {
+      width: 100%;
+      padding: 13px 16px;
+      border-radius: 16px;
+      font-size: 14px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      cursor: pointer;
+      background: var(--bg-glass);
+      border: 1.5px solid var(--accent);
+      box-shadow: var(--shadow-glass);
+      color: var(--text-primary);
+      transition: all 0.18s ease;
+    }
+
+    .cta-full-btn:hover {
+      transform: translateY(-1px);
+    }
+
+    /* ==========================================================================
+       7. ЭКРАН 2: «КАРТА» (НАВИГАЦИЯ, ТОЧКИ, WATERNAVMESH A*, ОФФЛАЙН)
+       ========================================================================== */
+    .map-stage-container {
+      position: relative;
+      width: 100%;
+      height: 740px;
+      background: var(--map-land);
+      overflow: hidden;
+      user-select: none;
+    }
+
+    html[data-viewport="desktop"] .map-stage-container {
+      height: 670px;
+      border-radius: 20px;
+    }
+
+    #realLeafletMap {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      background: var(--map-land);
+    }
+
+    .leaflet-control-attribution {
+      font-size: 9px !important;
+      background: rgba(15, 23, 42, 0.55) !important;
+      color: #94A3B8 !important;
+      padding: 1px 5px !important;
+    }
+    .leaflet-control-attribution a { color: #38BDF8 !important; }
+    .leaflet-control-zoom { display: none !important; }
+
+    /* Горизонтальная свайпаемая лента из 6 компактных мини-плашек (1 короткая надпись на каждой) */
+    .map-bottom-pills-strip {
+      position: absolute;
+      left: 10px;
+      right: 10px;
+      bottom: 10px;
+      z-index: 450;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      overflow-x: auto;
+      padding: 2px 2px 4px;
+      scrollbar-width: none;
+    }
+    .map-bottom-pills-strip::-webkit-scrollbar { display: none; }
+
+    .map-single-pill {
+      flex-shrink: 0;
+      padding: 9px 14px;
+      border-radius: var(--radius-pill);
+      font-size: 12.5px;
+      font-weight: 700;
+      white-space: nowrap;
+      cursor: pointer;
+      background: var(--bg-glass-card);
+      backdrop-filter: var(--blur-glass);
+      -webkit-backdrop-filter: var(--blur-glass);
+      border: 1px solid var(--border-glass);
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+      color: var(--text-primary);
+      transition: transform 0.15s ease, border-color 0.15s ease;
+    }
+    html[data-glass="off"] .map-single-pill {
+      backdrop-filter: none;
+      background: var(--bg-surface);
+      border-color: var(--border-tactile);
+    }
+    .map-single-pill.active {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .map-top-overlay {
+      position: absolute;
+      top: 10px;
+      left: 12px;
+      right: 12px;
+      z-index: 450;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+    }
+
+    .map-top-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      pointer-events: auto;
+    }
+
+    .map-search-box {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 13px;
+      border-radius: 16px;
+    }
+
+    .map-search-box input {
+      border: none;
+      background: transparent;
+      outline: none;
+      width: 100%;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .map-search-box input::placeholder {
+      color: var(--text-secondary);
+    }
+
+    .map-weather-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 9px 13px;
+      border-radius: 16px;
+      font-size: 13px;
+      font-weight: 700;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+
+    /* Правый вертикальный стек из 4 круглых стеклянных кнопок без текста (Thumb Zone) */
+    .map-right-stack {
+      position: absolute;
+      right: 14px;
+      bottom: 66px;
+      z-index: 450;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* Левая зона большого пальца (Транспорт, Изобаты, Трек/Я потерялся) */
+    .map-left-stack {
+      position: absolute;
+      left: 14px;
+      bottom: 66px;
+      z-index: 450;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+    }
+
+    /* Нижний док карты (Карточка выбранной точки + 2 компактные шторки) */
+    .map-bottom-sheet-card {
+      position: absolute;
+      left: 10px;
+      right: 10px;
+      bottom: 10px;
+      z-index: 22;
+      padding: 12px 14px;
+      border-radius: 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .sheet-grabber {
+      width: 38px;
+      height: 4px;
+      border-radius: 99px;
+      background: rgba(148, 163, 184, 0.38);
+      margin: 0 auto 2px;
+    }
+
+    .map-spot-summary-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .map-route-cta {
+      padding: 10px 16px;
+      border-radius: var(--radius-pill);
+      font-size: 13px;
+      font-weight: 700;
+      border: 1px solid var(--border-glass);
+      background: var(--accent);
+      color: #061320;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 4px 16px var(--accent-glow);
+      white-space: nowrap;
+    }
+
+    .map-dual-docks {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .map-mini-dock-btn {
+      padding: 8px 10px;
+      border-radius: 14px;
+      font-size: 11.5px;
+      font-weight: 700;
+      text-align: left;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      border: 1px solid var(--border-subtle);
+      background: rgba(15, 23, 42, 0.35);
+    }
+
+    [data-theme="light"] .map-mini-dock-btn {
+      background: rgba(255, 255, 255, 0.65);
+    }
+
+    /* ==========================================================================
+       8. ЭКРАН 3: «ЖУРНАЛ УЛОВОВ И ИИ-КАЛИБРОВКА»
+       ========================================================================== */
+    .journal-kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 9px;
+    }
+
+    .journal-kpi-card {
+      padding: 12px 11px;
+      border-radius: 18px;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      min-height: 82px;
+    }
+
+    .journal-kpi-ico {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      opacity: 0.65;
+      color: var(--text-secondary);
+    }
+
+    .journal-kpi-val {
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      line-height: 1.1;
+    }
+
+    .journal-kpi-lbl {
+      font-size: 11.5px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+
+    .catch-entry-card {
+      padding: 13px 14px;
+      border-radius: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .catch-entry-meta {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .catch-entry-body {
+      display: grid;
+      grid-template-columns: 74px 1fr 64px;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .catch-minimap-thumb {
+      width: 64px;
+      height: 64px;
+      border-radius: 14px;
+      border: 1px solid var(--border-glass);
+      overflow: hidden;
+      background: var(--map-land);
+    }
+
+    /* ==========================================================================
+       9. ЭКРАН 4: «МЕНЮ И ИНСТРУМЕНТЫ» (СЕТКА 3x3 + ЗАЩИЩЁННЫЙ СЛАЙДЕР SOS 2 СЕК)
+       ========================================================================== */
+    .menu-hub-header {
+      text-align: center;
+      padding: 4px 6px 2px;
+    }
+
+    .menu-hub-title {
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      margin: 0 0 6px;
+    }
+
+    .menu-hub-sub {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    /* Компактное всплывающее Меню над нижним доком (не перекрывает весь экран) */
+    .compact-menu-backdrop {
+      position: absolute;
+      inset: 0;
+      bottom: 64px;
+      z-index: 180;
+      background: rgba(4, 9, 18, 0.32);
+      display: none;
+      align-items: flex-end;
+      justify-content: center;
+      padding: 10px 12px;
+    }
+    .compact-menu-backdrop.open {
+      display: flex;
+    }
+    .compact-menu-popover {
+      width: 100%;
+      max-width: 396px;
+      padding: 14px 14px 14px;
+      border-radius: 24px;
+      background: var(--sheet-bg);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border: 1.5px solid var(--border-glass);
+      box-shadow: 0 -10px 34px rgba(0, 0, 0, 0.55), 0 0 22px var(--accent-glow);
+      display: flex;
+      flex-direction: column;
+      gap: 11px;
+      animation: sheetSlideUp 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .menu-grid-5 {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px 6px;
+      padding: 4px 0;
+      justify-items: center;
+    }
+    .menu-grid-5 .lens-btn {
+      width: 52px;
+      height: 52px;
+    }
+    .menu-grid-5 .lens-btn svg {
+      width: 23px;
+      height: 23px;
+    }
+
+    /* Защищённый слайдер SOS (Удерживайте 2 сек для SOS) */
+    .sos-hold-track {
+      position: relative;
+      width: 100%;
+      height: 54px;
+      border-radius: var(--radius-pill);
+      background: linear-gradient(135deg, rgba(127, 29, 29, 0.72), rgba(69, 10, 10, 0.85));
+      border: 1px solid rgba(248, 113, 113, 0.45);
+      box-shadow: 0 0 20px rgba(239, 68, 68, 0.25), inset 0 1px 2px rgba(255, 255, 255, 0.22);
+      display: flex;
+      align-items: center;
+      padding: 5px;
+      overflow: hidden;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .sos-hold-progress {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 0%;
+      background: linear-gradient(90deg, rgba(239, 68, 68, 0.65), rgba(245, 158, 11, 0.75));
+      transition: width 0.08s linear;
+      pointer-events: none;
+    }
+
+    .sos-hold-knob {
+      position: relative;
+      z-index: 2;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 25%, #F87171, #DC2626);
+      border: 1px solid rgba(255, 255, 255, 0.5);
+      box-shadow: 0 0 14px rgba(239, 68, 68, 0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #FFFFFF;
+      flex-shrink: 0;
+    }
+
+    .sos-hold-text {
+      position: relative;
+      z-index: 2;
+      flex: 1;
+      text-align: center;
+      font-size: 13.5px;
+      font-weight: 700;
+      color: #FEE2E2;
+      padding-right: 24px;
+    }
+
+    /* ==========================================================================
+       10. НИЖНИЙ ТАБ-БАР (4 ИКОНКИ — height: 64px + ДВУХПРУЖИННЫЙ ГЛАЙДЕР)
+       ========================================================================== */
+    .bottom-dock {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 64px;
+      z-index: 100;
+      background: var(--dock-bg);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border-top: 1px solid var(--border-subtle);
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      align-items: center;
+      padding: 0 8px;
+    }
+
+    .dock-tab-btn {
+      position: relative;
+      z-index: 2;
+      border: none;
+      background: transparent;
+      height: 52px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: color 0.18s ease, transform 0.18s ease;
+    }
+
+    .dock-tab-btn svg {
+      width: 24px;
+      height: 24px;
+      stroke: currentColor;
+      stroke-width: var(--stroke-icon);
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      fill: none;
+      transition: transform 0.22s cubic-bezier(0.16, 1.14, 0.3, 1), filter 0.22s ease;
+    }
+
+    .dock-tab-btn.active {
+      color: var(--accent);
+    }
+
+    .dock-tab-btn.active svg {
+      transform: translateY(-1px) scale(1.08);
+      filter: drop-shadow(0 0 8px var(--accent-glow));
+    }
+
+    .dock-tab-lbl {
+      font-size: 10.5px;
+      font-weight: 600;
+      line-height: 1;
+      display: none;
+    }
+
+    /* Позволяет переключать режим «Строго без подписей (по ТЗ п. 2)» и «С подписями (как на референс-шотах)» */
+    html[data-dock-labels="on"] .dock-tab-lbl {
+      display: block;
+    }
+
+    /* ==========================================================================
+       11. ВЫДВИЖНЫЕ ШТОРКИ (BOTTOM SHEETS), МОДАЛЬНЫЕ ОКНА И БЕЗОПАСНЫЕ ТОСТЫ
+       ========================================================================== */
+    .sheet-backdrop {
+      position: absolute;
+      inset: 0;
+      z-index: 200;
+      background: rgba(4, 9, 18, 0.62);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: flex-end;
+      justify-content: center;
+    }
+
+    .sheet-backdrop.open {
+      display: flex;
+    }
+
+    .bottom-sheet-panel {
+      width: 100%;
+      max-height: 82%;
+      background: var(--sheet-bg);
+      border-top: 1.5px solid var(--border-glass);
+      border-radius: 26px 26px 0 0;
+      padding: 12px 16px 22px;
+      overflow-y: auto;
+      box-shadow: 0 -12px 36px rgba(0, 0, 0, 0.55);
+      animation: sheetSlideUp 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    @keyframes sheetSlideUp {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
+    }
+
+    /* Безопасный тост строго на bottom: 84px (не перекрывает нижний док 64px) */
+    .safe-toast-host {
+      position: absolute;
+      left: 14px;
+      right: 14px;
+      bottom: var(--toast-bottom);
+      z-index: 350;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .safe-toast-card {
+      pointer-events: auto;
+      padding: 11px 14px;
+      border-radius: 16px;
+      background: var(--sheet-bg);
+      border: 1.5px solid var(--accent);
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 12.5px;
+      font-weight: 600;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .toast-timer-bar {
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      height: 3px;
+      background: var(--accent);
+      width: 100%;
+      animation: toastCountdown 3.4s linear forwards;
+    }
+
+    @keyframes toastCountdown {
+      from { width: 100%; }
+      to { width: 0%; }
+    }
+
+    /* Таблицы и карточки инженерного стенда аудита */
+    .audit-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12.5px;
+    }
+
+    .audit-table th, .audit-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border-subtle);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .audit-table th {
+      font-weight: 800;
+      color: var(--accent);
+      background: rgba(56, 189, 248, 0.08);
+    }
+
+    .code-tag {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 11.5px;
+      padding: 2px 6px;
+      border-radius: 6px;
+      background: rgba(56, 189, 248, 0.14);
+      color: var(--accent);
+    }
+
+    .subscreen-nav-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .form-input, .form-select {
+      width: 100%;
+      padding: 9px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--border-glass);
+      background: rgba(15, 23, 42, 0.45);
+      color: var(--text-primary);
+      font-size: 13px;
+      font-weight: 600;
+      outline: none;
+    }
+
+    [data-theme="light"] .form-input, [data-theme="light"] .form-select {
+      background: #FFFFFF;
+    }
+  
+
+/* ==========================================================================
+   КЛЁВ ПРО 2.0 • v2.9.1 (r241) PRODUCTION FULLSCREEN MOBILE/TABLET SHELL
+   1-в-1 с эталоном Видео 1 (#klevAppFrame), с сохранением Десктопа (data-desktop-web="1")
+   ========================================================================== */
+html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) > body > .app-header,
+html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) > body > main#app,
+html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) > body > nav.bottom-nav,
+html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) > body > #klevCompactMenuBackdrop {
+  display: none !important;
+}
+
+html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) body {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+  background: var(--bg-app, #0F172A) !important;
+}
+
+html[data-desktop-web="1"] #klevAppFrame,
+html[data-admin-contour="1"] #klevAppFrame {
+  display: none !important;
+}
+
+html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) #klevAppFrame {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  max-width: 100vw !important;
+  height: 100dvh !important;
+  min-height: 100dvh !important;
+  border-radius: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+  z-index: 1400 !important;
+  margin: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) #klevAppFrame .app-viewport {
+  padding-top: max(10px, env(safe-area-inset-top, 10px)) !important;
+  padding-bottom: calc(74px + env(safe-area-inset-bottom, 0px)) !important;
+}
+
+html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) #klevAppFrame .app-viewport.map-fullscreen {
+  padding-top: 0 !important;
+  padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)) !important;
+}
+
+html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) #klevAppFrame .map-stage-container {
+  height: calc(100dvh - 64px - env(safe-area-inset-bottom, 0px)) !important;
+}
+
+html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) #klevAppFrame .bottom-dock {
+  height: calc(64px + env(safe-area-inset-bottom, 0px)) !important;
+  padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+}
+
+html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) #klevAppFrame .compact-menu-backdrop {
+  bottom: calc(64px + env(safe-area-inset-bottom, 0px)) !important;
+}
+
+/* Системные модальные окна (авторизация D1, выбор 491 водоёма, ИИ-сканер, лайтбокс) поверх #klevAppFrame */
+#appModalBackdrop,
+#fishImageLightbox,
+#klevUserAgreementBackdrop,
+#klevConfirmDeleteBackdrop,
+#klevCustomSelectBackdrop,
+#releaseUpdateModal {
+  z-index: 3200 !important;
+}
+
+/* Горизонтальный режим (Landscape) для планшетов, больших смартфонов и раскладушек (Flip / Fold) */
+@media (orientation: landscape) and (max-width: 1180px) {
+  html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) #klevAppFrame .desktop-bento-grid {
+    display: grid !important;
+    grid-template-columns: minmax(260px, 310px) minmax(0, 1fr) !important;
+    gap: 12px !important;
+    align-items: start !important;
+  }
+  html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) #klevAppFrame .radial-gauge-wrap,
+  html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) #klevAppFrame #fcHeroSonarCanvas {
+    width: 196px !important;
+    height: 196px !important;
+  }
+}
+
+/* Режим внешнего мини-экрана (Xiaomi 18 Pro Max Rear Screen & Flip Cover Screen) */
+#klevRearScreenHud {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 2600;
+  background: var(--bg-app, #0F172A);
+  color: var(--text-primary, #F8FAFC);
+  padding: 10px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  text-align: center;
+  overflow: hidden;
+}
+html[data-rear-screen="1"] #klevRearScreenHud {
+  display: flex !important;
+}
+@media (max-width: 340px) and (max-height: 360px) {
+  #klevRearScreenHud {
+    display: flex !important;
+  }
+}
+
+    /* ==========================================================================
+       1. СИСТЕМА ДИЗАЙН-ТОКЕНОВ ИЗ ПАПКИ FISHING/UX_UI/ (Tactile Glassmorphism)
+       ========================================================================== */
+    :root {
+      --radius-pill: 9999px;
+      --radius-card: 20px;
+      --radius-md: 14px;
+      --radius-sm: 10px;
+      --blur-glass: blur(14px);
+      --stroke-icon: 1.6px;
+      --toast-bottom: 84px;
+      --font-ui: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      --fs-xs: 12px;
+      --fs-sm: 13.5px;
+      --fs-md: 15.5px;
+      --fs-lg: 18px;
+      --good: #10B981;
+      --warn: #F59E0B;
+      --bad: #EF4444;
+      --info: #38BDF8;
+    }
+
+    /* А. ТЁМНАЯ ТЕМА (DARK MODE — data-theme="dark") */
+    [data-theme="dark"] {
+      --bg-app: #0F172A;
+      --bg-outer: #070C17;
+      --bg-surface: linear-gradient(145deg, #1E293B, #131C2E);
+      --bg-surface-solid: #172133;
+      --bg-glass: radial-gradient(circle at 30% 25%, rgba(56, 189, 248, 0.18), rgba(15, 23, 42, 0.72));
+      --bg-glass-card: linear-gradient(155deg, rgba(30, 41, 59, 0.78), rgba(15, 23, 42, 0.86));
+      --border-tactile: rgba(255, 255, 255, 0.08);
+      --border-glass: rgba(56, 189, 248, 0.45);
+      --border-subtle: rgba(148, 163, 184, 0.16);
+      --shadow-tactile: 0 6px 14px rgba(0, 0, 0, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.12);
+      --shadow-glass: 0 0 18px rgba(56, 189, 248, 0.25), inset 0 1px 2px rgba(255, 255, 255, 0.32), inset 0 -4px 10px rgba(56, 189, 248, 0.16);
+      --text-primary: #F8FAFC;
+      --text-secondary: #94A3B8;
+      --text-label-tactile: #94A3B8;
+      --text-label-glass: #38BDF8;
+      --accent: #38BDF8;
+      --accent-glow: rgba(56, 189, 248, 0.32);
+      --icon-stroke: #E2E8F0;
+      --map-water: #112A46;
+      --map-water-deep: #0B1D33;
+      --map-land: #0F172A;
+      --map-contour: rgba(56, 189, 248, 0.18);
+      --dock-bg: rgba(15, 23, 42, 0.84);
+      --sheet-bg: rgba(17, 25, 42, 0.96);
+    }
+
+    /* Б. СВЕТЛАЯ ТЕМА (LIGHT MODE — data-theme="light") */
+    [data-theme="light"] {
+      --bg-app: #F1F5F9;
+      --bg-outer: #DCE5F0;
+      --bg-surface: linear-gradient(145deg, #FFFFFF, #E2E8F0);
+      --bg-surface-solid: #FFFFFF;
+      --bg-glass: radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.88), rgba(224, 242, 254, 0.62));
+      --bg-glass-card: linear-gradient(155deg, rgba(255, 255, 255, 0.92), rgba(235, 245, 255, 0.82));
+      --border-tactile: rgba(255, 255, 255, 0.9);
+      --border-glass: rgba(56, 189, 248, 0.42);
+      --border-subtle: rgba(15, 23, 42, 0.11);
+      --shadow-tactile: 0 6px 14px rgba(15, 23, 42, 0.10), inset 0 2px 3px #FFFFFF;
+      --shadow-glass: 0 4px 16px rgba(56, 189, 248, 0.22), inset 0 2px 4px rgba(255, 255, 255, 0.95);
+      --text-primary: #0F172A;
+      --text-secondary: #475569;
+      --text-label-tactile: #334155;
+      --text-label-glass: #0284C7;
+      --accent: #0284C7;
+      --accent-glow: rgba(2, 132, 199, 0.24);
+      --icon-stroke: #1E293B;
+      --map-water: #CBE4FD;
+      --map-water-deep: #A5D0FA;
+      --map-land: #F4F7FB;
+      --map-contour: rgba(2, 132, 199, 0.16);
+      --dock-bg: rgba(255, 255, 255, 0.88);
+      --sheet-bg: rgba(248, 250, 252, 0.97);
+    }
+
+    /* В. КОНТРАСТНАЯ ТЕМА (CONTRAST / OLED MODE — data-theme="contrast") */
+    [data-theme="contrast"] {
+      --bg-app: #000000;
+      --bg-outer: #000000;
+      --bg-surface: #0D0D0D;
+      --bg-surface-solid: #0D0D0D;
+      --bg-glass: radial-gradient(circle at 30% 25%, rgba(245, 158, 11, 0.18), rgba(10, 10, 10, 0.82));
+      --bg-glass-card: linear-gradient(155deg, rgba(22, 18, 10, 0.86), rgba(8, 8, 8, 0.94));
+      --border-tactile: rgba(245, 158, 11, 0.25);
+      --border-glass: rgba(251, 191, 36, 0.48);
+      --border-subtle: rgba(245, 158, 11, 0.22);
+      --shadow-tactile: 0 0 16px rgba(245, 158, 11, 0.32), inset 0 1px 1px rgba(255, 255, 255, 0.15);
+      --shadow-glass: 0 0 20px rgba(245, 158, 11, 0.35), inset 0 2px 5px rgba(255, 255, 255, 0.32), inset 0 -4px 12px rgba(245, 158, 11, 0.22);
+      --text-primary: #FFFFFF;
+      --text-secondary: #D97706;
+      --text-label-tactile: #F59E0B;
+      --text-label-glass: #FBBF24;
+      --accent: #F59E0B;
+      --accent-glow: rgba(245, 158, 11, 0.34);
+      --icon-stroke: #FFFFFF;
+      --map-water: #111F30;
+      --map-water-deep: #091320;
+      --map-land: #000000;
+      --map-contour: rgba(245, 158, 11, 0.22);
+      --dock-bg: rgba(10, 10, 10, 0.92);
+      --sheet-bg: rgba(12, 12, 12, 0.98);
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      min-height: 100%;
+      font-family: var(--font-ui);
+      background: var(--bg-outer);
+      color: var(--text-primary);
+      transition: background 0.25s ease, color 0.25s ease;
+      overflow-x: hidden;
+    }
+
+    button, input, select, textarea {
+      font-family: inherit;
+      color: inherit;
+    }
+
+    /* ==========================================================================
+       2. ВЕРХНИЙ ИНЖЕНЕРНЫЙ ПУЛЬТ УПРАВЛЕНИЯ СТЕНДОМ
+       ========================================================================== */
+    .studio-topbar {
+      position: sticky;
+      top: 0;
+      z-index: 9000;
+      background: rgba(9, 14, 24, 0.94);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border-bottom: 1px solid rgba(56, 189, 248, 0.24);
+      padding: 8px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      color: #F8FAFC;
+    }
+
+    .studio-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .studio-badge {
+      padding: 4px 10px;
+      border-radius: var(--radius-pill);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.4px;
+      background: rgba(56, 189, 248, 0.16);
+      border: 1px solid rgba(56, 189, 248, 0.45);
+      color: #38BDF8;
+      white-space: nowrap;
+    }
+
+    .studio-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .studio-seg {
+      display: inline-flex;
+      background: rgba(30, 41, 59, 0.78);
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      border-radius: var(--radius-pill);
+      padding: 2px;
+      gap: 2px;
+    }
+
+    .studio-seg button {
+      border: none;
+      background: transparent;
+      color: #94A3B8;
+      font-size: 11.5px;
+      font-weight: 600;
+      padding: 5px 11px;
+      border-radius: var(--radius-pill);
+      cursor: pointer;
+      transition: all 0.18s ease;
+      white-space: nowrap;
+    }
+
+    .studio-seg button.active {
+      background: #38BDF8;
+      color: #07111F;
+      font-weight: 800;
+      box-shadow: 0 2px 10px rgba(56, 189, 248, 0.35);
+    }
+
+    [data-theme="contrast"] .studio-seg button.active {
+      background: #F59E0B;
+      color: #000000;
+      box-shadow: 0 2px 10px rgba(245, 158, 11, 0.4);
+    }
+
+    /* ==========================================================================
+       3. КОНТЕЙНЕР ПРИЛОЖЕНИЯ (СМАРТФОН / ПЛАНШЕТ BENTO / СТЕНД АУДИТА)
+       ========================================================================== */
+    .workspace-stage {
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 16px 12px 40px;
+      min-height: calc(100vh - 56px);
+    }
+
+    .app-frame {
+      position: relative;
+      width: 100%;
+      max-width: 420px;
+      min-height: 780px;
+      background: var(--bg-app);
+      border-radius: 36px;
+      border: 1.5px solid var(--border-glass);
+      box-shadow: 0 22px 60px rgba(0, 0, 0, 0.55), 0 0 28px var(--accent-glow);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: max-width 0.28s cubic-bezier(0.22, 1, 0.36, 1), background 0.25s ease;
+    }
+
+    /* Лёгкий фон приложения (отключён на экране Карты, чтобы не перекрывать реальную карту) */
+    .app-frame::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background-image: radial-gradient(circle at 50% 0%, var(--accent-glow) 0%, transparent 38%);
+      opacity: 0.45;
+      z-index: 0;
+    }
+    .app-frame.on-map-screen::before {
+      display: none;
+    }
+
+    html[data-viewport="desktop"] .app-frame {
+      max-width: 1140px;
+      border-radius: 24px;
+      min-height: 760px;
+    }
+
+    html[data-viewport="audit"] .app-frame {
+      display: none;
+    }
+
+    .audit-frame {
+      display: none;
+      width: 100%;
+      max-width: 1220px;
+      background: var(--bg-app);
+      border: 1.5px solid var(--border-glass);
+      border-radius: 24px;
+      padding: 22px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+    }
+
+    html[data-viewport="audit"] .audit-frame {
+      display: block;
+    }
+
+    /* Смартфонный статус-бар */
+    .phone-statusbar {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 22px 6px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-primary);
+      opacity: 0.9;
+    }
+
+    .phone-status-right {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+    }
+
+    /* ==========================================================================
+       4. КОМПОНЕНТЫ TACTILE GLASSMORPHISM (КАРТОЧКИ, КНОПКИ-ЛИНЗЫ, СЕГМЕНТЫ)
+       ========================================================================== */
+    .glass-panel {
+      background: var(--bg-glass-card);
+      backdrop-filter: var(--blur-glass);
+      -webkit-backdrop-filter: var(--blur-glass);
+      border: 1px solid var(--border-glass);
+      box-shadow: var(--shadow-glass);
+      border-radius: var(--radius-card);
+      transition: all 0.22s ease;
+    }
+
+    html[data-glass="off"] .glass-panel {
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-tactile);
+      box-shadow: var(--shadow-tactile);
+    }
+
+    /* Круглая навигационная кнопка-линза (56x56 для меню 3x3, 48x48 для контролов карты) */
+    .lens-btn {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      position: relative;
+      padding: 0;
+      background: var(--bg-glass);
+      backdrop-filter: var(--blur-glass);
+      -webkit-backdrop-filter: var(--blur-glass);
+      border: 1px solid var(--border-glass);
+      box-shadow: var(--shadow-glass);
+      color: var(--icon-stroke);
+      transition: transform 0.16s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+
+    html[data-glass="off"] .lens-btn {
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-tactile);
+      box-shadow: var(--shadow-tactile);
+    }
+
+    .lens-btn:hover {
+      transform: translateY(-2px) scale(1.03);
+    }
+
+    .lens-btn:active {
+      transform: scale(0.95);
+    }
+
+    .lens-btn.lens-48 {
+      width: 48px;
+      height: 48px;
+    }
+
+    .lens-btn.active {
+      border-color: var(--accent);
+      box-shadow: 0 0 22px var(--accent-glow), inset 0 2px 5px rgba(255, 255, 255, 0.45);
+      color: var(--accent);
+    }
+
+    .lens-btn svg, .k-svg {
+      width: 24px;
+      height: 24px;
+      stroke: currentColor;
+      stroke-width: var(--stroke-icon);
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      fill: none;
+      flex-shrink: 0;
+    }
+
+    .lens-item-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .lens-label {
+      margin-top: 6px;
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--text-label-glass);
+      transition: color 0.2s ease;
+      line-height: 1.2;
+    }
+
+    html[data-glass="off"] .lens-label {
+      color: var(--text-label-tactile);
+    }
+
+    /* Капсульные переключатели (Segmented Control) */
+    /* Стильный тумблер-переключатель вместо стандартных чекбоксов */
+    .klev-switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+      flex-shrink: 0;
+      cursor: pointer;
+    }
+    .klev-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+      position: absolute;
+    }
+    .klev-switch-slider {
+      position: absolute;
+      inset: 0;
+      border-radius: 999px;
+      background: rgba(148, 163, 184, 0.25);
+      border: 1px solid var(--border-subtle);
+      transition: all 0.22s ease;
+    }
+    .klev-switch-slider::before {
+      content: "";
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      left: 2px;
+      top: 2px;
+      border-radius: 50%;
+      background: #E2E8F0;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.35);
+      transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), background 0.22s ease;
+    }
+    .klev-switch input:checked + .klev-switch-slider {
+      background: var(--accent-glow);
+      border-color: var(--accent);
+      box-shadow: 0 0 12px var(--accent-glow);
+    }
+    .klev-switch input:checked + .klev-switch-slider::before {
+      transform: translateX(20px);
+      background: var(--accent);
+    }
+
+    /* Миниатюра фото улова в карточке Журнала */
+    .catch-photo-thumb {
+      width: 72px;
+      height: 54px;
+      border-radius: 12px;
+      border: 1px solid var(--border-glass);
+      overflow: hidden;
+      position: relative;
+      cursor: pointer;
+      background: var(--bg-surface-solid);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .catch-photo-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .catch-photo-badge {
+      position: absolute;
+      bottom: 2px;
+      right: 2px;
+      font-size: 9px;
+      font-weight: 800;
+      padding: 1px 4px;
+      border-radius: 5px;
+      background: rgba(15, 23, 42, 0.78);
+      color: #F8FAFC;
+    }
+
+    .seg-bar {
+      display: flex;
+      align-items: center;
+      background: rgba(15, 23, 42, 0.42);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-pill);
+      padding: 3px;
+      gap: 3px;
+    }
+
+    [data-theme="light"] .seg-bar {
+      background: rgba(226, 232, 240, 0.75);
+    }
+
+    [data-theme="contrast"] .seg-bar {
+      background: #0B0B0B;
+      border-color: rgba(245, 158, 11, 0.28);
+    }
+
+    .seg-btn {
+      flex: 1;
+      min-width: 0;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      font-size: 11.5px;
+      font-weight: 600;
+      padding: 7px 4px;
+      border-radius: var(--radius-pill);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .seg-btn.active {
+      background: var(--bg-glass);
+      border: 1px solid var(--border-glass);
+      box-shadow: var(--shadow-glass);
+      color: var(--text-primary);
+      font-weight: 700;
+    }
+
+    html[data-glass="off"] .seg-btn.active {
+      background: var(--bg-surface);
+      border-color: var(--border-tactile);
+      box-shadow: var(--shadow-tactile);
+    }
+
+    /* Пилюли и кнопки */
+    .pill-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      padding: 8px 14px;
+      border-radius: var(--radius-pill);
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+      background: var(--bg-glass);
+      backdrop-filter: var(--blur-glass);
+      -webkit-backdrop-filter: var(--blur-glass);
+      border: 1px solid var(--border-glass);
+      box-shadow: var(--shadow-glass);
+      color: var(--text-primary);
+      transition: all 0.18s ease;
+    }
+
+    html[data-glass="off"] .pill-btn {
+      backdrop-filter: none;
+      background: var(--bg-surface);
+      border-color: var(--border-tactile);
+      box-shadow: var(--shadow-tactile);
+    }
+
+    .pill-btn:hover {
+      transform: translateY(-1px);
+    }
+
+    .pill-btn.active {
+      border-color: var(--accent);
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--good);
+      box-shadow: 0 0 8px var(--good);
+      display: inline-block;
+      flex-shrink: 0;
+    }
+
+    /* ==========================================================================
+       5. ОСНОВНАЯ РАБОЧАЯ ОБЛАСТЬ И ЭКРАНЫ
+       ========================================================================== */
+    .app-viewport {
+      position: relative;
+      z-index: 2;
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 10px 14px 76px;
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+    }
+
+    .app-viewport.map-fullscreen {
+      padding: 0 0 64px;
+    }
+
+    .screen-sec {
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+      animation: klevSlideFade 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .screen-sec.active {
+      display: flex;
+    }
+
+    @keyframes klevSlideFade {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* На широком экране (Desktop Bento) — двухколоночная сетка внутри экранов */
+    html[data-viewport="desktop"] .desktop-bento-grid {
+      display: grid;
+      grid-template-columns: 1.05fr 1.25fr;
+      gap: 16px;
+      align-items: start;
+    }
+
+    /* ==========================================================================
+       6. ЭКРАН 1: «ПРОГНОЗ КЛЁВА» (ТОЧКА ВХОДА)
+       ========================================================================== */
+    .fc-top-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .fc-hero-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      padding: 10px 12px 11px;
+      position: relative;
+    }
+
+    .fc-title-main {
+      font-size: 16px;
+      font-weight: 800;
+      margin: 0 0 2px;
+      letter-spacing: -0.2px;
+    }
+
+    .fc-ice-sub {
+      font-size: 11px;
+      color: var(--text-secondary);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 6px;
+    }
+
+    /* Живой сонарный радар прогноза клёва (крупный 236x236px, точная копия заставки по темам) */
+    .radial-gauge-wrap {
+      position: relative;
+      width: 236px;
+      height: 236px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 4px auto 10px;
+    }
+    #fcHeroSonarCanvas {
+      width: 236px;
+      height: 236px;
+      display: block;
+      border-radius: 50%;
+    }
+
+    .radial-gauge-svg {
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+    }
+
+    .radial-gauge-center {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+
+    .radial-pct-val {
+      font-size: 34px;
+      font-weight: 900;
+      letter-spacing: -1px;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .radial-status-lbl {
+      margin-top: 3px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-secondary);
+    }
+
+    /* Компактные капсулы Утро / Вечер */
+    .bite-windows-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      width: 100%;
+      margin-top: 0;
+    }
+
+    .bite-window-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 11px;
+      border-radius: 14px;
+      text-align: left;
+    }
+
+    .bite-window-meta {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.25;
+    }
+
+    .bite-window-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .bite-window-time {
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--accent);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Горизонтальная лента выбора вида рыбы */
+    .species-strip-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      overflow-x: auto;
+      padding: 4px 2px 6px;
+      scrollbar-width: none;
+    }
+
+    .species-strip-wrap::-webkit-scrollbar {
+      display: none;
+    }
+
+    .fish-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 13px;
+      border-radius: var(--radius-pill);
+      font-size: 12.5px;
+      font-weight: 600;
+      white-space: nowrap;
+      cursor: pointer;
+      background: var(--bg-glass);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      transition: all 0.18s ease;
+      flex-shrink: 0;
+    }
+
+    html[data-glass="off"] .fish-chip {
+      background: var(--bg-surface);
+    }
+
+    .fish-chip.active {
+      border-color: var(--accent);
+      box-shadow: var(--shadow-glass);
+      color: var(--text-primary);
+      font-weight: 700;
+    }
+
+    .fish-chip-visual {
+      width: 28px;
+      height: 16px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .fish-chip-visual img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+
+    /* Почасовой график 00:00–24:00 со скраббером */
+    .chart-card {
+      padding: 14px;
+      position: relative;
+    }
+
+    .chart-floating-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 11px;
+      border-radius: var(--radius-pill);
+      font-size: 12px;
+      font-weight: 700;
+      background: var(--bg-surface-solid);
+      border: 1px solid var(--border-glass);
+      color: var(--text-primary);
+      margin-bottom: 8px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .hourly-svg-wrap {
+      position: relative;
+      width: 100%;
+      height: 135px;
+      cursor: ew-resize;
+      user-select: none;
+    }
+
+    .hourly-time-axis {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-top: 6px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .cta-full-btn {
+      width: 100%;
+      padding: 13px 16px;
+      border-radius: 16px;
+      font-size: 14px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      cursor: pointer;
+      background: var(--bg-glass);
+      border: 1.5px solid var(--accent);
+      box-shadow: var(--shadow-glass);
+      color: var(--text-primary);
+      transition: all 0.18s ease;
+    }
+
+    .cta-full-btn:hover {
+      transform: translateY(-1px);
+    }
+
+    /* ==========================================================================
+       7. ЭКРАН 2: «КАРТА» (НАВИГАЦИЯ, ТОЧКИ, WATERNAVMESH A*, ОФФЛАЙН)
+       ========================================================================== */
+    .map-stage-container {
+      position: relative;
+      width: 100%;
+      height: 740px;
+      background: var(--map-land);
+      overflow: hidden;
+      user-select: none;
+    }
+
+    html[data-viewport="desktop"] .map-stage-container {
+      height: 670px;
+      border-radius: 20px;
+    }
+
+    #realLeafletMap {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      background: var(--map-land);
+    }
+
+    .leaflet-control-attribution {
+      font-size: 9px !important;
+      background: rgba(15, 23, 42, 0.55) !important;
+      color: #94A3B8 !important;
+      padding: 1px 5px !important;
+    }
+    .leaflet-control-attribution a { color: #38BDF8 !important; }
+    .leaflet-control-zoom { display: none !important; }
+
+    /* Горизонтальная свайпаемая лента из 6 компактных мини-плашек (1 короткая надпись на каждой) */
+    .map-bottom-pills-strip {
+      position: absolute;
+      left: 10px;
+      right: 10px;
+      bottom: 10px;
+      z-index: 450;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      overflow-x: auto;
+      padding: 2px 2px 4px;
+      scrollbar-width: none;
+    }
+    .map-bottom-pills-strip::-webkit-scrollbar { display: none; }
+
+    .map-single-pill {
+      flex-shrink: 0;
+      padding: 9px 14px;
+      border-radius: var(--radius-pill);
+      font-size: 12.5px;
+      font-weight: 700;
+      white-space: nowrap;
+      cursor: pointer;
+      background: var(--bg-glass-card);
+      backdrop-filter: var(--blur-glass);
+      -webkit-backdrop-filter: var(--blur-glass);
+      border: 1px solid var(--border-glass);
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+      color: var(--text-primary);
+      transition: transform 0.15s ease, border-color 0.15s ease;
+    }
+    html[data-glass="off"] .map-single-pill {
+      backdrop-filter: none;
+      background: var(--bg-surface);
+      border-color: var(--border-tactile);
+    }
+    .map-single-pill.active {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .map-top-overlay {
+      position: absolute;
+      top: 10px;
+      left: 12px;
+      right: 12px;
+      z-index: 450;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+    }
+
+    .map-top-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      pointer-events: auto;
+    }
+
+    .map-search-box {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 13px;
+      border-radius: 16px;
+    }
+
+    .map-search-box input {
+      border: none;
+      background: transparent;
+      outline: none;
+      width: 100%;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .map-search-box input::placeholder {
+      color: var(--text-secondary);
+    }
+
+    .map-weather-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 9px 13px;
+      border-radius: 16px;
+      font-size: 13px;
+      font-weight: 700;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+
+    /* Правый вертикальный стек из 4 круглых стеклянных кнопок без текста (Thumb Zone) */
+    .map-right-stack {
+      position: absolute;
+      right: 14px;
+      bottom: 66px;
+      z-index: 450;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* Левая зона большого пальца (Транспорт, Изобаты, Трек/Я потерялся) */
+    .map-left-stack {
+      position: absolute;
+      left: 14px;
+      bottom: 66px;
+      z-index: 450;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+    }
+
+    /* Нижний док карты (Карточка выбранной точки + 2 компактные шторки) */
+    .map-bottom-sheet-card {
+      position: absolute;
+      left: 10px;
+      right: 10px;
+      bottom: 10px;
+      z-index: 22;
+      padding: 12px 14px;
+      border-radius: 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .sheet-grabber {
+      width: 38px;
+      height: 4px;
+      border-radius: 99px;
+      background: rgba(148, 163, 184, 0.38);
+      margin: 0 auto 2px;
+    }
+
+    .map-spot-summary-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .map-route-cta {
+      padding: 10px 16px;
+      border-radius: var(--radius-pill);
+      font-size: 13px;
+      font-weight: 700;
+      border: 1px solid var(--border-glass);
+      background: var(--accent);
+      color: #061320;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 4px 16px var(--accent-glow);
+      white-space: nowrap;
+    }
+
+    .map-dual-docks {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .map-mini-dock-btn {
+      padding: 8px 10px;
+      border-radius: 14px;
+      font-size: 11.5px;
+      font-weight: 700;
+      text-align: left;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      border: 1px solid var(--border-subtle);
+      background: rgba(15, 23, 42, 0.35);
+    }
+
+    [data-theme="light"] .map-mini-dock-btn {
+      background: rgba(255, 255, 255, 0.65);
+    }
+
+    /* ==========================================================================
+       8. ЭКРАН 3: «ЖУРНАЛ УЛОВОВ И ИИ-КАЛИБРОВКА»
+       ========================================================================== */
+    .journal-kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 9px;
+    }
+
+    .journal-kpi-card {
+      padding: 12px 11px;
+      border-radius: 18px;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      min-height: 82px;
+    }
+
+    .journal-kpi-ico {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      opacity: 0.65;
+      color: var(--text-secondary);
+    }
+
+    .journal-kpi-val {
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      line-height: 1.1;
+    }
+
+    .journal-kpi-lbl {
+      font-size: 11.5px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+
+    .catch-entry-card {
+      padding: 13px 14px;
+      border-radius: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .catch-entry-meta {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .catch-entry-body {
+      display: grid;
+      grid-template-columns: 74px 1fr 64px;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .catch-minimap-thumb {
+      width: 64px;
+      height: 64px;
+      border-radius: 14px;
+      border: 1px solid var(--border-glass);
+      overflow: hidden;
+      background: var(--map-land);
+    }
+
+    /* ==========================================================================
+       9. ЭКРАН 4: «МЕНЮ И ИНСТРУМЕНТЫ» (СЕТКА 3x3 + ЗАЩИЩЁННЫЙ СЛАЙДЕР SOS 2 СЕК)
+       ========================================================================== */
+    .menu-hub-header {
+      text-align: center;
+      padding: 4px 6px 2px;
+    }
+
+    .menu-hub-title {
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      margin: 0 0 6px;
+    }
+
+    .menu-hub-sub {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    /* Компактное всплывающее Меню над нижним доком (не перекрывает весь экран) */
+    .compact-menu-backdrop {
+      position: absolute;
+      inset: 0;
+      bottom: 64px;
+      z-index: 180;
+      background: rgba(4, 9, 18, 0.32);
+      display: none;
+      align-items: flex-end;
+      justify-content: center;
+      padding: 10px 12px;
+    }
+    .compact-menu-backdrop.open {
+      display: flex;
+    }
+    .compact-menu-popover {
+      width: 100%;
+      max-width: 396px;
+      padding: 14px 14px 14px;
+      border-radius: 24px;
+      background: var(--sheet-bg);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border: 1.5px solid var(--border-glass);
+      box-shadow: 0 -10px 34px rgba(0, 0, 0, 0.55), 0 0 22px var(--accent-glow);
+      display: flex;
+      flex-direction: column;
+      gap: 11px;
+      animation: sheetSlideUp 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .menu-grid-5 {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px 6px;
+      padding: 4px 0;
+      justify-items: center;
+    }
+    .menu-grid-5 .lens-btn {
+      width: 52px;
+      height: 52px;
+    }
+    .menu-grid-5 .lens-btn svg {
+      width: 23px;
+      height: 23px;
+    }
+
+    /* Защищённый слайдер SOS (Удерживайте 2 сек для SOS) */
+    .sos-hold-track {
+      position: relative;
+      width: 100%;
+      height: 54px;
+      border-radius: var(--radius-pill);
+      background: linear-gradient(135deg, rgba(127, 29, 29, 0.72), rgba(69, 10, 10, 0.85));
+      border: 1px solid rgba(248, 113, 113, 0.45);
+      box-shadow: 0 0 20px rgba(239, 68, 68, 0.25), inset 0 1px 2px rgba(255, 255, 255, 0.22);
+      display: flex;
+      align-items: center;
+      padding: 5px;
+      overflow: hidden;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .sos-hold-progress {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 0%;
+      background: linear-gradient(90deg, rgba(239, 68, 68, 0.65), rgba(245, 158, 11, 0.75));
+      transition: width 0.08s linear;
+      pointer-events: none;
+    }
+
+    .sos-hold-knob {
+      position: relative;
+      z-index: 2;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 25%, #F87171, #DC2626);
+      border: 1px solid rgba(255, 255, 255, 0.5);
+      box-shadow: 0 0 14px rgba(239, 68, 68, 0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #FFFFFF;
+      flex-shrink: 0;
+    }
+
+    .sos-hold-text {
+      position: relative;
+      z-index: 2;
+      flex: 1;
+      text-align: center;
+      font-size: 13.5px;
+      font-weight: 700;
+      color: #FEE2E2;
+      padding-right: 24px;
+    }
+
+    /* ==========================================================================
+       10. НИЖНИЙ ТАБ-БАР (4 ИКОНКИ — height: 64px + ДВУХПРУЖИННЫЙ ГЛАЙДЕР)
+       ========================================================================== */
+    .bottom-dock {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 64px;
+      z-index: 100;
+      background: var(--dock-bg);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border-top: 1px solid var(--border-subtle);
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      align-items: center;
+      padding: 0 8px;
+    }
+
+    .dock-tab-btn {
+      position: relative;
+      z-index: 2;
+      border: none;
+      background: transparent;
+      height: 52px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: color 0.18s ease, transform 0.18s ease;
+    }
+
+    .dock-tab-btn svg {
+      width: 24px;
+      height: 24px;
+      stroke: currentColor;
+      stroke-width: var(--stroke-icon);
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      fill: none;
+      transition: transform 0.22s cubic-bezier(0.16, 1.14, 0.3, 1), filter 0.22s ease;
+    }
+
+    .dock-tab-btn.active {
+      color: var(--accent);
+    }
+
+    .dock-tab-btn.active svg {
+      transform: translateY(-1px) scale(1.08);
+      filter: drop-shadow(0 0 8px var(--accent-glow));
+    }
+
+    .dock-tab-lbl {
+      font-size: 10.5px;
+      font-weight: 600;
+      line-height: 1;
+      display: none;
+    }
+
+    /* Позволяет переключать режим «Строго без подписей (по ТЗ п. 2)» и «С подписями (как на референс-шотах)» */
+    html[data-dock-labels="on"] .dock-tab-lbl {
+      display: block;
+    }
+
+    /* ==========================================================================
+       11. ВЫДВИЖНЫЕ ШТОРКИ (BOTTOM SHEETS), МОДАЛЬНЫЕ ОКНА И БЕЗОПАСНЫЕ ТОСТЫ
+       ========================================================================== */
+    .sheet-backdrop {
+      position: absolute;
+      inset: 0;
+      z-index: 200;
+      background: rgba(4, 9, 18, 0.62);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: flex-end;
+      justify-content: center;
+    }
+
+    .sheet-backdrop.open {
+      display: flex;
+    }
+
+    .bottom-sheet-panel {
+      width: 100%;
+      max-height: 82%;
+      background: var(--sheet-bg);
+      border-top: 1.5px solid var(--border-glass);
+      border-radius: 26px 26px 0 0;
+      padding: 12px 16px 22px;
+      overflow-y: auto;
+      box-shadow: 0 -12px 36px rgba(0, 0, 0, 0.55);
+      animation: sheetSlideUp 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    @keyframes sheetSlideUp {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
+    }
+
+    /* Безопасный тост строго на bottom: 84px (не перекрывает нижний док 64px) */
+    .safe-toast-host {
+      position: absolute;
+      left: 14px;
+      right: 14px;
+      bottom: var(--toast-bottom);
+      z-index: 350;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .safe-toast-card {
+      pointer-events: auto;
+      padding: 11px 14px;
+      border-radius: 16px;
+      background: var(--sheet-bg);
+      border: 1.5px solid var(--accent);
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 12.5px;
+      font-weight: 600;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .toast-timer-bar {
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      height: 3px;
+      background: var(--accent);
+      width: 100%;
+      animation: toastCountdown 3.4s linear forwards;
+    }
+
+    @keyframes toastCountdown {
+      from { width: 100%; }
+      to { width: 0%; }
+    }
+
+    /* Таблицы и карточки инженерного стенда аудита */
+    .audit-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12.5px;
+    }
+
+    .audit-table th, .audit-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border-subtle);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .audit-table th {
+      font-weight: 800;
+      color: var(--accent);
+      background: rgba(56, 189, 248, 0.08);
+    }
+
+    .code-tag {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 11.5px;
+      padding: 2px 6px;
+      border-radius: 6px;
+      background: rgba(56, 189, 248, 0.14);
+      color: var(--accent);
+    }
+
+    .subscreen-nav-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .form-input, .form-select {
+      width: 100%;
+      padding: 9px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--border-glass);
+      background: rgba(15, 23, 42, 0.45);
+      color: var(--text-primary);
+      font-size: 13px;
+      font-weight: 600;
+      outline: none;
+    }
+
+    [data-theme="light"] .form-input, [data-theme="light"] .form-select {
+      background: #FFFFFF;
+    }
+  
+
+/* ==========================================================================
+   КЛЁВ ПРО 2.0 • v2.9.1 (r241) PRODUCTION FULLSCREEN MOBILE/TABLET SHELL
+   1-в-1 с эталоном Видео 1 (#klevAppFrame), с сохранением Десктопа (data-desktop-web="1")
+   ========================================================================== */
+html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) > body > .app-header,
+html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) > body > main#app,
+html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) > body > nav.bottom-nav,
+html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) > body > #klevCompactMenuBackdrop {
+  display: none !important;
+}
+
+html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) body {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+  background: var(--bg-app, #0F172A) !important;
+}
+
+html[data-desktop-web="1"] #klevAppFrame,
+html[data-admin-contour="1"] #klevAppFrame {
+  display: none !important;
+}
+
+html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) #klevAppFrame {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  max-width: 100vw !important;
+  height: 100dvh !important;
+  min-height: 100dvh !important;
+  border-radius: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+  z-index: 1400 !important;
+  margin: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) #klevAppFrame .app-viewport {
+  padding-top: max(10px, env(safe-area-inset-top, 10px)) !important;
+  padding-bottom: calc(74px + env(safe-area-inset-bottom, 0px)) !important;
+}
+
+html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) #klevAppFrame .app-viewport.map-fullscreen {
+  padding-top: 0 !important;
+  padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)) !important;
+}
+
+html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) #klevAppFrame .map-stage-container {
+  height: calc(100dvh - 64px - env(safe-area-inset-bottom, 0px)) !important;
+}
+
+html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) #klevAppFrame .bottom-dock {
+  height: calc(64px + env(safe-area-inset-bottom, 0px)) !important;
+  padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+}
+
+html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) #klevAppFrame .compact-menu-backdrop {
+  bottom: calc(64px + env(safe-area-inset-bottom, 0px)) !important;
+}
+
+/* Системные модальные окна (авторизация D1, выбор 491 водоёма, ИИ-сканер, лайтбокс) поверх #klevAppFrame */
+#appModalBackdrop,
+#fishImageLightbox,
+#klevUserAgreementBackdrop,
+#klevConfirmDeleteBackdrop,
+#klevCustomSelectBackdrop,
+#releaseUpdateModal {
+  z-index: 3200 !important;
+}
+
+/* Горизонтальный режим (Landscape) для планшетов, больших смартфонов и раскладушек (Flip / Fold) */
+@media (orientation: landscape) and (max-width: 1180px) {
+  html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) #klevAppFrame .desktop-bento-grid {
+    display: grid !important;
+    grid-template-columns: minmax(260px, 310px) minmax(0, 1fr) !important;
+    gap: 12px !important;
+    align-items: start !important;
+  }
+  html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) #klevAppFrame .radial-gauge-wrap,
+  html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) #klevAppFrame #fcHeroSonarCanvas {
+    width: 196px !important;
+    height: 196px !important;
+  }
+}
+
+/* Режим внешнего мини-экрана (Xiaomi 18 Pro Max Rear Screen & Flip Cover Screen) */
+#klevRearScreenHud {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 2600;
+  background: var(--bg-app, #0F172A);
+  color: var(--text-primary, #F8FAFC);
+  padding: 10px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  text-align: center;
+  overflow: hidden;
+}
+html[data-rear-screen="1"] #klevRearScreenHud {
+  display: flex !important;
+}
+@media (max-width: 340px) and (max-height: 360px) {
+  #klevRearScreenHud {
+    display: flex !important;
+  }
+}
+

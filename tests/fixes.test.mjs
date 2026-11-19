@@ -277,7 +277,8 @@ test("6.1 Редизайн v2.9.1 (r241): 26 SVG-иконок, живой сон
   assert.ok(indexSrc.includes('id="klevRearScreenHud"'), 'Должен присутствовать HUD для мини-экрана (Xiaomi 18 Pro Max / Flip)');
 
   // 3. Сохранение десктопного режима (html[data-desktop-web="1"]) и горизонтальный режим для планшетов/флипов
-  assert.ok(indexSrc.includes('html[data-desktop-web="1"] .klev-fc-subtabs-bar'), 'На десктопе мобильные подвкладки должны скрываться без поломки десктопного интерфейса');
+  assert.ok(indexSrc.includes('html[data-desktop-web="1"] #klevAppFrame'), 'На десктопе мобильный #klevAppFrame должен скрываться без поломки десктопного интерфейса');
+  assert.ok(indexSrc.includes('id="klevAppFrame"') && indexSrc.includes('id="fcHeroSonarCanvas"') && indexSrc.includes('id="sosHoldSlider"'), 'index.html должен содержать полный эталонный интерфейс из Видео 1 (#klevAppFrame)');
   assert.ok(indexSrc.includes('@media (orientation: landscape) and (max-width: 1180px)'), 'Должна поддерживаться горизонтальная двухколоночная сетка для планшетов и раскладушек');
 
   // 4. Живой сонар на главном экране, удаление кнопки Очистить кэш из прогноза, кнопка < Назад в Погоде и 6 плашек на карте
