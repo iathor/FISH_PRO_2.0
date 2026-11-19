@@ -89,7 +89,7 @@ jobs:
 
           # 4. Вычисляем строго возрастающий versionCode для релиза 2.5.6 r194 (чтобы Android всегда обновлял APK поверх старой версии)
           RUN_NUM=${GITHUB_RUN_NUMBER:-0}
-          VER_CODE=$((293240 + RUN_NUM))
+          VER_CODE=$((293241 + RUN_NUM))
           echo "Using versionCode=$VER_CODE"
 
           cat << 'EOF' > "$PROJ_DIR/settings.gradle"
@@ -134,7 +134,7 @@ jobs:
                   minSdk 24
                   targetSdk 34
                   versionCode ${VER_CODE}
-                  versionName "2.9.0-r240"
+                  versionName "2.9.1-r241"
               }
               signingConfigs {
                   release {
@@ -903,17 +903,17 @@ jobs:
 
                   @JavascriptInterface
                   public String getAppVersion() {
-                      return "2.9.0-r240";
+                      return "2.9.1-r241";
                   }
 
                   @JavascriptInterface
                   public int getAppBuildNumber() {
-                      return 240;
+                      return 241;
                   }
 
                   @JavascriptInterface
                   public String getAppRevision() {
-                      return "r240";
+                      return "r241";
                   }
 
                   private boolean isAllowedExternalUri(Uri uri) {
@@ -1240,7 +1240,7 @@ jobs:
                   ws.setCacheMode(WebSettings.LOAD_DEFAULT);
                   // Пользовательские данные защищены в Context.getFilesDir()/klev_appdata_vault; кэш WebView не очищается принудительно
                   String baseUa = ws.getUserAgentString();
-                  ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.9.0-r240");
+                  ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.9.1-r241");
 
                   webView.addJavascriptInterface(new NativeBridge(this), "AndroidBridge");
 
@@ -1836,7 +1836,7 @@ jobs:
                       }
                   }
                   String entryHtml = getPackageName().contains("admin") ? "kp-control-89.html" : "index.html";
-                  String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/" + entryHtml + "?v=2.9.0_r240_" + System.currentTimeMillis();
+                  String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/" + entryHtml + "?v=2.9.1_r241_" + System.currentTimeMillis();
                   if (intent != null && intent.getData() != null) {
                       Uri data = intent.getData();
                       String q = data.getEncodedQuery();
@@ -2212,7 +2212,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
           if ! git diff --cached --quiet; then
-            git commit -m "chore(release): publish v2.9.0-r240 web & signed apks"
+            git commit -m "chore(release): publish v2.9.1-r241 web & signed apks"
             git pull --rebase origin "${GITHUB_REF_NAME:-main}" || true
             git push origin HEAD:"${GITHUB_REF_NAME:-main}"
           fi

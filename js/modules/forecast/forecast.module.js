@@ -2077,7 +2077,7 @@ export function renderWeek(container) {
           <div class="bento-card-title"><span>Календарь клёва по дням (10 дней + Архив) • ${fish.name}</span></div>
 
         </div>
-        <button type="button" class="btn btn-sm" id="fcCleanArchiveBtn" title="Очистить старый архив погоды, кроме последних 5 дней"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> Очистить кэш</button>
+        
       </div>
       <div class="week-strip">
         ${days.map((d, idx) => {

@@ -1498,3 +1498,434 @@ html[data-liquid-glass="0"] .bottom-nav-inner {
   -webkit-text-size-adjust: 100% !important;
   text-size-adjust: 100% !important;
 }
+
+/* ==========================================================================
+   КЛЁВ ПРО 2.0 • v2.9.1 (r241) TACTILE GLASSMORPHISM & ADAPTIVE VIEWPORTS
+   Десктопный режим (html[data-desktop-web="1"]) сохранён без изменений.
+   ========================================================================== */
+
+/* 1. Замена всех чекбоксов на стеклянные тумблеры-переключатели (.klev-switch) */
+input[type="checkbox"],
+.klev-switch {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  width: 38px !important;
+  height: 22px !important;
+  min-width: 38px !important;
+  min-height: 22px !important;
+  border-radius: 999px !important;
+  background: rgba(148, 163, 184, 0.28) !important;
+  border: 1px solid rgba(148, 163, 184, 0.45) !important;
+  position: relative !important;
+  cursor: pointer !important;
+  transition: background 0.22s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.22s ease, box-shadow 0.22s ease !important;
+  flex-shrink: 0 !important;
+  vertical-align: middle !important;
+  margin: 0 !important;
+  outline: none !important;
+}
+input[type="checkbox"]::after,
+.klev-switch::after {
+  content: "" !important;
+  position: absolute !important;
+  top: 2px !important;
+  left: 2px !important;
+  width: 16px !important;
+  height: 16px !important;
+  border-radius: 50% !important;
+  background: #ffffff !important;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.32) !important;
+  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+input[type="checkbox"]:checked,
+.klev-switch:checked {
+  background: linear-gradient(135deg, var(--accent, #38bdf8), var(--good, #10b981)) !important;
+  border-color: var(--accent, #38bdf8) !important;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.35) !important;
+}
+input[type="checkbox"]:checked::after,
+.klev-switch:checked::after {
+  transform: translateX(16px) !important;
+}
+
+/* 2. Безопасная позиция тост-уведомлений над нижним доком (bottom: 84px) */
+.toast-container,
+#toastContainer {
+  bottom: calc(84px + env(safe-area-inset-bottom, 0px)) !important;
+  max-width: min(420px, 92vw) !important;
+  z-index: 2200 !important;
+}
+
+/* 3. Живой сонар на главном экране прогноза (#bentoHeroSonarStage) */
+.bento-hero-sonar-stage {
+  position: relative;
+  width: 228px;
+  height: 228px;
+  margin: 4px auto 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.bento-hero-sonar-canvas {
+  width: 228px;
+  height: 228px;
+  display: block;
+}
+.bento-hero-sonar-center-pct {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  font-weight: 900;
+  font-size: 32px;
+  letter-spacing: -0.03em;
+  color: var(--text, #f8fafc);
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+}
+[data-theme="light"] .bento-hero-sonar-center-pct {
+  color: #0f172a;
+  text-shadow: 0 1px 4px rgba(255, 255, 255, 0.85);
+}
+[data-theme="contrast"] .bento-hero-sonar-center-pct {
+  color: #ffffff;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.9);
+}
+
+/* Утренний и вечерний пики под живым сонаром */
+.bento-hero-peaks-duo {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  width: 100%;
+  margin-top: 6px;
+}
+.bento-hero-peak-pill {
+  padding: 8px 10px;
+  border-radius: 14px;
+  background: var(--panel, rgba(15, 23, 42, 0.72));
+  border: 1px solid var(--border, rgba(56, 189, 248, 0.25));
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 4. Внутренние 4 вкладки экрана «Прогноз» (Обзор | Снасти | 10 дней | Погода) */
+.klev-fc-subtabs-bar {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  border-radius: 14px;
+  background: var(--panel, rgba(15, 23, 42, 0.78));
+  border: 1px solid var(--border, rgba(56, 189, 248, 0.24));
+  margin: 8px 0 10px;
+}
+.klev-fc-subtab-btn {
+  appearance: none;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted, #94a3b8);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  min-height: 34px;
+  padding: 4px 2px;
+  border-radius: 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.klev-fc-subtab-btn.active {
+  background: var(--card, rgba(30, 41, 59, 0.92));
+  color: var(--text, #f8fafc);
+  border-color: var(--accent, #38bdf8);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.22);
+}
+
+/* На десктопе (html[data-desktop-web="1"]) 4 подвкладки скрыты, все блоки прогноза видны одновременно */
+html[data-desktop-web="1"] .klev-fc-subtabs-bar,
+html[data-desktop-web="1"] .klev-mobile-only-loc-bar {
+  display: none !important;
+}
+
+/* На мобильных, планшетах и раскладушках (html:not([data-desktop-web="1"])) — чистая шапка и фильтрация по 4 вкладкам */
+html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) #topSectionNavBar {
+  display: none !important;
+}
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="overview"] #fcTackleControlsCard,
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="overview"] .bento-tactical-advice-wrap,
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="overview"] #fcWeekBox,
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="overview"] .bento-bottom-duo {
+  display: none !important;
+}
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="tackle"] #bentoWaveChartCard,
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="tackle"] #fcHourlyBox,
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="tackle"] #fcWeekBox,
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="tackle"] .bento-bottom-duo {
+  display: none !important;
+}
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="days10"] #bentoWaveChartCard,
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="days10"] #fcTackleControlsCard,
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="days10"] .bento-tactical-advice-wrap,
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="days10"] .bento-bottom-duo {
+  display: none !important;
+}
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="weather"] #bentoWaveChartCard,
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="weather"] #fcHourlyBox,
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="weather"] #fcTackleControlsCard,
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="weather"] .bento-tactical-advice-wrap,
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="weather"] #fcWeekBox {
+  display: none !important;
+}
+
+/* 5. Нижний док из 4 разделов на мобильных/планшетах (Прогноз | Карта | Журнал | Меню) */
+html:not([data-desktop-web="1"]) .bottom-nav #navCircleChatsHubBtn,
+html:not([data-desktop-web="1"]) .bottom-nav #bottomQuickSosBtn {
+  display: none !important;
+}
+html:not([data-desktop-web="1"]) .bottom-nav-inner {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  height: 64px !important;
+  min-height: 64px !important;
+  align-items: center !important;
+}
+html[data-desktop-web="1"] #bottomNavMenuTriggerBtn {
+  display: none !important;
+}
+
+/* 6. Компактное всплывающее окно «Меню» (#klevCompactMenuBackdrop — НЕ перекрывает весь экран, без дублей) */
+#klevCompactMenuBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1950;
+  background: rgba(2, 6, 23, 0.36);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: none;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 12px 12px calc(76px + env(safe-area-inset-bottom, 0px));
+}
+#klevCompactMenuBackdrop.open {
+  display: flex;
+}
+.klev-compact-menu-sheet {
+  width: 100%;
+  max-width: 386px;
+  border-radius: 22px;
+  padding: 13px 14px;
+  background: var(--panel, rgba(15, 23, 42, 0.92));
+  border: 1px solid var(--border, rgba(56, 189, 248, 0.34));
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  animation: klevMenuPopUp 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes klevMenuPopUp {
+  from { opacity: 0; transform: translateY(16px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.klev-compact-menu-grid5 {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+.klev-compact-menu-item {
+  appearance: none;
+  background: var(--card, rgba(30, 41, 59, 0.75));
+  border: 1px solid var(--border, rgba(56, 189, 248, 0.24));
+  border-radius: 14px;
+  padding: 8px 3px 7px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  color: var(--text, #f8fafc);
+  font-family: inherit;
+  font-size: 10.5px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+}
+.klev-compact-menu-item:active,
+.klev-compact-menu-item.active {
+  transform: scale(0.96);
+  border-color: var(--accent, #38bdf8);
+}
+.klev-compact-menu-ico {
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(56, 189, 248, 0.12);
+  color: var(--accent, #38bdf8);
+}
+.klev-compact-menu-ico svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* Гибридный защищённый ползунок SOS (свайп вправо ИЛИ удержание 2 сек) */
+.klev-hybrid-sos-track {
+  position: relative;
+  height: 46px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(127, 29, 29, 0.72), rgba(220, 38, 38, 0.28));
+  border: 1.5px solid rgba(239, 68, 68, 0.58);
+  display: flex;
+  align-items: center;
+  padding: 3px;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: pan-y;
+}
+.klev-hybrid-sos-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 0%;
+  background: linear-gradient(90deg, rgba(239, 68, 68, 0.65), rgba(220, 38, 38, 0.85));
+  pointer-events: none;
+  transition: width 0.08s linear;
+}
+.klev-hybrid-sos-knob {
+  position: relative;
+  z-index: 2;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ef4444, #b91c1c);
+  border: 1.5px solid #fca5a5;
+  color: #ffffff;
+  font-weight: 900;
+  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 3px 10px rgba(220, 38, 38, 0.55);
+  cursor: grab;
+  flex-shrink: 0;
+}
+.klev-hybrid-sos-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-left: 34px;
+  font-size: 11.5px;
+  font-weight: 800;
+  color: #fecaca;
+  pointer-events: none;
+  text-align: center;
+}
+
+/* 7. Компактная однострочная лента 6 плашек внизу карты (#arcCompactPillsStrip) */
+.klev-arc-single-pills-strip {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  overflow-x: auto;
+  padding: 4px 2px 6px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.klev-arc-single-pills-strip::-webkit-scrollbar {
+  display: none;
+}
+.klev-arc-single-pill {
+  appearance: none;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: var(--panel, rgba(15, 23, 42, 0.86));
+  border: 1px solid var(--border, rgba(56, 189, 248, 0.32));
+  color: var(--text, #f8fafc);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  flex-shrink: 0;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+.klev-arc-single-pill.active {
+  border-color: var(--accent, #38bdf8);
+  color: var(--accent, #38bdf8);
+}
+
+/* 8. Горизонтальный режим (Landscape) для планшетов, больших смартфонов и складных экранов (Flip / Fold) */
+@media (orientation: landscape) and (max-width: 1180px) {
+  html:not([data-desktop-web="1"]) #secForecast .bento-dashboard-wrap {
+    display: grid !important;
+    grid-template-columns: minmax(275px, 340px) minmax(0, 1fr) !important;
+    gap: 12px !important;
+    align-items: start !important;
+  }
+  html:not([data-desktop-web="1"]) #secForecast .bento-top-species-strip,
+  html:not([data-desktop-web="1"]) #secForecast .klev-fc-subtabs-bar {
+    grid-column: 1 / -1 !important;
+  }
+  html:not([data-desktop-web="1"]) #secForecast #bentoSwipeHeroCard {
+    grid-column: 1 / 2 !important;
+    position: sticky !important;
+    top: 64px !important;
+    margin-bottom: 0 !important;
+  }
+  html:not([data-desktop-web="1"]) #secForecast #bentoWaveChartCard,
+  html:not([data-desktop-web="1"]) #secForecast #fcTackleControlsCard,
+  html:not([data-desktop-web="1"]) #secForecast .bento-tactical-advice-wrap,
+  html:not([data-desktop-web="1"]) #secForecast .bento-bottom-duo {
+    grid-column: 2 / 3 !important;
+  }
+  html:not([data-desktop-web="1"]) .bento-hero-sonar-stage,
+  html:not([data-desktop-web="1"]) .bento-hero-sonar-canvas {
+    width: 196px !important;
+    height: 196px !important;
+  }
+}
+
+/* 9. Задний / Внешний мини-экран (Xiaomi 18 Pro Max Rear Screen & Flip Cover Screen: <= 340x360 или data-rear-screen="1") */
+#klevRearScreenHud {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 2600;
+  background: var(--bg, #07111f);
+  background-image: var(--bg-grad);
+  color: var(--text, #f8fafc);
+  padding: 10px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  text-align: center;
+  overflow: hidden;
+}
+html[data-rear-screen="1"] #klevRearScreenHud {
+  display: flex !important;
+}
+@media (max-width: 340px) and (max-height: 360px) {
+  #klevRearScreenHud {
+    display: flex !important;
+  }
+}
+

@@ -72,7 +72,7 @@
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta http-equiv="X-Content-Type-Options" content="nosniff">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: blob:; script-src 'self' 'unsafe-inline' https://telegram.org https://yastatic.net https://cdn.jsdelivr.net https://appassets.androidplatform.net; style-src 'self' 'unsafe-inline' https://yastatic.net https://cdn.jsdelivr.net https://appassets.androidplatform.net; img-src 'self' data: blob: https:; connect-src 'self' https: data: blob: https://klevpro.ru https://www.klevpro.ru https://xn--b1apdneg0j.xn--p1ai https://api.github.com https://klevprohbot.thorantony82.workers.dev https://*.workers.dev https://generativelanguage.googleapis.com https://text.pollinations.ai https://ia-thor.github.io https://api.open-meteo.com https://archive-api.open-meteo.com https://api.met.no https://allorigins.hexlet.app https://*.hexlet.app https://corsproxy-seven.vercel.app https://every-origin.vercel.app https://*.vercel.app https://script.google.com https://script.googleusercontent.com https://*.yandexcloud.net https://maps.mail.ru https://overpass.kumi.systems https://overpass.private.coffee https://overpass-api.de https://nominatim.openstreetmap.org https://api.bigdatacloud.net https://ipwho.is https://ipapi.co https://raw.githubusercontent.com https://github.com https://*.githubusercontent.com https://appassets.androidplatform.net;">
-    <meta http-equiv="Content-Security-Policy-Report-Only" content="default-src 'self' https: data: blob:; script-src 'self' https://telegram.org https://yastatic.net https://cdn.jsdelivr.net 'unsafe-inline' 'sha256-pWKZ46dD0R3uv61NCqhg1MHP4J923JawuTmmWbluAow=' 'sha256-6Mkbo9GX9dP2MukdCe4SdtDNWeFZqYA7905dFInLkag=' 'sha256-R1kHqnyRfUGr0K34JNjLoGcS2pGaCYyFoPFh941cyb4=' 'sha256-OG7YhXtKbyYnZ5GautT/oaA7nAp5wnCu8KFhe6u08fM=' 'sha256-4L1QcdthLZBsJi1xH/VRvymSsedJyO98Iqdpy3srCmc='; style-src 'self' https: 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'self' https: wss:;">
+    <meta http-equiv="Content-Security-Policy-Report-Only" content="default-src 'self' https: data: blob:; script-src 'self' https://telegram.org https://yastatic.net https://cdn.jsdelivr.net 'unsafe-inline' 'sha256-pWKZ46dD0R3uv61NCqhg1MHP4J923JawuTmmWbluAow=' 'sha256-uVErl6iKuVjV5O5MVKeUizPkSUPuChBGdaJ76pQfiqY=' 'sha256-R1kHqnyRfUGr0K34JNjLoGcS2pGaCYyFoPFh941cyb4=' 'sha256-OG7YhXtKbyYnZ5GautT/oaA7nAp5wnCu8KFhe6u08fM=' 'sha256-Q/auiEQiE8rU0ewycQaOnEtBXLOMe6wEDXa95O6E7oI='; style-src 'self' https: 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'self' https: wss:;">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
   <meta name="theme-color" content="#0b1120">
   <meta name="mobile-web-app-capable" content="yes">
@@ -109,7 +109,7 @@
     "applicationCategory": "SportsApplication",
     "operatingSystem": "Android, iOS, Windows, Web",
     "inLanguage": "ru-RU",
-    "softwareVersion": "2.9.0-r240",
+    "softwareVersion": "2.9.1-r241",
     "contentRating": "12+",
     "image": "https://klevpro.ru/icon-admin-512.png",
     "downloadUrl": "https://klevpro.ru/apk/klev-pro-v2.5.6.apk",
@@ -121,9 +121,9 @@
   }
   </script>
   <script src="https://telegram.org/js/telegram-web-app.js" async onload="window.__KLEV_ON_TG_SDK_LOAD__&&window.__KLEV_ON_TG_SDK_LOAD__()"></script>
-  <link rel="manifest" href="manifest.json?v=2.9.0-r240">
-  <link id="dynamicFavicon" rel="icon" type="image/png" sizes="192x192" href="icon-admin-192.png?v=2.9.0-r240">
-  <link id="dynamicTouchIcon" rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=2.9.0-r240">
+  <link rel="manifest" href="manifest.json?v=2.9.1-r241">
+  <link id="dynamicFavicon" rel="icon" type="image/png" sizes="192x192" href="icon-admin-192.png?v=2.9.1-r241">
+  <link id="dynamicTouchIcon" rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=2.9.1-r241">
   <script>
     window.__KLEV_ADMIN_CONTOUR__ = true;
     try { localStorage.setItem('klev_pro_admin_contour_unlocked_v1', '1'); } catch (_) {}
@@ -204,7 +204,7 @@
         if ((inApkNow || localStorage.getItem(MIGRATION_KEY) !== '1') && 'caches' in window) {
           caches.keys().then(function(keys) {
             return Promise.all(
-              keys.map(function(k) { return (k === 'klev-pro-v2.9.0-r240-static' && !inApkNow) ? Promise.resolve() : caches.delete(k); })
+              keys.map(function(k) { return (k === 'klev-pro-v2.9.1-r241-static' && !inApkNow) ? Promise.resolve() : caches.delete(k); })
             );
           }).then(function() {
             localStorage.setItem(MIGRATION_KEY, '1');
@@ -213,10 +213,10 @@
       } catch (e) {}
     })();
   </script>
-  <link rel="stylesheet" href="css/tokens.css?v=2.9.0-r240">
-  <link rel="stylesheet" href="css/base.css?v=2.9.0-r240">
-  <link rel="stylesheet" href="css/components.css?v=2.9.0-r240">
-  <link rel="stylesheet" href="css/layout.css?v=2.9.0-r240">
+  <link rel="stylesheet" href="css/tokens.css?v=2.9.1-r241">
+  <link rel="stylesheet" href="css/base.css?v=2.9.1-r241">
+  <link rel="stylesheet" href="css/components.css?v=2.9.1-r241">
+  <link rel="stylesheet" href="css/layout.css?v=2.9.1-r241">
   <style id="klevCoreBundledCss">
 :root,
 [data-theme="dark"] {
@@ -4432,6 +4432,437 @@ html[data-scroll-compact="1"]:not([data-arc-map-active="1"]) .bottom-nav {
     .leaflet-popup-content{margin:10px 12px;line-height:1.35;font-size:12px;min-width:190px}
     .leaflet-div-icon{background:transparent;border:none}
     #mapBox[data-ymap-layer="yandex_dark"] img.klev-base-tile-layer[data-offline-hit="1"],#mapBox[data-ymap-layer="yandex_dark"] img.klev-base-tile-layer[data-offline-overzoom]{filter:invert(0.92) hue-rotate(185deg) saturate(1.15) brightness(0.88) contrast(1.15)}
+
+/* ==========================================================================
+   КЛЁВ ПРО 2.0 • v2.9.1 (r241) TACTILE GLASSMORPHISM & ADAPTIVE VIEWPORTS
+   Десктопный режим (html[data-desktop-web="1"]) сохранён без изменений.
+   ========================================================================== */
+
+/* 1. Замена всех чекбоксов на стеклянные тумблеры-переключатели (.klev-switch) */
+input[type="checkbox"],
+.klev-switch {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  width: 38px !important;
+  height: 22px !important;
+  min-width: 38px !important;
+  min-height: 22px !important;
+  border-radius: 999px !important;
+  background: rgba(148, 163, 184, 0.28) !important;
+  border: 1px solid rgba(148, 163, 184, 0.45) !important;
+  position: relative !important;
+  cursor: pointer !important;
+  transition: background 0.22s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.22s ease, box-shadow 0.22s ease !important;
+  flex-shrink: 0 !important;
+  vertical-align: middle !important;
+  margin: 0 !important;
+  outline: none !important;
+}
+input[type="checkbox"]::after,
+.klev-switch::after {
+  content: "" !important;
+  position: absolute !important;
+  top: 2px !important;
+  left: 2px !important;
+  width: 16px !important;
+  height: 16px !important;
+  border-radius: 50% !important;
+  background: #ffffff !important;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.32) !important;
+  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+input[type="checkbox"]:checked,
+.klev-switch:checked {
+  background: linear-gradient(135deg, var(--accent, #38bdf8), var(--good, #10b981)) !important;
+  border-color: var(--accent, #38bdf8) !important;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.35) !important;
+}
+input[type="checkbox"]:checked::after,
+.klev-switch:checked::after {
+  transform: translateX(16px) !important;
+}
+
+/* 2. Безопасная позиция тост-уведомлений над нижним доком (bottom: 84px) */
+.toast-container,
+#toastContainer {
+  bottom: calc(84px + env(safe-area-inset-bottom, 0px)) !important;
+  max-width: min(420px, 92vw) !important;
+  z-index: 2200 !important;
+}
+
+/* 3. Живой сонар на главном экране прогноза (#bentoHeroSonarStage) */
+.bento-hero-sonar-stage {
+  position: relative;
+  width: 228px;
+  height: 228px;
+  margin: 4px auto 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.bento-hero-sonar-canvas {
+  width: 228px;
+  height: 228px;
+  display: block;
+}
+.bento-hero-sonar-center-pct {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  font-weight: 900;
+  font-size: 32px;
+  letter-spacing: -0.03em;
+  color: var(--text, #f8fafc);
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+}
+[data-theme="light"] .bento-hero-sonar-center-pct {
+  color: #0f172a;
+  text-shadow: 0 1px 4px rgba(255, 255, 255, 0.85);
+}
+[data-theme="contrast"] .bento-hero-sonar-center-pct {
+  color: #ffffff;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.9);
+}
+
+/* Утренний и вечерний пики под живым сонаром */
+.bento-hero-peaks-duo {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  width: 100%;
+  margin-top: 6px;
+}
+.bento-hero-peak-pill {
+  padding: 8px 10px;
+  border-radius: 14px;
+  background: var(--panel, rgba(15, 23, 42, 0.72));
+  border: 1px solid var(--border, rgba(56, 189, 248, 0.25));
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 4. Внутренние 4 вкладки экрана «Прогноз» (Обзор | Снасти | 10 дней | Погода) */
+.klev-fc-subtabs-bar {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  border-radius: 14px;
+  background: var(--panel, rgba(15, 23, 42, 0.78));
+  border: 1px solid var(--border, rgba(56, 189, 248, 0.24));
+  margin: 8px 0 10px;
+}
+.klev-fc-subtab-btn {
+  appearance: none;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted, #94a3b8);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  min-height: 34px;
+  padding: 4px 2px;
+  border-radius: 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.klev-fc-subtab-btn.active {
+  background: var(--card, rgba(30, 41, 59, 0.92));
+  color: var(--text, #f8fafc);
+  border-color: var(--accent, #38bdf8);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.22);
+}
+
+/* На десктопе (html[data-desktop-web="1"]) 4 подвкладки скрыты, все блоки прогноза видны одновременно */
+html[data-desktop-web="1"] .klev-fc-subtabs-bar,
+html[data-desktop-web="1"] .klev-mobile-only-loc-bar {
+  display: none !important;
+}
+
+/* На мобильных, планшетах и раскладушках (html:not([data-desktop-web="1"])) — чистая шапка и фильтрация по 4 вкладкам */
+html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) #topSectionNavBar {
+  display: none !important;
+}
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="overview"] #fcTackleControlsCard,
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="overview"] .bento-tactical-advice-wrap,
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="overview"] #fcWeekBox,
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="overview"] .bento-bottom-duo {
+  display: none !important;
+}
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="tackle"] #bentoWaveChartCard,
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="tackle"] #fcHourlyBox,
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="tackle"] #fcWeekBox,
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="tackle"] .bento-bottom-duo {
+  display: none !important;
+}
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="days10"] #bentoWaveChartCard,
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="days10"] #fcTackleControlsCard,
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="days10"] .bento-tactical-advice-wrap,
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="days10"] .bento-bottom-duo {
+  display: none !important;
+}
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="weather"] #bentoWaveChartCard,
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="weather"] #fcHourlyBox,
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="weather"] #fcTackleControlsCard,
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="weather"] .bento-tactical-advice-wrap,
+html:not([data-desktop-web="1"]) #secForecast[data-fc-subtab="weather"] #fcWeekBox {
+  display: none !important;
+}
+
+/* 5. Нижний док из 4 разделов на мобильных/планшетах (Прогноз | Карта | Журнал | Меню) */
+html:not([data-desktop-web="1"]) .bottom-nav #navCircleChatsHubBtn,
+html:not([data-desktop-web="1"]) .bottom-nav #bottomQuickSosBtn {
+  display: none !important;
+}
+html:not([data-desktop-web="1"]) .bottom-nav-inner {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  height: 64px !important;
+  min-height: 64px !important;
+  align-items: center !important;
+}
+html[data-desktop-web="1"] #bottomNavMenuTriggerBtn {
+  display: none !important;
+}
+
+/* 6. Компактное всплывающее окно «Меню» (#klevCompactMenuBackdrop — НЕ перекрывает весь экран, без дублей) */
+#klevCompactMenuBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1950;
+  background: rgba(2, 6, 23, 0.36);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: none;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 12px 12px calc(76px + env(safe-area-inset-bottom, 0px));
+}
+#klevCompactMenuBackdrop.open {
+  display: flex;
+}
+.klev-compact-menu-sheet {
+  width: 100%;
+  max-width: 386px;
+  border-radius: 22px;
+  padding: 13px 14px;
+  background: var(--panel, rgba(15, 23, 42, 0.92));
+  border: 1px solid var(--border, rgba(56, 189, 248, 0.34));
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  animation: klevMenuPopUp 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes klevMenuPopUp {
+  from { opacity: 0; transform: translateY(16px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.klev-compact-menu-grid5 {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+.klev-compact-menu-item {
+  appearance: none;
+  background: var(--card, rgba(30, 41, 59, 0.75));
+  border: 1px solid var(--border, rgba(56, 189, 248, 0.24));
+  border-radius: 14px;
+  padding: 8px 3px 7px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  color: var(--text, #f8fafc);
+  font-family: inherit;
+  font-size: 10.5px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+}
+.klev-compact-menu-item:active,
+.klev-compact-menu-item.active {
+  transform: scale(0.96);
+  border-color: var(--accent, #38bdf8);
+}
+.klev-compact-menu-ico {
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(56, 189, 248, 0.12);
+  color: var(--accent, #38bdf8);
+}
+.klev-compact-menu-ico svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* Гибридный защищённый ползунок SOS (свайп вправо ИЛИ удержание 2 сек) */
+.klev-hybrid-sos-track {
+  position: relative;
+  height: 46px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(127, 29, 29, 0.72), rgba(220, 38, 38, 0.28));
+  border: 1.5px solid rgba(239, 68, 68, 0.58);
+  display: flex;
+  align-items: center;
+  padding: 3px;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: pan-y;
+}
+.klev-hybrid-sos-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 0%;
+  background: linear-gradient(90deg, rgba(239, 68, 68, 0.65), rgba(220, 38, 38, 0.85));
+  pointer-events: none;
+  transition: width 0.08s linear;
+}
+.klev-hybrid-sos-knob {
+  position: relative;
+  z-index: 2;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ef4444, #b91c1c);
+  border: 1.5px solid #fca5a5;
+  color: #ffffff;
+  font-weight: 900;
+  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 3px 10px rgba(220, 38, 38, 0.55);
+  cursor: grab;
+  flex-shrink: 0;
+}
+.klev-hybrid-sos-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-left: 34px;
+  font-size: 11.5px;
+  font-weight: 800;
+  color: #fecaca;
+  pointer-events: none;
+  text-align: center;
+}
+
+/* 7. Компактная однострочная лента 6 плашек внизу карты (#arcCompactPillsStrip) */
+.klev-arc-single-pills-strip {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  overflow-x: auto;
+  padding: 4px 2px 6px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.klev-arc-single-pills-strip::-webkit-scrollbar {
+  display: none;
+}
+.klev-arc-single-pill {
+  appearance: none;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: var(--panel, rgba(15, 23, 42, 0.86));
+  border: 1px solid var(--border, rgba(56, 189, 248, 0.32));
+  color: var(--text, #f8fafc);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  flex-shrink: 0;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+.klev-arc-single-pill.active {
+  border-color: var(--accent, #38bdf8);
+  color: var(--accent, #38bdf8);
+}
+
+/* 8. Горизонтальный режим (Landscape) для планшетов, больших смартфонов и складных экранов (Flip / Fold) */
+@media (orientation: landscape) and (max-width: 1180px) {
+  html:not([data-desktop-web="1"]) #secForecast .bento-dashboard-wrap {
+    display: grid !important;
+    grid-template-columns: minmax(275px, 340px) minmax(0, 1fr) !important;
+    gap: 12px !important;
+    align-items: start !important;
+  }
+  html:not([data-desktop-web="1"]) #secForecast .bento-top-species-strip,
+  html:not([data-desktop-web="1"]) #secForecast .klev-fc-subtabs-bar {
+    grid-column: 1 / -1 !important;
+  }
+  html:not([data-desktop-web="1"]) #secForecast #bentoSwipeHeroCard {
+    grid-column: 1 / 2 !important;
+    position: sticky !important;
+    top: 64px !important;
+    margin-bottom: 0 !important;
+  }
+  html:not([data-desktop-web="1"]) #secForecast #bentoWaveChartCard,
+  html:not([data-desktop-web="1"]) #secForecast #fcTackleControlsCard,
+  html:not([data-desktop-web="1"]) #secForecast .bento-tactical-advice-wrap,
+  html:not([data-desktop-web="1"]) #secForecast .bento-bottom-duo {
+    grid-column: 2 / 3 !important;
+  }
+  html:not([data-desktop-web="1"]) .bento-hero-sonar-stage,
+  html:not([data-desktop-web="1"]) .bento-hero-sonar-canvas {
+    width: 196px !important;
+    height: 196px !important;
+  }
+}
+
+/* 9. Задний / Внешний мини-экран (Xiaomi 18 Pro Max Rear Screen & Flip Cover Screen: <= 340x360 или data-rear-screen="1") */
+#klevRearScreenHud {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 2600;
+  background: var(--bg, #07111f);
+  background-image: var(--bg-grad);
+  color: var(--text, #f8fafc);
+  padding: 10px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  text-align: center;
+  overflow: hidden;
+}
+html[data-rear-screen="1"] #klevRearScreenHud {
+  display: flex !important;
+}
+@media (max-width: 340px) and (max-height: 360px) {
+  #klevRearScreenHud {
+    display: flex !important;
+  }
+}
+
   </style>
   <script>
     (function() {
@@ -5106,6 +5537,151 @@ html[data-scroll-compact="1"]:not([data-arc-map-active="1"]) .bottom-nav {
     })();
   </script>
 </head>
+  <!-- СПРАЙТ 26 ВЕКТОРНЫХ ИКОНОК КЛЁВ ПРО 2.0 (v2.9.1 r241 Tactile Glassmorphism: 9 меню + 17 карта) -->
+  <svg id="klevRedesignSvgSprite" xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+    <!-- 9 ИКОНОК МЕНЮ + ИКОНКА СЕТКИ МЕНЮ -->
+    <symbol id="icon-map" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21 3 6"/>
+      <line x1="9" y1="3" x2="9" y2="18"/>
+      <line x1="15" y1="6" x2="15" y2="21"/>
+    </symbol>
+    <symbol id="icon-weather" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>
+      <path d="M12 3v1.5M5.6 5.6l1.1 1.1M3 12h1.5"/>
+    </symbol>
+    <symbol id="icon-forecast" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 20C5 11 11 5 20 4"/>
+      <path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3"/>
+      <circle cx="14" cy="16" r="2.2"/>
+    </symbol>
+    <symbol id="icon-chats" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+    </symbol>
+    <symbol id="icon-sos" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="9"/>
+      <path d="M8.5 10.5c-.8-.6-2-.2-2 .7 0 1.3 2.5.9 2.5 2.3 0 .9-1.2 1.3-2 .7"/>
+      <circle cx="12" cy="12" r="1.7"/>
+      <path d="M17.5 10.5c-.8-.6-2-.2-2 .7 0 1.3 2.5.9 2.5 2.3 0 .9-1.2 1.3-2 .7"/>
+    </symbol>
+    <symbol id="icon-journal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="5" y="3" width="14" height="18" rx="2.5"/>
+      <line x1="9" y1="8" x2="15" y2="8"/>
+      <line x1="9" y1="12" x2="15" y2="12"/>
+      <line x1="9" y1="16" x2="13" y2="16"/>
+      <line x1="3" y1="7" x2="5" y2="7"/>
+      <line x1="3" y1="12" x2="5" y2="12"/>
+      <line x1="3" y1="17" x2="5" y2="17"/>
+    </symbol>
+    <symbol id="icon-fish" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 12s4-6 10.5-6c4 0 6.8 2.4 8.5 6-1.7 3.6-4.5 6-8.5 6C7 18 3 12 3 12Z"/>
+      <path d="M3 12 1.2 8.8M3 12l-1.8 3.2"/>
+      <circle cx="16.5" cy="10.8" r="1"/>
+    </symbol>
+    <symbol id="icon-calendar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="5" width="18" height="16" rx="2.5"/>
+      <line x1="3" y1="10" x2="21" y2="10"/>
+      <line x1="8" y1="3" x2="8" y2="6.5"/>
+      <line x1="16" y1="3" x2="16" y2="6.5"/>
+      <circle cx="8.5" cy="14.5" r="1"/>
+      <circle cx="12" cy="14.5" r="1"/>
+      <circle cx="15.5" cy="14.5" r="1"/>
+    </symbol>
+    <symbol id="icon-settings" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="3"/>
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.6.77 1.05 1.41 1.19H21a2 2 0 1 1 0 4h-.09c-.64.14-1.15.59-1.51 1.21z"/>
+    </symbol>
+    <symbol id="icon-menu-grid" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="4" y="4" width="6.5" height="6.5" rx="1.8"/>
+      <rect x="13.5" y="4" width="6.5" height="6.5" rx="1.8"/>
+      <rect x="4" y="13.5" width="6.5" height="6.5" rx="1.8"/>
+      <rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.8"/>
+    </symbol>
+
+    <!-- 17 ИКОНОК КАРТЫ И ТРАНСПОРТА -->
+    <symbol id="map-gps" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="7"/>
+      <circle cx="12" cy="12" r="2.2"/>
+      <line x1="12" y1="2" x2="12" y2="5"/>
+      <line x1="12" y1="19" x2="12" y2="22"/>
+      <line x1="2" y1="12" x2="5" y2="12"/>
+      <line x1="19" y1="12" x2="22" y2="12"/>
+    </symbol>
+    <symbol id="map-compass" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="9"/>
+      <polygon points="15.8 8.2 13.5 13.5 8.2 15.8 10.5 10.5 15.8 8.2"/>
+    </symbol>
+    <symbol id="map-pins" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10Z"/>
+      <line x1="12" y1="8.5" x2="12" y2="13.5"/>
+      <line x1="9.5" y1="11" x2="14.5" y2="11"/>
+    </symbol>
+    <symbol id="map-layers" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <polygon points="12 3 3 8 12 13 21 8 12 3"/>
+      <polyline points="3 13 12 18 21 13"/>
+      <polyline points="3 17.5 12 22.5 21 17.5"/>
+    </symbol>
+    <symbol id="map-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="11" cy="11" r="7"/>
+      <line x1="16.2" y1="16.2" x2="21" y2="21"/>
+    </symbol>
+    <symbol id="point-slip" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 17l18 3"/>
+      <path d="M6 12h11l3 4H8l-2-4Z"/>
+      <path d="M9 12l2-3h4l1 3"/>
+    </symbol>
+    <symbol id="point-snag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 18c2-1.2 4-1.2 6 0s4 1.2 6 0 4-1.2 6 0"/>
+      <path d="M11 18V7l-4-3M11 12l5-4M14 10l3 2"/>
+    </symbol>
+    <symbol id="point-camp" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <polygon points="12 4 3 19 21 19 12 4"/>
+      <polyline points="9.5 19 12 13.5 14.5 19"/>
+    </symbol>
+    <symbol id="point-danger" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <polygon points="12 3.5 2.8 19.5 21.2 19.5 12 3.5"/>
+      <line x1="12" y1="9" x2="12" y2="14"/>
+      <circle cx="12" cy="16.8" r="0.8"/>
+    </symbol>
+    <symbol id="point-spot" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 4v11a3.5 3.5 0 0 1-7 0v-1"/>
+      <polyline points="5 14 5 11.5 7.5 13"/>
+      <circle cx="12" cy="4" r="1.5"/>
+      <path d="M15 9s2-1.5 4.5 0c-1 1.5-2.5 2-4.5 0Z"/>
+    </symbol>
+    <symbol id="point-shop" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M6 8h12l-1 12H7L6 8Z"/>
+      <path d="M9 8V6a3 3 0 0 1 6 0v2"/>
+    </symbol>
+    <symbol id="map-weather" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M14 14.76V5.5a2.5 2.5 0 0 0-5 0v9.26a4.5 4.5 0 1 0 5 0Z"/>
+      <line x1="11.5" y1="8" x2="11.5" y2="16"/>
+    </symbol>
+    <symbol id="transport-car" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M5 16l1.5-5.5A2 2 0 0 1 8.4 9h7.2a2 2 0 0 1 1.9 1.5L19 16"/>
+      <rect x="3" y="15" width="18" height="4" rx="1.5"/>
+      <circle cx="7" cy="19" r="1.8"/>
+      <circle cx="17" cy="19" r="1.8"/>
+    </symbol>
+    <symbol id="transport-snowmobile" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 15h11l3-4-4-2-3 2H6l-2 4Z"/>
+      <path d="M14 9l-2-3H9"/>
+      <rect x="3" y="17" width="11" height="2.5" rx="1.2"/>
+      <path d="M15 19.5h6l1.5-1.5"/>
+    </symbol>
+    <symbol id="transport-boat" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 14h18l-3 4H6l-3-4Z"/>
+      <path d="M12 4v10M12 5l6 6h-6"/>
+    </symbol>
+    <symbol id="transport-bicycle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="6.5" cy="17.5" r="3.2"/>
+      <circle cx="17.5" cy="17.5" r="3.2"/>
+      <path d="M6.5 17.5 10 11h5l2.5 6.5M10 11l2 6.5h-5.5"/>
+    </symbol>
+    <symbol id="transport-walk" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="4.5" r="1.8"/>
+      <path d="M10 9.5 12 8l3 2.5 1.8 3M12 8l-1 5.5 3.5 3 1 4.5M11 13.5 8 21"/>
+    </symbol>
+  </svg>
 <body>
   <style id="klevDynamicSonarSplashCss">
     #appSplashScreen.app-splash-screen {
@@ -5369,7 +5945,7 @@ html[data-scroll-compact="1"]:not([data-arc-map-active="1"]) .bottom-nav {
 
       // Фиксированные параметры по утверждённому ТЗ: размер щуки 85%, скорость сонара 1.8x, количество рыбок 18, время загрузки до 8 сек (6.6 сек)
       var PIKE_SCALE_PCT = 85;
-      var SONAR_SPEED_MULT = 1.8;
+      var SONAR_SPEED_MULT = 0.52;
       var SMALL_FISH_COUNT = 18;
       var TOTAL_LOAD_DURATION_MS = 6600;
 
@@ -5929,6 +6505,81 @@ html[data-scroll-compact="1"]:not([data-arc-map-active="1"]) .bottom-nav {
     <section id="secAdmin" data-route-section="admin" class="section active" aria-label="Панель управления Администратора"></section>
   </main>
 
-  <script id="klevBundledAppRuntime" src="app-runtime.js?v=2.9.0-r240"></script>
+  <!-- КОМПАКТНОЕ ВСПЛЫВАЮЩЕЕ МЕНЮ v2.9.1 (5 уникальных разделов без дублей нижнего дока + гибридный ползунок SOS) -->
+  <div id="klevCompactMenuBackdrop" aria-hidden="true">
+    <div class="klev-compact-menu-sheet" role="dialog" aria-label="Меню и инструменты">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+        <span style="font-size:12px;font-weight:900;letter-spacing:0.04em;color:var(--accent);">МЕНЮ И ИНСТРУМЕНТЫ</span>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <button type="button" class="btn btn-sm" id="klevMenuRearScreenToggleBtn" style="min-height:26px;padding:2px 8px;font-size:10.5px;font-weight:800;" title="Режим внешнего мини-экрана (Xiaomi 18 Pro Max / Flip)">Мини-экран</button>
+          <button type="button" class="btn btn-sm" id="klevCompactMenuCloseBtn" style="min-height:26px;padding:2px 8px;font-size:12px;font-weight:900;" aria-label="Закрыть меню">&times;</button>
+        </div>
+      </div>
+
+      <!-- Быстрые переключатели Темы и Режима стекла -->
+      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;">
+        <button type="button" class="btn btn-sm" data-klev-menu-theme="dark" style="min-height:30px;font-size:11px;font-weight:800;">Тёмная</button>
+        <button type="button" class="btn btn-sm" data-klev-menu-theme="light" style="min-height:30px;font-size:11px;font-weight:800;">Светлая</button>
+        <button type="button" class="btn btn-sm" data-klev-menu-theme="contrast" style="min-height:30px;font-size:11px;font-weight:800;">Контраст</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;">
+        <button type="button" class="btn btn-sm" data-klev-menu-glass="1" style="min-height:28px;font-size:11px;font-weight:800;">Стекло (Glass)</button>
+        <button type="button" class="btn btn-sm" data-klev-menu-glass="0" style="min-height:28px;font-size:11px;font-weight:800;">Обычный (Tactile)</button>
+      </div>
+
+      <!-- 5 уникальных разделов (без дублей Карта / Прогноз / Журнал / центральной кнопки SOS) -->
+      <div class="klev-compact-menu-grid5">
+        <button type="button" class="klev-compact-menu-item" data-klev-menu-route="weather">
+          <span class="klev-compact-menu-ico"><svg viewBox="0 0 24 24"><use href="#icon-weather"/></svg></span>
+          <span>Погода</span>
+        </button>
+        <button type="button" class="klev-compact-menu-item" data-klev-menu-route="chats">
+          <span class="klev-compact-menu-ico"><svg viewBox="0 0 24 24"><use href="#icon-chats"/></svg></span>
+          <span>Чаты</span>
+        </button>
+        <button type="button" class="klev-compact-menu-item" data-klev-menu-route="fish">
+          <span class="klev-compact-menu-ico"><svg viewBox="0 0 24 24"><use href="#icon-fish"/></svg></span>
+          <span>Рыбы</span>
+        </button>
+        <button type="button" class="klev-compact-menu-item" data-klev-menu-route="calendar">
+          <span class="klev-compact-menu-ico"><svg viewBox="0 0 24 24"><use href="#icon-calendar"/></svg></span>
+          <span>Календарь</span>
+        </button>
+        <button type="button" class="klev-compact-menu-item" data-klev-menu-action="settings">
+          <span class="klev-compact-menu-ico"><svg viewBox="0 0 24 24"><use href="#icon-settings"/></svg></span>
+          <span>Настройки</span>
+        </button>
+      </div>
+
+      <!-- Гибридный защищённый ползунок SOS (свайп вправо ИЛИ удержание 2 сек) -->
+      <div class="klev-hybrid-sos-track" id="klevHybridSosTrack" role="slider" aria-label="Экстренный сигнал SOS: свайп вправо или удержание 2 секунды" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <div class="klev-hybrid-sos-fill" id="klevHybridSosFill"></div>
+        <div class="klev-hybrid-sos-knob" id="klevHybridSosKnob">SOS</div>
+        <div class="klev-hybrid-sos-label" id="klevHybridSosLabel">Свайп вправо или 2 сек для SOS</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- РЕЖИМ ЗАДНЕГО / ВНЕШНЕГО МИНИ-ЭКРАНА (Xiaomi 18 Pro Max Rear Screen & Flip Cover Screen) -->
+  <div id="klevRearScreenHud" aria-label="Мини-экран Клёв ПРО 2.0">
+    <div style="width:100%;display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:11px;font-weight:800;">
+      <span id="klevRearLocText" style="color:var(--accent);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Водоём РФ</span>
+      <button type="button" class="btn btn-sm" id="klevRearExitBtn" style="min-height:22px;padding:1px 7px;font-size:10px;font-weight:800;">На основной</button>
+    </div>
+    <div style="position:relative;width:138px;height:138px;display:flex;align-items:center;justify-content:center;margin:2px auto;">
+      <canvas id="klevRearSonarCanvas" width="276" height="276" style="width:138px;height:138px;display:block;"></canvas>
+      <div id="klevRearPctText" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:900;pointer-events:none;">78%</div>
+    </div>
+    <div style="width:100%;display:flex;flex-direction:column;gap:3px;">
+      <div id="klevRearFishAndWin" style="font-size:12px;font-weight:900;">Щука • Пик 07:00–10:00</div>
+      <div id="klevRearWaterIce" style="font-size:10.5px;color:var(--muted);font-weight:800;">Вода +0.4°C • Лёд ~24 см</div>
+    </div>
+    <div style="width:100%;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;">
+      <button type="button" class="btn btn-sm btn-accent" id="klevRearNextFishBtn" style="min-height:28px;font-size:10.5px;font-weight:800;">Сменить рыбу</button>
+      <button type="button" class="btn btn-sm" id="klevRearQuickSosBtn" style="min-height:28px;font-size:10.5px;font-weight:900;border-color:var(--bad);color:var(--bad);">SOS на воде</button>
+    </div>
+  </div>
+
+  <script id="klevBundledAppRuntime" src="app-runtime.js?v=2.9.1-r241"></script>
 </body>
 </html>

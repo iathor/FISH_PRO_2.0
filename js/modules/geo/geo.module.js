@@ -9182,7 +9182,7 @@ function renderArcMobileMap(container, s, prevLiveMapBox) {
           <div class="weather-sticky-back-bar" style="position:sticky;top:0;z-index:1380;display:flex;align-items:center;justify-content:space-between;padding:10px 0 8px;margin-bottom:6px;background:linear-gradient(180deg, var(--bg) 78%, rgba(7,17,31,0));backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);">
             <button type="button" class="klev-arc-glass" id="arcCloseWeatherModalBtn" style="height:38px;padding:0 14px;border-radius:13px;display:inline-flex;align-items:center;gap:6px;font-weight:800;font-size:13px;cursor:pointer;">
               <svg class="k-ico" viewBox="0 0 24 24" fill="none"><polyline points="15 18 9 12 15 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              <span>На карту</span>
+              <span>Назад</span>
             </button>
           </div>
           <div id="arcWeatherInnerMount"></div>

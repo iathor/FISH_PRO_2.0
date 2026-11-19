@@ -74,10 +74,10 @@ test('3.3 Регулярка прокси тайлов блокирует чуж
   assert.ok(runtimeSrc.includes('window.__KLEV_USE_TILE_PROXY_FALLBACK__'), 'Прокси тайлов в клиенте должен быть закрыт флагом резерва');
 });
 
-test('3.4 & 4.8 Единый источник версии VERSION (2.9.0 r240) синхронизирован во всех файлах и ссылка на APK валидна', () => {
-  assert.equal(verData.version, '2.9.0');
-  assert.equal(verData.revision, 'r240');
-  assert.equal(verData.versionCode, 293240);
+test('3.4 & 4.8 Единый источник версии VERSION (2.9.1 r241) синхронизирован во всех файлах и ссылка на APK валидна', () => {
+  assert.equal(verData.version, '2.9.1');
+  assert.equal(verData.revision, 'r241');
+  assert.equal(verData.versionCode, 293241);
 
   const vJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'version.json'), 'utf8'));
   const apkVJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'apk/apk-version.json'), 'utf8'));
@@ -263,4 +263,27 @@ test("2.3 Синтаксическая валидность YAML в .github/work
       }
     }
   }
+});
+
+test("6.1 Редизайн v2.9.1 (r241): 26 SVG-иконок, живой сонар, компактное меню без дублей, гибридный SOS, < Назад в Погоде, 6 однострочных плашек карты, мини-экран и сохранение десктопа", () => {
+  // 1. Спрайт 26 векторных иконок и спокойная скорость сонара 0.52
+  assert.ok(indexSrc.includes('id="klevRedesignSvgSprite"'), 'В index.html должен быть встроен спрайт 26 SVG-иконок');
+  assert.ok(indexSrc.includes('var SONAR_SPEED_MULT = 0.52;'), 'Скорость загрузочного сонара должна быть снижена до 0.52');
+
+  // 2. Компактное меню из 5 уникальных разделов + гибридный ползунок SOS + мини-экран
+  assert.ok(indexSrc.includes('id="bottomNavMenuTriggerBtn"'), 'В нижнем доке должна быть 4-я кнопка Меню');
+  assert.ok(indexSrc.includes('id="klevCompactMenuBackdrop"'), 'Должно присутствовать компактное всплывающее окно Меню');
+  assert.ok(indexSrc.includes('id="klevHybridSosTrack"'), 'В компактном меню должен быть гибридный свайп-ползунок SOS');
+  assert.ok(indexSrc.includes('id="klevRearScreenHud"'), 'Должен присутствовать HUD для мини-экрана (Xiaomi 18 Pro Max / Flip)');
+
+  // 3. Сохранение десктопного режима (html[data-desktop-web="1"]) и горизонтальный режим для планшетов/флипов
+  assert.ok(indexSrc.includes('html[data-desktop-web="1"] .klev-fc-subtabs-bar'), 'На десктопе мобильные подвкладки должны скрываться без поломки десктопного интерфейса');
+  assert.ok(indexSrc.includes('@media (orientation: landscape) and (max-width: 1180px)'), 'Должна поддерживаться горизонтальная двухколоночная сетка для планшетов и раскладушек');
+
+  // 4. Живой сонар на главном экране, удаление кнопки Очистить кэш из прогноза, кнопка < Назад в Погоде и 6 плашек на карте
+  assert.ok(runtimeSrc.includes('id="bentoHeroSonarCanvas"'), 'В прогнозе должен рендериться живой сонар #bentoHeroSonarCanvas');
+  assert.ok(runtimeSrc.includes('id="bentoHeroSonarPctText"'), 'В центре сонара должен отображаться процент клёва');
+  assert.ok(!runtimeSrc.includes('id="fcCleanArchiveBtn"'), 'Кнопка Очистить кэш должна быть навсегда убрана из 10-дневного прогноза');
+  assert.ok(runtimeSrc.includes('id="arcCompactPillsStrip"'), 'Внизу карты должна быть компактная лента из 6 однострочных плашек');
+  assert.ok(runtimeSrc.includes('window.__KLEV_REDESIGN_V291_ACTIVE__'), 'Контроллер v2.9.1 должен быть активен в app-runtime.js');
 });

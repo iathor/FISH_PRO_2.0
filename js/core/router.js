@@ -18,6 +18,11 @@ export function pushBackGuardState(reason = 'guard') {
 }
 export function handleAppBackAction(source = 'popstate') {
   if (typeof document === 'undefined') return false;
+  const compactMenu = document.getElementById('klevCompactMenuBackdrop');
+  if (compactMenu && compactMenu.classList.contains('open')) {
+    compactMenu.classList.remove('open');
+    return true;
+  }
   const selBackdrop = document.getElementById('klevCustomSelectBackdrop');
   if (selBackdrop && selBackdrop.classList.contains('open')) {
     selBackdrop.classList.remove('open');
