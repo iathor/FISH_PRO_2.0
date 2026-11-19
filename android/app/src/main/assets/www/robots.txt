@@ -1,8 +1,0 @@
-User-agent: *
-Allow: /
-Disallow: /kp-control-89.html
-Disallow: /api/
-Disallow: /auth/
-Disallow: /relay/
-Disallow: /weather
-Sitemap: https://klevpro.ru/sitemap.xml
