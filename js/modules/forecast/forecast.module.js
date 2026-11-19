@@ -2404,12 +2404,702 @@ function clampHour(h) {
   return Number.isFinite(n) ? Math.max(0, Math.min(23, n)) : 12;
 }
 let _sliderDragActive = false;
+
+let _activeForecastSubTab = 'overview';
+let _openWaterCarpPreview = false;
+let _heroSonarAnimId = null;
+let _heroSonarSweepAngle = 0;
+let _heroSonarTargetScore = 75;
+let _heroSonarBlips = [];
+
+function _rebuildHeroSonarBlips(scorePct) {
+  const sc = Math.max(0, Math.min(100, Number(scorePct) || 50));
+  const count = Math.max(2, Math.min(14, Math.round((sc / 100) * 13)));
+  const arr = [];
+  for (let i = 0; i < count; i++) {
+    const ang = ((i * 137.5 + 24) % 360) * (Math.PI / 180);
+    const dist = 0.26 + ((i * 0.618) % 1) * 0.50;
+    const depthM = (2.2 + ((i * 2.1) % 7.4)).toFixed(1);
+    arr.push({ ang, dist, depthM, size: i % 3 === 0 ? 1.15 : 0.92 });
+  }
+  _heroSonarBlips = arr;
+}
+
+export function initOrUpdateHeroSonarCanvas(scorePct) {
+  if (typeof document === 'undefined') return;
+  const sc = Math.max(0, Math.min(100, Math.round(Number(scorePct) || 50)));
+  if (sc !== _heroSonarTargetScore || !_heroSonarBlips.length) {
+    _heroSonarTargetScore = sc;
+    _rebuildHeroSonarBlips(sc);
+  }
+  const pctEl = document.getElementById('bentoHeroSonarPctText');
+  if (pctEl) {
+    pctEl.textContent = `${sc}%`;
+  }
+  if (_heroSonarAnimId) return;
+
+  const drawFrame = () => {
+    const canvas = document.getElementById('bentoHeroSonarCanvas');
+    if (!canvas || !canvas.isConnected) {
+      _heroSonarAnimId = null;
+      return;
+    }
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      _heroSonarAnimId = null;
+      return;
+    }
+    const w = canvas.width || 472;
+    const h = canvas.height || 472;
+    const cx = w / 2;
+    const cy = h / 2;
+    const R = Math.min(cx, cy) - 14;
+    const theme = document.documentElement.getAttribute('data-theme') || 'dark';
+    const isLight = theme === 'light';
+    const isContrast = theme === 'contrast';
+
+    ctx.clearRect(0, 0, w, h);
+
+    // 1. Фон радара по теме
+    const bgGrad = ctx.createRadialGradient(cx, cy, R * 0.08, cx, cy, R);
+    if (isLight) {
+      bgGrad.addColorStop(0, 'rgba(224, 242, 254, 0.95)');
+      bgGrad.addColorStop(1, 'rgba(186, 230, 253, 0.72)');
+    } else if (isContrast) {
+      bgGrad.addColorStop(0, 'rgba(18, 16, 8, 0.96)');
+      bgGrad.addColorStop(1, 'rgba(5, 8, 14, 0.98)');
+    } else {
+      bgGrad.addColorStop(0, 'rgba(12, 34, 58, 0.92)');
+      bgGrad.addColorStop(1, 'rgba(6, 17, 32, 0.96)');
+    }
+    ctx.fillStyle = bgGrad;
+    ctx.beginPath();
+    ctx.arc(cx, cy, R, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 2. Внешняя градусная шкала и концентрические кольца
+    const ringStroke = isLight
+      ? 'rgba(2, 132, 199, 0.25)'
+      : (isContrast ? 'rgba(245, 158, 11, 0.30)' : 'rgba(56, 189, 248, 0.24)');
+    ctx.strokeStyle = ringStroke;
+    ctx.lineWidth = 1.4;
+    [0.32, 0.56, 0.78, 0.98].forEach(f => {
+      ctx.beginPath();
+      ctx.arc(cx, cy, R * f, 0, Math.PI * 2);
+      ctx.stroke();
+    });
+
+    // Перекрестие
+    ctx.beginPath();
+    ctx.moveTo(cx - R * 0.95, cy);
+    ctx.lineTo(cx + R * 0.95, cy);
+    ctx.moveTo(cx, cy - R * 0.95);
+    ctx.lineTo(cx, cy + R * 0.95);
+    ctx.stroke();
+
+    // 72 деления азимутальной шкалы
+    for (let d = 0; d < 360; d += 5) {
+      const rad = (d - 90) * (Math.PI / 180);
+      const isMajor = d % 30 === 0;
+      const r1 = R * (isMajor ? 0.91 : 0.945);
+      const r2 = R * 0.98;
+      ctx.beginPath();
+      ctx.moveTo(cx + Math.cos(rad) * r1, cy + Math.sin(rad) * r1);
+      ctx.lineTo(cx + Math.cos(rad) * r2, cy + Math.sin(rad) * r2);
+      ctx.strokeStyle = isMajor
+        ? (isLight ? 'rgba(2, 132, 199, 0.62)' : (isContrast ? 'rgba(251, 191, 36, 0.72)' : 'rgba(56, 189, 248, 0.65)'))
+        : ringStroke;
+      ctx.lineWidth = isMajor ? 2.2 : 1.1;
+      ctx.stroke();
+    }
+
+    // 3. Мягкая полупрозрачная градиентная шкала заполнения клёва (0..100%)
+    const trackR = R * 0.855;
+    ctx.beginPath();
+    ctx.arc(cx, cy, trackR, 0, Math.PI * 2);
+    ctx.strokeStyle = isLight ? 'rgba(15, 23, 42, 0.09)' : 'rgba(148, 163, 184, 0.14)';
+    ctx.lineWidth = 13;
+    ctx.stroke();
+
+    const startAng = -Math.PI / 2;
+    const endAng = startAng + (Math.PI * 2) * (_heroSonarTargetScore / 100);
+    const scaleGrad = ctx.createLinearGradient(cx - trackR, cy + trackR, cx + trackR, cy - trackR);
+    if (isContrast) {
+      scaleGrad.addColorStop(0, 'rgba(245, 158, 11, 0.50)');
+      scaleGrad.addColorStop(0.6, 'rgba(251, 191, 36, 0.58)');
+      scaleGrad.addColorStop(1, 'rgba(16, 185, 129, 0.62)');
+    } else if (isLight) {
+      scaleGrad.addColorStop(0, 'rgba(2, 132, 199, 0.45)');
+      scaleGrad.addColorStop(0.55, 'rgba(14, 165, 233, 0.54)');
+      scaleGrad.addColorStop(1, 'rgba(16, 185, 129, 0.58)');
+    } else {
+      scaleGrad.addColorStop(0, 'rgba(14, 165, 233, 0.44)');
+      scaleGrad.addColorStop(0.55, 'rgba(56, 189, 248, 0.54)');
+      scaleGrad.addColorStop(1, 'rgba(16, 185, 129, 0.60)');
+    }
+    ctx.beginPath();
+    ctx.arc(cx, cy, trackR, startAng, endAng, false);
+    ctx.strokeStyle = scaleGrad;
+    ctx.lineWidth = 13;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+
+    // 4. Вращающийся луч сонара (спокойная скорость 0.52)
+    _heroSonarSweepAngle = (_heroSonarSweepAngle + 0.0085) % (Math.PI * 2);
+    const sweepSteps = 26;
+    const sweepSpan = 0.68;
+    for (let s = 0; s < sweepSteps; s++) {
+      const frac = s / sweepSteps;
+      const a0 = _heroSonarSweepAngle - frac * sweepSpan;
+      const a1 = _heroSonarSweepAngle - ((s + 1) / sweepSteps) * sweepSpan;
+      const alpha = (1 - frac) * (isLight ? 0.20 : 0.25);
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.arc(cx, cy, R * 0.78, a1, a0);
+      ctx.closePath();
+      ctx.fillStyle = isContrast
+        ? `rgba(245, 158, 11, ${alpha.toFixed(3)})`
+        : (isLight ? `rgba(2, 132, 199, ${alpha.toFixed(3)})` : `rgba(56, 189, 248, ${alpha.toFixed(3)})`);
+      ctx.fill();
+    }
+
+    // Ведущая линия луча
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + Math.cos(_heroSonarSweepAngle) * (R * 0.79), cy + Math.sin(_heroSonarSweepAngle) * (R * 0.79));
+    ctx.strokeStyle = isContrast ? 'rgba(251, 191, 36, 0.88)' : (isLight ? 'rgba(2, 132, 199, 0.85)' : 'rgba(125, 211, 252, 0.90)');
+    ctx.lineWidth = 2.4;
+    ctx.stroke();
+
+    // 5. Силуэты рыб на радаре (количество зависит от % клёва)
+    for (let i = 0; i < _heroSonarBlips.length; i++) {
+      const b = _heroSonarBlips[i];
+      const bx = cx + Math.cos(b.ang) * (R * b.dist);
+      const by = cy + Math.sin(b.ang) * (R * b.dist);
+      let diff = (_heroSonarSweepAngle - b.ang) % (Math.PI * 2);
+      if (diff < 0) diff += Math.PI * 2;
+      const glow = diff < 1.35 ? (1 - diff / 1.35) : 0.18;
+      const fishAlpha = Math.min(0.95, 0.30 + glow * 0.65);
+
+      ctx.save();
+      ctx.translate(bx, by);
+      ctx.beginPath();
+      ctx.arc(0, 0, 11 * b.size, 0, Math.PI * 2);
+      ctx.strokeStyle = isContrast
+        ? `rgba(251, 191, 36, ${(fishAlpha * 0.55).toFixed(2)})`
+        : (isLight ? `rgba(2, 132, 199, ${(fishAlpha * 0.55).toFixed(2)})` : `rgba(56, 189, 248, ${(fishAlpha * 0.55).toFixed(2)})`);
+      ctx.lineWidth = 1.3;
+      ctx.stroke();
+
+      ctx.fillStyle = isContrast
+        ? `rgba(251, 191, 36, ${fishAlpha.toFixed(2)})`
+        : (isLight ? `rgba(2, 132, 199, ${fishAlpha.toFixed(2)})` : `rgba(56, 189, 248, ${fishAlpha.toFixed(2)})`);
+      ctx.beginPath();
+      ctx.ellipse(-1.5, 0, 6.2 * b.size, 2.8 * b.size, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(4.0 * b.size, 0);
+      ctx.lineTo(8.2 * b.size, -3.2 * b.size);
+      ctx.lineTo(8.2 * b.size, 3.2 * b.size);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // 6. Центральный медальон под процент клёва (читаемый на всех темах)
+    const centerR = R * 0.39;
+    ctx.beginPath();
+    ctx.arc(cx, cy, centerR, 0, Math.PI * 2);
+    ctx.fillStyle = isLight
+      ? 'rgba(255, 255, 255, 0.88)'
+      : (isContrast ? 'rgba(0, 0, 0, 0.88)' : 'rgba(11, 23, 42, 0.84)');
+    ctx.fill();
+    ctx.strokeStyle = isLight
+      ? 'rgba(2, 132, 199, 0.38)'
+      : (isContrast ? 'rgba(245, 158, 11, 0.52)' : 'rgba(56, 189, 248, 0.38)');
+    ctx.lineWidth = 1.6;
+    ctx.stroke();
+
+    if (pctEl) {
+      pctEl.style.color = isLight ? '#0F172A' : (isContrast ? '#FBBF24' : '#F8FAFC');
+    }
+
+    _heroSonarAnimId = requestAnimationFrame(drawFrame);
+  };
+
+  _heroSonarAnimId = requestAnimationFrame(drawFrame);
+}
+
+function renderMobileRedesignForecast(container) {
+  const s = store.getState();
+  const fish = FISH_DB.find(f => f.id === s.fishId) || FISH_DB[0];
+  const todayObj = s.weatherDays?.[2] || s.weatherDays?.[0] || {};
+  const activeDayForTackle = s.weatherDays?.[s.dayIdx] || todayObj || {};
+  const effIceForTackle = activeDayForTackle.iceState || s.iceState || 'open_water';
+  const effWaterTempForTackle = activeDayForTackle.waterTemp ?? 8;
+  const nearWaterTitle = s.selectedWaterName || s.nearbyWaters?.[0]?.name || WATER_PROFILES[s.water]?.shortName || s.locLabel || 'Водоём';
+  const compatibleMethodsTop = getCompatibleMethods(fish, effIceForTackle, s.water, effWaterTempForTackle);
+  const seasonalBaitsTop = getSeasonalBaitsForContext(fish, s.method, effWaterTempForTackle, effIceForTackle);
+  const activeBaitTop = s.selectedBait && seasonalBaitsTop.includes(s.selectedBait) ? s.selectedBait : (seasonalBaitsTop[0] || '');
+  const rigTop = calcDynamicRig(s.method, s.water, s.depth, activeDayForTackle.windMax || 3, fish, effWaterTempForTackle, effIceForTackle);
+  const activeHeroScore = calcDayBest(fish, activeDayForTackle, s.method, s.water, s.depth, s.normPress, s.iceState);
+
+  const ecoregBento = getSpotEcoregion(s.lat, s.lon, s.basinCode, s.water, s.selectedWaterName);
+  const sigOrderBento = ecoregBento.signatureSpecies || [];
+  const sigMapBento = new Map(sigOrderBento.map((id, idx) => [id, idx]));
+  const radiusTypesBento = new Set((s.nearbyWaters || []).map(w => w.wType).concat([s.water]));
+  const hasCoolingBento = s.water === 'cooling_reservoir' || radiusTypesBento.has('cooling_reservoir');
+  const regionalPool = FISH_DB.filter(f =>
+    f.legal !== 'redbook' &&
+    isSpeciesInGeoRange(f, s.lat, s.lon, s.basinCode, s.water, s.waterRadiusKm || 50, radiusTypesBento, s.isCoastal, hasCoolingBento, s.selectedWaterName)
+  );
+  const speciesStripList = (regionalPool.length ? regionalPool : FISH_DB.slice(0, 12))
+    .map(f => {
+      const scDay = calcDayBest(f, activeDayForTackle, s.method, s.water, s.depth, s.normPress, s.iceState);
+      const sigIdx = sigMapBento.has(f.id) ? sigMapBento.get(f.id) : -1;
+      const bonus = sigIdx >= 0 ? Math.max(6, 24 - sigIdx * 2) : -6;
+      return { fish: f, scDay, rankSc: scDay + bonus };
+    })
+    .sort((a, b) => b.rankSc - a.rankSc)
+    .slice(0, 14);
+  if (!speciesStripList.some(item => item.fish.id === fish.id)) {
+    speciesStripList.unshift({ fish, scDay: activeHeroScore, rankSc: 999 });
+  }
+
+  const hrsArr = Array.isArray(activeDayForTackle.hours) && activeDayForTackle.hours.length === 24
+    ? activeDayForTackle.hours
+    : Array.from({ length: 24 }, (_, h) => ({ hour: h, tAir: 3, press: 754, wind: 3, windDir: 'З' }));
+  const hrScores = hrsArr.map(hr => calcHourly(fish, activeDayForTackle, hr, s.method, s.water, s.depth, s.normPress, s.iceState));
+
+  let morningPeakHr = 7, morningPeakSc = -1;
+  let eveningPeakHr = 17, eveningPeakSc = -1;
+  hrScores.forEach((sc, h) => {
+    if (h >= 4 && h <= 12 && sc > morningPeakSc) { morningPeakSc = sc; morningPeakHr = h; }
+    if (h >= 13 && h <= 22 && sc > eveningPeakSc) { eveningPeakSc = sc; eveningPeakHr = h; }
+  });
+  const mWinStart = `${String(Math.max(4, morningPeakHr - 1)).padStart(2, '0')}:00`;
+  const mWinEnd = `${String(Math.min(12, morningPeakHr + 2)).padStart(2, '0')}:00`;
+  const eWinStart = `${String(Math.max(13, eveningPeakHr - 1)).padStart(2, '0')}:00`;
+  const eWinEnd = `${String(Math.min(23, eveningPeakHr + 2)).padStart(2, '0')}:00`;
+
+  const svgW = 360, svgH = 122, padL = 14, padR = 14, padT = 22, padB = 16;
+  const plotW = svgW - padL - padR;
+  const plotH = svgH - padT - padB;
+  const rawMinSc = Math.min(...hrScores);
+  const rawMaxSc = Math.max(...hrScores);
+  const spanSc = Math.max(12, rawMaxSc - rawMinSc);
+  const floorSc = Math.max(0, rawMinSc - Math.max(3, spanSc * 0.18));
+  const ceilSc = Math.min(100, rawMaxSc + Math.max(4, spanSc * 0.15));
+  const effRange = Math.max(10, ceilSc - floorSc);
+  const pts = hrScores.map((sc, idx) => {
+    const x = Math.round((padL + (idx / 23) * plotW) * 10) / 10;
+    const norm = Math.max(0.06, Math.min(0.96, (sc - floorSc) / effRange));
+    const y = Math.round((padT + (1 - norm) * plotH) * 10) / 10;
+    return { x, y, sc, hr: idx };
+  });
+  let wavePathD = 'M ' + pts[0].x + ' ' + pts[0].y;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i];
+    const p1 = pts[i + 1];
+    const cx = Math.round(((p0.x + p1.x) / 2) * 10) / 10;
+    wavePathD += ' C ' + cx + ' ' + p0.y + ', ' + cx + ' ' + p1.y + ', ' + p1.x + ' ' + p1.y;
+  }
+  const baseLineY = svgH - 6;
+  const waveAreaD = wavePathD + ' L ' + pts[pts.length - 1].x + ' ' + baseLineY + ' L ' + pts[0].x + ' ' + baseLineY + ' Z';
+  const mPt = pts[morningPeakHr] || pts[7];
+  const ePt = pts[eveningPeakHr] || pts[17];
+
+  const selH = clampHour(s.selectedHour);
+  const selPt = pts[selH] || pts[8] || pts[0];
+  const selHrObj = hrsArr[selH] || hrsArr[12] || {};
+  const selBreakdown = computeHourFactors(fish, activeDayForTackle, selHrObj, s.method, s.water, s.depth, s.normPress, s.iceState);
+  const astro = computeDayKpAndDaylight(activeDayForTackle);
+  const guides = generateAdaptiveGuides(fish, s.water, s.depth, activeDayForTackle, s.method, s.iceState);
+
+  const tWatStr = `${effWaterTempForTackle > 0 ? '+' + effWaterTempForTackle : effWaterTempForTackle}°C`;
+  const iceThickVal = activeDayForTackle.iceThickness ?? s.iceThickness ?? 0;
+  const iceSubtitleLine = effIceForTackle === 'ice_safe'
+    ? `Лёд ~${iceThickVal || 12} см • Вода ${tWatStr} • ${nearWaterTitle}`
+    : (effIceForTackle === 'ice_danger'
+        ? `Опасный лёд ~${iceThickVal || 4} см • Вода ${tWatStr} • ${nearWaterTitle}`
+        : (effIceForTackle === 'ice_slush'
+            ? `Шуга и забереги • Вода ${tWatStr} • ${nearWaterTitle}`
+            : `Открытая вода • Вода ${tWatStr} • ${nearWaterTitle}`));
+
+  const methodLabelsShort = {
+    spin_micro: 'Микроджиг / Мормышинг',
+    spin_jig: 'Спиннинг (Джиг)',
+    spin_lure: 'Спиннинг (Блесна/Воблер)',
+    bottom: 'Донка / Фидер',
+    float: 'Поплавочная снасть',
+    fly: 'Нахлыст / Бомбарда',
+    winter_jig: 'Зимняя мормышка',
+    winter_lure: 'Зимний балансир / Виб',
+    winter_livebait: 'Жерлица (Живец)',
+    winter_stuka: 'Зимняя стукалка',
+    winter_cisco: 'Зимняя гирлянда',
+    sea_rock: 'Морской рокфишинг',
+    sea_surf: 'Морская донка',
+    sea_boat: 'Морской лов с лодки'
+  };
+  const shortMethodName = methodLabelsShort[s.method] || 'Снасть по сезону';
+
+  const scrubPtsJson = JSON.stringify(pts.map((p, h) => {
+    const hObj = hrsArr[h] || {};
+    return {
+      hr: h,
+      sc: p.sc,
+      xPct: Number(((p.x / svgW) * 100).toFixed(2)),
+      yPct: Number(((p.y / svgH) * 100).toFixed(2)),
+      tAir: Math.round(Number(hObj.tAir ?? activeDayForTackle.tDay ?? 3)),
+      press: Math.round(Number(hObj.press ?? activeDayForTackle.pressAvg ?? 754)),
+      wind: Math.round(Number(hObj.wind ?? activeDayForTackle.windMax ?? 3) * 10) / 10,
+      windDir: String(hObj.windDir || activeDayForTackle.windDir || 'З')
+    };
+  })).replace(/"/g, '&quot;');
+
+  const isOpenWaterNow = effIceForTackle === 'open_water';
+  const showCarpSwimBlock = isOpenWaterNow || _openWaterCarpPreview;
+
+  const daysArr = s.weatherDays || [];
+  const daysCardsHtml = daysArr.map((d, idx) => {
+    const sc = calcDayBest(fish, d, s.method, s.water, s.depth, s.normPress, s.iceState);
+    const isAct = idx === s.dayIdx;
+    const dayHeader = `${d.relTitle ? d.relTitle + ' • ' : ''}${d.label}${d.isArchive ? ' (Архив)' : ''}`;
+    const tDayS = `${d.tDay > 0 ? '+' + d.tDay : d.tDay}°C`;
+    const tWatS = `${d.waterTemp > 0 ? '+' + d.waterTemp : d.waterTemp}°C`;
+    const scColor = sc >= 65 ? 'var(--good)' : (sc >= 42 ? 'var(--accent)' : 'var(--warn)');
+    return `
+      <div class="glass-panel klev-day-row-card ${isAct ? 'active' : ''}" data-week-day="${idx}" data-guest-locked-day="${idx === 2 ? '0' : '1'}" style="padding:11px 14px;border-radius:18px;display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;border:1.5px solid ${isAct ? 'var(--accent)' : 'var(--border)'};">
+        <div style="min-width:0;flex:1;">
+          <div style="font-size:13.5px;font-weight:800;color:var(--text);">${dayHeader}</div>
+          <div style="font-size:11.5px;color:var(--muted);margin-top:2px;line-height:1.35;">
+            Воздух ${tDayS} • Вода ${tWatS} • ${d.pressAvg} мм (${fmtDeltaPress(d.dP)}) • ${d.windDir} ${d.windMax} м/с
+          </div>
+        </div>
+        <span style="padding:5px 10px;border-radius:10px;background:rgba(56,189,248,0.14);border:1px solid ${scColor};color:${scColor};font-size:13px;font-weight:900;flex-shrink:0;">${sc}%</span>
+      </div>
+    `;
+  }).join('');
+
+  const step4Hours = [0, 4, 8, 12, 16, 20];
+  const pressRowHtml = step4Hours.map(hIdx => {
+    const hObj = hrsArr[hIdx] || hrsArr[0] || {};
+    const pVal = Math.round(Number(hObj.press ?? activeDayForTackle.pressAvg ?? 754));
+    const isSelSlot = Math.abs(selH - hIdx) <= 2;
+    return `
+      <div class="glass-panel" style="padding:7px 4px;border-radius:12px;text-align:center;border:1px solid ${isSelSlot ? 'var(--accent)' : 'var(--border)'};">
+        <div style="font-size:11px;color:${isSelSlot ? 'var(--accent)' : 'var(--muted)'};font-weight:700;">${String(hIdx).padStart(2, '0')}:00</div>
+        <div style="font-size:13px;font-weight:900;margin-top:2px;">${pVal}</div>
+      </div>
+    `;
+  }).join('');
+
+  const prevSpeciesScroll = container.querySelector('.bento-top-species-strip')?.scrollLeft || 0;
+
+  container.innerHTML = `
+    <div id="fcStickySpeciesBar" style="display:none;"></div>
+    <div id="fcExpressBox" class="klev-v291-forecast-shell" style="display:flex;flex-direction:column;gap:10px;">
+      <!-- 1. Компактная верхняя капсула выбора водоёма и даты (1 строка) -->
+      <div style="display:flex;align-items:center;justify-content:center;padding-top:2px;">
+        <button type="button" class="pill-btn" id="fcOpenLocationSheetBtn" style="padding:7px 15px;border-radius:999px;font-size:12.5px;font-weight:700;display:inline-flex;align-items:center;gap:8px;">
+          <span class="status-dot"></span>
+          <span>${nearWaterTitle} • ${activeDayForTackle.label || 'Сегодня'}</span>
+        </button>
+      </div>
+
+      <!-- 2. Адаптивная Bento-сетка (1 колонка на смартфоне портретно, 2 колонки в горизонтальном виде планшетов/раскладушек) -->
+      <div class="klev-fc-mobile-bento-grid">
+        <!-- ЛЕВАЯ КОЛОНКА: Центрированная Hero-карточка с Живым Радаром-Сонаром + Лента видов рыб -->
+        <div style="display:flex;flex-direction:column;gap:10px;min-width:0;">
+          <div class="bento-card fc-hero-box" id="bentoSwipeHeroCard" style="padding:12px 14px 13px;display:flex;flex-direction:column;align-items:center;text-align:center;">
+            <div style="font-size:16.5px;font-weight:900;letter-spacing:-0.2px;margin-bottom:2px;">Прогноз клёва • ${fish.name}</div>
+            <div id="bentoWeatherIceCard" style="font-size:11.5px;color:var(--muted);cursor:pointer;text-decoration:underline;text-underline-offset:3px;margin-bottom:4px;" title="Нажмите для перехода в полный раздел Погода">
+              ${iceSubtitleLine}
+            </div>
+
+            <!-- Живой сонарный радар 236x236px (в центре только процент клёва и мягкая полупрозрачная градиентная шкала) -->
+            <div class="bento-hero-sonar-stage" id="bentoHeroSonarStage" style="position:relative;width:236px;height:236px;display:flex;align-items:center;justify-content:center;margin:4px auto 10px;">
+              <canvas id="bentoHeroSonarCanvas" width="472" height="472" style="width:236px;height:236px;display:block;border-radius:50%;"></canvas>
+              <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;">
+                <span id="bentoHeroSonarPctText" style="font-size:38px;font-weight:900;letter-spacing:-1.2px;line-height:1;font-variant-numeric:tabular-nums;">${activeHeroScore}%</span>
+              </div>
+            </div>
+
+            <!-- Две компактные капсулы окон активности: Утро и Вечер -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;">
+              <div class="glass-panel" style="display:flex;align-items:center;gap:8px;padding:8px 11px;border-radius:14px;text-align:left;">
+                <svg class="k-svg" style="width:20px;height:20px;color:var(--accent);flex-shrink:0;"><use href="#ui-sunrise"></use></svg>
+                <div style="display:flex;flex-direction:column;line-height:1.25;min-width:0;">
+                  <span style="font-size:11.5px;font-weight:700;color:var(--text);">Утро (${mPt.sc}%)</span>
+                  <span style="font-size:12px;font-weight:800;color:var(--accent);font-variant-numeric:tabular-nums;">${mWinStart}–${mWinEnd}</span>
+                </div>
+              </div>
+              <div class="glass-panel" style="display:flex;align-items:center;gap:8px;padding:8px 11px;border-radius:14px;text-align:left;">
+                <svg class="k-svg" style="width:20px;height:20px;color:var(--accent);flex-shrink:0;"><use href="#ui-moon"></use></svg>
+                <div style="display:flex;flex-direction:column;line-height:1.25;min-width:0;">
+                  <span style="font-size:11.5px;font-weight:700;color:var(--text);">Вечер (${ePt.sc}%)</span>
+                  <span style="font-size:12px;font-weight:800;color:var(--accent);font-variant-numeric:tabular-nums;">${eWinStart}–${eWinEnd}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Горизонтальная лента выбора рыбы (пользовательские PNG из assets/fish/*.png через IMG_SEARCH_DIRS) -->
+          <div class="chip-scroll-row bento-top-species-strip species-strip-wrap" style="padding:2px 2px 4px;">
+            ${speciesStripList.map(item => `
+              <button type="button" class="fish-chip w-chip ${item.fish.id === fish.id ? 'active' : ''}" data-novice-pick-fish="${item.fish.id}" style="padding:6px 12px;min-height:36px;display:inline-flex;align-items:center;gap:7px;flex-shrink:0;white-space:nowrap;border-radius:999px;">
+                <span style="width:28px;height:16px;display:inline-flex;align-items:center;justify-content:center;">${renderFishVisual(item.fish)}</span>
+                <span>${item.fish.name}</span>
+                <span style="font-size:11px;opacity:0.88;font-weight:800;">${item.scDay}%</span>
+              </button>
+            `).join('')}
+          </div>
+        </div>
+
+        <!-- ПРАВАЯ КОЛОНКА: 4 Внутренние вкладки (Обзор | Снасти | 10 дней | Погода) -->
+        <div style="display:flex;flex-direction:column;gap:10px;min-width:0;">
+          <div class="seg-bar klev-fc-subtabs-bar" role="tablist" aria-label="Внутренние вкладки прогноза" style="display:grid;grid-template-columns:repeat(4,1fr);">
+            <button type="button" class="seg-btn ${_activeForecastSubTab === 'overview' ? 'active' : ''}" data-klev-fc-subtab="overview">Обзор</button>
+            <button type="button" class="seg-btn ${_activeForecastSubTab === 'tackle' ? 'active' : ''}" data-klev-fc-subtab="tackle">Снасти</button>
+            <button type="button" class="seg-btn ${_activeForecastSubTab === 'days' ? 'active' : ''}" data-klev-fc-subtab="days">10 дней</button>
+            <button type="button" class="seg-btn ${_activeForecastSubTab === 'ice' ? 'active' : ''}" data-klev-fc-subtab="ice">Погода</button>
+          </div>
+
+          <!-- ВКЛАДКА 1: ОБЗОР (Почасовой график 00:00-24:00 со скраббером пальцем по графику + Тактика и 8 факторов) -->
+          <div class="fc-subtab-pane" data-fc-pane="overview" style="display:${_activeForecastSubTab === 'overview' ? 'flex' : 'none'};flex-direction:column;gap:10px;">
+            <div class="bento-card bento-chart-card" id="bentoWaveChartCard" data-hourly-points="${scrubPtsJson}" style="padding:12px 13px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+                <div class="chart-floating-badge" id="bentoChartTimeRangeLabel" style="margin-bottom:0;">
+                  ${String(selH).padStart(2, '0')}:00 • ${selHrObj.press ?? activeDayForTackle.pressAvg ?? 754} мм • ${(selHrObj.tAir ?? activeDayForTackle.tDay ?? 0) > 0 ? '+' + (selHrObj.tAir ?? activeDayForTackle.tDay ?? 0) : (selHrObj.tAir ?? activeDayForTackle.tDay ?? 0)}°C • ${selHrObj.windDir || activeDayForTackle.windDir || 'З'} ${selHrObj.wind ?? activeDayForTackle.windMax ?? 3} м/с
+                </div>
+                <span style="font-size:11px;font-weight:800;color:var(--accent);">Восход ${fmtHM(astro.sr)} • Закат ${fmtHM(astro.ss)}</span>
+              </div>
+
+              <div class="bento-chart-stage" id="bentoWaveChartStage" style="position:relative;width:100%;height:112px;cursor:ew-resize;user-select:none;touch-action:pan-y;">
+                <svg viewBox="0 0 ${svgW} ${svgH}" width="100%" height="100%" preserveAspectRatio="none" style="display:block;width:100%;height:100%;">
+                  <defs>
+                    <linearGradient id="bentoWaveFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stop-color="var(--wave-fill-top, rgba(56,189,248,0.38))"/>
+                      <stop offset="100%" stop-color="var(--wave-fill-bot, rgba(56,189,248,0.02))"/>
+                    </linearGradient>
+                  </defs>
+                  <g stroke="currentColor" stroke-opacity="0.10" stroke-width="1">
+                    <line x1="${padL}" y1="14" x2="${padL}" y2="${baseLineY}"/>
+                    <line x1="${padL + plotW * 0.166}" y1="14" x2="${padL + plotW * 0.166}" y2="${baseLineY}"/>
+                    <line x1="${padL + plotW * 0.333}" y1="14" x2="${padL + plotW * 0.333}" y2="${baseLineY}"/>
+                    <line x1="${padL + plotW * 0.5}" y1="14" x2="${padL + plotW * 0.5}" y2="${baseLineY}"/>
+                    <line x1="${padL + plotW * 0.666}" y1="14" x2="${padL + plotW * 0.666}" y2="${baseLineY}"/>
+                    <line x1="${padL + plotW * 0.833}" y1="14" x2="${padL + plotW * 0.833}" y2="${baseLineY}"/>
+                    <line x1="${svgW - padR}" y1="14" x2="${svgW - padR}" y2="${baseLineY}"/>
+                  </g>
+                  <path d="${waveAreaD}" fill="url(#bentoWaveFill)"/>
+                  <path d="${wavePathD}" fill="none" stroke="var(--accent)" stroke-width="2.8" vector-effect="non-scaling-stroke" stroke-linecap="round"/>
+                </svg>
+                <div class="bento-scrub-cursor-line" id="bentoScrubCursorLine" style="display:block;opacity:0.85;left:${((selPt.x / svgW) * 100).toFixed(1)}%;"></div>
+                <div class="bento-scrub-cursor-dot" id="bentoScrubCursorDot" style="display:block;opacity:1;left:${((selPt.x / svgW) * 100).toFixed(1)}%;top:${((selPt.y / svgH) * 100).toFixed(1)}%;"></div>
+                <div class="bento-scrub-hud-badge" id="bentoScrubHudBadge" style="left:50%;"></div>
+              </div>
+
+              <div class="hourly-time-axis" style="display:flex;justify-content:space-between;font-size:11px;font-weight:700;color:var(--muted);margin-top:6px;">
+                <span data-scrub-hour="0" style="cursor:pointer;">00:00</span>
+                <span data-scrub-hour="4" style="cursor:pointer;">04:00</span>
+                <span data-scrub-hour="8" style="cursor:pointer;">08:00</span>
+                <span data-scrub-hour="12" style="cursor:pointer;">12:00</span>
+                <span data-scrub-hour="16" style="cursor:pointer;">16:00</span>
+                <span data-scrub-hour="20" style="cursor:pointer;">20:00</span>
+                <span data-scrub-hour="23" style="cursor:pointer;">24:00</span>
+              </div>
+              <div id="bentoChartScrubLiveRow" style="display:none;justify-content:space-between;align-items:center;padding:5px 8px;margin-top:5px;border-radius:8px;background:rgba(56,189,248,0.12);border:1px solid var(--accent);font-size:11.5px;font-weight:800;color:var(--text);flex-wrap:wrap;gap:6px;"></div>
+            </div>
+
+            <!-- Карточка: Тактика и 8 факторов в выбранный час -->
+            <div class="bento-card" id="fcSelectedHourDetailCard" style="padding:13px 14px;display:flex;flex-direction:column;gap:8px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+                <span style="font-size:13.5px;font-weight:800;">Тактика и 8 факторов в выбранный час</span>
+                <span style="font-size:12px;font-weight:800;color:${selBreakdown.total >= 60 ? 'var(--good)' : (selBreakdown.total >= 38 ? 'var(--accent)' : 'var(--warn)')};">Клёв ${selBreakdown.total}% в ${String(selH).padStart(2, '0')}:00</span>
+              </div>
+              ${fish.legal === 'redbook' ? `
+                <div style="padding:8px 10px;border-radius:10px;background:var(--pill-bad-bg);border:1px solid var(--bad);color:var(--pill-bad-text);font-weight:700;font-size:11.5px;">
+                  <b>${fish.name} — Красная книга (изъятие запрещено).</b> При поимке бережно отпустите рыбу.
+                </div>
+              ` : ''}
+              <div style="font-size:12.5px;color:var(--muted);line-height:1.45;">
+                Рекомендуемая снасть: <b style="color:var(--text);">${shortMethodName} (${rigTop.weight}, ${rigTop.line})</b> • Насадка: <b>${renderBaitWithColorDots(activeBaitTop)}</b> • Горизонт: ${s.depth.toFixed(1)} м (${rigTop.tactic}).
+              </div>
+              <div style="display:flex;flex-direction:column;gap:6px;margin-top:2px;">
+                ${selBreakdown.factors.map((f, fIdx) => {
+                  const isPos = f.val >= 0;
+                  const col = isPos ? 'var(--good)' : 'var(--bad)';
+                  const pctScore = Math.max(15, Math.min(99, 72 + f.val * 2));
+                  return `
+                    <div style="display:flex;flex-direction:column;gap:3px;padding:5px 0;border-bottom:1px dashed var(--border);">
+                      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:12px;font-weight:800;">
+                        <span>${fIdx + 1}. ${f.name}</span>
+                        <span style="color:var(--accent);font-weight:900;">${pctScore}% (${isPos ? '+' + f.val : f.val}%)</span>
+                      </div>
+                      <div style="font-size:11px;color:var(--muted);line-height:1.3;">${f.note}</div>
+                      <div style="width:100%;height:5px;border-radius:99px;background:rgba(148,163,184,0.16);overflow:hidden;">
+                        <div style="width:${pctScore}%;height:100%;background:${col};border-radius:99px;"></div>
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+              <details class="forecast-why-spoiler" style="margin-top:4px;">
+                <summary style="font-size:12px;font-weight:800;cursor:pointer;">
+                  <span>Ихтиология, стоянки и архив 10 км (${fish.name})</span>
+                </summary>
+                <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px;font-size:12px;line-height:1.45;color:var(--muted);">
+                  <div><b>Метеоархив (5 дней):</b> ${selBreakdown.archiveEval?.commentary || ''}</div>
+                  <div><b>Журнал уловов:</b> ${selBreakdown.logInsight?.commentary || ''}</div>
+                  <div><b>Радар «Круг» (35 км):</b> ${selBreakdown.circleEval?.commentary || ''}</div>
+                  <div><b>Гидробиология и стоянки:</b> ${guides.standAdvice}</div>
+                  <div><b>Подача снасти:</b> ${guides.tackleAdvice}</div>
+                </div>
+              </details>
+            </div>
+
+            <!-- Кнопка перехода к точкам на карте -->
+            <button type="button" class="cta-full-btn" id="bentoMapRadarCard">
+              <svg class="k-svg" style="width:18px;height:18px;"><use href="#ui-pin"></use></svg>
+              <span>Показать точки на карте</span>
+            </button>
+          </div>
+
+          <!-- ВКЛАДКА 2: СНАСТИ (Снасть + Сезонная насадка + Переключатель сезона открытой воды для карты свима и таймера) -->
+          <div class="fc-subtab-pane" data-fc-pane="tackle" style="display:${_activeForecastSubTab === 'tackle' ? 'flex' : 'none'};flex-direction:column;gap:10px;">
+            <div class="bento-card" style="padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
+              <div>
+                <div style="font-size:13px;font-weight:800;">Сезон открытой воды (Фидер / Карп)</div>
+                <div style="font-size:11px;color:var(--muted);">${showCarpSwimBlock ? 'Карта свима, клипса и таймер перезаброса активны' : 'Зимой (лёд) карта свима и таймер скрыты'}</div>
+              </div>
+              <label class="klev-switch" aria-label="Режим открытой воды для карты свима и таймера">
+                <input type="checkbox" id="fcOpenWaterCarpToggle" ${showCarpSwimBlock ? 'checked' : ''}>
+                <span class="klev-switch-slider"></span>
+              </label>
+            </div>
+
+            <div class="bento-card" id="fcTackleControlsCard" style="padding:13px 14px;display:flex;flex-direction:column;gap:10px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+                <span style="font-size:14px;font-weight:800;">1. Снасть и сезонная насадка</span>
+                <span class="pill pill-good" style="font-size:11px;font-weight:800;">${rigTop.weight} • ${s.depth.toFixed(1)} м</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:8px;">
+                <label for="fcTopMethodSelect" style="font-size:11.5px;color:var(--muted);font-weight:700;">Метод ловли (адаптивно под лёд/открытую воду):</label>
+                <select id="fcTopMethodSelect" class="form-select" style="width:100%;min-height:42px;">
+                  ${compatibleMethodsTop.map(m => `<option value="${m.val}" ${m.val === s.method ? 'selected' : ''}>${String(m.text || '').replace(/<[^>]+>/g, '').trim()}</option>`).join('')}
+                </select>
+                <label for="fcTopBaitSelect" style="font-size:11.5px;color:var(--muted);font-weight:700;">Рабочая приманка / насадка:</label>
+                <select id="fcTopBaitSelect" class="form-select" style="width:100%;min-height:42px;">
+                  ${seasonalBaitsTop.map(b => `<option value="${b}" ${b === activeBaitTop ? 'selected' : ''}>${b}</option>`).join('')}
+                </select>
+              </div>
+            </div>
+
+            <div id="fcCarpSwimOpenWaterWrap" style="display:${showCarpSwimBlock ? 'block' : 'none'};">
+              ${buildSpecializedTacticalHtml(fish, s, activeDayForTackle, effWaterTempForTackle, showCarpSwimBlock ? 'open_water' : effIceForTackle)}
+            </div>
+
+            <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;">
+              <button type="button" class="pill-btn" id="fcOpenRigGuideBtn" style="min-height:42px;font-weight:800;font-size:12px;">Монтажи и узлы</button>
+              <button type="button" class="pill-btn" id="fcOpenChecklistBtn" style="min-height:42px;font-weight:800;font-size:12px;">Чек-лист</button>
+              <button type="button" class="pill-btn" id="fcShareForecastTgBtn" style="min-height:42px;font-weight:800;font-size:12px;">Поделиться</button>
+            </div>
+          </div>
+
+          <!-- ВКЛАДКА 3: 10 ДНЕЙ (Вертикальный список дней + архив с шагом 4ч без кнопки Очистить кэш) -->
+          <div class="fc-subtab-pane" data-fc-pane="days" id="fcWeekBox" style="display:${_activeForecastSubTab === 'days' ? 'flex' : 'none'};flex-direction:column;gap:9px;">
+            <div style="font-size:13.5px;font-weight:800;padding:2px 2px;">Прогноз на 10 дней и архив • ${fish.name}</div>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              ${daysCardsHtml}
+            </div>
+            <div id="fcMobileArchive4hSlot"></div>
+          </div>
+
+          <!-- ВКЛАДКА 4: ПОГОДА (Кнопка полного экрана Погоды + Модель льда Стефана-Быдина + Суточный ход давления + Kp) -->
+          <div class="fc-subtab-pane" data-fc-pane="ice" style="display:${_activeForecastSubTab === 'ice' ? 'flex' : 'none'};flex-direction:column;gap:10px;">
+            <button type="button" class="cta-full-btn" id="fcOpenFullWeatherScreenBtn" style="padding:11px 14px;font-size:13px;">
+              <svg class="k-svg" style="width:18px;height:18px;"><use href="#icon-weather"></use></svg>
+              <span>Открыть полный экран «Погода» (все 6 карточек)</span>
+            </button>
+
+            <div class="bento-card" style="padding:14px;display:flex;flex-direction:column;gap:10px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+                <span style="font-size:13.5px;font-weight:800;">Модель льда Стефана — Быдина (WMO)</span>
+                <span class="code-tag">Росгидромет D1</span>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                <div class="glass-panel" style="padding:10px 12px;border-radius:14px;">
+                  <div style="font-size:11px;color:var(--muted);">Река (${nearWaterTitle})</div>
+                  <div style="font-size:19px;font-weight:900;color:var(--accent);margin:2px 0;">${iceThickVal > 0 ? `~${iceThickVal} см` : `Вода ${tWatStr}`}</div>
+                  <div style="font-size:11px;color:${effIceForTackle === 'ice_danger' ? 'var(--bad)' : 'var(--good)'};font-weight:700;">
+                    ${effIceForTackle === 'ice_safe' ? 'Пеший выход безопасен' : (effIceForTackle === 'ice_danger' ? 'Опасный лёд' : 'Открытая вода')}
+                  </div>
+                </div>
+                <div class="glass-panel" style="padding:10px 12px;border-radius:14px;">
+                  <div style="font-size:11px;color:var(--muted);">Озёра и карьеры</div>
+                  <div style="font-size:19px;font-weight:900;color:var(--good);margin:2px 0;">${iceThickVal > 0 ? `~${Math.round(iceThickVal * 1.28)} см` : `Вода ${tWatStr}`}</div>
+                  <div style="font-size:11px;color:var(--good);font-weight:700;">
+                    ${iceThickVal >= 22 ? 'Допуск снегохода' : (iceThickVal >= 10 ? 'Пеший выход' : 'Лодка и берег')}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="bento-card" style="padding:14px;display:flex;flex-direction:column;gap:8px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+                <span style="font-size:13.5px;font-weight:800;">Суточный ход давления (норма ${s.normPress || 754} мм)</span>
+                <span style="font-size:11.5px;font-weight:700;color:var(--good);">${activeDayForTackle.pressAvg || 754} мм (${fmtDeltaPress(activeDayForTackle.dP)})</span>
+              </div>
+              <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px;padding-top:2px;">
+                ${pressRowHtml}
+              </div>
+            </div>
+
+            <div class="bento-card" style="padding:14px;display:flex;flex-direction:column;gap:6px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+                <span style="font-size:13.5px;font-weight:800;">Ветер и Геомагнитный фон</span>
+                <span class="code-tag" style="color:${astro.kpTone};">Kp = ${astro.kpVal} (${astro.kpLabel})</span>
+              </div>
+              <div style="font-size:12px;color:var(--muted);line-height:1.45;">
+                Ветер ${activeDayForTackle.windDir || 'З'} ${activeDayForTackle.windMax || 3} м/с • Воздух днём ${activeDayForTackle.tDay > 0 ? '+' + activeDayForTackle.tDay : activeDayForTackle.tDay}°C, ночью ${activeDayForTackle.tNight > 0 ? '+' + activeDayForTackle.tNight : activeDayForTackle.tNight}°C • Световой день ${astro.daylightStr} (${fmtHM(astro.sr)}–${fmtHM(astro.ss)}).
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="fcHourlyBox" style="display:none;"></div>
+  `;
+
+  if (activeDayForTackle.isArchive) {
+    const archSlot = container.querySelector('#fcMobileArchive4hSlot');
+    if (archSlot) {
+      renderArchiveDayLogger(archSlot, s, activeDayForTackle, fish);
+    }
+  }
+
+  if (prevSpeciesScroll > 0) {
+    const spStrip = container.querySelector('.bento-top-species-strip');
+    if (spStrip) spStrip.scrollLeft = prevSpeciesScroll;
+  }
+
+  initOrUpdateHeroSonarCanvas(activeHeroScore);
+  bindForecastEvents(container);
+}
+
 export function render(container) {
   if (!container) return;
   if (typeof window !== 'undefined' && typeof window.__KLEV_IS_MOBILE_GUEST__ === 'function' && window.__KLEV_IS_MOBILE_GUEST__()) {
     if (store.getState().dayIdx !== 2) {
       store.dispatch({ type: 'SET_DAY', payload: 2 });
     }
+  }
+  const isDesktopWeb = typeof document !== 'undefined' && document.documentElement.getAttribute('data-desktop-web') === '1';
+  if (!isDesktopWeb) {
+    renderMobileRedesignForecast(container);
+    return;
   }
   const splashEl = typeof document !== 'undefined' ? document.getElementById('appSplashScreen') : null;
   const isSplashActive = Boolean(splashEl && !splashEl.classList.contains('splash-hide'));
@@ -2495,6 +3185,41 @@ function bindForecastEvents(container) {
   container.addEventListener('click', (e) => {
     const target = e.target;
     if (!target || typeof target.closest !== 'function') return;
+    const subTabBtn = target.closest('[data-klev-fc-subtab]');
+    if (subTabBtn) {
+      e.stopPropagation();
+      const tabId = subTabBtn.getAttribute('data-klev-fc-subtab') || 'overview';
+      _activeForecastSubTab = tabId;
+      container.querySelectorAll('[data-klev-fc-subtab]').forEach(b => {
+        b.classList.toggle('active', b.getAttribute('data-klev-fc-subtab') === tabId);
+      });
+      container.querySelectorAll('[data-fc-pane]').forEach(p => {
+        p.style.display = (p.getAttribute('data-fc-pane') === tabId) ? 'flex' : 'none';
+      });
+      return;
+    }
+    if (target.closest('#fcOpenLocationSheetBtn')) {
+      e.stopPropagation();
+      if (typeof window.__KLEV_OPEN_SETTINGS_ZONE__ === 'function') {
+        window.__KLEV_OPEN_SETTINGS_ZONE__('fishing');
+      } else if (typeof window.__KLEV_NAVIGATE_SECTION__ === 'function') {
+        window.__KLEV_NAVIGATE_SECTION__('geo');
+      }
+      return;
+    }
+    if (target.closest('#fcOpenFullWeatherScreenBtn')) {
+      e.stopPropagation();
+      if (typeof window.__KLEV_NAVIGATE_SECTION__ === 'function') {
+        window.__KLEV_NAVIGATE_SECTION__('weather');
+      }
+      return;
+    }
+    const carpToggle = target.closest('#fcOpenWaterCarpToggle');
+    if (carpToggle) {
+      _openWaterCarpPreview = Boolean(carpToggle.checked);
+      render(container);
+      return;
+    }
     const expCard = target.closest('[data-express-day]');
     if (expCard) {
       selectedArchiveDateOverride = null;
@@ -2864,8 +3589,15 @@ function bindForecastEvents(container) {
       waveCard = container.querySelector('#bentoWaveChartCard');
     }
     if (waveCard) {
+      const scrubbedHrStr = waveCard.getAttribute('data-scrubbing-hour');
       waveCard.classList.remove('is-scrubbing');
       waveCard.removeAttribute('data-scrubbing-hour');
+      if (scrubbedHrStr !== null && scrubbedHrStr !== '') {
+        const nextHr = parseInt(scrubbedHrStr, 10);
+        if (Number.isFinite(nextHr) && nextHr !== store.getState().selectedHour) {
+          store.dispatch({ type: 'SET_HOUR', payload: nextHr });
+        }
+      }
       const headLbl = waveCard.querySelector('#bentoChartTimeRangeLabel');
       if (headLbl && headLbl.dataset.origText) {
         headLbl.textContent = headLbl.dataset.origText;

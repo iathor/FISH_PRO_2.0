@@ -18,9 +18,20 @@ export function pushBackGuardState(reason = 'guard') {
 }
 export function handleAppBackAction(source = 'popstate') {
   if (typeof document === 'undefined') return false;
-  const compactMenu = document.getElementById('klevCompactMenuBackdrop');
-  if (compactMenu && compactMenu.classList.contains('open')) {
-    compactMenu.classList.remove('open');
+  const menuBackdrop = document.getElementById('klevCompactMenuBackdrop');
+  if (menuBackdrop && menuBackdrop.classList.contains('open')) {
+    menuBackdrop.classList.remove('open');
+    document.getElementById('bottomNavMenuTriggerBtn')?.classList.remove('active');
+    return true;
+  }
+  const arcExpandedClose = document.getElementById('arcCloseExpandedPlaqueBtn');
+  if (arcExpandedClose && arcExpandedClose.offsetParent !== null) {
+    arcExpandedClose.click();
+    return true;
+  }
+  const arcWxClose = document.getElementById('arcCloseWeatherModalBtn');
+  if (arcWxClose && arcWxClose.offsetParent !== null) {
+    arcWxClose.click();
     return true;
   }
   const selBackdrop = document.getElementById('klevCustomSelectBackdrop');
@@ -302,6 +313,8 @@ export const router = {
       }
     });
 
+    const menuBackdrop = document.getElementById('klevCompactMenuBackdrop');
+    if (menuBackdrop) menuBackdrop.classList.remove('open');
     document.querySelectorAll('[data-nav-tab]').forEach(btn => {
       const tabAttr = btn.getAttribute('data-nav-tab');
       if (btn.id === 'navCircleChatsHubBtn') {
@@ -310,6 +323,10 @@ export const router = {
         btn.classList.toggle('active', tabAttr === route);
       }
     });
+    const menuTriggerBtn = document.getElementById('bottomNavMenuTriggerBtn');
+    if (menuTriggerBtn) {
+      menuTriggerBtn.classList.toggle('active', ['weather', 'fish', 'calendar', 'circle', 'chats'].includes(route));
+    }
     this.syncNavGliders(route, false);
     if (typeof document !== 'undefined' && document.documentElement) {
       document.documentElement.setAttribute('data-scroll-compact', '0');

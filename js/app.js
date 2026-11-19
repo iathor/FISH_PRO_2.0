@@ -598,10 +598,254 @@ function bindGlobalShellEvents() {
   events.on('circle:shareCatchToChat', (payload = {}) => {
     circleModule.openShareCatchToChatModal(payload.catchObj || null);
   });
+
+  // --- v2.9.1 (r241): Компактное всплывающее Меню (5 разделов без дублей) и гибридный ползунок SOS ---
+  const menuTriggerBtn = document.getElementById('bottomNavMenuTriggerBtn');
+  const menuBackdrop = document.getElementById('klevCompactMenuBackdrop');
+
+  const syncCompactMenuControls = () => {
+    if (!menuBackdrop) return;
+    const st = store.getState();
+    const curTheme = st.theme || 'dark';
+    const effTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+    const curGlass = st.liquidGlass !== false;
+    menuBackdrop.querySelectorAll('[data-klev-menu-theme]').forEach(b => {
+      const tVal = b.getAttribute('data-klev-menu-theme');
+      const isAct = (curTheme === 'auto') ? (effTheme === tVal) : (curTheme === tVal);
+      b.classList.toggle('active', isAct);
+    });
+    menuBackdrop.querySelectorAll('[data-klev-menu-glass]').forEach(b => {
+      const gVal = b.getAttribute('data-klev-menu-glass') === '1';
+      b.classList.toggle('active', curGlass === gVal);
+    });
+    const curRoute = st.route || 'forecast';
+    menuBackdrop.querySelectorAll('[data-klev-menu-route]').forEach(item => {
+      const rVal = item.getAttribute('data-klev-menu-route');
+      const lensBtn = item.querySelector('.lens-btn');
+      if (lensBtn) {
+        const isRouteAct = (rVal === 'chats') ? (curRoute === 'chats' || curRoute === 'circle') : (curRoute === rVal);
+        lensBtn.classList.toggle('active', isRouteAct);
+      }
+    });
+    const statusLbl = document.getElementById('klevMenuOnlineStatusLbl');
+    if (statusLbl) {
+      const isOff = !navigator.onLine || (st.weatherSource || '').includes('Автономный');
+      statusLbl.textContent = isOff ? 'Автономный режим' : `Онлайн • ${st.locAdmin1 || st.locLabel || 'РФ'}`;
+    }
+  };
+
+  const closeCompactMenu = () => {
+    if (menuBackdrop) menuBackdrop.classList.remove('open');
+  };
+
+  if (menuTriggerBtn && menuBackdrop) {
+    menuTriggerBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      triggerHaptic('selection');
+      const willOpen = !menuBackdrop.classList.contains('open');
+      if (willOpen) {
+        syncCompactMenuControls();
+        menuBackdrop.classList.add('open');
+      } else {
+        closeCompactMenu();
+      }
+    });
+    menuBackdrop.addEventListener('click', (e) => {
+      if (e.target === menuBackdrop) {
+        closeCompactMenu();
+      }
+    });
+    menuBackdrop.querySelectorAll('[data-klev-menu-theme]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const nextTheme = btn.getAttribute('data-klev-menu-theme') || 'dark';
+        triggerHaptic('selection');
+        store.dispatch({ type: 'SET_THEME', payload: nextTheme });
+        applyTheme(nextTheme, false);
+        syncCompactMenuControls();
+      });
+    });
+    menuBackdrop.querySelectorAll('[data-klev-menu-glass]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const nextGlass = btn.getAttribute('data-klev-menu-glass') === '1';
+        triggerHaptic('selection');
+        store.dispatch({ type: 'SET_LIQUID_GLASS', payload: nextGlass });
+        applyLiquidGlassMode(nextGlass, false);
+        syncCompactMenuControls();
+      });
+    });
+    menuBackdrop.querySelectorAll('[data-klev-menu-route]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const target = btn.getAttribute('data-klev-menu-route');
+        triggerHaptic('selection');
+        closeCompactMenu();
+        if (target === 'settings') {
+          if (circleModule && typeof circleModule.isMobileGuestRestricted === 'function' && circleModule.isMobileGuestRestricted()) {
+            circleModule.openAuthAndBackupModal();
+            return;
+          }
+          fishModule.openOnboardingModal(true, 'auth');
+        } else if (target === 'chats') {
+          if (circleModule && typeof circleModule.isMobileGuestRestricted === 'function' && circleModule.isMobileGuestRestricted()) {
+            circleModule.promptMobileGuestAuth('Сначала войдите в аккаунт — разделы «Чаты·Круг», «SOS» и «Журнал» доступны после регистрации постоянного ID');
+            return;
+          }
+          router.navigate(_lastCommSubRoute || 'circle');
+        } else if (target) {
+          router.navigate(target);
+        }
+      });
+    });
+  }
+
+  // Гибридный ползунок SOS (#klevHybridSosTrack — свайп вправо ИЛИ удержание 2 сек)
+  const sosTrack = document.getElementById('klevHybridSosTrack');
+  const sosFill = document.getElementById('klevHybridSosFill');
+  const sosKnob = document.getElementById('klevHybridSosKnob');
+  const sosLabel = document.getElementById('klevHybridSosLabel');
+  if (sosTrack && sosFill && sosKnob && sosLabel) {
+    let sosDragging = false;
+    let sosStartX = 0;
+    let sosHoldTimer = null;
+    let sosHoldStartMs = 0;
+    let sosTriggered = false;
+
+    const resetSosSlider = () => {
+      sosDragging = false;
+      sosTriggered = false;
+      if (sosHoldTimer) {
+        clearInterval(sosHoldTimer);
+        sosHoldTimer = null;
+      }
+      sosFill.style.width = '0%';
+      sosKnob.style.transform = 'translateX(0px)';
+      sosLabel.textContent = 'Свайп вправо или 2 сек для SOS';
+    };
+
+    const fireSosModal = () => {
+      if (sosTriggered) return;
+      sosTriggered = true;
+      if (sosHoldTimer) {
+        clearInterval(sosHoldTimer);
+        sosHoldTimer = null;
+      }
+      triggerHaptic('warning');
+      sosFill.style.width = '100%';
+      sosLabel.textContent = 'Открытие SOS-центра...';
+      setTimeout(() => {
+        resetSosSlider();
+        closeCompactMenu();
+        if (circleModule && typeof circleModule.isMobileGuestRestricted === 'function' && circleModule.isMobileGuestRestricted()) {
+          circleModule.promptMobileGuestAuth('Сначала войдите в аккаунт — отправка экстренного сигнала SOS и работа с Экипажем доступны после авторизации');
+          return;
+        }
+        events.emit('circle:openShareModal', { mode: 'sos' });
+      }, 120);
+    };
+
+    sosTrack.addEventListener('pointerdown', (e) => {
+      sosDragging = true;
+      sosTriggered = false;
+      sosStartX = e.clientX;
+      sosHoldStartMs = Date.now();
+      try { sosTrack.setPointerCapture(e.pointerId); } catch (_e) {}
+      if (sosHoldTimer) clearInterval(sosHoldTimer);
+      sosHoldTimer = setInterval(() => {
+        if (!sosDragging || sosTriggered) return;
+        const elapsed = Date.now() - sosHoldStartMs;
+        const pct = Math.min(100, Math.round((elapsed / 2000) * 100));
+        const curW = parseFloat(sosFill.style.width) || 0;
+        if (pct > curW) {
+          sosFill.style.width = `${pct}%`;
+        }
+        const rem = Math.max(0, ((2000 - elapsed) / 1000)).toFixed(1);
+        sosLabel.textContent = `Удержание SOS: ${rem} сек...`;
+        if (elapsed >= 2000) {
+          fireSosModal();
+        }
+      }, 60);
+    });
+
+    sosTrack.addEventListener('pointermove', (e) => {
+      if (!sosDragging || sosTriggered) return;
+      const trackW = Math.max(140, sosTrack.clientWidth - 48);
+      const dx = Math.max(0, Math.min(trackW, e.clientX - sosStartX));
+      const swipePct = Math.round((dx / trackW) * 100);
+      sosKnob.style.transform = `translateX(${dx}px)`;
+      if (swipePct > (parseFloat(sosFill.style.width) || 0)) {
+        sosFill.style.width = `${swipePct}%`;
+      }
+      if (swipePct >= 78) {
+        fireSosModal();
+      }
+    });
+
+    sosTrack.addEventListener('pointerup', resetSosSlider);
+    sosTrack.addEventListener('pointercancel', resetSosSlider);
+  }
+
+  // Делегирование кнопки «< Назад» на вложенных экранах (Погода, Рыбы, Календарь, Круг/Чаты)
+  document.addEventListener('click', (e) => {
+    const backBtn = e.target && e.target.closest ? e.target.closest('[data-klev-smart-back]') : null;
+    if (backBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      triggerHaptic('selection');
+      if (typeof window.__KLEV_HANDLE_BACK__ === 'function' && window.__KLEV_HANDLE_BACK__('subscreen_back')) {
+        return;
+      }
+      router.navigate('forecast');
+    }
+  });
+
+  // Свайп «Назад» от левого края экрана (возврат на предыдущий экран)
+  let _edgeSwipeStartX = 0;
+  let _edgeSwipeStartY = 0;
+  let _edgeSwipeValid = false;
+  document.addEventListener('touchstart', (e) => {
+    if (!e.touches || e.touches.length !== 1) {
+      _edgeSwipeValid = false;
+      return;
+    }
+    const t = e.touches[0];
+    if (t.clientX <= 26) {
+      _edgeSwipeStartX = t.clientX;
+      _edgeSwipeStartY = t.clientY;
+      _edgeSwipeValid = true;
+    } else {
+      _edgeSwipeValid = false;
+    }
+  }, { passive: true });
+  document.addEventListener('touchend', (e) => {
+    if (!_edgeSwipeValid || !e.changedTouches || !e.changedTouches.length) return;
+    _edgeSwipeValid = false;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - _edgeSwipeStartX;
+    const dy = Math.abs(t.clientY - _edgeSwipeStartY);
+    if (dx >= 72 && dy < 48) {
+      if (typeof window.__KLEV_HANDLE_BACK__ === 'function') {
+        window.__KLEV_HANDLE_BACK__('edge_swipe');
+      }
+    }
+  }, { passive: true });
+
 }
 let cachedHeaderH = 0;
 let scrollRafPending = false;
 function syncHeaderLayout(forceMeasure = false) {
+  if (typeof document !== 'undefined') {
+    const root = document.documentElement;
+    const isDesktop = root.getAttribute('data-desktop-web') === '1';
+    const isAdmin = root.getAttribute('data-admin-contour') === '1' || (typeof window !== 'undefined' && window.__KLEV_ADMIN_CONTOUR__ === true);
+    if (!isDesktop && !isAdmin) {
+      cachedHeaderH = 0;
+      root.style.setProperty('--header-h', '0px');
+      return 0;
+    }
+  }
   const header = document.querySelector('.app-header');
   if (!header) return cachedHeaderH || 108;
   const rectH = Math.ceil(header.getBoundingClientRect().height);

@@ -1481,10 +1481,13 @@ export function renderFishStrip(container, state) {
   const prof = WATER_PROFILES[s.water] || WATER_PROFILES.small_river;
   container.innerHTML = `
     <div class="card">
-      <div class="section-head" style="margin-bottom:8px;">
-        <div>
-          <span class="section-title" id="fishSectionTitleText">Рыбы в выбранной локации/по GPS</span>
-        </div>
+      <div class="klev-mobile-subscreen-bar subscreen-nav-bar" style="margin-bottom:8px;">
+        <button type="button" class="pill-btn" data-klev-smart-back="1" style="padding:6px 13px;font-size:12.5px;">
+          <svg class="k-svg" style="width:16px;height:16px;"><use href="#ui-arrow-left"></use></svg>
+          <span>Назад</span>
+        </button>
+        <span class="section-title" id="fishSectionTitleText" style="font-size:15px;font-weight:800;">Ихтиобаза (115 видов РФ)</span>
+        <span class="code-tag">${escapeHtml(s.selectedWaterName || s.locLabel || 'РФ')}</span>
       </div>
       <!-- Кнопки По фото (ИИ), объединённая кнопка Избранное (открывает список с чекбоксом) и широкая кнопка переключения ихтиобазы -->
       <div class="fish-toolbar-onerow">

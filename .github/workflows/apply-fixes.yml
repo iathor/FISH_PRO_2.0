@@ -3,9 +3,6 @@ name: Apply Targeted Fixes & Verify Tests (Klev PRO 2.0)
 on:
   workflow_dispatch:
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
-
 permissions:
   contents: write
 
@@ -50,13 +47,11 @@ jobs:
             .github/workflows/apply-fixes.yml \
             tools/apply-fixes.mjs \
             tests/fixes.test.mjs \
-            FIXES_REPORT_r240.md \
-            FIXES_REPORT_r241.md \
-            README.md
+            FIXES_REPORT_r240.md
           git add -u apk/ assets/ css/ .github/workflows/ || true
           if [ -d "bot" ]; then git add -u bot/ || true; fi
           if ! git diff --cached --quiet; then
-            git commit -m "chore(fixes): apply P1-P3 security, weather and version 2.9.1-r241 fixes"
+            git commit -m "chore(fixes): apply P1-P3 security, weather and version 2.9.0-r240 fixes"
             git pull --rebase origin "${GITHUB_REF_NAME:-main}" || true
             git push origin HEAD:"${GITHUB_REF_NAME:-main}"
           else

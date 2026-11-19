@@ -27,6 +27,11 @@ import android.location.GnssStatus;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
+import android.view.Surface;
 import android.media.AudioAttributes;
 import android.media.AudioManager;
 import android.media.RingtoneManager;
@@ -598,6 +603,13 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        
+        @JavascriptInterface
+        public float getCompassHeadingDeg() {
+            return latestCompassHeadingDeg;
+        }
+
+        @JavascriptInterface
         public int getGnssSatellitesVisible() {
             return gnssSatellitesVisibleCount;
         }
@@ -1020,7 +1032,7 @@ public class MainActivity extends Activity {
                             try {
                                 URL u = new URL(targetUrl);
                                 String h = u.getHost() != null ? u.getHost().toLowerCase() : "";
-                                if (h.endsWith("meteoinfo.ru") || h.endsWith("met.no") || h.endsWith("open-meteo.com") || h.endsWith("project-osrm.org") || h.endsWith("openstreetmap.de") || h.endsWith("openstreetmap.org") || h.endsWith("workers.dev") || h.endsWith("klevpro.ru")) {
+                                if (h.endsWith("meteoinfo.ru") || h.endsWith("met.no") || h.endsWith("open-meteo.com") || h.endsWith("project-osrm.org") || h.endsWith("openstreetmap.de") || h.endsWith("openstreetmap.org") || h.endsWith("openstreetmap.fr") || h.endsWith("overpass-api.de") || h.endsWith("kumi.systems") || h.endsWith("mail.ru") || h.endsWith("vk.com") || h.endsWith("workers.dev") || h.endsWith("klevpro.ru")) {
                                     conn = (HttpURLConnection) u.openConnection();
                                     conn.setRequestMethod("GET");
                                     conn.setConnectTimeout(6500);

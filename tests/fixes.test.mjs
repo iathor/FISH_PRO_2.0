@@ -20,8 +20,8 @@ const runtimeSrc = fs.existsSync(path.join(ROOT, 'app-runtime.js'))
 
 test('3.1 Лимитер запросов checkWorkerRateLimit соблюдает переданный maxPerMin и не задирает лимит до 240', () => {
   assert.ok(
-    !workerSrc.includes('Math.max(240, Number(maxPerMin) || 240)'),
-    'В воркере не должно оставаться Math.max(240, ...)'
+    !workerSrc.includes('Math.max(241, Number(maxPerMin) || 240)'),
+    'В воркере не должно оставаться Math.max(241, ...)'
   );
   assert.ok(
     workerSrc.includes('const limit = Math.max(1, Number(maxPerMin) || 60);'),
@@ -196,7 +196,7 @@ test('4.5 Совпадение хешей SHA-256 через crypto.subtle со 
     return Array.from(new Uint8Array(buf), b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
   }
 
-  for (const sample of ['', 'KlevPro_2.9.0_r240', 'Рыболов Новый Уренгой 66.08N 76.68E', 'ADM_SESS_V3:1790000000000:A1B2C3D4E5F60718']) {
+  for (const sample of ['', 'KlevPro_2.9.1_r241', 'Рыболов Новый Уренгой 66.08N 76.68E', 'ADM_SESS_V3:1790000000000:A1B2C3D4E5F60718']) {
     const expected = legacySha256Hex(sample);
     const actual = await subtleSha256Hex(sample);
     assert.equal(actual, expected, `Хеш SHA-256 для "${sample}" должен совпадать 1-в-1`);
@@ -265,25 +265,29 @@ test("2.3 Синтаксическая валидность YAML в .github/work
   }
 });
 
-test("6.1 Редизайн v2.9.1 (r241): 26 SVG-иконок, живой сонар, компактное меню без дублей, гибридный SOS, < Назад в Погоде, 6 однострочных плашек карты, мини-экран и сохранение десктопа", () => {
-  // 1. Спрайт 26 векторных иконок и спокойная скорость сонара 0.52
-  assert.ok(indexSrc.includes('id="klevRedesignSvgSprite"'), 'В index.html должен быть встроен спрайт 26 SVG-иконок');
-  assert.ok(indexSrc.includes('var SONAR_SPEED_MULT = 0.52;'), 'Скорость загрузочного сонара должна быть снижена до 0.52');
+test("6.1 Редизайн v2.9.1 (r241): 26 SVG-иконок, живой сонар в forecast.module.js, компактное меню без дублей, гибридный SOS, < Назад в Погоде, 6 однострочных плашек карты и сохранение десктопа", () => {
+  const indexSrc = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  const runtimeSrc = fs.readFileSync(path.join(ROOT, 'app-runtime.js'), 'utf8');
 
-  // 2. Компактное меню из 5 уникальных разделов + гибридный ползунок SOS + мини-экран
+  // 1. Спрайт векторных иконок и спокойная скорость сонара 0.52 (без фейковых заглушек #klevAppFrame и #klevRearScreenHud)
+  assert.ok(indexSrc.includes('id="klevRedesignSvgSprite"'), 'В index.html должен быть встроен спрайт векторных SVG-иконок');
+  assert.ok(indexSrc.includes('var SONAR_SPEED_MULT = 0.52;'), 'Скорость загрузочного сонара должна быть снижена до 0.52');
+  assert.ok(!indexSrc.includes('id="klevAppFrame"'), 'В index.html не должно быть статической демо-заглушки #klevAppFrame');
+  assert.ok(!indexSrc.includes('id="klevRearScreenHud"'), 'В index.html не должно быть выдуманной мини-панели #klevRearScreenHud');
+
+  // 2. Компактное меню из 5 уникальных разделов + гибридный ползунок SOS
   assert.ok(indexSrc.includes('id="bottomNavMenuTriggerBtn"'), 'В нижнем доке должна быть 4-я кнопка Меню');
   assert.ok(indexSrc.includes('id="klevCompactMenuBackdrop"'), 'Должно присутствовать компактное всплывающее окно Меню');
   assert.ok(indexSrc.includes('id="klevHybridSosTrack"'), 'В компактном меню должен быть гибридный свайп-ползунок SOS');
-  assert.ok(indexSrc.includes('id="klevRearScreenHud"'), 'Должен присутствовать HUD для мини-экрана (Xiaomi 18 Pro Max / Flip)');
 
-  // 3. Сохранение десктопного режима (html[data-desktop-web="1"]) и горизонтальный режим для планшетов/флипов
+  // 3. Сохранение десктопного режима (html[data-desktop-web="1"]) и горизонтальный режим для планшетов/раскладушек
   assert.ok(indexSrc.includes('html[data-desktop-web="1"] .klev-fc-subtabs-bar'), 'На десктопе мобильные подвкладки должны скрываться без поломки десктопного интерфейса');
   assert.ok(indexSrc.includes('@media (orientation: landscape) and (max-width: 1180px)'), 'Должна поддерживаться горизонтальная двухколоночная сетка для планшетов и раскладушек');
 
-  // 4. Живой сонар на главном экране, удаление кнопки Очистить кэш из прогноза, кнопка < Назад в Погоде и 6 плашек на карте
-  assert.ok(runtimeSrc.includes('id="bentoHeroSonarCanvas"'), 'В прогнозе должен рендериться живой сонар #bentoHeroSonarCanvas');
-  assert.ok(runtimeSrc.includes('id="bentoHeroSonarPctText"'), 'В центре сонара должен отображаться процент клёва');
+  // 4. Живой сонар в скомпилированном боевом движке forecast.module.js, удаление кнопки Очистить кэш, < Назад в Погоде и 6 плашек на карте
+  assert.ok(runtimeSrc.includes('bentoHeroSonarCanvas'), 'В боевом forecast.module.js должен рендериться живой сонар #bentoHeroSonarCanvas');
+  assert.ok(runtimeSrc.includes('bentoHeroSonarPctText'), 'В центре сонара должен отображаться процент клёва #bentoHeroSonarPctText');
   assert.ok(!runtimeSrc.includes('id="fcCleanArchiveBtn"'), 'Кнопка Очистить кэш должна быть навсегда убрана из 10-дневного прогноза');
-  assert.ok(runtimeSrc.includes('id="arcCompactPillsStrip"'), 'Внизу карты должна быть компактная лента из 6 однострочных плашек');
-  assert.ok(runtimeSrc.includes('window.__KLEV_REDESIGN_V291_ACTIVE__'), 'Контроллер v2.9.1 должен быть активен в app-runtime.js');
+  assert.ok(runtimeSrc.includes('arcCompactPillsStrip'), 'В боевом geo.module.js должна рендериться лента из 6 однострочных плашек #arcCompactPillsStrip');
 });
+

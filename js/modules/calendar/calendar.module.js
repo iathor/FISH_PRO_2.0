@@ -162,6 +162,14 @@ export function renderCalendar(container, fishId) {
   `;
   container.innerHTML = `
     <div class="card">
+      <div class="klev-mobile-subscreen-bar subscreen-nav-bar" style="margin-bottom:8px;">
+        <button type="button" class="pill-btn" data-klev-smart-back="1" style="padding:6px 13px;font-size:12.5px;">
+          <svg class="k-svg" style="width:16px;height:16px;"><use href="#ui-arrow-left"></use></svg>
+          <span>Назад</span>
+        </button>
+        <span style="font-size:15px;font-weight:800;">Годовой био-календарь</span>
+        <span class="code-tag">${s.basinName || 'РФ'}</span>
+      </div>
       <div class="section-head">
         <div>
           <span class="section-title">Годовой биологический календарь${s.calendarMode === 'compare' ? ' (Сравнение видов)' : ': ' + fish.name}</span>

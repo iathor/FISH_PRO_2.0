@@ -8878,13 +8878,13 @@ function renderArcMobileMap(container, s, prevLiveMapBox) {
       <div id="mapBox" role="application" aria-label="Карта водоёмов"></div>
 
       <!-- П. 2.2: Верхний язычок «Разделы и шапка» -->
-      <button type="button" class="klev-arc-glass klev-arc-edge-handle top-handle" id="arcTopHeaderPeekBtn">
+      <button type="button" class="klev-arc-glass klev-arc-edge-handle top-handle" id="arcTopHeaderPeekBtn" style="display:none !important;">
         <span>Разделы и шапка</span>
         <svg class="k-ico" style="width:12px;height:12px;" viewBox="0 0 24 24" fill="none"><polyline points="6 9 12 15 18 9" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
 
       <!-- Верхняя Арка кнопок на карте (без лишних надписей, п. 2.1, 2.4, 2.8) -->
-      <div id="arcTopFloatingBar" style="position:absolute;top:32px;left:10px;right:10px;z-index:920;display:${_arcRouteBuilderMode ? 'none' : 'flex'};align-items:center;justify-content:space-between;gap:8px;pointer-events:none;">
+      <div id="arcTopFloatingBar" style="position:absolute;top:max(10px, env(safe-area-inset-top, 10px));left:10px;right:10px;z-index:920;display:${_arcRouteBuilderMode ? 'none' : 'flex'};align-items:center;justify-content:space-between;gap:8px;pointer-events:none;">
         <div style="display:flex;align-items:center;gap:7px;pointer-events:auto;">
           <!-- П. 2.1: Слои — только кнопка без надписи -->
           <button type="button" class="klev-arc-glass klev-arc-icon-btn ${_arcActivePopover === 'layers' ? 'active' : ''}" id="arcBtnLayers" aria-label="Слои карты">
@@ -9089,89 +9089,34 @@ function renderArcMobileMap(container, s, prevLiveMapBox) {
         </div>
       ` : ''}
 
-      <!-- Нижний блок: Свайпаемые плашки по 2 на экран (п. 7, 8.1 – 8.6) -->
-      <div id="arcBottomPlaquesMount" style="position:absolute;bottom:28px;left:10px;right:10px;z-index:930;display:${_arcRouteBuilderMode ? 'none' : 'flex'};flex-direction:column;gap:6px;">
+      <!-- Нижний блок: 6 компактных однострочных мини-плашек над нижним доком (нажал -> посмотрел в шторке) -->
+      <div id="arcBottomPlaquesMount" style="position:absolute;bottom:calc(74px + env(safe-area-inset-bottom, 0px));left:10px;right:10px;z-index:930;display:${_arcRouteBuilderMode ? 'none' : 'flex'};flex-direction:column;gap:6px;">
         ${_arcExpandedPlaqueId ? expandedPlaqueHtml : `
-          <div class="klev-arc-duo-viewport" id="arcDuoSwipeViewport">
-            <div class="klev-arc-duo-track" id="arcDuoSwipeTrack" style="transform:translate3d(-${_arcSwipePage * 33.333333}%, 0, 0);">
-              <!-- ЭКРАН 1: 8.1 Клёв / ТОП-10 рыб + 8.2 База / Маршруты (без верхнего заголовка до раскрытия, укрупнено и отцентровано) -->
-              <div class="klev-arc-duo-page">
-                <div class="klev-arc-glass klev-arc-plaque" data-arc-open-plaque="8.1">
-                  ${chosenFishObj ? `
-                    <div class="klev-arc-plaque-metric" style="color:var(--good);">${chosenFishScore}%</div>
-                    <div class="klev-arc-plaque-sub">
-                      <span class="arc-fish-svg-slot" style="width:28px;height:15px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">${renderFishVisual(chosenFishObj)}</span>
-                      <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:110px;">${escapeHtml(chosenFishObj.name)}</span>
-                    </div>
-                  ` : `
-                    <div class="klev-arc-plaque-metric" style="color:var(--good);">${avgScore}%</div>
-                    <div class="klev-arc-plaque-sub" style="color:var(--accent);">Клёв • ТОП-10 рыб</div>
-                  `}
-                </div>
-
-                <div class="klev-arc-glass klev-arc-plaque" data-arc-open-plaque="8.2">
-                  ${nearestBase ? `
-                    <div class="klev-arc-plaque-metric" style="color:var(--accent);">${nearestBase.distKm.toFixed(1).replace('.', ',')} км</div>
-                    <div class="klev-arc-plaque-sub" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px;">${escapeHtml(nearestBase.name)} • Маршрут</div>
-                  ` : `
-                    <div class="klev-arc-plaque-metric" style="font-size:19px;color:var(--warn);">Маршрут</div>
-                    <div class="klev-arc-plaque-sub">Укажите базу на карте</div>
-                  `}
-                </div>
-              </div>
-
-              <!-- ЭКРАН 2: 8.3 Точки на карте + 8.4 Офлайн карты -->
-              <div class="klev-arc-duo-page">
-                <div class="klev-arc-glass klev-arc-plaque" data-arc-open-plaque="8.3">
-                  <div class="klev-arc-plaque-metric">${totalMapPoints}</div>
-                  <div class="klev-arc-plaque-sub" style="color:var(--accent);">Точки • Фильтр</div>
-                </div>
-
-                <div class="klev-arc-glass klev-arc-plaque" data-arc-open-plaque="8.4">
-                  <div style="display:flex;align-items:center;justify-content:center;gap:8px;">
-                    <svg class="k-ico" style="width:28px;height:28px;color:${(hasOfflineHere && _offlineMapsEnabledOnMap) ? '#10b981' : '#ef4444'};" viewBox="0 0 24 24" fill="none">
-                      <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2.2"/>
-                      <circle cx="12" cy="12" r="4.2" fill="currentColor"/>
-                    </svg>
-                    <span class="klev-arc-plaque-metric" style="font-size:18px;color:${(hasOfflineHere && _offlineMapsEnabledOnMap) ? 'var(--good)' : 'var(--bad)'};">${hasOfflineHere ? (_offlineMapsEnabledOnMap ? '50/120 ОК' : 'ВЫКЛ') : 'Офлайн'}</span>
-                  </div>
-                  <div class="klev-arc-plaque-sub">${hasOfflineHere ? (_offlineMapsEnabledOnMap ? 'Карта в памяти' : 'Офлайн-слой скрыт') : 'Скачать 50 / 120 км'}</div>
-                </div>
-              </div>
-
-              <!-- ЭКРАН 3: 8.5 Глубины + 8.6 Улов -->
-              <div class="klev-arc-duo-page">
-                <div class="klev-arc-glass klev-arc-plaque" data-arc-open-plaque="8.5">
-                  <div style="display:flex;align-items:center;justify-content:center;gap:7px;">
-                    <svg class="k-ico" style="width:26px;height:26px;color:${hasBathyHere ? '#10b981' : '#ef4444'};" viewBox="0 0 24 24" fill="none">
-                      <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2.2"/>
-                      <path d="M12 12l5-5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
-                      <circle cx="12" cy="12" r="2.2" fill="currentColor"/>
-                    </svg>
-                    <span class="klev-arc-plaque-metric" style="font-size:21px;">~${s.depth.toFixed(1)} м</span>
-                  </div>
-                  <div class="klev-arc-plaque-sub">Глубины • Изобаты</div>
-                </div>
-
-                <div class="klev-arc-glass klev-arc-plaque" data-arc-open-plaque="8.6">
-                  <div class="klev-arc-plaque-metric" style="color:var(--good);">${catches120Count}</div>
-                  <div class="klev-arc-plaque-sub" style="color:var(--accent);">Уловы • 120 км</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Индикаторы свайпа 3 экранов -->
-          <div style="display:flex;justify-content:center;align-items:center;gap:6px;">
-            ${[0, 1, 2].map(i => `
-              <button type="button" data-arc-page-dot="${i}" style="height:6px;width:${_arcSwipePage === i ? '22px' : '6px'};border-radius:999px;border:none;background:${_arcSwipePage === i ? 'var(--accent)' : 'rgba(148,163,184,0.45)'};transition:all 0.25s ease;cursor:pointer;padding:0;" aria-label="Экран ${i + 1}"></button>
-            `).join('')}
+          <div class="klev-arc-single-pills-strip map-bottom-pills-strip" id="arcCompactPillsStrip" style="position:static;display:flex;align-items:center;gap:7px;overflow-x:auto;padding:2px 2px 4px;scrollbar-width:none;">
+            <button type="button" class="map-single-pill active" data-arc-open-plaque="8.1">
+              Клёв ${chosenFishObj ? `${escapeHtml(chosenFishObj.name)} ${chosenFishScore}%` : `${avgScore}%`}
+            </button>
+            <button type="button" class="map-single-pill" data-arc-open-plaque="8.2">
+              ${nearestBase ? `База ${nearestBase.distKm.toFixed(1).replace('.', ',')} км` : 'Маршрут'}
+            </button>
+            <button type="button" class="map-single-pill" data-arc-open-plaque="8.3">
+              Точки (${totalMapPoints})
+            </button>
+            <button type="button" class="map-single-pill" data-arc-open-plaque="8.4">
+              Офлайн ${hasOfflineHere ? (_offlineMapsEnabledOnMap ? 'ОК' : 'ВЫКЛ') : '50/120'}
+            </button>
+            <button type="button" class="map-single-pill" data-arc-open-plaque="8.5">
+              Глубины ~${s.depth.toFixed(1)}м
+            </button>
+            <button type="button" class="map-single-pill" data-arc-open-plaque="8.6">
+              Уловы (${catches120Count})
+            </button>
           </div>
         `}
       </div>
 
       <!-- П. 2.3: Нижний язычок «Быстрый доступ» -->
-      <button type="button" class="klev-arc-glass klev-arc-edge-handle bottom-handle" id="arcBottomFooterPeekBtn">
+      <button type="button" class="klev-arc-glass klev-arc-edge-handle bottom-handle" id="arcBottomFooterPeekBtn" style="display:none !important;">
         <svg class="k-ico" style="width:12px;height:12px;" viewBox="0 0 24 24" fill="none"><polyline points="18 15 12 9 6 15" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
         <span>Быстрый доступ</span>
       </button>

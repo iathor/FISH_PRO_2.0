@@ -1520,11 +1520,13 @@ export function render(container) {
   container.innerHTML = `
     <div class="bento-dashboard-wrap">
       ${!isInsideArcModal ? `
-        <div class="weather-sticky-back-bar" style="position:sticky;top:56px;z-index:940;display:flex;align-items:center;justify-content:space-between;padding:4px 0 6px;background:linear-gradient(180deg, var(--bg) 78%, rgba(7,17,31,0));backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);">
-          <button type="button" class="klev-arc-glass" id="weatherStickyBackToMapBtn" style="height:36px;padding:0 13px;border-radius:12px;display:inline-flex;align-items:center;gap:6px;font-weight:800;font-size:12.5px;cursor:pointer;">
+        <div class="weather-sticky-back-bar subscreen-nav-bar" style="position:sticky;top:0;z-index:940;display:flex;align-items:center;justify-content:space-between;padding:6px 0 8px;background:var(--bg);">
+          <button type="button" class="pill-btn" id="weatherStickyBackToMapBtn" data-klev-smart-back="1" style="height:36px;padding:0 14px;border-radius:999px;display:inline-flex;align-items:center;gap:6px;font-weight:800;font-size:12.5px;cursor:pointer;">
             <svg class="k-ico" viewBox="0 0 24 24" fill="none"><polyline points="15 18 9 12 15 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
             <span>Назад</span>
           </button>
+          <span style="font-size:14.5px;font-weight:800;">Погода и Гидрология</span>
+          <span class="code-tag">${escapeHtml(s.selectedWaterName || s.locLabel || 'РФ')}</span>
         </div>
       ` : ''}
       <!-- Горизонтальная лента быстрого выбора дня прямо во вкладке Погода -->
@@ -1799,11 +1801,8 @@ export function render(container) {
     </div>
   `;
   container.querySelector('#weatherStickyBackToMapBtn')?.addEventListener('click', () => {
-    if (typeof window !== 'undefined' && typeof window.__KLEV_HANDLE_BACK__ === 'function') {
-      if (window.__KLEV_HANDLE_BACK__('weather_back_btn')) return;
-    }
     if (typeof window !== 'undefined' && typeof window.__KLEV_NAVIGATE_SECTION__ === 'function') {
-      window.__KLEV_NAVIGATE_SECTION__('forecast');
+      window.__KLEV_NAVIGATE_SECTION__('geo');
     }
   });
   container.querySelectorAll('[data-weather-pick-day]').forEach(btn => {

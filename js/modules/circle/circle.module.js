@@ -6632,6 +6632,14 @@ export function renderCircleChatsHubBar(activeMode = 'radar') {
   const uniquePersonalSpots = getDeduplicatedPersonalSavedSpots(s, visibleSpotCircleItems);
   const totalSpotsCount = visibleSpotCircleItems.length + uniquePersonalSpots.length;
   return `
+    <div class="klev-mobile-subscreen-bar subscreen-nav-bar" style="margin-bottom:8px;">
+      <button type="button" class="pill-btn" data-klev-smart-back="1" style="padding:6px 13px;font-size:12.5px;">
+        <svg class="k-svg" style="width:16px;height:16px;"><use href="#ui-arrow-left"></use></svg>
+        <span>Назад</span>
+      </button>
+      <span style="font-size:15px;font-weight:800;">Круг (±5 км) и Чаты</span>
+      <span class="code-tag">E2E • D1</span>
+    </div>
     <div class="circle-chats-hub-bar" role="tablist" aria-label="Единый центр связи: Чаты, Круг и Точки">
       <button type="button" class="btn circle-chats-hub-btn ${activeMode === 'chats' ? 'btn-accent' : ''}" data-hub-switch="chats" role="tab" aria-selected="${activeMode === 'chats' ? 'true' : 'false'}">
         <span><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> Чаты</span>

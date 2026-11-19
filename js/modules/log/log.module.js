@@ -1072,22 +1072,28 @@ export function renderLog(container) {
   const statsFish = getPersonalStats(activeFish.id);
   container.innerHTML = `
     <div class="card">
-      <div class="section-head">
-        <div>
-          <span class="section-title">Журнал уловов и личная калибровка прогноза</span>
-
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+        <h2 style="font-size:22px;font-weight:900;margin:0;letter-spacing:-0.4px;">Журнал</h2>
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+          <button type="button" class="pill-btn" id="logOpenAiScannerBtn" title="Определить вид рыбы и вес по фотографии">
+            <svg class="k-svg" style="width:16px;height:16px;"><use href="#ui-camera"></use></svg>
+            <span>По фото (ИИ)</span>
+          </button>
+          <button type="button" class="pill-btn" id="logBlankTripBtn" title="Зафиксировать выезд без поклёвок">
+            <span>0 поклёвок</span>
+          </button>
+          <button type="button" class="pill-btn active" id="logOpenWizardBtn">
+            <span>+ Запись</span>
+          </button>
         </div>
-        <div class="toolbar-row" style="display:flex;gap:6px;flex-wrap:wrap;">
-          <button type="button" class="btn btn-sm btn-good" id="logOpenWizardBtn"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg> + Записать улов</button>
-          <button type="button" class="btn btn-sm btn-accent" id="logOpenAiScannerBtn" title="Определить вид рыбы и вес по фотографии"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 8V6a2 2 0 0 1 2-2h2M4 16v2a2 2 0 0 0 2 2h2m8-16h2a2 2 0 0 1 2 2v2m-4 12h2a2 2 0 0 0 2-2v-2" stroke="#38bdf8" stroke-width="1.9" stroke-linecap="round"/><path d="M6 12s2.5-3.8 6.5-3.8c2.6 0 4.5 1.5 5.5 3.8-1 2.3-2.9 3.8-5.5 3.8-4 0-6.5-3.8-6.5-3.8z" fill="rgba(16,185,129,0.28)" stroke="#10b981" stroke-width="1.7"/></svg> По фото (ИИ)</button>
-          <button type="button" class="btn btn-sm" id="logBlankTripBtn" style="border-color:var(--warn);color:var(--warn);" title="Если рыбалка прошла без поклёвок — нажмите, чтобы алгоритм учёл бесклёвье при этой погоде"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="4.5" stroke="#38bdf8" stroke-width="1.6"/><circle cx="12" cy="12" r="1.8" fill="#10b981"/></svg> Выезд без улова (0 поклёвок)</button>
-          <button type="button" class="btn btn-sm" id="logExportJsonBtn" title="Сохранить полный архив Журнала (с фотографиями) и всех личных точек карты в .JSON"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 15V3m0 0L8 7m4-4l4 4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg> Сохранить архив (.JSON с фото и точками)</button>
-          <button type="button" class="btn btn-sm" id="logExportCsvBtn" title="Выгрузить таблицу уловов в .CSV (для Excel)"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M3 3v18h18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M7 15l4-5 4 3 5-7" stroke="#38bdf8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg> .CSV</button>
-          <label class="btn btn-sm btn-accent" id="logImportFileLabel" style="cursor:pointer;margin:0;" title="Загрузить записи уловов из файла .JSON или .CSV">
-            <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg> Загрузить с устройства
-            <input type="file" id="logImportFileInput" accept=".json,.csv,application/json,text/csv,*/*" style="display:none;">
-          </label>
-        </div>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
+        <button type="button" class="pill-btn" style="padding:5px 10px;font-size:11.5px;" id="logExportJsonBtn">Архив .JSON</button>
+        <button type="button" class="pill-btn" style="padding:5px 10px;font-size:11.5px;" id="logExportCsvBtn">Экспорт .CSV</button>
+        <label class="pill-btn" id="logImportFileLabel" style="padding:5px 10px;font-size:11.5px;cursor:pointer;margin:0;">
+          <span>Загрузить с устройства</span>
+          <input type="file" id="logImportFileInput" accept=".json,.csv,application/json,text/csv,*/*" style="display:none;">
+        </label>
       </div>
       <!-- Переключатель: Основной журнал vs Помеченные на удаление (защита от случайного удаления) -->
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;padding:8px 10px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);">
@@ -1216,7 +1222,15 @@ export function renderLog(container) {
                       </button>
                     </div>
                   </div>
-                ` : ''}
+                ` : `
+                  <div class="catch-photo-thumb-placeholder" style="margin-top:4px;padding:7px 10px;border-radius:12px;background:rgba(15,23,42,0.32);border:1px dashed var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11.5px;color:var(--muted);">
+                    <span style="display:inline-flex;align-items:center;gap:6px;">
+                      <svg class="k-svg" style="width:15px;height:15px;color:var(--accent);"><use href="#ui-camera"></use></svg>
+                      <span>Фото улова</span>
+                    </span>
+                    <span style="font-weight:700;color:var(--accent);">Прикрепляется в записи / ИИ-сканере</span>
+                  </div>
+                `}
               </div>
             `).join('')}
           </div>
