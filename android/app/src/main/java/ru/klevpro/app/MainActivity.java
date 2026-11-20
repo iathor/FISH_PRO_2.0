@@ -790,12 +790,12 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public int getAppBuildNumber() {
-            return 243;
+            return 244;
         }
 
         @JavascriptInterface
         public String getAppRevision() {
-            return "r243";
+            return "r244";
         }
 
         private boolean isAllowedExternalUri(Uri uri) {
@@ -1787,7 +1787,7 @@ public class MainActivity extends Activity {
             }
         }
         String entryHtml = getPackageName().contains("admin") ? "kp-control-89.html" : "index.html";
-        String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/" + entryHtml + "?v=2.9.1_r243_" + System.currentTimeMillis();
+        String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/" + entryHtml + "?v=2.9.1_r244_" + System.currentTimeMillis();
         if (intent != null && intent.getData() != null) {
             Uri data = intent.getData();
             String q = data.getEncodedQuery();
