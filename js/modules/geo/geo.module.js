@@ -1073,7 +1073,7 @@ export function createOfflineAwareLeafletLayer(layerId, urlTemplate, fallbacks =
           tile.onerror = () => finishTileLoad();
           tile.setAttribute('data-offline-overzoom', 'grid');
           tile.src = gridUrl;
-          // Автоматическое самовосстановление тайлов после отключения/переключения VPN или смены сети (Wi-Fi <-> LTE)
+          // Автоматическое самовосстановление тайлов после смены активного сетевого подключения (Wi-Fi <-> LTE)
           if (!_forceOfflineTestMode) {
             [1500, 3500, 6800].forEach((delayMs) => {
               setTimeout(() => {
@@ -3058,9 +3058,9 @@ function rebuildActiveMapTileLayer() {
   applyYandexTileFiltersToMap();
 }
 
-function ensureNetworkAndVpnTileRecoveryBound() {
-  if (typeof window === 'undefined' || window.__KLEV_VPN_TILE_RECOVERY_BOUND__) return;
-  window.__KLEV_VPN_TILE_RECOVERY_BOUND__ = true;
+function ensureNetworkTileRecoveryBound() {
+  if (typeof window === 'undefined' || window.__KLEV_NET_TILE_RECOVERY_BOUND__) return;
+  window.__KLEV_NET_TILE_RECOVERY_BOUND__ = true;
   let lastRecoverTs = 0;
   const triggerTileRecoveryIfNeeded = (forceRebuild = false) => {
     if (_forceOfflineTestMode || !mapInstance) return;
@@ -9309,7 +9309,7 @@ function bindArcMobileMapEvents(container) {
 
   // Глобальный обработчик кнопок внутри балунов точек («Маршрут до точки», «Удалить закладку») для мобильной и ПК карты
   ensureGlobalMapPopupActionsBound();
-  ensureNetworkAndVpnTileRecoveryBound();
+  ensureNetworkTileRecoveryBound();
 
   // Клик по области карты прячет шапку, нижнее меню, всплывашки и открытую плашку (п. 2.2, 2.3, 7),
   // но НЕ перехватывает нажатия внутри открытого попапа точки (.leaflet-popup) и кнопок управления!
@@ -11058,7 +11058,7 @@ function bindGeoEvents(container, showDrawer) {
   });
  _bindDesktopBathyControls(container);
  ensureGlobalMapPopupActionsBound();
- ensureNetworkAndVpnTileRecoveryBound();
+ ensureNetworkTileRecoveryBound();
 }
 
 function ensureGlobalMapPopupActionsBound() {

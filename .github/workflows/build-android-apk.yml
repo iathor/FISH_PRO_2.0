@@ -1126,10 +1126,10 @@ jobs:
                               runOnUiThread(new Runnable() {
                                   @Override
                                   public void run() {
-                                      Toast.makeText(ctx, "✅ Файл сохранён в Загрузки (Downloads): " + cleanName, Toast.LENGTH_LONG).show();
+                                      Toast.makeText(ctx, "Файл сохранён в Загрузки (Downloads): " + cleanName, Toast.LENGTH_LONG).show();
                                   }
                               });
-                              showSystemNotification("📥 Файл сохранён в «Загрузки»", cleanName + " (доступен в папке Downloads устройства)", "files");
+                              showSystemNotification("Файл сохранён в «Загрузки»", cleanName + " (доступен в папке Downloads устройства)", "files");
                               return true;
                           }
                       } catch (Exception e) {
@@ -1310,7 +1310,7 @@ jobs:
                                   }
                                   Map<String, String> errHeaders = new HashMap<>();
                                   errHeaders.put("Access-Control-Allow-Origin", "*");
-                                  return new WebResourceResponse("application/json", "UTF-8", 502, "Net Proxy Error", errHeaders, new ByteArrayInputStream("{\"ok\":false}".getBytes(StandardCharsets.UTF_8)));
+                                  return new WebResourceResponse("application/json", "UTF-8", 502, "Net Gateway Error", errHeaders, new ByteArrayInputStream("{\"ok\":false}".getBytes(StandardCharsets.UTF_8)));
                               }
                               if ("/__klev_tile_proxy__".equals(path)) {
                                   String targetUrl = uri.getQueryParameter("url");
@@ -1356,7 +1356,7 @@ jobs:
                                   }
                                   Map<String, String> errHeaders = new HashMap<>();
                                   errHeaders.put("Access-Control-Allow-Origin", "*");
-                                  return new WebResourceResponse("text/plain", "UTF-8", 502, "Tile Proxy Error", errHeaders, new ByteArrayInputStream(new byte[0]));
+                                  return new WebResourceResponse("text/plain", "UTF-8", 502, "Tile Gateway Error", errHeaders, new ByteArrayInputStream(new byte[0]));
                               }
                               if (path == null || path.isEmpty() || path.equals("/")) {
                                   path = "/assets/www/index.html";

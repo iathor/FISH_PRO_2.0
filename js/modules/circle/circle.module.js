@@ -540,10 +540,10 @@ const LAST_WORKING_DB_GATEWAY_SESSION_KEY = 'klev_last_working_db_gateway_v2';
 const CUSTOM_DB_RELAY_URL_STORAGE_KEY = 'klev_custom_db_relay_url_v1';
 
 export const DB_GATEWAY_CATALOG = [
-  { kind: 'relay_hexlet_raw', label: 'Шлюз РФ Hexlet Raw (E2E AES-256-GCM • без VPN)', host: 'allorigins.hexlet.app/raw', isRelay: true, note: 'Российский узел вне Cloudflare (сквозное шифрование конверта ?e2e=)' },
-  { kind: 'relay_hexlet_json', label: 'Шлюз РФ Hexlet JSON (E2E AES-256-GCM • без VPN)', host: 'allorigins.hexlet.app/get', isRelay: true, note: 'Зашифрованный контейнер D1 через российский узел Hexlet' },
-  { kind: 'relay_vercel_seven', label: 'Шлюз Vercel AWS (E2E AES-256-GCM • без VPN)', host: 'corsproxy-seven.vercel.app', isRelay: true, note: 'Серверлесс-шлюз AWS в режиме сквозного шифрования ?e2e=' },
-  { kind: 'relay_everyorigin', label: 'Шлюз EveryOrigin AWS (E2E AES-256-GCM • без VPN)', host: 'every-origin.vercel.app', isRelay: true, note: 'Резервный зашифрованный канал на базе AWS / Vercel' },
+  { kind: 'relay_hexlet_raw', label: 'Шлюз РФ Hexlet Raw (E2E AES-256-GCM)', host: 'allorigins.hexlet.app/raw', isRelay: true, note: 'Российский узел вне Cloudflare (сквозное шифрование конверта ?e2e=)' },
+  { kind: 'relay_hexlet_json', label: 'Шлюз РФ Hexlet JSON (E2E AES-256-GCM)', host: 'allorigins.hexlet.app/get', isRelay: true, note: 'Зашифрованный контейнер D1 через российский узел Hexlet' },
+  { kind: 'relay_vercel_seven', label: 'Шлюз Vercel AWS (E2E AES-256-GCM)', host: 'corsproxy-seven.vercel.app', isRelay: true, note: 'Серверлесс-шлюз AWS в режиме сквозного шифрования ?e2e=' },
+  { kind: 'relay_everyorigin', label: 'Шлюз EveryOrigin AWS (E2E AES-256-GCM)', host: 'every-origin.vercel.app', isRelay: true, note: 'Резервный зашифрованный канал на базе AWS / Vercel' },
   { kind: 'direct_get_payload', label: 'Прямой E2E GET-пакет D1 (?e2e=...)', host: 'klevprohbot.thorantony82.workers.dev', isRelay: false, note: 'Прямой зашифрованный GET-канал Cloudflare D1' },
   { kind: 'direct', label: 'Прямой канал D1 / Edge (POST/GET)', host: 'klevprohbot.thorantony82.workers.dev', isRelay: false, note: 'Стандартное прямое HTTPS-соединение с Cloudflare Worker' }
 ];
@@ -575,10 +575,10 @@ let _pinnedDbGatewayKind = (() => {
   return 'auto';
 })();
 let _lastWorkingGatewayLabel = _lastWorkingGatewayKind
-  ? (DB_GATEWAY_CATALOG.find(g => g.kind === _lastWorkingGatewayKind)?.label || 'Авто-каскад шлюзов РФ (без VPN)')
+  ? (DB_GATEWAY_CATALOG.find(g => g.kind === _lastWorkingGatewayKind)?.label || 'Авто-каскад шлюзов РФ (облачный каскад)')
   : 'Авто-каскад шлюзов РФ (Hexlet / Vercel AWS / D1)';
-let _lastDbNoVpnDiagReport = null;
-let _dbNoVpnDiagRunning = false;
+let _lastDbGatewayDiagReport = null;
+let _dbGatewayDiagRunning = false;
 
 export function getCustomDbRelayBridgeUrl() {
   return _customDbRelayBridgeUrl;
@@ -701,17 +701,17 @@ function _isValidWorkerPayloadText(rawText, isHtmlExpected = false) {
 function _formatGatewayErrorRu(err) {
   const msg = String(err?.message || err || '').trim();
   if (/aborted|AbortError|timeout/i.test(msg)) {
-    return 'Таймаут ТСПУ (соединение блокируется оператором без VPN)';
+    return 'Превышено время ожидания ответа от сервера';
   }
   if (/Failed to fetch|NetworkError|Load failed/i.test(msg)) {
-    return 'Сброс соединения (DNS / TLS фильтр оператора)';
+    return 'Сброс сетевого соединения с узлом';
   }
   if (/HTTP (4\d\d|5\d\d)/i.test(msg)) {
     const m = msg.match(/HTTP (\d+)/i);
-    return `Отказ прокси-узла (HTTP ${m ? m[1] : 'ошибка'})`;
+    return `Отказ транзитного узла (HTTP ${m ? m[1] : 'ошибка'})`;
   }
   if (/Invalid gateway payload/i.test(msg)) {
-    return 'Заглушка провайдера вместо JSON базы D1';
+    return 'Некорректный формат ответа вместо JSON базы D1';
   }
   return msg.slice(0, 64) || 'Канал недоступен';
 }
@@ -909,7 +909,7 @@ async function _executeSingleGatewayRequest(kind, fullUrl, method, bodyStr, canU
       const catalog = getEffectiveGatewayCatalog();
       const gwMeta = catalog.find(g => g.kind === kind);
       _lastWorkingGatewayKind = kind;
-      _lastWorkingGatewayLabel = gwMeta ? gwMeta.label : (kind.startsWith('relay_') ? `Анти-DPI E2E шлюз (${kind.replace('relay_', '')} • без VPN)` : 'Прямой канал D1 / Edge');
+      _lastWorkingGatewayLabel = gwMeta ? gwMeta.label : (kind.startsWith('relay_') ? `Резервный E2E шлюз (${kind.replace('relay_', '')})` : 'Прямой канал D1 / Edge');
       try {
         if (typeof sessionStorage !== 'undefined') {
           sessionStorage.setItem(LAST_WORKING_DB_GATEWAY_SESSION_KEY, kind);
@@ -1057,9 +1057,9 @@ export async function workerFetch(endpointOrUrl, options = {}, timeoutMs = 6500,
   throw lastErr || new Error('Network timeout');
 }
 
-export async function runAdminNoVpnDatabaseDiagnostics(triggerToast = true) {
-  if (_dbNoVpnDiagRunning) return _lastDbNoVpnDiagReport;
-  _dbNoVpnDiagRunning = true;
+export async function runAdminGatewayDatabaseDiagnostics(triggerToast = true) {
+  if (_dbGatewayDiagRunning) return _lastDbGatewayDiagReport;
+  _dbGatewayDiagRunning = true;
   renderAdminSection();
   const s = store.getState();
   const tok = getActiveAdminToken(s);
@@ -1141,11 +1141,11 @@ export async function runAdminNoVpnDatabaseDiagnostics(triggerToast = true) {
     }
   } else {
     if (_adminDashboardCache) {
-      _adminDashboardCache.d1Status = 'DISCONNECTED_NO_VPN';
+      _adminDashboardCache.d1Status = 'DISCONNECTED_GATEWAY';
     }
   }
 
-  _lastDbNoVpnDiagReport = {
+  _lastDbGatewayDiagReport = {
     checkedAt: Date.now(),
     totalGateways: results.length,
     workingCount: working.length,
@@ -1154,24 +1154,24 @@ export async function runAdminNoVpnDatabaseDiagnostics(triggerToast = true) {
     fastestLatencyMs: fastest ? fastest.latencyMs : 0,
     results
   };
-  _dbNoVpnDiagRunning = false;
+  _dbGatewayDiagRunning = false;
 
   if (working.length > 0) {
     if (triggerToast) {
-      showToast(`Связь с БД без VPN подтверждена: доступно ${working.length} из ${results.length} шлюзов. Активен: ${fastest.label} (${fastest.latencyMs} мс)`, 'good');
+      showToast(`Связь с облачной БД подтверждена: доступно ${working.length} из ${results.length} шлюзов. Активен: ${fastest.label} (${fastest.latencyMs} мс)`, 'good');
     }
     await fetchSuperAdminDashboardData(false);
   } else {
     if (triggerToast) {
-      showToast('Общедоступные прокси блокируются вашим оператором. Подключите личный мост Google в карточке диагностики.', 'warn');
+      showToast('Резервные облачные узлы временно недоступны. Подключите личный мост Google в карточке диагностики.', 'warn');
     }
     renderAdminSection();
   }
-  return _lastDbNoVpnDiagReport;
+  return _lastDbGatewayDiagReport;
 }
 
 if (typeof window !== 'undefined') {
-  window.__KLEV_RUN_DB_NOVPN_DIAG__ = runAdminNoVpnDatabaseDiagnostics;
+  window.__KLEV_RUN_DB_GATEWAY_DIAG__ = runAdminGatewayDatabaseDiagnostics;
   window.__KLEV_SET_PINNED_DB_GATEWAY__ = setPinnedDbGatewayKind;
 }
 export function getCanonicalDmChannelId(myFidRaw, peerFidRaw, allMsgs = []) {
@@ -1778,7 +1778,7 @@ export function openWelcomeOnboardingGuideModal(forceOpen = false) {
       num: 'Шаг 2 из 4',
       title: 'Слои Яндекс Карт и Офлайн-карты 50 / 120 км',
       badge: 'Картография Z7–Z18',
-      desc: 'Во вкладке «Карта» открыты спутниковые и гибридные слои Яндекса без VPN, контраст русел и проток, личные закладки, выгрузка .GPX для эхолотов и загрузка полных офлайн-карт квадратов 50 и 120 км до максимального зума Z18.',
+      desc: 'Во вкладке «Карта» открыты спутниковые и гибридные слои Яндекс Карт, контраст русел и проток, личные закладки, выгрузка .GPX для эхолотов и загрузка полных офлайн-карт квадратов 50 и 120 км до максимального зума Z18.',
       icon: '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3V6z" fill="rgba(56,189,248,0.25)" stroke="#38bdf8" stroke-width="1.9" stroke-linejoin="round"/><path d="M9 3v15M15 6v15" stroke="#38bdf8" stroke-width="1.6"/></svg>'
     },
     {
@@ -7098,7 +7098,7 @@ export function render(container) {
 let _lastAdminDashboardFetchTs = 0;
 /**
  * Открывает полную серверную Веб-консоль Супер-Админа напрямую через многоканальный шлюз workerFetch
- * (100% работает без VPN в мобильных сетях РФ, с VPN, в Android APK и в Telegram Mini App без блокировки iframe/CSP)
+ * (Стабильно работает в мобильных сетях, в Android APK и в Telegram Mini App в рамках политики безопасности CSP)
  */
 export async function openFullServerWebConsoleModal() {
   const s = store.getState();
@@ -7834,7 +7834,7 @@ export async function verifyBetaTesterStatusFromCloud(rawFid = '') {
     return true;
   };
 
-  // 1. Check /api/beta/status via workerFetch (works through Hexlet anti-DPI gateway without VPN)
+  // 1. Проверка /api/beta/status через резервный облачный канал workerFetch
   try {
     const res = await workerFetch(`/api/beta/status?fid=${encodeURIComponent(targetFid)}`, { method: 'GET' }, 5000, 1);
     if (res && res.ok) {
@@ -8041,7 +8041,7 @@ export function renderAdminSection(customContainer = null) {
     return;
   }
 
-  if ((!_adminDashboardCache || (Date.now() - _lastAdminDashboardFetchTs > 2500)) && !_adminDashboardLoading && !_dbNoVpnDiagRunning) {
+  if ((!_adminDashboardCache || (Date.now() - _lastAdminDashboardFetchTs > 2500)) && !_adminDashboardLoading && !_dbGatewayDiagRunning) {
     fetchSuperAdminDashboardData(false);
   }
   const db = _adminDashboardCache || {};
@@ -8138,17 +8138,17 @@ export function renderAdminSection(customContainer = null) {
       </div>
     `;
 
-    // Блок 1.2: Шлюзы D1 без VPN
+    // Блок 1.2: Облачные шлюзы D1
     const catalog = getEffectiveGatewayCatalog();
     const pinnedKind = getPinnedDbGatewayKind();
-    const diag = _lastDbNoVpnDiagReport;
+    const diag = _lastDbGatewayDiagReport;
     const activeLabel = getLastActiveDbGatewayLabel();
     const customBridgeVal = getCustomDbRelayBridgeUrl();
     const isConnectedNow = (db.d1Status === 'CONNECTED' && (!diag || diag.workingCount > 0)) || Boolean(diag && diag.workingCount > 0);
     const gatewaysBodyHtml = `
       <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
-        <button type="button" class="btn btn-sm btn-good" id="admTestDbNoVpnBtn" style="min-height:40px;font-weight:900;justify-content:center;">
-          ${_dbNoVpnDiagRunning ? 'Проверка шлюзов...' : `Проверить все ${catalog.length} шлюзов`}
+        <button type="button" class="btn btn-sm btn-good" id="admTestDbGatewayBtn" style="min-height:40px;font-weight:900;justify-content:center;">
+          ${_dbGatewayDiagRunning ? 'Проверка шлюзов...' : `Проверить все ${catalog.length} шлюзов`}
         </button>
         <button type="button" class="btn btn-sm ${pinnedKind === 'auto' ? 'btn-accent' : ''}" id="admResetDbGatewayAutoBtn" style="min-height:40px;font-weight:800;justify-content:center;">
           Авто-выбор лучшего
@@ -8313,7 +8313,7 @@ export function renderAdminSection(customContainer = null) {
       }),
       renderAdminAccordionCard({
         id: 'adm_blk_gateways',
-        title: `1.2 Канал связи с D1 без VPN`,
+        title: `1.2 Резервные каналы связи с БД D1`,
         subtitle: `Активный маршрут: ${escapeHtml(activeLabel)}`,
         badgeHtml: `<span class="pill ${isConnectedNow ? 'pill-good' : 'pill-warn'}" style="font-size:10px;">${isConnectedNow ? 'ПОДКЛЮЧЕНА' : 'ПРОВЕРКА'}</span>`,
         borderColor: isConnectedNow ? 'var(--good)' : 'var(--accent)',
@@ -9249,12 +9249,12 @@ function bindAdminSectionEvents(container, users) {
       }
     } catch (_e) {}
   });
-  container.querySelector('#admTestDbNoVpnBtn')?.addEventListener('click', async () => {
-    await runAdminNoVpnDatabaseDiagnostics(true);
+  container.querySelector('#admTestDbGatewayBtn')?.addEventListener('click', async () => {
+    await runAdminGatewayDatabaseDiagnostics(true);
   });
   container.querySelector('#admResetDbGatewayAutoBtn')?.addEventListener('click', () => {
     setPinnedDbGatewayKind('auto');
-    showToast('Включён автоматический выбор самого быстрого шлюза БД без VPN.', 'good');
+    showToast('Включён автоматический выбор самого быстрого облачного шлюза БД.', 'good');
     renderAdminSection(container);
   });
   container.querySelector('#admSaveCustomRelayBridgeBtn')?.addEventListener('click', async () => {
@@ -9263,7 +9263,7 @@ function bindAdminSectionEvents(container, users) {
     if (val) {
       setPinnedDbGatewayKind('relay_custom_bridge');
       showToast('Личный мост сохранён и активирован. Проверяем связь с D1...', 'good');
-      await runAdminNoVpnDatabaseDiagnostics(true);
+      await runAdminGatewayDatabaseDiagnostics(true);
     } else {
       setPinnedDbGatewayKind('auto');
       showToast('Личный мост отключён, включён авто-выбор шлюзов РФ.', 'info');
@@ -9399,7 +9399,7 @@ function bindAdminSectionEvents(container, users) {
           }
         }
         if (!gRes && useRelay) {
-          gRes = null; // Запрещена отправка API-ключа через публичные прокси
+          gRes = null; // Отправка API-ключа разрешена только по прямому защищённому каналу
         }
         if (gRes && gRes.ok) {
           try { if (typeof localStorage !== 'undefined') localStorage.setItem('klev_gemini_active_model_v2', mod); } catch (e) {}

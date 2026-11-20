@@ -181,7 +181,7 @@ export async function extractPhotoVisualFeatures(imgSrc) {
             ctxT.drawImage(img, 0, 0, cThumb.width, cThumb.height);
             thumbDataUrl = cThumb.toDataURL("image/jpeg", 0.85);
           }
-          // 2. Компактный пакет для передачи через Cloudflare Worker и прокси (строго < 44 КБ в Base64, чтобы весь POST-запрос был < 64 КБ и гарантированно проходил через все прокси и 4G)
+          // 2. Компактный пакет для передачи через Cloudflare Worker (строго < 44 КБ в Base64, чтобы весь POST-запрос был < 64 КБ и стабильно проходил по мобильной сети 4G)
           let apiDataUrl = thumbDataUrl;
           let pureB64 = stripB64Prefix(apiDataUrl);
           const compressionSteps = [
@@ -526,7 +526,7 @@ async function _postGeminiWithGeoRelay(rawUrl, bodyStr, timeoutMs) {
     }
   }
 
-  // Маршрутизация через зарубежные US/EU HTTPS-ретрансляторы (обход блокировки IP РФ со стороны Google AI Studio без VPN)
+  // Маршрутизация через резервные облачные HTTPS-узлы для стабильного соединения с сервисом распознавания
   const relayTargets = [
     `https://corsproxy.io/?url=${encodeURIComponent(rawUrl)}`,
     `https://corsproxy-seven.vercel.app/api?url=${encodeURIComponent(rawUrl)}`,
@@ -1180,8 +1180,8 @@ export async function analyzeFishPhotoHybrid(imgSrc, bypassCache = false) {
     const activeClientKey = getStoredGeminiApiKey();
 
     // 2А. Многоканальный запрос к Cloudflare Worker /api/ai/identify-fish:
-    // Сначала быстрый прямой POST (2.5 сек), а при блокировке ТСПУ без VPN — гарантированная пакетная передача
-    // чанков через рабочий анти-DPI E2E GET-каскад workerFetch (Hexlet / Vercel / EveryOrigin)!
+    // Сначала быстрый прямой POST (2.5 сек), а при задержке отклика — гарантированная пакетная передача
+    // чанков через резервный E2E GET-каскад workerFetch (Hexlet / Vercel / EveryOrigin)
     const workerBodyStr = JSON.stringify({
       basinCode,
       locLabel,
@@ -1267,9 +1267,9 @@ export async function analyzeFishPhotoHybrid(imgSrc, bypassCache = false) {
       }
     };
 
-    const callChunkedNoVpnRelay = async () => {
+    const callChunkedCloudRelay = async () => {
       const b64ToSend = feat.relayB64 || pureB64;
-      const chunkSize = 1350; // <= 1.35 КБ на чанк -> URL ?e2e= менее 2.2 КБ (100% проходит лимит 4 КБ любых прокси!)
+      const chunkSize = 1350; // <= 1.35 КБ на чанк -> URL ?e2e= менее 2.2 КБ (укладывается в лимит 4 КБ стандартного HTTP GET)
       const chunks = [];
       for (let i = 0; i < b64ToSend.length; i += chunkSize) {
         chunks.push(b64ToSend.slice(i, i + chunkSize));
@@ -1347,7 +1347,7 @@ export async function analyzeFishPhotoHybrid(imgSrc, bypassCache = false) {
       try {
         workerWinner = await callDirectPostFast(2500);
       } catch (_directErr) {
-        workerWinner = await callChunkedNoVpnRelay();
+        workerWinner = await callChunkedCloudRelay();
       }
       if (workerWinner && workerWinner.parsed) {
         const { data: cloudData, parsed: parsedFromRaw } = workerWinner;
@@ -1380,7 +1380,7 @@ export async function analyzeFishPhotoHybrid(imgSrc, bypassCache = false) {
       }
     } catch (e) {}
 
-    // 2Б. Вызов Google Gemini Pro/Flash Vision API с ключом пользователя (с автоматическим US/EU проксированием для РФ)
+    // 2Б. Вызов Google Gemini Pro/Flash Vision API с ключом пользователя (через резервный облачный канал)
     if (geminiQuota.hasKey && geminiQuota.remainingToday > 0) {
       const gKey = geminiQuota.keys[0];
       try {

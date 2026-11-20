@@ -315,7 +315,7 @@ async function clearD1LoginFailures(env, ip = 'anon', loginNorm = '') {
     w = w.replace(oldBfBlockRe, newBfBlock);
   }
 
-  // 3.3: Регулярка прокси тайлов с левой границей (^|\.)
+  // 3.3: Регулярка шлюз тайлов с левой границей (^|\.)
   w = w.replace(
     /\/\(maps\\\.yandex\\\.net\|arcgisonline\\\.com\|openstreetmap\\\.org\|cartocdn\\\.com\|opentopomap\\\.org\|maps\\\.mail\\\.ru\)\$\/i/g,
     '/(^|\\.)(maps\\.yandex\\.net|arcgisonline\\.com|openstreetmap\\.org|cartocdn\\.com|opentopomap\\.org|maps\\.mail\\.ru)$/i'
@@ -810,7 +810,7 @@ function patchFrontendAndServiceWorker() {
     );
   }
 
-  // 4) 3.3: Перевод клиента на прямую загрузку тайлов Яндекса, прокси через воркер — только как резерв за флагом window.__KLEV_USE_TILE_PROXY_FALLBACK__
+  // 4) 3.3: Перевод клиента на прямую загрузку тайлов Яндекса, шлюз через воркер — только как резерв за флагом window.__KLEV_USE_TILE_PROXY_FALLBACK__
   runtimeCode = runtimeCode.replace(
     'if("unavailable"!==lc){const e=`https://klevprohbot.thorantony82.workers.dev/api/tile-proxy?url=${encodeURIComponent(a)}`',
     'if("unavailable"!==lc&&"undefined"!=typeof window&&!0===window.__KLEV_USE_TILE_PROXY_FALLBACK__){const e=`https://klevprohbot.thorantony82.workers.dev/api/tile-proxy?url=${encodeURIComponent(a)}`'

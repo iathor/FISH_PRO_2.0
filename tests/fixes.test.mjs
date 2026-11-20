@@ -63,7 +63,7 @@ test('3.2 ИИ-ручка /api/ai/identify-fish и /api/ai/identify-fish/chunk �
   assert.ok(workerSrc.includes('consumeAiUserChunkQuota(env, aiAuth.fisherId, 1)'));
 });
 
-test('3.3 Регулярка прокси тайлов блокирует чужие домены (evilopenstreetmap.org) и пропускает легитимные поддомены', () => {
+test('3.3 Регулярка шлюз тайлов блокирует чужие домены (evilopenstreetmap.org) и пропускает легитимные поддомены', () => {
   const tileHostRe = /(^|\.)(maps\.yandex\.net|arcgisonline\.com|openstreetmap\.org|cartocdn\.com|opentopomap\.org|maps\.mail\.ru)$/i;
   assert.equal(tileHostRe.test('evilopenstreetmap.org'), false, 'evilopenstreetmap.org должен отвергаться');
   assert.equal(tileHostRe.test('fake-maps.yandex.net'), false, 'fake-maps.yandex.net должен отвергаться');
@@ -71,7 +71,7 @@ test('3.3 Регулярка прокси тайлов блокирует чуж
   assert.equal(tileHostRe.test('tile.openstreetmap.org'), true, 'tile.openstreetmap.org должен проходить');
   assert.ok(workerSrc.includes('/(^|\\.)(maps\\.yandex\\.net|arcgisonline\\.com|openstreetmap\\.org|cartocdn\\.com|opentopomap\\.org|maps\\.mail\\.ru)$/i'));
   assert.ok(swSrc.includes('/(^|\\.)(maps\\.yandex\\.net|arcgisonline\\.com|openstreetmap\\.org|openstreetmap\\.fr|cartocdn\\.com|opentopomap\\.org|maps\\.mail\\.ru)$/i'));
-  assert.ok(runtimeSrc.includes('window.__KLEV_USE_TILE_PROXY_FALLBACK__'), 'Прокси тайлов в клиенте должен быть закрыт флагом резерва');
+  assert.ok(runtimeSrc.includes('window.__KLEV_USE_TILE_PROXY_FALLBACK__'), 'Шлюз тайлов в клиенте должен быть закрыт флагом резерва');
 });
 
 test('3.4 & 4.8 Единый источник версии VERSION (2.9.0 r240) синхронизирован во всех файлах и ссылка на APK валидна', () => {

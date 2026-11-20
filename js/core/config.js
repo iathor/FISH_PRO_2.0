@@ -1,6 +1,6 @@
 /**
  * @file config.js
- * @description Конфигурация приложения (Релиз 2.9.2 r237), слои карт без VPN и адаптивные справочники снастей и сезонных наживок
+ * @description Конфигурация приложения (Релиз 2.9.1 r241), картографические слои и адаптивные справочники снастей и сезонных наживок
  */
 export const APP_VERSION = '2.9.1';
 export const APP_BUILD_NUMBER = 241;
@@ -11,16 +11,16 @@ export const WEATHER_CACHE_KEY = 'klev_pro_weather_v2.0';
 export const RELEASE_CACHE_KEY = 'klev_pro_release_v2.0';
 export const WEATHER_TTL_MS = 2 * 60 * 60 * 1000;
 export const CURRENT_RELEASE_INFO = {
-  "version": "2.9.3",
-  "versionCode": 293239,
-  "buildNumber": 237,
-  "revision": "r239",
-  "displayVersion": "v2.9.3 r239",
+  "version": "2.9.1",
+  "versionCode": 293241,
+  "buildNumber": 241,
+  "revision": "r241",
+  "displayVersion": "v2.9.1 r241",
   "date": "12 ноября 2026",
   "releasedAt": "2026-11-12T13:30:00Z",
-  "apkUrl": "https://klevpro.ru/apk/klev-pro-v2.9.3.apk",
+  "apkUrl": "https://klevpro.ru/apk/klev-pro-v2.9.1.apk",
   "fileSize": "38.8 МБ",
-  "title": "Обновление «Клёв ПРО 2.0» (v2.9.3 r239)",
+  "title": "Обновление «Клёв ПРО 2.0» (v2.9.1 r241)",
   "subtitle": "Водный движок NavMesh (обход островов, приоритет фарватера и учёт течения), управление офлайн-картами с плашки и фильтрация точек.",
   "summary": "Внедрён 2D-движок водной маршрутизации NavMesh с обходом островов, приоритетом фарватера и учётом вектора течения, в плашку офлайн-карт добавлены тумблер Вкл/Выкл и управление загруженными картами, синхронизированы фильтры точек.",
   "highlights": [

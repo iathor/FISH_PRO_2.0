@@ -127,7 +127,7 @@ export function getCurrentUserForTelemetry() {
 export function recordClientErrorTelemetry(type, message, sourceOrStack = '') {
   try {
     const msgStr = String(message || 'Unknown error').slice(0, 240);
-    // Игнорируем штатные сетевые таймауты анти-DPI шлюзов, AbortController и ResizeObserver, чтобы не засорять телеметрию
+    // Игнорируем штатные сетевые таймауты облачных шлюзов, AbortController и ResizeObserver, чтобы не засорять телеметрию
     if (/Offline simulated|Failed to fetch|NetworkError|Load failed|AbortError|aborted|All promises were rejected|AggregateError|ResizeObserver|Script error/i.test(msgStr)) {
       return null;
     }
@@ -155,7 +155,7 @@ export function recordClientErrorTelemetry(type, message, sourceOrStack = '') {
     list.unshift(entry);
     localStorage.setItem(CLIENT_ERROR_LOG_KEY, JSON.stringify(list.slice(0, 30)));
 
-    // Отправка в раздел «4.3 Телеметрия ошибок клиента» через анти-DPI шлюз workerFetch (БЕЗ засорения личных чатов и пуш-уведомлений!)
+    // Отправка в раздел «4.3 Телеметрия ошибок клиента» через облачный шлюз workerFetch (БЕЗ засорения личных чатов и пуш-уведомлений!)
     if (typeof navigator !== 'undefined' && navigator.onLine && circleModule && typeof circleModule.workerFetch === 'function') {
       circleModule.workerFetch('/api/telemetry/client-error', {
         method: 'POST',
