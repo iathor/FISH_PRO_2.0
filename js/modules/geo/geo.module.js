@@ -18,6 +18,7 @@ import {
   getWaterTypeShortTag
 } from '../../data/russia-waters.js?v=2.9.3-r239';
 import { FISH_DB } from '../../data/species.js?v=2.9.3-r239';
+import { routeOnGrid } from './grid-router.js?v=2.9.1-r245';
 import { escapeHtml, createPill, showToast, openModal, closeModal, openConfirmDeleteModal, downloadFileCrossPlatform, flashHighlightElement, isGeoDistributionConsentActive, ensureGeoDistributionConsent, setGeoDistributionConsentState } from '../../ui/components.js?v=2.9.3-r239';
 import { fetchWeather, weatherModule } from '../weather/weather.module.js?v=2.9.3-r239';
 import { calcDayBest } from '../forecast/forecast.module.js?v=2.9.3-r239';
@@ -1220,9 +1221,9 @@ export function createOfflineAwareLeafletLayer(layerId, urlTemplate, fallbacks =
     subdomains,
     attribution: attr,
     className: tileClassName,
-    updateWhenIdle: true,
+    updateWhenIdle: false,
     updateWhenZooming: false,
-    keepBuffer: 3
+    keepBuffer: 4
   });
 }
 
@@ -3008,7 +3009,7 @@ function createSingleResilientTileLayer(layerId, url, fallbacks = [], subdomains
     className: tileClassName,
     updateWhenIdle: false,
     updateWhenZooming: false,
-    keepBuffer: 2
+    keepBuffer: 4
   });
 }
 function createResilientTileLayer(layerKey = 'yandex_map') {
@@ -3304,12 +3305,19 @@ export async function setLocation(lat, lon, skipReverseGeo = false, targetZoomOv
     type: 'SET_LOCATION',
     payload: { lat: rLat, lon: rLon, hasUserLocation: true }
   });
-  if (mapInstance && mapMarker) {
-    mapMarker.setLatLng([rLat, rLon]);
-    const z = Number.isFinite(targetZoomOverride)
-      ? clamp(targetZoomOverride, 6, 18)
-      : clamp(mapInstance.getZoom() || 11, 7, 18);
-    mapInstance.setView([rLat, rLon], z);
+  if (mapInstance) {
+    if (isMobileOrTabletMapMode()) {
+      if (mapMarker) {
+        try { mapInstance.removeLayer(mapMarker); } catch (_e) {}
+        mapMarker = null;
+      }
+    } else if (mapMarker) {
+      mapMarker.setLatLng([rLat, rLon]);
+      const z = Number.isFinite(targetZoomOverride)
+        ? clamp(targetZoomOverride, 6, 18)
+        : clamp(mapInstance.getZoom() || 11, 7, 18);
+      mapInstance.setView([rLat, rLon], z);
+    }
   }
   const st = store.getState();
   const prof = WATER_PROFILES[st.water] || WATER_PROFILES.small_river;
@@ -3336,24 +3344,41 @@ export async function setLocation(lat, lon, skipReverseGeo = false, targetZoomOv
   }
 }
 export async function autoDetectStartupLocation() {
+  if (typeof window !== 'undefined' && window.__KLEV_MANUAL_LOC_SESSION__) return;
   const s = store.getState();
-  if (s.hasUserLocation) return;
-  if (typeof navigator !== 'undefined' && navigator.permissions && typeof navigator.permissions.query === 'function') {
+  const weatherStale = !Array.isArray(s.weatherDays) || s.weatherDays.length === 0 || (Date.now() - (Number(s.lastWeatherSyncTs) || 0)) > 1800000;
+  let hasPerm = Boolean(typeof window !== 'undefined' && window.AndroidBridge);
+  if (!hasPerm && typeof navigator !== 'undefined' && navigator.permissions && typeof navigator.permissions.query === 'function') {
     try {
       const perm = await navigator.permissions.query({ name: 'geolocation' });
-      if (perm && perm.state === 'granted' && navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          pos => {
-            _updateLiveGpsTelemetryFromPosition(pos);
-            if (!store.getState().hasUserLocation) {
-              setLocation(pos.coords.latitude, pos.coords.longitude);
-            }
-          },
-          () => {},
-          { enableHighAccuracy: false, timeout: 6000, maximumAge: 600000 }
-        );
-      }
-    } catch (e) {}
+      hasPerm = Boolean(perm && perm.state === 'granted');
+    } catch (_e) {}
+  }
+  if (hasPerm && typeof navigator !== 'undefined' && navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        _updateLiveGpsTelemetryFromPosition(pos);
+        const stNow = store.getState();
+        const gLat = Number(pos.coords.latitude);
+        const gLon = Number(pos.coords.longitude);
+        const movedKm = (Number.isFinite(stNow.lat) && Number.isFinite(stNow.lon))
+          ? calcHaversineKm(stNow.lat, stNow.lon, gLat, gLon)
+          : 9999;
+        if (!stNow.hasUserLocation || movedKm > 0.35) {
+          setLocation(gLat, gLon);
+        } else if (weatherStale) {
+          fetchWeather(stNow.lat, stNow.lon, true);
+        }
+      },
+      () => {
+        if (weatherStale && Number.isFinite(s.lat) && Number.isFinite(s.lon)) {
+          fetchWeather(s.lat, s.lon, true);
+        }
+      },
+      { enableHighAccuracy: true, timeout: 7000, maximumAge: 60000 }
+    );
+  } else if (weatherStale && Number.isFinite(s.lat) && Number.isFinite(s.lon)) {
+    fetchWeather(s.lat, s.lon, true);
   }
 }
 export async function locateByIpFallback() {
@@ -5062,7 +5087,7 @@ function _updateLiveGpsTelemetryFromPosition(pos) {
   _prevTelemetryFix = { lat, lon, ts: fixTs };
   if (spMs < 0) spMs = 0;
   if (hdg < 0) hdg = _arcCompassHeadingDeg;
-  if (spMs >= 1.2 && acc <= 35 && Number.isFinite(hdg) && hdg >= 0) {
+  if (spMs >= 1.2 && acc <= 65 && Number.isFinite(hdg) && hdg >= 0) {
     _applyNewCompassHeading(hdg, 'gps');
   }
   _liveGpsFix = {
@@ -5683,7 +5708,7 @@ function _processIncomingPhase3GpsFix(rawPos) {
   if (!rawPos || !rawPos.coords) return;
   const mode = (_phase3ActiveTrack && _phase3ActiveTrack.transport) || _arcTransportMode || 'walk';
   const recording = Boolean(_phase3ActiveTrack && _phase3ActiveTrack.status === 'recording');
-  const f = _gpsFilterIngest(rawPos, { accMax: recording ? 30 : 50, mode });
+  const f = _gpsFilterIngest(rawPos, { accMax: recording ? 30 : 65, mode });
   if (!f) {
     const rawAcc = Math.round(Number(rawPos.coords.accuracy) || 99);
     if (_gpsFiltered && Date.now() - _gpsFiltered.ts > 15000 && Date.now() - _lastGoodGpsToastTs > 15000) {
@@ -6929,7 +6954,11 @@ export function renderMap(mapBoxEl) {
     mapInstance.attributionControl.setPrefix(false);
     currentTileLayer = createResilientTileLayer(currentLayerKey).addTo(mapInstance);
     applyYandexTileFiltersToMap();
-    mapMarker = L.marker([s.lat, s.lon]).addTo(mapInstance);
+    if (!isMobileOrTabletMapMode()) {
+      mapMarker = L.marker([s.lat, s.lon]).addTo(mapInstance);
+    } else {
+      mapMarker = null;
+    }
     updateLiveUserGpsMarkerOnMap();
 
     // Компенсация 1-пальцевого перетаскивания под повёрнутым #mapBox
@@ -6971,15 +7000,20 @@ export function renderMap(mapBoxEl) {
     });
 
     const clientToRotatedMapPoint = (clientX, clientY) => {
-      const stage = document.getElementById('klevArcMapStage') || mapBoxEl;
-      const sr = stage.getBoundingClientRect();
-      const sx = clientX - (sr.left + sr.width / 2);
-      const sy = clientY - (sr.top + sr.height / 2);
+      const el = mapBoxEl;
+      if (!el) return [0, 0];
+      const rect = el.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      const dx = clientX - cx;
+      const dy = clientY - cy;
       const rad = (-_mapRotCur * Math.PI) / 180;
-      const rx = sx * Math.cos(rad) - sy * Math.sin(rad);
-      const ry = sx * Math.sin(rad) + sy * Math.cos(rad);
-      const mw = mapBoxEl.offsetWidth || sr.width;
-      const mh = mapBoxEl.offsetHeight || sr.height;
+      const cos = Math.cos(rad);
+      const sin = Math.sin(rad);
+      const rx = dx * cos - dy * sin;
+      const ry = dx * sin + dy * cos;
+      const mw = el.clientWidth || rect.width;
+      const mh = el.clientHeight || rect.height;
       return [mw / 2 + rx, mh / 2 + ry];
     };
 
@@ -7093,8 +7127,16 @@ export function renderMap(mapBoxEl) {
         return;
       }
       _holdMultiTouch = false;
-      _holdLatLng = e.latlng;
-      _holdStartPt = e.containerPoint;
+      const origX = Number.isFinite(origEv?.clientX) ? origEv.clientX : origEv?.touches?.[0]?.clientX;
+      const origY = Number.isFinite(origEv?.clientY) ? origEv.clientY : origEv?.touches?.[0]?.clientY;
+      if (Number.isFinite(origX) && Number.isFinite(origY) && mapInstance && typeof mapInstance.containerPointToLatLng === 'function') {
+        const px = clientToRotatedMapPoint(origX, origY);
+        _holdStartPt = { x: px[0], y: px[1] };
+        _holdLatLng = mapInstance.containerPointToLatLng(L.point(px[0], px[1]));
+      } else {
+        _holdLatLng = e.latlng;
+        _holdStartPt = e.containerPoint;
+      }
       if (_holdTimer) clearTimeout(_holdTimer);
       _holdTimer = setTimeout(() => {
         _holdTimer = null;
@@ -7136,7 +7178,7 @@ export function renderMap(mapBoxEl) {
       const px = clientToRotatedMapPoint(t.clientX, t.clientY);
       _holdStartPt = { x: px[0], y: px[1] };
       if (mapInstance && typeof mapInstance.containerPointToLatLng === 'function') {
-        _holdLatLng = mapInstance.containerPointToLatLng(px);
+        _holdLatLng = mapInstance.containerPointToLatLng(L.point(px[0], px[1]));
       }
       if (_holdTimer) clearTimeout(_holdTimer);
       _holdTimer = setTimeout(() => {
@@ -7155,9 +7197,9 @@ export function renderMap(mapBoxEl) {
         return;
       }
       if (_holdStartPt) {
-        const rect = mapBoxEl.getBoundingClientRect();
-        const dx = (ev.touches[0].clientX - rect.left) - _holdStartPt.x;
-        const dy = (ev.touches[0].clientY - rect.top) - _holdStartPt.y;
+        const px = clientToRotatedMapPoint(ev.touches[0].clientX, ev.touches[0].clientY);
+        const dx = px[0] - _holdStartPt.x;
+        const dy = px[1] - _holdStartPt.y;
         if (Math.hypot(dx, dy) > 10) {
           cancelMapHold();
         }
@@ -7198,7 +7240,14 @@ export function renderMap(mapBoxEl) {
     } else {
       mapInstance.invalidateSize({ pan: false, animate: false });
     }
-    if (mapMarker) mapMarker.setLatLng([s.lat, s.lon]);
+    if (isMobileOrTabletMapMode()) {
+      if (mapMarker) {
+        try { mapInstance.removeLayer(mapMarker); } catch (_e) {}
+        mapMarker = null;
+      }
+    } else if (mapMarker) {
+      mapMarker.setLatLng([s.lat, s.lon]);
+    }
     updateLiveUserGpsMarkerOnMap();
     applyYandexTileFiltersToMap();
   }
@@ -7438,6 +7487,8 @@ function _applyNewCompassHeading(rawDeg, sourceTag = 'rel') {
 
 let _arcBottomPillsScrollLeft = 0;
 
+let _mapRotRafId = 0;
+
 function _ensureSquareMapCanvasSize(stage, box) {
   if (!stage || !box) return;
   const W = stage.clientWidth, H = stage.clientHeight;
@@ -7452,9 +7503,33 @@ function _ensureSquareMapCanvasSize(stage, box) {
     box.style.setProperty('top', ((H - d) / 2) + 'px', 'important');
     box.style.setProperty('transform-origin', '50% 50%');
     box.dataset.rotOn = '1';
-    _mapRotSizeKey = key;
-    try { if (mapInstance) mapInstance.invalidateSize({ animate: false }); } catch (_e) {}
+    if (mapInstance) {
+      _mapRotSizeKey = key;
+      try {
+        const keepCenter = mapInstance.getCenter();
+        const keepZoom = mapInstance.getZoom();
+        mapInstance.invalidateSize({ animate: false });
+        if (keepCenter && Number.isFinite(keepCenter.lat) && Number.isFinite(keepCenter.lng)) {
+          mapInstance.setView([keepCenter.lat, keepCenter.lng], keepZoom, { animate: false });
+        }
+      } catch (_e) {}
+    }
   }
+}
+
+function _commitLiveMapRotationToDom() {
+  _mapRotRafId = 0;
+  if (typeof document === 'undefined') return;
+  const stage = document.getElementById('klevArcMapStage');
+  const box = document.getElementById('mapBox');
+  if (!stage || !box) return;
+  _ensureSquareMapCanvasSize(stage, box);
+  box.style.transition = 'none';
+  box.style.transform = `rotate(${_mapRotCur.toFixed(2)}deg)`;
+  const pins = box.querySelectorAll('.klev-map-pin-rot-inner');
+  const inv = `rotate(${(-_mapRotCur).toFixed(2)}deg)`;
+  pins.forEach(el => { el.style.transform = inv; });
+  _syncCompassResetButtonUi();
 }
 
 function _applyLiveMapCanvasCompassRotation(manualDegDelta = null, instant = false) {
@@ -7463,10 +7538,7 @@ function _applyLiveMapCanvasCompassRotation(manualDegDelta = null, instant = fal
   const box = document.getElementById('mapBox');
   if (!stage || !box) return;
 
-  _ensureSquareMapCanvasSize(stage, box);
-  const pins = box.querySelectorAll('.klev-map-pin-rot-inner');
   const compassActive = _arcGpsCompassState === 'compass' && _isMapCenteredOnUser && _compassHasSample && !_userManualRotatedMap;
-
   if (manualDegDelta !== null) {
     _mapRotCur += Number(manualDegDelta) || 0;
   } else if (compassActive) {
@@ -7477,10 +7549,15 @@ function _applyLiveMapCanvasCompassRotation(manualDegDelta = null, instant = fal
     _mapRotCur = 0;
   }
 
-  box.style.transition = instant ? 'none' : 'transform 0.12s linear';
-  box.style.transform = `rotate(${_mapRotCur}deg)`;
-  pins.forEach(el => { el.style.transform = `rotate(${-_mapRotCur}deg)`; });
-  _syncCompassResetButtonUi();
+  if (instant || typeof requestAnimationFrame !== 'function') {
+    if (_mapRotRafId) {
+      try { cancelAnimationFrame(_mapRotRafId); } catch (_e) {}
+      _mapRotRafId = 0;
+    }
+    _commitLiveMapRotationToDom();
+  } else if (!_mapRotRafId) {
+    _mapRotRafId = requestAnimationFrame(_commitLiveMapRotationToDom);
+  }
 }
 
 function _ensureArcCompassSensorStarted() {
@@ -8729,10 +8806,37 @@ if (typeof window !== 'undefined') {
 
 async function _buildOsmNetworkPathBetween(a, b, transportMode = 'car') {
   if (transportMode === 'boat') {
+    try {
+      const gridRes = await routeOnGrid(a, b, 'boat', {
+        iceState: store.getState()?.iceState || 'open_water',
+        queryOverpass: _queryOverpassJson,
+        offline: _forceOfflineTestMode
+      });
+      if (gridRes && Array.isArray(gridRes.points) && gridRes.points.length >= 2) {
+        return gridRes.points;
+      }
+    } catch (_e) {}
     const navRes = await findWaterNavMeshPath(a, b);
     if (navRes && Array.isArray(navRes.points) && navRes.points.length >= 2) {
       return navRes.points;
     }
+  } else if (transportMode === 'snowmobile') {
+    try {
+      const stSnow = store.getState();
+      const daySnow = stSnow?.weatherDays?.[stSnow.dayIdx] || stSnow?.weatherDays?.[2] || stSnow?.weatherDays?.[0];
+      const effIceSnow = daySnow?.iceState || stSnow?.iceState || 'open_water';
+      const gridRes = await routeOnGrid(a, b, 'snowmobile', {
+        iceState: effIceSnow,
+        queryOverpass: _queryOverpassJson,
+        offline: _forceOfflineTestMode
+      });
+      if (gridRes && Array.isArray(gridRes.points) && gridRes.points.length >= 2) {
+        if (Array.isArray(gridRes.warnings) && gridRes.warnings.length > 0) {
+          showToast(gridRes.warnings[0], 'warn');
+        }
+        return gridRes.points;
+      }
+    } catch (_e) {}
   }
   try {
     const spanLat = Math.abs(a[0] - b[0]);
@@ -10260,6 +10364,10 @@ function bindArcMobileMapEvents(container) {
       }
       try { window.AndroidBridge?.setCompassActive?.(true); } catch (_e) {}
       _ensureArcCompassSensorStarted();
+      try {
+        const dNow = Number(window.AndroidBridge?.getCompassHeadingDeg?.());
+        if (Number.isFinite(dNow) && dNow >= 0) _applyNewCompassHeading(dNow, 'native');
+      } catch (_e) {}
       showToast(_compassHasSample
         ? 'Компас включён: карта вращается по курсу'
         : 'Компас включён: ожидание данных датчика...', 'info');

@@ -76,8 +76,8 @@ test('3.3 Регулярка шлюз тайлов блокирует чужие
 
 test('3.4 & 4.8 Единый источник версии VERSION (2.9.0 r240) синхронизирован во всех файлах и ссылка на APK валидна', () => {
   assert.equal(verData.version, '2.9.1');
-  assert.equal(verData.revision, 'r244');
-  assert.equal(verData.versionCode, 293244);
+  assert.equal(verData.revision, 'r245');
+  assert.equal(verData.versionCode, 293245);
 
   const vJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'version.json'), 'utf8'));
   const apkVJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'apk/apk-version.json'), 'utf8'));
@@ -320,4 +320,46 @@ test('6.4 Аудит r244: изоляция #mapBox, постоянный ква
   assert.ok(geoSrc.includes('klevArcUiOverlayMount') && geoSrc.includes('_ensureSquareMapCanvasSize'), 'UI карты должен рендериться в #klevArcUiOverlayMount без пересоздания #mapBox');
   assert.ok(geoSrc.includes('clientToRotatedMapPoint'), 'Координаты мультитач и удержания должны пересчитываться относительно повёрнутого холста');
   assert.ok(compCss.includes('html[data-liquid-glass="1"] .klev-arc-glass') && compCss.includes('html[data-liquid-glass="0"] .klev-arc-glass'), 'Переключение Стекло/Обычный должно распространяться на новые классы интерфейса');
+});
+
+test('6.5 Аудит r245: устранение дёрганья карты, удаление синей точки на мобильном, авто-GPS/погода, шторм/волна в Погоде и grid-router', async () => {
+  const layoutCss = fs.readFileSync(path.join(ROOT, 'css/layout.css'), 'utf8');
+  const geoSrc = fs.readFileSync(path.join(ROOT, 'js/modules/geo/geo.module.js'), 'utf8');
+  const fcSrc = fs.readFileSync(path.join(ROOT, 'js/modules/forecast/forecast.module.js'), 'utf8');
+  assert.ok(!/\.compass-bearing-active\s+#mapBox\s*\{[^}]*will-change:\s*transform/i.test(layoutCss), 'will-change: transform должен быть убран с #mapBox при вращении');
+  assert.ok(geoSrc.includes('_commitLiveMapRotationToDom') && geoSrc.includes('keepBuffer: 4'), 'Вращение карты должно идти через RAF и keepBuffer: 4');
+  assert.ok(geoSrc.includes('if (!isMobileOrTabletMapMode()) {\n      mapMarker = L.marker'), 'Лишняя синяя точка mapMarker не должна создаваться в мобильном режиме');
+  assert.ok(geoSrc.includes('movedKm > 0.35') && !geoSrc.includes('if (s.hasUserLocation) return;'), 'autoDetectStartupLocation должен проверять живой GPS при запуске');
+  assert.ok(fcSrc.includes('fcWeatherRoadStormCard') && fcSrc.includes('fcWeatherHourlyWaveCard'), 'Во вкладке Погода основного экрана должны быть карточки шторма/дорог и волн');
+
+  const gridSrc = fs.readFileSync(path.join(ROOT, 'js/modules/geo/grid-router.js'), 'utf8');
+  const { routeOnGrid, buildCostGridFromElements, chooseGrid } = await import('data:text/javascript;base64,' + Buffer.from(gridSrc).toString('base64'));
+  assert.equal(typeof routeOnGrid, 'function');
+  const a = [55.000, 37.000];
+  const b = [55.012, 37.018];
+  const G = chooseGrid(a, b);
+  const lakeWithIsland = [
+    {
+      type: 'relation',
+      tags: { natural: 'water' },
+      members: [
+        { type: 'way', role: 'outer', geometry: [
+          { lat: 54.995, lon: 36.995 }, { lat: 54.995, lon: 37.025 },
+          { lat: 55.018, lon: 37.025 }, { lat: 55.018, lon: 36.995 }, { lat: 54.995, lon: 36.995 }
+        ]},
+        { type: 'way', role: 'inner', geometry: [
+          { lat: 55.004, lon: 37.006 }, { lat: 55.004, lon: 37.012 },
+          { lat: 55.008, lon: 37.012 }, { lat: 55.008, lon: 37.006 }, { lat: 55.004, lon: 37.006 }
+        ]}
+      ]
+    }
+  ];
+  const boatGrid = buildCostGridFromElements(G, lakeWithIsland, 'boat', 'open_water');
+  const [ix, iy] = G.toCell(55.006, 37.009);
+  assert.equal(Number.isFinite(boatGrid[iy * G.cols + ix]), false, 'Остров (role=inner) должен быть непроходим для лодки');
+  const snowDangerGrid = buildCostGridFromElements(G, lakeWithIsland, 'snowmobile', 'ice_danger');
+  assert.equal(Number.isFinite(snowDangerGrid[iy * G.cols + ix]), false, 'Опасный лёд должен блокировать маршрут снегохода по воде');
+  const snowSafeGrid = buildCostGridFromElements(G, lakeWithIsland, 'snowmobile', 'ice_safe');
+  const [lx, ly] = G.toCell(55.001, 37.001);
+  assert.equal(Number.isFinite(snowSafeGrid[ly * G.cols + lx]), true, 'Безопасный лёд должен быть проходим для снегохода');
 });

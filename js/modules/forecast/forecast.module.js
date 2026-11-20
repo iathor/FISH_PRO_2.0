@@ -11,7 +11,7 @@ import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2
 import { FISH_DB } from '../../data/species.js?v=2.9.3-r239';
 import { renderFiveFish , renderFishVisual } from '../../ui/svg.js?v=2.9.3-r239';
 import { createPill, showToast, openModal, closeModal, openFishLightbox, flashHighlightElement } from '../../ui/components.js?v=2.9.3-r239';
-import { computeIceSafetyIndex } from '../weather/weather.module.js?v=2.9.3-r239';
+import { computeIceSafetyIndex, evaluateRoadAndWeatherHazards } from '../weather/weather.module.js?v=2.9.3-r239';
 import { evaluateCircleFieldConfirmation, requireRegisteredFisherId } from '../circle/circle.module.js?v=2.9.3-r239';
 import { isTelegramWebApp, getTelegramUser, shareToTelegramChat, openBotChatInTelegram, buildForecastShareUrls, TELEGRAM_BOT_USERNAME } from '../../core/telegram.js?v=2.9.3-r239';
 /**
@@ -3524,6 +3524,64 @@ function renderMobileRedesignForecast(container) {
 
           <!-- ВКЛАДКА 4: ПОГОДА -->
           <div class="fc-subtab-pane" data-fc-pane="ice" style="display:${_activeForecastSubTab === 'ice' ? 'flex' : 'none'};flex-direction:column;gap:10px;">
+            ${(() => {
+              const haz = evaluateRoadAndWeatherHazards(activeDayForTackle, s);
+              const statusTone = haz.hasDanger ? 'var(--bad)' : (haz.hasWarning ? 'var(--warn)' : 'var(--good)');
+              const roadColdNote = activeDayForTackle.tNight <= -28 ? `Мороз до ${activeDayForTackle.tNight}°C` : (activeDayForTackle.tDay >= -2 && activeDayForTackle.tNight <= 1 ? 'Риск гололедицы (0°C)' : 'Покрытие по сезону');
+              const windStormNote = (activeDayForTackle.windMax || 3) >= 12 ? `Штормовой ${activeDayForTackle.windDir || 'З'} ${activeDayForTackle.windMax} м/с` : `${activeDayForTackle.windDir || 'З'} ${activeDayForTackle.windMax || 3} м/с (без шторма)`;
+              return `
+                <div class="bento-card" id="fcWeatherRoadStormCard" style="padding:12px 14px;display:flex;flex-direction:column;gap:8px;border-color:${haz.hasWarning ? statusTone : 'var(--border)'};">
+                  <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+                    <div style="font-size:14px;font-weight:800;">Дорожная и штормовая обстановка</div>
+                    <span class="pill ${haz.hasDanger ? 'pill-bad' : (haz.hasWarning ? 'pill-warn' : 'pill-good')}" style="font-size:11px;white-space:nowrap;">
+                      ${haz.hasDanger ? 'Шторм / Опасно' : (haz.hasWarning ? 'Внимание в пути' : 'Без угроз')}
+                    </span>
+                  </div>
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                    <div class="glass-panel" style="padding:8px 10px;border-radius:12px;">
+                      <div style="font-size:11px;color:var(--muted);font-weight:700;">Трасса и зимники</div>
+                      <div style="font-size:12.5px;font-weight:800;color:var(--text);margin-top:2px;">${roadColdNote}</div>
+                    </div>
+                    <div class="glass-panel" style="padding:8px 10px;border-radius:12px;">
+                      <div style="font-size:11px;color:var(--muted);font-weight:700;">Ветер и метель</div>
+                      <div style="font-size:12.5px;font-weight:800;color:var(--text);margin-top:2px;white-space:nowrap;">${windStormNote}</div>
+                    </div>
+                  </div>
+                  ${haz.items.length > 0 ? `
+                    <div style="display:flex;flex-direction:column;gap:5px;">
+                      ${haz.items.map(it => `
+                        <div style="padding:6px 9px;border-radius:9px;background:${it.tone === 'bad' ? 'rgba(239,68,68,0.14)' : 'rgba(245,158,11,0.14)'};border:1px solid ${it.tone === 'bad' ? 'var(--bad)' : 'var(--warn)'};font-size:11.5px;font-weight:700;color:var(--text);">
+                          <span style="color:${it.tone === 'bad' ? 'var(--bad)' : 'var(--warn)'};font-weight:800;">${escapeHtml(it.title)}:</span> ${escapeHtml(it.detail)}
+                        </div>
+                      `).join('')}
+                    </div>
+                  ` : ''}
+                </div>
+                ${haz.waveRelevant ? `
+                  <div class="bento-card" id="fcWeatherHourlyWaveCard" style="padding:12px 14px;display:flex;flex-direction:column;gap:8px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+                      <div style="font-size:14px;font-weight:800;">Волна по часам (высота и направление)</div>
+                      <span class="pill ${haz.maxWaveM >= 0.8 ? 'pill-bad' : (haz.maxWaveM >= 0.45 ? 'pill-warn' : 'pill-good')}" style="font-size:11px;white-space:nowrap;">
+                        Макс. ${haz.maxWaveM.toFixed(1)} м
+                      </span>
+                    </div>
+                    <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;">
+                      ${[0, 3, 6, 9, 12, 15, 18, 21].map(hIdx => {
+                        const wSlot = haz.waveSeries[hIdx] || haz.waveSeries[0] || { hour: hIdx, waveM: 0.2, dir: activeDayForTackle.windDir || 'З', windMs: 3 };
+                        const wCol = wSlot.waveM >= 0.8 ? 'var(--bad)' : (wSlot.waveM >= 0.45 ? 'var(--warn)' : 'var(--good)');
+                        return `
+                          <div class="glass-panel" style="padding:6px 4px;border-radius:10px;display:flex;flex-direction:column;align-items:center;gap:2px;">
+                            <span style="font-size:10.5px;font-weight:800;color:var(--muted);">${String(hIdx).padStart(2, '0')}:00</span>
+                            <span style="font-size:13.5px;font-weight:900;color:${wCol};white-space:nowrap;">${wSlot.waveM.toFixed(1)} м</span>
+                            <span style="font-size:10.5px;font-weight:800;color:var(--accent);white-space:nowrap;">${escapeHtml(wSlot.dir)} • ${Math.round(wSlot.windMs)} м/с</span>
+                          </div>
+                        `;
+                      }).join('')}
+                    </div>
+                  </div>
+                ` : ''}
+              `;
+            })()}
             ${hasRealIceNow ? `
               <div class="bento-card" style="padding:12px 14px;display:flex;flex-direction:column;gap:8px;">
                 <div style="font-size:14px;font-weight:800;width:100%;">Ледовая обстановка</div>
