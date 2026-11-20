@@ -8,7 +8,7 @@ android {
     namespace 'ru.klevpro.app'
     compileSdk 34
     defaultConfig {
-        applicationId "ru.klevpro.app"
+        applicationId "ru.klevpro.admin"
         minSdk 24
         targetSdk 34
         versionCode effVerCode
