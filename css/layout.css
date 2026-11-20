@@ -2488,3 +2488,18 @@ html[data-scroll-compact="1"]:not([data-arc-map-active="1"]) .bottom-nav {
   transform-origin: bottom center !important;
   opacity: 0.88 !important;
 }
+
+/* Карточка выбранной долгим нажатием точки и левая кнопка сброса */
+.klev-arc-picked-spot-sheet {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+  z-index: 942;
+  border-radius: 20px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+}

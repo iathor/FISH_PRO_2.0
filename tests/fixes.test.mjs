@@ -76,8 +76,8 @@ test('3.3 Регулярка шлюз тайлов блокирует чужие
 
 test('3.4 & 4.8 Единый источник версии VERSION (2.9.0 r240) синхронизирован во всех файлах и ссылка на APK валидна', () => {
   assert.equal(verData.version, '2.9.1');
-  assert.equal(verData.revision, 'r242');
-  assert.equal(verData.versionCode, 293242);
+  assert.equal(verData.revision, 'r243');
+  assert.equal(verData.versionCode, 293243);
 
   const vJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'version.json'), 'utf8'));
   const apkVJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'apk/apk-version.json'), 'utf8'));
@@ -294,7 +294,7 @@ test("6.1 Редизайн v2.9.1 (r241): 16 векторных значков �
 });
 
 
-test('6.2 Аудит r242: вращение карты без transform:none, конвейер фильтрации GPS, пакет ошибок из 5 записей и NavService', () => {
+test('6.2 Аудит r243: вращение карты без transform:none, конвейер фильтрации GPS, пакет ошибок из 5 записей и NavService', () => {
   const layoutCss = fs.readFileSync(path.join(ROOT, 'css/layout.css'), 'utf8');
   const geoSrc = fs.readFileSync(path.join(ROOT, 'js/modules/geo/geo.module.js'), 'utf8');
   const appSrc = fs.readFileSync(path.join(ROOT, 'js/app.js'), 'utf8');
@@ -303,4 +303,13 @@ test('6.2 Аудит r242: вращение карты без transform:none, к
   assert.ok(geoSrc.includes('_gpsFilterIngest') && geoSrc.includes('simplifyTrackRdp') && geoSrc.includes('acquireStableStartFix'), 'Должен присутствовать конвейер фильтрации GPS и упрощения трека');
   assert.ok(appSrc.includes('CLIENT_ERROR_BATCH_SIZE = 5'), 'Ошибки должны копиться на клиенте до 5 записей перед отправкой админу');
   assert.ok(fs.existsSync(path.join(ROOT, 'android/app/src/main/java/ru/klevpro/app/NavService.java')), 'Должен существовать NavService.java для фоновой навигации');
+});
+
+test('6.3 Аудит r243: раздельный GPS/Компас, 2-пальцевое вращение+зум, автоцентрация в Слоях и временный выбор точки', () => {
+  const geoSrc = fs.readFileSync(path.join(ROOT, 'js/modules/geo/geo.module.js'), 'utf8');
+  assert.ok(geoSrc.includes('_isMapCenteredOnUser'), 'Должен отслеживаться флаг центрирования карты');
+  assert.ok(geoSrc.includes('arcBtnCompassResetNorth'), 'Должна быть отдельная кнопка Компаса для сброса на Север');
+  assert.ok(geoSrc.includes('__klevPinchRotateBound'), 'Должен быть обработчик 2-пальцевого вращения и зума');
+  assert.ok(geoSrc.includes('arcAutoCenterToggleChk'), 'Должен быть переключатель автоцентрации в Слоях');
+  assert.ok(geoSrc.includes('selectTemporaryMapSpot') && geoSrc.includes('arcBtnClearPickedSpot') && geoSrc.includes('arcPickedSpotSheet'), 'Должен быть временный выбор точки с карточкой и кнопкой сброса слева');
 });

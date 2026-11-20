@@ -3193,6 +3193,109 @@ export function classifyOsmWaterElement(el, name, isCoastal) {
   }
   return { wType: 'tundra_lake', typeTag: 'Озеро' };
 }
+
+export function clearTemporaryMapSpot() {
+  _arcPickedSpot = null;
+  _arcPickedSpotSheetOpen = false;
+  if (_arcPickedSpotMarker && mapInstance) {
+    try { mapInstance.removeLayer(_arcPickedSpotMarker); } catch (_e) {}
+  }
+  _arcPickedSpotMarker = null;
+  const secGeo = document.getElementById('secGeo');
+  if (secGeo) render(secGeo);
+}
+
+async function selectTemporaryMapSpot(lat, lon) {
+  const rLat = Math.round(Number(lat) * 1000000) / 1000000;
+  const rLon = Math.round(Number(lon) * 1000000) / 1000000;
+  if (!Number.isFinite(rLat) || !Number.isFinite(rLon)) return;
+
+  // 1. Поиск ближайшего водоёма в базе с известными координатами
+  const st = store.getState();
+  const knownWaters = Array.isArray(st.nearbyWaters) ? st.nearbyWaters : [];
+  let matchedWater = null;
+  for (const w of knownWaters) {
+    const wLat = Number(w.lat);
+    const wLon = Number(w.lon);
+    if (Number.isFinite(wLat) && Number.isFinite(wLon)) {
+      const distKm = calcHaversineKm(rLat, rLon, wLat, wLon);
+      const maxRad = Number(w.radiusKm || 1.2);
+      if (distKm <= Math.max(0.8, maxRad) && (!matchedWater || distKm < matchedWater.distKm)) {
+        matchedWater = { name: w.name, wType: w.wType, distKm };
+      }
+    }
+  }
+  const nearSettle = findNearestRussianSettlement(rLat, rLon);
+
+  _arcPickedSpot = {
+    lat: rLat,
+    lon: rLon,
+    title: matchedWater ? matchedWater.name : (nearSettle ? nearSettle.name : 'Выбранная точка'),
+    subtitle: matchedWater
+      ? `${WATER_PROFILES[matchedWater.wType]?.shortName || 'Водоём'} • ${nearSettle ? nearSettle.admin1 : ''}`.replace(/ • $/, '')
+      : (nearSettle ? `${nearSettle.admin1} • Поиск адреса...` : 'Определение адреса...'),
+    waterName: matchedWater ? matchedWater.name : '',
+    loading: true
+  };
+  _arcPickedSpotSheetOpen = true;
+
+  if (mapInstance && typeof L !== 'undefined') {
+    if (_arcPickedSpotMarker) {
+      try { mapInstance.removeLayer(_arcPickedSpotMarker); } catch (_e) {}
+    }
+    _arcPickedSpotMarker = L.marker([rLat, rLon], {
+      zIndexOffset: 2600,
+      icon: L.divIcon({
+        className: 'klev-picked-spot-pin',
+        html: `<div class="klev-map-pin-rot-inner" style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;transform:rotate(${Math.round(-_mapRotCur)}deg);"><svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#ef4444" stroke="#ffffff" stroke-width="1.8"/><circle cx="12" cy="9" r="2.8" fill="#ffffff"/></svg></div>`,
+        iconSize: [28, 28],
+        iconAnchor: [14, 27]
+      })
+    }).addTo(mapInstance);
+  }
+
+  const secGeo = document.getElementById('secGeo');
+  if (secGeo) render(secGeo);
+
+  // 2. Обратный геокодинг: район, город, часть города, улица или водный объект
+  try {
+    const nomUrl = `https://nominatim.openstreetmap.org/reverse?lat=${rLat}&lon=${rLon}&format=json&addressdetails=1&zoom=16&accept-language=ru`;
+    const nom = await fetchWithTimeout(nomUrl, 4500, { headers: { 'Accept-Language': 'ru' } });
+    if (!_arcPickedSpot || Math.abs(_arcPickedSpot.lat - rLat) > 0.0001 || Math.abs(_arcPickedSpot.lon - rLon) > 0.0001) return;
+    if (nom && nom.address) {
+      const a = nom.address;
+      const waterObj = a.water || a.river || a.stream || a.lake || a.reservoir || '';
+      const district = a.county || a.state_district || a.municipality || '';
+      const city = a.city || a.town || a.village || a.hamlet || '';
+      const suburb = a.suburb || a.city_district || a.neighbourhood || a.quarter || '';
+      const road = a.road ? `${a.road}${a.house_number ? ', ' + a.house_number : ''}` : '';
+      const titleParts = [];
+      if (matchedWater?.name || waterObj) titleParts.push(matchedWater?.name || waterObj);
+      else if (road) titleParts.push(road);
+      else if (suburb) titleParts.push(suburb);
+      else if (city) titleParts.push(city);
+      else if (district) titleParts.push(district);
+
+      const subParts = [district, city, suburb, road].filter((x, idx, arr) => x && arr.indexOf(x) === idx && x !== titleParts[0]);
+      _arcPickedSpot = {
+        ..._arcPickedSpot,
+        title: titleParts[0] || _arcPickedSpot.title,
+        subtitle: subParts.join(' • ') || _arcPickedSpot.subtitle,
+        waterName: matchedWater?.name || waterObj || '',
+        loading: false
+      };
+      const el = document.getElementById('secGeo');
+      if (el) render(el);
+    }
+  } catch (_e) {
+    if (_arcPickedSpot) {
+      _arcPickedSpot.loading = false;
+      const el = document.getElementById('secGeo');
+      if (el) render(el);
+    }
+  }
+}
+
 export async function setLocation(lat, lon, skipReverseGeo = false, targetZoomOverride = null) {
   const rLat = Math.round(Number(lat) * 1000000) / 1000000;
   const rLon = Math.round(Number(lon) * 1000000) / 1000000;
@@ -4956,6 +5059,36 @@ function _updateLiveGpsTelemetryFromPosition(pos) {
     ts: Number(pos.timestamp) || Date.now(),
     hasRealFix: true
   };
+  const nowMove = Date.now();
+  const isNowMoving = !pos._held && spMs >= 1.2;
+  if (isNowMoving && !_isUserMoving) {
+    _movingStartedTs = nowMove;
+  } else if (!isNowMoving) {
+    _movingStartedTs = 0;
+  }
+  _isUserMoving = isNowMoving;
+
+  // Автоповорот и автоцентрация в движении (только при включённой настройке и реальном движении)
+  if (_arcAutoCenterEnabled && _isUserMoving && !_arcPickedSpot) {
+    const touchIdleMs = nowMove - (_lastUserMapTouchTs || 0);
+    const movingForMs = _movingStartedTs ? (nowMove - _movingStartedTs) : 0;
+    if (!_isMapCenteredOnUser && touchIdleMs >= 7000) {
+      _isMapCenteredOnUser = true;
+      _userManualRotatedMap = false;
+      _arcGpsCompassState = 'compass';
+      if (Number.isFinite(hdg) && hdg >= 0) _applyNewCompassHeading(hdg, 'gps');
+      if (mapInstance) {
+        try { mapInstance.setView([lat, lon], Math.max(14, mapInstance.getZoom() || 14), { animate: true }); } catch (_e) {}
+      }
+      _applyLiveMapCanvasCompassRotation();
+    } else if (_isMapCenteredOnUser && _arcGpsCompassState !== 'compass' && movingForMs >= 6000 && touchIdleMs >= 6000) {
+      _userManualRotatedMap = false;
+      _arcGpsCompassState = 'compass';
+      if (Number.isFinite(hdg) && hdg >= 0) _applyNewCompassHeading(hdg, 'gps');
+      _applyLiveMapCanvasCompassRotation();
+    }
+  }
+
   _saveRealUserGpsCoords(lat, lon, acc);
   try { updateLiveUserGpsMarkerOnMap(); } catch (_e) {}
 
@@ -6782,15 +6915,116 @@ export function renderMap(mapBoxEl) {
     mapMarker = L.marker([s.lat, s.lon]).addTo(mapInstance);
     updateLiveUserGpsMarkerOnMap();
 
-    // Замечание 1: Фиксируем любое касание/жест пользователя по карте для 10-секундной задержки автозума
-    mapInstance.on('dragstart', () => { noteUserMapTouchInteraction(); });
+    // Компенсация 1-пальцевого перетаскивания под повёрнутым #mapBox
+    try {
+      const dr = mapInstance.dragging && mapInstance.dragging._draggable;
+      if (dr && !dr.__klevRotPatched) {
+        dr.__klevRotPatched = true;
+        const origOnMove = dr._onMove.bind(dr);
+        dr._onMove = function(e) {
+          if (Math.abs(_mapRotCur % 360) > 1.5 && e && this._startPos) {
+            const first = (e.touches && e.touches[0]) || e;
+            const dx = first.clientX - this._startPos.x;
+            const dy = first.clientY - this._startPos.y;
+            const rad = (-_mapRotCur * Math.PI) / 180;
+            const rx = dx * Math.cos(rad) - dy * Math.sin(rad);
+            const ry = dx * Math.sin(rad) + dy * Math.cos(rad);
+            const fakeEv = {
+              clientX: this._startPos.x + rx,
+              clientY: this._startPos.y + ry,
+              target: e.target,
+              preventDefault: () => { try { e.preventDefault(); } catch (_e) {} }
+            };
+            return origOnMove(fakeEv);
+          }
+          return origOnMove(e);
+        };
+      }
+    } catch (_e) {}
+
+    // Сброс центрирования при ручном сдвиге карты
+    mapInstance.on('dragstart', () => {
+      noteUserMapTouchInteraction();
+      _isMapCenteredOnUser = false;
+      const gpsBtn = document.getElementById('arcBtnGpsCompass');
+      if (gpsBtn) gpsBtn.classList.remove('active');
+    });
     mapInstance.on('zoomstart', () => {
       if (!_isProgrammaticAutoZoom) noteUserMapTouchInteraction();
     });
 
-    // Замечание 3: Защита от фантомных нажатий!
-    // Короткий тап НЕ меняет точку на карте (только сворачивает открытые меню/плашки).
-    // Смена точки на карте (setLocation) выполняется ТОЛЬКО при удержании от 0.25 сек (>= 250 мс) одним пальцем без сдвига!
+    // Одновременный зум и вращение карты двумя пальцами
+    if (!mapBoxEl.__klevPinchRotateBound) {
+      mapBoxEl.__klevPinchRotateBound = true;
+      let _p2Active = false;
+      let _p2LastDist = 0;
+      let _p2LastAng = 0;
+      let _p2StartZoom = 14;
+      let _p2BaseDist = 0;
+
+      const getTouchMetrics = (t1, t2) => {
+        const dx = t2.clientX - t1.clientX;
+        const dy = t2.clientY - t1.clientY;
+        return {
+          dist: Math.max(10, Math.hypot(dx, dy)),
+          ang: (Math.atan2(dy, dx) * 180) / Math.PI,
+          cx: (t1.clientX + t2.clientX) / 2,
+          cy: (t1.clientY + t2.clientY) / 2
+        };
+      };
+
+      mapBoxEl.addEventListener('touchstart', (ev) => {
+        if (ev.touches && ev.touches.length === 2 && mapInstance) {
+          const m = getTouchMetrics(ev.touches[0], ev.touches[1]);
+          _p2Active = true;
+          _p2LastDist = m.dist;
+          _p2BaseDist = m.dist;
+          _p2LastAng = m.ang;
+          _p2StartZoom = mapInstance.getZoom() || 14;
+          try { mapInstance.touchZoom.disable(); } catch (_e) {}
+          noteUserMapTouchInteraction();
+        }
+      }, { passive: true });
+
+      mapBoxEl.addEventListener('touchmove', (ev) => {
+        if (!_p2Active || !ev.touches || ev.touches.length !== 2 || !mapInstance) return;
+        const m = getTouchMetrics(ev.touches[0], ev.touches[1]);
+        let dAng = m.ang - _p2LastAng;
+        if (dAng > 180) dAng -= 360;
+        if (dAng < -180) dAng += 360;
+        if (Math.abs(dAng) > 0.25) {
+          _userManualRotatedMap = true;
+          _applyLiveMapCanvasCompassRotation(dAng, true);
+        }
+        _p2LastAng = m.ang;
+
+        if (_p2BaseDist > 0 && Math.abs(m.dist - _p2LastDist) > 2) {
+          const zDelta = Math.log2(m.dist / _p2BaseDist);
+          const targetZ = clamp(_p2StartZoom + zDelta, 3, 18);
+          const rect = mapBoxEl.getBoundingClientRect();
+          const latlng = mapInstance.containerPointToLatLng(L.point(m.cx - rect.left, m.cy - rect.top));
+          try {
+            _isProgrammaticAutoZoom = true;
+            mapInstance.setZoomAround(latlng, targetZ, { animate: false });
+          } catch (_e) {
+          } finally {
+            setTimeout(() => { _isProgrammaticAutoZoom = false; }, 100);
+          }
+          _p2LastDist = m.dist;
+        }
+      }, { passive: true });
+
+      const endPinchRotate = (ev) => {
+        if (_p2Active && (!ev.touches || ev.touches.length < 2)) {
+          _p2Active = false;
+          try { mapInstance.touchZoom.enable(); } catch (_e) {}
+          _syncCompassResetButtonUi();
+        }
+      };
+      mapBoxEl.addEventListener('touchend', endPinchRotate, { passive: true });
+      mapBoxEl.addEventListener('touchcancel', endPinchRotate, { passive: true });
+    }
+
     let _holdTimer = null;
     let _holdStartPt = null;
     let _holdLatLng = null;
@@ -6815,7 +7049,7 @@ export function renderMap(mapBoxEl) {
         const secGeo = document.getElementById('secGeo');
         if (secGeo) render(secGeo);
       } else {
-        setLocation(lat, lng);
+        selectTemporaryMapSpot(lat, lng);
       }
     };
 
@@ -6959,6 +7193,23 @@ let _arcUiOverride = null; // null | 'mobile' | 'desktop'
 let _arcActivePopover = null; // null | 'layers' | 'spotGrid' | 'transport' | 'search'
 let _arcTransportMode = 'car'; // 'car' (по умолчанию) | 'snowmobile' | 'bike' | 'boat' | 'walk'
 let _arcGpsCompassState = 'off'; // 'off' | 'centered' | 'compass'
+let _isMapCenteredOnUser = true;
+let _isUserMoving = false;
+let _movingStartedTs = 0;
+let _userManualRotatedMap = false;
+const ARC_AUTOCENTER_KEY = 'klev_pro_arc_autocenter_v1';
+let _arcAutoCenterEnabled = (() => {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      const v = localStorage.getItem(ARC_AUTOCENTER_KEY);
+      return v === null ? true : v === '1';
+    }
+  } catch (_e) {}
+  return true;
+})();
+let _arcPickedSpot = null; // { lat, lon, title, subtitle, waterName, loading }
+let _arcPickedSpotSheetOpen = false;
+let _arcPickedSpotMarker = null;
 let _arcCompassHeadingDeg = 0;
 let _arcLastSpeedKmh = 0;
 let _arcRiverFlowEnabled = true;
@@ -7013,8 +7264,19 @@ export function isMobileOrTabletMapMode() {
 }
 
 // Отрисовка и обновление маркера реальной геопозиции пользователя с лучом «взгляда» по компасу (Замечание 6)
-function buildLiveUserGpsDivIconHtml(headingDeg = 0, showCone = false) {
+function buildLiveUserGpsDivIconHtml(headingDeg = 0, showCone = false, isMoving = false) {
   const rot = Number.isFinite(Number(headingDeg)) ? Math.round(Number(headingDeg)) : 0;
+  if (isMoving) {
+    return `
+      <div class="klev-live-user-gps-marker klev-live-user-gps-wrap" style="position:relative;width:64px;height:64px;display:flex;align-items:center;justify-content:center;pointer-events:none;">
+        <div id="klevLiveGpsViewCone" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;transform:rotate(${rot}deg);transition:transform 0.15s linear;">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" style="filter:drop-shadow(0 2px 6px rgba(0,0,0,0.55));">
+            <path d="M12 2L20 20L12 16L4 20L12 2Z" fill="#38bdf8" stroke="#ffffff" stroke-width="1.8" stroke-linejoin="round"/>
+          </svg>
+        </div>
+      </div>
+    `;
+  }
   return `
     <div class="klev-live-user-gps-marker klev-live-user-gps-wrap" style="position:relative;width:64px;height:64px;display:flex;align-items:center;justify-content:center;pointer-events:none;">
       <div id="klevLiveGpsViewCone" style="position:absolute;inset:0;display:${showCone ? 'flex' : 'none'};opacity:${showCone ? '0.95' : '0'};align-items:center;justify-content:center;transform:rotate(${rot}deg);transition:transform 0.15s linear;">
@@ -7087,25 +7349,22 @@ function _stopArcCompassSensors() {
   }
 }
 
-function _setMapGesturesForCompass(on) {
-  if (!mapInstance) return;
-  try {
-    if (on) {
-      mapInstance.dragging.disable();
-      mapInstance.doubleClickZoom.disable();
-      mapInstance.boxZoom.disable();
-      mapInstance.touchZoom.disable();
-      mapInstance.options.touchZoom = 'center';
-      mapInstance.touchZoom.enable();
-    } else {
-      mapInstance.options.touchZoom = true;
-      mapInstance.touchZoom.disable();
-      mapInstance.touchZoom.enable();
-      mapInstance.dragging.enable();
-      mapInstance.doubleClickZoom.enable();
-      mapInstance.boxZoom.enable();
-    }
-  } catch (_e) {}
+function _syncCompassResetButtonUi() {
+  if (typeof document === 'undefined') return;
+  const btn = document.getElementById('arcBtnCompassResetNorth');
+  if (!btn) return;
+  const norm = Math.abs((((_mapRotCur % 360) + 540) % 360) - 180);
+  const isTilted = Math.abs(_mapRotCur % 360) > 1.5 && norm < 178.5;
+  const show = _arcGpsCompassState === 'compass' || _userManualRotatedMap || isTilted;
+  btn.style.display = show ? 'flex' : 'none';
+  const svg = btn.querySelector('svg');
+  if (svg) {
+    svg.style.transform = `rotate(${Math.round(_mapRotCur)}deg)`;
+  }
+}
+
+function _setMapGesturesForCompass(_on) {
+  // Перетаскивание карты всегда остаётся доступным пользователю
 }
 
 function _applyNewCompassHeading(rawDeg, sourceTag = 'rel') {
@@ -7148,27 +7407,34 @@ function _applyNewCompassHeading(rawDeg, sourceTag = 'rel') {
 
 let _arcBottomPillsScrollLeft = 0;
 
-function _applyLiveMapCanvasCompassRotation() {
+function _applyLiveMapCanvasCompassRotation(manualDegDelta = null, instant = false) {
   if (typeof document === 'undefined') return;
   const stage = document.getElementById('klevArcMapStage');
   const box = document.getElementById('mapBox');
   if (!stage || !box) return;
 
-  const on = _arcGpsCompassState === 'compass' && _compassHasSample;
+  const compassActive = _arcGpsCompassState === 'compass' && _isMapCenteredOnUser && _compassHasSample && !_userManualRotatedMap;
+  const shouldKeepRotated = compassActive || _userManualRotatedMap || Math.abs(_mapRotCur % 360) > 1.5;
   const pins = box.querySelectorAll('.klev-map-pin-rot-inner');
 
-  if (!on) {
+  if (manualDegDelta === null && !compassActive && !_userManualRotatedMap) {
+    _mapRotCur = 0;
     if (box.dataset.rotOn === '1') {
       ['inset', 'left', 'top', 'width', 'height', 'transform', 'transition', 'transform-origin']
         .forEach(p => box.style.removeProperty(p));
       box.dataset.rotOn = '0';
       pins.forEach(el => { el.style.transform = ''; });
       _mapRotSizeKey = '';
-      _setMapGesturesForCompass(false);
       requestAnimationFrame(() => {
         try { if (mapInstance) mapInstance.invalidateSize({ animate: false }); } catch (_e) {}
       });
     }
+    _syncCompassResetButtonUi();
+    return;
+  }
+
+  if (!shouldKeepRotated && manualDegDelta === null) {
+    _syncCompassResetButtonUi();
     return;
   }
 
@@ -7186,17 +7452,21 @@ function _applyLiveMapCanvasCompassRotation() {
     box.style.setProperty('transform-origin', '50% 50%');
     box.dataset.rotOn = '1';
     _mapRotSizeKey = key;
-    _setMapGesturesForCompass(true);
     try { if (mapInstance) mapInstance.invalidateSize({ animate: false }); } catch (_e) {}
   }
 
-  const target = -((Number(_arcCompassHeadingDeg) || 0) % 360);
-  const delta = ((((target - _mapRotCur) % 360) + 540) % 360) - 180;
-  _mapRotCur += delta;
+  if (manualDegDelta !== null) {
+    _mapRotCur += Number(manualDegDelta) || 0;
+  } else if (compassActive) {
+    const target = -((Number(_arcCompassHeadingDeg) || 0) % 360);
+    const delta = ((((target - _mapRotCur) % 360) + 540) % 360) - 180;
+    _mapRotCur += delta;
+  }
 
-  box.style.transition = 'transform 0.12s linear';
+  box.style.transition = instant ? 'none' : 'transform 0.12s linear';
   box.style.transform = `rotate(${_mapRotCur}deg)`;
   pins.forEach(el => { el.style.transform = `rotate(${-_mapRotCur}deg)`; });
+  _syncCompassResetButtonUi();
 }
 
 function _ensureArcCompassSensorStarted() {
@@ -7302,13 +7572,13 @@ export function updateLiveUserGpsMarkerOnMap() {
         fb.style.cssText = 'position:absolute;left:50%;top:50%;width:64px;height:64px;transform:translate(-50%,-50%);pointer-events:none;z-index:680;';
         mapBox.appendChild(fb);
       }
-      fb.innerHTML = buildLiveUserGpsDivIconHtml(_arcCompassHeadingDeg, showCone);
+      fb.innerHTML = buildLiveUserGpsDivIconHtml(_arcCompassHeadingDeg, showCone, _isUserMoving);
     }
     return;
   }
   const fbOld = document.getElementById('klevLiveGpsFallbackMarker');
   if (fbOld) fbOld.remove();
-  const html = buildLiveUserGpsDivIconHtml(_arcCompassHeadingDeg, showCone);
+  const html = buildLiveUserGpsDivIconHtml(_arcCompassHeadingDeg, showCone, _isUserMoving);
   const existingWrap = (mapInstance._container || document).querySelector('.klev-live-user-gps-wrap');
   const hasLayerOk = _liveUserGpsMarker && (typeof mapInstance.hasLayer === 'function' ? mapInstance.hasLayer(_liveUserGpsMarker) : Boolean(existingWrap));
   if (!_liveUserGpsMarker || !hasLayerOk) {
@@ -7339,7 +7609,10 @@ export function updateLiveUserGpsMarkerOnMap() {
       existingWrap.parentElement.innerHTML = html;
     }
   }
-  if (_arcGpsCompassState === 'compass' && mapInstance && Number.isFinite(realPos.lat) && Number.isFinite(realPos.lon)) {
+  if (existingWrap && existingWrap.parentElement) {
+    existingWrap.parentElement.innerHTML = html;
+  }
+  if (_isMapCenteredOnUser && _arcGpsCompassState === 'compass' && mapInstance && Number.isFinite(realPos.lat) && Number.isFinite(realPos.lon)) {
     try { mapInstance.setView([realPos.lat, realPos.lon], mapInstance.getZoom(), { animate: false }); } catch (_e) {}
   }
 }
@@ -9352,17 +9625,45 @@ function renderArcMobileMap(container, s, prevLiveMapBox) {
 
 
 
-      <!-- Правые кнопки на карте: объединённая кнопка GPS / Компас + кнопка Точки -->
+      <!-- Левая кнопка сброса выбранной точки напротив GPS -->
+      <button type="button" class="klev-arc-glass klev-arc-icon-btn" id="arcBtnClearPickedSpot" aria-label="Сбросить выбранную точку" title="Сбросить выбранную точку" style="display:${(_arcPickedSpot && !_arcRouteBuilderMode && !_arcExpandedPlaqueId) ? 'flex' : 'none'};position:absolute;left:10px;top:50%;transform:translateY(-50%);z-index:920;color:#ef4444;">
+        <svg class="k-svg" style="width:20px;height:20px;" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      </button>
+
+      <!-- Правые кнопки на карте: Кнопка Компаса (при повороте), GPS, Точки -->
       <div id="arcRightSideButtons" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);z-index:920;display:${(_arcRouteBuilderMode || _arcExpandedPlaqueId || _arcActivePopover) ? 'none' : 'flex'};flex-direction:column;gap:10px;">
-        <button type="button" class="klev-arc-glass klev-arc-icon-btn ${(_arcGpsCompassState === 'centered' || _arcGpsCompassState === 'compass') ? 'active' : ''}" id="arcBtnGpsCompass" aria-label="Переключение GPS и Компаса с вращением карты" title="${_arcGpsCompassState === 'compass' ? 'Режим Компаса (вращение карты активно) — нажмите для возврата GPS' : 'Режим GPS — нажмите для включения Компаса и вращения карты'}">
-          ${_arcGpsCompassState === 'compass'
-            ? `<svg class="k-svg" data-compass-needle="1" style="width:22px;height:22px;color:var(--accent);transform:rotate(${-_arcCompassHeadingDeg}deg);transition:transform 0.14s linear;" viewBox="0 0 24 24" fill="none"><use href="#map-compass"/></svg>`
-            : `<svg class="k-svg" style="width:22px;height:22px;" viewBox="0 0 24 24" fill="none"><use href="#map-gps"/></svg>`}
+        <button type="button" class="klev-arc-glass klev-arc-icon-btn" id="arcBtnCompassResetNorth" aria-label="Сбросить поворот карты на Север" title="Развернуть карту на Север" style="display:${(_arcGpsCompassState === 'compass' || _userManualRotatedMap || Math.abs(_mapRotCur % 360) > 1.5) ? 'flex' : 'none'};">
+          <svg class="k-svg" style="width:22px;height:22px;color:#ef4444;transform:rotate(${Math.round(_mapRotCur)}deg);transition:transform 0.14s linear;" viewBox="0 0 24 24" fill="none"><use href="#map-compass"/></svg>
+        </button>
+        <button type="button" class="klev-arc-glass klev-arc-icon-btn ${_isMapCenteredOnUser ? 'active' : ''}" id="arcBtnGpsCompass" aria-label="Центрировать на GPS и включить компас" title="GPS / Компас">
+          <svg class="k-svg" style="width:22px;height:22px;color:${_isMapCenteredOnUser ? 'var(--accent)' : 'currentColor'};" viewBox="0 0 24 24" fill="none"><use href="#map-gps"/></svg>
         </button>
         <button type="button" class="klev-arc-glass klev-arc-icon-btn ${_arcActivePopover === 'spotGrid' ? 'active' : ''}" id="arcBtnAddSpot" aria-label="Точки на карте">
           ${multicolorSpotSvg}
         </button>
       </div>
+
+      <!-- Всплывающая карточка выбранной долгим нажатием точки -->
+      ${(_arcPickedSpot && _arcPickedSpotSheetOpen && !_arcRouteBuilderMode) ? `
+        <div class="klev-arc-glass klev-arc-picked-spot-sheet" id="arcPickedSpotSheet">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
+            <div style="min-width:0;flex:1;">
+              <div style="font-size:15px;font-weight:900;color:var(--text);line-height:1.25;">${escapeHtml(_arcPickedSpot.title || 'Точка на карте')}</div>
+              <div style="font-size:12px;color:var(--muted);margin-top:2px;line-height:1.3;">${escapeHtml(_arcPickedSpot.subtitle || '')}</div>
+              <div style="display:inline-flex;align-items:center;gap:6px;margin-top:5px;font-size:11.5px;font-family:monospace;color:var(--accent);cursor:pointer;" id="arcPickedSpotCopyCoordsBtn">
+                <span>${_arcPickedSpot.lat.toFixed(6)}, ${_arcPickedSpot.lon.toFixed(6)}</span>
+                <span style="font-family:inherit;font-weight:800;">Копировать</span>
+              </div>
+            </div>
+            <button type="button" class="btn btn-sm" id="arcPickedSpotCloseBtn" style="min-width:32px;min-height:32px;padding:0;font-weight:900;">&times;</button>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;">
+            <button type="button" class="btn btn-sm btn-accent" id="arcPickedSpotForecastBtn" style="min-height:36px;font-weight:800;font-size:11.5px;">Прогноз здесь</button>
+            <button type="button" class="btn btn-sm btn-good" id="arcPickedSpotRouteBtn" style="min-height:36px;font-weight:800;font-size:11.5px;">Сюда</button>
+            <button type="button" class="btn btn-sm" id="arcPickedSpotSaveBtn" style="min-height:36px;font-weight:800;font-size:11.5px;">В точки</button>
+          </div>
+        </div>
+      ` : ''}
 
       <!-- Всплывающее меню 2.1: Слои карты -->
       <div class="klev-arc-glass" id="arcPopoverLayers" style="display:${_arcActivePopover === 'layers' ? 'flex' : 'none'};position:absolute;top:84px;left:10px;right:10px;z-index:940;border-radius:22px;padding:12px;flex-direction:column;gap:10px;">
@@ -9376,6 +9677,13 @@ function renderArcMobileMap(container, s, prevLiveMapBox) {
           <button type="button" class="btn btn-sm ${(yandexMapFilters.labels || currentLayerKey === 'yandex_hybrid') ? 'btn-accent' : ''}" data-arc-ymap-filter="labels" style="min-height:36px;font-size:11px;font-weight:800;">Названия рек</button>
           <button type="button" class="btn btn-sm ${yandexMapFilters.dim ? 'btn-accent' : ''}" data-arc-ymap-filter="dim" style="min-height:36px;font-size:11px;font-weight:800;">Антиблик</button>
           <button type="button" class="btn btn-sm ${_arcRiverFlowEnabled ? 'btn-accent' : ''}" id="arcToggleRiverArrowsBtn" style="min-height:36px;font-size:11px;font-weight:800;">Течение рек</button>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding-top:6px;border-top:1px solid var(--border);">
+          <span style="font-size:12px;font-weight:800;color:var(--text);">Автоцентрация в движении (7 с)</span>
+          <label class="klev-switch">
+            <input type="checkbox" id="arcAutoCenterToggleChk" ${_arcAutoCenterEnabled ? 'checked' : ''}>
+            <span class="klev-switch-slider"></span>
+          </label>
         </div>
       </div>
 
@@ -9833,14 +10141,96 @@ function bindArcMobileMapEvents(container) {
     }
   });
 
+  container.querySelector('#arcAutoCenterToggleChk')?.addEventListener('change', (e) => {
+    _arcAutoCenterEnabled = Boolean(e.target.checked);
+    try { localStorage.setItem(ARC_AUTOCENTER_KEY, _arcAutoCenterEnabled ? '1' : '0'); } catch (_e) {}
+    showToast(_arcAutoCenterEnabled ? 'Автоцентрация в движении включена' : 'Автоцентрация в движении выключена', 'info');
+  });
+
+  container.querySelector('#arcBtnClearPickedSpot')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    clearTemporaryMapSpot();
+  });
+
+  container.querySelector('#arcPickedSpotCloseBtn')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    clearTemporaryMapSpot();
+  });
+
+  container.querySelector('#arcPickedSpotCopyCoordsBtn')?.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    if (!_arcPickedSpot) return;
+    const txt = `${_arcPickedSpot.lat.toFixed(6)}, ${_arcPickedSpot.lon.toFixed(6)}`;
+    try { await navigator.clipboard?.writeText?.(txt); } catch (_e) {}
+    showToast(`Координаты скопированы: ${txt}`, 'good');
+  });
+
+  container.querySelector('#arcPickedSpotForecastBtn')?.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    if (!_arcPickedSpot) return;
+    const { lat, lon } = _arcPickedSpot;
+    _arcPickedSpotSheetOpen = false;
+    await setLocation(lat, lon);
+    showToast('Прогноз и водоёмы переключены на выбранную точку', 'good');
+  });
+
+  container.querySelector('#arcPickedSpotRouteBtn')?.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    if (!_arcPickedSpot) return;
+    const { lat, lon } = _arcPickedSpot;
+    _arcPickedSpotSheetOpen = false;
+    const rt = await computeSmartTransportRoute([{ lat, lon }], _arcTransportMode || 'car', 'waypoints');
+    if (rt) {
+      _arcBuiltRoute = rt;
+      renderArcRouteDraftAndActiveOnMap();
+    }
+    render(container);
+  });
+
+  container.querySelector('#arcPickedSpotSaveBtn')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (!_arcPickedSpot) return;
+    const { lat, lon } = _arcPickedSpot;
+    setLocation(lat, lon).then(() => openSaveSpotModal('bite'));
+  });
+
+  container.querySelector('#arcBtnCompassResetNorth')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    _arcGpsCompassState = _isMapCenteredOnUser ? 'centered' : 'off';
+    _userManualRotatedMap = false;
+    _mapRotCur = 0;
+    try { window.AndroidBridge?.setCompassActive?.(false); } catch (_e) {}
+    _stopCompassPoll();
+    _stopArcCompassSensors();
+    _applyLiveMapCanvasCompassRotation();
+    updateLiveUserGpsMarkerOnMap();
+    render(container);
+    showToast('Карта ориентирована на Север', 'info');
+  });
+
   container.querySelector('#arcBtnGpsCompass')?.addEventListener('click', async (e) => {
     e.stopPropagation();
     const realPos = getTrueUserGpsCoords(s);
-    if (_arcGpsCompassState !== 'compass') {
-      _arcGpsCompassState = 'compass';
+    if (!_isMapCenteredOnUser) {
+      // Шаг 1: Если карта была сдвинута — сначала только центрируемся
+      _isMapCenteredOnUser = true;
+      _userManualRotatedMap = false;
       if (mapInstance) {
         mapInstance.setView([realPos.lat, realPos.lon], Math.max(14, mapInstance.getZoom() || 14));
       }
+      if (_arcGpsCompassState === 'compass') {
+        if (_isUserMoving && Number.isFinite(_liveGpsFix.headingDeg) && _liveGpsFix.headingDeg >= 0) {
+          _applyNewCompassHeading(_liveGpsFix.headingDeg, 'gps');
+        }
+        _applyLiveMapCanvasCompassRotation();
+      } else {
+        _arcGpsCompassState = 'centered';
+        showToast('Карта отцентрована по GPS', 'info');
+      }
+    } else if (_arcGpsCompassState !== 'compass') {
+      // Шаг 2: Если уже отцентрована — включаем режим компаса
+      _arcGpsCompassState = 'compass';
+      _userManualRotatedMap = false;
       if (typeof window !== 'undefined' && typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
         try { await DeviceOrientationEvent.requestPermission(); } catch (_e) {}
       }
@@ -9855,14 +10245,13 @@ function bindArcMobileMapEvents(container) {
         }
       }, 2800);
     } else {
+      // Повторное нажатие на уже отцентрованной карте с включённым компасом — возврат к Северу
       _arcGpsCompassState = 'centered';
-      _arcCompassHeadingDeg = 0;
+      _userManualRotatedMap = false;
+      _mapRotCur = 0;
       try { window.AndroidBridge?.setCompassActive?.(false); } catch (_e) {}
       _stopCompassPoll();
       _stopArcCompassSensors();
-      if (mapInstance) {
-        mapInstance.setView([realPos.lat, realPos.lon], Math.max(14, mapInstance.getZoom() || 14));
-      }
       showToast('Режим GPS: карта ориентирована на Север', 'info');
     }
     updateLiveUserGpsMarkerOnMap();
