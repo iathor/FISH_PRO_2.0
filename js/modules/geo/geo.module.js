@@ -1687,25 +1687,7 @@ async function fetchTileDataUrlWithFallback(task, attemptSeed = 0) {
     }
   }
 
-  // Уровень 4: Распределённый CORS-мост с быстрым предохранителем (отключается при 2 сбоях подряд, чтобы загрузка не зависала и не рвалась кусками!)
-  if (!_corsBridgeDisabled && (task.z >= 12 || task.layerId === 'yandex_skl')) {
-    const bridgeList = [
-      `https://allorigins.hexlet.app/raw?disableCache=true&url=${encodeURIComponent(primaryYandexUrl)}`,
-      `https://corsproxy-seven.vercel.app/api?url=${encodeURIComponent(primaryYandexUrl)}`
-    ];
-    const bUrl = bridgeList[Math.abs(attemptSeed) % bridgeList.length];
-    const bBlob = await tryFetchBinaryImageBlob(bUrl, 2200);
-    if (bBlob && bBlob.size > 250) {
-      _corsBridgeFailStreak = 0;
-      const dUrl = await blobToDataUrlString(bBlob);
-      if (dUrl) return { dataUrl: dUrl, sizeBytes: bBlob.size };
-    } else {
-      _corsBridgeFailStreak++;
-      if (_corsBridgeFailStreak >= 2) {
-        _corsBridgeDisabled = true;
-      }
-    }
-  }
+  // Прямая загрузка тайлов с переходом на резервный открытый слой (OSM / ArcGIS) при недоступности
 
   // Уровень 5: Резервный CORS-источник (ArcGIS World Imagery / OSM) с точной репроекцией в EPSG:3395
   const reproj = await fetchAndReprojectEPSG3857ToEPSG3395DataUrl(srcCfg, task.z, task.x, task.y, task.x + task.y + attemptSeed);
@@ -4760,7 +4742,7 @@ export function openNavigateToSpotChoiceModal({ lat, lon, title = 'Точка л
 }
 
 export async function startNavigationToTargetSpot({ destLat, destLon, destTitle = 'Точка ловли', recordTrackAlong = true } = {}) {
-  const freshFix = await acquireFreshHighAccuracyGpsFix(4000);
+  const freshFix = (await acquireStableStartFix(6500, 20)) || (await acquireFreshHighAccuracyGpsFix(3000));
   const s = store.getState();
   const startLat = freshFix && freshFix.hasRealFix ? freshFix.lat : Number(s.lat || 66.0833);
   const startLon = freshFix && freshFix.hasRealFix ? freshFix.lon : Number(s.lon || 76.6333);
@@ -4971,7 +4953,7 @@ function _updateLiveGpsTelemetryFromPosition(pos) {
     satellitesVisible: sats.visible,
     speedMps: spMs,
     headingDeg: hdg,
-    ts: Date.now(),
+    ts: Number(pos.timestamp) || Date.now(),
     hasRealFix: true
   };
   _saveRealUserGpsCoords(lat, lon, acc);
@@ -5237,6 +5219,7 @@ function _computeReturnProgressAlongTrack(userLat, userLon, pts) {
 }
 
 export function startPhase3RouteRecording(customTitle = '', emergencyLost = false, explicitStartCoords = null) {
+  _gpsFilterReset();
   const s = store.getState();
   const now = Date.now();
   // ВАЖНО: Никогда не начинаем запись маршрута от выбранного на карте водоёма или чужой точки!
@@ -5319,6 +5302,20 @@ export function switchPhase3ToReturnMode(emergencyLost = false) {
 }
 
 export function stopAndSavePhase3Route(saveToHistory = true) {
+  _gpsFilterReset();
+  if (_phase3ActiveTrack && Array.isArray(_phase3ActiveTrack.points) && _phase3ActiveTrack.points.length >= 3) {
+    const accs = _phase3ActiveTrack.points.map(p => Number(p.acc) || 10).sort((a, b) => a - b);
+    const medAcc = accs[Math.floor(accs.length / 2)] || 6;
+    const simplified = simplifyTrackRdp(_phase3ActiveTrack.points, Math.max(3, medAcc / 2));
+    if (simplified.length >= 2) {
+      _phase3ActiveTrack.points = simplified;
+      let rdpKm = 0;
+      for (let i = 1; i < simplified.length; i++) {
+        rdpKm += calcHaversineKm(simplified[i - 1].lat, simplified[i - 1].lon, simplified[i].lat, simplified[i].lon);
+      }
+      _phase3ActiveTrack.totalDistKm = Number(rdpKm.toFixed(4));
+    }
+  }
   if (_phase3WatchId !== null && typeof navigator !== 'undefined' && navigator.geolocation) {
     try { navigator.geolocation.clearWatch(_phase3WatchId); } catch (e) {}
     _phase3WatchId = null;
@@ -5376,17 +5373,195 @@ export function stopAndSavePhase3Route(saveToHistory = true) {
 }
 
 let _lastProcessedGpsTickTs = 0;
+let _lastNativeFixTs = 0;
+let _lastGoodGpsToastTs = 0;
 
-function _processIncomingPhase3GpsFix(pos) {
+const GPSF_MODE_VMAX = { walk: 3.5, bike: 12, boat: 18, snowmobile: 30, car: 45 };
+const _GPSF = {
+  lat: null, lon: null, varM2: 0, ts: 0,
+  pend: null, pendN: 0, anchor: null, stillN: 0, moveN: 0
+};
+const _gpsFilterStats = { ok: 0, rejAcc: 0, rejStale: 0, rejOrder: 0, rejJump: 0, held: 0 };
+let _gpsFiltered = null;
+
+function _gpsFilterReset() {
+  Object.assign(_GPSF, {
+    lat: null, lon: null, varM2: 0, ts: 0,
+    pend: null, pendN: 0, anchor: null, stillN: 0, moveN: 0
+  });
+  _gpsFiltered = null;
+}
+
+function _gpsFilterIngest(pos, opts = {}) {
+  const accMax = opts.accMax || 50;
+  const vmax = opts.vmax || GPSF_MODE_VMAX[opts.mode] || 20;
+  const c = pos && pos.coords;
+  if (!c) return null;
+  const lat = Number(c.latitude);
+  const lon = Number(c.longitude);
+  const acc = Number(c.accuracy) > 0 ? Number(c.accuracy) : 50;
+  const t = Number(pos.timestamp) || Date.now();
+  const vRep = Number.isFinite(Number(c.speed)) && Number(c.speed) >= 0 ? Number(c.speed) : null;
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  if (pos._isGps === false && _GPSF.lat !== null) { _gpsFilterStats.rejAcc++; return null; }
+  if (acc > accMax) { _gpsFilterStats.rejAcc++; return null; }
+  if (Date.now() - t > 5000) { _gpsFilterStats.rejStale++; return null; }
+  if (_GPSF.ts && t <= _GPSF.ts) { _gpsFilterStats.rejOrder++; return null; }
+
+  const out = (la, lo, held) => {
+    _gpsFiltered = { lat: la, lon: lo, acc, speed: vRep, ts: t, held: !!held };
+    _gpsFilterStats.ok++;
+    if (held) _gpsFilterStats.held++;
+    return _gpsFiltered;
+  };
+
+  if (_GPSF.lat === null) {
+    Object.assign(_GPSF, { lat, lon, varM2: acc * acc, ts: t });
+    return out(lat, lon, false);
+  }
+
+  const dt = Math.max(0.2, (t - _GPSF.ts) / 1000);
+  const distM = calcHaversineKm(_GPSF.lat, _GPSF.lon, lat, lon) * 1000;
+
+  const jumpLimit = Math.max(25, 3 * acc);
+  const vLimit = Math.max(vmax, 2 * (vRep || 0) + 3);
+  if (distM > jumpLimit && distM / dt > vLimit) {
+    if (_GPSF.pend && calcHaversineKm(_GPSF.pend.lat, _GPSF.pend.lon, lat, lon) * 1000 < Math.max(15, 2 * acc)) {
+      _GPSF.pendN++;
+    } else {
+      _GPSF.pend = { lat, lon };
+      _GPSF.pendN = 1;
+    }
+    if (_GPSF.pendN < 3) {
+      _gpsFilterStats.rejJump++;
+      return null;
+    }
+    Object.assign(_GPSF, { lat, lon, varM2: acc * acc, ts: t, pend: null, pendN: 0, anchor: null, stillN: 0 });
+    return out(lat, lon, false);
+  }
+  _GPSF.pend = null;
+  _GPSF.pendN = 0;
+
+  const q = Math.max(vmax * 0.5, 1.0);
+  _GPSF.varM2 += dt * q * q;
+  const k = _GPSF.varM2 / (_GPSF.varM2 + acc * acc);
+  _GPSF.lat += k * (lat - _GPSF.lat);
+  _GPSF.lon += k * (lon - _GPSF.lon);
+  _GPSF.varM2 = (1 - k) * _GPSF.varM2;
+  _GPSF.ts = t;
+
+  const still = (vRep !== null ? vRep < 0.6 : distM < Math.max(2, acc * 0.5)) && distM < Math.max(5, acc);
+  if (still) {
+    _GPSF.stillN++;
+    _GPSF.moveN = 0;
+  } else {
+    _GPSF.moveN++;
+    _GPSF.stillN = 0;
+  }
+  if (!_GPSF.anchor && _GPSF.stillN >= 3) {
+    _GPSF.anchor = { lat: _GPSF.lat, lon: _GPSF.lon };
+  }
+  if (_GPSF.anchor) {
+    const dAnch = calcHaversineKm(_GPSF.anchor.lat, _GPSF.anchor.lon, _GPSF.lat, _GPSF.lon) * 1000;
+    if (_GPSF.moveN >= 2 || (vRep !== null && vRep > 1.0) || dAnch > Math.max(8, 2.5 * acc)) {
+      _GPSF.anchor = null;
+    } else {
+      return out(_GPSF.anchor.lat, _GPSF.anchor.lon, true);
+    }
+  }
+  return out(_GPSF.lat, _GPSF.lon, false);
+}
+
+function simplifyTrackRdp(points, epsM = 3) {
+  if (!Array.isArray(points) || points.length < 3) return Array.isArray(points) ? points.slice() : [];
+  const toXY = (p, lat0) => ({ x: p.lon * 111320 * Math.cos(lat0 * Math.PI / 180), y: p.lat * 110540 });
+  const lat0 = points[0].lat;
+  const xy = points.map(p => toXY(p, lat0));
+  const keep = new Uint8Array(points.length);
+  keep[0] = 1;
+  keep[points.length - 1] = 1;
+  const stack = [[0, points.length - 1]];
+  while (stack.length) {
+    const [a, b] = stack.pop();
+    let maxD = 0;
+    let idx = -1;
+    for (let i = a + 1; i < b; i++) {
+      const dx = xy[b].x - xy[a].x;
+      const dy = xy[b].y - xy[a].y;
+      const len2 = dx * dx + dy * dy;
+      const t = len2 ? Math.max(0, Math.min(1, ((xy[i].x - xy[a].x) * dx + (xy[i].y - xy[a].y) * dy) / len2)) : 0;
+      const d = Math.hypot(xy[i].x - (xy[a].x + t * dx), xy[i].y - (xy[a].y + t * dy));
+      if (d > maxD) { maxD = d; idx = i; }
+    }
+    if (maxD > epsM && idx > 0) {
+      keep[idx] = 1;
+      stack.push([a, idx], [idx, b]);
+    }
+  }
+  return points.filter((_, i) => keep[i]);
+}
+
+async function acquireStableStartFix(maxWaitMs = 20000, accGood = 20) {
+  const t0 = Date.now();
+  const samples = [];
+  while (Date.now() - t0 < maxWaitMs) {
+    const f = _gpsFiltered;
+    if (f && Date.now() - f.ts < 3000 && f.acc <= accGood && !samples.some(s => s.ts === f.ts)) {
+      samples.push({ ...f });
+      if (samples.length >= 5) break;
+    }
+    await new Promise(r => setTimeout(r, 1000));
+  }
+  if (!samples.length) return null;
+  let sw = 0, sla = 0, slo = 0;
+  samples.forEach(s => {
+    const w = 1 / (s.acc * s.acc);
+    sw += w;
+    sla += w * s.lat;
+    slo += w * s.lon;
+  });
+  return {
+    lat: sla / sw,
+    lon: slo / sw,
+    acc: Math.max(3, Math.min(...samples.map(s => s.acc))),
+    ts: Date.now(),
+    hasRealFix: true
+  };
+}
+
+function _processIncomingPhase3GpsFix(rawPos) {
+  if (!rawPos || !rawPos.coords) return;
+  const mode = (_phase3ActiveTrack && _phase3ActiveTrack.transport) || _arcTransportMode || 'walk';
+  const recording = Boolean(_phase3ActiveTrack && _phase3ActiveTrack.status === 'recording');
+  const f = _gpsFilterIngest(rawPos, { accMax: recording ? 30 : 50, mode });
+  if (!f) {
+    const rawAcc = Math.round(Number(rawPos.coords.accuracy) || 99);
+    if (_gpsFiltered && Date.now() - _gpsFiltered.ts > 15000 && Date.now() - _lastGoodGpsToastTs > 15000) {
+      _lastGoodGpsToastTs = Date.now();
+      showToast(`Слабый сигнал GPS, точность ±${rawAcc} м`, 'warn');
+    }
+    return;
+  }
+  const pos = {
+    coords: {
+      latitude: f.lat,
+      longitude: f.lon,
+      accuracy: f.acc,
+      speed: f.speed !== null ? f.speed : 0,
+      heading: Number(rawPos.coords.heading)
+    },
+    timestamp: f.ts,
+    _held: f.held
+  };
   _updateLiveGpsTelemetryFromPosition(pos);
-  if (!_phase3ActiveTrack || !pos || !pos.coords) return;
+  if (!_phase3ActiveTrack) return;
   const now = Date.now();
   if (now - _lastProcessedGpsTickTs < 450) return;
   _lastProcessedGpsTickTs = now;
 
-  const rawLat = Number(pos.coords.latitude);
-  const rawLon = Number(pos.coords.longitude);
-  const acc = Number(pos.coords.accuracy) || 10;
+  const rawLat = f.lat;
+  const rawLon = f.lon;
+  const acc = f.acc;
   if (!Number.isFinite(rawLat) || !Number.isFinite(rawLon)) return;
 
   // Сохраняем сырой GPS-след для точной привязки к дорожной сети OSRM (включая повороты и развязки)
@@ -5418,8 +5593,8 @@ function _processIncomingPhase3GpsFix(pos) {
     const speedMps = (stepKm * 1000) / dtSec;
     if (lastPt && speedMps > 65) return;
 
-    // Минимальный шаг 0.8 метра (0.0008 км), чтобы детально записывать каждый шаг по дворам, тропинкам и льду без привязки к дорогам
-    const minStepKm = acc <= 12 ? 0.0008 : 0.0020;
+    if (pos._held) return;
+    const minStepKm = Math.max(0.003, acc * 0.0007);
     if (!lastPt || stepKm >= minStepKm) {
       pts.push({ lat, lon, ts: now, acc: Math.round(acc) });
       _phase3ActiveTrack.points = pts.slice(-6000);
@@ -5502,14 +5677,19 @@ function _processIncomingPhase3GpsFix(pos) {
       persistActivePhase3Track();
     }
 
-    // Проверка 2: отклонение от маршрута (>= 45 м) и мгновенная перепривязка к новой улице/съезду
-    if (navState.offTrackMeters >= 45) {
+    // Проверка 2: подтверждённое отклонение от маршрута с учётом точности GPS (3 фикса и >= 6 с)
+    const offThr = Math.max(45, 2.5 * acc);
+    if (navState.offTrackMeters >= offThr) {
       _phase3ActiveTrack.offTrackStrikeCount = (_phase3ActiveTrack.offTrackStrikeCount || 0) + 1;
+      if (!_phase3ActiveTrack.offTrackSinceTs) _phase3ActiveTrack.offTrackSinceTs = now;
     } else {
       _phase3ActiveTrack.offTrackStrikeCount = 0;
+      _phase3ActiveTrack.offTrackSinceTs = 0;
     }
+    const offConfirmed = (_phase3ActiveTrack.offTrackStrikeCount || 0) >= 3
+      && (now - (_phase3ActiveTrack.offTrackSinceTs || now)) >= 6000;
 
-    if ((_phase3ActiveTrack.offTrackStrikeCount || 0) >= 2 && navState.offTrackMeters >= 45) {
+    if (offConfirmed) {
       _phase3ActiveTrack.wasOffTrack = true;
       if (now - _phase3LastOffTrackAlertTs > 14000) {
         _phase3LastOffTrackAlertTs = now;
@@ -5518,10 +5698,10 @@ function _processIncomingPhase3GpsFix(pos) {
         }
         speakRouteGuidanceRu(`Вы отклонились от маршрута на ${roundedOffMeters} метров, вернитесь на маршрут! Поверните на ${dirRu} и двигайтесь прямо.`, true);
       }
-      // Перестроение маршрута по фактической дороге без потери точки старта и уже пройденного пути
-      if (isForwardToSpot && Number.isFinite(_phase3ActiveTrack.destLat) && (now - (_phase3ActiveTrack.lastRerouteTs || 0) > 10000)) {
+      // Перестроение маршрута от отфильтрованной позиции с интервалом не чаще 45 с
+      if (isForwardToSpot && Number.isFinite(_phase3ActiveTrack.destLat) && (now - (_phase3ActiveTrack.lastRerouteTs || 0) > 45000)) {
         _phase3ActiveTrack.lastRerouteTs = now;
-        buildRoadOrTrailRouteBetween(rawLat, rawLon, _phase3ActiveTrack.destLat, _phase3ActiveTrack.destLon).then((rerouted) => {
+        buildRoadOrTrailRouteBetween(f.lat, f.lon, _phase3ActiveTrack.destLat, _phase3ActiveTrack.destLon).then((rerouted) => {
           if (_phase3ActiveTrack && _phase3ActiveTrack.status === 'navigating_to_spot' && Array.isArray(rerouted?.points) && rerouted.points.length >= 2) {
             const walkedSoFarKm = Number(_phase3ActiveTrack.recordedDistKm || 0);
             _phase3ActiveTrack.points = rerouted.points;
@@ -5537,7 +5717,7 @@ function _processIncomingPhase3GpsFix(pos) {
           }
         }).catch(() => {});
       }
-    } else if (_phase3ActiveTrack.wasOffTrack && navState.offTrackMeters <= 30) {
+    } else if (_phase3ActiveTrack.wasOffTrack && navState.offTrackMeters <= Math.max(30, 1.5 * acc)) {
       _phase3ActiveTrack.wasOffTrack = false;
       _phase3ActiveTrack.offTrackStrikeCount = 0;
       speakRouteGuidanceRu(`Вы вернулись на маршрут, двигайтесь на ${dirRu}.`, true);
@@ -5572,16 +5752,24 @@ function _processIncomingPhase3GpsFix(pos) {
 }
 
 if (typeof window !== 'undefined') {
-  window.__KLEV_ON_NATIVE_GPS_FIX__ = (lat, lon, acc, speed, bearing, ts) => {
+  window.__KLEV_ON_NATIVE_GPS_FIX__ = (lat, lon, acc, speed, bearing, ts, isGps) => {
+    _lastNativeFixTs = Date.now();
+    const accNum = Number(acc) > 0 ? Number(acc) : 50;
+    const spdNum = Number(speed);
+    const brgNum = Number(bearing);
+    if (spdNum > 1.5 && accNum < 30 && Number.isFinite(brgNum) && brgNum >= 0) {
+      _applyNewCompassHeading(brgNum, 'gps');
+    }
     _processIncomingPhase3GpsFix({
       coords: {
         latitude: Number(lat),
         longitude: Number(lon),
-        accuracy: Number(acc) || 8,
-        speed: Number(speed) || 0,
-        heading: Number(bearing) || 0
+        accuracy: accNum,
+        speed: spdNum,
+        heading: brgNum
       },
-      timestamp: Number(ts) || Date.now()
+      timestamp: Number(ts) || Date.now(),
+      _isGps: Number(isGps) !== 0
     });
   };
 }
@@ -5591,6 +5779,7 @@ function bindPhase3GeolocationWatcher() {
   try {
     _phase3WatchId = navigator.geolocation.watchPosition(
       (pos) => {
+        if (Date.now() - _lastNativeFixTs < 4000) return;
         _processIncomingPhase3GpsFix(pos);
       },
       () => {},
@@ -6027,9 +6216,10 @@ export function openPhase3RoutesModal(container = null) {
       const btn = ev.currentTarget;
       ensureRoutePermissionsBeforeAction('Начать запись пути', async () => {
         if (btn) { btn.disabled = true; btn.textContent = 'Захват GPS...'; }
-        const freshFix = await acquireFreshHighAccuracyGpsFix(600).catch(() => null);
+        const freshFix = (await acquireStableStartFix(6500, 20)) || (await acquireFreshHighAccuracyGpsFix(2000).catch(() => null));
+        if (!freshFix) { showToast('Нет надёжного сигнала GPS. Выйдите на открытое место.', 'warn'); if (btn) { btn.disabled = false; btn.textContent = 'Начать запись пути'; } return; }
         _weakSignalConfirmPending = false;
-        const startFix = (freshFix && freshFix.hasRealFix) ? freshFix : getTrueUserGpsCoords(store.getState());
+        const startFix = freshFix;
         startPhase3RouteRecording('', false, startFix);
         speakRouteGuidanceRu('Запись маршрута начата от вашего текущего местоположения.', true);
         renderModalContent(bodyEl);
@@ -6847,19 +7037,85 @@ function buildLiveUserGpsDivIconHtml(headingDeg = 0, showCone = false) {
 let _compassSmoothSin = 0;
 let _compassSmoothCos = 1;
 let _compassHasSample = false;
-let _compassBestSource = ''; // 'native' | 'sensor_api' | 'abs' | 'rel'
+let _compassBestSource = ''; // 'gps' | 'native' | 'sensor_api' | 'abs' | 'rel'
 let _compassNativePollTimer = null;
+const _hdgSamples = {};
+const _HDG_PRIORITY = ['gps', 'native', 'sensor_api', 'abs', 'rel'];
+let _mapRotCur = 0;
+let _mapRotSizeKey = '';
+let _compassOrientationSensor = null;
+let _compassOrientationAbsHandler = null;
+let _compassOrientationRelHandler = null;
+let _compassVisHandler = null;
+
+function _pickHeading() {
+  const now = Date.now();
+  for (const src of _HDG_PRIORITY) {
+    const s = _hdgSamples[src];
+    if (s && now - s.ts < 1500) return { deg: s.deg, src };
+  }
+  return null;
+}
+
+function _stopCompassPoll() {
+  if (_compassNativePollTimer) {
+    clearInterval(_compassNativePollTimer);
+    _compassNativePollTimer = null;
+  }
+}
+
+function _stopArcCompassSensors() {
+  _stopCompassPoll();
+  if (typeof window !== 'undefined') {
+    if (_compassOrientationAbsHandler) {
+      try { window.removeEventListener('deviceorientationabsolute', _compassOrientationAbsHandler); } catch (_e) {}
+      _compassOrientationAbsHandler = null;
+    }
+    if (_compassOrientationRelHandler) {
+      try { window.removeEventListener('deviceorientation', _compassOrientationRelHandler); } catch (_e) {}
+      _compassOrientationRelHandler = null;
+    }
+    if (_compassOrientationSensor) {
+      try { _compassOrientationSensor.stop(); } catch (_e) {}
+      _compassOrientationSensor = null;
+    }
+    if (_compassVisHandler && typeof document !== 'undefined') {
+      try { document.removeEventListener('visibilitychange', _compassVisHandler); } catch (_e) {}
+      _compassVisHandler = null;
+    }
+    window.__KLEV_ARC_COMPASS_BOUND__ = false;
+  }
+}
+
+function _setMapGesturesForCompass(on) {
+  if (!mapInstance) return;
+  try {
+    if (on) {
+      mapInstance.dragging.disable();
+      mapInstance.doubleClickZoom.disable();
+      mapInstance.boxZoom.disable();
+      mapInstance.touchZoom.disable();
+      mapInstance.options.touchZoom = 'center';
+      mapInstance.touchZoom.enable();
+    } else {
+      mapInstance.options.touchZoom = true;
+      mapInstance.touchZoom.disable();
+      mapInstance.touchZoom.enable();
+      mapInstance.dragging.enable();
+      mapInstance.doubleClickZoom.enable();
+      mapInstance.boxZoom.enable();
+    }
+  } catch (_e) {}
+}
 
 function _applyNewCompassHeading(rawDeg, sourceTag = 'rel') {
   if (!Number.isFinite(rawDeg)) return;
-  const rank = { native: 4, sensor_api: 3, abs: 2, rel: 1 };
-  const curRank = rank[_compassBestSource] || 0;
-  const newRank = rank[sourceTag] || 1;
-  if (newRank < curRank) return;
-  _compassBestSource = sourceTag;
+  _hdgSamples[sourceTag] = { deg: ((rawDeg % 360) + 360) % 360, ts: Date.now() };
+  const picked = _pickHeading();
+  if (!picked) return;
+  _compassBestSource = picked.src;
 
-  const normDeg = ((rawDeg % 360) + 360) % 360;
-  const rad = (normDeg * Math.PI) / 180;
+  const rad = (picked.deg * Math.PI) / 180;
   if (!_compassHasSample) {
     _compassSmoothSin = Math.sin(rad);
     _compassSmoothCos = Math.cos(rad);
@@ -6890,28 +7146,57 @@ function _applyNewCompassHeading(rawDeg, sourceTag = 'rel') {
   }
 }
 
-
 let _arcBottomPillsScrollLeft = 0;
 
 function _applyLiveMapCanvasCompassRotation() {
   if (typeof document === 'undefined') return;
-  const boxEl = document.getElementById('mapBox');
-  if (!boxEl) return;
-  if (_arcGpsCompassState === 'compass') {
-    const rot = -((Number(_arcCompassHeadingDeg) || 0) % 360);
-    boxEl.style.transition = 'transform 0.18s linear';
-    boxEl.style.transformOrigin = '50% 50%';
-    boxEl.style.transform = `scale(1.36) rotate(${rot}deg)`;
-    boxEl.querySelectorAll('.klev-map-pin-rot-inner').forEach(el => {
-      el.style.transform = `rotate(${-rot}deg)`;
-    });
-  } else {
-    boxEl.style.transition = 'transform 0.22s ease-out';
-    boxEl.style.transform = 'none';
-    boxEl.querySelectorAll('.klev-map-pin-rot-inner').forEach(el => {
-      el.style.transform = 'none';
-    });
+  const stage = document.getElementById('klevArcMapStage');
+  const box = document.getElementById('mapBox');
+  if (!stage || !box) return;
+
+  const on = _arcGpsCompassState === 'compass' && _compassHasSample;
+  const pins = box.querySelectorAll('.klev-map-pin-rot-inner');
+
+  if (!on) {
+    if (box.dataset.rotOn === '1') {
+      ['inset', 'left', 'top', 'width', 'height', 'transform', 'transition', 'transform-origin']
+        .forEach(p => box.style.removeProperty(p));
+      box.dataset.rotOn = '0';
+      pins.forEach(el => { el.style.transform = ''; });
+      _mapRotSizeKey = '';
+      _setMapGesturesForCompass(false);
+      requestAnimationFrame(() => {
+        try { if (mapInstance) mapInstance.invalidateSize({ animate: false }); } catch (_e) {}
+      });
+    }
+    return;
   }
+
+  const W = stage.clientWidth, H = stage.clientHeight;
+  if (W < 40 || H < 40) return;
+  const d = Math.ceil(Math.hypot(W, H));
+  const key = `${W}x${H}`;
+
+  if (box.dataset.rotOn !== '1' || key !== _mapRotSizeKey) {
+    box.style.setProperty('inset', 'auto', 'important');
+    box.style.setProperty('width', d + 'px', 'important');
+    box.style.setProperty('height', d + 'px', 'important');
+    box.style.setProperty('left', ((W - d) / 2) + 'px', 'important');
+    box.style.setProperty('top', ((H - d) / 2) + 'px', 'important');
+    box.style.setProperty('transform-origin', '50% 50%');
+    box.dataset.rotOn = '1';
+    _mapRotSizeKey = key;
+    _setMapGesturesForCompass(true);
+    try { if (mapInstance) mapInstance.invalidateSize({ animate: false }); } catch (_e) {}
+  }
+
+  const target = -((Number(_arcCompassHeadingDeg) || 0) % 360);
+  const delta = ((((target - _mapRotCur) % 360) + 540) % 360) - 180;
+  _mapRotCur += delta;
+
+  box.style.transition = 'transform 0.12s linear';
+  box.style.transform = `rotate(${_mapRotCur}deg)`;
+  pins.forEach(el => { el.style.transform = `rotate(${-_mapRotCur}deg)`; });
 }
 
 function _ensureArcCompassSensorStarted() {
@@ -6919,9 +7204,13 @@ function _ensureArcCompassSensorStarted() {
   window.__KLEV_ON_NATIVE_COMPASS__ = (deg) => {
     _applyNewCompassHeading(Number(deg), 'native');
   };
-  if (window.AndroidBridge && typeof window.AndroidBridge.getCompassHeadingDeg === 'function' && !_compassNativePollTimer) {
+  if (_arcGpsCompassState === 'compass' && window.AndroidBridge && typeof window.AndroidBridge.getCompassHeadingDeg === 'function' && !_compassNativePollTimer) {
     _compassNativePollTimer = setInterval(() => {
       try {
+        if (_arcGpsCompassState !== 'compass' || (typeof document !== 'undefined' && document.visibilityState === 'hidden')) {
+          _stopCompassPoll();
+          return;
+        }
         const d = Number(window.AndroidBridge.getCompassHeadingDeg());
         if (Number.isFinite(d) && d >= 0) {
           _applyNewCompassHeading(d, 'native');
@@ -6932,7 +7221,7 @@ function _ensureArcCompassSensorStarted() {
   if (window.__KLEV_ARC_COMPASS_BOUND__) return;
   window.__KLEV_ARC_COMPASS_BOUND__ = true;
 
-  // 1. Generic Sensor API (AbsoluteOrientationSensor / RelativeOrientationSensor — использует аппаратный гироскоп + вектор вращения)
+  // 1. Generic Sensor API
   try {
     const SensorCtor = window.AbsoluteOrientationSensor || window.RelativeOrientationSensor;
     if (typeof SensorCtor === 'function') {
@@ -6952,10 +7241,10 @@ function _ensureArcCompassSensorStarted() {
       });
       sensor.addEventListener('error', () => {});
       sensor.start();
+      _compassOrientationSensor = sensor;
     }
   } catch (_e) {}
 
-  // 2. События ориентации браузера / WebView (без вычитания начального угла и без конфликта двух слушателей)
   const extractHeadingFromEvent = (ev) => {
     if (!ev) return null;
     const scrAngle = (window.screen?.orientation && Number.isFinite(window.screen.orientation.angle))
@@ -6971,15 +7260,30 @@ function _ensureArcCompassSensorStarted() {
   };
 
   if ('ondeviceorientationabsolute' in window) {
-    window.addEventListener('deviceorientationabsolute', (ev) => {
+    _compassOrientationAbsHandler = (ev) => {
       const h = extractHeadingFromEvent(ev);
       if (h !== null) _applyNewCompassHeading(h, 'abs');
-    }, { passive: true });
+    };
+    window.addEventListener('deviceorientationabsolute', _compassOrientationAbsHandler, { passive: true });
   }
-  window.addEventListener('deviceorientation', (ev) => {
+  _compassOrientationRelHandler = (ev) => {
     const h = extractHeadingFromEvent(ev);
     if (h !== null) _applyNewCompassHeading(h, ev.absolute ? 'abs' : 'rel');
-  }, { passive: true });
+  };
+  window.addEventListener('deviceorientation', _compassOrientationRelHandler, { passive: true });
+
+  if (typeof document !== 'undefined') {
+    _compassVisHandler = () => {
+      if (document.visibilityState === 'hidden') {
+        _stopCompassPoll();
+        try { window.AndroidBridge?.setCompassActive?.(false); } catch (_e) {}
+      } else if (_arcGpsCompassState === 'compass') {
+        try { window.AndroidBridge?.setCompassActive?.(true); } catch (_e) {}
+        _ensureArcCompassSensorStarted();
+      }
+    };
+    document.addEventListener('visibilitychange', _compassVisHandler);
+  }
 }
 
 export function updateLiveUserGpsMarkerOnMap() {
@@ -7034,6 +7338,9 @@ export function updateLiveUserGpsMarkerOnMap() {
     } else if (existingWrap && existingWrap.parentElement) {
       existingWrap.parentElement.innerHTML = html;
     }
+  }
+  if (_arcGpsCompassState === 'compass' && mapInstance && Number.isFinite(realPos.lat) && Number.isFinite(realPos.lon)) {
+    try { mapInstance.setView([realPos.lat, realPos.lon], mapInstance.getZoom(), { animate: false }); } catch (_e) {}
   }
 }
 
@@ -9382,23 +9689,6 @@ function bindArcMobileMapEvents(container) {
     _arcActivePopover = null;
     router.navigate('weather');
   });
-  container.querySelector('#arcBtnCompassOnly')?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    const boxEl = container.querySelector('#mapBox');
-    if (boxEl) boxEl.style.transform = 'none';
-    if (_arcGpsCompassState !== 'compass') {
-      _arcGpsCompassState = 'compass';
-      startArcDeviceCompassListener();
-      showToast('Компас включён: луч показывает направление вашего взгляда', 'info');
-    } else {
-      _arcGpsCompassState = 'centered';
-      stopArcDeviceCompassListener();
-      showToast('Режим компаса выключен', 'info');
-    }
-    render(container);
-    updateLiveUserGpsMarkerOnMap();
-  });
-
   container.querySelector('#arcCloseWeatherModalBtn')?.addEventListener('click', (e) => {
     e.stopPropagation();
     _arcFullScreenWeatherOpen = false;
@@ -9543,20 +9833,6 @@ function bindArcMobileMapEvents(container) {
     }
   });
 
-  container.querySelector('#arcCompassRotateStepBtn')?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    _arcCompassHeadingDeg = (_arcCompassHeadingDeg + 45) % 360;
-    _applyNewCompassHeading(_arcCompassHeadingDeg, 'manual');
-    _applyLiveMapCanvasCompassRotation();
-  });
-  container.querySelector('#arcCompassResetNorthBtn')?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    _arcCompassHeadingDeg = 0;
-    _arcGpsCompassState = 'centered';
-    _applyLiveMapCanvasCompassRotation();
-    render(container);
-  });
-
   container.querySelector('#arcBtnGpsCompass')?.addEventListener('click', async (e) => {
     e.stopPropagation();
     const realPos = getTrueUserGpsCoords(s);
@@ -9568,14 +9844,22 @@ function bindArcMobileMapEvents(container) {
       if (typeof window !== 'undefined' && typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
         try { await DeviceOrientationEvent.requestPermission(); } catch (_e) {}
       }
+      try { window.AndroidBridge?.setCompassActive?.(true); } catch (_e) {}
       _ensureArcCompassSensorStarted();
-      if (!_arcCompassHeadingDeg || _arcCompassHeadingDeg === 0) {
-        _arcCompassHeadingDeg = 35;
-      }
-      showToast('Компас включён: вращение карты по курсу активно', 'info');
+      showToast(_compassHasSample
+        ? 'Компас включён: карта вращается по курсу'
+        : 'Компас включён: ожидание данных датчика...', 'info');
+      setTimeout(() => {
+        if (_arcGpsCompassState === 'compass' && !_compassHasSample) {
+          showToast('Датчик компаса недоступен на устройстве, карта ориентирована на Север', 'warn');
+        }
+      }, 2800);
     } else {
       _arcGpsCompassState = 'centered';
       _arcCompassHeadingDeg = 0;
+      try { window.AndroidBridge?.setCompassActive?.(false); } catch (_e) {}
+      _stopCompassPoll();
+      _stopArcCompassSensors();
       if (mapInstance) {
         mapInstance.setView([realPos.lat, realPos.lon], Math.max(14, mapInstance.getZoom() || 14));
       }
@@ -9768,7 +10052,7 @@ function bindArcMobileMapEvents(container) {
     } else {
       mapBoxEl.style.touchAction = '';
       if (mapInstance && mapInstance.dragging) {
-        try { mapInstance.dragging.enable(); } catch (_e) {}
+        if (_arcGpsCompassState !== 'compass') { try { mapInstance.dragging.enable(); } catch (_e) {} }
       }
     }
 
@@ -9936,7 +10220,7 @@ function bindArcMobileMapEvents(container) {
     _arcRouteBuilderMode = null;
     _arcFreehandStrokes = [];
     if (mapInstance && mapInstance.dragging) {
-      try { mapInstance.dragging.enable(); } catch (_e) {}
+      if (_arcGpsCompassState !== 'compass') { try { mapInstance.dragging.enable(); } catch (_e) {} }
     }
     renderArcRouteDraftAndActiveOnMap();
     render(container);
@@ -9960,7 +10244,7 @@ function bindArcMobileMapEvents(container) {
     });
     _arcRouteBuilderMode = null;
     if (mapInstance && mapInstance.dragging) {
-      try { mapInstance.dragging.enable(); } catch (_e) {}
+      if (_arcGpsCompassState !== 'compass') { try { mapInstance.dragging.enable(); } catch (_e) {} }
     }
     if (flatPts.length >= 2) {
       const built = await computeSmartTransportRoute(flatPts, _arcTransportMode, 'freehand');

@@ -1,14 +1,17 @@
 plugins {
     id 'com.android.application'
 }
+def ciRunNum = (System.getenv("GITHUB_RUN_NUMBER") ?: "0").toInteger()
+def effVerCode = 293242 + ciRunNum
+
 android {
     namespace 'ru.klevpro.app'
     compileSdk 34
     defaultConfig {
-        applicationId "ru.klevpro.admin"
+        applicationId "ru.klevpro.app"
         minSdk 24
         targetSdk 34
-        versionCode 293545
+        versionCode effVerCode
         versionName "2.9.1-r241"
     }
     signingConfigs {

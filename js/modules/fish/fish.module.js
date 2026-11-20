@@ -932,6 +932,9 @@ export function openFishingPrefsModal(isEditMode = true, onBackToHub = null) {
           <button type="button" class="btn btn-good" id="onbSaveBtn" style="flex:2;width:100%;white-space:normal;line-height:1.25;">
             Сохранить настройки рыбалки (локация, водоёмы, снасти, рыбы)
           </button>
+          <button type="button" class="btn" id="onbCopyDiagLogBtn" style="flex:1;min-width:160px;">
+            Скопировать лог ошибок
+          </button>
         </div>
       </div>
     `;
@@ -1148,6 +1151,20 @@ export function openFishingPrefsModal(isEditMode = true, onBackToHub = null) {
         });
         closeModal();
         showToast('Профиль сохранён', 'info');
+      });
+      bodyEl.querySelector('#onbCopyDiagLogBtn')?.addEventListener('click', async () => {
+        const ring = typeof window !== 'undefined' && typeof window.__KLEV_GET_DIAG_LOG__ === 'function'
+          ? window.__KLEV_GET_DIAG_LOG__()
+          : '';
+        const txt = ring || 'Ошибок в текущей сессии не зафиксировано.';
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(txt);
+          }
+          showToast(ring ? 'Диагностический лог скопирован в буфер обмена' : 'Ошибок в текущей сессии нет', 'good');
+        } catch (_e) {
+          showToast('Не удалось скопировать лог', 'warn');
+        }
       });
       bodyEl.querySelector('#onbSaveBtn')?.addEventListener('click', () => {
         const preferredWatersArr = Array.from(selectedWaters);

@@ -26,9 +26,18 @@ import java.net.URL;
 import android.location.GnssStatus;
 import android.location.Location;
 import android.location.LocationListener;
+import android.hardware.GeomagneticField;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.location.LocationManager;
 import android.media.AudioAttributes;
+import android.media.AudioFocusRequest;
 import android.media.AudioManager;
+import android.os.SystemClock;
+import android.speech.tts.UtteranceProgressListener;
+import android.view.Surface;
 import android.media.RingtoneManager;
 import android.media.ToneGenerator;
 import android.os.Looper;
@@ -97,6 +106,96 @@ public class MainActivity extends Activity {
     private LocationManager nativeLocationManager;
     private LocationListener nativeLocationListener;
     private GnssStatus.Callback gnssStatusCallback;
+    private volatile long gpsLastFixElapsedMs = 0L;
+
+    private SensorManager compassSm;
+    private Sensor compassRv;
+    private boolean compassWanted = false;
+    private boolean compassRegistered = false;
+    private volatile float latestCompassHeadingDeg = -1f;
+    private volatile float magDeclinationDeg = 0f;
+    private long lastCompassPushMs = 0L;
+    private long lastDeclinationMs = 0L;
+    private final float[] cRot = new float[9];
+    private final float[] cRemap = new float[9];
+    private final float[] cOri = new float[3];
+    private AudioFocusRequest navAudioFocusRequest;
+    private volatile boolean russianTtsAvailable = true;
+
+    private final SensorEventListener compassListener = new SensorEventListener() {
+        @Override public void onAccuracyChanged(Sensor s, int a) {}
+        @Override public void onSensorChanged(SensorEvent e) {
+            try {
+                SensorManager.getRotationMatrixFromVector(cRot, e.values);
+                float headingMag;
+                if (cRot[8] > 0.7f) {
+                    int rot = Surface.ROTATION_0;
+                    try { rot = getWindowManager().getDefaultDisplay().getRotation(); } catch (Exception ignored) {}
+                    int ax, ay;
+                    switch (rot) {
+                        case Surface.ROTATION_90:  ax = SensorManager.AXIS_Y;       ay = SensorManager.AXIS_MINUS_X; break;
+                        case Surface.ROTATION_180: ax = SensorManager.AXIS_MINUS_X; ay = SensorManager.AXIS_MINUS_Y; break;
+                        case Surface.ROTATION_270: ax = SensorManager.AXIS_MINUS_Y; ay = SensorManager.AXIS_X;       break;
+                        default:                   ax = SensorManager.AXIS_X;       ay = SensorManager.AXIS_Y;       break;
+                    }
+                    SensorManager.remapCoordinateSystem(cRot, ax, ay, cRemap);
+                    SensorManager.getOrientation(cRemap, cOri);
+                    headingMag = (float) Math.toDegrees(cOri[0]);
+                } else {
+                    headingMag = (float) Math.toDegrees(Math.atan2(-cRot[2], -cRot[5]));
+                }
+                long now = SystemClock.uptimeMillis();
+                if (now - lastDeclinationMs > 60000L) { lastDeclinationMs = now; refreshMagDeclination(); }
+                float h = (headingMag + magDeclinationDeg + 720f) % 360f;
+                latestCompassHeadingDeg = h;
+                if (now - lastCompassPushMs >= 66L) {
+                    lastCompassPushMs = now;
+                    final float hh = h;
+                    if (webView != null) {
+                        webView.post(new Runnable() {
+                            @Override public void run() {
+                                try {
+                                    webView.evaluateJavascript(
+                                        "window.__KLEV_ON_NATIVE_COMPASS__&&window.__KLEV_ON_NATIVE_COMPASS__(" + hh + ")", null);
+                                } catch (Exception ignored) {}
+                            }
+                        });
+                    }
+                }
+            } catch (Exception ignored) {}
+        }
+    };
+
+    private void refreshMagDeclination() {
+        try {
+            if (nativeLocationManager == null) return;
+            Location l = nativeLocationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+            if (l == null) l = nativeLocationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
+            if (l != null) {
+                magDeclinationDeg = new GeomagneticField(
+                    (float) l.getLatitude(), (float) l.getLongitude(), (float) l.getAltitude(),
+                    System.currentTimeMillis()).getDeclination();
+            }
+        } catch (Exception ignored) {}
+    }
+
+    private void startCompassSensor() {
+        try {
+            if (compassRegistered) return;
+            if (compassSm == null) compassSm = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+            if (compassSm == null) return;
+            if (compassRv == null) compassRv = compassSm.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR);
+            if (compassRv == null) return;
+            compassRegistered = compassSm.registerListener(compassListener, compassRv, SensorManager.SENSOR_DELAY_GAME);
+        } catch (Exception ignored) {}
+    }
+
+    private void stopCompassSensor() {
+        try {
+            if (compassSm != null && compassRegistered) compassSm.unregisterListener(compassListener);
+        } catch (Exception ignored) {}
+        compassRegistered = false;
+    }
     private boolean pendingCameraLaunchAfterPerm = false;
     private Uri pendingCameraPhotoUri = null;
     private volatile String pendingNotifActionJson = null;
@@ -488,17 +587,30 @@ public class MainActivity extends Activity {
                 public void run() {
                     try {
                         if (enabled) {
+                            initNotificationChannels();
                             getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
                             acquireNativeRouteWakeLock();
                             startNativeLocationUpdates();
                             if (webView != null) {
                                 webView.resumeTimers();
                             }
-                            showOngoingRouteNotification("Клёв ПРО 2.0 • Ведение по маршруту", "Фоновая запись GPS и голосовое сопровождение активны");
+                            try {
+                                Intent navIntent = new Intent(MainActivity.this, NavService.class);
+                                if (Build.VERSION.SDK_INT >= 26) {
+                                    startForegroundService(navIntent);
+                                } else {
+                                    startService(navIntent);
+                                }
+                            } catch (Exception ignored) {
+                                showOngoingRouteNotification("Клёв ПРО 2.0 • Ведение по маршруту", "Фоновая запись GPS и голосовое сопровождение активны");
+                            }
                         } else {
                             getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
                             releaseNativeRouteWakeLock();
-                            cancelOngoingRouteNotification();
+                            try { stopService(new Intent(MainActivity.this, NavService.class)); } catch (Exception ignored) {}
+                            stopCompassSensor();
+        releaseNavAudioFocus();
+        cancelOngoingRouteNotification();
                         }
                     } catch (Exception ignored) {}
                 }
@@ -608,6 +720,26 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public float getCompassHeadingDeg() {
+            return latestCompassHeadingDeg;
+        }
+
+        @JavascriptInterface
+        public void setCompassActive(final boolean on) {
+            compassWanted = on;
+            runOnUiThread(new Runnable() {
+                @Override public void run() {
+                    if (on) startCompassSensor(); else stopCompassSensor();
+                }
+            });
+        }
+
+        @JavascriptInterface
+        public boolean isRussianTtsAvailable() {
+            return russianTtsAvailable;
+        }
+
+        @JavascriptInterface
         public boolean saveAppDataKey(String key, String value) {
             return saveKeyToNativeAppDataVault(key, value);
         }
@@ -658,12 +790,12 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public int getAppBuildNumber() {
-            return 241;
+            return 242;
         }
 
         @JavascriptInterface
         public String getAppRevision() {
-            return "r241";
+            return "r242";
         }
 
         private boolean isAllowedExternalUri(Uri uri) {
@@ -1280,7 +1412,17 @@ public class MainActivity extends Activity {
                             Locale ruLoc = new Locale("ru", "RU");
                             int res = ttsEngine.setLanguage(ruLoc);
                             if (res == TextToSpeech.LANG_MISSING_DATA || res == TextToSpeech.LANG_NOT_SUPPORTED) {
-                                ttsEngine.setLanguage(new Locale("ru"));
+                                res = ttsEngine.setLanguage(new Locale("ru"));
+                            }
+                            russianTtsAvailable = (res != TextToSpeech.LANG_MISSING_DATA && res != TextToSpeech.LANG_NOT_SUPPORTED);
+                            if (!russianTtsAvailable && webView != null) {
+                                webView.post(new Runnable() {
+                                    @Override public void run() {
+                                        try {
+                                            webView.evaluateJavascript("if(typeof window.showToast==='function')window.showToast('Не установлен русский голос синтезатора речи','warn');", null);
+                                        } catch (Exception ignored) {}
+                                    }
+                                });
                             }
                             ttsEngine.setSpeechRate(0.98f);
                             ttsEngine.setPitch(1.0f);
@@ -1291,6 +1433,11 @@ public class MainActivity extends Activity {
                                     .build();
                                 ttsEngine.setAudioAttributes(ttsAttr);
                             }
+                            ttsEngine.setOnUtteranceProgressListener(new UtteranceProgressListener() {
+                                @Override public void onStart(String utteranceId) {}
+                                @Override public void onDone(String utteranceId) { releaseNavAudioFocus(); }
+                                @Override public void onError(String utteranceId) { releaseNavAudioFocus(); }
+                            });
                             ttsReady = true;
                             if (pendingTtsPhrase != null && !pendingTtsPhrase.isEmpty()) {
                                 String phr = pendingTtsPhrase;
@@ -1316,12 +1463,7 @@ public class MainActivity extends Activity {
                 pendingTtsPhrase = phrase;
                 return;
             }
-            AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-            if (am != null) {
-                try {
-                    am.requestAudioFocus(null, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK);
-                } catch (Exception ignored) {}
-            }
+            requestNavAudioFocus();
             int queueMode = flush ? TextToSpeech.QUEUE_FLUSH : TextToSpeech.QUEUE_ADD;
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                 Bundle params = new Bundle();
@@ -1332,6 +1474,40 @@ public class MainActivity extends Activity {
                 HashMap<String, String> params = new HashMap<>();
                 params.put(TextToSpeech.Engine.KEY_PARAM_STREAM, String.valueOf(AudioManager.STREAM_MUSIC));
                 ttsEngine.speak(phrase, queueMode, params);
+            }
+        } catch (Exception ignored) {}
+    }
+
+    private void requestNavAudioFocus() {
+        try {
+            AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+            if (am == null) return;
+            if (Build.VERSION.SDK_INT >= 26) {
+                if (navAudioFocusRequest == null) {
+                    AudioAttributes attr = new AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                        .build();
+                    navAudioFocusRequest = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+                        .setAudioAttributes(attr)
+                        .setAcceptsDelayedFocusGain(false)
+                        .build();
+                }
+                am.requestAudioFocus(navAudioFocusRequest);
+            } else {
+                am.requestAudioFocus(null, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK);
+            }
+        } catch (Exception ignored) {}
+    }
+
+    private void releaseNavAudioFocus() {
+        try {
+            AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+            if (am == null) return;
+            if (Build.VERSION.SDK_INT >= 26 && navAudioFocusRequest != null) {
+                am.abandonAudioFocusRequest(navAudioFocusRequest);
+            } else {
+                am.abandonAudioFocus(null);
             }
         } catch (Exception ignored) {}
     }
@@ -1441,15 +1617,24 @@ public class MainActivity extends Activity {
                 nativeLocationListener = new LocationListener() {
                     @Override
                     public void onLocationChanged(final Location loc) {
-                        if (loc == null) return;
+                        if (loc == null || !loc.hasAccuracy()) return;
+                        final boolean isGps = LocationManager.GPS_PROVIDER.equals(loc.getProvider());
+                        long ageMs = (SystemClock.elapsedRealtimeNanos() - loc.getElapsedRealtimeNanos()) / 1000000L;
+                        if (ageMs > 5000L) return;
+                        if (isGps) {
+                            gpsLastFixElapsedMs = SystemClock.elapsedRealtime();
+                        } else if (SystemClock.elapsedRealtime() - gpsLastFixElapsedMs < 8000L) {
+                            return;
+                        }
                         lastGpsAccuracyMeters = loc.getAccuracy();
                         if (webView != null) {
                             final double lat = loc.getLatitude();
                             final double lon = loc.getLongitude();
                             final float acc = loc.getAccuracy();
-                            final float spd = loc.hasSpeed() ? loc.getSpeed() : 0f;
-                            final float brg = loc.hasBearing() ? loc.getBearing() : 0f;
+                            final float spd = loc.hasSpeed() ? loc.getSpeed() : -1f;
+                            final float brg = loc.hasBearing() ? loc.getBearing() : -1f;
                             final long ts = loc.getTime() > 0 ? loc.getTime() : System.currentTimeMillis();
+                            final int gpsFlag = isGps ? 1 : 0;
                             webView.post(new Runnable() {
                                 @Override
                                 public void run() {
@@ -1458,7 +1643,7 @@ public class MainActivity extends Activity {
                                             webView.resumeTimers();
                                         }
                                         webView.evaluateJavascript(
-                                            "if(typeof window.__KLEV_ON_NATIVE_GPS_FIX__==='function'){window.__KLEV_ON_NATIVE_GPS_FIX__(" + lat + "," + lon + "," + acc + "," + spd + "," + brg + "," + ts + ");}",
+                                            "if(typeof window.__KLEV_ON_NATIVE_GPS_FIX__==='function'){window.__KLEV_ON_NATIVE_GPS_FIX__(" + lat + "," + lon + "," + acc + "," + spd + "," + brg + "," + ts + "," + gpsFlag + ");}",
                                             null
                                         );
                                     } catch (Exception ignored) {}
@@ -1472,7 +1657,7 @@ public class MainActivity extends Activity {
                 };
                 try {
                     if (nativeLocationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-                        nativeLocationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000L, 1.0f, nativeLocationListener, Looper.getMainLooper());
+                        nativeLocationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000L, 0f, nativeLocationListener, Looper.getMainLooper());
                     }
                 } catch (Exception ignored) {}
                 try {
@@ -1482,6 +1667,19 @@ public class MainActivity extends Activity {
                 } catch (Exception ignored) {}
             }
         } catch (Exception ignored) {}
+    }
+
+    private void stopNativeLocationUpdates() {
+        try {
+            if (nativeLocationManager != null && nativeLocationListener != null) {
+                nativeLocationManager.removeUpdates(nativeLocationListener);
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && nativeLocationManager != null && gnssStatusCallback != null) {
+                nativeLocationManager.unregisterGnssStatusCallback(gnssStatusCallback);
+            }
+        } catch (Exception ignored) {}
+        nativeLocationListener = null;
+        gnssStatusCallback = null;
     }
 
     @Override
@@ -1494,6 +1692,7 @@ public class MainActivity extends Activity {
                 webView.resumeTimers();
             }
             startNativeLocationUpdates();
+            if (compassWanted) startCompassSensor();
         } catch (Exception ignored) {}
     }
 
@@ -1505,7 +1704,9 @@ public class MainActivity extends Activity {
                 webView.evaluateJavascript("try{if(window.__klevFlushAllToNativeVault)window.__klevFlushAllToNativeVault();}catch(e){}", null);
             }
         } catch (Exception ignored) {}
+        stopCompassSensor();
         super.onPause();
+        if (!isBgRouteTrackingActive) stopNativeLocationUpdates();
         try {
             if (isBgRouteTrackingActive && webView != null) {
                 webView.resumeTimers();
@@ -1586,7 +1787,7 @@ public class MainActivity extends Activity {
             }
         }
         String entryHtml = getPackageName().contains("admin") ? "kp-control-89.html" : "index.html";
-        String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/" + entryHtml + "?v=2.9.1_r241_" + System.currentTimeMillis();
+        String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/" + entryHtml + "?v=2.9.1_r242_" + System.currentTimeMillis();
         if (intent != null && intent.getData() != null) {
             Uri data = intent.getData();
             String q = data.getEncodedQuery();

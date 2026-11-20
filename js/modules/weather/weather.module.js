@@ -1025,9 +1025,7 @@ async function fetchMissingArchiveDays(lat, lon, waterType) {
   const candidates = [
     histForecastUrl,
     archiveApiUrl,
-    workerEdgeUrl,
-    `https://allorigins.hexlet.app/raw?disableCache=true&url=${encodeURIComponent(histForecastUrl)}`,
-    `https://corsproxy-seven.vercel.app/api?url=${encodeURIComponent(histForecastUrl)}`
+    workerEdgeUrl
   ];
   for (const url of candidates) {
     try {
@@ -1127,16 +1125,7 @@ export async function fetchWeather(lat, lon, forceNetwork = false) {
       {
         name: RU.online,
         run: async () => {
-          const proxy1 = `https://allorigins.hexlet.app/raw?disableCache=true&url=${encodeURIComponent(omUrl)}`;
-          const d = await fetchWithTimeout(proxy1, 7000);
-          return d && d.hourly && d.daily ? normalizeOpenMeteo(d, st.water) : null;
-        }
-      },
-      {
-        name: RU.online,
-        run: async () => {
-          const proxy2 = `https://corsproxy-seven.vercel.app/api?url=${encodeURIComponent(omUrl)}`;
-          const d = await fetchWithTimeout(proxy2, 7500);
+          const d = await fetchWithTimeout(omUrl, 7000);
           return d && d.hourly && d.daily ? normalizeOpenMeteo(d, st.water) : null;
         }
       }

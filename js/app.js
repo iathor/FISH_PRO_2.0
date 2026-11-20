@@ -124,10 +124,32 @@ export function getCurrentUserForTelemetry() {
   }
 }
 
+const CLIENT_ERROR_BATCH_KEY = 'klev_client_error_batch_queue_v1';
+const CLIENT_ERROR_BATCH_SIZE = 5;
+const _klevDiagErrorRing = [];
+
+export function getDiagErrorRingLog() {
+  return _klevDiagErrorRing.slice();
+}
+
+export function logErr(tag, err) {
+  try {
+    const msg = err && err.message ? err.message : String(err || 'Unknown error');
+    const line = `${new Date().toISOString()} [${tag}]: ${msg}`;
+    _klevDiagErrorRing.push(line);
+    if (_klevDiagErrorRing.length > 200) _klevDiagErrorRing.shift();
+    recordClientErrorTelemetry(tag || 'internal', msg, err && err.stack ? String(err.stack).slice(0, 220) : tag);
+  } catch (_e) {}
+}
+
+if (typeof window !== 'undefined') {
+  window.__KLEV_LOG_ERR__ = logErr;
+  window.__KLEV_GET_DIAG_LOG__ = () => _klevDiagErrorRing.join('\n');
+}
+
 export function recordClientErrorTelemetry(type, message, sourceOrStack = '') {
   try {
     const msgStr = String(message || 'Unknown error').slice(0, 240);
-    // Игнорируем штатные сетевые таймауты облачных шлюзов, AbortController и ResizeObserver, чтобы не засорять телеметрию
     if (/Offline simulated|Failed to fetch|NetworkError|Load failed|AbortError|aborted|All promises were rejected|AggregateError|ResizeObserver|Script error/i.test(msgStr)) {
       return null;
     }
@@ -142,26 +164,43 @@ export function recordClientErrorTelemetry(type, message, sourceOrStack = '') {
       msg: msgStr,
       src: String(sourceOrStack || '').slice(0, 220),
       route: String(window.location?.hash || '#/forecast'),
-      ver: '2.9.3-r239',
+      ver: '2.9.1-r242',
       env: envLabel,
       fisherId: uInfo.fisherId,
       login: uInfo.login,
       isOwner: uInfo.isOwner,
       isRegistered: uInfo.isRegistered,
       isTemporaryReserve: uInfo.isTemporaryReserve,
-      notifyMode: 'admin_console_telemetry_only',
+      notifyMode: 'admin_console_telemetry_batch5',
       ua: String(navigator.userAgent || '').slice(0, 90)
     };
     list.unshift(entry);
     localStorage.setItem(CLIENT_ERROR_LOG_KEY, JSON.stringify(list.slice(0, 30)));
 
-    // Отправка в раздел «4.3 Телеметрия ошибок клиента» через облачный шлюз workerFetch (БЕЗ засорения личных чатов и пуш-уведомлений!)
-    if (typeof navigator !== 'undefined' && navigator.onLine && circleModule && typeof circleModule.workerFetch === 'function') {
+    // Копим ошибки на клиенте до 5 штук, затем отправляем пакет админу на рассмотрение и правку
+    let queue = [];
+    try {
+      const rawQ = localStorage.getItem(CLIENT_ERROR_BATCH_KEY);
+      queue = rawQ ? JSON.parse(rawQ) : [];
+      if (!Array.isArray(queue)) queue = [];
+    } catch (_e) {
+      queue = [];
+    }
+    queue.push(entry);
+    localStorage.setItem(CLIENT_ERROR_BATCH_KEY, JSON.stringify(queue.slice(-20)));
+
+    if (queue.length >= CLIENT_ERROR_BATCH_SIZE && typeof navigator !== 'undefined' && navigator.onLine && circleModule && typeof circleModule.workerFetch === 'function') {
+      const batchToSend = queue.slice(0, CLIENT_ERROR_BATCH_SIZE);
+      const remaining = queue.slice(CLIENT_ERROR_BATCH_SIZE);
       circleModule.workerFetch('/api/telemetry/client-error', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(entry)
-      }, 5500, 0).catch(() => {});
+        body: JSON.stringify({ batch: true, count: batchToSend.length, items: batchToSend })
+      }, 6500, 0).then((res) => {
+        if (res && res.ok) {
+          try { localStorage.setItem(CLIENT_ERROR_BATCH_KEY, JSON.stringify(remaining)); } catch (_e) {}
+        }
+      }).catch(() => {});
     }
 
     return entry;

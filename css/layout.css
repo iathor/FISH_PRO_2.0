@@ -2078,11 +2078,7 @@ html[data-arc-map-active="1"] #secGeo {
 }
 
 .klev-arc-map-stage.compass-bearing-active #mapBox {
-  width: 100% !important;
-  height: 100% !important;
-  left: 0 !important;
-  top: 0 !important;
-  transform: none !important;
+  will-change: transform;
 }
 
 /* Ограничения десктопной версии сайта (Замечание 7):

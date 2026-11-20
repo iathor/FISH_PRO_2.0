@@ -440,8 +440,6 @@ export function notifyServerGeminiUsage(usedKey = "", modelId = "", meta = {}) {
       ts: nowTs
     });
     const u = `${RELAY_WORKER_URL}/api/ai/record-usage?payload=${encodeURIComponent(payloadStr)}&_t=${nowTs}`;
-    fetch(`https://allorigins.hexlet.app/raw?disableCache=true&url=${encodeURIComponent(u)}`, { method: "GET", mode: "cors", credentials: "omit" }).catch(() => {});
-    fetch(`https://corsproxy-seven.vercel.app/api?url=${encodeURIComponent(u)}`, { method: "GET", mode: "cors", credentials: "omit" }).catch(() => {});
     fetch(u, { method: "GET", mode: "cors", credentials: "omit" }).catch(() => {});
   } catch (e) {}
 }
@@ -526,24 +524,7 @@ async function _postGeminiWithGeoRelay(rawUrl, bodyStr, timeoutMs) {
     }
   }
 
-  // Маршрутизация через резервные облачные HTTPS-узлы для стабильного соединения с сервисом распознавания
-  const relayTargets = [
-    `https://corsproxy.io/?url=${encodeURIComponent(rawUrl)}`,
-    `https://corsproxy-seven.vercel.app/api?url=${encodeURIComponent(rawUrl)}`,
-    `https://allorigins.hexlet.app/raw?disableCache=true&url=${encodeURIComponent(rawUrl)}`
-  ];
-  for (const rUrl of relayTargets) {
-    const rRes = await execPost(rUrl, "application/json", timeoutMs);
-    if (rRes && rRes.ok) {
-      return { res: rRes, errTxt: "" };
-    }
-    if (rRes && (rRes.status === 400 || rRes.status === 403 || rRes.status === 404)) {
-      const rErr = await rRes.text().catch(() => "");
-      if (!/corsproxy|cloudflare|html/i.test(rErr)) {
-        return { res: rRes, errTxt: rErr };
-      }
-    }
-  }
+
   return { res: null, errTxt: "Network/Geo relay unreachable" };
 }
 
@@ -591,7 +572,7 @@ async function _callGeminiClientSingleKey(apiKey, contentsPayload, genConfig = {
       let lRes = await fetch(listUrl, { method: "GET", signal: lCtrl?.signal }).catch(() => null);
       if (lTimer) clearTimeout(lTimer);
       if (!lRes || !lRes.ok) {
-        lRes = await fetch("https://corsproxy-seven.vercel.app/api?url=" + encodeURIComponent(listUrl), { method: "GET" }).catch(() => null);
+        lRes = null;
       }
       if (lRes && lRes.ok) {
         const lData = await lRes.json().catch(() => null);
@@ -1245,7 +1226,7 @@ export async function analyzeFishPhotoHybrid(imgSrc, bypassCache = false) {
     };
 
     const callPostProxyWorkerRelay = async () => {
-      const proxyUrl = `https://corsproxy.io/?url=${encodeURIComponent(RELAY_WORKER_URL + '/api/ai/identify-fish')}`;
+      const proxyUrl = `${RELAY_WORKER_URL}/api/ai/identify-fish`;
       const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
       const timer = ctrl ? setTimeout(() => ctrl.abort(), 14000) : null;
       try {
@@ -1473,8 +1454,7 @@ export async function analyzeFishPhotoHybrid(imgSrc, bypassCache = false) {
     };
     try {
       const pollParsed = await Promise.any([
-        tryPollinations("https://text.pollinations.ai/openai", 9500),
-        tryPollinations("https://corsproxy.io/?url=" + encodeURIComponent("https://text.pollinations.ai/openai"), 11500)
+        tryPollinations("https://text.pollinations.ai/openai", 9500)
       ]);
       if (pollParsed && pollParsed.topMatches.length > 0) {
         const engTitle = "Мультимодальная нейросеть Vision ИИ (резервный канал)";

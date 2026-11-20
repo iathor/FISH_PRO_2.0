@@ -7345,7 +7345,7 @@ export default {
    });
   }
   if (reqUrl.pathname === '/sitemap.xml' && request.method === 'GET') {
-   return new Response(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://klevpro.ru/</loc><lastmod>2026-11-04</lastmod><changefreq>daily</changefreq><priority>1.0</priority></url></urlset>`, {
+   return new Response(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://klevpro.ru/</loc><lastmod>2026-11-20</lastmod><changefreq>daily</changefreq><priority>1.0</priority></url></urlset>`, {
     status: 200,
     headers: { ...CORS_HEADERS, 'Content-Type': 'application/xml; charset=utf-8' }
    });
@@ -7400,22 +7400,27 @@ export default {
      }
     }
     const scrubSecrets = (s) => String(s || '').replace(/(KTOK_[A-Z0-9_]+|KP1_[A-Za-z0-9_-]+|token=[^&\s]+)/gi, '[СКРЫТО]');
-    clientErrorTelemetryLog.unshift({
-     id: String(errBody.id || `ERR_${Date.now()}`).slice(0, 32),
-     ts: Number(errBody.ts || Date.now()),
-     type: workerCleanText(errBody.type || 'error', 32, 'err.type', '/api/telemetry/client-error', clientIp),
-     msg: scrubSecrets(workerCleanText(errBody.msg || '', 240, 'err.msg', '/api/telemetry/client-error', clientIp)),
-     src: scrubSecrets(workerCleanText(errBody.src || '', 220, 'err.src', '/api/telemetry/client-error', clientIp)),
-     route: scrubSecrets(String(errBody.route || '').slice(0, 64)),
-     ver: String(errBody.ver || WORKER_VERSION).slice(0, 24),
-     env: String(errBody.env || 'web').slice(0, 16),
-     fisherId: workerNormalizeFisherId(errBody.fisherId || '', '89'),
-     login: workerCleanText(errBody.login || '', 32, 'err.login', '/api/telemetry/client-error', clientIp),
-     isOwner: Boolean(errBody.isOwner),
-     isRegistered: Boolean(errBody.isRegistered),
-     isTemporaryReserve: Boolean(errBody.isTemporaryReserve),
-     ua: String(errBody.ua || '').slice(0, 96)
+    const incomingItems = (errBody && item.batch && Array.isArray(item.items))
+     ? item.items.slice(0, 10)
+     : [errBody || {}];
+    for (const item of incomingItems) {
+     clientErrorTelemetryLog.unshift({
+      id: String(item.id || `ERR_${Date.now()}`).slice(0, 32),
+      ts: Number(item.ts || Date.now()),
+      type: workerCleanText(item.type || 'error', 32, 'err.type', '/api/telemetry/client-error', clientIp),
+      msg: scrubSecrets(workerCleanText(item.msg || '', 240, 'err.msg', '/api/telemetry/client-error', clientIp)),
+      src: scrubSecrets(workerCleanText(item.src || '', 220, 'err.src', '/api/telemetry/client-error', clientIp)),
+      route: scrubSecrets(String(item.route || '').slice(0, 64)),
+     ver: String(item.ver || WORKER_VERSION).slice(0, 24),
+     env: String(item.env || 'web').slice(0, 16),
+     fisherId: workerNormalizeFisherId(item.fisherId || '', '89'),
+     login: workerCleanText(item.login || '', 32, 'err.login', '/api/telemetry/client-error', clientIp),
+     isOwner: Boolean(item.isOwner),
+     isRegistered: Boolean(item.isRegistered),
+     isTemporaryReserve: Boolean(item.isTemporaryReserve),
+     ua: String(item.ua || '').slice(0, 96)
     });
+    }
     if (clientErrorTelemetryLog.length > 50) clientErrorTelemetryLog.length = 50;
     return jsonResponse({ ok: true, count: clientErrorTelemetryLog.length });
    } catch (_e) {

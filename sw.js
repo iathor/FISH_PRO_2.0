@@ -1,6 +1,6 @@
 /**
  * @file sw.js
- * @description Service Worker для PWA «Клёв ПРО 2.0: Круг» (Ревизия 2.9.2 r237).
+ * @description Service Worker для PWA «Клёв ПРО 2.0: Круг» (Ревизия 2.9.1 r242).
  */
 
 const CACHE_VERSION = 'klev-pro-v2.9.1-r241';

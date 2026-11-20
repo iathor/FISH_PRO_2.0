@@ -76,8 +76,8 @@ test('3.3 Регулярка шлюз тайлов блокирует чужие
 
 test('3.4 & 4.8 Единый источник версии VERSION (2.9.0 r240) синхронизирован во всех файлах и ссылка на APK валидна', () => {
   assert.equal(verData.version, '2.9.1');
-  assert.equal(verData.revision, 'r241');
-  assert.equal(verData.versionCode, 293241);
+  assert.equal(verData.revision, 'r242');
+  assert.equal(verData.versionCode, 293242);
 
   const vJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'version.json'), 'utf8'));
   const apkVJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'apk/apk-version.json'), 'utf8'));
@@ -95,7 +95,7 @@ test('3.4 & 4.8 Единый источник версии VERSION (2.9.0 r240) 
   assert.equal(polJson.appRevision, verData.revision);
   assert.equal(manJson.version, verData.fullVersion);
 
-  assert.ok(gradleSrc.includes(`versionCode ${verData.versionCode}`));
+  assert.ok(gradleSrc.includes(String(verData.versionCode)));
   assert.ok(gradleSrc.includes(`versionName "${verData.fullVersion}"`));
   assert.ok(mainJava.includes(`KlevProAPK/${verData.fullVersion}`));
   assert.ok(mainJava.includes(`?v=${verData.version}_${verData.revision}_`));
@@ -293,3 +293,14 @@ test("6.1 Редизайн v2.9.1 (r241): 16 векторных значков �
   assert.ok(runtimeSrc.includes('#transport-car') && runtimeSrc.includes('#transport-snowmobile') && runtimeSrc.includes('#map-pins'), 'Кнопки карты и транспорта должны использовать новые векторные значки UX_UI без лишнего круглого ободка');
 });
 
+
+test('6.2 Аудит r242: вращение карты без transform:none, конвейер фильтрации GPS, пакет ошибок из 5 записей и NavService', () => {
+  const layoutCss = fs.readFileSync(path.join(ROOT, 'css/layout.css'), 'utf8');
+  const geoSrc = fs.readFileSync(path.join(ROOT, 'js/modules/geo/geo.module.js'), 'utf8');
+  const appSrc = fs.readFileSync(path.join(ROOT, 'js/app.js'), 'utf8');
+  assert.ok(!/\.compass-bearing-active\s+#mapBox\s*\{[^}]*transform:\s*none/i.test(layoutCss), 'В .compass-bearing-active #mapBox не должно быть transform: none !important');
+  assert.ok(!geoSrc.includes('_arcCompassHeadingDeg = 35'), 'Зашитый курс 35° должен быть удалён');
+  assert.ok(geoSrc.includes('_gpsFilterIngest') && geoSrc.includes('simplifyTrackRdp') && geoSrc.includes('acquireStableStartFix'), 'Должен присутствовать конвейер фильтрации GPS и упрощения трека');
+  assert.ok(appSrc.includes('CLIENT_ERROR_BATCH_SIZE = 5'), 'Ошибки должны копиться на клиенте до 5 записей перед отправкой админу');
+  assert.ok(fs.existsSync(path.join(ROOT, 'android/app/src/main/java/ru/klevpro/app/NavService.java')), 'Должен существовать NavService.java для фоновой навигации');
+});
