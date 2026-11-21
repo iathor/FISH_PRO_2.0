@@ -3248,7 +3248,7 @@ async function selectTemporaryMapSpot(lat, lon) {
       zIndexOffset: 2600,
       icon: L.divIcon({
         className: 'klev-picked-spot-pin',
-        html: `<div class="klev-map-pin-rot-inner" style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;transform:rotate(${Math.round(-_mapRotCur)}deg);"><svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#ef4444" stroke="#ffffff" stroke-width="1.8"/><circle cx="12" cy="9" r="2.8" fill="#ffffff"/></svg></div>`,
+        html: `<div class="klev-map-pin-rot-inner" style="width:28px;height:28px;transform-origin:14px 27px;display:flex;align-items:center;justify-content:center;transform:rotate(${Math.round(-_mapRotCur)}deg);"><svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#ef4444" stroke="#ffffff" stroke-width="1.8"/><circle cx="12" cy="9" r="2.8" fill="#ffffff"/></svg></div>`,
         iconSize: [28, 28],
         iconAnchor: [14, 27]
       })
@@ -3347,16 +3347,10 @@ export async function autoDetectStartupLocation() {
   if (typeof window !== 'undefined' && window.__KLEV_MANUAL_LOC_SESSION__) return;
   const s = store.getState();
   const weatherStale = !Array.isArray(s.weatherDays) || s.weatherDays.length === 0 || (Date.now() - (Number(s.lastWeatherSyncTs) || 0)) > 1800000;
-  let hasPerm = Boolean(typeof window !== 'undefined' && window.AndroidBridge);
-  if (!hasPerm && typeof navigator !== 'undefined' && navigator.permissions && typeof navigator.permissions.query === 'function') {
-    try {
-      const perm = await navigator.permissions.query({ name: 'geolocation' });
-      hasPerm = Boolean(perm && perm.state === 'granted');
-    } catch (_e) {}
-  }
-  if (hasPerm && typeof navigator !== 'undefined' && navigator.geolocation) {
+  if (typeof navigator !== 'undefined' && navigator.geolocation) {
     navigator.geolocation.getCurrentPosition(
       pos => {
+        if (typeof window !== 'undefined') window.__KLEV_STARTUP_GPS_SYNCED__ = true;
         _updateLiveGpsTelemetryFromPosition(pos);
         const stNow = store.getState();
         const gLat = Number(pos.coords.latitude);
@@ -3375,7 +3369,7 @@ export async function autoDetectStartupLocation() {
           fetchWeather(s.lat, s.lon, true);
         }
       },
-      { enableHighAccuracy: true, timeout: 7000, maximumAge: 60000 }
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
     );
   } else if (weatherStale && Number.isFinite(s.lat) && Number.isFinite(s.lon)) {
     fetchWeather(s.lat, s.lon, true);
@@ -5101,8 +5095,19 @@ function _updateLiveGpsTelemetryFromPosition(pos) {
     ts: Number(pos.timestamp) || Date.now(),
     hasRealFix: true
   };
+  if (typeof window !== 'undefined' && !window.__KLEV_STARTUP_GPS_SYNCED__ && !window.__KLEV_MANUAL_LOC_SESSION__ && !pos._held && acc <= 65) {
+    window.__KLEV_STARTUP_GPS_SYNCED__ = true;
+    const stInit = store.getState();
+    const movedInitKm = (Number.isFinite(stInit.lat) && Number.isFinite(stInit.lon))
+      ? calcHaversineKm(stInit.lat, stInit.lon, lat, lon)
+      : 9999;
+    if (!stInit.hasUserLocation || movedInitKm > 0.35) {
+      setLocation(lat, lon);
+    }
+  }
+
   const nowMove = Date.now();
-  const isNowMoving = !pos._held && spMs >= 1.2;
+  const isNowMoving = !pos._held && spMs >= 0.8;
   if (isNowMoving && !_isUserMoving) {
     _movingStartedTs = nowMove;
   } else if (!isNowMoving) {
@@ -5114,7 +5119,7 @@ function _updateLiveGpsTelemetryFromPosition(pos) {
   if (_arcAutoCenterEnabled && _isUserMoving && !_arcPickedSpot) {
     const touchIdleMs = nowMove - (_lastUserMapTouchTs || 0);
     const movingForMs = _movingStartedTs ? (nowMove - _movingStartedTs) : 0;
-    if (!_isMapCenteredOnUser && touchIdleMs >= 7000) {
+    if (!_isMapCenteredOnUser && touchIdleMs >= 5000) {
       _isMapCenteredOnUser = true;
       _userManualRotatedMap = false;
       _arcGpsCompassState = 'compass';
@@ -5123,7 +5128,7 @@ function _updateLiveGpsTelemetryFromPosition(pos) {
         try { mapInstance.setView([lat, lon], Math.max(14, mapInstance.getZoom() || 14), { animate: true }); } catch (_e) {}
       }
       _applyLiveMapCanvasCompassRotation();
-    } else if (_isMapCenteredOnUser && _arcGpsCompassState !== 'compass' && movingForMs >= 6000 && touchIdleMs >= 6000) {
+    } else if (_isMapCenteredOnUser && _arcGpsCompassState !== 'compass' && movingForMs >= 5000 && touchIdleMs >= 5000) {
       _userManualRotatedMap = false;
       _arcGpsCompassState = 'compass';
       if (Number.isFinite(hdg) && hdg >= 0) _applyNewCompassHeading(hdg, 'gps');
@@ -6947,6 +6952,9 @@ export function renderMap(mapBoxEl) {
     _arcRouteDraftLayerGroup = null;
     _riverArrowsLayerGroup = null;
     _liveUserGpsMarker = null;
+    if (isMobileOrTabletMapMode()) {
+      _ensureSquareMapCanvasSize(document.getElementById('klevArcMapStage'), mapBoxEl);
+    }
     const yandexCrs = getYandexEPSG3395CRS();
     mapInstance = L.map(mapBoxEl, { ...(yandexCrs ? { crs: yandexCrs } : {}), minZoom: 4, maxZoom: 18 }).setView([targetLat, targetLon], targetZoom);
     _lastMapBoxW = boxW;
@@ -6966,22 +6974,34 @@ export function renderMap(mapBoxEl) {
       const dr = mapInstance.dragging && mapInstance.dragging._draggable;
       if (dr && !dr.__klevRotPatched) {
         dr.__klevRotPatched = true;
+        const origOnDown = dr._onDown.bind(dr);
         const origOnMove = dr._onMove.bind(dr);
+        dr._onDown = function(e) {
+          const first = (e && e.touches && e.touches[0]) || e;
+          if (first && Number.isFinite(first.clientX) && Number.isFinite(first.clientY)) {
+            this._klevTouchStart = { x: first.clientX, y: first.clientY };
+          } else {
+            this._klevTouchStart = null;
+          }
+          return origOnDown(e);
+        };
         dr._onMove = function(e) {
-          if (Math.abs(_mapRotCur % 360) > 1.5 && e && this._startPos) {
+          if (Math.abs(_mapRotCur % 360) > 1.5 && e && this._klevTouchStart) {
             const first = (e.touches && e.touches[0]) || e;
-            const dx = first.clientX - this._startPos.x;
-            const dy = first.clientY - this._startPos.y;
-            const rad = (-_mapRotCur * Math.PI) / 180;
-            const rx = dx * Math.cos(rad) - dy * Math.sin(rad);
-            const ry = dx * Math.sin(rad) + dy * Math.cos(rad);
-            const fakeEv = {
-              clientX: this._startPos.x + rx,
-              clientY: this._startPos.y + ry,
-              target: e.target,
-              preventDefault: () => { try { e.preventDefault(); } catch (_e) {} }
-            };
-            return origOnMove(fakeEv);
+            if (first && Number.isFinite(first.clientX) && Number.isFinite(first.clientY)) {
+              const dx = first.clientX - this._klevTouchStart.x;
+              const dy = first.clientY - this._klevTouchStart.y;
+              const rad = (-_mapRotCur * Math.PI) / 180;
+              const rx = dx * Math.cos(rad) - dy * Math.sin(rad);
+              const ry = dx * Math.sin(rad) + dy * Math.cos(rad);
+              const fakeEv = {
+                clientX: this._klevTouchStart.x + rx,
+                clientY: this._klevTouchStart.y + ry,
+                target: e.target,
+                preventDefault: () => { try { e.preventDefault(); } catch (_e) {} }
+              };
+              return origOnMove(fakeEv);
+            }
           }
           return origOnMove(e);
         };
@@ -7012,8 +7032,9 @@ export function renderMap(mapBoxEl) {
       const sin = Math.sin(rad);
       const rx = dx * cos - dy * sin;
       const ry = dx * sin + dy * cos;
-      const mw = el.clientWidth || rect.width;
-      const mh = el.clientHeight || rect.height;
+      const sz = mapInstance && typeof mapInstance.getSize === 'function' ? mapInstance.getSize() : null;
+      const mw = (sz && sz.x) || el.clientWidth || rect.width;
+      const mh = (sz && sz.y) || el.clientHeight || rect.height;
       return [mw / 2 + rx, mh / 2 + ry];
     };
 
@@ -7062,17 +7083,19 @@ export function renderMap(mapBoxEl) {
         }
         _p2LastAng = m.ang;
 
-        if (_p2BaseDist > 0 && Math.abs(m.dist - _p2LastDist) > 2) {
+        if (_p2BaseDist > 0 && Math.abs(m.dist - _p2LastDist) > 4) {
           const zDelta = Math.log2(m.dist / _p2BaseDist);
           const targetZ = clamp(_p2StartZoom + zDelta, 4, 18);
-          const mp = clientToRotatedMapPoint(m.cx, m.cy);
-          const latlng = mapInstance.containerPointToLatLng(L.point(mp[0], mp[1]));
-          try {
-            _isProgrammaticAutoZoom = true;
-            mapInstance.setZoomAround(latlng, targetZ, { animate: false });
-          } catch (_e) {
-          } finally {
-            setTimeout(() => { _isProgrammaticAutoZoom = false; }, 100);
+          if (Math.abs(targetZ - (mapInstance.getZoom() || 14)) >= 0.12) {
+            const mp = clientToRotatedMapPoint(m.cx, m.cy);
+            const latlng = mapInstance.containerPointToLatLng(L.point(mp[0], mp[1]));
+            try {
+              _isProgrammaticAutoZoom = true;
+              mapInstance.setZoomAround(latlng, targetZ, { animate: false });
+            } catch (_e) {
+            } finally {
+              setTimeout(() => { _isProgrammaticAutoZoom = false; }, 100);
+            }
           }
           _p2LastDist = m.dist;
         }
@@ -10007,10 +10030,10 @@ function renderArcMobileMap(container, s, prevLiveMapBox) {
     }, { passive: true });
   }
   bindArcMobileMapEvents(container);
+  _ensureSquareMapCanvasSize(stageEl, mapBoxSlot);
   if (mapBoxSlot && mapBoxSlot.offsetParent !== null && (!mapInstance || mapInstance._container !== mapBoxSlot)) {
     renderMap(mapBoxSlot);
   }
-  _ensureSquareMapCanvasSize(stageEl, mapBoxSlot);
   updateLiveUserGpsMarkerOnMap();
   _applyLiveMapCanvasCompassRotation();
   renderArcRouteDraftAndActiveOnMap();

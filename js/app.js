@@ -164,7 +164,7 @@ export function recordClientErrorTelemetry(type, message, sourceOrStack = '') {
       msg: msgStr,
       src: String(sourceOrStack || '').slice(0, 220),
       route: String(window.location?.hash || '#/forecast'),
-      ver: '2.9.1-r245',
+      ver: '2.9.1-r246',
       env: envLabel,
       fisherId: uInfo.fisherId,
       login: uInfo.login,

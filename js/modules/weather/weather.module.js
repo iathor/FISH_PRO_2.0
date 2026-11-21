@@ -1898,15 +1898,15 @@ export function init(container) {
         return;
       }
     }
+    if (prev && (Math.abs((Number(next.lat) || 0) - (Number(prev.lat) || 0)) > 0.002 || Math.abs((Number(next.lon) || 0) - (Number(prev.lon) || 0)) > 0.002)) {
+      fetchWeather(next.lat, next.lon, true).catch(() => {});
+    }
     if (next.route && next.route !== 'weather') {
       if (container) container._weatherNeedsRender = true;
       return;
     }
     if (container) container._weatherNeedsRender = false;
     render(container);
-    if (prev && (Math.abs((Number(next.lat) || 0) - (Number(prev.lat) || 0)) > 0.002 || Math.abs((Number(next.lon) || 0) - (Number(prev.lon) || 0)) > 0.002)) {
-      fetchWeather(next.lat, next.lon, true).catch(() => {});
-    }
   });
   events.on('location:changed', (loc) => {
     if (loc && Number.isFinite(Number(loc.lat)) && Number.isFinite(Number(loc.lon))) {
