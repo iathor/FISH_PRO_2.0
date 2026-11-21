@@ -1166,7 +1166,7 @@ body {
   z-index: 1;
   isolation: isolate;
   overflow: hidden;
-  transition: height 0.2s ease;
+  transition: none !important;
 }
 
 @media (min-width: 768px) {
@@ -2065,6 +2065,11 @@ html[data-arc-map-active="1"] #secGeo {
   background: #07111e;
 }
 
+
+html:not([data-desktop-web="1"]) .leaflet-pane img.leaflet-marker-icon,
+html:not([data-desktop-web="1"]) .leaflet-pane img.leaflet-marker-shadow {
+  display: none !important;
+}
 .klev-arc-map-stage #mapBox {
   position: absolute !important;
   inset: 0 !important;

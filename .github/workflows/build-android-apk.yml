@@ -32,7 +32,7 @@ jobs:
 
       - name: Auto-Unpack Release ZIP (Mobile Upload Support)
         run: |
-          for ZFILE in FISH_PRO_2.0_SOURCE.zip FISH_PRO_2.0.zip; do
+          for ZFILE in FISH_PRO_2.0_SOURCE.zip FISH_PRO_2.0.zip FISH_PRO_2.0_r247.zip FISH_PRO_2.0_SOURCE_r247.zip; do
             if [ -f "$ZFILE" ]; then
               echo "Detected uploaded archive $ZFILE — unpacking into repository root..."
               unzip -q -o "$ZFILE" -d .
@@ -49,9 +49,14 @@ jobs:
           echo "proj_dir=$PROJ_DIR" >> $GITHUB_ENV
           echo "proj_dir=$PROJ_DIR" >> $GITHUB_OUTPUT
 
+          # Ensure base android/ in repository is strictly User contour (ru.klevpro.app)
+          sed -i 's/applicationId "ru.klevpro.admin"/applicationId "ru.klevpro.app"/g' "$PROJ_DIR/app/build.gradle"
+          sed -i 's/<string name="app_name">Клёв ПРО Админ<\/string>/<string name="app_name">Клёв ПРО 2.0<\/string>/g' "$PROJ_DIR/app/src/main/res/values/strings.xml"
+
           rm -rf "$PROJ_DIR/app/src/main/assets/www"
           mkdir -p "$PROJ_DIR/app/src/main/assets/www"
           if [ -f "kp-control-89.html" ]; then cp -f "kp-control-89.html" /tmp/kp-control-89-master.html; fi
+          if [ -f "icon-512.png" ]; then cp -f "icon-512.png" /tmp/icon-user-512.png; fi
           if [ -f "icon-admin-512.png" ]; then cp -f "icon-admin-512.png" /tmp/icon-admin-512.png; fi
           for f in index.html kp-control-89.html app-runtime.js VERSION policy-version.json manifest.json version.json icon.svg icon-192.png icon-512.png icon-admin-192.png icon-admin-512.png apple-touch-icon.png sw.js css js assets; do
             if [ -e "$f" ]; then
@@ -70,6 +75,10 @@ jobs:
           if [ -f "icon-512.png" ]; then
             cp -f "icon-512.png" "$PROJ_DIR/app/src/main/res/drawable/ic_launcher.png"
           fi
+          cp -f "$PROJ_DIR/app/build.gradle" /tmp/user-build.gradle.bak
+          cp -f "$PROJ_DIR/app/src/main/res/values/strings.xml" /tmp/user-strings.xml.bak
+          cp -f "$PROJ_DIR/app/src/main/AndroidManifest.xml" /tmp/user-AndroidManifest.xml.bak
+          cp -f "$PROJ_DIR/app/src/main/res/drawable/ic_launcher.png" /tmp/user-ic_launcher.png.bak
 
       - name: Configure JDK 17 & Android SDK
         run: |
@@ -109,11 +118,28 @@ jobs:
             done
           fi
 
-      - name: Build Signed User APK (klev-pro-v2.5.6.apk — Pure User Contour)
+      - name: Build Signed User APK (klev-pro-v2.5.6.apk — Isolated Pure User Contour)
         working-directory: ${{ steps.locate.outputs.proj_dir }}
         run: |
           mkdir -p /tmp/klev-apk-dist
-          rm -f app/src/main/assets/www/kp-control-89.html
+          rm -rf /tmp/klev-android-user
+          cp -a . /tmp/klev-android-user
+          cd /tmp/klev-android-user
+
+          sed -i 's/applicationId "ru.klevpro.admin"/applicationId "ru.klevpro.app"/g' app/build.gradle
+          sed -i 's/<string name="app_name">Клёв ПРО Админ<\/string>/<string name="app_name">Клёв ПРО 2.0<\/string>/g' app/src/main/res/values/strings.xml
+          if [ -f "/tmp/icon-user-512.png" ]; then
+            cp -f "/tmp/icon-user-512.png" "app/src/main/res/drawable/ic_launcher.png"
+          fi
+          grep -q 'applicationId "ru.klevpro.app"' app/build.gradle
+          ! grep -q 'applicationId "ru.klevpro.admin"' app/build.gradle
+          grep -q 'Клёв ПРО 2.0' app/src/main/res/values/strings.xml
+          ! grep -q 'Клёв ПРО Админ' app/src/main/res/values/strings.xml
+          if [ -f "/tmp/icon-user-512.png" ]; then
+            cmp -s "/tmp/icon-user-512.png" "app/src/main/res/drawable/ic_launcher.png"
+          fi
+
+          rm -f app/src/main/assets/www/kp-control-89.html app/src/main/assets/www/icon-admin-512.png app/src/main/assets/www/icon-admin-192.png
           cat << 'EOF_PY' > /tmp/patch_user_apk.py
           import os, re
           p = 'app/src/main/assets/www/index.html'
@@ -129,57 +155,68 @@ jobs:
                   f.write(h)
           EOF_PY
           python3 /tmp/patch_user_apk.py
+          grep -q 'id="secForecast"' "app/src/main/assets/www/index.html"
+          ! grep -q 'id="adminTopTabBar"' "app/src/main/assets/www/index.html"
+
           if [ ! -x "/tmp/gradle-8.7/bin/gradle" ]; then
             curl -sSL --retry 5 --retry-delay 3 --retry-all-errors https://services.gradle.org/distributions/gradle-8.7-bin.zip -o /tmp/gradle-8.7.zip || curl -sSL --retry 5 --retry-delay 3 https://downloads.gradle.org/distributions/gradle-8.7-bin.zip -o /tmp/gradle-8.7.zip
             unzip -q -o /tmp/gradle-8.7.zip -d /tmp
           fi
-          /tmp/gradle-8.7/bin/gradle assembleRelease --no-daemon --console=plain
+          /tmp/gradle-8.7/bin/gradle clean assembleRelease --no-daemon --console=plain
           REL_DIR="app/build/outputs/apk/release"
           SRC_APK=$(ls -t "$REL_DIR"/*.apk | head -n 1)
           cp -f "$SRC_APK" /tmp/klev-apk-dist/klev-pro-v2.5.6.apk
           ls -lh /tmp/klev-apk-dist/klev-pro-v2.5.6.apk
 
-      - name: Build Signed Owner Admin APK (klev-pro-admin-v2.5.6.apk — Separate Admin Contour)
+      - name: Build Signed Owner Admin APK (klev-pro-admin-v2.5.6.apk — Isolated Separate Admin Contour)
         working-directory: ${{ steps.locate.outputs.proj_dir }}
         run: |
           mkdir -p /tmp/klev-apk-dist
+          rm -rf /tmp/klev-android-admin
+          cp -a . /tmp/klev-android-admin
+          cd /tmp/klev-android-admin
+
           if [ -f "/tmp/kp-control-89-master.html" ]; then
             cp -f "/tmp/kp-control-89-master.html" "app/src/main/assets/www/index.html"
             cp -f "/tmp/kp-control-89-master.html" "app/src/main/assets/www/kp-control-89.html"
-          elif [ -f "../kp-control-89.html" ]; then
-            cp -f "../kp-control-89.html" "app/src/main/assets/www/index.html"
-            cp -f "../kp-control-89.html" "app/src/main/assets/www/kp-control-89.html"
-          elif [ -f "kp-control-89.html" ]; then
-            cp -f "kp-control-89.html" "app/src/main/assets/www/index.html"
-            cp -f "kp-control-89.html" "app/src/main/assets/www/kp-control-89.html"
           fi
           grep -q 'id="secAdmin"' "app/src/main/assets/www/index.html"
           grep -q 'id="adminTopTabBar"' "app/src/main/assets/www/index.html"
           ! grep -q 'id="secForecast"' "app/src/main/assets/www/index.html"
           ! grep -q 'id="secCircle"' "app/src/main/assets/www/index.html"
+
           sed -i 's/applicationId "ru.klevpro.app"/applicationId "ru.klevpro.admin"/g' app/build.gradle
           sed -i 's/<string name="app_name">Клёв ПРО 2.0<\/string>/<string name="app_name">Клёв ПРО Админ<\/string>/g' app/src/main/res/values/strings.xml
           if [ -f "/tmp/icon-admin-512.png" ]; then
             cp -f "/tmp/icon-admin-512.png" "app/src/main/res/drawable/ic_launcher.png"
-          elif [ -f "../icon-admin-512.png" ]; then
-            cp -f "../icon-admin-512.png" "app/src/main/res/drawable/ic_launcher.png"
-          elif [ -f "icon-admin-512.png" ]; then
-            cp -f "icon-admin-512.png" "app/src/main/res/drawable/ic_launcher.png"
           fi
+          grep -q 'applicationId "ru.klevpro.admin"' app/build.gradle
+          ! grep -q 'applicationId "ru.klevpro.app"' app/build.gradle
+          grep -q 'Клёв ПРО Админ' app/src/main/res/values/strings.xml
+          ! grep -q 'Клёв ПРО 2.0' app/src/main/res/values/strings.xml
+          if [ -f "/tmp/icon-admin-512.png" ]; then
+            cmp -s "/tmp/icon-admin-512.png" "app/src/main/res/drawable/ic_launcher.png"
+          fi
+
           sed -i '/android:host="klevpro.ru"/d' app/src/main/AndroidManifest.xml
           sed -i '/android:host="xn--b1apdneg0j.xn--p1ai"/d' app/src/main/AndroidManifest.xml
           /tmp/gradle-8.7/bin/gradle clean assembleRelease --no-daemon --console=plain
           REL_DIR="app/build/outputs/apk/release"
           ADMIN_SRC=$(ls -t "$REL_DIR"/*.apk | head -n 1)
           cp -f "$ADMIN_SRC" /tmp/klev-apk-dist/klev-pro-admin-v2.5.6.apk
-          cp -f /tmp/klev-apk-dist/klev-pro-v2.5.6.apk "$REL_DIR/klev-pro-v2.5.6.apk"
-          cp -f /tmp/klev-apk-dist/klev-pro-admin-v2.5.6.apk "$REL_DIR/klev-pro-admin-v2.5.6.apk"
           ls -lh /tmp/klev-apk-dist/
 
       - name: Auto-Save User & Admin APKs and Publish Clean Release to GitHub Pages
         run: |
+          # Restore clean User contour in android/ before git commit so repository never stays in ru.klevpro.admin state
+          if [ -f "/tmp/user-build.gradle.bak" ]; then cp -f /tmp/user-build.gradle.bak android/app/build.gradle; fi
+          if [ -f "/tmp/user-strings.xml.bak" ]; then cp -f /tmp/user-strings.xml.bak android/app/src/main/res/values/strings.xml; fi
+          if [ -f "/tmp/user-AndroidManifest.xml.bak" ]; then cp -f /tmp/user-AndroidManifest.xml.bak android/app/src/main/AndroidManifest.xml; fi
+          if [ -f "/tmp/user-ic_launcher.png.bak" ]; then cp -f /tmp/user-ic_launcher.png.bak android/app/src/main/res/drawable/ic_launcher.png; fi
+          grep -q 'applicationId "ru.klevpro.app"' android/app/build.gradle
+          grep -q 'Клёв ПРО 2.0' android/app/src/main/res/values/strings.xml
           # Clean temporary duplicated Android assets/www and build dirs before committing to Git so GitHub Pages artifact stays fast & compact
-          rm -rf android/app/src/main/assets/www android/build android/app/build android/.gradle FISH_PRO_2.0*.zip
+          rm -rf android/app/src/main/assets/www android/build android/app/build android/.gradle android/app/klevpro-release.keystore /tmp/klev-android-user /tmp/klev-android-admin FISH_PRO_2.0*.zip
           touch .nojekyll
           mkdir -p apk
           rm -f apk/*.apk
@@ -199,7 +236,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
           if ! git diff --cached --quiet; then
-            git commit -m "chore(release): publish v2.9.1-r241 web & signed apks"
+            git commit -m "chore(release): publish v2.9.1-r247 web & signed apks"
             git pull --rebase origin "${GITHUB_REF_NAME:-main}" || true
             git push origin HEAD:"${GITHUB_REF_NAME:-main}"
           fi

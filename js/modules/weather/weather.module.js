@@ -1215,14 +1215,9 @@ export function subscribeWeather(cb) {
 // Проверка актуальности прогноза волны: ТОЛЬКО для морских/приморских регионов, крупных водохранилищ и больших рек при открытой воде!
 export function isWaveForecastRelevantForContext(s, day) {
   if (!s || !day) return false;
-  // Если стоит монолитный безопасный лёд — открытой волны нет, блок скрываем
+  // Если стоит монолитный безопасный лёд — открытой волны нет, блок скрываем; для открытой воды показываем прогноз волны
   if (day.iceState === 'ice_safe') return false;
-  const wType = String(s.water || '');
-  const wName = String(s.selectedWaterName || s.locLabel || '');
-  const isLargeWaterOrSea = Boolean(s.isCoastal) ||
-    ['sea_gulf', 'open_sea', 'reservoir', 'big_river'].includes(wType) ||
-    /(море|залив|губа|лиман|пролив|бухта|вдхр|водохранилище|обь|иртыш|енисей|волга|кама|лена|амур|дон|печора|пур|таз|надым|ладож|онеж|байкал|рыбинск|куйбышев|камск|цимлянск|новосибирск|братск|красноярск|белоярск|шершнев|аргазин|увильды|чаны|ильмень|чудск|селигер)/i.test(wName);
-  return isLargeWaterOrSea;
+  return true;
 }
 
 // Расчёт почасовой высоты и направления волны (модель Свердрупа — Мунка — Бретшнейдера по разгону волны fetch)

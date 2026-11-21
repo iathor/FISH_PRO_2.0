@@ -819,7 +819,11 @@ function patchFrontendAndServiceWorker() {
   // 5) 4.6: Погода — астрономический расчёт восхода/заката для полярных широт (66.08°N), единый источник данных и «Нет данных» при isReal === false
   if (!runtimeCode.includes('function calcPolarSunTimes(')) {
     const polarSunFn = `function calcPolarSunTimes(dateStr,lat=66.08,lon=76.68){try{const s=String(dateStr||"").slice(0,10),dt=s?new Date(s+"T12:00:00Z"):new Date(),start=new Date(Date.UTC(dt.getUTCFullYear(),0,0)),doy=Math.floor((dt-start)/864e5),tz=Math.round(Number(lon||76.68)/15),g=2*Math.PI/365*(doy-1+.5),eq=229.18*(75e-6+.001868*Math.cos(g)-.032077*Math.sin(g)-.014615*Math.cos(2*g)-.040849*Math.sin(2*g)),decl=.006918-.399912*Math.cos(g)+.070257*Math.sin(g)-.006758*Math.cos(2*g)+.000907*Math.sin(2*g)-.002697*Math.cos(3*g)+.00148*Math.sin(3*g),latR=Math.max(-89.5,Math.min(89.5,Number(lat)||66.08))*Math.PI/180,zen=90.833*Math.PI/180,cosH=Math.cos(zen)/(Math.cos(latR)*Math.cos(decl))-Math.tan(latR)*Math.tan(decl);if(cosH>1)return{sunriseHr:12,sunsetHr:12,polarNight:!0,polarDay:!1};if(cosH<-1)return{sunriseHr:0,sunsetHr:24,polarNight:!1,polarDay:!0};const ha=180*Math.acos(cosH)/Math.PI,sr=((720-4*(Number(lon||76.68)+ha)-eq)/60+tz+24)%24,ss=((720-4*(Number(lon||76.68)-ha)-eq)/60+tz+24)%24;return{sunriseHr:Math.round(100*sr)/100,sunsetHr:Math.round(100*ss)/100,polarNight:!1,polarDay:!1}}catch(e){return{sunriseHr:8.8,sunsetHr:14.48,polarNight:!1,polarDay:!1}}}`;
-    runtimeCode = runtimeCode.replace('function Un(', polarSunFn + 'function Un(');
+    if (runtimeCode.includes('function Un(')) {
+      runtimeCode = runtimeCode.replace('function Un(', polarSunFn + 'function Un(');
+    } else {
+      runtimeCode = runtimeCode.replace('(()=>{"use strict";', '(()=>{"use strict";' + polarSunFn);
+    }
     // В Un (fallback) и Wn (Met.no) используем calcPolarSunTimes(r, e, 76.68) вместо 6.8+.02*a / 18.2-.02*a и 7 / 17.8
     runtimeCode = runtimeCode.replace(
       'sunriseHr:6.8+.02*a,sunsetHr:18.2-.02*a',

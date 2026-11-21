@@ -76,8 +76,8 @@ test('3.3 Регулярка шлюз тайлов блокирует чужие
 
 test('3.4 & 4.8 Единый источник версии VERSION (2.9.0 r240) синхронизирован во всех файлах и ссылка на APK валидна', () => {
   assert.equal(verData.version, '2.9.1');
-  assert.equal(verData.revision, 'r245');
-  assert.equal(verData.versionCode, 293245);
+  assert.equal(verData.revision, 'r247');
+  assert.equal(verData.versionCode, 293247);
 
   const vJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'version.json'), 'utf8'));
   const apkVJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'apk/apk-version.json'), 'utf8'));
@@ -327,7 +327,7 @@ test('6.5 Аудит r245: устранение дёрганья карты, у�
   const geoSrc = fs.readFileSync(path.join(ROOT, 'js/modules/geo/geo.module.js'), 'utf8');
   const fcSrc = fs.readFileSync(path.join(ROOT, 'js/modules/forecast/forecast.module.js'), 'utf8');
   assert.ok(!/\.compass-bearing-active\s+#mapBox\s*\{[^}]*will-change:\s*transform/i.test(layoutCss), 'will-change: transform должен быть убран с #mapBox при вращении');
-  assert.ok(geoSrc.includes('_commitLiveMapRotationToDom') && geoSrc.includes('keepBuffer: 4'), 'Вращение карты должно идти через RAF и keepBuffer: 4');
+  assert.ok(geoSrc.includes('transform-origin:14px 27px;') && geoSrc.includes('keepBuffer: 4'), 'Вращение карты должно идти через RAF и keepBuffer: 4');
   assert.ok(geoSrc.includes('if (!isMobileOrTabletMapMode()) {\n      mapMarker = L.marker'), 'Лишняя синяя точка mapMarker не должна создаваться в мобильном режиме');
   assert.ok(geoSrc.includes('movedKm > 0.35') && !geoSrc.includes('if (s.hasUserLocation) return;'), 'autoDetectStartupLocation должен проверять живой GPS при запуске');
   assert.ok(fcSrc.includes('fcWeatherRoadStormCard') && fcSrc.includes('fcWeatherHourlyWaveCard'), 'Во вкладке Погода основного экрана должны быть карточки шторма/дорог и волн');
@@ -362,4 +362,31 @@ test('6.5 Аудит r245: устранение дёрганья карты, у�
   const snowSafeGrid = buildCostGridFromElements(G, lakeWithIsland, 'snowmobile', 'ice_safe');
   const [lx, ly] = G.toCell(55.001, 37.001);
   assert.equal(Number.isFinite(snowSafeGrid[ly * G.cols + lx]), true, 'Безопасный лёд должен быть проходим для снегохода');
+});
+
+test('6.6 Аудит r247: пересобранный app-runtime.js + app.bundle.js, изолированные контуры User/Admin APK, отсутствие transition:height на #mapBox и авто-GPS', () => {
+  const rtSrc = fs.readFileSync(path.join(ROOT, 'app-runtime.js'), 'utf8');
+  const bundleSrc = fs.readFileSync(path.join(ROOT, 'js/app.bundle.js'), 'utf8');
+  const idxHtml = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  const kpHtml = fs.readFileSync(path.join(ROOT, 'kp-control-89.html'), 'utf8');
+  const layoutCss = fs.readFileSync(path.join(ROOT, 'css/layout.css'), 'utf8');
+  const gradle = fs.readFileSync(path.join(ROOT, 'android/app/build.gradle'), 'utf8');
+  const stringsXml = fs.readFileSync(path.join(ROOT, 'android/app/src/main/res/values/strings.xml'), 'utf8');
+  const mainJava = fs.readFileSync(path.join(ROOT, 'android/app/src/main/java/ru/klevpro/app/MainActivity.java'), 'utf8');
+  const wf = fs.readFileSync(path.join(ROOT, '.github/workflows/build-android-apk.yml'), 'utf8');
+  const verJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'VERSION'), 'utf8'));
+
+  assert.equal(verJson.fullVersion, '2.9.1-r247', 'В VERSION должен быть fullVersion 2.9.1-r247');
+  assert.equal(rtSrc, bundleSrc, 'app-runtime.js и js/app.bundle.js должны быть идентичны');
+  for (const sym of ['transform-origin:14px 27px;', 'fcWeatherRoadStormCard', 'fcWeatherHourlyWaveCard', '_klevTouchStart', '__KLEV_STARTUP_GPS_SYNCED__']) {
+    assert.ok(rtSrc.includes(sym), `В скомпилированном app-runtime.js отсутствует ${sym}`);
+  }
+  assert.ok(!layoutCss.includes('transition: height 0.2s ease') && !idxHtml.includes('transition: height 0.2s ease'), 'На #mapBox не должно быть transition: height 0.2s ease');
+  assert.ok(layoutCss.includes('img.leaflet-marker-icon') && idxHtml.includes('img.leaflet-marker-icon'), 'Синий дефолтный img.leaflet-marker-icon должен скрываться на мобильных через CSS');
+  assert.ok(!/\.compass-bearing-active\s+#mapBox\s*\{[^}]*transform:\s*none/i.test(idxHtml), 'В index.html не должно быть transform: none для #mapBox');
+  assert.ok(!/\.compass-bearing-active\s+#mapBox\s*\{[^}]*transform:\s*none/i.test(kpHtml), 'В kp-control-89.html не должно быть transform: none для #mapBox');
+  assert.ok(gradle.includes('applicationId "ru.klevpro.app"') && gradle.includes('versionName "2.9.1-r247"'), 'В android/app/build.gradle должны быть ru.klevpro.app и 2.9.1-r247');
+  assert.ok(stringsXml.includes('Клёв ПРО 2.0'), 'В strings.xml должно быть имя Клёв ПРО 2.0');
+  assert.ok(mainJava.includes('compassWanted = true') && mainJava.includes('TYPE_MAGNETIC_FIELD'), 'В MainActivity.java должен быть включён компас с резервом TYPE_MAGNETIC_FIELD');
+  assert.ok(wf.includes('/tmp/klev-android-user') && wf.includes('/tmp/klev-android-admin'), 'Workflow должен собирать User и Admin APK в изолированных директориях');
 });

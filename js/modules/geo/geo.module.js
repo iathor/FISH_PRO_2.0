@@ -5095,7 +5095,7 @@ function _updateLiveGpsTelemetryFromPosition(pos) {
     ts: Number(pos.timestamp) || Date.now(),
     hasRealFix: true
   };
-  if (typeof window !== 'undefined' && !window.__KLEV_STARTUP_GPS_SYNCED__ && !window.__KLEV_MANUAL_LOC_SESSION__ && !pos._held && acc <= 65) {
+  if (typeof window !== 'undefined' && !window.__KLEV_STARTUP_GPS_SYNCED__ && !window.__KLEV_MANUAL_LOC_SESSION__ && !pos._held && acc <= 250) {
     window.__KLEV_STARTUP_GPS_SYNCED__ = true;
     const stInit = store.getState();
     const movedInitKm = (Number.isFinite(stInit.lat) && Number.isFinite(stInit.lon))
@@ -5123,14 +5123,18 @@ function _updateLiveGpsTelemetryFromPosition(pos) {
       _isMapCenteredOnUser = true;
       _userManualRotatedMap = false;
       _arcGpsCompassState = 'compass';
+      try { window.AndroidBridge?.setCompassActive?.(true); } catch (_e) {}
+      _ensureArcCompassSensorStarted();
       if (Number.isFinite(hdg) && hdg >= 0) _applyNewCompassHeading(hdg, 'gps');
       if (mapInstance) {
-        try { mapInstance.setView([lat, lon], Math.max(14, mapInstance.getZoom() || 14), { animate: true }); } catch (_e) {}
+        try { mapInstance.setView([lat, lon], Math.max(14, mapInstance.getZoom() || 14), { animate: false }); } catch (_e) {}
       }
       _applyLiveMapCanvasCompassRotation();
-    } else if (_isMapCenteredOnUser && _arcGpsCompassState !== 'compass' && movingForMs >= 5000 && touchIdleMs >= 5000) {
+    } else if (_isMapCenteredOnUser && _arcGpsCompassState !== 'compass' && movingForMs >= 3000 && touchIdleMs >= 5000) {
       _userManualRotatedMap = false;
       _arcGpsCompassState = 'compass';
+      try { window.AndroidBridge?.setCompassActive?.(true); } catch (_e) {}
+      _ensureArcCompassSensorStarted();
       if (Number.isFinite(hdg) && hdg >= 0) _applyNewCompassHeading(hdg, 'gps');
       _applyLiveMapCanvasCompassRotation();
     }
@@ -5580,13 +5584,14 @@ function _gpsFilterIngest(pos, opts = {}) {
   const lat = Number(c.latitude);
   const lon = Number(c.longitude);
   const acc = Number(c.accuracy) > 0 ? Number(c.accuracy) : 50;
-  const t = Number(pos.timestamp) || Date.now();
+  const rawTs = Number(pos.timestamp) || Date.now();
+  const t = Math.abs(Date.now() - rawTs) <= 15000 ? rawTs : Date.now();
   const vRep = Number.isFinite(Number(c.speed)) && Number(c.speed) >= 0 ? Number(c.speed) : null;
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
   if (pos._isGps === false && _GPSF.lat !== null) { _gpsFilterStats.rejAcc++; return null; }
   if (acc > accMax) { _gpsFilterStats.rejAcc++; return null; }
-  if (Date.now() - t > 5000) { _gpsFilterStats.rejStale++; return null; }
-  if (_GPSF.ts && t <= _GPSF.ts) { _gpsFilterStats.rejOrder++; return null; }
+  if (Date.now() - t > 8000) { _gpsFilterStats.rejStale++; return null; }
+  if (_GPSF.ts && t < _GPSF.ts) { _gpsFilterStats.rejOrder++; return null; }
 
   const out = (la, lo, held) => {
     _gpsFiltered = { lat: la, lon: lo, acc, speed: vRep, ts: t, held: !!held };
@@ -5713,7 +5718,7 @@ function _processIncomingPhase3GpsFix(rawPos) {
   if (!rawPos || !rawPos.coords) return;
   const mode = (_phase3ActiveTrack && _phase3ActiveTrack.transport) || _arcTransportMode || 'walk';
   const recording = Boolean(_phase3ActiveTrack && _phase3ActiveTrack.status === 'recording');
-  const f = _gpsFilterIngest(rawPos, { accMax: recording ? 30 : 65, mode });
+  const f = _gpsFilterIngest(rawPos, { accMax: recording ? 45 : 250, mode });
   if (!f) {
     const rawAcc = Math.round(Number(rawPos.coords.accuracy) || 99);
     if (_gpsFiltered && Date.now() - _gpsFiltered.ts > 15000 && Date.now() - _lastGoodGpsToastTs > 15000) {
@@ -6957,8 +6962,8 @@ export function renderMap(mapBoxEl) {
     }
     const yandexCrs = getYandexEPSG3395CRS();
     mapInstance = L.map(mapBoxEl, { ...(yandexCrs ? { crs: yandexCrs } : {}), minZoom: 4, maxZoom: 18 }).setView([targetLat, targetLon], targetZoom);
-    _lastMapBoxW = boxW;
-    _lastMapBoxH = boxH;
+    _lastMapBoxW = mapBoxEl.clientWidth || boxW;
+    _lastMapBoxH = mapBoxEl.clientHeight || boxH;
     mapInstance.attributionControl.setPrefix(false);
     currentTileLayer = createResilientTileLayer(currentLayerKey).addTo(mapInstance);
     applyYandexTileFiltersToMap();
@@ -6977,6 +6982,7 @@ export function renderMap(mapBoxEl) {
         const origOnDown = dr._onDown.bind(dr);
         const origOnMove = dr._onMove.bind(dr);
         dr._onDown = function(e) {
+          if (e && e.touches && e.touches.length > 1) return origOnDown(e);
           const first = (e && e.touches && e.touches[0]) || e;
           if (first && Number.isFinite(first.clientX) && Number.isFinite(first.clientY)) {
             this._klevTouchStart = { x: first.clientX, y: first.clientY };
@@ -6986,6 +6992,9 @@ export function renderMap(mapBoxEl) {
           return origOnDown(e);
         };
         dr._onMove = function(e) {
+          if (e && e.touches && e.touches.length > 1) {
+            return origOnMove(e);
+          }
           if (Math.abs(_mapRotCur % 360) > 1.5 && e && this._klevTouchStart) {
             const first = (e.touches && e.touches[0]) || e;
             if (first && Number.isFinite(first.clientX) && Number.isFinite(first.clientY)) {
@@ -7059,6 +7068,7 @@ export function renderMap(mapBoxEl) {
       };
 
       mapBoxEl.addEventListener('touchstart', (ev) => {
+        _isMapGestureActive = true;
         if (ev.touches && ev.touches.length === 2 && mapInstance) {
           const m = getTouchMetrics(ev.touches[0], ev.touches[1]);
           _p2Active = true;
@@ -7067,6 +7077,7 @@ export function renderMap(mapBoxEl) {
           _p2LastAng = m.ang;
           _p2StartZoom = mapInstance.getZoom() || 14;
           try { mapInstance.touchZoom.disable(); } catch (_e) {}
+          try { mapInstance.dragging.disable(); } catch (_e) {}
           noteUserMapTouchInteraction();
         }
       }, { passive: true });
@@ -7077,34 +7088,39 @@ export function renderMap(mapBoxEl) {
         let dAng = m.ang - _p2LastAng;
         if (dAng > 180) dAng -= 360;
         if (dAng < -180) dAng += 360;
-        if (Math.abs(dAng) > 0.25) {
+        if (Math.abs(dAng) > 0.3) {
           _userManualRotatedMap = true;
           _applyLiveMapCanvasCompassRotation(dAng, true);
         }
         _p2LastAng = m.ang;
 
-        if (_p2BaseDist > 0 && Math.abs(m.dist - _p2LastDist) > 4) {
+        if (_p2BaseDist > 0 && Math.abs(m.dist - _p2LastDist) > 6) {
           const zDelta = Math.log2(m.dist / _p2BaseDist);
-          const targetZ = clamp(_p2StartZoom + zDelta, 4, 18);
-          if (Math.abs(targetZ - (mapInstance.getZoom() || 14)) >= 0.12) {
-            const mp = clientToRotatedMapPoint(m.cx, m.cy);
-            const latlng = mapInstance.containerPointToLatLng(L.point(mp[0], mp[1]));
+          const nextIntZoom = Math.round(clamp(_p2StartZoom + zDelta, 4, 18));
+          const curZoom = mapInstance.getZoom() || 14;
+          if (nextIntZoom !== curZoom) {
             try {
               _isProgrammaticAutoZoom = true;
-              mapInstance.setZoomAround(latlng, targetZ, { animate: false });
+              mapInstance.setView(mapInstance.getCenter(), nextIntZoom, { animate: false });
             } catch (_e) {
             } finally {
               setTimeout(() => { _isProgrammaticAutoZoom = false; }, 100);
             }
+            _p2LastDist = m.dist;
           }
-          _p2LastDist = m.dist;
         }
       }, { passive: true });
 
       const endPinchRotate = (ev) => {
+        if (!ev.touches || ev.touches.length === 0) {
+          _isMapGestureActive = false;
+        }
         if (_p2Active && (!ev.touches || ev.touches.length < 2)) {
           _p2Active = false;
           try { mapInstance.touchZoom.enable(); } catch (_e) {}
+          if (_arcRouteBuilderMode !== 'freehand') {
+            try { mapInstance.dragging.enable(); } catch (_e) {}
+          }
           _syncCompassResetButtonUi();
         }
       };
@@ -7170,10 +7186,15 @@ export function renderMap(mapBoxEl) {
     });
 
     mapInstance.on('mousemove', (e) => {
-      if (!_holdStartPt || !e.containerPoint) return;
-      const dx = e.containerPoint.x - _holdStartPt.x;
-      const dy = e.containerPoint.y - _holdStartPt.y;
-      if (Math.hypot(dx, dy) > 10) {
+      if (!_holdStartPt) return;
+      const origEv = e.originalEvent;
+      const origX = Number.isFinite(origEv?.clientX) ? origEv.clientX : origEv?.touches?.[0]?.clientX;
+      const origY = Number.isFinite(origEv?.clientY) ? origEv.clientY : origEv?.touches?.[0]?.clientY;
+      const pt = (Number.isFinite(origX) && Number.isFinite(origY))
+        ? clientToRotatedMapPoint(origX, origY)
+        : (e.containerPoint ? [e.containerPoint.x, e.containerPoint.y] : null);
+      if (!pt) return;
+      if (Math.hypot(pt[0] - _holdStartPt.x, pt[1] - _holdStartPt.y) > 12) {
         cancelMapHold();
       }
     });
@@ -7260,8 +7281,6 @@ export function renderMap(mapBoxEl) {
       if (keepCenter && Number.isFinite(keepCenter.lat) && Number.isFinite(keepCenter.lng)) {
         mapInstance.setView([keepCenter.lat, keepCenter.lng], keepZoom, { animate: false });
       }
-    } else {
-      mapInstance.invalidateSize({ pan: false, animate: false });
     }
     if (isMobileOrTabletMapMode()) {
       if (mapMarker) {
@@ -7298,6 +7317,7 @@ let _isMapCenteredOnUser = false;
 let _isUserMoving = false;
 let _movingStartedTs = 0;
 let _userManualRotatedMap = false;
+let _isMapGestureActive = false;
 let _lastRenderedMovingState = null;
 let _prevTelemetryFix = null;
 const ARC_AUTOCENTER_KEY = 'klev_pro_arc_autocenter_v1';
@@ -7458,10 +7478,12 @@ function _syncCompassResetButtonUi() {
   if (!btn) return;
   const norm = Math.abs((((_mapRotCur % 360) + 540) % 360) - 180);
   const isTilted = Math.abs(_mapRotCur % 360) > 1.5 && norm < 178.5;
-  const show = _arcGpsCompassState === 'compass' || _userManualRotatedMap || isTilted;
-  btn.style.display = show ? 'flex' : 'none';
+  const active = _arcGpsCompassState === 'compass' || _userManualRotatedMap || isTilted;
+  btn.style.display = 'flex';
+  btn.classList.toggle('active', _arcGpsCompassState === 'compass');
   const svg = btn.querySelector('svg');
   if (svg) {
+    svg.style.color = active ? '#ef4444' : 'currentColor';
     svg.style.transform = `rotate(${Math.round(_mapRotCur)}deg)`;
   }
 }
@@ -7518,7 +7540,10 @@ function _ensureSquareMapCanvasSize(stage, box) {
   if (W < 40 || H < 40) return;
   const d = Math.ceil(Math.hypot(W, H));
   const key = `${W}x${H}`;
-  if (box.dataset.rotOn !== '1' || key !== _mapRotSizeKey) {
+  const curSz = (mapInstance && typeof mapInstance.getSize === 'function') ? mapInstance.getSize() : null;
+  const sizeMismatch = curSz && (Math.abs(curSz.x - d) > 4 || Math.abs(curSz.y - d) > 4);
+  if (box.dataset.rotOn !== '1' || key !== _mapRotSizeKey || sizeMismatch) {
+    box.style.setProperty('transition', 'none', 'important');
     box.style.setProperty('inset', 'auto', 'important');
     box.style.setProperty('width', d + 'px', 'important');
     box.style.setProperty('height', d + 'px', 'important');
@@ -7528,6 +7553,8 @@ function _ensureSquareMapCanvasSize(stage, box) {
     box.dataset.rotOn = '1';
     if (mapInstance) {
       _mapRotSizeKey = key;
+      _lastMapBoxW = d;
+      _lastMapBoxH = d;
       try {
         const keepCenter = mapInstance.getCenter();
         const keepZoom = mapInstance.getZoom();
@@ -7561,7 +7588,7 @@ function _applyLiveMapCanvasCompassRotation(manualDegDelta = null, instant = fal
   const box = document.getElementById('mapBox');
   if (!stage || !box) return;
 
-  const compassActive = _arcGpsCompassState === 'compass' && _isMapCenteredOnUser && _compassHasSample && !_userManualRotatedMap;
+  const compassActive = _arcGpsCompassState === 'compass' && _compassHasSample && !_userManualRotatedMap && !_isMapGestureActive;
   if (manualDegDelta !== null) {
     _mapRotCur += Number(manualDegDelta) || 0;
   } else if (compassActive) {
@@ -7588,10 +7615,13 @@ function _ensureArcCompassSensorStarted() {
   window.__KLEV_ON_NATIVE_COMPASS__ = (deg) => {
     _applyNewCompassHeading(Number(deg), 'native');
   };
-  if (_arcGpsCompassState === 'compass' && window.AndroidBridge && typeof window.AndroidBridge.getCompassHeadingDeg === 'function' && !_compassNativePollTimer) {
+  if (window.AndroidBridge && typeof window.AndroidBridge.setCompassActive === 'function') {
+    try { window.AndroidBridge.setCompassActive(true); } catch (_e) {}
+  }
+  if (window.AndroidBridge && typeof window.AndroidBridge.getCompassHeadingDeg === 'function' && !_compassNativePollTimer) {
     _compassNativePollTimer = setInterval(() => {
       try {
-        if (_arcGpsCompassState !== 'compass' || (typeof document !== 'undefined' && document.visibilityState === 'hidden')) {
+        if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
           _stopCompassPoll();
           return;
         }
@@ -7985,27 +8015,38 @@ function _getBuiltinRiverWaysNear(minLat, minLon, maxLat, maxLon) {
   );
 }
 
-async function _queryOverpassJson(queryStr, timeoutMs = 4500) {
+async function _queryOverpassJson(queryStr, timeoutMs = 12000) {
   if (_forceOfflineTestMode || (typeof navigator !== 'undefined' && navigator.onLine === false)) return null;
   const isApk = typeof window !== 'undefined' && Boolean(window.AndroidBridge);
   const wrapApkProxy = (u) => isApk ? `https://appassets.androidplatform.net/__klev_net_proxy__?url=${encodeURIComponent(u)}` : u;
   const mirrors = [
     `https://maps.mail.ru/osm/tools/overpass/api/interpreter?data=${encodeURIComponent(queryStr)}`,
     `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(queryStr)}`,
-    `https://overpass.kumi.systems/api/interpreter?data=${encodeURIComponent(queryStr)}`
+    `https://overpass.kumi.systems/api/interpreter?data=${encodeURIComponent(queryStr)}`,
+    `https://overpass.private.coffee/api/interpreter?data=${encodeURIComponent(queryStr)}`
   ];
-  for (const rawUrl of mirrors) {
-    try {
+  const ctrls = [];
+  try {
+    const tasks = mirrors.map(async (rawUrl) => {
       const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      if (ctrl) ctrls.push(ctrl);
       const timer = ctrl ? setTimeout(() => ctrl.abort(), timeoutMs) : null;
-      const res = await fetch(wrapApkProxy(rawUrl), { signal: ctrl?.signal }).catch(() => null);
-      if (timer) clearTimeout(timer);
-      if (!res || !res.ok) continue;
-      const data = await res.json().catch(() => null);
-      if (data && Array.isArray(data.elements)) return data;
-    } catch (_e) {}
+      try {
+        const res = await fetch(wrapApkProxy(rawUrl), { signal: ctrl?.signal });
+        if (!res || !res.ok) throw new Error('bad_status');
+        const data = await res.json();
+        if (!data || !Array.isArray(data.elements)) throw new Error('empty');
+        return data;
+      } finally {
+        if (timer) clearTimeout(timer);
+      }
+    });
+    const winner = await Promise.any(tasks);
+    ctrls.forEach(c => { try { c.abort(); } catch (_e) {} });
+    return winner;
+  } catch (_e) {
+    return null;
   }
-  return null;
 }
 
 const _osmRiverInFlightByKey = new Set();
@@ -9126,7 +9167,7 @@ async function _fetchRoutedSegmentForTransport(a, b, transportMode = 'car') {
     // Для снегохода сначала строим маршрут по графу объездных дорог/зимников/троп в обход жилых домов и мостов
     if (transportMode === 'snowmobile') {
       const snowSeg = await _buildOsmNetworkPathBetween(a, b, 'snowmobile');
-      if (Array.isArray(snowSeg) && snowSeg.length >= 3) {
+      if (Array.isArray(snowSeg) && snowSeg.length >= 2) {
         return snowSeg;
       }
     }
@@ -9178,8 +9219,28 @@ async function _fetchRoutedSegmentForTransport(a, b, transportMode = 'car') {
         const coords = data?.routes?.[routeIdx]?.geometry?.coordinates;
         if (Array.isArray(coords) && coords.length >= 2) {
           const pts = coords.map(c => [Number(c[1]), Number(c[0])]);
-          if (calcHaversineKm(a[0], a[1], pts[0][0], pts[0][1]) > 0.03) pts.unshift(a);
-          if (calcHaversineKm(b[0], b[1], pts[pts.length - 1][0], pts[pts.length - 1][1]) > 0.03) pts.push(b);
+          const startGapKm = calcHaversineKm(a[0], a[1], pts[0][0], pts[0][1]);
+          if (startGapKm > 0.15) {
+            const headOff = await routeOnGrid(a, pts[0], 'offroad', { queryOverpass: _queryOverpassJson, offline: _forceOfflineTestMode }).catch(() => null);
+            if (headOff && Array.isArray(headOff.points) && headOff.points.length >= 2) {
+              pts.unshift(...headOff.points.slice(0, -1));
+            } else {
+              pts.unshift(a);
+            }
+          } else if (startGapKm > 0.03) {
+            pts.unshift(a);
+          }
+          const endGapKm = calcHaversineKm(b[0], b[1], pts[pts.length - 1][0], pts[pts.length - 1][1]);
+          if (endGapKm > 0.15) {
+            const tailOff = await routeOnGrid(pts[pts.length - 1], b, 'offroad', { queryOverpass: _queryOverpassJson, offline: _forceOfflineTestMode }).catch(() => null);
+            if (tailOff && Array.isArray(tailOff.points) && tailOff.points.length >= 2) {
+              pts.push(...tailOff.points.slice(1));
+            } else {
+              pts.push(b);
+            }
+          } else if (endGapKm > 0.03) {
+            pts.push(b);
+          }
           return pts;
         }
       } catch (_e) {}
@@ -9794,8 +9855,8 @@ function renderArcMobileMap(container, s, prevLiveMapBox) {
 
       <!-- Правые кнопки на карте: Кнопка Компаса (при повороте), GPS, Точки -->
       <div id="arcRightSideButtons" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);z-index:920;display:${(_arcRouteBuilderMode || _arcExpandedPlaqueId || _arcActivePopover) ? 'none' : 'flex'};flex-direction:column;gap:10px;">
-        <button type="button" class="klev-arc-glass klev-arc-icon-btn" id="arcBtnCompassResetNorth" aria-label="Сбросить поворот карты на Север" title="Развернуть карту на Север" style="display:${(_arcGpsCompassState === 'compass' || _userManualRotatedMap || Math.abs(_mapRotCur % 360) > 1.5) ? 'flex' : 'none'};">
-          <svg class="k-svg" style="width:22px;height:22px;color:#ef4444;transform:rotate(${Math.round(_mapRotCur)}deg);transition:transform 0.14s linear;" viewBox="0 0 24 24" fill="none"><use href="#map-compass"/></svg>
+        <button type="button" class="klev-arc-glass klev-arc-icon-btn ${_arcGpsCompassState === 'compass' ? 'active' : ''}" id="arcBtnCompassResetNorth" aria-label="Компас и ориентация карты" title="Включить компас / Сбросить на Север" style="display:flex;">
+          <svg class="k-svg" style="width:22px;height:22px;color:${(_arcGpsCompassState === 'compass' || _userManualRotatedMap || Math.abs(_mapRotCur % 360) > 1.5) ? '#ef4444' : 'currentColor'};transform:rotate(${Math.round(_mapRotCur)}deg);transition:transform 0.14s linear;" viewBox="0 0 24 24" fill="none"><use href="#map-compass"/></svg>
         </button>
         <button type="button" class="klev-arc-glass klev-arc-icon-btn ${_isMapCenteredOnUser ? 'active' : ''}" id="arcBtnGpsCompass" aria-label="Центрировать на GPS и включить компас" title="GPS / Компас">
           <svg class="k-svg" style="width:22px;height:22px;color:${_isMapCenteredOnUser ? 'var(--accent)' : 'currentColor'};" viewBox="0 0 24 24" fill="none"><use href="#map-gps"/></svg>
@@ -10346,40 +10407,18 @@ function bindArcMobileMapEvents(container) {
     setLocation(lat, lon).then(() => openSaveSpotModal('bite'));
   });
 
-  container.querySelector('#arcBtnCompassResetNorth')?.addEventListener('click', (e) => {
+  container.querySelector('#arcBtnCompassResetNorth')?.addEventListener('click', async (e) => {
     e.stopPropagation();
-    _arcGpsCompassState = _isMapCenteredOnUser ? 'centered' : 'off';
-    _userManualRotatedMap = false;
-    _mapRotCur = 0;
-    try { window.AndroidBridge?.setCompassActive?.(false); } catch (_e) {}
-    _stopCompassPoll();
-    _applyLiveMapCanvasCompassRotation();
-    updateLiveUserGpsMarkerOnMap();
-    render(container);
-    showToast('Карта ориентирована на Север', 'info');
-  });
-
-  container.querySelector('#arcBtnGpsCompass')?.addEventListener('click', async (e) => {
-    e.stopPropagation();
-    const realPos = getTrueUserGpsCoords(s);
-    if (!_isMapCenteredOnUser) {
-      // Шаг 1: Если карта была сдвинута — сначала только центрируемся
-      _isMapCenteredOnUser = true;
+    const isTilted = Math.abs(_mapRotCur % 360) > 1.5;
+    if (_arcGpsCompassState === 'compass' || _userManualRotatedMap || isTilted) {
+      _arcGpsCompassState = _isMapCenteredOnUser ? 'centered' : 'off';
       _userManualRotatedMap = false;
-      if (mapInstance) {
-        mapInstance.setView([realPos.lat, realPos.lon], Math.max(14, mapInstance.getZoom() || 14));
-      }
-      if (_arcGpsCompassState === 'compass') {
-        if (_isUserMoving && Number.isFinite(_liveGpsFix.headingDeg) && _liveGpsFix.headingDeg >= 0) {
-          _applyNewCompassHeading(_liveGpsFix.headingDeg, 'gps');
-        }
-        _applyLiveMapCanvasCompassRotation();
-      } else {
-        _arcGpsCompassState = 'centered';
-        showToast('Карта отцентрована по GPS', 'info');
-      }
-    } else if (_arcGpsCompassState !== 'compass') {
-      // Шаг 2: Если уже отцентрована — включаем режим компаса
+      _mapRotCur = 0;
+      _applyLiveMapCanvasCompassRotation(null, true);
+      updateLiveUserGpsMarkerOnMap();
+      render(container);
+      showToast('Карта ориентирована на Север', 'info');
+    } else {
       _arcGpsCompassState = 'compass';
       _userManualRotatedMap = false;
       if (typeof window !== 'undefined' && typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
@@ -10390,27 +10429,86 @@ function bindArcMobileMapEvents(container) {
       try {
         const dNow = Number(window.AndroidBridge?.getCompassHeadingDeg?.());
         if (Number.isFinite(dNow) && dNow >= 0) _applyNewCompassHeading(dNow, 'native');
+        else if (Number.isFinite(_liveGpsFix?.headingDeg) && _liveGpsFix.headingDeg >= 0) _applyNewCompassHeading(_liveGpsFix.headingDeg, 'gps');
+      } catch (_e) {}
+      _applyLiveMapCanvasCompassRotation(null, true);
+      updateLiveUserGpsMarkerOnMap();
+      render(container);
+      showToast(_compassHasSample
+        ? 'Компас включён: карта вращается по курсу'
+        : 'Компас включён: ожидание данных датчика...', 'info');
+    }
+  });
+
+  container.querySelector('#arcBtnGpsCompass')?.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    if (typeof window !== 'undefined') {
+      window.__KLEV_MANUAL_LOC_SESSION__ = false;
+    }
+    _arcPickedSpot = null;
+    _arcPickedSpotSheetOpen = false;
+    if (_arcPickedSpotMarker && mapInstance) {
+      try { mapInstance.removeLayer(_arcPickedSpotMarker); } catch (_e) {}
+      _arcPickedSpotMarker = null;
+    }
+    const realPos = getTrueUserGpsCoords(s);
+    const distStoreKm = (Number.isFinite(s.lat) && Number.isFinite(s.lon))
+      ? calcHaversineKm(s.lat, s.lon, realPos.lat, realPos.lon)
+      : 9999;
+    if (distStoreKm > 0.25) {
+      setLocation(realPos.lat, realPos.lon);
+    }
+    if (typeof navigator !== 'undefined' && navigator.geolocation && (!_liveGpsFix?.hasRealFix || (Date.now() - (_liveGpsFix.ts || 0)) > 15000)) {
+      navigator.geolocation.getCurrentPosition(pos => {
+        _updateLiveGpsTelemetryFromPosition(pos);
+        const gLat = Number(pos.coords.latitude);
+        const gLon = Number(pos.coords.longitude);
+        if (Number.isFinite(gLat) && Number.isFinite(gLon)) {
+          setLocation(gLat, gLon);
+          if (mapInstance) mapInstance.setView([gLat, gLon], Math.max(14, mapInstance.getZoom() || 14));
+        }
+      }, () => {}, { enableHighAccuracy: true, timeout: 7000, maximumAge: 10000 });
+    }
+    if (!_isMapCenteredOnUser) {
+      _isMapCenteredOnUser = true;
+      _userManualRotatedMap = false;
+      if (mapInstance) {
+        mapInstance.setView([realPos.lat, realPos.lon], Math.max(14, mapInstance.getZoom() || 14));
+      }
+      if (_arcGpsCompassState === 'compass') {
+        if (_isUserMoving && Number.isFinite(_liveGpsFix.headingDeg) && _liveGpsFix.headingDeg >= 0) {
+          _applyNewCompassHeading(_liveGpsFix.headingDeg, 'gps');
+        }
+        _applyLiveMapCanvasCompassRotation(null, true);
+      } else {
+        _arcGpsCompassState = 'centered';
+        showToast('Карта отцентрована по вашему GPS', 'info');
+      }
+    } else if (_arcGpsCompassState !== 'compass') {
+      _arcGpsCompassState = 'compass';
+      _userManualRotatedMap = false;
+      if (typeof window !== 'undefined' && typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+        try { await DeviceOrientationEvent.requestPermission(); } catch (_e) {}
+      }
+      try { window.AndroidBridge?.setCompassActive?.(true); } catch (_e) {}
+      _ensureArcCompassSensorStarted();
+      try {
+        const dNow = Number(window.AndroidBridge?.getCompassHeadingDeg?.());
+        if (Number.isFinite(dNow) && dNow >= 0) _applyNewCompassHeading(dNow, 'native');
+        else if (Number.isFinite(_liveGpsFix?.headingDeg) && _liveGpsFix.headingDeg >= 0) _applyNewCompassHeading(_liveGpsFix.headingDeg, 'gps');
       } catch (_e) {}
       showToast(_compassHasSample
         ? 'Компас включён: карта вращается по курсу'
         : 'Компас включён: ожидание данных датчика...', 'info');
-      setTimeout(() => {
-        if (_arcGpsCompassState === 'compass' && !_compassHasSample) {
-          showToast('Датчик компаса недоступен на устройстве, карта ориентирована на Север', 'warn');
-        }
-      }, 2800);
     } else {
-      // Повторное нажатие на уже отцентрованной карте с включённым компасом — возврат к Северу
       _arcGpsCompassState = 'centered';
       _userManualRotatedMap = false;
       _mapRotCur = 0;
-      try { window.AndroidBridge?.setCompassActive?.(false); } catch (_e) {}
-      _stopCompassPoll();
       showToast('Режим GPS: карта ориентирована на Север', 'info');
     }
     updateLiveUserGpsMarkerOnMap();
     render(container);
-    _applyLiveMapCanvasCompassRotation();
+    _applyLiveMapCanvasCompassRotation(null, true);
   });
 
   // П. 2.7: Кнопка Точка (плитка 2x3 -> переход в окно «Добавить точку на карту» с выбранным типом точки)
@@ -10595,7 +10693,7 @@ function bindArcMobileMapEvents(container) {
     } else {
       mapBoxEl.style.touchAction = '';
       if (mapInstance && mapInstance.dragging) {
-        if (_arcGpsCompassState !== 'compass') { try { mapInstance.dragging.enable(); } catch (_e) {} }
+        try { mapInstance.dragging.enable(); } catch (_e) {}
       }
     }
 
@@ -10609,14 +10707,18 @@ function bindArcMobileMapEvents(container) {
 
       const clientXYToLatLng = (clientX, clientY) => {
         if (!mapInstance) return null;
-        const r = mapBoxEl.getBoundingClientRect();
-        if (r.width >= 40 && r.height >= 40 && (Math.abs(r.width - _lastMapBoxW) > 4 || Math.abs(r.height - _lastMapBoxH) > 4)) {
-          _lastMapBoxW = r.width;
-          _lastMapBoxH = r.height;
-          mapInstance.invalidateSize({ pan: false, animate: false });
-        }
-        const pt = [clientX - r.left, clientY - r.top];
-        const ll = mapInstance.containerPointToLatLng(pt);
+        const rect = mapBoxEl.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        const dx = clientX - cx;
+        const dy = clientY - cy;
+        const rad = (-_mapRotCur * Math.PI) / 180;
+        const rx = dx * Math.cos(rad) - dy * Math.sin(rad);
+        const ry = dx * Math.sin(rad) + dy * Math.cos(rad);
+        const sz = typeof mapInstance.getSize === 'function' ? mapInstance.getSize() : null;
+        const mw = (sz && sz.x) || mapBoxEl.clientWidth || rect.width;
+        const mh = (sz && sz.y) || mapBoxEl.clientHeight || rect.height;
+        const ll = mapInstance.containerPointToLatLng([mw / 2 + rx, mh / 2 + ry]);
         return ll && Number.isFinite(ll.lat) && Number.isFinite(ll.lng) ? [ll.lat, ll.lng] : null;
       };
 

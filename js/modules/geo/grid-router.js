@@ -339,7 +339,7 @@ export function astarGrid(grid, cols, rows, startCell, goalCell, shoreDist = nul
   came.fill(-1);
   const closed = new Uint8Array(n);
 
-  const h = (cx, cy) => Math.hypot(goalCell[0] - cx, goalCell[1] - cy) * 0.6;
+  const h = (cx, cy) => { const dx = Math.abs(goalCell[0] - cx), dy = Math.abs(goalCell[1] - cy); return 0.6 * (dx + dy + (Math.SQRT2 - 2) * Math.min(dx, dy)); };
   const heap = new MinHeap();
   gScore[sIdx] = 0;
   heap.push(sIdx, h(startCell[0], startCell[1]));
@@ -475,6 +475,32 @@ export function buildCostGridFromElements(G, elements, mode = 'boat', iceState =
           grid[cy * G.cols + cx] = Infinity;
         }
       }
+    }
+    return grid;
+  }
+
+  if (mode === 'offroad') {
+    grid.fill(1.2);
+    for (const el of elements) {
+      const t = el.tags || {};
+      let polyCost = null;
+      if (t.natural === 'water' || t.waterway === 'riverbank' || t.landuse === 'reservoir') polyCost = Infinity;
+      else if (t.natural === 'wetland') polyCost = 4.0;
+      else if (t.natural === 'wood' || t.landuse === 'forest') polyCost = 2.2;
+      else if (t.building) polyCost = Infinity;
+      if (polyCost === null) continue;
+      if (el.type === 'relation' && Array.isArray(el.members)) {
+        fillFeature(grid, G, assembleRings(el.members, 'outer'), assembleRings(el.members, 'inner'), polyCost, 'set');
+      } else if (el.type === 'way' && Array.isArray(el.geometry) && el.geometry.length >= 3) {
+        fillFeature(grid, G, [el.geometry.map(pt => [pt.lat, pt.lon])], [], polyCost, 'set');
+      }
+    }
+    for (const el of elements) {
+      const t = el.tags || {};
+      if (el.type !== 'way' || !Array.isArray(el.geometry) || el.geometry.length < 2) continue;
+      const line = el.geometry.map(pt => [pt.lat, pt.lon]);
+      if (t.highway) stampLine(grid, G, line, 1, 0.5, 'min');
+      else if (t.waterway === 'river' || t.waterway === 'canal') stampLine(grid, G, line, 1, Infinity, 'set');
     }
     return grid;
   }

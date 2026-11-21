@@ -110,7 +110,13 @@ public class MainActivity extends Activity {
 
     private SensorManager compassSm;
     private Sensor compassRv;
-    private boolean compassWanted = false;
+    private Sensor compassAccel;
+    private Sensor compassMag;
+    private final float[] cAccelVals = new float[3];
+    private final float[] cMagVals = new float[3];
+    private boolean hasAccelSample = false;
+    private boolean hasMagSample = false;
+    private boolean compassWanted = true;
     private boolean compassRegistered = false;
     private volatile float latestCompassHeadingDeg = -1f;
     private volatile float magDeclinationDeg = 0f;
@@ -126,7 +132,20 @@ public class MainActivity extends Activity {
         @Override public void onAccuracyChanged(Sensor s, int a) {}
         @Override public void onSensorChanged(SensorEvent e) {
             try {
-                SensorManager.getRotationMatrixFromVector(cRot, e.values);
+                int sType = e.sensor != null ? e.sensor.getType() : 0;
+                if (sType == Sensor.TYPE_ACCELEROMETER) {
+                    System.arraycopy(e.values, 0, cAccelVals, 0, Math.min(3, e.values.length));
+                    hasAccelSample = true;
+                    if (!hasMagSample) return;
+                    if (!SensorManager.getRotationMatrix(cRot, null, cAccelVals, cMagVals)) return;
+                } else if (sType == Sensor.TYPE_MAGNETIC_FIELD) {
+                    System.arraycopy(e.values, 0, cMagVals, 0, Math.min(3, e.values.length));
+                    hasMagSample = true;
+                    if (!hasAccelSample) return;
+                    if (!SensorManager.getRotationMatrix(cRot, null, cAccelVals, cMagVals)) return;
+                } else {
+                    SensorManager.getRotationMatrixFromVector(cRot, e.values);
+                }
                 float headingMag;
                 if (cRot[8] > 0.7f) {
                     int rot = Surface.ROTATION_0;
@@ -185,8 +204,18 @@ public class MainActivity extends Activity {
             if (compassSm == null) compassSm = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
             if (compassSm == null) return;
             if (compassRv == null) compassRv = compassSm.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR);
-            if (compassRv == null) return;
-            compassRegistered = compassSm.registerListener(compassListener, compassRv, SensorManager.SENSOR_DELAY_GAME);
+            if (compassRv == null) compassRv = compassSm.getDefaultSensor(Sensor.TYPE_GEOMAGNETIC_ROTATION_VECTOR);
+            if (compassRv != null) {
+                compassRegistered = compassSm.registerListener(compassListener, compassRv, SensorManager.SENSOR_DELAY_GAME);
+            } else {
+                if (compassAccel == null) compassAccel = compassSm.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+                if (compassMag == null) compassMag = compassSm.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
+                if (compassAccel != null && compassMag != null) {
+                    boolean okA = compassSm.registerListener(compassListener, compassAccel, SensorManager.SENSOR_DELAY_GAME);
+                    boolean okM = compassSm.registerListener(compassListener, compassMag, SensorManager.SENSOR_DELAY_GAME);
+                    compassRegistered = okA && okM;
+                }
+            }
         } catch (Exception ignored) {}
     }
 
@@ -785,17 +814,17 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String getAppVersion() {
-            return "2.9.1-r241";
+            return "2.9.1-r247";
         }
 
         @JavascriptInterface
         public int getAppBuildNumber() {
-            return 244;
+            return 247;
         }
 
         @JavascriptInterface
         public String getAppRevision() {
-            return "r244";
+            return "r247";
         }
 
         private boolean isAllowedExternalUri(Uri uri) {
@@ -1122,7 +1151,7 @@ public class MainActivity extends Activity {
         ws.setCacheMode(WebSettings.LOAD_DEFAULT);
         // Пользовательские данные защищены в Context.getFilesDir()/klev_appdata_vault; кэш WebView не очищается принудительно
         String baseUa = ws.getUserAgentString();
-        ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.9.1-r241");
+        ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.9.1-r247");
 
         webView.addJavascriptInterface(new NativeBridge(this), "AndroidBridge");
 
@@ -1787,7 +1816,7 @@ public class MainActivity extends Activity {
             }
         }
         String entryHtml = getPackageName().contains("admin") ? "kp-control-89.html" : "index.html";
-        String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/" + entryHtml + "?v=2.9.1_r244_" + System.currentTimeMillis();
+        String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/" + entryHtml + "?v=2.9.1_r247_" + System.currentTimeMillis();
         if (intent != null && intent.getData() != null) {
             Uri data = intent.getData();
             String q = data.getEncodedQuery();
