@@ -241,8 +241,9 @@ const AUTH_ATTEMPTS_MAX_FAILS = 5; // 5 неудач за 15 минут
 async function checkD1LoginBruteForce(env, ip = 'anon', loginNorm = '') {
  const memCheck = checkLoginBruteForce(ip, loginNorm);
  if (memCheck.locked) return memCheck;
+ const cleanIp = String(ip || 'anon').trim().slice(0, 48);
  const normL = String(loginNorm || 'any').toLowerCase().slice(0, 64);
- const key = \`acct_\${normL}\`;
+ const key = \`acct_\${cleanIp}_\${normL}\`;
  const now = Date.now();
  const d1 = getD1(env)?.db;
  if (d1) {
@@ -273,8 +274,9 @@ async function checkD1LoginBruteForce(env, ip = 'anon', loginNorm = '') {
 
 async function recordD1LoginFailure(env, ip = 'anon', loginNorm = '', endpoint = '/auth/login') {
  const memRec = recordLoginFailure(ip, loginNorm, endpoint);
+ const cleanIp = String(ip || 'anon').trim().slice(0, 48);
  const normL = String(loginNorm || 'any').toLowerCase().slice(0, 64);
- const key = \`acct_\${normL}\`;
+ const key = \`acct_\${cleanIp}_\${normL}\`;
  const now = Date.now();
  const d1 = getD1(env)?.db;
  if (d1) {
@@ -302,8 +304,9 @@ async function recordD1LoginFailure(env, ip = 'anon', loginNorm = '', endpoint =
 
 async function clearD1LoginFailures(env, ip = 'anon', loginNorm = '') {
  clearLoginFailures(ip, loginNorm);
+ const cleanIp = String(ip || 'anon').trim().slice(0, 48);
  const normL = String(loginNorm || 'any').toLowerCase().slice(0, 64);
- const key = \`acct_\${normL}\`;
+ const key = \`acct_\${cleanIp}_\${normL}\`;
  const d1 = getD1(env)?.db;
  if (d1) {
   try {
@@ -430,12 +433,12 @@ async function consumeAiUserChunkQuota(env, fisherId, addChunks = 1) {
   // Добавляем проверку суточного лимита чанков внутри if (chunkMode === 'put')
   if (!w.includes('consumeAiUserChunkQuota(env, aiAuth.fisherId, 1)')) {
     w = w.replace(
-      'const chunkKey = `AI_CHK_${reqScanId}_${idx}`;',
+      /const chunkKey = `AI_CHK_(?:\${authFid}_)?\${reqScanId}_\${idx}`;/,
       `const quotaOk = await consumeAiUserChunkQuota(env, aiAuth.fisherId, 1);
      if (!quotaOk) {
       return new Response(JSON.stringify({ ok: false, error: 'Forbidden' }), { status: 403, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json;charset=utf-8' } });
      }
-     const chunkKey = \`AI_CHK_\${reqScanId}_\${idx}\`;`
+     const chunkKey = \`AI_CHK_\${authFid}_\${reqScanId}_\${idx}\`;`
     );
   }
 

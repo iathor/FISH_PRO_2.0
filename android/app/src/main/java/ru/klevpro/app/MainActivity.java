@@ -83,6 +83,10 @@ public class MainActivity extends Activity {
     private static final int REQ_CAMERA_CAPTURE = 1003;
     private static final int REQ_CAMERA_PERM = 1004;
     private static final String VIRTUAL_HOST = "appassets.androidplatform.net";
+    private static final String VIRTUAL_ORIGIN = "https://" + VIRTUAL_HOST;
+    private static final int MAX_VAULT_VALUE_CHARS = 15 * 1024 * 1024;
+    private static final int MAX_DOWNLOAD_FILE_BYTES = 15 * 1024 * 1024;
+    private static final int MAX_TTS_TEXT_LENGTH = 1000;
     private static final String CHANNEL_ALERTS = "klev_pro_alerts";
     private static final String CHANNEL_FILES = "klev_pro_files";
     private static final String CHANNEL_NAV = "klev_pro_nav";
@@ -92,6 +96,7 @@ public class MainActivity extends Activity {
     private static final AtomicInteger NOTIF_ID_SEQ = new AtomicInteger(2000);
 
     private WebView webView;
+    private volatile String currentWebViewUrl = VIRTUAL_ORIGIN + "/assets/www/index.html";
     private ValueCallback<Uri[]> fileUploadCallback;
     private volatile int gnssSatellitesUsedCount = 0;
     private volatile int gnssSatellitesVisibleCount = 0;
@@ -131,6 +136,113 @@ public class MainActivity extends Activity {
     private final float[] cOri = new float[3];
     private AudioFocusRequest navAudioFocusRequest;
     private volatile boolean russianTtsAvailable = true;
+
+    private static boolean isDomainOrSubdomain(String host, String domain) {
+        if (host == null || domain == null) return false;
+        String h = host.trim().toLowerCase(Locale.ROOT);
+        String d = domain.trim().toLowerCase(Locale.ROOT);
+        return h.equals(d) || h.endsWith("." + d);
+    }
+
+    private static boolean isAllowedNetProxyHost(String host) {
+        if (host == null || host.isEmpty()) return false;
+        String[] allowed = new String[]{
+            "meteoinfo.ru",
+            "met.no",
+            "open-meteo.com",
+            "project-osrm.org",
+            "openstreetmap.de",
+            "openstreetmap.org",
+            "workers.dev",
+            "klevpro.ru"
+        };
+        for (String d : allowed) {
+            if (isDomainOrSubdomain(host, d)) return true;
+        }
+        return false;
+    }
+
+    private static boolean isAllowedTileProxyHost(String host) {
+        if (host == null || host.isEmpty()) return false;
+        String[] allowed = new String[]{
+            "maps.yandex.net",
+            "arcgisonline.com",
+            "openstreetmap.org",
+            "cartocdn.com",
+            "opentopomap.org",
+            "maps.mail.ru"
+        };
+        for (String d : allowed) {
+            if (isDomainOrSubdomain(host, d)) return true;
+        }
+        return false;
+    }
+
+    private static boolean isTrustedExternalHost(String host) {
+        if (host == null || host.isEmpty()) return false;
+        String[] allowed = new String[]{
+            "yandex.ru",
+            "yandex.net",
+            "yandex.com",
+            "google.com",
+            "google.ru",
+            "2gis.ru",
+            "2gis.com",
+            "openstreetmap.org",
+            "openstreetmap.de",
+            "leafletjs.com",
+            "open-meteo.com",
+            "met.no",
+            "meteoinfo.ru",
+            "klevpro.ru",
+            "xn--b1apdneg0j.xn--p1ai",
+            "github.com",
+            "githubusercontent.com",
+            "workers.dev"
+        };
+        for (String d : allowed) {
+            if (isDomainOrSubdomain(host, d)) return true;
+        }
+        return false;
+    }
+
+    private static boolean isTrustedWebOrigin(Uri uri) {
+        if (uri == null) return false;
+        String scheme = uri.getScheme() != null ? uri.getScheme().trim().toLowerCase(Locale.ROOT) : "";
+        String host = uri.getHost() != null ? uri.getHost().trim().toLowerCase(Locale.ROOT) : "";
+        if (!"https".equals(scheme)) return false;
+        return VIRTUAL_HOST.equals(host)
+            || isDomainOrSubdomain(host, "klevpro.ru")
+            || "xn--b1apdneg0j.xn--p1ai".equals(host);
+    }
+
+    private static boolean isTrustedWebOriginStr(String origin) {
+        if (origin == null || origin.trim().isEmpty()) return false;
+        try {
+            return isTrustedWebOrigin(Uri.parse(origin.trim()));
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private boolean isBridgeCallerTrusted() {
+        try {
+            String u = currentWebViewUrl;
+            if (Looper.myLooper() == Looper.getMainLooper() && webView != null) {
+                String liveUrl = webView.getUrl();
+                if (liveUrl != null && !liveUrl.isEmpty()) {
+                    u = liveUrl;
+                    currentWebViewUrl = liveUrl;
+                }
+            }
+            if (u == null || u.isEmpty()) return false;
+            Uri parsed = Uri.parse(u);
+            return "https".equalsIgnoreCase(parsed.getScheme())
+                && VIRTUAL_HOST.equalsIgnoreCase(parsed.getHost());
+        } catch (Exception e) {
+            return false;
+        }
+    }
 
     private final SensorEventListener compassListener = new SensorEventListener() {
         @Override public void onAccuracyChanged(Sensor s, int a) {}
@@ -283,7 +395,7 @@ public class MainActivity extends Activity {
     }
 
     private static String sanitizeVaultKeyFileName(String key) {
-        if (key == null) return " empty_key";
+        if (key == null) return "empty_key";
         return key.trim().replaceAll("[^a-zA-Z0-9._-]", "_") + ".dat";
     }
 
@@ -325,10 +437,12 @@ public class MainActivity extends Activity {
     private boolean saveKeyToNativeAppDataVault(String key, String value) {
         if (key == null || key.trim().isEmpty() || value == null) return false;
         String cleanKey = key.trim();
+        if (cleanKey.length() > 256 || value.length() > MAX_VAULT_VALUE_CHARS) return false;
         synchronized (VAULT_LOCK) {
             boolean ok = false;
             try {
                 byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
+                if (bytes.length > MAX_VAULT_VALUE_CHARS) return false;
                 String fName = sanitizeVaultKeyFileName(cleanKey);
                 File primaryFile = new File(getPrimaryAppDataVaultDir(), fName);
                 writeFileAtomically(primaryFile, bytes);
@@ -455,6 +569,8 @@ public class MainActivity extends Activity {
                     "klev_pro_v259_waters_cache_r196",
                     "klev_pro_bg_voice_v1",
                     "klev_pro_voice_nav_v1",
+                    "klev_pro_voice_screen_v1",
+                    "klev_pro_voice_bg_v1",
                     "klev_pro_clean_slate_v2_1_1_r4",
                     "klev_pro_clean_slate_notice_v2_1_1_r4"
                 };
@@ -668,8 +784,8 @@ public class MainActivity extends Activity {
                             releaseNativeRouteWakeLock();
                             try { stopService(new Intent(MainActivity.this, NavService.class)); } catch (Exception ignored) {}
                             stopCompassSensor();
-        releaseNavAudioFocus();
-        cancelOngoingRouteNotification();
+                            releaseNavAudioFocus();
+                            cancelOngoingRouteNotification();
                         }
                     } catch (Exception ignored) {}
                 }
@@ -692,7 +808,8 @@ public class MainActivity extends Activity {
             if (!isAppInForeground && !bgVoiceGuidanceEnabled) {
                 return;
             }
-            final String clean = text.trim();
+            String trimmed = text.trim();
+            final String clean = trimmed.length() > MAX_TTS_TEXT_LENGTH ? trimmed.substring(0, MAX_TTS_TEXT_LENGTH) : trimmed;
             runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
@@ -800,22 +917,26 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public boolean saveAppDataKey(String key, String value) {
+            if (!isBridgeCallerTrusted()) return false;
             return saveKeyToNativeAppDataVault(key, value);
         }
 
         @JavascriptInterface
         public String loadAppDataKey(String key) {
+            if (!isBridgeCallerTrusted()) return "";
             String val = loadKeyFromNativeAppDataVault(key);
             return val != null ? val : "";
         }
 
         @JavascriptInterface
         public boolean removeAppDataKey(String key) {
+            if (!isBridgeCallerTrusted()) return false;
             return removeKeyFromNativeAppDataVault(key);
         }
 
         @JavascriptInterface
         public String loadAllAppDataJson() {
+            if (!isBridgeCallerTrusted()) return "{}";
             return loadAllNativeAppDataVaultJson();
         }
 
@@ -844,28 +965,28 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String getAppVersion() {
-            return "2.9.1-r249";
+            return "2.9.1-r251";
         }
 
         @JavascriptInterface
         public int getAppBuildNumber() {
-            return 249;
+            return 250;
         }
 
         @JavascriptInterface
         public String getAppRevision() {
-            return "r249";
+            return "r251";
         }
 
         private boolean isTelegramUri(Uri uri) {
             if (uri == null) return false;
-            String scheme = uri.getScheme() != null ? uri.getScheme().trim().toLowerCase(Locale.ROOT) : "";
-            if ("tg".equals(scheme)) return true;
-            if ("http".equals(scheme) || "https".equals(scheme)) {
-                String host = uri.getHost() != null ? uri.getHost().trim().toLowerCase(Locale.ROOT) : "";
-                return "t.me".equals(host) || "www.t.me".equals(host) || "telegram.me".equals(host) || "www.telegram.me".equals(host) || "telegram.dog".equals(host);
-            }
-            return false;
+            String scheme = uri.getScheme();
+            if (scheme == null) return false;
+            String s = scheme.trim().toLowerCase(Locale.ROOT);
+            if ("tg".equals(s)) return true;
+            if (!"https".equals(s) && !"http".equals(s)) return false;
+            String host = uri.getHost() != null ? uri.getHost().trim().toLowerCase(Locale.ROOT) : "";
+            return "t.me".equals(host) || "www.t.me".equals(host) || "telegram.me".equals(host) || "www.telegram.me".equals(host) || "telegram.dog".equals(host);
         }
 
         private boolean isAllowedExternalUri(Uri uri) {
@@ -874,30 +995,29 @@ public class MainActivity extends Activity {
             String scheme = uri.getScheme();
             if (scheme == null) return false;
             String s = scheme.trim().toLowerCase(Locale.ROOT);
-            if (!"https".equals(s) && !"http".equals(s)) return false;
+            if (!"https".equals(s)) return false;
             String host = uri.getHost();
             if (host == null) return false;
             String h = host.trim().toLowerCase(Locale.ROOT);
+            String p = uri.getPath() != null ? uri.getPath().trim().toLowerCase(Locale.ROOT) : "";
+            if ("github.com".equals(h) || "www.github.com".equals(h) || "raw.githubusercontent.com".equals(h)) {
+                return p.startsWith("/iathor/");
+            }
+            if ("objects.githubusercontent.com".equals(h) || "release-assets.githubusercontent.com".equals(h)) {
+                return true;
+            }
+            if (isDomainOrSubdomain(h, "workers.dev")) {
+                return true;
+            }
             return "klevpro.ru".equals(h)
                 || "www.klevpro.ru".equals(h)
-                || "xn--b1apdneg0j.xn--p1ai".equals(h)
-                || "github.com".equals(h);
-        }
-
-        @JavascriptInterface
-        public void downloadApkUpdate(String url) {
-            if (url == null || url.trim().isEmpty()) return;
-            try {
-                Uri uri = Uri.parse(url.trim());
-                if (!isAllowedExternalUri(uri)) return;
-                Intent intent = new Intent(Intent.ACTION_VIEW, uri);
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                ctx.startActivity(intent);
-            } catch (Exception ignored) {}
+                || isDomainOrSubdomain(h, "klevpro.ru")
+                || "xn--b1apdneg0j.xn--p1ai".equals(h);
         }
 
         @JavascriptInterface
         public void openExternalUrl(String url) {
+            if (!isBridgeCallerTrusted()) return;
             if (url == null || url.trim().isEmpty()) return;
             try {
                 Uri uri = Uri.parse(url.trim());
@@ -941,6 +1061,22 @@ public class MainActivity extends Activity {
                         return;
                     } catch (Exception ignored) {}
                 }
+                Intent intent = new Intent(Intent.ACTION_VIEW, uri);
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                ctx.startActivity(intent);
+            } catch (Exception ignored) {}
+        }
+
+        @JavascriptInterface
+        public void downloadApkUpdate(String url) {
+            if (!isBridgeCallerTrusted()) return;
+            if (url == null || url.trim().isEmpty()) return;
+            try {
+                Uri uri = Uri.parse(url.trim());
+                if (isTelegramUri(uri)) return;
+                String scheme = uri.getScheme();
+                if (scheme == null || !"https".equals(scheme.trim().toLowerCase(Locale.ROOT))) return;
+                if (!isAllowedExternalUri(uri)) return;
                 Intent intent = new Intent(Intent.ACTION_VIEW, uri);
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 ctx.startActivity(intent);
@@ -1066,8 +1202,15 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public boolean saveFileToDownloads(final String filename, final String content, final String mimeType, final boolean isBase64) {
+            if (!isBridgeCallerTrusted()) return false;
             if (filename == null || filename.trim().isEmpty() || content == null) return false;
+            if (filename.contains("..") || content.length() > MAX_VAULT_VALUE_CHARS * 2) return false;
             final String cleanName = filename.trim().replaceAll("[\\\\/:*?\"<>|]", "_");
+            if (cleanName.isEmpty() || cleanName.contains("..") || cleanName.startsWith(".")) return false;
+            final String lowerName = cleanName.toLowerCase(Locale.ROOT);
+            if (lowerName.endsWith(".apk") || lowerName.endsWith(".dex") || lowerName.endsWith(".so") || lowerName.endsWith(".sh") || lowerName.endsWith(".jar") || lowerName.endsWith(".oat") || lowerName.endsWith(".odex")) {
+                return false;
+            }
             final String effMime = (mimeType != null && !mimeType.trim().isEmpty()) ? mimeType.trim() : guessMimeType(cleanName);
             try {
                 byte[] bytes;
@@ -1080,6 +1223,9 @@ public class MainActivity extends Activity {
                     bytes = Base64.decode(pureB64, Base64.DEFAULT);
                 } else {
                     bytes = content.getBytes(StandardCharsets.UTF_8);
+                }
+                if (bytes == null || bytes.length > MAX_DOWNLOAD_FILE_BYTES) {
+                    return false;
                 }
 
                 boolean saved = false;
@@ -1135,6 +1281,24 @@ public class MainActivity extends Activity {
         }
     }
 
+    private static boolean isTrustedApkUpdateUri(Uri uri) {
+        if (uri == null) return false;
+        String scheme = uri.getScheme() != null ? uri.getScheme().trim().toLowerCase(Locale.ROOT) : "";
+        if (!"https".equals(scheme)) return false;
+        String host = uri.getHost() != null ? uri.getHost().trim().toLowerCase(Locale.ROOT) : "";
+        String path = uri.getPath() != null ? uri.getPath().trim().toLowerCase(Locale.ROOT) : "";
+        if ("github.com".equals(host) || "www.github.com".equals(host) || "raw.githubusercontent.com".equals(host)) {
+            return path.startsWith("/iathor/");
+        }
+        if ("objects.githubusercontent.com".equals(host) || "release-assets.githubusercontent.com".equals(host)) {
+            return true;
+        }
+        return isDomainOrSubdomain(host, "klevpro.ru")
+            || "xn--b1apdneg0j.xn--p1ai".equals(host)
+            || isDomainOrSubdomain(host, "workers.dev")
+            || isDomainOrSubdomain(host, "githubusercontent.com");
+    }
+
     private void initNotificationChannels() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             try {
@@ -1187,7 +1351,7 @@ public class MainActivity extends Activity {
     }
 
     private static String guessMimeType(String path) {
-        String p = path.toLowerCase();
+        String p = path.toLowerCase(Locale.ROOT);
         if (p.endsWith(".html") || p.endsWith(".htm")) return "text/html";
         if (p.endsWith(".js") || p.endsWith(".mjs")) return "application/javascript";
         if (p.endsWith(".css")) return "text/css";
@@ -1229,12 +1393,15 @@ public class MainActivity extends Activity {
         ws.setDomStorageEnabled(true);
         ws.setDatabaseEnabled(true);
         ws.setGeolocationEnabled(true);
-        ws.setAllowFileAccess(true);
+        ws.setAllowFileAccess(false);
+        ws.setAllowFileAccessFromFileURLs(false);
+        ws.setAllowUniversalAccessFromFileURLs(false);
+        ws.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         ws.setAllowContentAccess(true);
         ws.setCacheMode(WebSettings.LOAD_DEFAULT);
         // Пользовательские данные защищены в Context.getFilesDir()/klev_appdata_vault; кэш WebView не очищается принудительно
         String baseUa = ws.getUserAgentString();
-        ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.9.1-r249");
+        ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.9.1-r251");
 
         webView.addJavascriptInterface(new NativeBridge(this), "AndroidBridge");
 
@@ -1243,8 +1410,10 @@ public class MainActivity extends Activity {
             public void onDownloadStart(String url, String userAgent, String contentDisposition, String mimetype, long contentLength) {
                 if (url == null) return;
                 try {
-                    if (url.startsWith("http://") || url.startsWith("https://")) {
-                        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+                    Uri uri = Uri.parse(url.trim());
+                    if (isTrustedApkUpdateUri(uri)) {
+                        Intent intent = new Intent(Intent.ACTION_VIEW, uri);
+                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                         startActivity(intent);
                     }
                 } catch (Exception ignored) {}
@@ -1253,19 +1422,36 @@ public class MainActivity extends Activity {
 
         webView.setWebViewClient(new WebViewClient() {
             @Override
+            public void onPageStarted(WebView view, String url, Bitmap favicon) {
+                if (url != null) {
+                    currentWebViewUrl = url;
+                }
+                super.onPageStarted(view, url, favicon);
+            }
+
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                if (url != null) {
+                    currentWebViewUrl = url;
+                }
+                super.onPageFinished(view, url);
+            }
+
+            @Override
             public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
                 Uri uri = request.getUrl();
                 if (uri != null && VIRTUAL_HOST.equalsIgnoreCase(uri.getHost())) {
                     String path = uri.getPath();
                     if ("/__klev_net_proxy__".equals(path)) {
                         String targetUrl = uri.getQueryParameter("url");
-                        if (targetUrl != null && (targetUrl.startsWith("https://") || targetUrl.startsWith("http://"))) {
+                        if (targetUrl != null && targetUrl.startsWith("https://")) {
                             HttpURLConnection conn = null;
                             try {
                                 URL u = new URL(targetUrl);
-                                String h = u.getHost() != null ? u.getHost().toLowerCase() : "";
-                                if (h.endsWith("meteoinfo.ru") || h.endsWith("met.no") || h.endsWith("open-meteo.com") || h.endsWith("project-osrm.org") || h.endsWith("openstreetmap.de") || h.endsWith("openstreetmap.org") || h.endsWith("workers.dev") || h.endsWith("klevpro.ru")) {
+                                String h = u.getHost() != null ? u.getHost().toLowerCase(Locale.ROOT) : "";
+                                if ("https".equalsIgnoreCase(u.getProtocol()) && isAllowedNetProxyHost(h)) {
                                     conn = (HttpURLConnection) u.openConnection();
+                                    conn.setInstanceFollowRedirects(false);
                                     conn.setRequestMethod("GET");
                                     conn.setConnectTimeout(6500);
                                     conn.setReadTimeout(7500);
@@ -1287,7 +1473,7 @@ public class MainActivity extends Activity {
                                         if (cType == null || cType.isEmpty()) cType = "application/json";
                                         String mimeOnly = cType.contains(";") ? cType.split(";")[0].trim() : cType.trim();
                                         Map<String, String> corsHeaders = new HashMap<>();
-                                        corsHeaders.put("Access-Control-Allow-Origin", "*");
+                                        corsHeaders.put("Access-Control-Allow-Origin", VIRTUAL_ORIGIN);
                                         corsHeaders.put("Cache-Control", "no-store");
                                         return new WebResourceResponse(mimeOnly, "UTF-8", 200, "OK", corsHeaders, new ByteArrayInputStream(data));
                                     }
@@ -1300,7 +1486,7 @@ public class MainActivity extends Activity {
                             }
                         }
                         Map<String, String> errHeaders = new HashMap<>();
-                        errHeaders.put("Access-Control-Allow-Origin", "*");
+                        errHeaders.put("Access-Control-Allow-Origin", VIRTUAL_ORIGIN);
                         return new WebResourceResponse("application/json", "UTF-8", 502, "Net Gateway Error", errHeaders, new ByteArrayInputStream("{\"ok\":false}".getBytes(StandardCharsets.UTF_8)));
                     }
                     if ("/__klev_tile_proxy__".equals(path)) {
@@ -1309,9 +1495,10 @@ public class MainActivity extends Activity {
                             HttpURLConnection conn = null;
                             try {
                                 URL u = new URL(targetUrl);
-                                String h = u.getHost() != null ? u.getHost().toLowerCase() : "";
-                                if (h.endsWith("maps.yandex.net") || h.endsWith("arcgisonline.com") || h.endsWith("openstreetmap.org") || h.endsWith("cartocdn.com") || h.endsWith("opentopomap.org")) {
+                                String h = u.getHost() != null ? u.getHost().toLowerCase(Locale.ROOT) : "";
+                                if ("https".equalsIgnoreCase(u.getProtocol()) && isAllowedTileProxyHost(h)) {
                                     conn = (HttpURLConnection) u.openConnection();
+                                    conn.setInstanceFollowRedirects(false);
                                     conn.setRequestMethod("GET");
                                     conn.setConnectTimeout(6000);
                                     conn.setReadTimeout(7000);
@@ -1333,7 +1520,7 @@ public class MainActivity extends Activity {
                                         if (cType == null || cType.isEmpty()) cType = "image/png";
                                         if (cType.contains(";")) cType = cType.split(";")[0].trim();
                                         Map<String, String> corsHeaders = new HashMap<>();
-                                        corsHeaders.put("Access-Control-Allow-Origin", "*");
+                                        corsHeaders.put("Access-Control-Allow-Origin", VIRTUAL_ORIGIN);
                                         corsHeaders.put("Cache-Control", "public, max-age=86400");
                                         return new WebResourceResponse(cType, null, 200, "OK", corsHeaders, new ByteArrayInputStream(data));
                                     }
@@ -1346,18 +1533,21 @@ public class MainActivity extends Activity {
                             }
                         }
                         Map<String, String> errHeaders = new HashMap<>();
-                        errHeaders.put("Access-Control-Allow-Origin", "*");
+                        errHeaders.put("Access-Control-Allow-Origin", VIRTUAL_ORIGIN);
                         return new WebResourceResponse("text/plain", "UTF-8", 502, "Tile Gateway Error", errHeaders, new ByteArrayInputStream(new byte[0]));
                     }
                     if (path == null || path.isEmpty() || path.equals("/")) {
                         path = "/assets/www/index.html";
                     }
                     String assetPath = path.startsWith("/assets/") ? path.substring("/assets/".length()) : path.replaceFirst("^/+", "");
+                    if (assetPath.contains("..")) {
+                        return new WebResourceResponse("text/plain", "UTF-8", 403, "Forbidden", null, null);
+                    }
                     try {
                         InputStream is = getAssets().open(assetPath);
                         String mime = guessMimeType(assetPath);
                         Map<String, String> headers = new HashMap<>();
-                        headers.put("Access-Control-Allow-Origin", "*");
+                        headers.put("Access-Control-Allow-Origin", VIRTUAL_ORIGIN);
                         headers.put("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
                         return new WebResourceResponse(mime, "UTF-8", 200, "OK", headers, is);
                     } catch (Exception e) {
@@ -1369,31 +1559,40 @@ public class MainActivity extends Activity {
 
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
-                Uri uri = request.getUrl();
-                if (uri == null) return false;
-                String host = uri.getHost() != null ? uri.getHost().toLowerCase() : "";
-                String scheme = uri.getScheme() != null ? uri.getScheme().toLowerCase() : "";
-                String path = uri.getPath() != null ? uri.getPath().toLowerCase() : "";
-                if (host.equals(VIRTUAL_HOST)) {
+                Uri uri = request != null ? request.getUrl() : null;
+                if (uri == null) return true;
+                String host = uri.getHost() != null ? uri.getHost().trim().toLowerCase(Locale.ROOT) : "";
+                String scheme = uri.getScheme() != null ? uri.getScheme().trim().toLowerCase(Locale.ROOT) : "";
+                String path = uri.getPath() != null ? uri.getPath().trim().toLowerCase(Locale.ROOT) : "";
+                if ("javascript".equals(scheme) || "file".equals(scheme) || "content".equals(scheme) || "intent".equals(scheme) || "data".equals(scheme) || "about".equals(scheme) || "blob".equals(scheme)) {
+                    return true;
+                }
+                if ("https".equals(scheme) && host.equals(VIRTUAL_HOST)) {
+                    currentWebViewUrl = uri.toString();
                     return false;
                 }
                 if (path.endsWith(".apk") || path.startsWith("/apk/")) {
-                    try {
-                        Intent intent = new Intent(Intent.ACTION_VIEW, uri);
-                        startActivity(intent);
-                        return true;
-                    } catch (Exception ignored) {}
+                    if (isTrustedApkUpdateUri(uri)) {
+                        try {
+                            Intent intent = new Intent(Intent.ACTION_VIEW, uri);
+                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                            startActivity(intent);
+                        } catch (Exception ignored) {}
+                    }
+                    return true;
                 }
-                if (host.equals("klevpro.ru") || host.equals("www.klevpro.ru") || host.equals("xn--b1apdneg0j.xn--p1ai")) {
+                if ("https".equals(scheme) && (host.equals("klevpro.ru") || host.equals("www.klevpro.ru") || host.equals("xn--b1apdneg0j.xn--p1ai"))) {
                     String q = uri.getEncodedQuery();
                     String frag = uri.getEncodedFragment();
-                    StringBuilder sb = new StringBuilder("https://" + VIRTUAL_HOST + "/assets/www/index.html");
+                    String entryHtml = getPackageName().contains("admin") ? "kp-control-89.html" : "index.html";
+                    StringBuilder sb = new StringBuilder(VIRTUAL_ORIGIN + "/assets/www/" + entryHtml);
                     if (q != null && !q.isEmpty()) sb.append("?").append(q);
                     if (frag != null && !frag.isEmpty()) sb.append("#").append(frag);
+                    currentWebViewUrl = sb.toString();
                     view.loadUrl(sb.toString());
                     return true;
                 }
-                if (host.equals("t.me") || host.equals("www.t.me") || host.equals("telegram.me") || host.equals("telegram.dog") || scheme.equals("tg")) {
+                if (("tg".equals(scheme)) || (("https".equals(scheme) || "http".equals(scheme)) && (host.equals("t.me") || host.equals("www.t.me") || host.equals("telegram.me") || host.equals("www.telegram.me") || host.equals("telegram.dog")))) {
                     try {
                         Uri tgUri = uri;
                         if (!scheme.equals("tg")) {
@@ -1437,16 +1636,24 @@ public class MainActivity extends Activity {
                             return true;
                         } catch (Exception ignored2) {}
                     }
+                    return true;
                 }
-                if (scheme.equals("mailto") || scheme.equals("sms") || scheme.equals("smsto") || scheme.equals("tel") || scheme.equals("geo") || host.contains("yandex.") || host.contains("google.") || host.contains("2gis.") || host.contains("openstreetmap.") || host.contains("leafletjs.") || host.contains("open-meteo.") || host.contains("met.no")) {
+                if (scheme.equals("mailto") || scheme.equals("sms") || scheme.equals("smsto") || scheme.equals("tel") || scheme.equals("geo") || (("https".equals(scheme) || "http".equals(scheme)) && isTrustedExternalHost(host))) {
                     try {
                         Intent intent = new Intent(Intent.ACTION_VIEW, uri);
                         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                         startActivity(intent);
-                        return true;
+                    } catch (Exception ignored) {}
+                    return true;
+                }
+                if ("https".equals(scheme) && !host.isEmpty()) {
+                    try {
+                        Intent intent = new Intent(Intent.ACTION_VIEW, uri);
+                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        startActivity(intent);
                     } catch (Exception ignored) {}
                 }
-                return false;
+                return true;
             }
         });
 
@@ -1454,6 +1661,11 @@ public class MainActivity extends Activity {
             @Override
             public void onPermissionRequest(final PermissionRequest request) {
                 if (request == null) return;
+                final Uri originUri = request.getOrigin();
+                if (!isTrustedWebOrigin(originUri)) {
+                    try { request.deny(); } catch (Exception ignored) {}
+                    return;
+                }
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
@@ -1471,6 +1683,11 @@ public class MainActivity extends Activity {
 
             @Override
             public void onGeolocationPermissionsShowPrompt(final String origin, final GeolocationPermissions.Callback callback) {
+                if (callback == null) return;
+                if (!isTrustedWebOriginStr(origin)) {
+                    callback.invoke(origin, false, false);
+                    return;
+                }
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                     if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
                         requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION}, REQ_PERMISSIONS);
@@ -1944,7 +2161,7 @@ public class MainActivity extends Activity {
             }
         }
         String entryHtml = getPackageName().contains("admin") ? "kp-control-89.html" : "index.html";
-        String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/" + entryHtml + "?v=2.9.1_r249_" + System.currentTimeMillis();
+        String baseUrl = VIRTUAL_ORIGIN + "/assets/www/" + entryHtml + "?v=2.9.1_r251_" + System.currentTimeMillis();
         if (intent != null && intent.getData() != null) {
             Uri data = intent.getData();
             String q = data.getEncodedQuery();
@@ -1956,8 +2173,10 @@ public class MainActivity extends Activity {
             if (frag != null && !frag.isEmpty()) {
                 sb.append("#").append(frag);
             }
+            currentWebViewUrl = sb.toString();
             webView.loadUrl(sb.toString());
         } else {
+            currentWebViewUrl = baseUrl;
             webView.loadUrl(baseUrl);
         }
     }
@@ -2111,8 +2330,9 @@ public class MainActivity extends Activity {
                     webView.post(new Runnable() {
                         @Override
                         public void run() {
+                            String quotedDataUrl = org.json.JSONObject.quote(safeDataUrl);
                             webView.evaluateJavascript(
-                                "if (typeof window.__KLEV_ON_NATIVE_CAMERA_PHOTO__ === 'function') { window.__KLEV_ON_NATIVE_CAMERA_PHOTO__('" + safeDataUrl + "'); }",
+                                "if (typeof window.__KLEV_ON_NATIVE_CAMERA_PHOTO__ === 'function') { window.__KLEV_ON_NATIVE_CAMERA_PHOTO__(" + quotedDataUrl + "); }",
                                 null
                             );
                         }

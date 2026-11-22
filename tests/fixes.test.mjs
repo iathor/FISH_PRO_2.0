@@ -76,8 +76,8 @@ test('3.3 Регулярка шлюз тайлов блокирует чужие
 
 test('3.4 & 4.8 Единый источник версии VERSION (2.9.0 r240) синхронизирован во всех файлах и ссылка на APK валидна', () => {
   assert.equal(verData.version, '2.9.1');
-  assert.equal(verData.revision, 'r249');
-  assert.equal(verData.versionCode, 293249);
+  assert.equal(verData.revision, 'r251');
+  assert.equal(verData.versionCode, 293251);
 
   const vJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'version.json'), 'utf8'));
   const apkVJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'apk/apk-version.json'), 'utf8'));
@@ -376,7 +376,7 @@ test('6.6 Аудит r248: пересобранный app-runtime.js + app.bundl
   const wf = fs.readFileSync(path.join(ROOT, '.github/workflows/build-android-apk.yml'), 'utf8');
   const verJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'VERSION'), 'utf8'));
 
-  assert.equal(verJson.fullVersion, '2.9.1-r249', 'В VERSION должен быть fullVersion 2.9.1-r249');
+  assert.equal(verJson.fullVersion, '2.9.1-r251', 'В VERSION должен быть fullVersion 2.9.1-r251');
   assert.equal(rtSrc, bundleSrc, 'app-runtime.js и js/app.bundle.js должны быть идентичны');
   for (const sym of ['transform-origin:14px 27px;', 'fcWeatherRoadStormCard', 'fcWeatherHourlyWaveCard', '_klevTouchStart', '__KLEV_STARTUP_GPS_SYNCED__']) {
     assert.ok(rtSrc.includes(sym), `В скомпилированном app-runtime.js отсутствует ${sym}`);
@@ -385,7 +385,7 @@ test('6.6 Аудит r248: пересобранный app-runtime.js + app.bundl
   assert.ok(layoutCss.includes('img.leaflet-marker-icon') && idxHtml.includes('img.leaflet-marker-icon'), 'Синий дефолтный img.leaflet-marker-icon должен скрываться на мобильных через CSS');
   assert.ok(!/\.compass-bearing-active\s+#mapBox\s*\{[^}]*transform:\s*none/i.test(idxHtml), 'В index.html не должно быть transform: none для #mapBox');
   assert.ok(!/\.compass-bearing-active\s+#mapBox\s*\{[^}]*transform:\s*none/i.test(kpHtml), 'В kp-control-89.html не должно быть transform: none для #mapBox');
-  assert.ok(gradle.includes('applicationId "ru.klevpro.app"') && gradle.includes('versionName "2.9.1-r249"'), 'В android/app/build.gradle должны быть ru.klevpro.app и 2.9.1-r249');
+  assert.ok(gradle.includes('applicationId "ru.klevpro.app"') && gradle.includes('versionName "2.9.1-r251"'), 'В android/app/build.gradle должны быть ru.klevpro.app и 2.9.1-r251');
   assert.ok(stringsXml.includes('Клёв ПРО 2.0'), 'В strings.xml должно быть имя Клёв ПРО 2.0');
   assert.ok(mainJava.includes('compassWanted = true') && mainJava.includes('TYPE_MAGNETIC_FIELD'), 'В MainActivity.java должен быть включён компас с резервом TYPE_MAGNETIC_FIELD');
   assert.ok(wf.includes('/tmp/klev-android-user') && wf.includes('/tmp/klev-android-admin'), 'Workflow должен собирать User и Admin APK в изолированных директориях');
@@ -423,7 +423,7 @@ test('r248: 8 исправлений (меню 5 иконок без подпи�
   assert.ok(gridJs.includes('maxSpanSteps: 4, shoreDist: shore, minShoreCells: 2'), 'Запрет срезания излучин рек в smoothPath для лодок');
   assert.ok(geoJs.includes('promptRouteStartOriginChoice') && geoJs.includes('_checkProximityToDeferredRouteStart'), 'Запрос точки старта и триггер 100-200 м');
 
-  assert.ok(geoJs.includes("export function formatSpokenRouteDistanceRu(distKm)") && geoJs.includes("примерно ${wholeKm} ${kmWord} ${hundredsMeters} метров"));
+  assert.ok(geoJs.includes("export function formatSpokenRouteDistanceRu(distKm") && geoJs.includes("примерно ${fmt(wholeKm)} ${kmWord} ${fmt(hundredsMeters)} метров"));
 });
 
 test('r249: алгоритм сдвига карты со включённым компасом (r243/r244), горизонтальная стабилизация попапов/надписей точек и 2-пальцевое перемещение карты', () => {
@@ -463,4 +463,62 @@ test('r249: алгоритм сдвига карты со включённым �
     rtJs.includes('__KLEV_MAP_ROT_CUR_DEG__') && rtJs.includes('--klev-inv-rot'),
     'Изменения r249 должны быть скомпилированы в app-runtime.js'
   );
+});
+
+test('r251: фоновое голосовое ведение и автозавершение, вкладка Слипы без падения hazard, общие точки в Круге без удаления чужих, чистый TTS без метроветров и старт маршрута от первой точки', async () => {
+  const geoJs = fs.readFileSync(path.join(ROOT, 'js/modules/geo/geo.module.js'), 'utf8');
+  const cirJs = fs.readFileSync(path.join(ROOT, 'js/modules/circle/circle.module.js'), 'utf8');
+  const cfgJs = fs.readFileSync(path.join(ROOT, 'js/core/config.js'), 'utf8');
+
+  // 1. Фоновое голосовое ведение по кнопке «Сюда» и «Старт», автозавершение на финише и защита от ложного «Вы прибыли» при перезапуске
+  assert.ok(geoJs.includes('function _activatePhase3GuidanceFromBuiltRoute('), 'Должна быть функция _activatePhase3GuidanceFromBuiltRoute для активации ведения со статусом navigating_to_spot');
+  assert.ok(geoJs.includes("alreadyAtGoalOnBoot") && geoJs.includes("canAnnounceArrival"), 'Должна быть защита от ложного «Вы прибыли» при перезапуске приложения');
+  assert.ok(geoJs.includes("Вы вернулись в точку старта. Ведение по маршруту завершено.") && geoJs.includes("stopAndSavePhase3Route(shouldSaveOnArrive)"), 'Ведение вперед и обратно должно автоматически завершаться при прибытии');
+
+  // 2. Вкладка «Слипы» без падения SPOT_CATEGORIES.hazard.icon
+  assert.ok(!cirJs.includes('SPOT_CATEGORIES.hazard.icon'), 'В circle.module.js не должно быть прямого обращения к несуществующему SPOT_CATEGORIES.hazard.icon');
+  assert.ok(cfgJs.includes("Object.defineProperty(SPOT_CATEGORIES, 'hazard'"), 'В config.js должен быть алиас SPOT_CATEGORIES.hazard -> danger');
+
+  // 3. Общие точки в «Круге», распознавание «Моих» по логину и запрет удаления чужих точек
+  assert.ok(cirJs.includes("const radarCount = allItems.filter(x => x && x.t !== 'workshop' && !isCircleItemHidden(x, s)).length;"), 'Общие точки (t === spot) должны учитываться во вкладке Круг');
+  assert.ok(cirJs.includes('itemAu === myLogin'), 'isCircleItemMine должен распознавать точки пользователя по авторизованному логину');
+  assert.ok(geoJs.includes('canDelSpotOnMap') && geoJs.includes('canDelCircleOnMap') && !geoJs.includes('>Скрыть чужую точку</button>'), 'На чужих точках на карте не должно быть кнопки удаления/скрытия');
+  assert.ok(cirJs.includes('data-route-circle='), 'В карточках Круга и Слипов должна быть кнопка построения маршрута до точки');
+
+  // 4. Генерация русских числительных расстояний без «метроветров» и родительного падежа
+  assert.ok(geoJs.includes('export function numberToRussianWordsNominal(n)'), 'Должна быть функция генерации русских числительных словами в именительном падеже');
+  assert.ok(geoJs.includes('(?:метр(?:а|ов)?|м)(?![а-яёa-z])'), 'Регулярка метров должна сопоставлять полное слово перед сокращением с границей слова (?![а-яёa-z])');
+
+  // Проверим отсутствие "метроветров" и корректность числительных для 70.5 км (70 км 500 м)
+  const mWords = geoJs.match(/export function numberToRussianWordsNominal\([\s\S]*?\n\}/);
+  assert.ok(mWords, 'Функция numberToRussianWordsNominal найдена');
+  const spellFn = new Function(`function _pluralizeRu(n, one, few, many) { const abs = Math.abs(Math.round(n)) % 100; const n1 = abs % 10; if (abs > 10 && abs < 20) return many; if (n1 > 1 && n1 < 5) return few; if (n1 === 1) return one; return many; } return (${mWords[0].replace('export ', '')});`)();
+  assert.equal(spellFn(70), 'семьдесят');
+  assert.equal(spellFn(500), 'пятьсот');
+
+  // 5. Начало маршрута строго от первой точки касания и маркер Старт (А) + Финиш (Б)
+  assert.ok(geoJs.includes("className: 'klev-arc-start-pin'") && geoJs.includes('title="Старт маршрута (первая точка)"'), 'На начале построенного маршрута должен ставиться маркер Старт (А)');
+});
+
+test('r251: полный аудит безопасности воркера, фронтенда, Android WebView и CI/CD с сохранением автообновления APK', () => {
+  const workerJs = fs.readFileSync(path.join(ROOT, 'cloudflare-worker-bot.js'), 'utf8');
+  const circleJs = fs.readFileSync(path.join(ROOT, 'js/modules/circle/circle.module.js'), 'utf8');
+  const updaterJs = fs.readFileSync(path.join(ROOT, 'js/core/updater.js'), 'utf8');
+  const mainJava = fs.readFileSync(path.join(ROOT, 'android/app/src/main/java/ru/klevpro/app/MainActivity.java'), 'utf8');
+  const workflowYml = fs.readFileSync(path.join(ROOT, '.github/workflows/build-android-apk.yml'), 'utf8');
+
+  // 1. Worker security
+  assert.ok(workerJs.includes("rawItem.t === 'spot'") && workerJs.includes("pt.t === 'spot'"), 'Общие точки и слипы (t === spot) должны храниться бессрочно на воркере');
+  assert.ok(!workerJs.includes("Boolean(pullAuth.ok || viewerDevId || viewerAuthTok)"), 'В /relay/pull должен быть закрыт IDOR с оператором OR');
+  assert.ok(!workerJs.includes("DEFAULT_KS_B64="), 'В воркере не должно быть открытых ключей APK');
+
+  // 2. Frontend security
+  assert.ok(!circleJs.includes("password: String(password ||"), 'Мастер-пароль администратора не должен сохраняться в открытом виде в localStorage');
+  assert.ok(!circleJs.includes("&authTokenHash=${authTokParam}&adminToken=${admTokParam}"), 'Токены authTokenHash и adminToken не должны передаваться в URL query string /relay/pull');
+  assert.ok(updaterJs.includes("escapeHtml("), 'Модальное окно автообновления APK должно экранировать поля манифеста через escapeHtml');
+
+  // 3. Android WebView & CI/CD security with APK update compatibility
+  assert.ok(mainJava.includes("ws.setAllowFileAccess(false)") && mainJava.includes("isBridgeCallerTrusted()"), 'В WebView должен быть отключён allowFileAccess и включена проверка origin в NativeBridge');
+  assert.ok(mainJava.includes("downloadApkUpdate") && mainJava.includes("/iathor/"), 'Автообновление APK из репозитория iathor должно быть разрешено и защищено по пути');
+  assert.ok(!workflowYml.includes("DEFAULT_KS_B64=") && !workflowYml.includes("DEFAULT_KS_PASS="), 'В build-android-apk.yml не должно быть открытых констант DEFAULT_KS_B64 и DEFAULT_KS_PASS');
 });

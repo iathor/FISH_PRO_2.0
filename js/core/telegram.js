@@ -14,11 +14,11 @@ export const TELEGRAM_BOT_HTTP_URL = 'http://t.me/KlevProClubBot';
 export const TELEGRAM_BOT_HTTPS_URL = 'https://t.me/KlevProClubBot';
 
 export function openTelegramUrlCrossPlatform(targetUrl, nativeTgUrl = '') {
-  const urlStr = String(targetUrl || TELEGRAM_BOT_HTTP_URL).trim();
+  const rawUrlStr = String(targetUrl || TELEGRAM_BOT_HTTPS_URL).trim();
+  const urlStr = rawUrlStr.replace(/^http:\/\//i, 'https://');
   try {
     if (window.Telegram?.WebApp && typeof window.Telegram.WebApp.openTelegramLink === 'function' && isTelegramWebApp()) {
-      const httpsLink = urlStr.replace(/^http:\/\//i, 'https://');
-      window.Telegram.WebApp.openTelegramLink(httpsLink);
+      window.Telegram.WebApp.openTelegramLink(urlStr);
       return true;
     }
     if (typeof window !== 'undefined' && window.AndroidBridge && typeof window.AndroidBridge.openExternalUrl === 'function') {
@@ -282,7 +282,7 @@ export async function bindFisherIdWithTelegram(options = {}) {
   setupTelegramBindReturnPoller();
   if (options.openBindBot) {
     const startToken = `BIND_${encodeURIComponent(fisherId)}`;
-    const bindBotUrl = `${TELEGRAM_BOT_HTTP_URL}?start=${startToken}`;
+    const bindBotUrl = `${TELEGRAM_BOT_HTTPS_URL}?start=${startToken}`;
     const nativeTgUrl = `tg://resolve?domain=${TELEGRAM_BOT_USERNAME}&start=${startToken}`;
     showToast(`Связываем ваш ID (${fisherId}) с Telegram! Нажмите «Запустить / Start» в открывшемся боте @${TELEGRAM_BOT_USERNAME}.`, 'info');
     openTelegramUrlCrossPlatform(bindBotUrl, nativeTgUrl);
@@ -546,7 +546,7 @@ export function shareToTelegramChat(shareUrl, textSummary) {
     showToast(` Отправка в Telegram: ваш ID (${fisherId}) прикреплён к карточке! Для полной синхронизации с ботом нажмите «Связать ID с ТГ» в Профиле.`, 'info');
   }
   const cleanSummary = stripPlainTextSvgAndHtml(textSummary);
-  const fullTgShare = `http://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(cleanSummary)}`;
+  const fullTgShare = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(cleanSummary)}`;
   const nativeTgShare = `tg://msg_url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(cleanSummary)}`;
   return openTelegramUrlCrossPlatform(fullTgShare, nativeTgShare);
 }
@@ -567,7 +567,7 @@ export function openBotChatInTelegram(explicitFisherId = '') {
     showToast(` Открываем @${TELEGRAM_BOT_USERNAME} (ваш единый ID: ${fisherId})`, 'good');
   }
   const startToken = `BIND_${encodeURIComponent(fisherId)}`;
-  const botUrl = `${TELEGRAM_BOT_HTTP_URL}?start=${startToken}`;
+  const botUrl = `${TELEGRAM_BOT_HTTPS_URL}?start=${startToken}`;
   const nativeTgUrl = `tg://resolve?domain=${TELEGRAM_BOT_USERNAME}&start=${startToken}`;
   return openTelegramUrlCrossPlatform(botUrl, nativeTgUrl);
 }

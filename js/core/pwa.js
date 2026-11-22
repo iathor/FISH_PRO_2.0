@@ -185,6 +185,7 @@ export function showInstallModal(htmlText) {
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;')
       .replace(/&lt;b&gt;/gi, '<b>')
       .replace(/&lt;\/b&gt;/gi, '</b>')
       .replace(/&lt;br\s*\/?&gt;/gi, '<br>');

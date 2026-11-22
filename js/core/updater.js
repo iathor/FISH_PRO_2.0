@@ -7,7 +7,7 @@ import { store } from './store.js?v=2.9.3-r239';
  *   и бережной очисткой устаревшего кэша и технических куки БЕЗ удаления пользовательских данных (точек, журнала, профиля, чатов, офлайн-карт).
  */
 import { APP_VERSION, APP_BUILD_NUMBER, APP_REVISION, APP_DISPLAY_VERSION, RELEASE_CACHE_KEY, CURRENT_RELEASE_INFO } from './config.js?v=2.9.3-r239';
-import { showToast } from '../ui/components.js?v=2.9.3-r239';
+import { showToast, escapeHtml } from '../ui/components.js?v=2.9.3-r239';
 
 export const PUBLIC_SITE_ORIGIN = 'https://klevpro.ru';
 export const APK_MANIFEST_PATH = '/apk/apk-version.json';
@@ -451,8 +451,8 @@ export async function syncAndroidSiteApkDownloadUI() {
   const manifest = await fetchApkReleaseManifest();
   const ver = manifest?.version || APP_VERSION;
   const rev = manifest?.revision || APP_REVISION;
-  const disp = formatVersionWithRevision(ver, rev);
-  const sizeStr = manifest?.fileSize ? ` • ${manifest.fileSize}` : '';
+  const disp = escapeHtml(formatVersionWithRevision(ver, rev));
+  const sizeStr = manifest?.fileSize ? ` • ${escapeHtml(manifest.fileSize)}` : '';
   let isDismissed = false;
   try {
     isDismissed = localStorage.getItem(APK_BANNER_DISMISSED_KEY) === '1';
@@ -581,13 +581,14 @@ export function showReleaseUpdateModal(releaseInfo = CURRENT_RELEASE_INFO, isPen
     document.body.appendChild(modal);
   }
 
+  const defaultChangeSvg = '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg>';
   const changesHtml = changesList.map(item => `
     <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);padding:10px 12px;margin-bottom:8px;">
       <div style="font-weight:800;font-size:var(--fs-sm);color:var(--accent);margin-bottom:4px;">
-        ${item.icon} ${item.title}
+        ${item.icon === defaultChangeSvg ? item.icon : escapeHtml(item.icon)} ${escapeHtml(item.title)}
       </div>
       <div style="font-size:var(--fs-xs);color:var(--text);line-height:1.48;">
-        ${item.text}
+        ${escapeHtml(item.text)}
       </div>
     </div>
   `).join('');
@@ -604,21 +605,22 @@ export function showReleaseUpdateModal(releaseInfo = CURRENT_RELEASE_INFO, isPen
         ? `Обнаружена новая версия сайта / PWA (${remoteDisp}). Нажмите «Обновить кэш и применить», чтобы очистить устаревший кэш браузера и технические куки без потери ваших данных.`
         : (info.subtitle || 'У вас установлена актуальная версия со всеми последними обновлениями.'));
 
+  const safeRemoteDisp = escapeHtml(remoteDisp);
   modal.innerHTML = `
-    <div class="modal-box modal-has-sticky-footer" role="dialog" aria-modal="true" aria-label="${headerTitle}" style="max-width:540px;border-color:var(--accent);">
+    <div class="modal-box modal-has-sticky-footer" role="dialog" aria-modal="true" aria-label="${escapeHtml(headerTitle)}" style="max-width:540px;border-color:var(--accent);">
       <div style="margin-bottom:8px;">
         <span class="pill ${hasNewerApk || needsWebCacheRefresh ? 'pill-good' : 'pill-neutral'}" style="margin-bottom:6px;">
-          ${hasNewerApk ? `Новое обновление APK (${remoteDisp})` : (needsWebCacheRefresh ? `Требуется обновление кэша (${remoteDisp})` : `Актуальная версия ${remoteDisp}`)}
+          ${hasNewerApk ? `Новое обновление APK (${safeRemoteDisp})` : (needsWebCacheRefresh ? `Требуется обновление кэша (${safeRemoteDisp})` : `Актуальная версия ${safeRemoteDisp}`)}
         </span>
         <h3 style="font-size:var(--fs-lg);font-weight:800;color:var(--text);margin-top:4px;line-height:1.3;">
-          ${headerTitle}
+          ${escapeHtml(headerTitle)}
         </h3>
         <div style="font-size:var(--fs-xs);color:var(--muted);margin-top:3px;line-height:1.45;">
-          ${subtitleText}
+          ${escapeHtml(subtitleText)}
         </div>
       </div>
       <div style="font-weight:800;font-size:var(--fs-xs);color:var(--accent);margin-top:4px;">
-        Что нового в версии ${remoteDisp}:
+        Что нового в версии ${safeRemoteDisp}:
       </div>
       <div style="max-height:44vh;overflow-y:auto;padding-right:2px;margin:8px 0;">
         ${changesHtml}
@@ -630,7 +632,7 @@ export function showReleaseUpdateModal(releaseInfo = CURRENT_RELEASE_INFO, isPen
         ${inApk ? `
           ${hasNewerApk ? `
             <button type="button" class="btn btn-good" id="relModalDownloadApkBtn" style="flex:2;min-width:190px;font-weight:800;">
-              Загрузить APK (${remoteDisp})
+              Загрузить APK (${safeRemoteDisp})
             </button>
             <button type="button" class="btn" id="relModalLaterBtn" style="flex:1;min-width:110px;">Позже</button>
           ` : `
@@ -638,11 +640,11 @@ export function showReleaseUpdateModal(releaseInfo = CURRENT_RELEASE_INFO, isPen
           `}
         ` : (needsWebCacheRefresh ? `
           <button type="button" class="btn btn-good" id="relModalConfirmBtn" style="flex:2;min-width:195px;font-weight:800;">
-            Обновить кэш и применить (${remoteDisp})
+            Обновить кэш и применить (${safeRemoteDisp})
           </button>
           <button type="button" class="btn" id="relModalLaterBtn" style="flex:1;min-width:105px;">Позже</button>
         ` : `
-          <button type="button" class="btn" id="relModalForceSyncBtn" style="flex:1;min-width:155px;">Очистить кэш (${remoteDisp})</button>
+          <button type="button" class="btn" id="relModalForceSyncBtn" style="flex:1;min-width:155px;">Очистить кэш (${safeRemoteDisp})</button>
           <button type="button" class="btn btn-accent" id="relModalOkBtn" style="flex:1;min-width:125px;">Закрыть</button>
         `)}
       </div>

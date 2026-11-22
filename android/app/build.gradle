@@ -2,7 +2,7 @@ plugins {
     id 'com.android.application'
 }
 def ciRunNum = (System.getenv("GITHUB_RUN_NUMBER") ?: "0").toInteger()
-def effVerCode = 293249 + ciRunNum
+def effVerCode = 293251 + ciRunNum
 
 android {
     namespace 'ru.klevpro.app'
@@ -12,14 +12,14 @@ android {
         minSdk 24
         targetSdk 34
         versionCode effVerCode
-        versionName "2.9.1-r249"
+        versionName "2.9.1-r251"
     }
     signingConfigs {
         release {
             storeFile file("klevpro-release.keystore")
             storePassword System.getenv("KLEV_KEYSTORE_PASSWORD") ?: ""
             keyAlias System.getenv("KLEV_KEY_ALIAS") ?: "klevpro"
-            keyPassword System.getenv("KLEV_KEYSTORE_PASSWORD") ?: ""
+            keyPassword System.getenv("KLEV_KEY_PASSWORD") ?: (System.getenv("KLEV_KEYSTORE_PASSWORD") ?: "")
             enableV1Signing true
             enableV2Signing true
             enableV3Signing true
@@ -27,7 +27,7 @@ android {
     }
     buildTypes {
         debug {
-            signingConfig signingConfigs.release
+            minifyEnabled false
         }
         release {
             signingConfig signingConfigs.release
@@ -41,7 +41,7 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
     lint {
-        checkReleaseBuilds false
+        checkReleaseBuilds true
         abortOnError false
     }
     aaptOptions {

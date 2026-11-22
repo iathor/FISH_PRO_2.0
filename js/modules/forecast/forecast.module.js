@@ -2236,7 +2236,7 @@ export function renderExpress(container) {
                 <span style="font-size:var(--fs-xs);font-weight:800;color:var(--accent);">ПАНЕЛЬ ПРОФИ: РУЧНАЯ КАЛИБРОВКА ВЕСОВ 8-ФАКТОРНОЙ МОДЕЛИ</span>
                 <div style="font-size:11px;color:var(--good);font-weight:700;margin-top:2px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="4.5" stroke="#38bdf8" stroke-width="1.6"/><circle cx="12" cy="12" r="1.8" fill="#10b981"/></svg> ${val30.label}</div>
                 <div id="proCalibLiveSummary" style="font-size:11.5px;color:var(--accent);font-weight:800;margin-top:3px;">
-                  Активность «${fish.name}» с текущей калибровкой весов: <b>${calScoreNow}%</b>
+                  Активность «${escapeHtml(fish.name)}» с текущей калибровкой весов: <b>${calScoreNow}%</b>
                 </div>
               </div>
               <div style="display:flex;gap:6px;">
@@ -3784,7 +3784,7 @@ function updateLiveWeightLabelsAndScores(container) {
     const calScoreNow = calcDayBest(fish, activeDayObj, s.method, s.water, s.depth, s.normPress, s.iceState);
     const sumEl = container.querySelector('#proCalibLiveSummary');
     if (sumEl) {
-      sumEl.innerHTML = `Активность «${fish.name}» с текущей калибровкой весов: <b>${calScoreNow}%</b>`;
+      sumEl.innerHTML = `Активность «${escapeHtml(fish.name)}» с текущей калибровкой весов: <b>${calScoreNow}%</b>`;
     }
   }
   const savedWinScrollY = typeof window !== 'undefined' ? window.scrollY : 0;
@@ -4389,12 +4389,12 @@ function bindForecastEvents(container) {
       const archMethod = container.querySelector('#archMethodSel');
       const archBait = container.querySelector('#archBaitSel');
       if (archMethod) {
-        archMethod.innerHTML = newMethods.map(m => `<option value="${m.val}">${String(m.text || '').replace(/<[^>]+>/g, '').trim()}</option>`).join('');
+        archMethod.innerHTML = newMethods.map(m => `<option value="${escapeHtml(m.val)}">${escapeHtml(String(m.text || '').replace(/<[^>]+>/g, '').trim())}</option>`).join('');
         const chosenMethod = newMethods[0]?.val;
         store.dispatch({ type: 'SET_METHOD', payload: chosenMethod });
         const newBaits = getSeasonalBaitsForContext(fObj, chosenMethod, dayObj.waterTemp ?? 12, dayObj.iceState || s.iceState);
         if (archBait) {
-          archBait.innerHTML = newBaits.map(b => `<option value="${b}">${b}</option>`).join('');
+          archBait.innerHTML = newBaits.map(b => `<option value="${escapeHtml(b)}">${escapeHtml(b)}</option>`).join('');
           store.dispatch({ type: 'SET_BAIT', payload: newBaits[0] || '' });
         }
       }
@@ -4409,7 +4409,7 @@ function bindForecastEvents(container) {
       const newBaits = getSeasonalBaitsForContext(fObj, chosenMethod, day.waterTemp ?? 12, day.iceState || s.iceState);
       const archBait = container.querySelector('#archBaitSel');
       if (archBait) {
-        archBait.innerHTML = newBaits.map(b => `<option value="${b}">${b}</option>`).join('');
+        archBait.innerHTML = newBaits.map(b => `<option value="${escapeHtml(b)}">${escapeHtml(b)}</option>`).join('');
         store.dispatch({ type: 'SET_BAIT', payload: newBaits[0] || '' });
       }
       return;

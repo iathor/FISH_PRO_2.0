@@ -30,7 +30,7 @@ if (typeof window !== 'undefined') {
   window.__KLEV_BOOTSTRAPPED__ = true;
   window.__KLEV_STORE__ = store;
 }
-window.addEventListener('message', (e) => { if (e && e.data === 'klev_close_admin_console') closeModal(); });
+window.addEventListener('message', (e) => { if (!e || (e.origin && e.origin !== window.location.origin && e.origin !== 'null')) return; if (e.data === 'klev_close_admin_console') closeModal(); });
 const CLIENT_ERROR_LOG_KEY = 'klev_pro_client_error_log_v1';
 
 export function getClientErrorTelemetryLog() {

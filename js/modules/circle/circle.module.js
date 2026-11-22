@@ -81,8 +81,14 @@ try {
     const rawSavedAdm = localStorage.getItem(ADMIN_SAVED_CREDS_KEY);
     if (rawSavedAdm) {
       const parsedAdm = JSON.parse(rawSavedAdm);
-      if (parsedAdm && parsedAdm.adminSessionToken) {
-        _serverAdminSessionToken = String(parsedAdm.adminSessionToken).trim();
+      if (parsedAdm && typeof parsedAdm === 'object') {
+        if (parsedAdm.adminSessionToken) {
+          _serverAdminSessionToken = String(parsedAdm.adminSessionToken).trim();
+        }
+        if ('password' in parsedAdm) {
+          delete parsedAdm.password;
+          localStorage.setItem(ADMIN_SAVED_CREDS_KEY, JSON.stringify(parsedAdm));
+        }
       }
     }
   }
@@ -92,20 +98,29 @@ export function getSavedAdminCredentials() {
   try {
     if (typeof localStorage === 'undefined') return null;
     const raw = localStorage.getItem(ADMIN_SAVED_CREDS_KEY);
-    return raw ? JSON.parse(raw) : null;
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object' && 'password' in parsed) {
+      delete parsed.password;
+      try { localStorage.setItem(ADMIN_SAVED_CREDS_KEY, JSON.stringify(parsed)); } catch (_e) {}
+    }
+    return parsed;
   } catch (e) {
     return null;
   }
 }
+export const loadSavedAdminCredentials = getSavedAdminCredentials;
 
-export function saveAdminCredentialsToStorage({ login = 'iAthor', password = '', adminSessionToken = '' } = {}) {
+export function saveAdminCredentialsToStorage({ login = 'iAthor', adminSessionToken = '' } = {}) {
   try {
     if (typeof localStorage === 'undefined') return;
     const prev = getSavedAdminCredentials() || {};
+    const nextToken = adminSessionToken !== undefined
+      ? String(adminSessionToken || '').trim()
+      : String(prev.adminSessionToken || _serverAdminSessionToken || '').trim();
     const rec = {
       login: login || prev.login || 'iAthor',
-      password: password !== undefined ? password : (prev.password || ''),
-      adminSessionToken: adminSessionToken || prev.adminSessionToken || _serverAdminSessionToken || '',
+      adminSessionToken: nextToken,
       savedAt: Date.now()
     };
     if (rec.adminSessionToken) _serverAdminSessionToken = rec.adminSessionToken;
@@ -124,7 +139,6 @@ export function getActiveAdminToken(stateObj = null) {
     _serverAdminSessionToken ||
     s?.userProfile?.adminSessionToken ||
     saved?.adminSessionToken ||
-    saved?.password ||
     ''
   ).trim();
 }
@@ -1914,10 +1928,25 @@ export function isCircleItemMine(item, stateObj = null) {
   if (item.isDemoSeed || item.isLockedExternalCrew) return false;
   const s = stateObj || store.getState();
   const ident = getCurrentFisherIdentity(s);
-  if (item.fid && String(item.fid).toUpperCase() === String(ident.fisherId).toUpperCase()) {
+  const itemFid = String(item.fid || '').trim().toUpperCase();
+  const myFid = String(ident.fisherId || '').trim().toUpperCase();
+  if (itemFid && myFid && itemFid === myFid) {
     return true;
   }
-  if (!item.importedAt && item.did && item.did === ident.deviceId && item.did !== 'ext_v3' && item.did !== 'ext') {
+  const itemHasRegFid = Boolean(itemFid && !itemFid.includes('RZ'));
+  const myHasRegFid = Boolean(myFid && !myFid.includes('RZ'));
+  if (itemHasRegFid && myHasRegFid && itemFid !== myFid) {
+    return false;
+  }
+  const itemAu = String(item.au || '').trim().toLowerCase();
+  const myLogin = String(ident.login || ident.callsign || '').trim().toLowerCase();
+  if ((!itemHasRegFid || itemFid === myFid) && ident.isRegistered && myLogin && itemAu && itemAu === myLogin && itemAu !== 'рыболов' && !itemAu.startsWith('гость')) {
+    return true;
+  }
+  const hasForeignRegisteredOwner =
+    (itemHasRegFid && myFid && itemFid !== myFid) ||
+    (ident.isRegistered && myLogin && itemAu && itemAu !== myLogin && itemAu !== 'рыболов' && !itemAu.startsWith('гость'));
+  if (!hasForeignRegisteredOwner && !item.importedAt && item.did && item.did === ident.deviceId && item.did !== 'ext_v3' && item.did !== 'ext') {
     return true;
   }
   return false;
@@ -2351,8 +2380,14 @@ export async function syncNearbyCirclePointsFromServer(showFeedbackToast = false
         itemCopy.lon = hex.cellLon;
         itemCopy.poly = hex.vertices;
       }
-      const isMine = String(itemCopy.fid || '').toUpperCase() === String(ident.fisherId).toUpperCase();
       const existingItem = mergedMap.get(itemCopy.id);
+      if (existingItem && existingItem.did && !itemCopy.did) {
+        itemCopy.did = existingItem.did;
+      }
+      const isMine = isCircleItemMine(itemCopy, s) || (existingItem ? isCircleItemMine(existingItem, s) : false);
+      if (existingItem && existingItem.importedAt !== undefined) {
+        itemCopy.importedAt = isMine ? 0 : existingItem.importedAt;
+      }
       if (!existingItem) {
         itemCopy.importedAt = isMine ? 0 : now;
         if (!isMine) {
@@ -2713,12 +2748,12 @@ export async function authenticateAndSyncAccount(rawLogin, rawPassword, mode = '
         data.profile.login = creds.login;
         data.profile.callsign = creds.callsign;
         data.profile.ownerUnlocked = true;
+        data.profile.adminShowAllCrews = true;
         _serverAdminSessionToken = String(data.adminSessionToken || data.sessionToken || '').trim();
         data.profile.adminSessionToken = _serverAdminSessionToken;
         if (_adminDashboardCache) _adminDashboardCache.authRequired = false;
         saveAdminCredentialsToStorage({
           login: creds.login,
-          password: rawPassword,
           adminSessionToken: _serverAdminSessionToken
         });
       } else if (data.fisherId) {
@@ -4103,11 +4138,14 @@ export async function pollEncryptedRelayPackets(manual = false) {
       dmBoxes.push(`DM_${OWNER_BOUND_FISHER_ID}`, `DM_${OWNER_SECONDARY_FISHER_ID}`);
     }
     const boxes = Array.from(new Set([...dmBoxes, gridKey, 'SOS_ALL', ...crewBoxes])).slice(0, 24);
-    const authTokParam = encodeURIComponent(s.userProfile?.authTokenHash || '');
-    const admTokParam = encodeURIComponent(_serverAdminSessionToken || s.userProfile?.adminSessionToken || '');
+    const authTokHdr = String(s.userProfile?.authTokenHash || '').trim();
+    const admTokHdr = String(_serverAdminSessionToken || s.userProfile?.adminSessionToken || '').trim();
     const devIdParam = encodeURIComponent(ident.deviceId || '');
-    const url = `${RELAY_WORKER_URL}/relay/pull?boxes=${encodeURIComponent(boxes.join(','))}&since=${lastRelayPullTs}&viewer=${encodeURIComponent(ident.fisherId)}&deviceId=${devIdParam}&authTokenHash=${authTokParam}&adminToken=${admTokParam}`;
-    const res = await workerFetch(url, { method: 'GET' }, 4500, 0);
+    const pullHeaders = {};
+    if (authTokHdr) pullHeaders['X-Auth-Token'] = authTokHdr;
+    if (admTokHdr) pullHeaders['X-Admin-Token'] = admTokHdr;
+    const url = `${RELAY_WORKER_URL}/relay/pull?boxes=${encodeURIComponent(boxes.join(','))}&since=${lastRelayPullTs}&viewer=${encodeURIComponent(ident.fisherId)}&deviceId=${devIdParam}`;
+    const res = await workerFetch(url, { method: 'GET', headers: pullHeaders }, 4500, 0);
     if (!res.ok) {
       if (manual) showToast('Локальный режим чатов активен (транзитный ретранслятор офлайн)', 'info');
       return 0;
@@ -4785,7 +4823,8 @@ export function openAddThematicMapPointModal(initialCat = 'slip') {
             'Просторный берег (3–5 палаток)'
           ]
         };
-      case 'hazard':
+      case 'danger':
+    case 'hazard':
         return {
           titleLabel: '2. ОПИСАНИЕ ОПАСНОСТИ / ОРИЕНТИР:',
           titlePlaceholder: 'Напр.: Промоина у мыса, топляк под водой, старая сеть...',
@@ -5105,7 +5144,7 @@ export function openShareModalForCurrentContext(initialMode = 'circle', override
           ${currentMode === 'sos'
             ? '<b>Вспомогательный сигнал SOS для рыболовов поблизости:</b> виден на карте и в Круге при наличии связи. <b>Обязательно дублируйте вызов экстренной помощи по номеру 112 или по морской/речной рации!</b>'
             : (currentMode === 'crew'
-                ? `<b>Закрытый Экипаж (${pack.packObj.crewKey}):</b> точные координаты и чат экипажа увидят ТОЛЬКО участники с ключом (и Админы из базы).`
+                ? `<b>Закрытый Экипаж (${escapeHtml(pack.packObj.crewKey)}):</b> точные координаты и чат экипажа увидят ТОЛЬКО участники с ключом (и Админы из базы).`
                 : '<b>Ультракороткая бинарная упаковка V3:</b> вся ссылка занимает ~54 символа (<code>#p=KP1_...</code>) со встроенным ID рыбака и гексагоном ±5/10 км.')}
         </div>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:6px;">
@@ -5115,7 +5154,7 @@ export function openShareModalForCurrentContext(initialMode = 'circle', override
           </button>
           <button type="button" class="btn btn-sm ${currentMode === 'crew' ? 'btn-accent' : ''}" data-share-mode="crew" style="min-height:44px;flex-direction:column;gap:2px;">
             <span>Экипаж (72 ч)</span>
-            <span style="font-size:10px;opacity:0.85;">По ключу ${pack.packObj.crewKey || ''}</span>
+            <span style="font-size:10px;opacity:0.85;">По ключу ${escapeHtml(pack.packObj.crewKey || '')}</span>
           </button>
           <button type="button" class="btn btn-sm ${currentMode === 'sos' ? 'btn-good' : ''}" data-share-mode="sos" style="min-height:44px;flex-direction:column;gap:2px;border-color:var(--bad);color:${currentMode === 'sos' ? '#fff' : 'var(--bad)'};background:${currentMode === 'sos' ? 'var(--bad)' : 'var(--card)'};">
             <span>SOS</span>
@@ -6269,7 +6308,7 @@ export function renderChatsSubView(s, ident, visibleCrews) {
       channelId: chanId,
       type: 'crew',
       crewKey: k,
-      title: k.startsWith('REG-') ? `Региональный чат РФ (Регион ${k.replace('REG-', '')})` : `Экипаж ${k}${matchingCrew ? ` • ${matchingCrew.wn || matchingCrew.lb}` : ''}`,
+      title: k.startsWith('REG-') ? `Региональный чат РФ (Регион ${escapeHtml(k.replace('REG-', ''))})` : `Экипаж ${escapeHtml(k)}${matchingCrew ? ` • ${escapeHtml(matchingCrew.wn || matchingCrew.lb)}` : ''}`,
       subtitle: lastMsg ? `${String(lastMsg.senderName || 'Рыболов').replace(/<[^>]+>/g, '').trim()}: ${String(lastMsg.text || '').replace(/<svg[\s\S]*?<\/svg>/gi, '').replace(/<[^>]+>/g, '').trim().slice(0, 55)}` : '',
       lastTs: lastMsg?.ts || matchingCrew?.ca || 0
     });
@@ -6326,7 +6365,7 @@ export function renderChatsSubView(s, ident, visibleCrews) {
       channelId: activeChatChannelId,
       type: 'crew',
       crewKey: k,
-      title: k.startsWith('REG-') ? `Региональный чат РФ (Регион ${k.replace('REG-', '')})` : `Экипаж ${k}`,
+      title: k.startsWith('REG-') ? `Региональный чат РФ (Регион ${escapeHtml(k.replace('REG-', ''))})` : `Экипаж ${escapeHtml(k)}`,
       subtitle: 'Чат участников канала',
       lastTs: Date.now()
     });
@@ -6496,7 +6535,7 @@ function renderCompactCircleRow(item, s, ident, now) {
     titleText = escapeHtml(`${item.fn || 'Рыба'} • ${item.wn || item.lb || 'Точка'}`);
     subMetaText = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="3" y="8" width="18" height="8" rx="2" transform="rotate(-35 12 12)" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8"/><path d="M8 11l1.5 2M11 9l1.5 2M14 7l1.5 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg> ${Number(item.dp) || 2}м • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> ${Number(item.tw ?? 8)}°C • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.5 2" stroke="#38bdf8" stroke-width="1.9" stroke-linecap="round"/></svg> ${formatRemainingHours(item.ea)}`;
   } else if (item.t === 'spot') {
-    const normCat = (item.cat === 'hole' || item.cat === 'spot') ? 'bite' : (item.cat || 'slip');
+    const normCat = (item.cat === 'hole' || item.cat === 'spot') ? 'bite' : (item.cat === 'hazard' ? 'danger' : (item.cat || 'slip'));
     const spCat = SPOT_CATEGORIES[normCat] || SPOT_CATEGORIES.slip;
     catBadge = `<span class="pill" style="font-size:10px;padding:1px 6px;border:1px solid ${spCat.color};color:${spCat.color};">${spCat.icon} ${spCat.short}</span>`;
     titleText = escapeHtml(`${item.wn || item.fn || item.lb || 'Точка на карте'}`);
@@ -6527,24 +6566,20 @@ function renderCompactCircleRow(item, s, ident, now) {
   return `
     <div class="circle-compact-row" style="background:${rowBg};border:1px solid ${rowBorderColor};border-radius:var(--r-sm);padding:8px 10px;display:flex;flex-direction:column;gap:6px;">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;">
-        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;flex:1;min-width:190px;cursor:pointer;" data-toggle-compact-row="${item.id}">
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;flex:1;min-width:190px;cursor:pointer;" data-toggle-compact-row="${escapeHtml(item.id)}">
           ${catBadge}
           ${ownerPill}
           <span style="font-weight:800;font-size:var(--fs-xs);color:var(--text);">${titleText}</span>
           <span style="font-size:11px;color:var(--muted);">${subMetaText}</span>
         </div>
         <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;flex-wrap:wrap;">
-          ${item.t !== 'workshop' ? `<button type="button" class="btn btn-sm" data-goto-circle="${item.id}" title="Показать на карте" style="min-height:28px;padding:2px 7px;font-size:11px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3V6z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 3v15M15 6v15" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="10" r="2.2" fill="#38bdf8" stroke="#fff" stroke-width="1"/></svg></button>` : ''}
-          ${canApplyRig ? `<button type="button" class="btn btn-sm btn-good" data-apply-workshop="${item.id}" title="Повторить снасть: применить рыбу, метод, глубину и приманку в прогнозе" style="min-height:28px;padding:2px 7px;font-size:11px;">Снасть</button>` : ''}
-          ${cKey ? `<button type="button" class="btn btn-sm btn-accent" data-open-crew-chat="${cKey}" title="Открыть чат экипажа" style="min-height:26px;padding:2px 7px;font-size:11px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></button>` : (!mine ? `<button type="button" class="btn btn-sm" data-open-dm="${itemFid}" data-open-dm-name="${escapeHtml(authorDisplay)}" title="Написать рыбаку" style="min-height:26px;padding:2px 7px;font-size:11px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></button>` : '')}
-          ${(mine || ident.isOwner) ? `
-            <button type="button" class="btn btn-sm" data-del-my-circle="${item.id}" title="Удалить запись" style="min-height:26px;padding:2px 7px;font-size:11px;color:var(--bad);border-color:rgba(239,68,68,0.4);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-          ` : (hidden ? `
-            <button type="button" class="btn btn-sm btn-good" data-unhide-circle="${item.id}" title="Вернуть запись" style="min-height:26px;padding:2px 7px;font-size:11px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/></svg></button>
-          ` : `
-            <button type="button" class="btn btn-sm" data-hide-foreign-circle="${item.id}" title="Скрыть чужую запись" style="min-height:26px;padding:2px 7px;font-size:11px;color:var(--muted);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 19c-6.4 0-10-7-10-7a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c6.4 0 10 7 10 7a18.5 18.5 0 0 1-2.16 3.19M1 1l22 22" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
-          `)}
-          <button type="button" class="btn btn-sm" data-toggle-compact-row="${item.id}" title="Подробности" style="min-height:26px;padding:2px 6px;font-size:11px;">${isExpanded ? '▴' : '▾'}</button>
+          ${item.t !== 'workshop' ? `<button type="button" class="btn btn-sm" data-goto-circle="${escapeHtml(item.id)}" title="Показать на карте" style="min-height:28px;padding:2px 7px;font-size:11px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3V6z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 3v15M15 6v15" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="10" r="2.2" fill="#38bdf8" stroke="#fff" stroke-width="1"/></svg></button><button type="button" class="btn btn-sm btn-good" data-route-circle="${escapeHtml(item.id)}" title="Маршрут до точки" style="min-height:28px;padding:2px 7px;font-size:11px;font-weight:800;">Маршрут</button>` : ''}
+          ${canApplyRig ? `<button type="button" class="btn btn-sm btn-good" data-apply-workshop="${escapeHtml(item.id)}" title="Повторить снасть: применить рыбу, метод, глубину и приманку в прогнозе" style="min-height:28px;padding:2px 7px;font-size:11px;">Снасть</button>` : ''}
+          ${cKey ? `<button type="button" class="btn btn-sm btn-accent" data-open-crew-chat="${escapeHtml(cKey)}" title="Открыть чат экипажа" style="min-height:26px;padding:2px 7px;font-size:11px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></button>` : (!mine ? `<button type="button" class="btn btn-sm" data-open-dm="${escapeHtml(itemFid)}" data-open-dm-name="${escapeHtml(authorDisplay)}" title="Написать рыбаку" style="min-height:26px;padding:2px 7px;font-size:11px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></button>` : '')}
+          ${(mine || (ident.isOwner && isAdminContourActive())) ? `
+            <button type="button" class="btn btn-sm" data-del-my-circle="${escapeHtml(item.id)}" title="Удалить запись" style="min-height:26px;padding:2px 7px;font-size:11px;color:var(--bad);border-color:rgba(239,68,68,0.4);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          ` : ''}
+          <button type="button" class="btn btn-sm" data-toggle-compact-row="${escapeHtml(item.id)}" title="Подробности" style="min-height:26px;padding:2px 6px;font-size:11px;">${isExpanded ? '▴' : '▾'}</button>
         </div>
       </div>
       ${isExpanded ? `
@@ -6587,13 +6622,13 @@ function renderCompactCircleRow(item, s, ident, now) {
               <div><b>Автор:</b> ${escapeHtml(String(authorDisplay).replace(/<[^>]+>/g, '').trim())}</div>
             </div>
           `)}
-          ${cKey ? `<div style="color:var(--good);font-weight:800;">Ключ закрытого экипажа: <code>${cKey}</code></div>` : ''}
+          ${cKey ? `<div style="color:var(--good);font-weight:800;">Ключ закрытого экипажа: <code>${escapeHtml(cKey)}</code></div>` : ''}
           ${item.nt ? `<div style="padding:6px 8px;background:var(--card);border-left:3px solid ${item.sos ? 'var(--bad)' : 'var(--accent)'};border-radius:4px;color:var(--text);font-style:italic;">«${escapeHtml(String(item.nt || '').replace(/<[^>]+>/g, '').trim())}»</div>` : ''}
           <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;">
-            ${item.t !== 'workshop' ? `<button type="button" class="btn btn-sm btn-accent" data-goto-circle="${item.id}" style="padding:4px 10px;font-size:11.5px;">Показать на карте</button>` : ''}
-            ${canApplyRig ? `<button type="button" class="btn btn-sm btn-good" data-apply-workshop="${item.id}" style="padding:4px 10px;font-size:11.5px;">Применить снасть</button>` : ''}
-            ${cKey ? `<button type="button" class="btn btn-sm btn-good" data-open-crew-chat="${cKey}" style="padding:4px 10px;font-size:11.5px;">Чат экипажа (${cKey})</button>` : (!mine ? `<button type="button" class="btn btn-sm" data-open-dm="${itemFid}" data-open-dm-name="${escapeHtml(authorDisplay)}" style="padding:4px 10px;font-size:11.5px;">Написать в ЛС</button>` : '')}
-            ${(mine || ident.isOwner) ? `<button type="button" class="btn btn-sm" data-del-my-circle="${item.id}" style="padding:4px 10px;font-size:11.5px;color:var(--bad);border-color:rgba(239,68,68,0.4);">Удалить</button>` : ''}
+            ${item.t !== 'workshop' ? `<button type="button" class="btn btn-sm btn-accent" data-goto-circle="${escapeHtml(item.id)}" style="padding:4px 10px;font-size:11.5px;">Показать на карте</button><button type="button" class="btn btn-sm btn-good" data-route-circle="${escapeHtml(item.id)}" style="padding:4px 10px;font-size:11.5px;">Маршрут до точки</button>` : ''}
+            ${canApplyRig ? `<button type="button" class="btn btn-sm btn-good" data-apply-workshop="${escapeHtml(item.id)}" style="padding:4px 10px;font-size:11.5px;">Применить снасть</button>` : ''}
+            ${cKey ? `<button type="button" class="btn btn-sm btn-good" data-open-crew-chat="${escapeHtml(cKey)}" style="padding:4px 10px;font-size:11.5px;">Чат экипажа (${escapeHtml(cKey)})</button>` : (!mine ? `<button type="button" class="btn btn-sm" data-open-dm="${escapeHtml(itemFid)}" data-open-dm-name="${escapeHtml(authorDisplay)}" style="padding:4px 10px;font-size:11.5px;">Написать в ЛС</button>` : '')}
+            ${(mine || (ident.isOwner && isAdminContourActive())) ? `<button type="button" class="btn btn-sm" data-del-my-circle="${escapeHtml(item.id)}" style="padding:4px 10px;font-size:11.5px;color:var(--bad);border-color:rgba(239,68,68,0.4);">Удалить</button>` : ''}
           </div>
         </div>
       ` : ''}
@@ -6626,7 +6661,7 @@ export function renderCircleChatsHubBar(activeMode = 'radar') {
   const s = store.getState();
   const unreadChats = (s.chatMessages || []).filter(m => m && m.unread).length;
   const allItems = purgeExpiredCircleItems(s.circleItems || []);
-  const radarCount = allItems.filter(x => x && x.t !== 'workshop' && x.t !== 'spot' && !isCircleItemHidden(x, s)).length;
+  const radarCount = allItems.filter(x => x && x.t !== 'workshop' && !isCircleItemHidden(x, s)).length;
   const visibleSpotCircleItems = allItems.filter(x => x && x.t === 'spot' && !isCircleItemHidden(x, s));
   const uniquePersonalSpots = getDeduplicatedPersonalSavedSpots(s, visibleSpotCircleItems);
   const totalSpotsCount = visibleSpotCircleItems.length + uniquePersonalSpots.length;
@@ -6726,8 +6761,8 @@ function renderFullScreenChatWindowHtml(s, ident, visibleCrews) {
       type: 'crew',
       crewKey: isReg ? '' : cKey,
       title: isReg
-        ? `Региональный чат РФ (Регион ${regNum})`
-        : `Экипаж ${cKey}${crewItem?.wn ? ' • ' + escapeHtml(crewItem.wn) : ''}`
+        ? `Региональный чат РФ (Регион ${escapeHtml(regNum)})`
+        : `Экипаж ${escapeHtml(cKey)}${(crewItem?.wn || crewItem?.lb) ? ' • ' + escapeHtml(crewItem.wn || crewItem.lb) : ''}`
     };
   } else {
     const parts = activeChatChannelId.replace(/^dm:/, '').split(':');
@@ -6764,7 +6799,7 @@ function renderFullScreenChatWindowHtml(s, ident, visibleCrews) {
             </div>
           </div>
           <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">
-            ${activeChan.crewKey ? `<span class="fisher-id-copy-badge" data-copy-fisher-id="${activeChan.crewKey}" data-copy-label="Ключ экипажа" style="font-size:11px;font-family:monospace;font-weight:800;cursor:pointer;padding:4px 7px;background:var(--card);border:1px solid var(--border);border-radius:6px;">${activeChan.crewKey}</span>` : ''}
+            ${activeChan.crewKey ? `<span class="fisher-id-copy-badge" data-copy-fisher-id="${escapeHtml(activeChan.crewKey)}" data-copy-label="Ключ экипажа" style="font-size:11px;font-family:monospace;font-weight:800;cursor:pointer;padding:4px 7px;background:var(--card);border:1px solid var(--border);border-radius:6px;">${escapeHtml(activeChan.crewKey)}</span>` : ''}
             <button type="button" class="btn btn-sm" id="chatDeleteHistoryBtn" title="Удалить переписку" style="color:var(--bad);border-color:rgba(239,68,68,0.4);min-height:36px;padding:4px 9px;">
               <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </button>
@@ -6981,14 +7016,14 @@ export function render(container) {
   else if (activeOwnershipFilter === 'foreign') baseList = foreignItems;
   else if (activeOwnershipFilter === 'hidden') baseList = hiddenItems;
   const isSpotsTab = activeCategoryFilter === 'spot';
-  const radarBaseList = baseList.filter(item => item.t !== 'spot');
+  const radarBaseList = baseList.filter(item => item.t !== 'workshop');
   const filteredList = baseList.filter(item => {
     if (activeCategoryFilter === 'sos') return item.t === 'crew' && Boolean(item.sos);
     if (activeCategoryFilter === 'crew') return item.t === 'crew' && !item.sos;
     if (activeCategoryFilter === 'circle') return item.t === 'circle';
     if (activeCategoryFilter === 'spot') return item.t === 'spot';
     if (activeCategoryFilter === 'workshop') return item.t === 'workshop';
-    return item.t !== 'spot';
+    return item.t !== 'workshop';
   });
   const hubMode = isSpotsTab ? 'spots' : (activeCategoryFilter === 'workshop' ? 'workshop' : 'radar');
   const visibleSpotCircleItems = allItems.filter(x => x && x.t === 'spot' && !isCircleItemHidden(x, s));
@@ -7014,7 +7049,7 @@ export function render(container) {
             <button type="button" class="btn btn-sm" data-add-spot-cat="snag" style="min-height:38px;font-weight:800;border-color:var(--warn);width:100%;justify-content:flex-start;">${SPOT_CATEGORIES.snag.icon} Коряжник / Свал</button>
             <button type="button" class="btn btn-sm" data-add-spot-cat="camp" style="min-height:38px;font-weight:800;border-color:var(--good);width:100%;justify-content:flex-start;">${SPOT_CATEGORIES.camp.icon} Стоянка / Лагерь</button>
             <button type="button" class="btn btn-sm" data-add-spot-cat="bite" style="min-height:38px;font-weight:800;border-color:var(--accent);width:100%;justify-content:flex-start;">${SPOT_CATEGORIES.bite.icon} Рабочая яма / Клёв</button>
-            <button type="button" class="btn btn-sm" data-add-spot-cat="hazard" style="min-height:38px;font-weight:800;border-color:var(--bad);color:var(--bad);width:100%;justify-content:flex-start;">${SPOT_CATEGORIES.hazard.icon} Опасность / Промоина</button>
+            <button type="button" class="btn btn-sm" data-add-spot-cat="danger" style="min-height:38px;font-weight:800;border-color:var(--bad);color:var(--bad);width:100%;justify-content:flex-start;">${(SPOT_CATEGORIES.danger || SPOT_CATEGORIES.hazard).icon} Опасность / Промоина</button>
             <button type="button" class="btn btn-sm" data-add-spot-cat="shop" style="min-height:38px;font-weight:800;border-color:#c084fc;color:#c084fc;width:100%;justify-content:flex-start;">${SPOT_CATEGORIES.shop.icon} Магазин / База</button>
           </div>
         </div>
@@ -7025,7 +7060,7 @@ export function render(container) {
             </div>
             <div class="circle-personal-spots-grid" style="display:flex;flex-direction:column;gap:6px;">
               ${personalSavedSpots.map(sp => {
-                const spCatKey = (sp.category === 'hole' || sp.category === 'spot') ? 'bite' : (sp.category || 'slip');
+                const spCatKey = (sp.category === 'hole' || sp.category === 'spot') ? 'bite' : (sp.category === 'hazard' ? 'danger' : (sp.category || 'slip'));
                 const spCatObj = SPOT_CATEGORIES[spCatKey] || SPOT_CATEGORIES.slip;
                 const hasSpDepth = (spCatKey === 'snag' || spCatKey === 'bite') && Number(sp.depth) > 0;
                 const cleanMeta = sp.metaSummary || (hasSpDepth ? `Глубина ~${sp.depth} м` : spCatObj.short);
@@ -7047,6 +7082,17 @@ export function render(container) {
             </div>
           </div>
         ` : ""}
+        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-bottom:8px;">
+          <button type="button" class="btn btn-sm ${activeOwnershipFilter === 'all' ? 'btn-accent' : ''}" data-circle-owner="all" style="min-height:34px;padding:4px 6px;white-space:nowrap;">
+            Все (${nonHiddenItems.filter(x => x.t === 'spot').length})
+          </button>
+          <button type="button" class="btn btn-sm ${activeOwnershipFilter === 'mine' ? 'btn-good' : ''}" data-circle-owner="mine" style="min-height:34px;padding:4px 6px;white-space:nowrap;">
+            Мои (${mineItems.filter(x => x.t === 'spot').length})
+          </button>
+          <button type="button" class="btn btn-sm ${activeOwnershipFilter === 'foreign' ? 'btn-accent' : ''}" data-circle-owner="foreign" style="min-height:34px;padding:4px 6px;white-space:nowrap;">
+            Чужие (${foreignItems.filter(x => x.t === 'spot').length})
+          </button>
+        </div>
         <div style="font-size:11px;font-weight:900;color:var(--muted);text-transform:uppercase;margin-bottom:6px;">
           ОБЩИЕ ТОЧКИ РЕГИОНА В КРУГЕ (${filteredList.length}):
         </div>
@@ -7103,13 +7149,13 @@ export function render(container) {
         <!-- 3. Панель фильтрации радара (Принадлежность + Тип сигнала без обрезки кнопок) -->
         <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-bottom:8px;">
           <button type="button" class="btn btn-sm ${activeOwnershipFilter === 'all' ? 'btn-accent' : ''}" data-circle-owner="all" style="min-height:34px;padding:4px 6px;white-space:nowrap;">
-            Все (${nonHiddenItems.filter(x => x.t !== 'spot').length})
+            Все (${nonHiddenItems.filter(x => x.t !== 'workshop').length})
           </button>
           <button type="button" class="btn btn-sm ${activeOwnershipFilter === 'mine' ? 'btn-good' : ''}" data-circle-owner="mine" style="min-height:34px;padding:4px 6px;white-space:nowrap;">
-            Мои (${mineItems.filter(x => x.t !== 'spot').length})
+            Мои (${mineItems.filter(x => x.t !== 'workshop').length})
           </button>
           <button type="button" class="btn btn-sm ${activeOwnershipFilter === 'foreign' ? 'btn-accent' : ''}" data-circle-owner="foreign" style="min-height:34px;padding:4px 6px;white-space:nowrap;">
-            Чужие (${foreignItems.filter(x => x.t !== 'spot').length})
+            Чужие (${foreignItems.filter(x => x.t !== 'workshop').length})
           </button>
         </div>
         <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;margin-bottom:10px;">
@@ -7341,7 +7387,6 @@ export async function fetchSuperAdminDashboardData(forceToast = false) {
     _serverAdminSessionToken,
     s?.userProfile?.adminSessionToken,
     saved?.adminSessionToken,
-    saved?.password,
     getActiveAdminToken(s)
   ].filter(t => t && t !== 'OWNER_LOCAL_ADMIN')));
 
@@ -7452,16 +7497,7 @@ export async function fetchSuperAdminDashboardData(forceToast = false) {
     }
   }
 
-  // Если сессионный токен истёк, но на устройстве сохранён мастер-пароль — пробуем один раз обновить сессию через /auth/login
-  if (rejectedByAuth && saved?.password && saved.password.length >= 4 && !_authRequestInFlight) {
-    try {
-      const reAuth = await authenticateAndSyncAccount(saved.login || 'iAthor', saved.password, 'login', '89');
-      if (reAuth && reAuth.ok && _serverAdminSessionToken) {
-        _adminDashboardLoading = false;
-        return await fetchSuperAdminDashboardData(forceToast);
-      }
-    } catch (_e) {}
-  }
+  // Мастер-пароль в localStorage не хранится; при истечении сессионного токена требуется повторный ввод
 
   // Если токен устарел или отсутствует — сбрасываем невалидную сессию и показываем форму входа Владельца
   _adminDashboardLoading = false;
@@ -8008,7 +8044,7 @@ export function renderAdminSection(customContainer = null) {
   if (!ident.isOwner) {
     const savedCreds = getSavedAdminCredentials();
     const prefLogin = savedCreds?.login || 'iAthor';
-    const prefPass = savedCreds?.password || '';
+    const prefPass = '';
     container.innerHTML = `
       <div class="card" style="max-width:480px;margin:16px auto;border:2px solid var(--accent);padding:18px;display:flex;flex-direction:column;gap:12px;">
         <div style="display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);padding-bottom:10px;">
@@ -8060,7 +8096,6 @@ export function renderAdminSection(customContainer = null) {
       if (remChk) {
         saveAdminCredentialsToStorage({
           login: lVal,
-          password: pVal,
           adminSessionToken: _serverAdminSessionToken || store.getState()?.userProfile?.adminSessionToken || ''
         });
       }
@@ -8542,7 +8577,7 @@ export function renderAdminSection(customContainer = null) {
         ` : visibleSrvPoints.map(pt => `
           <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px;background:var(--panel);border:1px solid var(--border);border-radius:8px;font-size:12px;">
             <div style="min-width:0;flex:1;">
-              <b>${pt.sos ? 'SOS' : (pt.t === 'crew' ? `Экипаж ${pt.crewKey || ''}` : (pt.t === 'spot' ? 'Слип/Точка' : 'Круг'))}</b> • ${escapeHtml(pt.fn || 'Точка')} (${escapeHtml(pt.wn || pt.lb || 'Водоём')})
+              <b>${pt.sos ? 'SOS' : (pt.t === 'crew' ? `Экипаж <code>${escapeHtml(pt.crewKey || '')}</code>` : (pt.t === 'spot' ? 'Слип/Точка' : 'Круг'))}</b> • ${escapeHtml(pt.fn || 'Точка')} (${escapeHtml(pt.wn || pt.lb || 'Водоём')})
               <div style="font-size:11px;color:var(--accent);font-family:monospace;">Автор: ${escapeHtml(pt.fid || '—')}</div>
             </div>
             <button type="button" class="btn btn-sm" data-adm-del-srv-point="${escapeHtml(pt.id)}" data-adm-del-srv-title="${escapeHtml(`${pt.fn || 'Точка'} (${pt.wn || pt.lb || 'Водоём'})`)}" style="min-height:32px;padding:4px 10px;color:var(--bad);border-color:rgba(239,68,68,0.45);font-weight:800;">
@@ -8762,7 +8797,7 @@ export function renderAdminSection(customContainer = null) {
   }
 
   const needsMasterPassBanner = Boolean(db.authRequired || !getActiveAdminToken(s));
-  const savedPassVal = getSavedAdminCredentials()?.password || '';
+  const savedPassVal = '';
   const masterPassBannerHtml = needsMasterPassBanner ? `
     <div class="card" style="border:2px solid var(--warn);background:rgba(245,158,11,0.12);padding:12px;display:flex;flex-direction:column;gap:8px;">
       <div style="font-size:13px;font-weight:900;color:var(--warn);">Подключение к закрытой базе D1 (после очистки кэша)</div>
@@ -8833,9 +8868,10 @@ function bindAdminSectionEvents(container, users) {
       }
       inlinePassBtn.disabled = true;
       inlinePassBtn.textContent = 'Подключение к D1...';
-      saveAdminCredentialsToStorage({ login: 'iAthor', password: pVal, adminSessionToken: pVal });
-      _serverAdminSessionToken = pVal;
       await authenticateAndSyncAccount('iAthor', pVal, 'login', '89');
+      if (_serverAdminSessionToken) {
+        saveAdminCredentialsToStorage({ login: 'iAthor', adminSessionToken: _serverAdminSessionToken });
+      }
       await fetchSuperAdminDashboardData(true);
     };
     inlinePassBtn.addEventListener('click', submitInlinePass);
@@ -10771,6 +10807,30 @@ function bindCircleEvents(container) {
       if (!id) return;
       store.dispatch({ type: 'UNHIDE_CIRCLE_ITEM', payload: id });
       showToast(' Запись возвращена в ленту и на карту', 'good');
+    });
+  });
+  container.querySelectorAll('[data-route-circle]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const id = btn.getAttribute('data-route-circle');
+      const item = (store.getState().circleItems || []).find(x => x && x.id === id);
+      if (item && Number.isFinite(Number(item.lat)) && Number.isFinite(Number(item.lon))) {
+        const tLat = Number(item.lat);
+        const tLon = Number(item.lon);
+        const tTitle = item.wn || item.fn || item.lb || 'Точка на карте';
+        const tCat = item.sos ? 'SOS' : (item.t === 'spot' ? ((SPOT_CATEGORIES[item.cat === 'hazard' ? 'danger' : (item.cat || 'slip')] || SPOT_CATEGORIES.slip).short) : (item.t === 'crew' ? 'Экипаж' : 'Круг'));
+        if (typeof window !== 'undefined' && typeof window.__KLEV_FOCUS_MAP_CIRCLE__ === 'function') {
+          window.__KLEV_FOCUS_MAP_CIRCLE__(item.id, tLat, tLon);
+        } else {
+          setLocation(tLat, tLon, true);
+          router.navigate('geo');
+        }
+        if (typeof window !== 'undefined' && typeof window.__KLEV_OPEN_NAV_SPOT_MODAL__ === 'function') {
+          setTimeout(() => {
+            window.__KLEV_OPEN_NAV_SPOT_MODAL__({ lat: tLat, lon: tLon, title: tTitle, categoryLabel: tCat });
+          }, 180);
+        }
+      }
     });
   });
   container.querySelectorAll('[data-goto-circle]').forEach(btn => {

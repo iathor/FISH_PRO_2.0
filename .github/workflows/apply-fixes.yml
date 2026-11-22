@@ -3,6 +3,9 @@ name: Apply Targeted Fixes & Verify Tests (Klev PRO 2.0)
 on:
   workflow_dispatch:
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
 permissions:
   contents: write
 
@@ -42,6 +45,8 @@ jobs:
             app-runtime.js \
             cloudflare-worker-bot.js \
             android/app/build.gradle \
+            android/app/proguard-rules.pro \
+            android/app/src/main/AndroidManifest.xml \
             android/app/src/main/java/ru/klevpro/app/MainActivity.java \
             .github/workflows/build-android-apk.yml \
             .github/workflows/apply-fixes.yml \

@@ -2868,7 +2868,7 @@ let visibleMapLayers = {
   showForeign: true,
   ownership: "all", // "all" | "mine" | "foreign" | "none"
   spotCategory: "all",
-  selectedCategories: new Set(["slip", "snag", "camp", "hazard", "bite", "shop"]),
+  selectedCategories: new Set(["slip", "snag", "camp", "danger", "bite", "shop"]),
   openDropdown: "" // "" | "sources" | "ownership" | "categories"
 };
 /**
@@ -2959,7 +2959,7 @@ export function computeDeduplicatedMapCounts(stateObj = null) {
     .filter(x => x.t === 'crew' && Number.isFinite(Number(x.lat)) && Number.isFinite(Number(x.lon)) && (x.sos || ((!x.ea || x.ea > now) && (canUserAccessCrewItem(x, s) || isCircleItemMine(x, s)))))
     .map(item => ({
       id: item.id,
-      catKey: normalizeSpotCatKey(item.cat || (item.sos ? 'hazard' : 'camp')),
+      catKey: normalizeSpotCatKey(item.cat || (item.sos ? 'danger' : 'camp')),
       lat: Number(item.lat),
       lon: Number(item.lon),
       mine: isCircleItemMine(item, s),
@@ -4339,7 +4339,27 @@ try {
     if (rawAct) {
       const candidate = JSON.parse(rawAct);
       const ageMs = Date.now() - Number(candidate?.startedAt || 0);
-      if (candidate && candidate.explicitlyConfirmed === true && ageMs < 6 * 3600 * 1000 && !_isCorruptedIndoorJitterTrack(candidate)) {
+      const pts = Array.isArray(candidate?.points) ? candidate.points : [];
+      const isNavStatus = candidate?.status === 'returning' || candidate?.status === 'navigating_to_spot';
+      let alreadyAtGoalOnBoot = Boolean(candidate?.arrivedAnnounced) || (isNavStatus && pts.length < 2);
+      if (!alreadyAtGoalOnBoot && isNavStatus && pts.length >= 2 && _lastRealUserGps && Number.isFinite(_lastRealUserGps.lat) && Number.isFinite(_lastRealUserGps.lon)) {
+        const targetPt = candidate.status === 'navigating_to_spot' ? pts[pts.length - 1] : pts[0];
+        const tLat = Array.isArray(targetPt) ? Number(targetPt[0]) : Number(targetPt?.lat);
+        const tLon = Array.isArray(targetPt) ? Number(targetPt[1]) : Number(targetPt?.lon);
+        if (Number.isFinite(tLat) && Number.isFinite(tLon)) {
+          const distM = calcHaversineKm(_lastRealUserGps.lat, _lastRealUserGps.lon, tLat, tLon) * 1000;
+          if (distM <= 45) alreadyAtGoalOnBoot = true;
+        }
+      }
+      if (
+        candidate &&
+        candidate.explicitlyConfirmed === true &&
+        ageMs < 6 * 3600 * 1000 &&
+        !_isCorruptedIndoorJitterTrack(candidate) &&
+        !alreadyAtGoalOnBoot
+      ) {
+        candidate.restoredFromStorageAt = Date.now();
+        candidate.sessionMovedMeters = 0;
         _phase3ActiveTrack = candidate;
       } else {
         localStorage.removeItem(PHASE3_ACTIVE_TRACK_KEY);
@@ -4462,34 +4482,86 @@ function _pluralizeRu(n, one, few, many) {
   return many;
 }
 
-export function formatSpokenRouteDistanceRu(distKm) {
+export function numberToRussianWordsNominal(n) {
+  const num = Math.max(0, Math.round(Number(n) || 0));
+  if (num === 0) return 'ноль';
+  const ones = ['', 'один', 'два', 'три', 'четыре', 'пять', 'шесть', 'семь', 'восемь', 'девять'];
+  const onesFem = ['', 'одна', 'две', 'три', 'четыре', 'пять', 'шесть', 'семь', 'восемь', 'девять'];
+  const teens = [
+    'десять', 'одиннадцать', 'двенадцать', 'тринадцать', 'четырнадцать',
+    'пятнадцать', 'шестнадцать', 'семнадцать', 'восемнадцать', 'девятнадцать'
+  ];
+  const tens = ['', '', 'двадцать', 'тридцать', 'сорок', 'пятьдесят', 'шестьдесят', 'семьдесят', 'восемьдесят', 'девяносто'];
+  const hundreds = ['', 'сто', 'двести', 'триста', 'четыреста', 'пятьсот', 'шестьсот', 'семьсот', 'восемьсот', 'девятьсот'];
+
+  const spellTriplet = (val, feminine = false) => {
+    const parts = [];
+    const h = Math.floor(val / 100);
+    const rem = val % 100;
+    const t = Math.floor(rem / 10);
+    const u = rem % 10;
+    if (h > 0) parts.push(hundreds[h]);
+    if (t === 1) {
+      parts.push(teens[u]);
+    } else {
+      if (t > 1) parts.push(tens[t]);
+      if (u > 0) parts.push(feminine ? onesFem[u] : ones[u]);
+    }
+    return parts.join(' ');
+  };
+
+  const parts = [];
+  const thousands = Math.floor(num / 1000);
+  const rest = num % 1000;
+  if (thousands > 0) {
+    parts.push(spellTriplet(thousands, true));
+    parts.push(_pluralizeRu(thousands, 'тысяча', 'тысячи', 'тысяч'));
+  }
+  if (rest > 0) {
+    parts.push(spellTriplet(rest, false));
+  }
+  return parts.join(' ').trim();
+}
+
+export function formatSpokenRouteDistanceRu(distKm, useWords = true) {
   const rawMeters = Math.max(0, Math.round((Number(distKm) || 0) * 1000));
+  const fmt = (v) => useWords ? numberToRussianWordsNominal(v) : String(v);
   if (rawMeters < 1000) {
-    return `${rawMeters} ${_pluralizeRu(rawMeters, 'метр', 'метра', 'метров')}`;
+    return `${fmt(rawMeters)} ${_pluralizeRu(rawMeters, 'метр', 'метра', 'метров')}`;
   }
   const tenthsKm = Math.round(rawMeters / 100);
   const wholeKm = Math.floor(tenthsKm / 10);
   const hundredsMeters = (tenthsKm % 10) * 100;
   const kmWord = _pluralizeRu(wholeKm, 'километр', 'километра', 'километров');
   if (hundredsMeters === 0) {
-    return `примерно ${wholeKm} ${kmWord}`;
+    return `примерно ${fmt(wholeKm)} ${kmWord}`;
   }
-  return `примерно ${wholeKm} ${kmWord} ${hundredsMeters} метров`;
+  return `примерно ${fmt(wholeKm)} ${kmWord} ${fmt(hundredsMeters)} метров`;
 }
 
 function _normalizeDistanceTokensForSpeechRu(rawPhrase) {
   let text = String(rawPhrase || '');
-  text = text.replace(/(\d[\d\s\u00A0]*)\s*(?:м|метр(?:а|ов)?)\s*(?:\(\s*[\d.,]+\s*км\s*\))?/gi, (match, numStr) => {
+  // Заменяем "до старта примерно ..." на именительную конструкцию, чтобы TTS никогда не ставил числительное в родительный падеж
+  text = text.replace(/,\s*до старта\s+примерно/gi, '. Расстояние до точки старта составляет примерно');
+  // 1. Сначала дробные километры вида "70,5 км" или "70.5 километра"
+  text = text.replace(/(\d+)[.,](\d+)\s*(?:километр(?:а|ов)?|км)(?![а-яёa-z])/gi, (_m, kmPart, decPart) => {
+    const kmVal = parseInt(kmPart, 10) + parseInt(String(decPart).slice(0, 1), 10) * 0.1;
+    return formatSpokenRouteDistanceRu(kmVal, true);
+  });
+  // 2. Целые километры вида "70 километров" / "70 км" -> числительное словами в именительном падеже
+  text = text.replace(/(\d[\d\s\u00A0]*)\s*(?:километр(?:а|ов)?|км)(?![а-яёa-z])/gi, (match, numStr) => {
+    const cleanNum = parseInt(String(numStr).replace(/[\s\u00A0]/g, ''), 10);
+    if (!Number.isFinite(cleanNum)) return match;
+    return `${numberToRussianWordsNominal(cleanNum)} ${_pluralizeRu(cleanNum, 'километр', 'километра', 'километров')}`;
+  });
+  // 3. Метры вида "500 метров" / "500 м" (длинная форма "метр(?:а|ов)?" СТРОГО перед "м" и с границей слова (?![а-яёa-z]), что полностью исключает "метроветров"!)
+  text = text.replace(/(\d[\d\s\u00A0]*)\s*(?:метр(?:а|ов)?|м)(?![а-яёa-z])\s*(?:\(\s*[\d.,]+\s*км\s*\))?/gi, (match, numStr) => {
     const cleanNum = parseInt(String(numStr).replace(/[\s\u00A0]/g, ''), 10);
     if (!Number.isFinite(cleanNum)) return match;
     if (cleanNum >= 1000) {
-      return formatSpokenRouteDistanceRu(cleanNum / 1000);
+      return formatSpokenRouteDistanceRu(cleanNum / 1000, true);
     }
-    return `${cleanNum} ${_pluralizeRu(cleanNum, 'метр', 'метра', 'метров')}`;
-  });
-  text = text.replace(/(\d+)[.,](\d+)\s*(?:км|километр(?:а|ов)?)/gi, (_m, kmPart, decPart) => {
-    const kmVal = parseInt(kmPart, 10) + parseInt(String(decPart).slice(0, 1), 10) * 0.1;
-    return formatSpokenRouteDistanceRu(kmVal);
+    return `${numberToRussianWordsNominal(cleanNum)} ${_pluralizeRu(cleanNum, 'метр', 'метра', 'метров')}`;
   });
   return text;
 }
@@ -4727,7 +4799,7 @@ export function openExternalMapNavigatorUrl(url) {
     a.click();
     setTimeout(() => a.remove(), 500);
   } catch (e) {
-    window.open(url, '_blank');
+    window.open(url, '_blank', 'noopener,noreferrer');
   }
 }
 
@@ -4833,6 +4905,9 @@ function _detectUpcomingTurnInstruction(userLat, userLon, pts, idx, stepForward 
 }
 
 // Открытие диалога выбора навигации к точке на карте (Внешние карты Яндекс/Google/2ГИС ИЛИ ведение по нашей карте с чекбоксом записи маршрута)
+if (typeof window !== 'undefined') {
+  window.__KLEV_OPEN_NAV_SPOT_MODAL__ = (opts) => openNavigateToSpotChoiceModal(opts);
+}
 export function openNavigateToSpotChoiceModal({ lat, lon, title = 'Точка ловли', categoryLabel = 'Ориентир' } = {}) {
   const destLat = Number(lat);
   const destLon = Number(lon);
@@ -4940,35 +5015,47 @@ export function openNavigateToSpotChoiceModal({ lat, lon, title = 'Точка л
   });
 }
 
-export async function startNavigationToTargetSpot({ destLat, destLon, destTitle = 'Точка ловли', recordTrackAlong = true } = {}) {
-  const freshFix = (await acquireStableStartFix(6500, 20)) || (await acquireFreshHighAccuracyGpsFix(3000));
-  const s = store.getState();
-  const startLat = freshFix && freshFix.hasRealFix ? freshFix.lat : Number(s.lat || 66.0833);
-  const startLon = freshFix && freshFix.hasRealFix ? freshFix.lon : Number(s.lon || 76.6333);
-  const built = await buildRoadOrTrailRouteBetween(startLat, startLon, destLat, destLon);
+function _activatePhase3GuidanceFromBuiltRoute(builtRoute, recordTrackAlong = true, customTitle = '') {
+  if (!builtRoute || !Array.isArray(builtRoute.points) || builtRoute.points.length < 2) return null;
   const now = Date.now();
-  const initBearing = Math.round(calcBearingDeg(startLat, startLon, built.points[Math.min(1, built.points.length - 1)].lat, built.points[Math.min(1, built.points.length - 1)].lon));
-  const initDirRu = bearingToSpokenDirectionRu(initBearing);
+  const rawObjPts = builtRoute.points
+    .map(p => Array.isArray(p) ? { lat: Number(p[0]), lon: Number(p[1]), snapped: true } : { lat: Number(p?.lat), lon: Number(p?.lon), snapped: true })
+    .filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lon));
+  if (rawObjPts.length < 2) return null;
 
-  const roadStartPt = built.points[0] || { lat: startLat, lon: startLon };
+  const densePts = _densifyPolylineToMaxStep(rawObjPts, 0.010);
+  const startPt = densePts[0];
+  const destPt = densePts[densePts.length - 1];
+  let totalKm = 0;
+  for (let i = 1; i < densePts.length; i++) {
+    totalKm += calcHaversineKm(densePts[i - 1].lat, densePts[i - 1].lon, densePts[i].lat, densePts[i].lon);
+  }
+  const distKm = Number(Math.max(0.01, totalKm || builtRoute.distKm || 0.01).toFixed(3));
+  const titleStr = customTitle || builtRoute.destTitle || builtRoute.title || 'Активный маршрут';
+
   _phase3ActiveTrack = {
-    id: `nav_spot_${now}`,
-    title: `К точке: ${destTitle}`,
+    id: `nav_built_${now}`,
+    title: titleStr.startsWith('К точке:') ? titleStr : `К точке: ${titleStr}`,
+    name: titleStr,
     startedAt: now,
-    startLat: roadStartPt.lat,
-    startLon: roadStartPt.lon,
-    originStartLat: roadStartPt.lat,
-    originStartLon: roadStartPt.lon,
-    destLat,
-    destLon,
-    destTitle,
-    startLabel: `Старт (${roadStartPt.lat.toFixed(4)}°N, ${roadStartPt.lon.toFixed(4)}°E)`,
+    startLat: startPt.lat,
+    startLon: startPt.lon,
+    originStartLat: startPt.lat,
+    originStartLon: startPt.lon,
+    destLat: destPt.lat,
+    destLon: destPt.lon,
+    destTitle: titleStr,
+    startLabel: `Старт (${startPt.lat.toFixed(4)}°N, ${startPt.lon.toFixed(4)}°E)`,
     status: 'navigating_to_spot',
     returnMode: 'to_spot',
-    snappedToRoads: built.snappedToRoads,
+    transport: builtRoute.transport || _arcTransportMode || 'car',
+    snappedToRoads: true,
+    explicitlyConfirmed: true,
+    paused: false,
+    sessionMovedMeters: 0,
     recordTrackAlong: Boolean(recordTrackAlong),
-    rawGpsTrace: [{ lat: roadStartPt.lat, lon: roadStartPt.lon, ts: now, acc: freshFix?.acc || 5 }],
-    recordedBreadcrumbPoints: [{ lat: roadStartPt.lat, lon: roadStartPt.lon, ts: now, acc: freshFix?.acc || 5, snapped: true }],
+    rawGpsTrace: [{ lat: startPt.lat, lon: startPt.lon, ts: now, acc: _liveGpsFix?.acc || 5 }],
+    recordedBreadcrumbPoints: [{ lat: startPt.lat, lon: startPt.lon, ts: now, acc: _liveGpsFix?.acc || 5, snapped: true }],
     alreadySaved: false,
     wasOffTrack: false,
     nearGoalAnnounced: false,
@@ -4976,31 +5063,56 @@ export async function startNavigationToTargetSpot({ destLat, destLon, destTitle 
     lastTurnAnnouncedIdx: -1,
     lastTurnAnnouncedLat: null,
     lastTurnAnnouncedLon: null,
-    lastProgressSpokenDistKm: built.distKm,
+    lastProgressSpokenDistKm: distKm,
     lastRerouteTs: now,
-    totalDistKm: built.distKm,
-    points: built.points
+    totalDistKm: distKm,
+    points: densePts
   };
-  _phase3ReturnUserPos = { lat: roadStartPt.lat, lon: roadStartPt.lon, acc: freshFix?.acc || 5, ts: now };
+  _phase3ReturnUserPos = { lat: startPt.lat, lon: startPt.lon, acc: _liveGpsFix?.acc || 5, ts: now };
   _phase3OffTrackMeters = 0;
   persistActivePhase3Track();
   acquireBackgroundWakeLock(true);
   bindPhase3GeolocationWatcher();
   renderPhase3TrackOnMap();
   _updateActiveRouteOnScreenHud();
-  if (mapInstance && typeof mapInstance.setView === 'function') {
-    try { mapInstance.setView([roadStartPt.lat, roadStartPt.lon], Math.max(15, mapInstance.getZoom() || 15)); } catch (e) {}
+  return _phase3ActiveTrack;
+}
+
+export async function startNavigationToTargetSpot({ destLat, destLon, destTitle = 'Точка ловли', recordTrackAlong = true } = {}) {
+  const s = store.getState();
+  const smartRt = await computeSmartTransportRoute([{ lat: destLat, lon: destLon }], _arcTransportMode || 'car', 'waypoints', 'user_gps');
+  let routeToUse = smartRt;
+  if (!routeToUse || !Array.isArray(routeToUse.points) || routeToUse.points.length < 2) {
+    const freshFix = (await acquireStableStartFix(4500, 25)) || (await acquireFreshHighAccuracyGpsFix(2500));
+    const startLat = freshFix && freshFix.hasRealFix ? freshFix.lat : Number(s.lat || 66.0833);
+    const startLon = freshFix && freshFix.hasRealFix ? freshFix.lon : Number(s.lon || 76.6333);
+    const built = await buildRoadOrTrailRouteBetween(startLat, startLon, destLat, destLon);
+    routeToUse = {
+      mode: 'waypoints',
+      startOrigin: 'user_gps',
+      transport: _arcTransportMode || 'car',
+      targetWaypoints: [[destLat, destLon]],
+      points: built.points.map(p => [p.lat, p.lon]),
+      distKm: built.distKm,
+      etaMin: Math.max(1, Math.round((built.distKm / 30) * 60)),
+      destTitle
+    };
   }
-  try {
-    const smartRt = await computeSmartTransportRoute([{ lat: destLat, lon: destLon }], _arcTransportMode || 'car', 'waypoints');
-    if (smartRt && Array.isArray(smartRt.points) && smartRt.points.length >= 2) {
-      smartRt.started = true;
-      smartRt.paused = false;
-      smartRt.recordingAsked = true;
-      _arcBuiltRoute = smartRt;
-      renderArcRouteDraftAndActiveOnMap();
-    }
-  } catch (_e) {}
+  routeToUse.started = true;
+  routeToUse.paused = false;
+  routeToUse.destTitle = destTitle;
+  _arcBuiltRoute = routeToUse;
+  const trk = _activatePhase3GuidanceFromBuiltRoute(routeToUse, recordTrackAlong, destTitle);
+  renderArcRouteDraftAndActiveOnMap();
+
+  const p0 = trk?.points?.[0] || { lat: Number(s.lat || 66.0833), lon: Number(s.lon || 76.6333) };
+  const p1 = trk?.points?.[Math.min(1, (trk?.points?.length || 1) - 1)] || { lat: destLat, lon: destLon };
+  const initBearing = Math.round(calcBearingDeg(p0.lat, p0.lon, p1.lat, p1.lon));
+  const initDirRu = bearingToSpokenDirectionRu(initBearing);
+
+  if (mapInstance && typeof mapInstance.panTo === 'function') {
+    try { mapInstance.panTo([p0.lat, p0.lon], { animate: true }); } catch (e) {}
+  }
   const activeHaz = (typeof window !== 'undefined' && typeof window.__KLEV_GET_ROUTE_WEATHER_HAZARDS__ === 'function')
     ? window.__KLEV_GET_ROUTE_WEATHER_HAZARDS__(_arcTransportMode || 'car')
     : null;
@@ -5011,15 +5123,20 @@ export async function startNavigationToTargetSpot({ destLat, destLon, destTitle 
   if (roadWarnSpeech) {
     try { showToast(roadWarnSpeech.trim(), 'warn'); } catch (_) {}
   }
-  speakRouteGuidanceRu(`Маршрут до точки построен, дистанция ${formatSpokenRouteDistanceRu(built.distKm)}. Двигайтесь на ${initDirRu}.${roadWarnSpeech}`, true);
+  speakRouteGuidanceRu(`Маршрут до точки построен, дистанция ${formatSpokenRouteDistanceRu(routeToUse.distKm)}. Двигайтесь на ${initDirRu}.${roadWarnSpeech}`, true);
   const secGeo = typeof document !== 'undefined' ? document.getElementById('secGeo') : null;
   if (secGeo) render(secGeo);
 }
 
 async function acquireBackgroundWakeLock(enable = true) {
   try {
-    if (typeof window !== 'undefined' && window.AndroidBridge && typeof window.AndroidBridge.setKeepScreenAndCpuAwake === 'function') {
-      window.AndroidBridge.setKeepScreenAndCpuAwake(Boolean(enable));
+    if (typeof window !== 'undefined' && window.AndroidBridge) {
+      if (typeof window.AndroidBridge.setBgVoiceEnabled === 'function') {
+        window.AndroidBridge.setBgVoiceEnabled(Boolean(_voiceGuidanceBgEnabled));
+      }
+      if (typeof window.AndroidBridge.setKeepScreenAndCpuAwake === 'function') {
+        window.AndroidBridge.setKeepScreenAndCpuAwake(Boolean(enable));
+      }
     }
   } catch (e) {}
   try {
@@ -5542,22 +5659,42 @@ export function switchPhase3ToReturnMode(emergencyLost = false) {
   if (!_phase3ActiveTrack) {
     return startPhase3RouteRecording('Аварийный возврат к старту', true);
   }
+  const sourcePts = (Array.isArray(_phase3ActiveTrack.recordedBreadcrumbPoints) && _phase3ActiveTrack.recordedBreadcrumbPoints.length >= 2)
+    ? _phase3ActiveTrack.recordedBreadcrumbPoints
+    : (_phase3ActiveTrack.points || []);
+  const densePts = sourcePts.length >= 2 ? _densifyPolylineToMaxStep(sourcePts, 0.010) : sourcePts;
+  _phase3ActiveTrack.points = densePts;
   _phase3ActiveTrack.status = 'returning';
   _phase3ActiveTrack.returnMode = emergencyLost ? 'lost_emergency' : 'normal';
-  const pts = _phase3ActiveTrack.points || [];
-  const lastPt = pts[pts.length - 1] || pts[0];
-  if (!_phase3ReturnUserPos && lastPt) {
+  _phase3ActiveTrack.explicitlyConfirmed = true;
+  _phase3ActiveTrack.paused = false;
+  _phase3ActiveTrack.arrivedAnnounced = false;
+  _phase3ActiveTrack.nearGoalAnnounced = false;
+  _phase3ActiveTrack.wasOffTrack = false;
+  _phase3ActiveTrack.offTrackStrikeCount = 0;
+  _phase3ActiveTrack.lastTurnAnnouncedIdx = -1;
+  _phase3ActiveTrack.lastTurnAnnouncedLat = null;
+  _phase3ActiveTrack.lastTurnAnnouncedLon = null;
+  _phase3ActiveTrack.sessionMovedMeters = 0;
+
+  const lastPt = densePts[densePts.length - 1] || densePts[0];
+  if (lastPt) {
     _phase3ReturnUserPos = {
       lat: _liveGpsFix.hasRealFix ? _liveGpsFix.lat : lastPt.lat,
       lon: _liveGpsFix.hasRealFix ? _liveGpsFix.lon : lastPt.lon,
       acc: _liveGpsFix.acc || 5,
       ts: Date.now()
     };
+    const navSt = _computeReturnProgressAlongTrack(_phase3ReturnUserPos.lat, _phase3ReturnUserPos.lon, densePts);
+    _phase3ActiveTrack.lastProgressSpokenDistKm = navSt.remainingTrailKm;
+    const initDir = bearingToSpokenDirectionRu(navSt.bearingDeg);
+    speakRouteGuidanceRu(`Включено ведение обратно к точке старта. Осталось ${formatSpokenRouteDistanceRu(navSt.remainingTrailKm)}. Двигайтесь на ${initDir}.`, true);
   }
   persistActivePhase3Track();
   acquireBackgroundWakeLock(true);
   bindPhase3GeolocationWatcher();
   renderPhase3TrackOnMap();
+  _updateActiveRouteOnScreenHud();
   if (typeof window !== 'undefined' && typeof window.__KLEV_PLAY_SONAR_PING__ === 'function') {
     try { window.__KLEV_PLAY_SONAR_PING__(emergencyLost ? 'sos' : 'normal'); } catch (e) {}
   }
@@ -5663,14 +5800,16 @@ function _gpsFilterIngest(pos, opts = {}) {
   const lat = Number(c.latitude);
   const lon = Number(c.longitude);
   const acc = Number(c.accuracy) > 0 ? Number(c.accuracy) : 50;
-  const rawTs = Number(pos.timestamp) || Date.now();
-  const t = Math.abs(Date.now() - rawTs) <= 15000 ? rawTs : Date.now();
+  const nowTs = Date.now();
+  const rawTs = Number(pos.timestamp) || nowTs;
+  const t = Math.abs(nowTs - rawTs) <= 6500 ? rawTs : nowTs;
   const vRep = Number.isFinite(Number(c.speed)) && Number(c.speed) >= 0 ? Number(c.speed) : null;
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
-  if (pos._isGps === false && _GPSF.lat !== null) { _gpsFilterStats.rejAcc++; return null; }
+  // В фоне разрешаем сетевой провайдер, если спутниковый GPS не обновлялся дольше 7 секунд
+  if (pos._isGps === false && _GPSF.lat !== null && (nowTs - (_GPSF.ts || 0) < 7000)) { _gpsFilterStats.rejAcc++; return null; }
   if (acc > accMax) { _gpsFilterStats.rejAcc++; return null; }
-  if (Date.now() - t > 8000) { _gpsFilterStats.rejStale++; return null; }
-  if (_GPSF.ts && t < _GPSF.ts) { _gpsFilterStats.rejOrder++; return null; }
+  if (nowTs - t > 12000) { _gpsFilterStats.rejStale++; return null; }
+  if (_GPSF.ts && t < _GPSF.ts) { _GPSF.ts = t; }
 
   const out = (la, lo, held) => {
     _gpsFiltered = { lat: la, lon: lo, acc, speed: vRep, ts: t, held: !!held };
@@ -5818,7 +5957,10 @@ function _processIncomingPhase3GpsFix(rawPos) {
     _held: f.held
   };
   _updateLiveGpsTelemetryFromPosition(pos);
-  if (!_phase3ActiveTrack) return;
+  if (!_phase3ActiveTrack && _arcBuiltRoute && _arcBuiltRoute.started && Array.isArray(_arcBuiltRoute.points) && _arcBuiltRoute.points.length >= 2) {
+    _activatePhase3GuidanceFromBuiltRoute(_arcBuiltRoute, true);
+  }
+  if (!_phase3ActiveTrack || _phase3ActiveTrack.paused || (_arcBuiltRoute && _arcBuiltRoute.paused)) return;
   const now = Date.now();
   if (now - _lastProcessedGpsTickTs < 450) return;
   _lastProcessedGpsTickTs = now;
@@ -5929,12 +6071,35 @@ function _processIncomingPhase3GpsFix(rawPos) {
       } catch (_e) {}
     }
 
-    // Проверка 1: прибытие в конечную точку назначения (<= 25 м)
-    if (remMeters <= 25 && !_phase3ActiveTrack.arrivedAnnounced) {
+    if (_phase3ReturnUserPos && Number.isFinite(_phase3ReturnUserPos.lat) && Number.isFinite(_phase3ReturnUserPos.lon)) {
+      const stepMovedM = calcHaversineKm(_phase3ReturnUserPos.lat, _phase3ReturnUserPos.lon, rawLat, rawLon) * 1000;
+      if (stepMovedM >= 1.5 && stepMovedM <= 250) {
+        _phase3ActiveTrack.sessionMovedMeters = Number(_phase3ActiveTrack.sessionMovedMeters || 0) + stepMovedM;
+      }
+    }
+    const canAnnounceArrival = !_phase3ActiveTrack.restoredFromStorageAt || Number(_phase3ActiveTrack.sessionMovedMeters || 0) >= 15;
+
+    // Проверка 1: прибытие в конечную точку назначения или возврат в точку старта (<= 28 м) с автоматическим завершением ведения
+    if (remMeters <= 28 && !_phase3ActiveTrack.arrivedAnnounced && canAnnounceArrival) {
       _phase3ActiveTrack.arrivedAnnounced = true;
-      speakRouteGuidanceRu('Вы прибыли в точку назначения.', true);
-      persistActivePhase3Track();
-    } else if (remMeters > 25 && remMeters <= 450 && remMeters >= 260 && !_phase3ActiveTrack.nearGoalAnnounced) {
+      const isReturn = _phase3ActiveTrack.status === 'returning';
+      const shouldSaveOnArrive = isReturn ? !_phase3ActiveTrack.alreadySaved : Boolean(_phase3ActiveTrack.recordTrackAlong);
+      speakRouteGuidanceRu(
+        isReturn
+          ? 'Вы вернулись в точку старта. Ведение по маршруту завершено.'
+          : 'Вы прибыли в точку назначения. Ведение по маршруту завершено.',
+        true
+      );
+      _arcBuiltRoute = null;
+      _arcWaypointsDraft = [];
+      _arcFreehandStrokes = [];
+      stopAndSavePhase3Route(shouldSaveOnArrive);
+      renderArcRouteDraftAndActiveOnMap();
+      _updateActiveRouteOnScreenHud();
+      const secGeo = typeof document !== 'undefined' ? document.getElementById('secGeo') : null;
+      if (secGeo) render(secGeo);
+      return;
+    } else if (remMeters > 28 && remMeters <= 450 && remMeters >= 260 && !_phase3ActiveTrack.nearGoalAnnounced) {
       _phase3ActiveTrack.nearGoalAnnounced = true;
       const remRounded = Math.round(remMeters / 10) * 10;
       speakRouteGuidanceRu(`Вы почти у цели. До окончания маршрута осталось ${formatSpokenRouteDistanceRu(remMeters / 1000)}.`, true);
@@ -6555,11 +6720,29 @@ export function openPhase3RoutesModal(container = null) {
           _phase3ReturnUserPos = freshFix && freshFix.hasRealFix
             ? { lat: freshFix.lat, lon: freshFix.lon, acc: freshFix.acc, ts: Date.now() }
             : { lat: endPt.lat, lon: endPt.lon, acc: 5, ts: Date.now() };
+          const denseSavedPts = Array.isArray(found.points) && found.points.length >= 2
+            ? _densifyPolylineToMaxStep(found.points, 0.010)
+            : (found.points || []);
+          const endSavedPt = denseSavedPts[denseSavedPts.length - 1] || denseSavedPts[0];
+          const initPos = _liveGpsFix.hasRealFix ? _liveGpsFix : (endSavedPt || { lat: 66.0833, lon: 76.6333 });
+          const navStSaved = _computeReturnProgressAlongTrack(initPos.lat, initPos.lon, denseSavedPts);
           _phase3ActiveTrack = {
             ...found,
+            points: denseSavedPts,
             alreadySaved: true,
+            explicitlyConfirmed: true,
             status: 'returning',
-            returnMode: 'normal'
+            returnMode: 'normal',
+            paused: false,
+            arrivedAnnounced: false,
+            nearGoalAnnounced: false,
+            wasOffTrack: false,
+            offTrackStrikeCount: 0,
+            lastTurnAnnouncedIdx: -1,
+            lastTurnAnnouncedLat: null,
+            lastTurnAnnouncedLon: null,
+            sessionMovedMeters: 0,
+            lastProgressSpokenDistKm: navStSaved.remainingTrailKm
           };
           persistActivePhase3Track();
           acquireBackgroundWakeLock(true);
@@ -6708,11 +6891,12 @@ function renderMapOverlays() {
     if (curZoom >= 10) {
       thematicCandidates.forEach(pt => {
         const catObj = SPOT_CATEGORIES[pt.catKey] || SPOT_CATEGORIES.slip;
+        const canDelSpotOnMap = Boolean(pt.mine || (typeof window !== 'undefined' && window.__KLEV_ADMIN_CONTOUR__ === true && Boolean(ident.isOwner)));
         const delOrHideBtn = pt.isSavedSpot
           ? `<button type="button" data-popup-del-spot="${escapeHtml(pt.id)}" style="margin-top:5px;padding:2px 8px;border-radius:5px;border:1px solid #ef4444;background:#ef4444;color:#fff;font-size:10.5px;font-weight:800;cursor:pointer;">Удалить закладку</button>`
-          : ((pt.mine || ident.isOwner)
+          : (canDelSpotOnMap
               ? `<button type="button" data-popup-del-circle="${escapeHtml(pt.id)}" style="margin-top:5px;padding:2px 8px;border-radius:5px;border:1px solid #ef4444;background:#ef4444;color:#fff;font-size:10.5px;font-weight:800;cursor:pointer;">Удалить точку</button>`
-              : `<button type="button" data-popup-hide-circle="${escapeHtml(pt.id)}" style="margin-top:5px;padding:2px 8px;border-radius:5px;border:1px solid #64748b;background:#334155;color:#fff;font-size:10.5px;font-weight:800;cursor:pointer;">Скрыть точку</button>`);
+              : "");
         let marker;
         if (typeof L.divIcon === 'function' && typeof L.marker === 'function') {
           marker = L.marker([pt.lat, pt.lon], {
@@ -6749,7 +6933,7 @@ function renderMapOverlays() {
         } else if (showDepth || showClip) {
           detailLine = `<span class="klev-popup-detail">${showDepth ? `Глубина: ${pt.depth} м` : ''}${showDepth && showClip ? ' • ' : ''}${showClip ? `Клипса: ${pt.clipMeters} м` : ''}</span><br>`;
         }
-        const navRouteBtn = isMobileOrTabletMapMode() ? `<button type="button" data-popup-nav-spot="1" data-nav-lat="${pt.lat}" data-nav-lon="${pt.lon}" data-nav-title="${escapeHtml(pt.name)}" data-nav-cat="${escapeHtml(catObj.short)}" style="margin-top:5px;margin-right:5px;padding:3px 9px;border-radius:5px;border:1px solid #10b981;background:#10b981;color:#fff;font-size:10.5px;font-weight:800;cursor:pointer;">Маршрут до точки</button>` : "";
+        const navRouteBtn = `<button type="button" data-popup-nav-spot="1" data-nav-lat="${pt.lat}" data-nav-lon="${pt.lon}" data-nav-title="${escapeHtml(pt.name)}" data-nav-cat="${escapeHtml(catObj.short)}" style="margin-top:5px;margin-right:5px;padding:3px 9px;border-radius:5px;border:1px solid #10b981;background:#10b981;color:#fff;font-size:10.5px;font-weight:800;cursor:pointer;">Маршрут до точки</button>`;
         if (_bathymetryLayerEnabled && Number(pt.depth) > 0 && (pt.catKey === 'bite' || pt.catKey === 'snag' || pt.isBathymetryPoint)) {
           const dVal = Number(pt.depth);
           const bathyCol = dVal >= 8 ? '#1d4ed8' : (dVal >= 4 ? '#0284c7' : '#38bdf8');
@@ -6841,9 +7025,10 @@ function renderMapOverlays() {
     const ownerBadgeHtml = mine
       ? `<span style="color:#10b981;font-weight:800;"><svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"12\" cy=\"8\" r=\"4\" fill=\"rgba(56,189,248,0.22)\" stroke=\"currentColor\" stroke-width=\"1.8\"/><path d=\"M4 20c0-3.8 3.6-6.5 8-6.5s8 2.7 8 6.5\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\"/></svg> Моя</span>`
       : `<span style="color:#38bdf8;font-weight:800;"><svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"12\" cy=\"12\" r=\"9\" stroke=\"currentColor\" stroke-width=\"1.8\"/><path d=\"M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18\" stroke=\"currentColor\" stroke-width=\"1.6\"/></svg> Чужая</span>`;
-    const actionBtnHtml = (mine || ident.isOwner)
-      ? `<button type="button" data-popup-del-circle="${item.id}" style="margin-top:5px;padding:3px 8px;border-radius:5px;border:1px solid #ef4444;background:#ef4444;color:#fff;font-size:11px;font-weight:800;cursor:pointer;"><svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg> Удалить точку</button>`
-      : `<button type="button" data-popup-hide-circle="${item.id}" style="margin-top:5px;padding:3px 8px;border-radius:5px;border:1px solid #64748b;background:#334155;color:#fff;font-size:11px;font-weight:800;cursor:pointer;"><svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M17.94 17.94A10.07 10.07 0 0 1 12 19c-6.4 0-10-7-10-7a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c6.4 0 10 7 10 7a18.5 18.5 0 0 1-2.16 3.19M1 1l22 22\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\"/></svg> Скрыть чужую точку</button>`;
+    const canDelCircleOnMap = Boolean(mine || (typeof window !== 'undefined' && window.__KLEV_ADMIN_CONTOUR__ === true && Boolean(ident.isOwner)));
+    const actionBtnHtml = canDelCircleOnMap
+      ? `<button type="button" data-popup-del-circle="${escapeHtml(item.id)}" style="margin-top:5px;padding:3px 8px;border-radius:5px;border:1px solid #ef4444;background:#ef4444;color:#fff;font-size:11px;font-weight:800;cursor:pointer;"><svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg> Удалить точку</button>`
+      : "";
     const isFocused = (_focusedCircleId && String(_focusedCircleId) === String(item.id));
     if (item.sos) {
       const hasSpotsPane = Boolean(mapInstance && mapInstance.getPane && mapInstance.getPane("spotsAndSosPane"));
@@ -6867,7 +7052,7 @@ function renderMapOverlays() {
         `<b>Причина SOS:</b> <span style="color:#fca5a5;font-weight:800;">«${escapeHtml(cleanSosReason)}»</span><br>` +
         `<b>Отправитель:</b> ${escapeHtml(item.au || "Рыболов")} (${escapeHtml(item.fid || "")}) • ${sosTimeStr}` +
         `</div>` +
-        `${actionBtnHtml}</div>`;
+        `<div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;"><button type="button" data-popup-nav-spot="1" data-nav-lat="${item.lat}" data-nav-lon="${item.lon}" data-nav-title="${escapeHtml('SOS: ' + (item.wn || item.lb || 'Сигнал помощи'))}" data-nav-cat="SOS" style="margin-top:5px;margin-right:5px;padding:3px 8px;border-radius:5px;border:1px solid #10b981;background:#10b981;color:#fff;font-size:11px;font-weight:800;cursor:pointer;">Маршрут до точки</button>${actionBtnHtml}</div></div>`;
       sosMarker.bindPopup(sosPopupHtml);
       overlayLayerGroup.addLayer(sosMarker);
       _circleLayersMap.set(item.id, sosMarker);
@@ -6899,13 +7084,13 @@ function renderMapOverlays() {
       });
       const cKey = item.crewKey || "";
       const crewPopupHtml = `<div style="font-size:12px;line-height:1.4;">` +
-        `<b style="color:#10b981;font-size:13px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> Экипаж ${cKey ? `(${cKey})` : ""} (${ownerBadgeHtml}):</b><br>` +
+        `<b style="color:#10b981;font-size:13px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg> Экипаж ${cKey ? `(<code>${escapeHtml(cKey)}</code>)` : ""} (${ownerBadgeHtml}):</b><br>` +
         `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#ef4444"/></svg> <b>${escapeHtml(item.wn || item.lb || "Стоянка")}</b> (глубина ${item.dp || 2} м)<br>` +
         `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 12s4-6 11-6c4.2 0 7 2.5 9 6-2 3.5-4.8 6-9 6-7 0-11-6-11-6z" fill="rgba(56,189,248,0.28)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M2 12l-1.5-3.5L5 10.5M2 12l-1.5 3.5L5 13.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="16.5" cy="10.8" r="1.3" fill="currentColor"/></svg> Рыба: <b>${escapeHtml(item.fn || "—")}</b> • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 18c0-4 4-4 4-8s4-4 4-6 5-1 5 3-3 5-3 8 4 4 6 2" stroke="#f43f5e" stroke-width="2.2" stroke-linecap="round"/></svg> ${escapeHtml(item.bt || "по сезону")}<br>` +
         `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" fill="rgba(56,189,248,0.22)" stroke="currentColor" stroke-width="1.8"/><path d="M4 20c0-3.8 3.6-6.5 8-6.5s8 2.7 8 6.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Напарник: <b>${escapeHtml(item.au || "Экипаж")}</b><br>` +
         `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.5 2" stroke="#38bdf8" stroke-width="1.9" stroke-linecap="round"/></svg> Статус: <b>${item.isExpedition && item.expStart && item.expEnd ? `Экспедиция (${escapeHtml(item.expStart)}..${escapeHtml(item.expEnd)}) • Сохранено навсегда` : (isLinkActive ? `Ссылка активна ~${hrsLeft} ч • Точка сохранена навсегда` : 'Точка экипажа сохранена навсегда')}</b><br>` +
         (item.nt ? `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> «${escapeHtml(item.nt)}»<br>` : "") +
-        (cKey ? `<button type="button" data-popup-crew-chat="${cKey}" style="margin-top:6px;padding:3px 9px;border-radius:5px;border:1px solid #10b981;background:#10b981;color:#fff;font-size:11px;font-weight:800;cursor:pointer;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> Чат экипажа (${cKey})</button><br>` : "") +
+        (cKey ? `<button type="button" data-popup-crew-chat="${escapeHtml(cKey)}" data-popup-open-crew-chat="${escapeHtml(cKey)}" style="margin-top:6px;padding:3px 9px;border-radius:5px;border:1px solid #10b981;background:#10b981;color:#fff;font-size:11px;font-weight:800;cursor:pointer;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> Чат экипажа (${escapeHtml(cKey)})</button><br>` : "") +
         (isMobileOrTabletMapMode() ? `<button type="button" data-popup-nav-spot="1" data-nav-lat="${item.lat}" data-nav-lon="${item.lon}" data-nav-title="${escapeHtml(item.wn || item.lb || 'Точка экипажа')}" data-nav-cat="Экипаж" style="margin-top:5px;margin-right:5px;padding:3px 8px;border-radius:5px;border:1px solid #0284c7;background:#0284c7;color:#fff;font-size:11px;font-weight:800;cursor:pointer;">Маршрут до точки</button>` : "") + `${actionBtnHtml}</div>`;
       crewZone.bindPopup(crewPopupHtml);
       crewMarker.bindPopup(crewPopupHtml);
@@ -6964,9 +7149,9 @@ function renderMapOverlays() {
               ? `SOS: ${escapeHtml(pt.wn || pt.lb || "Сигнал помощи")}`
               : (pt.t === "spot"
                   ? `${escapeHtml((SPOT_CATEGORIES[pt.cat] || SPOT_CATEGORIES.slip).short)}: ${escapeHtml(pt.wn || pt.fn || pt.lb || "Точка")}`
-                  : `Экипаж ${escapeHtml(pt.crewKey || "")}: ${escapeHtml(pt.wn || pt.lb || "Стоянка")}`);
+                  : `Экипаж <code>${escapeHtml(pt.crewKey)}</code>: ${escapeHtml(pt.wn || pt.lb || "Стоянка")}`);
             const btnCol = pt.sos ? "#ef4444" : (pt.t === "spot" ? (SPOT_CATEGORIES[pt.cat]?.color || "#38bdf8") : "#10b981");
-            return `<button type="button" data-popup-focus-point="${escapeHtml(pt.id)}" data-popup-focus-lat="${pt.lat}" data-popup-focus-lon="${pt.lon}" style="display:block;width:100%;text-align:left;margin-top:3px;padding:4px 7px;border-radius:5px;border:1px solid ${btnCol};background:rgba(15,23,42,0.85);color:#fff;font-size:11px;font-weight:800;cursor:pointer;">→ Открыть: ${ptLbl}</button>`;
+            return `<button type="button" data-popup-focus-point="${escapeHtml(pt.id)}" data-popup-open-crew-chat="${escapeHtml(pt.crewKey)}" data-popup-focus-lat="${pt.lat}" data-popup-focus-lon="${pt.lon}" style="display:block;width:100%;text-align:left;margin-top:3px;padding:4px 7px;border-radius:5px;border:1px solid ${btnCol};background:rgba(15,23,42,0.85);color:#fff;font-size:11px;font-weight:800;cursor:pointer;">→ Открыть: ${ptLbl}</button>`;
           }).join("") +
           `</div>`
         : "";
@@ -6980,7 +7165,7 @@ function renderMapOverlays() {
         `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" fill="rgba(56,189,248,0.22)" stroke="currentColor" stroke-width="1.8"/><path d="M4 20c0-3.8 3.6-6.5 8-6.5s8 2.7 8 6.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> От: <b>${escapeHtml(item.au || "Рыболов")}</b><br>` +
         (item.nt ? `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> «${escapeHtml(item.nt)}»<br>` : "") +
         innerPointsHtml +
-        `${actionBtnHtml}</div>`;
+        `<div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;"><button type="button" data-popup-nav-spot="1" data-nav-lat="${centerLat}" data-nav-lon="${centerLon}" data-nav-title="${escapeHtml(item.wn || item.lb || 'Сектор Круга')}" data-nav-cat="Круг" style="margin-top:5px;margin-right:5px;padding:3px 8px;border-radius:5px;border:1px solid #10b981;background:#10b981;color:#fff;font-size:11px;font-weight:800;cursor:pointer;">Маршрут до точки</button>${actionBtnHtml}</div></div>`;
       blurZone.bindPopup(circlePopupHtml);
       fishIconMarker.bindPopup(circlePopupHtml);
       overlayLayerGroup.addLayer(blurZone);
@@ -6997,7 +7182,7 @@ function renderMapOverlays() {
       fillOpacity: 0.9,
       weight: 2.5
     });
-    scMarker.bindPopup(`<b><svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"11\" cy=\"11\" r=\"6.5\" stroke=\"currentColor\" stroke-width=\"2\"/><path d=\"M16 16l4.5 4.5\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg> Разведка точки:</b> ${inspectedPoint.settlementLabel}<br>Топ: ${inspectedPoint.topSpecies[0]?.fish?.name || 'Щука'} (${inspectedPoint.topSpecies[0]?.score || 70}%)`);
+    scMarker.bindPopup(`<b><svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"11\" cy=\"11\" r=\"6.5\" stroke=\"currentColor\" stroke-width=\"2\"/><path d=\"M16 16l4.5 4.5\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg> Разведка точки:</b> ${escapeHtml(inspectedPoint.settlementLabel)}<br>Топ: ${escapeHtml(inspectedPoint.topSpecies[0]?.fish?.name || 'Щука')} (${inspectedPoint.topSpecies[0]?.score || 70}%)`);
     overlayLayerGroup.addLayer(scMarker);
   }
 }
@@ -7323,6 +7508,30 @@ export function renderMap(mapBoxEl) {
         selectTemporaryMapSpot(lat, lng);
       }
     };
+
+    mapInstance.on('click', (e) => {
+      if (_arcRouteBuilderMode === 'waypoints' && e && e.latlng) {
+        const origEv = e.originalEvent;
+        const origX = Number.isFinite(origEv?.clientX) ? origEv.clientX : origEv?.changedTouches?.[0]?.clientX;
+        const origY = Number.isFinite(origEv?.clientY) ? origEv.clientY : origEv?.changedTouches?.[0]?.clientY;
+        let targetLl = e.latlng;
+        if (Number.isFinite(origX) && Number.isFinite(origY) && mapInstance && typeof mapInstance.containerPointToLatLng === 'function') {
+          const px = clientToRotatedMapPoint(origX, origY);
+          targetLl = mapInstance.containerPointToLatLng(L.point(px[0], px[1])) || e.latlng;
+        }
+        if (targetLl && Number.isFinite(targetLl.lat) && Number.isFinite(targetLl.lng)) {
+          _arcWaypointsDraft.push({
+            lat: Number(targetLl.lat.toFixed(6)),
+            lon: Number(targetLl.lng.toFixed(6))
+          });
+          renderArcRouteDraftAndActiveOnMap();
+          const addBtn = document.getElementById('arcWpAddPointBtn');
+          if (addBtn) {
+            addBtn.textContent = `Добавить точку (${_arcWaypointsDraft.length})`;
+          }
+        }
+      }
+    });
 
     mapInstance.on('mousedown', (e) => {
       noteUserMapTouchInteraction();
@@ -8418,13 +8627,25 @@ function renderArcRouteDraftAndActiveOnMap() {
     const line = L.polyline(_arcBuiltRoute.points, lineOpts);
     _arcRouteDraftLayerGroup.addLayer(line);
 
+    const startPt = _arcBuiltRoute.points[0];
     const endPt = _arcBuiltRoute.points[_arcBuiltRoute.points.length - 1];
+    if (startPt && Number.isFinite(startPt[0]) && Number.isFinite(startPt[1])) {
+      const startMarker = L.marker(startPt, {
+        icon: L.divIcon({
+          className: 'klev-arc-start-pin',
+          iconSize: [26, 26],
+          iconAnchor: [13, 13],
+          html: `<div class="klev-map-pin-rot-inner" title="Старт маршрута (первая точка)" style="transform:rotate(${(-_mapRotCur).toFixed(2)}deg);width:26px;height:26px;border-radius:999px;background:#10b981;border:2.5px solid #ffffff;color:#ffffff;font-size:11.5px;font-weight:900;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(0,0,0,0.6);">А</div>`
+        })
+      });
+      _arcRouteDraftLayerGroup.addLayer(startMarker);
+    }
     const finishMarker = L.marker(endPt, {
       icon: L.divIcon({
         className: 'klev-arc-finish-pin',
         iconSize: [26, 26],
         iconAnchor: [13, 13],
-        html: `<div class="klev-map-pin-rot-inner" style="transform:rotate(${(-_mapRotCur).toFixed(2)}deg);width:26px;height:26px;border-radius:999px;background:${col};border:2.5px solid #ffffff;color:#ffffff;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(0,0,0,0.6);">
+        html: `<div class="klev-map-pin-rot-inner" title="Финиш маршрута" style="transform:rotate(${(-_mapRotCur).toFixed(2)}deg);width:26px;height:26px;border-radius:999px;background:${col};border:2.5px solid #ffffff;color:#ffffff;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(0,0,0,0.6);">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M5 3v18M5 4h13l-2.5 4.5L18 13H5" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>`
       })
@@ -9018,6 +9239,16 @@ export async function findWaterNavMeshPath(a, b, options = {}) {
       }
       pathNodes.reverse();
       const coords = pathNodes.map(nd => [nd.lat, nd.lon]);
+      if (coords.length === 0 || calcHaversineKm(a[0], a[1], coords[0][0], coords[0][1]) > 0.005) {
+        coords.unshift([a[0], a[1]]);
+      } else {
+        coords[0] = [a[0], a[1]];
+      }
+      if (calcHaversineKm(b[0], b[1], coords[coords.length - 1][0], coords[coords.length - 1][1]) > 0.005) {
+        coords.push([b[0], b[1]]);
+      } else {
+        coords[coords.length - 1] = [b[0], b[1]];
+      }
       return {
         points: coords,
         nodes: pathNodes,
@@ -9311,12 +9542,11 @@ async function _buildOsmNetworkPathBetween(a, b, transportMode = 'car') {
         }
         path.reverse();
         if (transportMode === 'boat') {
-          // Для лодки возвращаем СТРОГО водное русло без сухопутных отрезков до дома/берега
           const boatSeg = [];
-          if (calcHaversineKm(a[0], a[1], path[0][0], path[0][1]) <= 0.12) boatSeg.push(a);
+          if (calcHaversineKm(a[0], a[1], path[0][0], path[0][1]) > 0.005) boatSeg.push(a);
           boatSeg.push(...path);
-          if (calcHaversineKm(b[0], b[1], path[path.length - 1][0], path[path.length - 1][1]) <= 0.12) boatSeg.push(b);
-          return boatSeg.length >= 2 ? boatSeg : path;
+          if (calcHaversineKm(b[0], b[1], path[path.length - 1][0], path[path.length - 1][1]) > 0.005) boatSeg.push(b);
+          return boatSeg.length >= 2 ? boatSeg : [a, b];
         }
         const fullSeg = [];
         if (calcHaversineKm(a[0], a[1], path[0][0], path[0][1]) > 0.015) fullSeg.push(a);
@@ -9509,6 +9739,7 @@ function _checkProximityToDeferredRouteStart(userLat, userLon) {
         if (_arcBuiltRoute) {
           _arcBuiltRoute.started = true;
           _arcBuiltRoute.paused = false;
+          _activatePhase3GuidanceFromBuiltRoute(_arcBuiltRoute, true);
           updateLiveUserGpsMarkerOnMap();
           speakRouteGuidanceRu(`Начинаем движение по маршруту. Дистанция ${formatSpokenRouteDistanceRu(_arcBuiltRoute.distKm)}.`, true);
           const secGeo = document.getElementById('secGeo');
@@ -9558,11 +9789,13 @@ export async function computeSmartTransportRoute(waypointsList, transportMode = 
   }
 
   const distFromHomeToFirstTargetKm = calcHaversineKm(startPt[0], startPt[1], effectiveTargets[0][0], effectiveTargets[0][1]);
-  const defaultOrigin = (isFreehand || (transportMode === 'boat' && (effectiveTargets.length >= 2 || distFromHomeToFirstTargetKm > 0.8)))
+  const defaultOrigin = (effectiveTargets.length >= 2 && (isFreehand || (transportMode === 'boat' && distFromHomeToFirstTargetKm > 0.8)))
     ? 'first_point'
     : 'user_gps';
-  const resolvedStartOrigin = explicitOriginStr || _arcBuiltRoute?.startOrigin || defaultOrigin;
-  const skipHomeStart = resolvedStartOrigin === 'first_point';
+  const resolvedStartOrigin = (effectiveTargets.length < 2)
+    ? 'user_gps'
+    : (explicitOriginStr || _arcBuiltRoute?.startOrigin || defaultOrigin);
+  const skipHomeStart = resolvedStartOrigin === 'first_point' && effectiveTargets.length >= 2;
   const chain = skipHomeStart ? [...effectiveTargets] : [startPt, ...effectiveTargets];
   let finalPoly = [];
 
@@ -9646,7 +9879,24 @@ export async function computeSmartTransportRoute(waypointsList, transportMode = 
       }
     }
   } else {
-    finalPoly = chain;
+    finalPoly = [...chain];
+  }
+  if (finalPoly.length < 2) {
+    finalPoly = chain.length >= 2 ? [chain[0], chain[chain.length - 1]] : [startPt, effectiveTargets[effectiveTargets.length - 1]];
+  }
+  if (finalPoly.length >= 2 && chain.length >= 2) {
+    const expStart = chain[0];
+    const expEnd = chain[chain.length - 1];
+    if (calcHaversineKm(expStart[0], expStart[1], finalPoly[0][0], finalPoly[0][1]) > 0.005) {
+      finalPoly.unshift([expStart[0], expStart[1]]);
+    } else {
+      finalPoly[0] = [expStart[0], expStart[1]];
+    }
+    if (calcHaversineKm(expEnd[0], expEnd[1], finalPoly[finalPoly.length - 1][0], finalPoly[finalPoly.length - 1][1]) > 0.005) {
+      finalPoly.push([expEnd[0], expEnd[1]]);
+    } else {
+      finalPoly[finalPoly.length - 1] = [expEnd[0], expEnd[1]];
+    }
   }
 
   let totalKm = 0;
@@ -10668,12 +10918,26 @@ function bindArcMobileMapEvents(container) {
   container.querySelector('#arcPickedSpotRouteBtn')?.addEventListener('click', async (e) => {
     e.stopPropagation();
     if (!_arcPickedSpot) return;
-    const { lat, lon } = _arcPickedSpot;
+    const { lat, lon, title } = _arcPickedSpot;
     _arcPickedSpotSheetOpen = false;
-    const rt = await computeSmartTransportRoute([{ lat, lon }], _arcTransportMode || 'car', 'waypoints');
+    const rt = await computeSmartTransportRoute([{ lat, lon }], _arcTransportMode || 'car', 'waypoints', 'user_gps');
     if (rt) {
+      rt.started = true;
+      rt.paused = false;
+      rt.destTitle = title || 'Выбранная точка';
       _arcBuiltRoute = rt;
+      const trk = _activatePhase3GuidanceFromBuiltRoute(rt, true, rt.destTitle);
       renderArcRouteDraftAndActiveOnMap();
+      const p0 = trk?.points?.[0] || { lat, lon };
+      const p1 = trk?.points?.[Math.min(1, (trk?.points?.length || 1) - 1)] || { lat, lon };
+      const initDir = bearingToSpokenDirectionRu(Math.round(calcBearingDeg(p0.lat, p0.lon, p1.lat, p1.lon)));
+      const startHaz = (typeof window !== 'undefined' && typeof window.__KLEV_GET_ROUTE_WEATHER_HAZARDS__ === 'function')
+        ? window.__KLEV_GET_ROUTE_WEATHER_HAZARDS__(rt.transport || _arcTransportMode)
+        : (rt.hazards || null);
+      const hazVoice = (startHaz && startHaz.hasHazards && startHaz.summaryText)
+        ? ` Внимание на маршруте: ${startHaz.summaryText}.`
+        : '';
+      speakRouteGuidanceRu(`Маршрут до выбранной точки построен, дистанция ${formatSpokenRouteDistanceRu(rt.distKm)}. Двигайтесь на ${initDir}.${hazVoice}`, true);
     }
     render(container);
   });
@@ -10948,13 +11212,21 @@ function bindArcMobileMapEvents(container) {
     render(container);
   });
 
-  container.querySelector('#arcWpFinishBuildBtn')?.addEventListener('click', (e) => {
+  container.querySelector('#arcWpFinishBuildBtn')?.addEventListener('click', async (e) => {
     e.stopPropagation();
     if (_arcWaypointsDraft.length === 0) {
       const c = mapInstance ? mapInstance.getCenter() : { lat: Number(s.lat || 66.0865), lng: Number(s.lon || 76.6420) };
       _arcWaypointsDraft.push({ lat: c.lat, lon: c.lng });
     }
     const draftCopy = [..._arcWaypointsDraft];
+    if (draftCopy.length === 1) {
+      const built = await computeSmartTransportRoute(draftCopy, _arcTransportMode, 'waypoints', 'user_gps');
+      _arcRouteBuilderMode = null;
+      _arcBuiltRoute = built;
+      renderArcRouteDraftAndActiveOnMap();
+      render(container);
+      return;
+    }
     promptRouteStartOriginChoice(draftCopy, 'waypoints', async (startOrigin) => {
       const built = await computeSmartTransportRoute(draftCopy, _arcTransportMode, 'waypoints', startOrigin);
       _arcRouteBuilderMode = null;
@@ -10966,7 +11238,7 @@ function bindArcMobileMapEvents(container) {
         const firstPt = built.points[0];
         const distToStartKm = calcHaversineKm(uPos.lat, uPos.lon, firstPt[0], firstPt[1]);
         showToast(`Маршрут начнётся при достижении точки старта (до старта ${formatExactRouteDistanceRu(distToStartKm)})`, 'info');
-        speakRouteGuidanceRu(`Маршрут начнётся при достижении точки старта, до старта ${formatSpokenRouteDistanceRu(distToStartKm)}.`, true);
+        speakRouteGuidanceRu(`Маршрут начнётся при достижении точки старта. Расстояние до точки старта составляет ${formatSpokenRouteDistanceRu(distToStartKm)}.`, true);
         _checkProximityToDeferredRouteStart(uPos.lat, uPos.lon);
       }
     });
@@ -11207,7 +11479,7 @@ function bindArcMobileMapEvents(container) {
         const firstPt = built.points[0];
         const distToStartKm = calcHaversineKm(uPos.lat, uPos.lon, firstPt[0], firstPt[1]);
         showToast(`Маршрут начнётся при достижении точки старта (до старта ${formatExactRouteDistanceRu(distToStartKm)})`, 'info');
-        speakRouteGuidanceRu(`Маршрут начнётся при достижении точки старта, до старта ${formatSpokenRouteDistanceRu(distToStartKm)}.`, true);
+        speakRouteGuidanceRu(`Маршрут начнётся при достижении точки старта. Расстояние до точки старта составляет ${formatSpokenRouteDistanceRu(distToStartKm)}.`, true);
         _checkProximityToDeferredRouteStart(uPos.lat, uPos.lon);
       }
     });
@@ -11221,6 +11493,7 @@ function bindArcMobileMapEvents(container) {
     if (!_arcBuiltRoute.started) {
       _arcBuiltRoute.started = true;
       _arcBuiltRoute.paused = false;
+      _activatePhase3GuidanceFromBuiltRoute(_arcBuiltRoute, true);
       updateLiveUserGpsMarkerOnMap();
       const startHaz = (typeof window !== 'undefined' && typeof window.__KLEV_GET_ROUTE_WEATHER_HAZARDS__ === 'function')
         ? window.__KLEV_GET_ROUTE_WEATHER_HAZARDS__(_arcBuiltRoute.transport || _arcTransportMode)
@@ -11229,11 +11502,9 @@ function bindArcMobileMapEvents(container) {
         ? ` Внимание: на маршруте ${startHaz.summaryText}.`
         : '';
       speakRouteGuidanceRu(`Маршрут построен. Дистанция ${formatSpokenRouteDistanceRu(_arcBuiltRoute.distKm)}.${hazVoice} Начинаем движение.`, true);
-      if (!_phase3ActiveTrack) {
-        try { startPhase3RouteRecording('', false, getTrueUserGpsCoords(s)); } catch (_e) {}
-      }
     } else {
       _arcBuiltRoute.paused = !_arcBuiltRoute.paused;
+      if (_phase3ActiveTrack) _phase3ActiveTrack.paused = _arcBuiltRoute.paused;
       speakRouteGuidanceRu(_arcBuiltRoute.paused ? 'Ведение по маршруту на паузе' : 'Продолжаем движение по маршруту');
     }
     render(container);
@@ -11771,10 +12042,10 @@ export function render(container) {
               <div>
                 <span class="pill pill-good" style="font-size:10px;"><svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"11\" cy=\"11\" r=\"6.5\" stroke=\"currentColor\" stroke-width=\"2\"/><path d=\"M16 16l4.5 4.5\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg> Разведка точки (без перезаписи вашей локации)</span>
                 <div style="font-weight:800;font-size:var(--fs-md);margin-top:4px;">
-                  <svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z\" fill=\"rgba(239,68,68,0.22)\" stroke=\"#ef4444\" stroke-width=\"1.9\"/><circle cx=\"12\" cy=\"11\" r=\"2.3\" fill=\"#ef4444\"/></svg> ${inspectedPoint.settlementLabel} • ${inspectedPoint.primaryWaterName}
+                  <svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z\" fill=\"rgba(239,68,68,0.22)\" stroke=\"#ef4444\" stroke-width=\"1.9\"/><circle cx=\"12\" cy=\"11\" r=\"2.3\" fill=\"#ef4444\"/></svg> ${escapeHtml(inspectedPoint.settlementLabel)} • ${escapeHtml(inspectedPoint.primaryWaterName)}
                 </div>
                 <div style="font-size:var(--fs-xs);color:var(--muted);">
-                  ${inspectedPoint.basinName} (${inspectedPoint.lat.toFixed(3)}°N, ${inspectedPoint.lon.toFixed(3)}°E)
+                  ${escapeHtml(inspectedPoint.basinName)} (${inspectedPoint.lat.toFixed(3)}°N, ${inspectedPoint.lon.toFixed(3)}°E)
                 </div>
               </div>
             </div>
@@ -11787,10 +12058,10 @@ export function render(container) {
                 return `
                   <div style="padding:6px 8px;background:var(--panel);border:1px solid var(--border);border-radius:6px;font-size:var(--fs-xs);">
                     <div style="display:flex;justify-content:space-between;align-items:center;">
-                      <b>${item.fish.name}</b>
+                      <b>${escapeHtml(item.fish.name)}</b>
                       <span style="font-weight:800;color:${tone};">${item.score}%</span>
                     </div>
-                    <div style="font-size:10px;color:var(--muted);margin-top:2px;">${item.methodText}</div>
+                    <div style="font-size:10px;color:var(--muted);margin-top:2px;">${escapeHtml(item.methodText)}</div>
                   </div>
                 `;
               }).join('')}
@@ -11941,7 +12212,7 @@ export function render(container) {
  </div>
  <div class="card geo-auth-only-block" style="background:var(--card);margin-bottom:14px;padding:10px 12px;border:1px solid var(--border);display:flex;flex-direction:column;gap:8px;">
  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
- <span style="font-size:var(--fs-xs);font-weight:800;color:var(--accent);"> КАРТА ГЛУБИН И ИНТЕГРАЦИЯ С ЭХОЛОТАМИ: ${s.selectedWaterName || prof.name} (${getWaterTypeShortTag(s.water)})</span>
+ <span style="font-size:var(--fs-xs);font-weight:800;color:var(--accent);"> КАРТА ГЛУБИН И ИНТЕГРАЦИЯ С ЭХОЛОТАМИ: ${escapeHtml(s.selectedWaterName || prof.name)} (${getWaterTypeShortTag(s.water)})</span>
  <span class="pill pill-neutral" style="font-size:var(--fs-xs);">Диапазон: ${prof.minD}–${prof.maxD} м</span>
  </div>
  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;font-size:var(--fs-xs);">
