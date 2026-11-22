@@ -71,7 +71,7 @@
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta http-equiv="X-Content-Type-Options" content="nosniff">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: blob:; script-src 'self' 'unsafe-inline' https://telegram.org https://yastatic.net https://cdn.jsdelivr.net https://appassets.androidplatform.net; style-src 'self' 'unsafe-inline' https://yastatic.net https://cdn.jsdelivr.net https://appassets.androidplatform.net; img-src 'self' data: blob: https:; connect-src 'self' https: data: blob: https://klevpro.ru https://www.klevpro.ru https://xn--b1apdneg0j.xn--p1ai https://api.github.com https://klevprohbot.thorantony82.workers.dev https://*.workers.dev https://generativelanguage.googleapis.com https://text.pollinations.ai https://ia-thor.github.io https://api.open-meteo.com https://archive-api.open-meteo.com https://api.met.no https://allorigins.hexlet.app https://*.hexlet.app https://corsproxy-seven.vercel.app https://every-origin.vercel.app https://*.vercel.app https://script.google.com https://script.googleusercontent.com https://*.yandexcloud.net https://maps.mail.ru https://overpass.kumi.systems https://overpass.private.coffee https://overpass-api.de https://nominatim.openstreetmap.org https://api.bigdatacloud.net https://ipwho.is https://ipapi.co https://raw.githubusercontent.com https://github.com https://*.githubusercontent.com https://appassets.androidplatform.net;">
-    <meta http-equiv="Content-Security-Policy-Report-Only" content="default-src 'self' https: data: blob:; script-src 'self' https://telegram.org https://yastatic.net https://cdn.jsdelivr.net 'unsafe-inline' 'sha256-pWKZ46dD0R3uv61NCqhg1MHP4J923JawuTmmWbluAow=' 'sha256-KS5YL/sjOTmLhMp6/YUnRp5mZyQDRe7wB6kNPh3c+e8=' 'sha256-R1kHqnyRfUGr0K34JNjLoGcS2pGaCYyFoPFh941cyb4=' 'sha256-OG7YhXtKbyYnZ5GautT/oaA7nAp5wnCu8KFhe6u08fM=' 'sha256-Q/auiEQiE8rU0ewycQaOnEtBXLOMe6wEDXa95O6E7oI='; style-src 'self' https: 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'self' https: wss:;">
+    <meta http-equiv="Content-Security-Policy-Report-Only" content="default-src 'self' https: data: blob:; script-src 'self' https://telegram.org https://yastatic.net https://cdn.jsdelivr.net 'unsafe-inline' 'sha256-pWKZ46dD0R3uv61NCqhg1MHP4J923JawuTmmWbluAow=' 'sha256-JHDOZ9I9WcNxdfIGS4iMfWjrNuTdepp9RV0rUVZoo8M=' 'sha256-R1kHqnyRfUGr0K34JNjLoGcS2pGaCYyFoPFh941cyb4=' 'sha256-OG7YhXtKbyYnZ5GautT/oaA7nAp5wnCu8KFhe6u08fM=' 'sha256-Q/auiEQiE8rU0ewycQaOnEtBXLOMe6wEDXa95O6E7oI='; style-src 'self' https: 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'self' https: wss:;">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
   <meta name="theme-color" content="#0b1120">
   <meta name="mobile-web-app-capable" content="yes">
@@ -108,7 +108,7 @@
     "applicationCategory": "SportsApplication",
     "operatingSystem": "Android, iOS, Windows, Web",
     "inLanguage": "ru-RU",
-    "softwareVersion": "2.9.1-r247",
+    "softwareVersion": "2.9.1-r248",
     "contentRating": "12+",
     "image": "https://klevpro.ru/icon-512.png",
     "downloadUrl": "https://klevpro.ru/apk/klev-pro-v2.5.6.apk",
@@ -120,9 +120,9 @@
   }
   </script>
   <script src="https://telegram.org/js/telegram-web-app.js" async onload="window.__KLEV_ON_TG_SDK_LOAD__&&window.__KLEV_ON_TG_SDK_LOAD__()"></script>
-  <link rel="manifest" href="manifest.json?v=2.9.1-r247">
-  <link id="dynamicFavicon" rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=2.9.1-r247">
-  <link id="dynamicTouchIcon" rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=2.9.1-r247">
+  <link rel="manifest" href="manifest.json?v=2.9.1-r248">
+  <link id="dynamicFavicon" rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=2.9.1-r248">
+  <link id="dynamicTouchIcon" rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=2.9.1-r248">
   <script>
     window.__KLEV_ADMIN_CONTOUR__ = false;
     (function() {
@@ -202,7 +202,7 @@
         if ((inApkNow || localStorage.getItem(MIGRATION_KEY) !== '1') && 'caches' in window) {
           caches.keys().then(function(keys) {
             return Promise.all(
-              keys.map(function(k) { return (k === 'klev-pro-v2.9.1-r247-static' && !inApkNow) ? Promise.resolve() : caches.delete(k); })
+              keys.map(function(k) { return (k === 'klev-pro-v2.9.1-r248-static' && !inApkNow) ? Promise.resolve() : caches.delete(k); })
             );
           }).then(function() {
             localStorage.setItem(MIGRATION_KEY, '1');
@@ -211,10 +211,10 @@
       } catch (e) {}
     })();
   </script>
-  <link rel="stylesheet" href="css/tokens.css?v=2.9.1-r247">
-  <link rel="stylesheet" href="css/base.css?v=2.9.1-r247">
-  <link rel="stylesheet" href="css/components.css?v=2.9.1-r247">
-  <link rel="stylesheet" href="css/layout.css?v=2.9.1-r247">
+  <link rel="stylesheet" href="css/tokens.css?v=2.9.1-r248">
+  <link rel="stylesheet" href="css/base.css?v=2.9.1-r248">
+  <link rel="stylesheet" href="css/components.css?v=2.9.1-r248">
+  <link rel="stylesheet" href="css/layout.css?v=2.9.1-r248">
   <style id="klevCoreBundledCss">
 :root,
 [data-theme="dark"] {
@@ -4647,14 +4647,31 @@ html[data-theme="contrast"]:not([data-desktop-web="1"]):not([data-admin-contour=
   box-shadow: 0 0 14px rgba(56, 189, 248, 0.22);
 }
 
+.compact-menu-seg-stack {
+  display: grid;
+  grid-template-columns: 1.38fr 1fr;
+  gap: 6px;
+  width: 100%;
+}
+
+@media (max-width: 380px) {
+  .compact-menu-seg-stack {
+    grid-template-columns: 1fr;
+  }
+}
+
 .seg-bar {
-  display: flex;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
   align-items: center;
   background: rgba(15, 23, 42, 0.42);
   border: 1px solid var(--border);
   border-radius: 9999px;
   padding: 3px;
-  gap: 3px;
+  gap: 2px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 html[data-theme="light"] .seg-bar {
@@ -4662,21 +4679,22 @@ html[data-theme="light"] .seg-bar {
 }
 
 .seg-btn {
-  flex: 1;
+  width: 100%;
   min-width: 0;
   border: 1px solid transparent;
   background: transparent;
   color: var(--muted);
-  font-size: 11.5px;
-  font-weight: 700;
-  padding: 7px 4px;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 7px 2px;
   border-radius: 9999px;
   cursor: pointer;
   transition: all 0.16s ease;
   text-align: center;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow: visible;
+  text-overflow: clip;
+  letter-spacing: -0.15px;
 }
 
 .seg-btn.active {
@@ -4859,12 +4877,15 @@ input[type="checkbox"]:not(.klev-switch input):checked::before {
 }
 .menu-grid-5 {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 8px 6px;
-  padding: 4px 0;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0;
+  padding: 6px 0;
+  width: 100%;
+  align-items: center;
   justify-items: center;
 }
 .lens-item-wrap {
+  width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -4874,8 +4895,8 @@ input[type="checkbox"]:not(.klev-switch input):checked::before {
   user-select: none;
 }
 .lens-btn {
-  width: 52px;
-  height: 52px;
+  width: 58px;
+  height: 58px;
   border-radius: 50%;
   display: inline-flex;
   align-items: center;
@@ -4883,31 +4904,30 @@ input[type="checkbox"]:not(.klev-switch input):checked::before {
   cursor: pointer;
   padding: 0;
   background: var(--card);
-  border: 1px solid var(--border);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+  border: 1.5px solid var(--border);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.32);
   color: var(--text);
-  transition: transform 0.16s ease, border-color 0.2s ease;
+  transition: transform 0.16s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.lens-btn:active {
+  transform: scale(0.94);
 }
 .lens-btn.active {
   border-color: var(--accent);
   color: var(--accent);
-  box-shadow: 0 0 18px rgba(56, 189, 248, 0.32);
+  box-shadow: 0 0 18px rgba(56, 189, 248, 0.35);
 }
 .lens-btn svg {
-  width: 23px;
-  height: 23px;
+  width: 27px;
+  height: 27px;
   stroke: currentColor;
-  stroke-width: 1.6px;
+  stroke-width: 1.75px;
   stroke-linecap: round;
   stroke-linejoin: round;
   fill: none;
 }
 .lens-label {
-  margin-top: 5px;
-  font-size: 11.5px;
-  font-weight: 700;
-  color: var(--accent);
-  line-height: 1.2;
+  display: none !important;
 }
 .sos-hold-track {
   position: relative;
@@ -6738,11 +6758,11 @@ input[type="checkbox"]:not(.klev-switch input):checked::before {
   <main id="app" class="app-main">
     <div id="androidApkSiteBanner" class="bento-card" style="display:none;background:rgba(16,185,129,0.12);border:1.5px solid var(--good);padding:9px 12px;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:2px;">
       <div style="min-width:0;flex:1;">
-        <div id="androidApkBannerTitle" style="font-weight:800;font-size:var(--fs-xs);color:var(--good);">Приложение «Клёв ПРО 2.0» для Android (v2.9.1 r247)</div>
+        <div id="androidApkBannerTitle" style="font-weight:800;font-size:var(--fs-xs);color:var(--good);">Приложение «Клёв ПРО 2.0» для Android (v2.9.1 r248)</div>
         <div style="font-size:11px;color:var(--muted);">Установите автономное приложение (.APK) на ваш смартфон</div>
       </div>
       <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
-        <button type="button" class="btn btn-sm btn-good" id="androidApkBannerDownloadBtn" style="min-height:32px;padding:4px 10px;font-size:11.5px;font-weight:800;">Скачать APK (v2.9.1 r247)</button>
+        <button type="button" class="btn btn-sm btn-good" id="androidApkBannerDownloadBtn" style="min-height:32px;padding:4px 10px;font-size:11.5px;font-weight:800;">Скачать APK (v2.9.1 r248)</button>
         <button type="button" class="btn btn-sm" id="androidApkBannerCloseBtn" title="Скрыть плашку" aria-label="Закрыть плашку загрузки APK" style="min-height:32px;padding:4px 8px;font-size:12px;">Закрыть</button>
       </div>
     </div>
@@ -6774,7 +6794,7 @@ input[type="checkbox"]:not(.klev-switch input):checked::before {
       </article>
     </noscript>
     <div id="appLegalScannerMeta" style="display:none;" aria-hidden="true">
-      © 2025–2026 «Клёв ПРО 2.0: Круг» (версия 2.9.1 r247) • Возрастная маркировка: 12+ (ст. 6 ФЗ № 436-ФЗ).
+      © 2025–2026 «Клёв ПРО 2.0: Круг» (версия 2.9.1 r248) • Возрастная маркировка: 12+ (ст. 6 ФЗ № 436-ФЗ).
       Правообладатель программы для ЭВМ, базы данных и графических иллюстраций (ст. 1259, 1260, 1261, 1334 ГК РФ): Тхор Антон Сергеевич (Тхор А. С.) • Контакт для обращений (ст. 10 и ст. 10.2-2 ФЗ № 149-ФЗ): i@athor.ru.
       Правовой статус: бесплатный некоммерческий информационно-справочный проект (возмездные услуги и торговая деятельность не осуществляются; реквизиты ИНН / ОГРН / ОГРНИП по ст. 9 ЗоЗПП РФ не применяются).
       Политика конфиденциальности (ФЗ № 152-ФЗ ст. 3, 12, 18.1, 22): архитектура Zero-PII с вымышленными рыболовными позывными без сбора ФИО, телефонов и e-mail. При фоновом прогнозе координаты обрабатываются локально на устройстве; при публикации в «Круг» размываются гексагоном ±5..10 км; передача точных координат точки осуществляется только при добровольной публикации пользователем в «Экипаж (72 ч)», «Слипы/Точки», личный диалог или при активации вспомогательного сигнала «SOS на воде».
@@ -6834,46 +6854,41 @@ input[type="checkbox"]:not(.klev-switch input):checked::before {
         </span>
       </div>
 
-      <!-- 5 уникальных разделов без дублирования нижнего дока (Погода, Чаты, Рыбы, Календарь, Настройки) -->
+            <!-- 5 уникальных разделов без дублирования нижнего дока (Погода, Чаты, Рыбы, Календарь, Настройки) — строго 5 равных колонок без подписей -->
       <div class="menu-grid-5" role="navigation" aria-label="Инструменты">
-        <div class="lens-item-wrap" data-klev-menu-route="weather">
+        <div class="lens-item-wrap" data-klev-menu-route="weather" title="Погода" aria-label="Погода">
           <button type="button" class="lens-btn" aria-label="Погода">
             <svg><use href="#icon-weather"></use></svg>
           </button>
-          <span class="lens-label">Погода</span>
         </div>
 
-        <div class="lens-item-wrap" data-klev-menu-route="chats">
+        <div class="lens-item-wrap" data-klev-menu-route="chats" title="Чаты и Круг" aria-label="Чаты и Круг">
           <button type="button" class="lens-btn" aria-label="Чаты и Круг">
             <svg><use href="#icon-chats"></use></svg>
           </button>
-          <span class="lens-label">Чаты</span>
         </div>
 
-        <div class="lens-item-wrap" data-klev-menu-route="fish">
+        <div class="lens-item-wrap" data-klev-menu-route="fish" title="Рыбы" aria-label="Рыбы">
           <button type="button" class="lens-btn" aria-label="Рыбы">
             <svg><use href="#icon-fish"></use></svg>
           </button>
-          <span class="lens-label">Рыбы</span>
         </div>
 
-        <div class="lens-item-wrap" data-klev-menu-route="calendar">
+        <div class="lens-item-wrap" data-klev-menu-route="calendar" title="Календарь" aria-label="Календарь">
           <button type="button" class="lens-btn" aria-label="Календарь">
             <svg><use href="#icon-calendar"></use></svg>
           </button>
-          <span class="lens-label">Календарь</span>
         </div>
 
-        <div class="lens-item-wrap" data-klev-menu-route="settings">
+        <div class="lens-item-wrap" data-klev-menu-route="settings" title="Настройки" aria-label="Настройки">
           <button type="button" class="lens-btn" aria-label="Настройки">
             <svg><use href="#icon-settings"></use></svg>
           </button>
-          <span class="lens-label">Настройки</span>
         </div>
       </div>
 
       <!-- Компактный ряд переключения Темы и Режима стекла -->
-      <div style="display:grid;grid-template-columns:1.45fr 1fr;gap:6px;">
+      <div class="compact-menu-seg-stack">
         <div class="seg-bar" aria-label="Выбор темы">
           <button type="button" class="seg-btn active" data-klev-menu-theme="dark">Тёмная</button>
           <button type="button" class="seg-btn" data-klev-menu-theme="light">Светлая</button>
@@ -6896,6 +6911,6 @@ input[type="checkbox"]:not(.klev-switch input):checked::before {
     </div>
   </div>
 
-  <script id="klevBundledAppRuntime" src="app-runtime.js?v=2.9.1-r247"></script>
+  <script id="klevBundledAppRuntime" src="app-runtime.js?v=2.9.1-r248"></script>
 </body>
 </html>

@@ -6358,6 +6358,13 @@ export function renderChatsSubView(s, ident, visibleCrews) {
           </span>
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <button type="button" class="btn btn-sm btn-accent" id="chatAddThematicSpotBtn" title="Добавить слип или точку на карту">
+            <svg class="k-svg" style="width:15px;height:15px;"><use href="#point-slip"></use></svg>
+            <span>Добавить слип</span>
+          </button>
+          <button type="button" class="btn btn-sm" data-hub-switch="spots" title="Открыть список слипов и точек">
+            <span>Слипы</span>
+          </button>
           ${!ident.isRegistered
             ? `<button type="button" class="btn btn-sm btn-accent" id="chatOpenAuthBtn">Войти / Регистрация</button>`
             : `<button type="button" class="btn btn-sm btn-good" id="chatShareCatchTopBtn">Поделиться уловом</button>`}
@@ -6646,34 +6653,63 @@ export function renderCircleChatsHubBar(activeMode = 'radar') {
     </div>
   `;
 }
+function handleHubSwitchAction(target, fallbackContainer = null) {
+  if (!target) return;
+  triggerHaptic('selection');
+  if (typeof document !== 'undefined' && document.activeElement && typeof document.activeElement.blur === 'function') {
+    try { document.activeElement.blur(); } catch (_e) {}
+  }
+  if (isFullScreenChatOpen) {
+    isFullScreenChatOpen = false;
+    activeChatChannelId = '';
+    _selectedChatMsgId = '';
+    _isChatAttachSheetOpen = false;
+    mountFullScreenChatOverlayPortal('');
+  }
+  if (target === 'chats') {
+    router.navigate('chats');
+    const secChats = typeof document !== 'undefined' ? document.getElementById('secChats') : null;
+    renderChatsSection(secChats || fallbackContainer);
+  } else if (target === 'spots') {
+    activeCategoryFilter = 'spot';
+    router.navigate('circle');
+    const secCir = typeof document !== 'undefined' ? document.getElementById('secCircle') : null;
+    render(secCir || fallbackContainer);
+  } else if (target === 'workshop') {
+    activeCategoryFilter = 'workshop';
+    router.navigate('circle');
+    const secCir = typeof document !== 'undefined' ? document.getElementById('secCircle') : null;
+    render(secCir || fallbackContainer);
+  } else {
+    if (activeCategoryFilter === 'workshop' || activeCategoryFilter === 'spot') activeCategoryFilter = 'all';
+    router.navigate('circle');
+    const secCir = typeof document !== 'undefined' ? document.getElementById('secCircle') : null;
+    render(secCir || fallbackContainer);
+  }
+}
+
 function bindCircleChatsHubBarEvents(container) {
   if (!container) return;
   container.querySelectorAll('[data-hub-switch]').forEach(btn => {
+    if (btn.__klevHubSwitchBound) return;
+    btn.__klevHubSwitchBound = true;
     btn.addEventListener('click', (e) => {
+      e.preventDefault();
       e.stopPropagation();
       const target = btn.getAttribute('data-hub-switch');
-      triggerHaptic('selection');
-      if (target === 'chats') {
-        router.navigate('chats');
-        renderChatsSection();
-      } else if (target === 'spots') {
-        activeCategoryFilter = 'spot';
-        router.navigate('circle');
-        const secCir = typeof document !== 'undefined' ? document.getElementById('secCircle') : null;
-        if (secCir) render(secCir);
-      } else if (target === 'workshop') {
-        activeCategoryFilter = 'workshop';
-        router.navigate('circle');
-        const secCir = typeof document !== 'undefined' ? document.getElementById('secCircle') : null;
-        if (secCir) render(secCir);
-      } else {
-        if (activeCategoryFilter === 'workshop' || activeCategoryFilter === 'spot') activeCategoryFilter = 'all';
-        router.navigate('circle');
-        const secCir = typeof document !== 'undefined' ? document.getElementById('secCircle') : null;
-        if (secCir) render(secCir);
-      }
+      handleHubSwitchAction(target, container);
     });
   });
+  if (typeof document !== 'undefined' && !window.__KLEV_GLOBAL_HUB_SWITCH_DELEGATED__) {
+    window.__KLEV_GLOBAL_HUB_SWITCH_DELEGATED__ = true;
+    document.addEventListener('click', (e) => {
+      const btn = e.target && typeof e.target.closest === 'function' ? e.target.closest('[data-hub-switch]') : null;
+      if (!btn) return;
+      e.preventDefault();
+      e.stopPropagation();
+      handleHubSwitchAction(btn.getAttribute('data-hub-switch'));
+    });
+  }
 }
 function renderFullScreenChatWindowHtml(s, ident, visibleCrews) {
   if (!isFullScreenChatOpen || !activeChatChannelId) return '';
@@ -6793,18 +6829,24 @@ function renderFullScreenChatWindowHtml(s, ident, visibleCrews) {
                 <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
               </button>
             </div>
-            <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;">
-              <button type="button" class="btn" id="chatShareLocationBtn" title="Поделиться текущим местоположением" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:12px 10px;border-radius:14px;background:var(--panel);border:1px solid var(--border);">
-                <span style="width:44px;height:44px;border-radius:50%;background:rgba(239,68,68,0.16);border:1.5px solid #ef4444;display:inline-flex;align-items:center;justify-content:center;color:#ef4444;">
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(239,68,68,0.22)" stroke="currentColor" stroke-width="1.9"/><circle cx="12" cy="11" r="2.5" fill="currentColor"/></svg>
+            <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;">
+              <button type="button" class="btn" id="chatShareLocationBtn" title="Поделиться текущим местоположением" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:10px 6px;border-radius:14px;background:var(--panel);border:1px solid var(--border);">
+                <span style="width:42px;height:42px;border-radius:50%;background:rgba(239,68,68,0.16);border:1.5px solid #ef4444;display:inline-flex;align-items:center;justify-content:center;color:#ef4444;">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(239,68,68,0.22)" stroke="currentColor" stroke-width="1.9"/><circle cx="12" cy="11" r="2.5" fill="currentColor"/></svg>
                 </span>
-                <span style="font-size:12px;font-weight:800;color:var(--text);">Геопозиция</span>
+                <span style="font-size:11.5px;font-weight:800;color:var(--text);">Геопозиция</span>
               </button>
-              <button type="button" class="btn" id="chatAttachCatchBtn" title="Прикрепить карточку улова" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:12px 10px;border-radius:14px;background:var(--panel);border:1px solid var(--border);">
-                <span style="width:44px;height:44px;border-radius:50%;background:rgba(16,185,129,0.16);border:1.5px solid #10b981;display:inline-flex;align-items:center;justify-content:center;color:#10b981;">
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.4" fill="currentColor"/></svg>
+              <button type="button" class="btn" id="chatAttachCatchBtn" title="Прикрепить карточку улова" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:10px 6px;border-radius:14px;background:var(--panel);border:1px solid var(--border);">
+                <span style="width:42px;height:42px;border-radius:50%;background:rgba(16,185,129,0.16);border:1.5px solid #10b981;display:inline-flex;align-items:center;justify-content:center;color:#10b981;">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.4" fill="currentColor"/></svg>
                 </span>
-                <span style="font-size:12px;font-weight:800;color:var(--text);">Улов</span>
+                <span style="font-size:11.5px;font-weight:800;color:var(--text);">Улов</span>
+              </button>
+              <button type="button" class="btn" id="chatAttachSlipSpotBtn" title="Добавить слип или точку на карту" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:10px 6px;border-radius:14px;background:var(--panel);border:1px solid var(--border);">
+                <span style="width:42px;height:42px;border-radius:50%;background:rgba(56,189,248,0.16);border:1.5px solid #38bdf8;display:inline-flex;align-items:center;justify-content:center;color:#38bdf8;">
+                  <svg class="k-svg" style="width:20px;height:20px;"><use href="#point-slip"></use></svg>
+                </span>
+                <span style="font-size:11.5px;font-weight:800;color:var(--text);">Слипы</span>
               </button>
             </div>
           </div>
@@ -10119,7 +10161,13 @@ function bindChatViewEvents(container) {
     syncAttachSheetDom(false);
   });
 
-  q('#chatAddThematicSpotBtn')?.addEventListener('click', () => {
+  q('#chatAddThematicSpotBtn')?.addEventListener('click', (e) => {
+    if (e && e.stopPropagation) e.stopPropagation();
+    openAddThematicMapPointModal('slip');
+  });
+  q('#chatAttachSlipSpotBtn')?.addEventListener('click', (e) => {
+    if (e && e.stopPropagation) e.stopPropagation();
+    syncAttachSheetDom(false);
     openAddThematicMapPointModal('slip');
   });
   q('#chatShareCatchTopBtn')?.addEventListener('click', () => {
@@ -10548,22 +10596,30 @@ function bindCircleEvents(container) {
     });
   });
   container.querySelectorAll("[data-goto-saved-spot]").forEach(btn => {
-    btn.addEventListener("click", () => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
       const spId = btn.getAttribute("data-goto-saved-spot");
       const sp = (store.getState().savedSpots || []).find(x => x && String(x.id) === String(spId));
-      if (sp && Number.isFinite(sp.lat) && Number.isFinite(sp.lon)) {
+      const lat = Number(sp?.lat);
+      const lon = Number(sp?.lon);
+      if (sp && Number.isFinite(lat) && Number.isFinite(lon)) {
         store.dispatch({
           type: "SET_LOCATION",
           payload: {
-            lat: sp.lat,
-            lon: sp.lon,
+            lat,
+            lon,
             label: sp.name || "Точка на карте",
             water: sp.water || store.getState().water,
-            depth: sp.depth || store.getState().depth
+            depth: Number(sp.depth) || store.getState().depth
           }
         });
-        router.navigate("geo");
-        flashHighlightElement(["#mapBox", "#geoWaterIchthyoCard"], { scroll: true, block: "center", delayMs: 120 });
+        setLocation(lat, lon, true, 15);
+        if (typeof window !== "undefined" && typeof window.__KLEV_FOCUS_MAP_CIRCLE__ === "function") {
+          window.__KLEV_FOCUS_MAP_CIRCLE__(sp.id, lat, lon);
+        } else {
+          router.navigate("geo");
+          flashHighlightElement(["#mapBox", "#geoWaterIchthyoCard"], { scroll: true, block: "center", delayMs: 120 });
+        }
       }
     });
   });
@@ -10844,7 +10900,7 @@ export async function init(container, chatsContainer = null, adminContainer = nu
         syncNearbyCirclePointsFromServer(false);
       }
       if (next.route === 'chats') {
-        if (prev && prev.route === 'chats' && prev.chatMessages === next.chatMessages && prev.circleItems === next.circleItems) {
+        if (prev && prev.route === 'chats' && prev.chatMessages === next.chatMessages && prev.circleItems === next.circleItems && prev.savedSpots === next.savedSpots) {
           return;
         }
         const secChats = typeof document !== 'undefined' ? document.getElementById('secChats') : null;

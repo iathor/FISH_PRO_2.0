@@ -10,6 +10,31 @@ import { syncInstallButtons } from './pwa.js?v=2.9.3-r239';
 import { store } from './store.js?v=2.9.3-r239';
 import { storage } from './storage.js?v=2.9.3-r239';
 export const TELEGRAM_BOT_USERNAME = 'KlevProClubBot';
+export const TELEGRAM_BOT_HTTP_URL = 'http://t.me/KlevProClubBot';
+export const TELEGRAM_BOT_HTTPS_URL = 'https://t.me/KlevProClubBot';
+
+export function openTelegramUrlCrossPlatform(targetUrl, nativeTgUrl = '') {
+  const urlStr = String(targetUrl || TELEGRAM_BOT_HTTP_URL).trim();
+  try {
+    if (window.Telegram?.WebApp && typeof window.Telegram.WebApp.openTelegramLink === 'function' && isTelegramWebApp()) {
+      const httpsLink = urlStr.replace(/^http:\/\//i, 'https://');
+      window.Telegram.WebApp.openTelegramLink(httpsLink);
+      return true;
+    }
+    if (typeof window !== 'undefined' && window.AndroidBridge && typeof window.AndroidBridge.openExternalUrl === 'function') {
+      window.AndroidBridge.openExternalUrl(nativeTgUrl || urlStr);
+      return true;
+    }
+    if (typeof window !== 'undefined' && typeof window.open === 'function') {
+      const win = window.open(urlStr, '_blank', 'noopener,noreferrer');
+      if (!win && typeof window.location !== 'undefined') {
+        window.location.href = urlStr;
+      }
+      return true;
+    }
+  } catch (_e) {}
+  return false;
+}
 export const PUBLIC_APP_URL = 'https://klevpro.ru/';
 export const RELAY_WORKER_URL = 'https://klevprohbot.thorantony82.workers.dev';
 let tgWebApp = null;
@@ -256,13 +281,11 @@ export async function bindFisherIdWithTelegram(options = {}) {
   } catch (e) {}
   setupTelegramBindReturnPoller();
   if (options.openBindBot) {
-    const bindBotUrl = `https://t.me/${TELEGRAM_BOT_USERNAME}?start=BIND_${encodeURIComponent(fisherId)}`;
-    showToast(` Связываем ваш ID (${fisherId}) с Telegram! Нажмите «Запустить / Start» в открывшемся боте @${TELEGRAM_BOT_USERNAME}.`, 'info');
-    try {
-      if (typeof window !== 'undefined' && typeof window.open === 'function') {
-        window.open(bindBotUrl, '_blank', 'noopener,noreferrer');
-      }
-    } catch (e) {}
+    const startToken = `BIND_${encodeURIComponent(fisherId)}`;
+    const bindBotUrl = `${TELEGRAM_BOT_HTTP_URL}?start=${startToken}`;
+    const nativeTgUrl = `tg://resolve?domain=${TELEGRAM_BOT_USERNAME}&start=${startToken}`;
+    showToast(`Связываем ваш ID (${fisherId}) с Telegram! Нажмите «Запустить / Start» в открывшемся боте @${TELEGRAM_BOT_USERNAME}.`, 'info');
+    openTelegramUrlCrossPlatform(bindBotUrl, nativeTgUrl);
     return { ok: true, bound: false, pendingBotStart: true, bindBotUrl, fisherId };
   }
   return { ok: true, bound: Boolean(up.tgLinkedId), fisherId };
@@ -523,18 +546,9 @@ export function shareToTelegramChat(shareUrl, textSummary) {
     showToast(` Отправка в Telegram: ваш ID (${fisherId}) прикреплён к карточке! Для полной синхронизации с ботом нажмите «Связать ID с ТГ» в Профиле.`, 'info');
   }
   const cleanSummary = stripPlainTextSvgAndHtml(textSummary);
-  const fullTgShare = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(cleanSummary)}`;
-  try {
-    if (window.Telegram?.WebApp && typeof window.Telegram.WebApp.openTelegramLink === 'function' && isTelegramWebApp()) {
-      window.Telegram.WebApp.openTelegramLink(fullTgShare);
-      return true;
-    }
-    if (typeof window !== 'undefined' && typeof window.open === 'function') {
-      window.open(fullTgShare, '_blank', 'noopener,noreferrer');
-      return true;
-    }
-  } catch (e) {}
-  return false;
+  const fullTgShare = `http://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(cleanSummary)}`;
+  const nativeTgShare = `tg://msg_url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(cleanSummary)}`;
+  return openTelegramUrlCrossPlatform(fullTgShare, nativeTgShare);
 }
 /**
  * Открывает чат с ботом @KlevProClubBot и автоматически передаёт токен связки BIND_<fisherId>,
@@ -552,18 +566,10 @@ export function openBotChatInTelegram(explicitFisherId = '') {
   } else {
     showToast(` Открываем @${TELEGRAM_BOT_USERNAME} (ваш единый ID: ${fisherId})`, 'good');
   }
-  const botUrl = `https://t.me/${TELEGRAM_BOT_USERNAME}?start=BIND_${encodeURIComponent(fisherId)}`;
-  try {
-    if (window.Telegram?.WebApp && typeof window.Telegram.WebApp.openTelegramLink === 'function' && isTelegramWebApp()) {
-      window.Telegram.WebApp.openTelegramLink(botUrl);
-      return true;
-    }
-    if (typeof window !== 'undefined' && typeof window.open === 'function') {
-      window.open(botUrl, '_blank', 'noopener,noreferrer');
-      return true;
-    }
-  } catch (e) {}
-  return false;
+  const startToken = `BIND_${encodeURIComponent(fisherId)}`;
+  const botUrl = `${TELEGRAM_BOT_HTTP_URL}?start=${startToken}`;
+  const nativeTgUrl = `tg://resolve?domain=${TELEGRAM_BOT_USERNAME}&start=${startToken}`;
+  return openTelegramUrlCrossPlatform(botUrl, nativeTgUrl);
 }
 /**
  * Универсальная функция «Поделиться» (Web Share API -> Копирование в буфер обмена)

@@ -398,7 +398,7 @@ export function astarGrid(grid, cols, rows, startCell, goalCell, shoreDist = nul
   return null;
 }
 
-function _lineOfSight(grid, cols, p0, p1) {
+function _lineOfSight(grid, cols, p0, p1, shoreDist = null, minShoreCells = 0) {
   const [x0, y0] = p0;
   const [x1, y1] = p1;
   const steps = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0) * 2));
@@ -407,20 +407,25 @@ function _lineOfSight(grid, cols, p0, p1) {
     const t = s / steps;
     const cx = Math.round(x0 + (x1 - x0) * t);
     const cy = Math.round(y0 + (y1 - y0) * t);
-    const c = grid[cy * cols + cx];
+    const idx = cy * cols + cx;
+    const c = grid[idx];
     if (!Number.isFinite(c) || c > baseCost * 1.35 + 0.5) return false;
+    if (shoreDist && minShoreCells > 0 && shoreDist[idx] < minShoreCells) return false;
   }
   return true;
 }
 
-export function smoothPath(grid, cols, path) {
+export function smoothPath(grid, cols, path, opts = {}) {
   if (!Array.isArray(path) || path.length <= 2) return path || [];
+  const maxSpanSteps = opts.maxSpanSteps || Infinity;
+  const shoreDist = opts.shoreDist || null;
+  const minShoreCells = opts.minShoreCells || 0;
   const out = [path[0]];
   let i = 0;
   while (i < path.length - 1) {
-    let far = path.length - 1;
+    let far = Math.min(path.length - 1, i + maxSpanSteps);
     while (far > i + 1) {
-      if (_lineOfSight(grid, cols, path[i], path[far])) break;
+      if (_lineOfSight(grid, cols, path[i], path[far], shoreDist, minShoreCells)) break;
       far--;
     }
     out.push(path[far]);
@@ -597,7 +602,9 @@ export async function routeOnGrid(a, b, mode = 'boat', opts = {}) {
   const rawPath = astarGrid(grid, G.cols, G.rows, startCell, goalCell, shore, mode === 'boat' ? 1.5 : 0);
   if (!rawPath || rawPath.length < 2) return null;
 
-  const smoothed = smoothPath(grid, G.cols, rawPath);
+  const smoothed = smoothPath(grid, G.cols, rawPath, mode === 'boat'
+    ? { maxSpanSteps: 4, shoreDist: shore, minShoreCells: 2 }
+    : { maxSpanSteps: 40 });
   const points = smoothed.map(([cx, cy]) => G.toLatLon(cx, cy));
   points[0] = [a[0], a[1]];
   points[points.length - 1] = [b[0], b[1]];

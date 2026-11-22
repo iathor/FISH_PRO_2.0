@@ -502,7 +502,7 @@ function updateHeaderUI() {
     }
   }
 }
-let _lastCommSubRoute = 'circle';
+let _lastCommSubRoute = 'chats';
 function bindGlobalShellEvents() {
   const locClickArea = document.getElementById('headerLocClickArea');
   if (locClickArea) {
@@ -615,7 +615,7 @@ function bindGlobalShellEvents() {
           _lastCommSubRoute = 'circle';
           router.navigate('circle');
         } else {
-          router.navigate(_lastCommSubRoute || 'circle');
+          router.navigate(_lastCommSubRoute || 'chats');
         }
       } else {
         if (tab === 'circle' || tab === 'chats') _lastCommSubRoute = tab;

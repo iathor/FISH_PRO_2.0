@@ -76,8 +76,8 @@ test('3.3 Регулярка шлюз тайлов блокирует чужие
 
 test('3.4 & 4.8 Единый источник версии VERSION (2.9.0 r240) синхронизирован во всех файлах и ссылка на APK валидна', () => {
   assert.equal(verData.version, '2.9.1');
-  assert.equal(verData.revision, 'r247');
-  assert.equal(verData.versionCode, 293247);
+  assert.equal(verData.revision, 'r248');
+  assert.equal(verData.versionCode, 293248);
 
   const vJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'version.json'), 'utf8'));
   const apkVJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'apk/apk-version.json'), 'utf8'));
@@ -125,7 +125,7 @@ test('3.5 Экранирование пользовательских данны
 
   const mainJava = fs.readFileSync(path.join(ROOT, 'android/app/src/main/java/ru/klevpro/app/MainActivity.java'), 'utf8');
   assert.ok(mainJava.includes('private boolean isAllowedExternalUri(Uri uri)'));
-  assert.ok(mainJava.includes('!"https".equalsIgnoreCase(scheme.trim())'));
+  assert.ok(mainJava.includes('isTelegramUri(uri)') && mainJava.includes('!"https".equals(s) && !"http".equals(s)'));
   assert.ok(mainJava.includes('"klevpro.ru".equals(h)'));
   assert.ok(mainJava.includes('"xn--b1apdneg0j.xn--p1ai".equals(h)'));
   assert.ok(mainJava.includes('"github.com".equals(h)'));
@@ -364,7 +364,7 @@ test('6.5 Аудит r245: устранение дёрганья карты, у�
   assert.equal(Number.isFinite(snowSafeGrid[ly * G.cols + lx]), true, 'Безопасный лёд должен быть проходим для снегохода');
 });
 
-test('6.6 Аудит r247: пересобранный app-runtime.js + app.bundle.js, изолированные контуры User/Admin APK, отсутствие transition:height на #mapBox и авто-GPS', () => {
+test('6.6 Аудит r248: пересобранный app-runtime.js + app.bundle.js, изолированные контуры User/Admin APK, отсутствие transition:height на #mapBox и авто-GPS', () => {
   const rtSrc = fs.readFileSync(path.join(ROOT, 'app-runtime.js'), 'utf8');
   const bundleSrc = fs.readFileSync(path.join(ROOT, 'js/app.bundle.js'), 'utf8');
   const idxHtml = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
@@ -376,7 +376,7 @@ test('6.6 Аудит r247: пересобранный app-runtime.js + app.bundl
   const wf = fs.readFileSync(path.join(ROOT, '.github/workflows/build-android-apk.yml'), 'utf8');
   const verJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'VERSION'), 'utf8'));
 
-  assert.equal(verJson.fullVersion, '2.9.1-r247', 'В VERSION должен быть fullVersion 2.9.1-r247');
+  assert.equal(verJson.fullVersion, '2.9.1-r248', 'В VERSION должен быть fullVersion 2.9.1-r248');
   assert.equal(rtSrc, bundleSrc, 'app-runtime.js и js/app.bundle.js должны быть идентичны');
   for (const sym of ['transform-origin:14px 27px;', 'fcWeatherRoadStormCard', 'fcWeatherHourlyWaveCard', '_klevTouchStart', '__KLEV_STARTUP_GPS_SYNCED__']) {
     assert.ok(rtSrc.includes(sym), `В скомпилированном app-runtime.js отсутствует ${sym}`);
@@ -385,8 +385,43 @@ test('6.6 Аудит r247: пересобранный app-runtime.js + app.bundl
   assert.ok(layoutCss.includes('img.leaflet-marker-icon') && idxHtml.includes('img.leaflet-marker-icon'), 'Синий дефолтный img.leaflet-marker-icon должен скрываться на мобильных через CSS');
   assert.ok(!/\.compass-bearing-active\s+#mapBox\s*\{[^}]*transform:\s*none/i.test(idxHtml), 'В index.html не должно быть transform: none для #mapBox');
   assert.ok(!/\.compass-bearing-active\s+#mapBox\s*\{[^}]*transform:\s*none/i.test(kpHtml), 'В kp-control-89.html не должно быть transform: none для #mapBox');
-  assert.ok(gradle.includes('applicationId "ru.klevpro.app"') && gradle.includes('versionName "2.9.1-r247"'), 'В android/app/build.gradle должны быть ru.klevpro.app и 2.9.1-r247');
+  assert.ok(gradle.includes('applicationId "ru.klevpro.app"') && gradle.includes('versionName "2.9.1-r248"'), 'В android/app/build.gradle должны быть ru.klevpro.app и 2.9.1-r248');
   assert.ok(stringsXml.includes('Клёв ПРО 2.0'), 'В strings.xml должно быть имя Клёв ПРО 2.0');
   assert.ok(mainJava.includes('compassWanted = true') && mainJava.includes('TYPE_MAGNETIC_FIELD'), 'В MainActivity.java должен быть включён компас с резервом TYPE_MAGNETIC_FIELD');
   assert.ok(wf.includes('/tmp/klev-android-user') && wf.includes('/tmp/klev-android-admin'), 'Workflow должен собирать User и Admin APK в изолированных директориях');
+});
+
+test('r248: 8 исправлений (меню 5 иконок без подписей, компас LPF+deadband, Telegram http://t.me/KlevProClubBot, точки на карте, Слипы в чатах, лодка, выбор старта 100-200 м, голосовое округление дистанций)', async () => {
+  const read = (p) => fs.readFileSync(path.join(ROOT, p), "utf8");
+  const idx = read('index.html');
+  const compCss = read('css/components.css');
+  const mainJava = read('android/app/src/main/java/ru/klevpro/app/MainActivity.java');
+  const tgJs = read('js/core/telegram.js');
+  const circleJs = read('js/modules/circle/circle.module.js');
+  const gridJs = read('js/modules/geo/grid-router.js');
+  const geoJs = read('js/modules/geo/geo.module.js');
+
+  // 1. Меню инструментов: 5 равных колонок, кнопки 58px, SVG 27px, подписи скрыты
+  assert.ok(compCss.includes('grid-template-columns: repeat(5, minmax(0, 1fr))'), '5 равных колонок в .menu-grid-5');
+  assert.ok(compCss.includes('width: 58px;') && compCss.includes('width: 27px;'), 'Увеличенные кнопки 58px и иконки 27px');
+  assert.ok(idx.includes('class="compact-menu-seg-stack"'), 'Контейнер переключателей тем без обрезки текста');
+
+  // 2 & 3. Компас и центровка
+  assert.ok(mainJava.includes('flatWeight = Math.max(0f, Math.min(1f, (Math.abs(cRemap[8]) - 0.25f) / 0.55f))'), 'Плавное смешивание осей наклона в MainActivity.java');
+  assert.ok(geoJs.includes('angularDiff < 1.8'), 'Мёртвая зона 1.8 градуса для компаса');
+  assert.ok(geoJs.includes('mapInstance.panTo([realPos.lat, realPos.lon], { animate: true })'), 'Центровка GPS без сброса пользовательского зума');
+
+  // 4. Ссылка Telegram http://t.me/KlevProClubBot
+  assert.ok(tgJs.includes("TELEGRAM_BOT_HTTP_URL = 'http://t.me/KlevProClubBot'"), 'Корректная ссылка http://t.me/KlevProClubBot');
+  assert.ok(mainJava.includes('isTelegramUri(uri)'), 'Нативная поддержка t.me и tg:// в MainActivity.java');
+
+  // 5 & 6. Точки на карте и кнопка Слипы в чатах
+  assert.ok(geoJs.includes('allPlaqueItems') && geoJs.includes('catCounts[u.catKey]++'), 'Счётчики и метаданные точек в плашке 8.3');
+  assert.ok(circleJs.includes('id="chatAttachSlipSpotBtn"') && circleJs.includes('handleHubSwitchAction'), 'Активная кнопка Слипы в чатах');
+
+  // 7 & 8. Лодочный маршрут, выбор точки старта (100-200 м) и голосовое округление дистанций
+  assert.ok(gridJs.includes('maxSpanSteps: 4, shoreDist: shore, minShoreCells: 2'), 'Запрет срезания излучин рек в smoothPath для лодок');
+  assert.ok(geoJs.includes('promptRouteStartOriginChoice') && geoJs.includes('_checkProximityToDeferredRouteStart'), 'Запрос точки старта и триггер 100-200 м');
+
+  assert.ok(geoJs.includes("export function formatSpokenRouteDistanceRu(distKm)") && geoJs.includes("примерно ${wholeKm} ${kmWord} ${hundredsMeters} метров"));
 });

@@ -593,7 +593,7 @@ function patchVersionAndAndroidFiles() {
   // android/app/build.gradle (НЕ трогаем signingConfigs и keystore!)
   let gradle = readText('android/app/build.gradle');
   if (gradle) {
-    gradle = gradle.replace(/versionCode\s+\d+/g, `versionCode ${V_CODE}`);
+    gradle = gradle.replace(/versionCode\s+\d+/g, `versionCode ${V_CODE}`).replace(/:\s*293\d{3}/g, `: ${V_CODE}`);
     gradle = gradle.replace(/versionName\s+"[^"]+"/g, `versionName "${V_FULL}"`);
     writeTextIfChanged('android/app/build.gradle', gradle);
   }
@@ -612,10 +612,24 @@ function patchVersionAndAndroidFiles() {
     s = s.replace(/public String getAppRevision\(\)\s*\{\s*return\s*"[^"]+";\s*\}/g, `public String getAppRevision() {\n${ind4}return "${V_REV}";\n${ind}}`);
 
     const safeUrlMethods = [
-      `private boolean isAllowedExternalUri(Uri uri) {`,
+      `private boolean isTelegramUri(Uri uri) {`,
       `${ind4}if (uri == null) return false;`,
+      `${ind4}String scheme = uri.getScheme() != null ? uri.getScheme().trim().toLowerCase(Locale.ROOT) : "";`,
+      `${ind4}if ("tg".equals(scheme)) return true;`,
+      `${ind4}if ("http".equals(scheme) || "https".equals(scheme)) {`,
+      `${ind8}String host = uri.getHost() != null ? uri.getHost().trim().toLowerCase(Locale.ROOT) : "";`,
+      `${ind8}return "t.me".equals(host) || "www.t.me".equals(host) || "telegram.me".equals(host) || "www.telegram.me".equals(host) || "telegram.dog".equals(host);`,
+      `${ind4}}`,
+      `${ind4}return false;`,
+      `${ind}}`,
+      ``,
+      `${ind}private boolean isAllowedExternalUri(Uri uri) {`,
+      `${ind4}if (uri == null) return false;`,
+      `${ind4}if (isTelegramUri(uri)) return true;`,
       `${ind4}String scheme = uri.getScheme();`,
-      `${ind4}if (scheme == null || !"https".equalsIgnoreCase(scheme.trim())) return false;`,
+      `${ind4}if (scheme == null) return false;`,
+      `${ind4}String s = scheme.trim().toLowerCase(Locale.ROOT);`,
+      `${ind4}if (!"https".equals(s) && !"http".equals(s)) return false;`,
       `${ind4}String host = uri.getHost();`,
       `${ind4}if (host == null) return false;`,
       `${ind4}String h = host.trim().toLowerCase(Locale.ROOT);`,
@@ -643,6 +657,45 @@ function patchVersionAndAndroidFiles() {
       `${ind4}try {`,
       `${ind8}Uri uri = Uri.parse(url.trim());`,
       `${ind8}if (!isAllowedExternalUri(uri)) return;`,
+      `${ind8}if (isTelegramUri(uri)) {`,
+      `${ind8}    Uri tgUri = uri;`,
+      `${ind8}    String scheme = uri.getScheme() != null ? uri.getScheme().trim().toLowerCase(Locale.ROOT) : "";`,
+      `${ind8}    if (!"tg".equals(scheme)) {`,
+      `${ind8}        String path = uri.getPath() != null ? uri.getPath().trim() : "";`,
+      `${ind8}        if (path.startsWith("/")) path = path.substring(1);`,
+      `${ind8}        if (path.toLowerCase(Locale.ROOT).startsWith("share")) {`,
+      `${ind8}            Uri.Builder b = Uri.parse("tg://msg_url").buildUpon();`,
+      `${ind8}            String uParam = uri.getQueryParameter("url");`,
+      `${ind8}            String tParam = uri.getQueryParameter("text");`,
+      `${ind8}            if (uParam != null) b.appendQueryParameter("url", uParam);`,
+      `${ind8}            if (tParam != null) b.appendQueryParameter("text", tParam);`,
+      `${ind8}            tgUri = b.build();`,
+      `${ind8}        } else {`,
+      `${ind8}            String domain = path.contains("/") ? path.substring(0, path.indexOf('/')) : path;`,
+      `${ind8}            if (domain.isEmpty()) domain = "KlevProClubBot";`,
+      `${ind8}            Uri.Builder b = Uri.parse("tg://resolve").buildUpon().appendQueryParameter("domain", domain);`,
+      `${ind8}            String startParam = uri.getQueryParameter("start");`,
+      `${ind8}            if (startParam != null && !startParam.isEmpty()) b.appendQueryParameter("start", startParam);`,
+      `${ind8}            tgUri = b.build();`,
+      `${ind8}        }`,
+      `${ind8}    }`,
+      `${ind8}    String[] tgPkgs = new String[]{"org.telegram.messenger", "org.telegram.messenger.web", "org.thunderdog.challegram", "org.telegram.plus"};`,
+      `${ind8}    for (String pkg : tgPkgs) {`,
+      `${ind8}        try {`,
+      `${ind8}            Intent pkgIntent = new Intent(Intent.ACTION_VIEW, tgUri);`,
+      `${ind8}            pkgIntent.setPackage(pkg);`,
+      `${ind8}            pkgIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);`,
+      `${ind8}            ctx.startActivity(pkgIntent);`,
+      `${ind8}            return;`,
+      `${ind8}        } catch (Exception ignored) {}`,
+      `${ind8}    }`,
+      `${ind8}    try {`,
+      `${ind8}        Intent genericTgIntent = new Intent(Intent.ACTION_VIEW, tgUri);`,
+      `${ind8}        genericTgIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);`,
+      `${ind8}        ctx.startActivity(genericTgIntent);`,
+      `${ind8}        return;`,
+      `${ind8}    } catch (Exception ignored) {}`,
+      `${ind8}}`,
       `${ind8}Intent intent = new Intent(Intent.ACTION_VIEW, uri);`,
       `${ind8}intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);`,
       `${ind8}ctx.startActivity(intent);`,
@@ -650,7 +703,7 @@ function patchVersionAndAndroidFiles() {
       `${ind}}`
     ].join("\n");
 
-    const oldMethodsRe = /(?:private boolean isAllowedExternalUri[\s\S]*?)?@JavascriptInterface\s+public void downloadApkUpdate\(String url\)\s*\{[\s\S]*?@JavascriptInterface\s+public void openExternalUrl\(String url\)\s*\{[\s\S]*?\}\s*\}/;
+    const oldMethodsRe = /(?:private boolean isTelegramUri[\s\S]*?)?(?:private boolean isAllowedExternalUri[\s\S]*?)?@JavascriptInterface\s+public void downloadApkUpdate\(String url\)\s*\{[\s\S]*?@JavascriptInterface\s+public void openExternalUrl\(String url\)\s*\{[\s\S]*?ctx\.startActivity\(intent\);\s*\} catch \(Exception ignored\) \{\}\s*\}/;
     if (oldMethodsRe.test(s)) {
       s = s.replace(oldMethodsRe, safeUrlMethods);
     }

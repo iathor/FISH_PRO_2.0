@@ -122,6 +122,10 @@ public class MainActivity extends Activity {
     private volatile float magDeclinationDeg = 0f;
     private long lastCompassPushMs = 0L;
     private long lastDeclinationMs = 0L;
+    private float smoothHeadingSin = 0f;
+    private float smoothHeadingCos = 1f;
+    private boolean hasSmoothHeading = false;
+    private float lastPushedHeadingDeg = -999f;
     private final float[] cRot = new float[9];
     private final float[] cRemap = new float[9];
     private final float[] cOri = new float[3];
@@ -134,41 +138,67 @@ public class MainActivity extends Activity {
             try {
                 int sType = e.sensor != null ? e.sensor.getType() : 0;
                 if (sType == Sensor.TYPE_ACCELEROMETER) {
-                    System.arraycopy(e.values, 0, cAccelVals, 0, Math.min(3, e.values.length));
+                    final float alpha = hasAccelSample ? 0.15f : 1.0f;
+                    for (int i = 0; i < 3 && i < e.values.length; i++) {
+                        cAccelVals[i] = cAccelVals[i] + alpha * (e.values[i] - cAccelVals[i]);
+                    }
                     hasAccelSample = true;
                     if (!hasMagSample) return;
                     if (!SensorManager.getRotationMatrix(cRot, null, cAccelVals, cMagVals)) return;
                 } else if (sType == Sensor.TYPE_MAGNETIC_FIELD) {
-                    System.arraycopy(e.values, 0, cMagVals, 0, Math.min(3, e.values.length));
+                    final float alpha = hasMagSample ? 0.15f : 1.0f;
+                    for (int i = 0; i < 3 && i < e.values.length; i++) {
+                        cMagVals[i] = cMagVals[i] + alpha * (e.values[i] - cMagVals[i]);
+                    }
                     hasMagSample = true;
                     if (!hasAccelSample) return;
                     if (!SensorManager.getRotationMatrix(cRot, null, cAccelVals, cMagVals)) return;
                 } else {
                     SensorManager.getRotationMatrixFromVector(cRot, e.values);
                 }
-                float headingMag;
-                if (cRot[8] > 0.7f) {
-                    int rot = Surface.ROTATION_0;
-                    try { rot = getWindowManager().getDefaultDisplay().getRotation(); } catch (Exception ignored) {}
-                    int ax, ay;
-                    switch (rot) {
-                        case Surface.ROTATION_90:  ax = SensorManager.AXIS_Y;       ay = SensorManager.AXIS_MINUS_X; break;
-                        case Surface.ROTATION_180: ax = SensorManager.AXIS_MINUS_X; ay = SensorManager.AXIS_MINUS_Y; break;
-                        case Surface.ROTATION_270: ax = SensorManager.AXIS_MINUS_Y; ay = SensorManager.AXIS_X;       break;
-                        default:                   ax = SensorManager.AXIS_X;       ay = SensorManager.AXIS_Y;       break;
-                    }
-                    SensorManager.remapCoordinateSystem(cRot, ax, ay, cRemap);
-                    SensorManager.getOrientation(cRemap, cOri);
-                    headingMag = (float) Math.toDegrees(cOri[0]);
-                } else {
-                    headingMag = (float) Math.toDegrees(Math.atan2(-cRot[2], -cRot[5]));
+
+                int rot = Surface.ROTATION_0;
+                try { rot = getWindowManager().getDefaultDisplay().getRotation(); } catch (Exception ignored) {}
+                int ax, ay;
+                switch (rot) {
+                    case Surface.ROTATION_90:  ax = SensorManager.AXIS_Y;       ay = SensorManager.AXIS_MINUS_X; break;
+                    case Surface.ROTATION_180: ax = SensorManager.AXIS_MINUS_X; ay = SensorManager.AXIS_MINUS_Y; break;
+                    case Surface.ROTATION_270: ax = SensorManager.AXIS_MINUS_Y; ay = SensorManager.AXIS_X;       break;
+                    default:                   ax = SensorManager.AXIS_X;       ay = SensorManager.AXIS_Y;       break;
                 }
+                SensorManager.remapCoordinateSystem(cRot, ax, ay, cRemap);
+
+                float flatWeight = Math.max(0f, Math.min(1f, (Math.abs(cRemap[8]) - 0.25f) / 0.55f));
+                float eastY = cRemap[1];
+                float northY = cRemap[4];
+                float eastZ = -cRemap[2];
+                float northZ = -cRemap[5];
+                float eastMix = eastY * flatWeight + eastZ * (1f - flatWeight);
+                float northMix = northY * flatWeight + northZ * (1f - flatWeight);
+                if (Math.hypot(eastMix, northMix) < 1e-4f) return;
+
+                float headingMag = (float) Math.toDegrees(Math.atan2(eastMix, northMix));
                 long now = SystemClock.uptimeMillis();
                 if (now - lastDeclinationMs > 60000L) { lastDeclinationMs = now; refreshMagDeclination(); }
-                float h = (headingMag + magDeclinationDeg + 720f) % 360f;
+                float rawH = (headingMag + magDeclinationDeg + 720f) % 360f;
+
+                double rad = Math.toRadians(rawH);
+                if (!hasSmoothHeading) {
+                    smoothHeadingSin = (float) Math.sin(rad);
+                    smoothHeadingCos = (float) Math.cos(rad);
+                    hasSmoothHeading = true;
+                } else {
+                    final float k = 0.18f;
+                    smoothHeadingSin += k * ((float) Math.sin(rad) - smoothHeadingSin);
+                    smoothHeadingCos += k * ((float) Math.cos(rad) - smoothHeadingCos);
+                }
+                float h = (float) ((Math.toDegrees(Math.atan2(smoothHeadingSin, smoothHeadingCos)) + 360.0) % 360.0);
                 latestCompassHeadingDeg = h;
-                if (now - lastCompassPushMs >= 66L) {
+
+                float diff = Math.abs((((h - lastPushedHeadingDeg) % 360f) + 540f) % 360f - 180f);
+                if (now - lastCompassPushMs >= 80L && (lastPushedHeadingDeg < 0f || diff >= 1.2f)) {
                     lastCompassPushMs = now;
+                    lastPushedHeadingDeg = h;
                     final float hh = h;
                     if (webView != null) {
                         webView.post(new Runnable() {
@@ -814,23 +844,37 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String getAppVersion() {
-            return "2.9.1-r247";
+            return "2.9.1-r248";
         }
 
         @JavascriptInterface
         public int getAppBuildNumber() {
-            return 247;
+            return 248;
         }
 
         @JavascriptInterface
         public String getAppRevision() {
-            return "r247";
+            return "r248";
+        }
+
+        private boolean isTelegramUri(Uri uri) {
+            if (uri == null) return false;
+            String scheme = uri.getScheme() != null ? uri.getScheme().trim().toLowerCase(Locale.ROOT) : "";
+            if ("tg".equals(scheme)) return true;
+            if ("http".equals(scheme) || "https".equals(scheme)) {
+                String host = uri.getHost() != null ? uri.getHost().trim().toLowerCase(Locale.ROOT) : "";
+                return "t.me".equals(host) || "www.t.me".equals(host) || "telegram.me".equals(host) || "www.telegram.me".equals(host) || "telegram.dog".equals(host);
+            }
+            return false;
         }
 
         private boolean isAllowedExternalUri(Uri uri) {
             if (uri == null) return false;
+            if (isTelegramUri(uri)) return true;
             String scheme = uri.getScheme();
-            if (scheme == null || !"https".equalsIgnoreCase(scheme.trim())) return false;
+            if (scheme == null) return false;
+            String s = scheme.trim().toLowerCase(Locale.ROOT);
+            if (!"https".equals(s) && !"http".equals(s)) return false;
             String host = uri.getHost();
             if (host == null) return false;
             String h = host.trim().toLowerCase(Locale.ROOT);
@@ -858,6 +902,45 @@ public class MainActivity extends Activity {
             try {
                 Uri uri = Uri.parse(url.trim());
                 if (!isAllowedExternalUri(uri)) return;
+                if (isTelegramUri(uri)) {
+                    Uri tgUri = uri;
+                    String scheme = uri.getScheme() != null ? uri.getScheme().trim().toLowerCase(Locale.ROOT) : "";
+                    if (!"tg".equals(scheme)) {
+                        String path = uri.getPath() != null ? uri.getPath().trim() : "";
+                        if (path.startsWith("/")) path = path.substring(1);
+                        if (path.toLowerCase(Locale.ROOT).startsWith("share")) {
+                            Uri.Builder b = Uri.parse("tg://msg_url").buildUpon();
+                            String uParam = uri.getQueryParameter("url");
+                            String tParam = uri.getQueryParameter("text");
+                            if (uParam != null) b.appendQueryParameter("url", uParam);
+                            if (tParam != null) b.appendQueryParameter("text", tParam);
+                            tgUri = b.build();
+                        } else {
+                            String domain = path.contains("/") ? path.substring(0, path.indexOf('/')) : path;
+                            if (domain.isEmpty()) domain = "KlevProClubBot";
+                            Uri.Builder b = Uri.parse("tg://resolve").buildUpon().appendQueryParameter("domain", domain);
+                            String startParam = uri.getQueryParameter("start");
+                            if (startParam != null && !startParam.isEmpty()) b.appendQueryParameter("start", startParam);
+                            tgUri = b.build();
+                        }
+                    }
+                    String[] tgPkgs = new String[]{"org.telegram.messenger", "org.telegram.messenger.web", "org.thunderdog.challegram", "org.telegram.plus"};
+                    for (String pkg : tgPkgs) {
+                        try {
+                            Intent pkgIntent = new Intent(Intent.ACTION_VIEW, tgUri);
+                            pkgIntent.setPackage(pkg);
+                            pkgIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                            ctx.startActivity(pkgIntent);
+                            return;
+                        } catch (Exception ignored) {}
+                    }
+                    try {
+                        Intent genericTgIntent = new Intent(Intent.ACTION_VIEW, tgUri);
+                        genericTgIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        ctx.startActivity(genericTgIntent);
+                        return;
+                    } catch (Exception ignored) {}
+                }
                 Intent intent = new Intent(Intent.ACTION_VIEW, uri);
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 ctx.startActivity(intent);
@@ -1151,7 +1234,7 @@ public class MainActivity extends Activity {
         ws.setCacheMode(WebSettings.LOAD_DEFAULT);
         // Пользовательские данные защищены в Context.getFilesDir()/klev_appdata_vault; кэш WebView не очищается принудительно
         String baseUa = ws.getUserAgentString();
-        ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.9.1-r247");
+        ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.9.1-r248");
 
         webView.addJavascriptInterface(new NativeBridge(this), "AndroidBridge");
 
@@ -1310,7 +1393,52 @@ public class MainActivity extends Activity {
                     view.loadUrl(sb.toString());
                     return true;
                 }
-                if (host.equals("t.me") || host.equals("telegram.me") || scheme.equals("tg") || scheme.equals("mailto") || scheme.equals("sms") || scheme.equals("smsto") || scheme.equals("tel") || scheme.equals("geo") || host.contains("yandex.") || host.contains("google.") || host.contains("2gis.") || host.contains("openstreetmap.") || host.contains("leafletjs.") || host.contains("open-meteo.") || host.contains("met.no")) {
+                if (host.equals("t.me") || host.equals("www.t.me") || host.equals("telegram.me") || host.equals("telegram.dog") || scheme.equals("tg")) {
+                    try {
+                        Uri tgUri = uri;
+                        if (!scheme.equals("tg")) {
+                            String path = uri.getPath() != null ? uri.getPath().trim() : "";
+                            if (path.startsWith("/")) path = path.substring(1);
+                            if (path.toLowerCase(Locale.ROOT).startsWith("share")) {
+                                Uri.Builder b = Uri.parse("tg://msg_url").buildUpon();
+                                String uParam = uri.getQueryParameter("url");
+                                String tParam = uri.getQueryParameter("text");
+                                if (uParam != null) b.appendQueryParameter("url", uParam);
+                                if (tParam != null) b.appendQueryParameter("text", tParam);
+                                tgUri = b.build();
+                            } else {
+                                String domain = path.contains("/") ? path.substring(0, path.indexOf('/')) : path;
+                                if (domain.isEmpty()) domain = "KlevProClubBot";
+                                Uri.Builder b = Uri.parse("tg://resolve").buildUpon().appendQueryParameter("domain", domain);
+                                String startParam = uri.getQueryParameter("start");
+                                if (startParam != null && !startParam.isEmpty()) b.appendQueryParameter("start", startParam);
+                                tgUri = b.build();
+                            }
+                        }
+                        String[] tgPkgs = new String[]{"org.telegram.messenger", "org.telegram.messenger.web", "org.thunderdog.challegram", "org.telegram.plus"};
+                        for (String pkg : tgPkgs) {
+                            try {
+                                Intent pkgIntent = new Intent(Intent.ACTION_VIEW, tgUri);
+                                pkgIntent.setPackage(pkg);
+                                pkgIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                                startActivity(pkgIntent);
+                                return true;
+                            } catch (Exception ignored) {}
+                        }
+                        Intent intent = new Intent(Intent.ACTION_VIEW, tgUri);
+                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        startActivity(intent);
+                        return true;
+                    } catch (Exception ignored) {
+                        try {
+                            Intent fallbackIntent = new Intent(Intent.ACTION_VIEW, uri);
+                            fallbackIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                            startActivity(fallbackIntent);
+                            return true;
+                        } catch (Exception ignored2) {}
+                    }
+                }
+                if (scheme.equals("mailto") || scheme.equals("sms") || scheme.equals("smsto") || scheme.equals("tel") || scheme.equals("geo") || host.contains("yandex.") || host.contains("google.") || host.contains("2gis.") || host.contains("openstreetmap.") || host.contains("leafletjs.") || host.contains("open-meteo.") || host.contains("met.no")) {
                     try {
                         Intent intent = new Intent(Intent.ACTION_VIEW, uri);
                         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
@@ -1816,7 +1944,7 @@ public class MainActivity extends Activity {
             }
         }
         String entryHtml = getPackageName().contains("admin") ? "kp-control-89.html" : "index.html";
-        String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/" + entryHtml + "?v=2.9.1_r247_" + System.currentTimeMillis();
+        String baseUrl = "https://" + VIRTUAL_HOST + "/assets/www/" + entryHtml + "?v=2.9.1_r248_" + System.currentTimeMillis();
         if (intent != null && intent.getData() != null) {
             Uri data = intent.getData();
             String q = data.getEncodedQuery();
