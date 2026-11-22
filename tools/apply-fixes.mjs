@@ -593,7 +593,7 @@ function patchVersionAndAndroidFiles() {
   // android/app/build.gradle (НЕ трогаем signingConfigs и keystore!)
   let gradle = readText('android/app/build.gradle');
   if (gradle) {
-    gradle = gradle.replace(/versionCode\s+\d+/g, `versionCode ${V_CODE}`).replace(/:\s*293\d{3}/g, `: ${V_CODE}`);
+    gradle = gradle.replace(/versionCode\s+\d+/g, `versionCode ${V_CODE}`).replace(/:\s*293\d{3}/g, `: ${V_CODE}`).replace(/def effVerCode = \d+/g, `def effVerCode = ${V_CODE}`);
     gradle = gradle.replace(/versionName\s+"[^"]+"/g, `versionName "${V_FULL}"`);
     writeTextIfChanged('android/app/build.gradle', gradle);
   }

@@ -2173,7 +2173,7 @@ export function renderOfflinePackPerimetersOnMap(mapInst, overlayGroup) {
       interactive: false,
       icon: L.divIcon({
         className: 'klev-offline-pack-corner-label',
-        html: `<div style="display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:6px;background:rgba(9,15,29,0.90);border:1.5px solid ${color};color:#f8fafc;font-size:10px;font-weight:800;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,0.45);">Офлайн ${pk.radiusKm} км: ${escapeHtml(pk.title)} (${hasData ? `${pk.completedTiles} тайлов` : 'требуется загрузка'})</div>`,
+        html: `<div class="klev-map-pin-rot-inner" style="transform:rotate(${(-_mapRotCur).toFixed(2)}deg);transform-origin:0 50%;display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:6px;background:rgba(9,15,29,0.90);border:1.5px solid ${color};color:#f8fafc;font-size:10px;font-weight:800;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,0.45);">Офлайн ${pk.radiusKm} км: ${escapeHtml(pk.title)} (${hasData ? `${pk.completedTiles} тайлов` : 'требуется загрузка'})</div>`,
         iconSize: [210, 22],
         iconAnchor: [0, 0]
       })
@@ -5148,17 +5148,18 @@ function _updateLiveGpsTelemetryFromPosition(pos) {
   if (_prevTelemetryFix && Number.isFinite(_prevTelemetryFix.lat) && Number.isFinite(_prevTelemetryFix.lon)) {
     const dtS = Math.max(0.4, (fixTs - _prevTelemetryFix.ts) / 1000);
     const stepM = calcHaversineKm(_prevTelemetryFix.lat, _prevTelemetryFix.lon, lat, lon) * 1000;
-    if (spMs < 0 && dtS <= 15) {
+    // Вычисляем скорость по смещению координат только если шаг превышает радиус комнатного GPS-шума
+    if (spMs < 0 && dtS <= 15 && stepM >= Math.max(6.0, acc * 0.55) && acc <= 35) {
       spMs = stepM / dtS;
     }
-    if (hdg < 0 && stepM >= 2.5 && dtS <= 15) {
+    if (hdg < 0 && stepM >= Math.max(4.5, acc * 0.45) && dtS <= 15) {
       hdg = calcBearingDeg(_prevTelemetryFix.lat, _prevTelemetryFix.lon, lat, lon);
     }
   }
   _prevTelemetryFix = { lat, lon, ts: fixTs };
   if (spMs < 0) spMs = 0;
   if (hdg < 0) hdg = _arcCompassHeadingDeg;
-  if (spMs >= 1.2 && acc <= 65 && Number.isFinite(hdg) && hdg >= 0) {
+  if (spMs >= 1.2 && acc <= 50 && Number.isFinite(hdg) && hdg >= 0) {
     _applyNewCompassHeading(hdg, 'gps');
   }
   _liveGpsFix = {
@@ -5184,7 +5185,7 @@ function _updateLiveGpsTelemetryFromPosition(pos) {
   }
 
   const nowMove = Date.now();
-  const isNowMoving = !pos._held && spMs >= 0.8;
+  const isNowMoving = !pos._held && spMs >= 1.2;
   if (isNowMoving && !_isUserMoving) {
     _movingStartedTs = nowMove;
   } else if (!isNowMoving) {
@@ -5192,11 +5193,11 @@ function _updateLiveGpsTelemetryFromPosition(pos) {
   }
   _isUserMoving = isNowMoving;
 
-  // Автоповорот и автоцентрация в движении (только при включённой настройке и реальном движении)
-  if (_arcAutoCenterEnabled && _isUserMoving && !_arcPickedSpot) {
+  // Автоповорот и автоцентрация в движении (только при включённой настройке и реальном непрерывном движении >= 6 с)
+  if (_arcAutoCenterEnabled && _isUserMoving && !_arcPickedSpot && !_isMapGestureActive) {
     const touchIdleMs = nowMove - (_lastUserMapTouchTs || 0);
     const movingForMs = _movingStartedTs ? (nowMove - _movingStartedTs) : 0;
-    if (!_isMapCenteredOnUser && touchIdleMs >= 5000) {
+    if (!_isMapCenteredOnUser && movingForMs >= 6000 && touchIdleMs >= 7000) {
       _isMapCenteredOnUser = true;
       _userManualRotatedMap = false;
       _arcGpsCompassState = 'compass';
@@ -5207,7 +5208,7 @@ function _updateLiveGpsTelemetryFromPosition(pos) {
         try { mapInstance.setView([lat, lon], mapInstance.getZoom() || 14, { animate: false }); } catch (_e) {}
       }
       _applyLiveMapCanvasCompassRotation();
-    } else if (_isMapCenteredOnUser && _arcGpsCompassState !== 'compass' && movingForMs >= 3000 && touchIdleMs >= 5000) {
+    } else if (_isMapCenteredOnUser && _arcGpsCompassState !== 'compass' && movingForMs >= 6000 && touchIdleMs >= 7000) {
       _userManualRotatedMap = false;
       _arcGpsCompassState = 'compass';
       try { window.AndroidBridge?.setCompassActive?.(true); } catch (_e) {}
@@ -6719,7 +6720,7 @@ function renderMapOverlays() {
             zIndexOffset: 900,
             icon: L.divIcon({
               className: 'klev-thematic-spot-icon',
-              html: `<div class="klev-map-pin-rot-inner" style="width:24px;height:24px;border-radius:50%;background:rgba(15,23,42,0.92);border:1.8px solid ${catObj.color};box-shadow:0 2px 6px rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;font-size:12px;transform:rotate(${_arcGpsCompassState === 'compass' ? _arcCompassHeadingDeg : 0}deg);">${catObj.mapPinIcon || catObj.icon}</div>`,
+              html: `<div class="klev-map-pin-rot-inner" style="width:24px;height:24px;border-radius:50%;background:rgba(15,23,42,0.92);border:1.8px solid ${catObj.color};box-shadow:0 2px 6px rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;font-size:12px;transform:rotate(${(-_mapRotCur).toFixed(2)}deg);">${catObj.mapPinIcon || catObj.icon}</div>`,
               iconSize: [22, 22],
               iconAnchor: [11, 11]
             })
@@ -6802,7 +6803,7 @@ function renderMapOverlays() {
             zIndexOffset: 950,
             icon: L.divIcon({
               className: 'klev-thematic-cluster-icon',
-              html: `<div title="Точек: ${count} (нажмите для приближения < 1 км/см)" style="width:26px;height:26px;border-radius:50%;background:rgba(15,23,42,0.88);border:2px solid ${firstCat.color};color:#fff;font-size:11.5px;font-weight:900;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,0.5);cursor:pointer;">${count}</div>`,
+              html: `<div class="klev-map-pin-rot-inner" title="Точек: ${count} (нажмите для приближения < 1 км/см)" style="width:26px;height:26px;border-radius:50%;background:rgba(15,23,42,0.88);border:2px solid ${firstCat.color};color:#fff;font-size:11.5px;font-weight:900;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,0.5);cursor:pointer;transform:rotate(${(-_mapRotCur).toFixed(2)}deg);">${count}</div>`,
               iconSize: [26, 26],
               iconAnchor: [13, 13]
             })
@@ -6851,7 +6852,7 @@ function renderMapOverlays() {
         zIndexOffset: 2200,
         icon: L.divIcon({
           className: "klev-sos-icon",
-          html: "<div style=\"width:28px;height:28px;display:flex;align-items:center;justify-content:center;filter:drop-shadow(0 0 8px #ef4444);animation:pulse 1.4s infinite;\"><svg class=\"k-ico\" style=\"width:26px;height:26px;color:var(--bad);\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"12\" cy=\"12\" r=\"10\" fill=\"#dc2626\" stroke=\"#ffffff\" stroke-width=\"2.2\"/><text x=\"12\" y=\"15\" text-anchor=\"middle\" fill=\"#fff\" font-size=\"7.5\" font-weight=\"900\" font-family=\"sans-serif\">SOS</text></svg></div>",
+          html: "<div class=\"klev-map-pin-rot-inner\" style=\"width:28px;height:28px;display:flex;align-items:center;justify-content:center;filter:drop-shadow(0 0 8px #ef4444);animation:pulse 1.4s infinite;\"><svg class=\"k-ico\" style=\"width:26px;height:26px;color:var(--bad);\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"12\" cy=\"12\" r=\"10\" fill=\"#dc2626\" stroke=\"#ffffff\" stroke-width=\"2.2\"/><text x=\"12\" y=\"15\" text-anchor=\"middle\" fill=\"#fff\" font-size=\"7.5\" font-weight=\"900\" font-family=\"sans-serif\">SOS</text></svg></div>",
           iconSize: [28, 28],
           iconAnchor: [14, 14]
         })
@@ -6891,7 +6892,7 @@ function renderMapOverlays() {
         zIndexOffset: 1400,
         icon: L.divIcon({
           className: "klev-crew-icon",
-          html: "<div style=\"font-size:16px;line-height:1;text-shadow:0 1px 3px rgba(0,0,0,0.8);\"><svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M3 16l2 4h14l2-4-9-2-9 2z\" fill=\"rgba(56,189,248,0.22)\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/><path d=\"M12 4v10M12 4l6 6h-6\" stroke=\"#38bdf8\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/></svg></div>",
+          html: "<div class=\"klev-map-pin-rot-inner\" style=\"font-size:16px;line-height:1;text-shadow:0 1px 3px rgba(0,0,0,0.8);\"><svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M3 16l2 4h14l2-4-9-2-9 2z\" fill=\"rgba(56,189,248,0.22)\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/><path d=\"M12 4v10M12 4l6 6h-6\" stroke=\"#38bdf8\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/></svg></div>",
           iconSize: [22, 22],
           iconAnchor: [11, 11]
         })
@@ -6937,7 +6938,7 @@ function renderMapOverlays() {
         opacity: decay.markerOpacity,
         icon: L.divIcon({
           className: "klev-circle-icon",
-          html: `<div style="font-size:15px;line-height:1;opacity:${decay.markerOpacity};text-shadow:0 1px 3px rgba(0,0,0,0.8);">${item.kg ? "<svg class=\"k-ico\" style=\"color:#fbbf24;\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M7 4h10v5a5 5 0 0 1-10 0V4z\" fill=\"rgba(251,191,36,0.28)\" stroke=\"#fbbf24\" stroke-width=\"1.8\"/><path d=\"M7 6H4v2a3 3 0 0 0 3 3M17 6h3v2a3 3 0 0 1-3 3M12 14v4M8 20h8\" stroke=\"#fbbf24\" stroke-width=\"1.8\" stroke-linecap=\"round\"/></svg>" : "<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M2 12s4-6 11-6c4.2 0 7 2.5 9 6-2 3.5-4.8 6-9 6-7 0-11-6-11-6z\" fill=\"rgba(56,189,248,0.28)\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/><path d=\"M2 12l-1.5-3.5L5 10.5M2 12l-1.5 3.5L5 13.5\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\"/><circle cx=\"16.5\" cy=\"10.8\" r=\"1.3\" fill=\"currentColor\"/></svg>"}</div>`,
+          html: `<div class="klev-map-pin-rot-inner" style="transform:rotate(${(-_mapRotCur).toFixed(2)}deg);font-size:15px;line-height:1;opacity:${decay.markerOpacity};text-shadow:0 1px 3px rgba(0,0,0,0.8);">${item.kg ? "<svg class=\"k-ico\" style=\"color:#fbbf24;\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M7 4h10v5a5 5 0 0 1-10 0V4z\" fill=\"rgba(251,191,36,0.28)\" stroke=\"#fbbf24\" stroke-width=\"1.8\"/><path d=\"M7 6H4v2a3 3 0 0 0 3 3M17 6h3v2a3 3 0 0 1-3 3M12 14v4M8 20h8\" stroke=\"#fbbf24\" stroke-width=\"1.8\" stroke-linecap=\"round\"/></svg>" : "<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M2 12s4-6 11-6c4.2 0 7 2.5 9 6-2 3.5-4.8 6-9 6-7 0-11-6-11-6z\" fill=\"rgba(56,189,248,0.28)\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/><path d=\"M2 12l-1.5-3.5L5 10.5M2 12l-1.5 3.5L5 13.5\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\"/><circle cx=\"16.5\" cy=\"10.8\" r=\"1.3\" fill=\"currentColor\"/></svg>"}</div>`,
           iconSize: [18, 18],
           iconAnchor: [9, 9]
         })
@@ -7052,38 +7053,77 @@ export function renderMap(mapBoxEl) {
     }
     updateLiveUserGpsMarkerOnMap();
 
-    // Компенсация 1-пальцевого перетаскивания под повёрнутым #mapBox
+    // Автоматическая стабилизация попапов и тултипов точек горизонтально при любом угле поворота карты
+    try {
+      if (typeof L !== 'undefined' && L.DomUtil && typeof L.DomUtil.setPosition === 'function' && !L.DomUtil.__klevRotPatched) {
+        const origSetPos = L.DomUtil.setPosition.bind(L.DomUtil);
+        L.DomUtil.__klevRotPatched = true;
+        L.DomUtil.setPosition = function(el, point) {
+          origSetPos(el, point);
+          if (el && el.classList && Math.abs(_mapRotCur % 360) > 0.1) {
+            if (el.classList.contains('leaflet-popup')) {
+              el.style.transformOrigin = '50% calc(100% + 13px)';
+              const baseTr = String(el.style.transform || '').replace(/\s*rotate\([^)]*\)/g, '').trim();
+              el.style.transform = baseTr ? `${baseTr} rotate(${(-_mapRotCur).toFixed(2)}deg)` : `rotate(${(-_mapRotCur).toFixed(2)}deg)`;
+            } else if (el.classList.contains('leaflet-tooltip')) {
+              el.style.transformOrigin = '50% 50%';
+              const baseTr = String(el.style.transform || '').replace(/\s*rotate\([^)]*\)/g, '').trim();
+              el.style.transform = baseTr ? `${baseTr} rotate(${(-_mapRotCur).toFixed(2)}deg)` : `rotate(${(-_mapRotCur).toFixed(2)}deg)`;
+            }
+          }
+        };
+      }
+    } catch (_e) {}
+
+    // Компенсация 1-пальцевого перетаскивания под повёрнутым #mapBox (с перепривязкой слушателя L.Draggable)
     try {
       const dr = mapInstance.dragging && mapInstance.dragging._draggable;
       if (dr && !dr.__klevRotPatched) {
+        const wasEnabled = Boolean(dr._enabled);
+        if (wasEnabled && typeof dr.disable === 'function') {
+          try { dr.disable(); } catch (_e) {}
+        }
         dr.__klevRotPatched = true;
         const origOnDown = dr._onDown.bind(dr);
         const origOnMove = dr._onMove.bind(dr);
         dr._onDown = function(e) {
+          _isMapGestureActive = true;
+          noteUserMapTouchInteraction();
           if (e && e.touches && e.touches.length > 1) return origOnDown(e);
           const first = (e && e.touches && e.touches[0]) || e;
           if (first && Number.isFinite(first.clientX) && Number.isFinite(first.clientY)) {
             this._klevTouchStart = { x: first.clientX, y: first.clientY };
+            this._klevRotDegAtDown = _mapRotCur;
           } else {
             this._klevTouchStart = null;
+            this._klevRotDegAtDown = _mapRotCur;
           }
           return origOnDown(e);
         };
         dr._onMove = function(e) {
+          noteUserMapTouchInteraction();
           if (e && e.touches && e.touches.length > 1) {
-            return origOnMove(e);
+            return;
           }
-          if (Math.abs(_mapRotCur % 360) > 1.5 && e && this._klevTouchStart) {
-            const first = (e.touches && e.touches[0]) || e;
-            if (first && Number.isFinite(first.clientX) && Number.isFinite(first.clientY)) {
-              const dx = first.clientX - this._klevTouchStart.x;
-              const dy = first.clientY - this._klevTouchStart.y;
-              const rad = (-_mapRotCur * Math.PI) / 180;
+          const startPt = this._klevTouchStart || this._startPoint;
+          const first = (e && e.touches && e.touches[0]) || e;
+          if (startPt && first && Number.isFinite(first.clientX) && Number.isFinite(first.clientY)) {
+            const dx = first.clientX - startPt.x;
+            const dy = first.clientY - startPt.y;
+            if (Math.hypot(dx, dy) > 5 && _isMapCenteredOnUser) {
+              _isMapCenteredOnUser = false;
+              const gpsBtn = document.getElementById('arcBtnGpsCompass');
+              if (gpsBtn) gpsBtn.classList.remove('active');
+              _syncCompassResetButtonUi();
+            }
+            const rotDeg = Number.isFinite(this._klevRotDegAtDown) ? this._klevRotDegAtDown : _mapRotCur;
+            if (Math.abs(rotDeg % 360) > 0.5) {
+              const rad = (-rotDeg * Math.PI) / 180;
               const rx = dx * Math.cos(rad) - dy * Math.sin(rad);
               const ry = dx * Math.sin(rad) + dy * Math.cos(rad);
               const fakeEv = {
-                clientX: this._klevTouchStart.x + rx,
-                clientY: this._klevTouchStart.y + ry,
+                clientX: startPt.x + rx,
+                clientY: startPt.y + ry,
                 target: e.target,
                 preventDefault: () => { try { e.preventDefault(); } catch (_e) {} }
               };
@@ -7092,18 +7132,25 @@ export function renderMap(mapBoxEl) {
           }
           return origOnMove(e);
         };
+        if (wasEnabled && typeof dr.enable === 'function') {
+          try { dr.enable(); } catch (_e) {}
+        }
       }
     } catch (_e) {}
 
-    // Сброс центрирования при ручном сдвиге карты
+    // Сброс центрирования и пауза вращения компаса при ручном сдвиге карты (алгоритм r243/r244)
     mapInstance.on('dragstart', () => {
       noteUserMapTouchInteraction();
       _isMapCenteredOnUser = false;
       const gpsBtn = document.getElementById('arcBtnGpsCompass');
       if (gpsBtn) gpsBtn.classList.remove('active');
+      _syncCompassResetButtonUi();
     });
     mapInstance.on('zoomstart', () => {
       if (!_isProgrammaticAutoZoom) noteUserMapTouchInteraction();
+    });
+    mapInstance.on('popupopen move zoomend viewreset', () => {
+      _commitLiveMapRotationToDom();
     });
 
     const clientToRotatedMapPoint = (clientX, clientY) => {
@@ -7125,12 +7172,15 @@ export function renderMap(mapBoxEl) {
       return [mw / 2 + rx, mh / 2 + ry];
     };
 
-    // Одновременный зум и вращение карты двумя пальцами без срыва координат
+    // Одновременное перемещение (pan), зум и вращение карты двумя пальцами без срыва координат
     if (!mapBoxEl.__klevPinchRotateBound) {
       mapBoxEl.__klevPinchRotateBound = true;
       let _p2Active = false;
       let _p2LastDist = 0;
       let _p2LastAng = 0;
+      let _p2LastCx = 0;
+      let _p2LastCy = 0;
+      let _p2TotalPanPx = 0;
       let _p2StartZoom = 14;
       let _p2BaseDist = 0;
 
@@ -7147,31 +7197,60 @@ export function renderMap(mapBoxEl) {
 
       mapBoxEl.addEventListener('touchstart', (ev) => {
         _isMapGestureActive = true;
+        noteUserMapTouchInteraction();
         if (ev.touches && ev.touches.length === 2 && mapInstance) {
           const m = getTouchMetrics(ev.touches[0], ev.touches[1]);
           _p2Active = true;
           _p2LastDist = m.dist;
           _p2BaseDist = m.dist;
           _p2LastAng = m.ang;
+          _p2LastCx = m.cx;
+          _p2LastCy = m.cy;
+          _p2TotalPanPx = 0;
           _p2StartZoom = mapInstance.getZoom() || 14;
           try { mapInstance.touchZoom.disable(); } catch (_e) {}
           try { mapInstance.dragging.disable(); } catch (_e) {}
-          noteUserMapTouchInteraction();
         }
       }, { passive: true });
 
       mapBoxEl.addEventListener('touchmove', (ev) => {
         if (!_p2Active || !ev.touches || ev.touches.length !== 2 || !mapInstance) return;
+        noteUserMapTouchInteraction();
         const m = getTouchMetrics(ev.touches[0], ev.touches[1]);
+
+        // 1. Двухпальцевый сдвиг (панорамирование карты за средней точкой двух пальцев)
+        const dCx = m.cx - _p2LastCx;
+        const dCy = m.cy - _p2LastCy;
+        _p2LastCx = m.cx;
+        _p2LastCy = m.cy;
+        const stepPanPx = Math.hypot(dCx, dCy);
+        if (stepPanPx > 0.35) {
+          _p2TotalPanPx += stepPanPx;
+          const rad = (-_mapRotCur * Math.PI) / 180;
+          const rx = dCx * Math.cos(rad) - dCy * Math.sin(rad);
+          const ry = dCx * Math.sin(rad) + dCy * Math.cos(rad);
+          try {
+            mapInstance.panBy([-rx, -ry], { animate: false, noMoveStart: true });
+          } catch (_e) {}
+          if (_p2TotalPanPx > 6 && _isMapCenteredOnUser) {
+            _isMapCenteredOnUser = false;
+            const gpsBtn = document.getElementById('arcBtnGpsCompass');
+            if (gpsBtn) gpsBtn.classList.remove('active');
+            _syncCompassResetButtonUi();
+          }
+        }
+
+        // 2. Двухпальцевое вращение карты
         let dAng = m.ang - _p2LastAng;
         if (dAng > 180) dAng -= 360;
         if (dAng < -180) dAng += 360;
-        if (Math.abs(dAng) > 0.3) {
+        if (Math.abs(dAng) > 0.35) {
           _userManualRotatedMap = true;
           _applyLiveMapCanvasCompassRotation(dAng, true);
         }
         _p2LastAng = m.ang;
 
+        // 3. Двухпальцевый щипок (масштабирование)
         if (_p2BaseDist > 0 && Math.abs(m.dist - _p2LastDist) > 6) {
           const zDelta = Math.log2(m.dist / _p2BaseDist);
           const nextIntZoom = Math.round(clamp(_p2StartZoom + zDelta, 4, 18));
@@ -7179,7 +7258,7 @@ export function renderMap(mapBoxEl) {
           if (nextIntZoom !== curZoom) {
             try {
               _isProgrammaticAutoZoom = true;
-              mapInstance.setView(mapInstance.getCenter(), nextIntZoom, { animate: false });
+              mapInstance.setZoom(nextIntZoom, { animate: false });
             } catch (_e) {
             } finally {
               setTimeout(() => { _isProgrammaticAutoZoom = false; }, 100);
@@ -7190,11 +7269,22 @@ export function renderMap(mapBoxEl) {
       }, { passive: true });
 
       const endPinchRotate = (ev) => {
+        noteUserMapTouchInteraction();
         if (!ev.touches || ev.touches.length === 0) {
           _isMapGestureActive = false;
         }
         if (_p2Active && (!ev.touches || ev.touches.length < 2)) {
           _p2Active = false;
+          if (ev.touches && ev.touches.length === 1 && mapInstance && mapInstance.dragging && mapInstance.dragging._draggable) {
+            const dr = mapInstance.dragging._draggable;
+            const t0 = ev.touches[0];
+            dr._klevTouchStart = { x: t0.clientX, y: t0.clientY };
+            dr._klevRotDegAtDown = _mapRotCur;
+            if (typeof L !== 'undefined' && typeof L.point === 'function') {
+              dr._startPoint = L.point(t0.clientX, t0.clientY);
+            }
+            if (dr._newPos) dr._startPos = dr._newPos;
+          }
           try { mapInstance.touchZoom.enable(); } catch (_e) {}
           if (_arcRouteBuilderMode !== 'freehand') {
             try { mapInstance.dragging.enable(); } catch (_e) {}
@@ -7557,8 +7647,8 @@ function _syncCompassResetButtonUi() {
   const norm = Math.abs((((_mapRotCur % 360) + 540) % 360) - 180);
   const isTilted = Math.abs(_mapRotCur % 360) > 1.5 && norm < 178.5;
   const active = _arcGpsCompassState === 'compass' || _userManualRotatedMap || isTilted;
-  btn.style.display = 'flex';
-  btn.classList.toggle('active', _arcGpsCompassState === 'compass');
+  btn.style.display = active ? 'flex' : 'none';
+  btn.classList.toggle('active', _arcGpsCompassState === 'compass' && _isMapCenteredOnUser);
   const svg = btn.querySelector('svg');
   if (svg) {
     svg.style.color = active ? '#ef4444' : 'currentColor';
@@ -7660,16 +7750,32 @@ function _ensureSquareMapCanvasSize(stage, box) {
 
 function _commitLiveMapRotationToDom() {
   _mapRotRafId = 0;
+  if (typeof window !== 'undefined') {
+    window.__KLEV_MAP_ROT_CUR_DEG__ = _mapRotCur;
+  }
   if (typeof document === 'undefined') return;
   const stage = document.getElementById('klevArcMapStage');
   const box = document.getElementById('mapBox');
   if (!stage || !box) return;
   _ensureSquareMapCanvasSize(stage, box);
+  const invDegStr = `${(-_mapRotCur).toFixed(2)}deg`;
+  const inv = `rotate(${invDegStr})`;
   box.style.transition = 'none';
   box.style.transform = `rotate(${_mapRotCur.toFixed(2)}deg)`;
-  const pins = box.querySelectorAll('.klev-map-pin-rot-inner');
-  const inv = `rotate(${(-_mapRotCur).toFixed(2)}deg)`;
-  pins.forEach(el => { el.style.transform = inv; });
+  box.style.setProperty('--klev-inv-rot', invDegStr);
+  box.querySelectorAll('.klev-map-pin-rot-inner').forEach(el => {
+    el.style.transform = inv;
+  });
+  box.querySelectorAll('.leaflet-popup').forEach(pop => {
+    pop.style.transformOrigin = '50% calc(100% + 13px)';
+    const baseTr = String(pop.style.transform || '').replace(/\s*rotate\([^)]*\)/g, '').trim();
+    pop.style.transform = baseTr ? `${baseTr} ${inv}` : inv;
+  });
+  box.querySelectorAll('.leaflet-tooltip').forEach(tt => {
+    tt.style.transformOrigin = '50% 50%';
+    const baseTr = String(tt.style.transform || '').replace(/\s*rotate\([^)]*\)/g, '').trim();
+    tt.style.transform = baseTr ? `${baseTr} ${inv}` : inv;
+  });
   _syncCompassResetButtonUi();
 }
 
@@ -7679,7 +7785,8 @@ function _applyLiveMapCanvasCompassRotation(manualDegDelta = null, instant = fal
   const box = document.getElementById('mapBox');
   if (!stage || !box) return;
 
-  const compassActive = _arcGpsCompassState === 'compass' && _compassHasSample && !_userManualRotatedMap && !_isMapGestureActive;
+  // По журналу доработки (r243/r244): при ручном сдвиге карты (_isMapCenteredOnUser === false) компас перестаёт вращать карту, сохраняя текущий угол _mapRotCur
+  const compassActive = _arcGpsCompassState === 'compass' && _isMapCenteredOnUser && _compassHasSample && !_userManualRotatedMap && !_isMapGestureActive;
   if (manualDegDelta !== null) {
     _mapRotCur += Number(manualDegDelta) || 0;
   } else if (compassActive) {
@@ -8266,7 +8373,7 @@ function renderArcRouteDraftAndActiveOnMap() {
           className: 'klev-arc-wp-pin',
           iconSize: [24, 24],
           iconAnchor: [12, 12],
-          html: `<div style="width:24px;height:24px;border-radius:999px;background:#0ea5e9;border:2px solid #ffffff;color:#ffffff;font-size:11px;font-weight:900;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.55);">${idx + 1}</div>`
+          html: `<div class="klev-map-pin-rot-inner" style="transform:rotate(${(-_mapRotCur).toFixed(2)}deg);width:24px;height:24px;border-radius:999px;background:#0ea5e9;border:2px solid #ffffff;color:#ffffff;font-size:11px;font-weight:900;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.55);">${idx + 1}</div>`
         })
       });
       _arcRouteDraftLayerGroup.addLayer(m);
@@ -8317,7 +8424,7 @@ function renderArcRouteDraftAndActiveOnMap() {
         className: 'klev-arc-finish-pin',
         iconSize: [26, 26],
         iconAnchor: [13, 13],
-        html: `<div style="width:26px;height:26px;border-radius:999px;background:${col};border:2.5px solid #ffffff;color:#ffffff;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(0,0,0,0.6);">
+        html: `<div class="klev-map-pin-rot-inner" style="transform:rotate(${(-_mapRotCur).toFixed(2)}deg);width:26px;height:26px;border-radius:999px;background:${col};border:2.5px solid #ffffff;color:#ffffff;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(0,0,0,0.6);">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M5 3v18M5 4h13l-2.5 4.5L18 13H5" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>`
       })
@@ -10026,7 +10133,7 @@ function renderArcMobileMap(container, s, prevLiveMapBox) {
 
       <!-- Правые кнопки на карте: Кнопка Компаса (при повороте), GPS, Точки -->
       <div id="arcRightSideButtons" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);z-index:920;display:${(_arcRouteBuilderMode || _arcExpandedPlaqueId || _arcActivePopover) ? 'none' : 'flex'};flex-direction:column;gap:10px;">
-        <button type="button" class="klev-arc-glass klev-arc-icon-btn ${_arcGpsCompassState === 'compass' ? 'active' : ''}" id="arcBtnCompassResetNorth" aria-label="Компас и ориентация карты" title="Включить компас / Сбросить на Север" style="display:flex;">
+        <button type="button" class="klev-arc-glass klev-arc-icon-btn ${_arcGpsCompassState === 'compass' ? 'active' : ''}" id="arcBtnCompassResetNorth" aria-label="Компас и ориентация карты" title="Сбросить ориентацию карты на Север" style="display:${(_arcGpsCompassState === 'compass' || _userManualRotatedMap || Math.abs(_mapRotCur % 360) > 1.5) ? 'flex' : 'none'};">
           <svg class="k-svg" style="width:22px;height:22px;color:${(_arcGpsCompassState === 'compass' || _userManualRotatedMap || Math.abs(_mapRotCur % 360) > 1.5) ? '#ef4444' : 'currentColor'};transform:rotate(${Math.round(_mapRotCur)}deg);transition:transform 0.14s linear;" viewBox="0 0 24 24" fill="none"><use href="#map-compass"/></svg>
         </button>
         <button type="button" class="klev-arc-glass klev-arc-icon-btn ${_isMapCenteredOnUser ? 'active' : ''}" id="arcBtnGpsCompass" aria-label="Центрировать на GPS и включить компас" title="GPS / Компас">
@@ -10644,21 +10751,51 @@ function bindArcMobileMapEvents(container) {
         }
       }, () => {}, { enableHighAccuracy: true, timeout: 7000, maximumAge: 10000 });
     }
-    _isMapCenteredOnUser = true;
-    _userManualRotatedMap = false;
-    if (_arcGpsCompassState === 'off') {
-      _arcGpsCompassState = 'centered';
-    }
-    if (mapInstance) {
-      mapInstance.panTo([realPos.lat, realPos.lon], { animate: true });
-    }
-    if (_arcGpsCompassState === 'compass') {
-      if (_isUserMoving && Number.isFinite(_liveGpsFix.headingDeg) && _liveGpsFix.headingDeg >= 0) {
-        _applyNewCompassHeading(_liveGpsFix.headingDeg, 'gps');
+    // Утверждённый алгоритм r243/r244:
+    // 1) Если карта была сдвинута (!_isMapCenteredOnUser) — нажатие на GPS только центрирует карту (с сохранением зума; если компас был включён, возобновляет вращение вокруг пользователя).
+    // 2) Повторное нажатие на уже отцентрованной карте (_isMapCenteredOnUser && _arcGpsCompassState !== 'compass') включает режим компаса и показывает кнопку Компаса рядом.
+    // 3) Третье нажатие (или нажатие на кнопку Компаса) возвращает ориентацию на Север.
+    if (!_isMapCenteredOnUser) {
+      _isMapCenteredOnUser = true;
+      _userManualRotatedMap = false;
+      if (mapInstance) {
+        mapInstance.panTo([realPos.lat, realPos.lon], { animate: true });
       }
-      _applyLiveMapCanvasCompassRotation(null, true);
+      if (_arcGpsCompassState === 'compass') {
+        if (_isUserMoving && Number.isFinite(_liveGpsFix?.headingDeg) && _liveGpsFix.headingDeg >= 0) {
+          _applyNewCompassHeading(_liveGpsFix.headingDeg, 'gps');
+        }
+        _applyLiveMapCanvasCompassRotation(null, true);
+        showToast('Карта отцентрована по вашему GPS (компас активен)', 'info');
+      } else {
+        _arcGpsCompassState = 'centered';
+        showToast('Карта отцентрована по вашему GPS', 'info');
+      }
+    } else if (_arcGpsCompassState !== 'compass') {
+      _arcGpsCompassState = 'compass';
+      _userManualRotatedMap = false;
+      if (typeof window !== 'undefined' && typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+        try { await DeviceOrientationEvent.requestPermission(); } catch (_e) {}
+      }
+      try { window.AndroidBridge?.setCompassActive?.(true); } catch (_e) {}
+      _ensureArcCompassSensorStarted();
+      try {
+        const dNow = Number(window.AndroidBridge?.getCompassHeadingDeg?.());
+        if (Number.isFinite(dNow) && dNow >= 0) _applyNewCompassHeading(dNow, 'native');
+        else if (Number.isFinite(_liveGpsFix?.headingDeg) && _liveGpsFix.headingDeg >= 0) _applyNewCompassHeading(_liveGpsFix.headingDeg, 'gps');
+      } catch (_e) {}
+      if (mapInstance) {
+        mapInstance.panTo([realPos.lat, realPos.lon], { animate: true });
+      }
+      showToast(_compassHasSample
+        ? 'Компас включён: карта вращается по курсу'
+        : 'Компас включён: ожидание данных датчика...', 'info');
+    } else {
+      _arcGpsCompassState = 'centered';
+      _userManualRotatedMap = false;
+      _mapRotCur = 0;
+      showToast('Режим GPS: карта ориентирована на Север', 'info');
     }
-    showToast('Карта отцентрована по вашему GPS', 'info');
     updateLiveUserGpsMarkerOnMap();
     render(container);
     _applyLiveMapCanvasCompassRotation(null, true);

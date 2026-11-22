@@ -76,8 +76,8 @@ test('3.3 Регулярка шлюз тайлов блокирует чужие
 
 test('3.4 & 4.8 Единый источник версии VERSION (2.9.0 r240) синхронизирован во всех файлах и ссылка на APK валидна', () => {
   assert.equal(verData.version, '2.9.1');
-  assert.equal(verData.revision, 'r248');
-  assert.equal(verData.versionCode, 293248);
+  assert.equal(verData.revision, 'r249');
+  assert.equal(verData.versionCode, 293249);
 
   const vJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'version.json'), 'utf8'));
   const apkVJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'apk/apk-version.json'), 'utf8'));
@@ -376,7 +376,7 @@ test('6.6 Аудит r248: пересобранный app-runtime.js + app.bundl
   const wf = fs.readFileSync(path.join(ROOT, '.github/workflows/build-android-apk.yml'), 'utf8');
   const verJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'VERSION'), 'utf8'));
 
-  assert.equal(verJson.fullVersion, '2.9.1-r248', 'В VERSION должен быть fullVersion 2.9.1-r248');
+  assert.equal(verJson.fullVersion, '2.9.1-r249', 'В VERSION должен быть fullVersion 2.9.1-r249');
   assert.equal(rtSrc, bundleSrc, 'app-runtime.js и js/app.bundle.js должны быть идентичны');
   for (const sym of ['transform-origin:14px 27px;', 'fcWeatherRoadStormCard', 'fcWeatherHourlyWaveCard', '_klevTouchStart', '__KLEV_STARTUP_GPS_SYNCED__']) {
     assert.ok(rtSrc.includes(sym), `В скомпилированном app-runtime.js отсутствует ${sym}`);
@@ -385,7 +385,7 @@ test('6.6 Аудит r248: пересобранный app-runtime.js + app.bundl
   assert.ok(layoutCss.includes('img.leaflet-marker-icon') && idxHtml.includes('img.leaflet-marker-icon'), 'Синий дефолтный img.leaflet-marker-icon должен скрываться на мобильных через CSS');
   assert.ok(!/\.compass-bearing-active\s+#mapBox\s*\{[^}]*transform:\s*none/i.test(idxHtml), 'В index.html не должно быть transform: none для #mapBox');
   assert.ok(!/\.compass-bearing-active\s+#mapBox\s*\{[^}]*transform:\s*none/i.test(kpHtml), 'В kp-control-89.html не должно быть transform: none для #mapBox');
-  assert.ok(gradle.includes('applicationId "ru.klevpro.app"') && gradle.includes('versionName "2.9.1-r248"'), 'В android/app/build.gradle должны быть ru.klevpro.app и 2.9.1-r248');
+  assert.ok(gradle.includes('applicationId "ru.klevpro.app"') && gradle.includes('versionName "2.9.1-r249"'), 'В android/app/build.gradle должны быть ru.klevpro.app и 2.9.1-r249');
   assert.ok(stringsXml.includes('Клёв ПРО 2.0'), 'В strings.xml должно быть имя Клёв ПРО 2.0');
   assert.ok(mainJava.includes('compassWanted = true') && mainJava.includes('TYPE_MAGNETIC_FIELD'), 'В MainActivity.java должен быть включён компас с резервом TYPE_MAGNETIC_FIELD');
   assert.ok(wf.includes('/tmp/klev-android-user') && wf.includes('/tmp/klev-android-admin'), 'Workflow должен собирать User и Admin APK в изолированных директориях');
@@ -424,4 +424,43 @@ test('r248: 8 исправлений (меню 5 иконок без подпи�
   assert.ok(geoJs.includes('promptRouteStartOriginChoice') && geoJs.includes('_checkProximityToDeferredRouteStart'), 'Запрос точки старта и триггер 100-200 м');
 
   assert.ok(geoJs.includes("export function formatSpokenRouteDistanceRu(distKm)") && geoJs.includes("примерно ${wholeKm} ${kmWord} ${hundredsMeters} метров"));
+});
+
+test('r249: алгоритм сдвига карты со включённым компасом (r243/r244), горизонтальная стабилизация попапов/надписей точек и 2-пальцевое перемещение карты', () => {
+  const geoJs = fs.readFileSync(path.join(ROOT, 'js/modules/geo/geo.module.js'), 'utf8');
+  const rtJs = fs.readFileSync(path.join(ROOT, 'app-runtime.js'), 'utf8');
+
+  // 1. Алгоритм работы карты при сдвиге со включённым компасом
+  assert.ok(
+    geoJs.includes("const compassActive = _arcGpsCompassState === 'compass' && _isMapCenteredOnUser && _compassHasSample && !_userManualRotatedMap && !_isMapGestureActive;"),
+    'Вращение по компасу должно приостанавливаться при сдвиге карты (!_isMapCenteredOnUser) с сохранением текущего угла'
+  );
+  assert.ok(
+    geoJs.includes("if (wasEnabled && typeof dr.disable === 'function')") && geoJs.includes("const startPt = this._klevTouchStart || this._startPoint;"),
+    'Патч 1-пальцевого перетаскивания dr._onDown/dr._onMove должен перепривязывать слушатель L.Draggable и компенсировать поворот'
+  );
+  assert.ok(
+    geoJs.includes("if (!_isMapCenteredOnUser) {") && geoJs.includes("} else if (_arcGpsCompassState !== 'compass') {"),
+    'Кнопка GPS (#arcBtnGpsCompass) должна при первом нажатии центрировать карту, а при повторном нажатии на отцентрованной карте — включать компас'
+  );
+  assert.ok(
+    geoJs.includes('movingForMs >= 6000 && touchIdleMs >= 7000'),
+    'Автоцентрация должна срабатывать только при непрерывном движении >= 6 с и паузе касаний >= 7 с (без ложных возвратов на стоянке)'
+  );
+
+  // 2. Горизонтальная стабилизация надписей и попапов точек при вращении карты
+  assert.ok(
+    geoJs.includes("L.DomUtil.setPosition = function(el, point)") && geoJs.includes("box.querySelectorAll('.leaflet-popup').forEach"),
+    'Попапы (.leaflet-popup), тултипы (.leaflet-tooltip) и маркеры точек (.klev-map-pin-rot-inner) должны контр-вращаться на -_mapRotCur'
+  );
+
+  // 3. Двухпальцевое перемещение карты (pan + zoom + rotate)
+  assert.ok(
+    geoJs.includes('const dCx = m.cx - _p2LastCx;') && geoJs.includes('mapInstance.panBy([-rx, -ry], { animate: false, noMoveStart: true });'),
+    'Обработчик 2 пальцев (__klevPinchRotateBound) должен панорамировать карту за средней точкой двух пальцев с учётом угла поворота'
+  );
+  assert.ok(
+    rtJs.includes('__KLEV_MAP_ROT_CUR_DEG__') && rtJs.includes('--klev-inv-rot'),
+    'Изменения r249 должны быть скомпилированы в app-runtime.js'
+  );
 });

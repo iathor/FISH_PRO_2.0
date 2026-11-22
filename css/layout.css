@@ -2070,7 +2070,14 @@ html:not([data-desktop-web="1"]) .leaflet-pane img.leaflet-marker-icon,
 html:not([data-desktop-web="1"]) .leaflet-pane img.leaflet-marker-shadow {
   display: none !important;
 }
+.klev-arc-map-stage {
+  touch-action: none !important;
+}
+#mapBox .klev-map-pin-rot-inner {
+  transform: rotate(var(--klev-inv-rot, 0deg));
+}
 .klev-arc-map-stage #mapBox {
+  touch-action: none !important;
   position: absolute !important;
   inset: 0 !important;
   width: 100% !important;
