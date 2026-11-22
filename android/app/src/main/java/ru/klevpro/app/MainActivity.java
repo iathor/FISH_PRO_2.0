@@ -153,6 +153,10 @@ public class MainActivity extends Activity {
             "project-osrm.org",
             "openstreetmap.de",
             "openstreetmap.org",
+            "maps.mail.ru",
+            "overpass-api.de",
+            "overpass.kumi.systems",
+            "overpass.private.coffee",
             "workers.dev",
             "klevpro.ru"
         };
@@ -166,11 +170,19 @@ public class MainActivity extends Activity {
         if (host == null || host.isEmpty()) return false;
         String[] allowed = new String[]{
             "maps.yandex.net",
+            "yandex.net",
             "arcgisonline.com",
             "openstreetmap.org",
+            "openstreetmap.fr",
             "cartocdn.com",
             "opentopomap.org",
-            "maps.mail.ru"
+            "maps.mail.ru",
+            "mt0.google.com",
+            "mt1.google.com",
+            "mt2.google.com",
+            "mt3.google.com",
+            "khms0.google.com",
+            "khms1.google.com"
         };
         for (String d : allowed) {
             if (isDomainOrSubdomain(host, d)) return true;
@@ -965,7 +977,7 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String getAppVersion() {
-            return "2.9.1-r251";
+            return "2.9.1-r252";
         }
 
         @JavascriptInterface
@@ -975,7 +987,7 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String getAppRevision() {
-            return "r251";
+            return "r252";
         }
 
         private boolean isTelegramUri(Uri uri) {
@@ -1401,7 +1413,7 @@ public class MainActivity extends Activity {
         ws.setCacheMode(WebSettings.LOAD_DEFAULT);
         // Пользовательские данные защищены в Context.getFilesDir()/klev_appdata_vault; кэш WebView не очищается принудительно
         String baseUa = ws.getUserAgentString();
-        ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.9.1-r251");
+        ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.9.1-r252");
 
         webView.addJavascriptInterface(new NativeBridge(this), "AndroidBridge");
 
@@ -1447,9 +1459,13 @@ public class MainActivity extends Activity {
                         if (targetUrl != null && targetUrl.startsWith("https://")) {
                             HttpURLConnection conn = null;
                             try {
-                                URL u = new URL(targetUrl);
-                                String h = u.getHost() != null ? u.getHost().toLowerCase(Locale.ROOT) : "";
-                                if ("https".equalsIgnoreCase(u.getProtocol()) && isAllowedNetProxyHost(h)) {
+                                String currentUrl = targetUrl;
+                                for (int redirectStep = 0; redirectStep <= 2; redirectStep++) {
+                                    URL u = new URL(currentUrl);
+                                    String h = u.getHost() != null ? u.getHost().toLowerCase(Locale.ROOT) : "";
+                                    if (!"https".equalsIgnoreCase(u.getProtocol()) || !isAllowedNetProxyHost(h)) {
+                                        break;
+                                    }
                                     conn = (HttpURLConnection) u.openConnection();
                                     conn.setInstanceFollowRedirects(false);
                                     conn.setRequestMethod("GET");
@@ -1459,6 +1475,19 @@ public class MainActivity extends Activity {
                                     conn.setRequestProperty("Accept", "application/json,text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
                                     conn.setRequestProperty("Accept-Language", "ru-RU,ru;q=0.9,en;q=0.5");
                                     int code = conn.getResponseCode();
+                                    if (code == HttpURLConnection.HTTP_MOVED_PERM || code == HttpURLConnection.HTTP_MOVED_TEMP || code == HttpURLConnection.HTTP_SEE_OTHER || code == 307 || code == 308) {
+                                        String loc = conn.getHeaderField("Location");
+                                        try { conn.disconnect(); } catch (Exception ignored) {}
+                                        conn = null;
+                                        if (loc == null || loc.trim().isEmpty() || redirectStep == 2) break;
+                                        URL nextUrl = new URL(u, loc.trim());
+                                        String nextHost = nextUrl.getHost() != null ? nextUrl.getHost().toLowerCase(Locale.ROOT) : "";
+                                        if (!"https".equalsIgnoreCase(nextUrl.getProtocol()) || !isAllowedNetProxyHost(nextHost)) {
+                                            break;
+                                        }
+                                        currentUrl = nextUrl.toString();
+                                        continue;
+                                    }
                                     if (code >= 200 && code < 300) {
                                         InputStream netIn = conn.getInputStream();
                                         ByteArrayOutputStream bos = new ByteArrayOutputStream();
@@ -1477,6 +1506,7 @@ public class MainActivity extends Activity {
                                         corsHeaders.put("Cache-Control", "no-store");
                                         return new WebResourceResponse(mimeOnly, "UTF-8", 200, "OK", corsHeaders, new ByteArrayInputStream(data));
                                     }
+                                    break;
                                 }
                             } catch (Exception ignored) {
                             } finally {
@@ -1491,12 +1521,32 @@ public class MainActivity extends Activity {
                     }
                     if ("/__klev_tile_proxy__".equals(path)) {
                         String targetUrl = uri.getQueryParameter("url");
+                        if (targetUrl == null || targetUrl.isEmpty()) {
+                            String layer = uri.getQueryParameter("layer");
+                            String zParam = uri.getQueryParameter("z");
+                            String xParam = uri.getQueryParameter("x");
+                            String yParam = uri.getQueryParameter("y");
+                            if (layer != null && zParam != null && xParam != null && yParam != null
+                                && zParam.matches("\\d{1,2}") && xParam.matches("\\d{1,7}") && yParam.matches("\\d{1,7}")) {
+                                if ("yandex_sat".equals(layer)) {
+                                    targetUrl = "https://sat01.maps.yandex.net/tiles?l=sat&x=" + xParam + "&y=" + yParam + "&z=" + zParam + "&lang=ru_RU";
+                                } else if ("yandex_skl".equals(layer)) {
+                                    targetUrl = "https://core-renderer-tiles.maps.yandex.net/tiles?l=skl&v=24.10.30-0&x=" + xParam + "&y=" + yParam + "&z=" + zParam + "&scale=2&lang=ru_RU";
+                                } else {
+                                    targetUrl = "https://core-renderer-tiles.maps.yandex.net/tiles?l=map&v=24.10.30-0&x=" + xParam + "&y=" + yParam + "&z=" + zParam + "&scale=2&lang=ru_RU";
+                                }
+                            }
+                        }
                         if (targetUrl != null && targetUrl.startsWith("https://")) {
                             HttpURLConnection conn = null;
                             try {
-                                URL u = new URL(targetUrl);
-                                String h = u.getHost() != null ? u.getHost().toLowerCase(Locale.ROOT) : "";
-                                if ("https".equalsIgnoreCase(u.getProtocol()) && isAllowedTileProxyHost(h)) {
+                                String currentUrl = targetUrl;
+                                for (int redirectStep = 0; redirectStep <= 2; redirectStep++) {
+                                    URL u = new URL(currentUrl);
+                                    String h = u.getHost() != null ? u.getHost().toLowerCase(Locale.ROOT) : "";
+                                    if (!"https".equalsIgnoreCase(u.getProtocol()) || !isAllowedTileProxyHost(h)) {
+                                        break;
+                                    }
                                     conn = (HttpURLConnection) u.openConnection();
                                     conn.setInstanceFollowRedirects(false);
                                     conn.setRequestMethod("GET");
@@ -1506,6 +1556,19 @@ public class MainActivity extends Activity {
                                     conn.setRequestProperty("Referer", "https://yandex.ru/maps/");
                                     conn.setRequestProperty("Accept", "image/avif,image/webp,image/apng,image/*,*/*;q=0.8");
                                     int code = conn.getResponseCode();
+                                    if (code == HttpURLConnection.HTTP_MOVED_PERM || code == HttpURLConnection.HTTP_MOVED_TEMP || code == HttpURLConnection.HTTP_SEE_OTHER || code == 307 || code == 308) {
+                                        String loc = conn.getHeaderField("Location");
+                                        try { conn.disconnect(); } catch (Exception ignored) {}
+                                        conn = null;
+                                        if (loc == null || loc.trim().isEmpty() || redirectStep == 2) break;
+                                        URL nextUrl = new URL(u, loc.trim());
+                                        String nextHost = nextUrl.getHost() != null ? nextUrl.getHost().toLowerCase(Locale.ROOT) : "";
+                                        if (!"https".equalsIgnoreCase(nextUrl.getProtocol()) || !isAllowedTileProxyHost(nextHost)) {
+                                            break;
+                                        }
+                                        currentUrl = nextUrl.toString();
+                                        continue;
+                                    }
                                     if (code >= 200 && code < 300) {
                                         InputStream netIn = conn.getInputStream();
                                         ByteArrayOutputStream bos = new ByteArrayOutputStream();
@@ -1524,6 +1587,7 @@ public class MainActivity extends Activity {
                                         corsHeaders.put("Cache-Control", "public, max-age=86400");
                                         return new WebResourceResponse(cType, null, 200, "OK", corsHeaders, new ByteArrayInputStream(data));
                                     }
+                                    break;
                                 }
                             } catch (Exception ignored) {
                             } finally {
@@ -2161,7 +2225,7 @@ public class MainActivity extends Activity {
             }
         }
         String entryHtml = getPackageName().contains("admin") ? "kp-control-89.html" : "index.html";
-        String baseUrl = VIRTUAL_ORIGIN + "/assets/www/" + entryHtml + "?v=2.9.1_r251_" + System.currentTimeMillis();
+        String baseUrl = VIRTUAL_ORIGIN + "/assets/www/" + entryHtml + "?v=2.9.1_r252_" + System.currentTimeMillis();
         if (intent != null && intent.getData() != null) {
             Uri data = intent.getData();
             String q = data.getEncodedQuery();

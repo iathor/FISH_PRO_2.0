@@ -76,8 +76,8 @@ test('3.3 Регулярка шлюз тайлов блокирует чужие
 
 test('3.4 & 4.8 Единый источник версии VERSION (2.9.0 r240) синхронизирован во всех файлах и ссылка на APK валидна', () => {
   assert.equal(verData.version, '2.9.1');
-  assert.equal(verData.revision, 'r251');
-  assert.equal(verData.versionCode, 293251);
+  assert.equal(verData.revision, 'r252');
+  assert.equal(verData.versionCode, 293252);
 
   const vJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'version.json'), 'utf8'));
   const apkVJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'apk/apk-version.json'), 'utf8'));
@@ -376,7 +376,7 @@ test('6.6 Аудит r248: пересобранный app-runtime.js + app.bundl
   const wf = fs.readFileSync(path.join(ROOT, '.github/workflows/build-android-apk.yml'), 'utf8');
   const verJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'VERSION'), 'utf8'));
 
-  assert.equal(verJson.fullVersion, '2.9.1-r251', 'В VERSION должен быть fullVersion 2.9.1-r251');
+  assert.equal(verJson.fullVersion, '2.9.1-r252', 'В VERSION должен быть fullVersion 2.9.1-r252');
   assert.equal(rtSrc, bundleSrc, 'app-runtime.js и js/app.bundle.js должны быть идентичны');
   for (const sym of ['transform-origin:14px 27px;', 'fcWeatherRoadStormCard', 'fcWeatherHourlyWaveCard', '_klevTouchStart', '__KLEV_STARTUP_GPS_SYNCED__']) {
     assert.ok(rtSrc.includes(sym), `В скомпилированном app-runtime.js отсутствует ${sym}`);
@@ -385,7 +385,7 @@ test('6.6 Аудит r248: пересобранный app-runtime.js + app.bundl
   assert.ok(layoutCss.includes('img.leaflet-marker-icon') && idxHtml.includes('img.leaflet-marker-icon'), 'Синий дефолтный img.leaflet-marker-icon должен скрываться на мобильных через CSS');
   assert.ok(!/\.compass-bearing-active\s+#mapBox\s*\{[^}]*transform:\s*none/i.test(idxHtml), 'В index.html не должно быть transform: none для #mapBox');
   assert.ok(!/\.compass-bearing-active\s+#mapBox\s*\{[^}]*transform:\s*none/i.test(kpHtml), 'В kp-control-89.html не должно быть transform: none для #mapBox');
-  assert.ok(gradle.includes('applicationId "ru.klevpro.app"') && gradle.includes('versionName "2.9.1-r251"'), 'В android/app/build.gradle должны быть ru.klevpro.app и 2.9.1-r251');
+  assert.ok(gradle.includes('applicationId "ru.klevpro.app"') && gradle.includes('versionName "2.9.1-r252"'), 'В android/app/build.gradle должны быть ru.klevpro.app и 2.9.1-r252');
   assert.ok(stringsXml.includes('Клёв ПРО 2.0'), 'В strings.xml должно быть имя Клёв ПРО 2.0');
   assert.ok(mainJava.includes('compassWanted = true') && mainJava.includes('TYPE_MAGNETIC_FIELD'), 'В MainActivity.java должен быть включён компас с резервом TYPE_MAGNETIC_FIELD');
   assert.ok(wf.includes('/tmp/klev-android-user') && wf.includes('/tmp/klev-android-admin'), 'Workflow должен собирать User и Admin APK в изолированных директориях');
@@ -465,7 +465,7 @@ test('r249: алгоритм сдвига карты со включённым �
   );
 });
 
-test('r251: фоновое голосовое ведение и автозавершение, вкладка Слипы без падения hazard, общие точки в Круге без удаления чужих, чистый TTS без метроветров и старт маршрута от первой точки', async () => {
+test('r252: фоновое голосовое ведение и автозавершение, вкладка Слипы без падения hazard, общие точки в Круге без удаления чужих, чистый TTS без метроветров и старт маршрута от первой точки', async () => {
   const geoJs = fs.readFileSync(path.join(ROOT, 'js/modules/geo/geo.module.js'), 'utf8');
   const cirJs = fs.readFileSync(path.join(ROOT, 'js/modules/circle/circle.module.js'), 'utf8');
   const cfgJs = fs.readFileSync(path.join(ROOT, 'js/core/config.js'), 'utf8');
@@ -500,7 +500,7 @@ test('r251: фоновое голосовое ведение и автозаве
   assert.ok(geoJs.includes("className: 'klev-arc-start-pin'") && geoJs.includes('title="Старт маршрута (первая точка)"'), 'На начале построенного маршрута должен ставиться маркер Старт (А)');
 });
 
-test('r251: полный аудит безопасности воркера, фронтенда, Android WebView и CI/CD с сохранением автообновления APK', () => {
+test('r252: полный аудит безопасности воркера, фронтенда, Android WebView и CI/CD с сохранением автообновления APK', () => {
   const workerJs = fs.readFileSync(path.join(ROOT, 'cloudflare-worker-bot.js'), 'utf8');
   const circleJs = fs.readFileSync(path.join(ROOT, 'js/modules/circle/circle.module.js'), 'utf8');
   const updaterJs = fs.readFileSync(path.join(ROOT, 'js/core/updater.js'), 'utf8');
@@ -521,4 +521,14 @@ test('r251: полный аудит безопасности воркера, ф�
   assert.ok(mainJava.includes("ws.setAllowFileAccess(false)") && mainJava.includes("isBridgeCallerTrusted()"), 'В WebView должен быть отключён allowFileAccess и включена проверка origin в NativeBridge');
   assert.ok(mainJava.includes("downloadApkUpdate") && mainJava.includes("/iathor/"), 'Автообновление APK из репозитория iathor должно быть разрешено и защищено по пути');
   assert.ok(!workflowYml.includes("DEFAULT_KS_B64=") && !workflowYml.includes("DEFAULT_KS_PASS="), 'В build-android-apk.yml не должно быть открытых констант DEFAULT_KS_B64 и DEFAULT_KS_PASS');
+});
+
+test('r252: устранение белого экрана карты, сброса локации при просмотре точек, мигания GPS/Компаса, счётчика Круг и редиректов тайл-прокси', () => {
+  const geoJs = fs.readFileSync(path.join(ROOT, 'js/modules/geo/geo.module.js'), 'utf8');
+  const mainJava = fs.readFileSync(path.join(ROOT, 'android/app/src/main/java/ru/klevpro/app/MainActivity.java'), 'utf8');
+
+  assert.ok(geoJs.includes("_syncArcGpsCompassButtonsUi"), 'Кнопки GPS и Компаса должны обновляться через _syncArcGpsCompassButtonsUi без полной перерисовки render()');
+  assert.ok(geoJs.includes("window.__KLEV_MANUAL_LOC_SESSION__ = true"), 'При переходе к точке должен выставляться флаг ручной сессии просмотра __KLEV_MANUAL_LOC_SESSION__');
+  assert.ok(geoJs.includes("item.t === 'spot'") && geoJs.includes("circleBlurItems"), 'Общие точки (t === spot) должны учитываться в счётчике Круга');
+  assert.ok(mainJava.includes("isAllowedTileProxyHost") && mainJava.includes("openConnectionWithSafeRedirects") || mainJava.includes("Location"), 'Прокси тайлов в MainActivity.java должен безопасно обрабатывать редиректы доверенных CDN');
 });

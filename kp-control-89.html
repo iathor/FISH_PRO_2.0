@@ -72,7 +72,7 @@
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta http-equiv="X-Content-Type-Options" content="nosniff">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: blob:; object-src 'none'; base-uri 'self'; script-src 'self' 'unsafe-inline' https://telegram.org https://yastatic.net https://cdn.jsdelivr.net https://appassets.androidplatform.net; style-src 'self' 'unsafe-inline' https://yastatic.net https://cdn.jsdelivr.net https://appassets.androidplatform.net; img-src 'self' data: blob: https:; connect-src 'self' https: data: blob: https://klevpro.ru https://www.klevpro.ru https://xn--b1apdneg0j.xn--p1ai https://api.github.com https://klevprohbot.thorantony82.workers.dev https://*.workers.dev https://generativelanguage.googleapis.com https://text.pollinations.ai https://ia-thor.github.io https://api.open-meteo.com https://archive-api.open-meteo.com https://api.met.no https://allorigins.hexlet.app https://*.hexlet.app https://corsproxy-seven.vercel.app https://every-origin.vercel.app https://*.vercel.app https://script.google.com https://script.googleusercontent.com https://*.yandexcloud.net https://maps.mail.ru https://overpass.kumi.systems https://overpass.private.coffee https://overpass-api.de https://nominatim.openstreetmap.org https://api.bigdatacloud.net https://ipwho.is https://ipapi.co https://raw.githubusercontent.com https://github.com https://*.githubusercontent.com https://appassets.androidplatform.net;">
-    <meta http-equiv="Content-Security-Policy-Report-Only" content="default-src 'self' https: data: blob:; script-src 'self' https://telegram.org https://yastatic.net https://cdn.jsdelivr.net 'unsafe-inline' 'sha256-pWKZ46dD0R3uv61NCqhg1MHP4J923JawuTmmWbluAow=' 'sha256-CxwbZwZCSIF9hzHoy3xF7581DzTFaug/zYsIyZpmWNE=' 'sha256-qxkgSxHBMtLYs63ibs49rkmJ9JPQI0asR7vbRyjz0GU=' 'sha256-OG7YhXtKbyYnZ5GautT/oaA7nAp5wnCu8KFhe6u08fM=' 'sha256-Q/auiEQiE8rU0ewycQaOnEtBXLOMe6wEDXa95O6E7oI='; style-src 'self' https: 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'self' https: wss:;">
+    <meta http-equiv="Content-Security-Policy-Report-Only" content="default-src 'self' https: data: blob:; script-src 'self' https://telegram.org https://yastatic.net https://cdn.jsdelivr.net 'unsafe-inline' 'sha256-pWKZ46dD0R3uv61NCqhg1MHP4J923JawuTmmWbluAow=' 'sha256-2/3Hk7M7t0bCSA4XFo80guPgphmj3zQtJu+sTN1XfKQ=' 'sha256-wZnFVYkkhVSUo+fUPtl94rKI/HaIucciLCBX3AmND/Q=' 'sha256-OG7YhXtKbyYnZ5GautT/oaA7nAp5wnCu8KFhe6u08fM=' 'sha256-Q/auiEQiE8rU0ewycQaOnEtBXLOMe6wEDXa95O6E7oI='; style-src 'self' https: 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'self' https: wss:;">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
   <meta name="theme-color" content="#0b1120">
   <meta name="mobile-web-app-capable" content="yes">
@@ -109,7 +109,7 @@
     "applicationCategory": "SportsApplication",
     "operatingSystem": "Android, iOS, Windows, Web",
     "inLanguage": "ru-RU",
-    "softwareVersion": "2.9.1-r251",
+    "softwareVersion": "2.9.1-r252",
     "contentRating": "12+",
     "image": "https://klevpro.ru/icon-admin-512.png",
     "downloadUrl": "https://klevpro.ru/apk/klev-pro-v2.5.6.apk",
@@ -121,9 +121,9 @@
   }
   </script>
   <script src="https://telegram.org/js/telegram-web-app.js" async onload="window.__KLEV_ON_TG_SDK_LOAD__&&window.__KLEV_ON_TG_SDK_LOAD__()"></script>
-  <link rel="manifest" href="manifest.json?v=2.9.1-r251">
-  <link id="dynamicFavicon" rel="icon" type="image/png" sizes="192x192" href="icon-admin-192.png?v=2.9.1-r251">
-  <link id="dynamicTouchIcon" rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=2.9.1-r251">
+  <link rel="manifest" href="manifest.json?v=2.9.1-r252">
+  <link id="dynamicFavicon" rel="icon" type="image/png" sizes="192x192" href="icon-admin-192.png?v=2.9.1-r252">
+  <link id="dynamicTouchIcon" rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=2.9.1-r252">
   <script>
     window.__KLEV_ADMIN_CONTOUR__ = true;
     try { localStorage.setItem('klev_pro_admin_contour_unlocked_v1', '1'); } catch (_) {}
@@ -204,7 +204,7 @@
         if ((inApkNow || localStorage.getItem(MIGRATION_KEY) !== '1') && 'caches' in window) {
           caches.keys().then(function(keys) {
             return Promise.all(
-              keys.map(function(k) { return (k === 'klev-pro-v2.9.1-r251-static' && !inApkNow) ? Promise.resolve() : caches.delete(k); })
+              keys.map(function(k) { return (k === 'klev-pro-v2.9.1-r252-static' && !inApkNow) ? Promise.resolve() : caches.delete(k); })
             );
           }).then(function() {
             localStorage.setItem(MIGRATION_KEY, '1');
@@ -213,10 +213,10 @@
       } catch (e) {}
     })();
   </script>
-  <link rel="stylesheet" href="css/tokens.css?v=2.9.1-r251">
-  <link rel="stylesheet" href="css/base.css?v=2.9.1-r251">
-  <link rel="stylesheet" href="css/components.css?v=2.9.1-r251">
-  <link rel="stylesheet" href="css/layout.css?v=2.9.1-r251">
+  <link rel="stylesheet" href="css/tokens.css?v=2.9.1-r252">
+  <link rel="stylesheet" href="css/base.css?v=2.9.1-r252">
+  <link rel="stylesheet" href="css/components.css?v=2.9.1-r252">
+  <link rel="stylesheet" href="css/layout.css?v=2.9.1-r252">
   <style id="klevCoreBundledCss">
 :root,
 [data-theme="dark"] {
@@ -5567,7 +5567,7 @@ input[type="checkbox"]:not(.klev-switch input):checked::before {
       // 1. Если есть сохранённая в localStorage полная сборка Leaflet 1.9.4 и мы без сети — загружаем мгновенно
       try {
         var cachedJs = localStorage.getItem(LEAFLET_CACHE_KEY);
-        if (cachedJs && cachedJs.length > 20000 && navigator.onLine === false) {
+        if (cachedJs && isValidLeafletCachedSource(cachedJs) && navigator.onLine === false) {
           var inlineScript = document.createElement('script');
           inlineScript.textContent = cachedJs;
           document.head.appendChild(inlineScript);
@@ -5590,7 +5590,7 @@ input[type="checkbox"]:not(.klev-switch input):checked::before {
       function isValidLeafletCachedSource(txt) {
         if (typeof txt !== 'string' || txt.length < 100000 || txt.length > 250000) return false;
         if (txt.indexOf('1.9.4') === -1 || txt.indexOf('Leaflet') === -1) return false;
-        if (/(?:eval\s*\(|new\s+Function\s*\(|document\.cookie|localStorage|sessionStorage|XMLHttpRequest|fetch\s*\(|WebSocket|AndroidBridge)/i.test(txt)) return false;
+        if (/(?:\beval\s*\(|\bnew\s+Function\s*\(|document\.cookie|localStorage|sessionStorage|XMLHttpRequest|\bfetch\s*\(|WebSocket|AndroidBridge)/i.test(txt)) return false;
         return true;
       }
 
@@ -6849,6 +6849,6 @@ input[type="checkbox"]:not(.klev-switch input):checked::before {
     </div>
   </div>
 
-  <script id="klevBundledAppRuntime" src="app-runtime.js?v=2.9.1-r251"></script>
+  <script id="klevBundledAppRuntime" src="app-runtime.js?v=2.9.1-r252"></script>
 </body>
 </html>

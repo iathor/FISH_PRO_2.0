@@ -2816,6 +2816,8 @@ let overlayLayerGroup = null;
 let _circleLayersMap = new Map();
 let _focusedCircleId = null;
 export function focusCircleOnMap(circleId, lat, lon) {
+  if (typeof window !== 'undefined') window.__KLEV_MANUAL_LOC_SESSION__ = true;
+  _isMapCenteredOnUser = false;
   _focusedCircleId = circleId;
   mapOpen = true;
   visibleMapLayers.mySpots = true;
@@ -2934,26 +2936,38 @@ export function computeDeduplicatedMapCounts(stateObj = null) {
     });
   }
   const rawCircle = (Array.isArray(s.circleItems) ? s.circleItems : []).filter(x => x && !isCircleItemHidden(x, s));
+  const circleBlurItems = [];
   rawCircle.forEach(item => {
-    if (item.t !== 'spot' || !Number.isFinite(Number(item.lat)) || !Number.isFinite(Number(item.lon))) return;
-    const catKey = normalizeSpotCatKey(item.cat || item.category || 'slip');
-    const dKey = `${catKey}_${Number(item.lat).toFixed(4)}_${Number(item.lon).toFixed(4)}`;
-    if (seenSpotKeys.has(dKey)) return;
-    seenSpotKeys.add(dKey);
-    uniqueSpots.push({ id: item.id, catKey, lat: Number(item.lat), lon: Number(item.lon), mine: isCircleItemMine(item, s), source: 'circle', layerKey: 'mySpots', raw: item, dKey });
+    if (!item || !Number.isFinite(Number(item.lat)) || !Number.isFinite(Number(item.lon))) return;
+    if (item.t === 'spot') {
+      const catKey = normalizeSpotCatKey(item.cat || item.category || 'slip');
+      const dKey = `${catKey}_${Number(item.lat).toFixed(4)}_${Number(item.lon).toFixed(4)}`;
+      if (seenSpotKeys.has(dKey)) return;
+      seenSpotKeys.add(dKey);
+      circleBlurItems.push({
+        id: item.id,
+        catKey,
+        lat: Number(item.lat),
+        lon: Number(item.lon),
+        mine: isCircleItemMine(item, s),
+        source: 'circle',
+        layerKey: 'circleBlur',
+        raw: item,
+        dKey
+      });
+    } else if (item.t === 'circle') {
+      circleBlurItems.push({
+        id: item.id,
+        catKey: normalizeSpotCatKey(item.cat || 'bite'),
+        lat: Number(item.lat),
+        lon: Number(item.lon),
+        mine: isCircleItemMine(item, s),
+        source: 'circleBlur',
+        layerKey: 'circleBlur',
+        raw: item
+      });
+    }
   });
-  const circleBlurItems = rawCircle
-    .filter(x => x.t === 'circle' && Number.isFinite(Number(x.lat)) && Number.isFinite(Number(x.lon)))
-    .map(item => ({
-      id: item.id,
-      catKey: normalizeSpotCatKey(item.cat || 'bite'),
-      lat: Number(item.lat),
-      lon: Number(item.lon),
-      mine: isCircleItemMine(item, s),
-      source: 'circleBlur',
-      layerKey: 'circleBlur',
-      raw: item
-    }));
   const now = Date.now();
   const crewExactItems = rawCircle
     .filter(x => x.t === 'crew' && Number.isFinite(Number(x.lat)) && Number.isFinite(Number(x.lon)) && (x.sos || ((!x.ea || x.ea > now) && (canUserAccessCrewItem(x, s) || isCircleItemMine(x, s)))))
@@ -3233,6 +3247,13 @@ export function clearTemporaryMapSpot() {
     try { mapInstance.removeLayer(_arcPickedSpotMarker); } catch (_e) {}
   }
   _arcPickedSpotMarker = null;
+  if (typeof document !== 'undefined') {
+    const sheet = document.getElementById('arcPickedSpotSheet');
+    if (sheet && sheet.parentNode) sheet.parentNode.removeChild(sheet);
+    const clearBtn = document.getElementById('arcBtnClearPickedSpot');
+    if (clearBtn) clearBtn.style.display = 'none';
+    if (document.getElementById('klevArcMapStage')) return;
+  }
   const secGeo = document.getElementById('secGeo');
   if (secGeo) render(secGeo);
 }
@@ -3337,6 +3358,13 @@ export async function setLocation(lat, lon, skipReverseGeo = false, targetZoomOv
     payload: { lat: rLat, lon: rLon, hasUserLocation: true }
   });
   if (mapInstance) {
+    try {
+      const curC = typeof mapInstance.getCenter === 'function' ? mapInstance.getCenter() : null;
+      if (curC && calcHaversineKm(curC.lat, curC.lng, rLat, rLon) > 0.3) {
+        _focusedCircleId = null;
+        if (typeof mapInstance.closePopup === 'function') mapInstance.closePopup();
+      }
+    } catch (_e) {}
     const z = Number.isFinite(targetZoomOverride)
       ? clamp(targetZoomOverride, 6, 18)
       : clamp(mapInstance.getZoom() || 13, 6, 18);
@@ -3384,6 +3412,7 @@ export async function autoDetectStartupLocation() {
       pos => {
         if (typeof window !== 'undefined') window.__KLEV_STARTUP_GPS_SYNCED__ = true;
         _updateLiveGpsTelemetryFromPosition(pos);
+        if (typeof window !== 'undefined' && window.__KLEV_MANUAL_LOC_SESSION__) return;
         const stNow = store.getState();
         const gLat = Number(pos.coords.latitude);
         const gLon = Number(pos.coords.longitude);
@@ -5311,7 +5340,7 @@ function _updateLiveGpsTelemetryFromPosition(pos) {
   _isUserMoving = isNowMoving;
 
   // Автоповорот и автоцентрация в движении (только при включённой настройке и реальном непрерывном движении >= 6 с)
-  if (_arcAutoCenterEnabled && _isUserMoving && !_arcPickedSpot && !_isMapGestureActive) {
+  if (_arcAutoCenterEnabled && _isUserMoving && !_arcPickedSpot && !_isMapGestureActive && !(typeof window !== 'undefined' && window.__KLEV_MANUAL_LOC_SESSION__)) {
     const touchIdleMs = nowMove - (_lastUserMapTouchTs || 0);
     const movingForMs = _movingStartedTs ? (nowMove - _movingStartedTs) : 0;
     if (!_isMapCenteredOnUser && movingForMs >= 6000 && touchIdleMs >= 7000) {
@@ -6859,7 +6888,7 @@ function renderMapOverlays() {
     });
   }
   const rawCircleList = Array.isArray(s.circleItems) ? s.circleItems : [];
-  if (visibleMapLayers.mySpots) {
+  if (visibleMapLayers.circleBlur) {
     rawCircleList.forEach(item => {
       if (!item || item.t !== 'spot' || !Number.isFinite(Number(item.lat)) || !Number.isFinite(Number(item.lon))) return;
       if (isCircleItemHidden(item, s)) return;
@@ -7333,6 +7362,9 @@ export function renderMap(mapBoxEl) {
     });
     mapInstance.on('zoomstart', () => {
       if (!_isProgrammaticAutoZoom) noteUserMapTouchInteraction();
+    });
+    mapInstance.on('popupclose', () => {
+      _focusedCircleId = null;
     });
     mapInstance.on('popupopen move zoomend viewreset', () => {
       _commitLiveMapRotationToDom();
@@ -7865,6 +7897,22 @@ function _syncCompassResetButtonUi() {
   }
 }
 
+function _syncArcGpsCompassButtonsUi() {
+  if (typeof document === 'undefined') return;
+  const stage = document.getElementById('klevArcMapStage');
+  if (stage) {
+    stage.classList.toggle('compass-bearing-active', _arcGpsCompassState === 'compass');
+  }
+  const gpsBtn = document.getElementById('arcBtnGpsCompass');
+  if (gpsBtn) {
+    gpsBtn.classList.toggle('active', Boolean(_isMapCenteredOnUser));
+    gpsBtn.innerHTML = _arcGpsCompassState === 'compass'
+      ? `<svg class="k-svg" data-compass-needle="1" style="width:22px;height:22px;color:var(--accent);transform:rotate(${-_arcCompassHeadingDeg}deg);transition:transform 0.14s linear;" viewBox="0 0 24 24" fill="none"><use href="#map-compass"/></svg>`
+      : `<svg class="k-svg" style="width:22px;height:22px;color:${_arcGpsCompassState === 'centered' ? 'var(--accent)' : 'currentColor'};" viewBox="0 0 24 24" fill="none"><use href="#map-gps"/></svg>`;
+  }
+  _syncCompassResetButtonUi();
+}
+
 function _setMapGesturesForCompass(_on) {
   // Перетаскивание карты всегда остаётся доступным пользователю
 }
@@ -7930,9 +7978,12 @@ function _ensureSquareMapCanvasSize(stage, box) {
   if (W < 40 || H < 40) return;
   const d = Math.ceil(Math.hypot(W, H));
   const key = `${W}x${H}`;
+  const curW = parseFloat(box.style.width) || 0;
+  const curH = parseFloat(box.style.height) || 0;
+  const domSizeDiff = Math.abs(curW - d) > 4 || Math.abs(curH - d) > 4;
   const curSz = (mapInstance && typeof mapInstance.getSize === 'function') ? mapInstance.getSize() : null;
-  const sizeMismatch = curSz && (Math.abs(curSz.x - d) > 4 || Math.abs(curSz.y - d) > 4);
-  if (box.dataset.rotOn !== '1' || key !== _mapRotSizeKey || sizeMismatch) {
+  const sizeMismatch = curSz && (Math.abs(curSz.x - d) > 6 || Math.abs(curSz.y - d) > 6);
+  if (box.dataset.rotOn !== '1' || (key !== _mapRotSizeKey && domSizeDiff) || sizeMismatch) {
     box.style.setProperty('transition', 'none', 'important');
     box.style.setProperty('inset', 'auto', 'important');
     box.style.setProperty('width', d + 'px', 'important');
@@ -7948,8 +7999,10 @@ function _ensureSquareMapCanvasSize(stage, box) {
       try {
         const keepCenter = mapInstance.getCenter();
         const keepZoom = mapInstance.getZoom();
-        mapInstance.invalidateSize({ animate: false });
-        if (keepCenter && Number.isFinite(keepCenter.lat) && Number.isFinite(keepCenter.lng)) {
+        mapInstance.invalidateSize({ animate: false, pan: false });
+        const afterCenter = mapInstance.getCenter();
+        if (keepCenter && Number.isFinite(keepCenter.lat) && Number.isFinite(keepCenter.lng) &&
+            (!afterCenter || calcHaversineKm(keepCenter.lat, keepCenter.lng, afterCenter.lat, afterCenter.lng) > 0.005)) {
           mapInstance.setView([keepCenter.lat, keepCenter.lng], keepZoom, { animate: false });
         }
       } catch (_e) {}
@@ -10911,6 +10964,8 @@ function bindArcMobileMapEvents(container) {
     if (!_arcPickedSpot) return;
     const { lat, lon } = _arcPickedSpot;
     _arcPickedSpotSheetOpen = false;
+    if (typeof window !== 'undefined') window.__KLEV_MANUAL_LOC_SESSION__ = true;
+    _isMapCenteredOnUser = false;
     await setLocation(lat, lon);
     showToast('Прогноз и водоёмы переключены на выбранную точку', 'good');
   });
@@ -10958,7 +11013,7 @@ function bindArcMobileMapEvents(container) {
       _mapRotCur = 0;
       _applyLiveMapCanvasCompassRotation(null, true);
       updateLiveUserGpsMarkerOnMap();
-      render(container);
+      _syncArcGpsCompassButtonsUi();
       showToast('Карта ориентирована на Север', 'info');
     } else {
       _arcGpsCompassState = 'compass';
@@ -10975,7 +11030,7 @@ function bindArcMobileMapEvents(container) {
       } catch (_e) {}
       _applyLiveMapCanvasCompassRotation(null, true);
       updateLiveUserGpsMarkerOnMap();
-      render(container);
+      _syncArcGpsCompassButtonsUi();
       showToast(_compassHasSample
         ? 'Компас включён: карта вращается по курсу'
         : 'Компас включён: ожидание данных датчика...', 'info');
@@ -10989,9 +11044,19 @@ function bindArcMobileMapEvents(container) {
     }
     _arcPickedSpot = null;
     _arcPickedSpotSheetOpen = false;
+    _focusedCircleId = null;
+    if (mapInstance && typeof mapInstance.closePopup === 'function') {
+      try { mapInstance.closePopup(); } catch (_e) {}
+    }
     if (_arcPickedSpotMarker && mapInstance) {
       try { mapInstance.removeLayer(_arcPickedSpotMarker); } catch (_e) {}
       _arcPickedSpotMarker = null;
+    }
+    if (typeof document !== 'undefined') {
+      const sheet = document.getElementById('arcPickedSpotSheet');
+      if (sheet && sheet.parentNode) sheet.parentNode.removeChild(sheet);
+      const clearBtn = document.getElementById('arcBtnClearPickedSpot');
+      if (clearBtn) clearBtn.style.display = 'none';
     }
     const realPos = getTrueUserGpsCoords(s);
     const keepUserZoom = mapInstance && Number.isFinite(mapInstance.getZoom())
@@ -11061,7 +11126,7 @@ function bindArcMobileMapEvents(container) {
       showToast('Режим GPS: карта ориентирована на Север', 'info');
     }
     updateLiveUserGpsMarkerOnMap();
-    render(container);
+    _syncArcGpsCompassButtonsUi();
     _applyLiveMapCanvasCompassRotation(null, true);
   });
 
@@ -11622,7 +11687,10 @@ function bindArcMobileMapEvents(container) {
       const lat = sp ? Number(sp.lat) : parseFloat(btn.getAttribute('data-load-spot-lat'));
       const lon = sp ? Number(sp.lon) : parseFloat(btn.getAttribute('data-load-spot-lon'));
       if (Number.isFinite(lat) && Number.isFinite(lon)) {
+        if (typeof window !== 'undefined') window.__KLEV_MANUAL_LOC_SESSION__ = true;
+        _isMapCenteredOnUser = false;
         visibleMapLayers.mySpots = true;
+        visibleMapLayers.circleBlur = true;
         visibleMapLayers.showMine = true;
         if (sp) {
           const catKey = normalizeSpotCatKey(sp.category || sp.cat || 'bite');
@@ -11631,6 +11699,7 @@ function bindArcMobileMapEvents(container) {
           }
         }
         _arcExpandedPlaqueId = null;
+        _focusedCircleId = id || null;
         await setLocation(lat, lon, true, 15);
         renderMapOverlays();
         render(container);
@@ -12830,6 +12899,8 @@ function _bindDesktopBathyControls(container) {
  const sp = store.getState().savedSpots.find(x => x.id === id);
  if (sp) {
  store.dispatch({ type: 'SET_LOCATION_LABELS', payload: { locLabel: sp.name } });
+ if (typeof window !== 'undefined') window.__KLEV_MANUAL_LOC_SESSION__ = true;
+ _isMapCenteredOnUser = false;
  store.dispatch({ type: 'SET_WATER', payload: { water: sp.water, depth: sp.depth, selectedWaterName: sp.selectedWaterName || '' } });
  setLocation(sp.lat, sp.lon, true);
  flashHighlightElement(['#mapBox', '#geoWaterIchthyoCard'], { scroll: true, block: 'center', delayMs: 90 });
@@ -12992,6 +13063,10 @@ export async function init(container) {
  if (!container) return;
  if (next.route && next.route !== 'geo') {
  container._geoNeedsRender = true;
+ _focusedCircleId = null;
+ if (mapInstance && typeof mapInstance.closePopup === 'function') {
+   try { mapInstance.closePopup(); } catch (_e) {}
+ }
  return;
  }
  container._geoNeedsRender = false;

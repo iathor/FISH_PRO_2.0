@@ -3188,6 +3188,7 @@ export function navigateToNotificationTarget(rawPayload) {
     const lon = Number(payload.lon);
     const itemId = String(payload.itemId || '').trim();
     if (Number.isFinite(lat) && Number.isFinite(lon)) {
+      if (typeof window !== 'undefined') window.__KLEV_MANUAL_LOC_SESSION__ = true;
       setLocation(lat, lon, true);
     }
     if (isAdminContourActive()) {
@@ -5521,6 +5522,7 @@ export function openNotificationsModal(onBackToHub = null) {
         if (target) {
           if (!navigateToNotificationTarget(target)) {
             if (Number.isFinite(target.lat) && Number.isFinite(target.lon)) {
+              if (typeof window !== 'undefined') window.__KLEV_MANUAL_LOC_SESSION__ = true;
               setLocation(target.lat, target.lon, true);
               router.navigate('geo');
             }
@@ -10397,6 +10399,7 @@ function bindChatViewEvents(container) {
       try { if (typeof document !== 'undefined' && document.body) document.body.style.overflow = ''; } catch (e) {}
       const dec = decodeSharePack(tok);
       if (dec && Number.isFinite(Number(dec.lat)) && Number.isFinite(Number(dec.lon))) {
+        if (typeof window !== 'undefined') window.__KLEV_MANUAL_LOC_SESSION__ = true;
         setLocation(Number(dec.lat), Number(dec.lon), true);
         router.navigate('geo');
         showToast('Точка из чата открыта на карте (без добавления в Круг)', 'good');
@@ -10649,6 +10652,7 @@ function bindCircleEvents(container) {
             depth: Number(sp.depth) || store.getState().depth
           }
         });
+        if (typeof window !== 'undefined') window.__KLEV_MANUAL_LOC_SESSION__ = true;
         setLocation(lat, lon, true, 15);
         if (typeof window !== "undefined" && typeof window.__KLEV_FOCUS_MAP_CIRCLE__ === "function") {
           window.__KLEV_FOCUS_MAP_CIRCLE__(sp.id, lat, lon);
@@ -10822,6 +10826,7 @@ function bindCircleEvents(container) {
         if (typeof window !== 'undefined' && typeof window.__KLEV_FOCUS_MAP_CIRCLE__ === 'function') {
           window.__KLEV_FOCUS_MAP_CIRCLE__(item.id, tLat, tLon);
         } else {
+          if (typeof window !== 'undefined') window.__KLEV_MANUAL_LOC_SESSION__ = true;
           setLocation(tLat, tLon, true);
           router.navigate('geo');
         }
@@ -10842,6 +10847,7 @@ function bindCircleEvents(container) {
         if (typeof window !== 'undefined' && typeof window.__KLEV_FOCUS_MAP_CIRCLE__ === 'function') {
           window.__KLEV_FOCUS_MAP_CIRCLE__(item.id, item.lat, item.lon);
         } else {
+          if (typeof window !== 'undefined') window.__KLEV_MANUAL_LOC_SESSION__ = true;
           setLocation(item.lat, item.lon, true);
           router.navigate('geo');
         }
