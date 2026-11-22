@@ -906,9 +906,9 @@ public class MainActivity extends Activity {
                     Uri tgUri = uri;
                     String scheme = uri.getScheme() != null ? uri.getScheme().trim().toLowerCase(Locale.ROOT) : "";
                     if (!"tg".equals(scheme)) {
-                        String path = uri.getPath() != null ? uri.getPath().trim() : "";
-                        if (path.startsWith("/")) path = path.substring(1);
-                        if (path.toLowerCase(Locale.ROOT).startsWith("share")) {
+                        String tgPath = uri.getPath() != null ? uri.getPath().trim() : "";
+                        if (tgPath.startsWith("/")) tgPath = tgPath.substring(1);
+                        if (tgPath.toLowerCase(Locale.ROOT).startsWith("share")) {
                             Uri.Builder b = Uri.parse("tg://msg_url").buildUpon();
                             String uParam = uri.getQueryParameter("url");
                             String tParam = uri.getQueryParameter("text");
@@ -916,7 +916,7 @@ public class MainActivity extends Activity {
                             if (tParam != null) b.appendQueryParameter("text", tParam);
                             tgUri = b.build();
                         } else {
-                            String domain = path.contains("/") ? path.substring(0, path.indexOf('/')) : path;
+                            String domain = tgPath.contains("/") ? tgPath.substring(0, tgPath.indexOf('/')) : tgPath;
                             if (domain.isEmpty()) domain = "KlevProClubBot";
                             Uri.Builder b = Uri.parse("tg://resolve").buildUpon().appendQueryParameter("domain", domain);
                             String startParam = uri.getQueryParameter("start");
@@ -1397,9 +1397,9 @@ public class MainActivity extends Activity {
                     try {
                         Uri tgUri = uri;
                         if (!scheme.equals("tg")) {
-                            String path = uri.getPath() != null ? uri.getPath().trim() : "";
-                            if (path.startsWith("/")) path = path.substring(1);
-                            if (path.toLowerCase(Locale.ROOT).startsWith("share")) {
+                            String tgPath = uri.getPath() != null ? uri.getPath().trim() : "";
+                            if (tgPath.startsWith("/")) tgPath = tgPath.substring(1);
+                            if (tgPath.toLowerCase(Locale.ROOT).startsWith("share")) {
                                 Uri.Builder b = Uri.parse("tg://msg_url").buildUpon();
                                 String uParam = uri.getQueryParameter("url");
                                 String tParam = uri.getQueryParameter("text");
@@ -1407,7 +1407,7 @@ public class MainActivity extends Activity {
                                 if (tParam != null) b.appendQueryParameter("text", tParam);
                                 tgUri = b.build();
                             } else {
-                                String domain = path.contains("/") ? path.substring(0, path.indexOf('/')) : path;
+                                String domain = tgPath.contains("/") ? tgPath.substring(0, tgPath.indexOf('/')) : tgPath;
                                 if (domain.isEmpty()) domain = "KlevProClubBot";
                                 Uri.Builder b = Uri.parse("tg://resolve").buildUpon().appendQueryParameter("domain", domain);
                                 String startParam = uri.getQueryParameter("start");
