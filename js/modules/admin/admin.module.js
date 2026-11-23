@@ -2,11 +2,11 @@
  * @file admin.module.js
  * @description Изолированный админ-контур (UI консоли Супер-Админа #secAdmin, аудит 7 факторов, управление D1).
  */
-import { safeModuleRun } from '../../core/events.js?v=2.9.2-r258';
-import { store } from '../../core/store.js?v=2.9.2-r258';
-import { storage } from '../../core/storage.js?v=2.9.2-r258';
-import { router } from '../../core/router.js?v=2.9.2-r258';
-import { APP_VERSION, APP_REVISION, APP_DISPLAY_VERSION } from '../../core/config.js?v=2.9.2-r258';
+import { safeModuleRun } from '../../core/events.js?v=2.9.2-r259';
+import { store } from '../../core/store.js?v=2.9.2-r259';
+import { storage } from '../../core/storage.js?v=2.9.2-r259';
+import { router } from '../../core/router.js?v=2.9.2-r259';
+import { APP_VERSION, APP_REVISION, APP_DISPLAY_VERSION } from '../../core/config.js?v=2.9.2-r259';
 import {
   escapeHtml,
   showToast,
@@ -19,8 +19,8 @@ import {
   parsePolicySectionsFromEditableText,
   formatPolicySectionsToEditableText,
   DEFAULT_POLICY_SECTIONS
-} from '../../ui/components.js?v=2.9.2-r258';
-import { RELAY_WORKER_URL, getTelegramUser, openBotChatInTelegram } from '../../core/telegram.js?v=2.9.2-r258';
+} from '../../ui/components.js?v=2.9.2-r259';
+import { RELAY_WORKER_URL, getTelegramUser, openBotChatInTelegram } from '../../core/telegram.js?v=2.9.2-r259';
 import {
   OWNER_BOUND_FISHER_ID,
   OWNER_SECONDARY_FISHER_ID,
@@ -31,7 +31,7 @@ import {
   isOwnerAdmin,
   isOwnerFisherId,
   getServerAdminSessionToken
-} from './admin.auth.js?v=2.9.2-r258';
+} from './admin.auth.js?v=2.9.2-r259';
 import {
   DB_GATEWAY_CATALOG,
   DEFAULT_ADMIN_IDS,
@@ -75,7 +75,7 @@ import {
   syncAdminWhitelistWithCloud,
   syncCurrentProfileToCloudIfLoggedIn,
   workerFetch
-} from '../circle/circle.module.js?v=2.9.2-r258';
+} from '../circle/circle.module.js?v=2.9.2-r259';
 
 const SECURITY_AUDIT_LOCAL_KEY = 'klev_pro_security_audit_v1';
 let _adminSecurityFactorFilter = 'all';

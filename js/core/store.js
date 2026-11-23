@@ -5,11 +5,11 @@
  * выделенная вкладка « Чаты» с отправкой улова, автопривязка и автокопирование ID рыбака FP-XXXXX,
  * закрытый Супер-Админ + управляемая База Администраторов) (Ревизия 2.1.1)
  */
-import { DEFAULT_STATE, getCompatibleMethods, getSeasonalBaitsForContext } from './config.js?v=2.9.2-r258';
-import { storage } from './storage.js?v=2.9.2-r258';
-import { detectBasinByCoords, BASIN_CONFIGS, isCoastalInBasin, getSpotEcoregion } from '../data/basins.js?v=2.9.2-r258';
-import { findNearestRussianSettlement } from '../data/russia-waters.js?v=2.9.2-r258';
-import { FISH_DB } from '../data/species.js?v=2.9.2-r258';
+import { DEFAULT_STATE, getCompatibleMethods, getSeasonalBaitsForContext } from './config.js?v=2.9.2-r259';
+import { storage } from './storage.js?v=2.9.2-r259';
+import { detectBasinByCoords, BASIN_CONFIGS, isCoastalInBasin, getSpotEcoregion, isSpeciesInGeoRange, rankSpeciesWithUserPriority } from '../data/basins.js?v=2.9.2-r259';
+import { findNearestRussianSettlement } from '../data/russia-waters.js?v=2.9.2-r259';
+import { FISH_DB } from '../data/species.js?v=2.9.2-r259';
 function getActiveDaySeasonContext(state, overrideDays = null, overrideDayIdx = null, overrideIceState = null) {
   const rawDays = overrideDays ?? state?.weatherDays;
   const days = Array.isArray(rawDays) ? rawDays : [];
@@ -19,6 +19,46 @@ function getActiveDaySeasonContext(state, overrideDays = null, overrideDayIdx = 
   const effWaterTemp = Number.isFinite(day?.waterTemp) ? day.waterTemp : 12;
   return { effIce, effWaterTemp };
 }
+function pickBestFishForLocationContext(nextState) {
+  const lat = Number(nextState.lat) || 55.75;
+  const lon = Number(nextState.lon) || 37.62;
+  const basinCode = nextState.basinCode || detectBasinByCoords(lat, lon);
+  const waterType = nextState.water || 'small_river';
+  const waterName = nextState.selectedWaterName || '';
+  const isCoastal = Boolean(nextState.isCoastal || waterType === 'sea_gulf' || waterType === 'open_sea');
+  const hasCooling = waterType === 'cooling_reservoir';
+  const rTypes = new Set([waterType]);
+  const ecoreg = getSpotEcoregion(lat, lon, basinCode, waterType, waterName);
+  const sigOrder = ecoreg.signatureSpecies || [];
+  const sigMap = new Map(sigOrder.map((id, idx) => [id, idx]));
+
+  const localAllowedPool = FISH_DB.filter(f =>
+    f.legal !== 'redbook' &&
+    isSpeciesInGeoRange(f, lat, lon, basinCode, waterType, nextState.waterRadiusKm || 50, rTypes, isCoastal, hasCooling, waterName)
+  );
+  if (!localAllowedPool.length) return nextState.fishId || 'pike';
+
+  const targetIds = Array.isArray(nextState.userProfile?.targetSpecies) ? nextState.userProfile.targetSpecies : [];
+  const favIds = Array.isArray(nextState.favorites) ? nextState.favorites : [];
+
+  const scored = localAllowedPool.map(f => {
+    const sigIdx = sigMap.has(f.id) ? sigMap.get(f.id) : -1;
+    const bonus = sigIdx >= 0 ? Math.max(6, 30 - sigIdx * 2) : -6;
+    return { fish: f, rankSc: 65 + bonus };
+  });
+  const ranked = rankSpeciesWithUserPriority(scored, targetIds, favIds);
+  const curFishId = nextState.fishId;
+  const curFishAllowed = localAllowedPool.some(f => f.id === curFishId);
+  const topCandidate = ranked[0]?.fish?.id;
+  if (!curFishAllowed) return topCandidate || localAllowedPool[0].id;
+  const curIsUserPriority = targetIds.includes(curFishId) || favIds.includes(curFishId);
+  const topIsHigherUserPriority = ranked[0]?.priorityGroup > (targetIds.includes(curFishId) ? 3 : (favIds.includes(curFishId) ? 2 : 1));
+  if (topIsHigherUserPriority || !curIsUserPriority) {
+    return topCandidate || curFishId;
+  }
+  return curFishId;
+}
+
 function syncTackleForContext(nextState, forcePrimaryMethod = false) {
   const fishObj = FISH_DB.find(f => f.id === nextState.fishId) || FISH_DB[0];
   const { effIce, effWaterTemp } = getActiveDaySeasonContext(nextState);
@@ -361,6 +401,7 @@ function reducer(state, action) {
         selectedWaterName: '',
         dayIdx: 2
       };
+      nextBase.fishId = pickBestFishForLocationContext(nextBase);
       return syncTackleForContext(nextBase, false);
     }
     case 'SET_LOCATION_LABELS':
@@ -377,6 +418,7 @@ function reducer(state, action) {
         selectedWaterName: nextSelectedWaterName,
         basinName: ecoregion.displayBasinName || state.basinName
       };
+      nextBase.fishId = pickBestFishForLocationContext(nextBase);
       return syncTackleForContext(nextBase, waterChanged);
     }
     case 'SET_METHOD': {
@@ -513,7 +555,7 @@ function reducer(state, action) {
         water: action.payload.water,
         method: action.payload.method,
         fishId: action.payload.fishId || state.fishId,
-        favorites: targetSpecies,
+        favorites: Array.isArray(state.favorites) && state.favorites.length > 0 ? state.favorites : targetSpecies,
         favoritesExplicitlySet: true,
         onlyFavoritesFilter: targetSpecies.length === 0 ? false : state.onlyFavoritesFilter,
         userProfile: {

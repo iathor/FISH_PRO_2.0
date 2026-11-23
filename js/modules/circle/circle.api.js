@@ -2,21 +2,21 @@
  * @file circle.api.js
  * @description Сетевое взаимодействие с Cloudflare Worker (workerFetch, E2E-шлюзы, /relay/pull с заголовками X-Auth-Token/X-Admin-Token и syncNearbyCirclePointsFromServer).
  */
-import { events, KLEV_EVENTS } from '../../core/events.js?v=2.9.2-r258';
-import { store } from '../../core/store.js?v=2.9.2-r258';
-import { storage, calcGeoDistanceKm } from '../../core/storage.js?v=2.9.2-r258';
-import { APP_VERSION } from '../../core/config.js?v=2.9.2-r258';
-import { showToast } from '../../ui/components.js?v=2.9.2-r258';
-import { RELAY_WORKER_URL } from '../../core/telegram.js?v=2.9.2-r258';
+import { events, KLEV_EVENTS } from '../../core/events.js?v=2.9.2-r259';
+import { store } from '../../core/store.js?v=2.9.2-r259';
+import { storage, calcGeoDistanceKm } from '../../core/storage.js?v=2.9.2-r259';
+import { APP_VERSION } from '../../core/config.js?v=2.9.2-r259';
+import { showToast } from '../../ui/components.js?v=2.9.2-r259';
+import { RELAY_WORKER_URL } from '../../core/telegram.js?v=2.9.2-r259';
 import {
   isAdminContourActive,
   getActiveAdminToken,
   isOwnerAdmin,
   setAdminAuthRequired
-} from '../admin/admin.auth.js?v=2.9.2-r258';
+} from '../admin/admin.auth.js?v=2.9.2-r259';
 import {
   isCircleItemMine
-} from './circle.ownership.js?v=2.9.2-r258';
+} from './circle.ownership.js?v=2.9.2-r259';
 import {
   getCurrentFisherIdentity,
   normalizeCrewSecretKey,
@@ -36,7 +36,7 @@ import {
   patchAdminRuntimeSnapshot,
   getRelaySyncRuntimeRefs,
   persistRelaySyncState
-} from './circle.module.js?v=2.9.2-r258';
+} from './circle.module.js?v=2.9.2-r259';
 
 const PINNED_DB_GATEWAY_STORAGE_KEY = 'klev_pinned_db_gateway_kind_v2';
 const LAST_WORKING_DB_GATEWAY_SESSION_KEY = 'klev_last_working_db_gateway_v2';

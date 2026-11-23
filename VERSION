@@ -1,10 +1,10 @@
 {
   "version": "2.9.2",
-  "revision": "r258",
-  "buildNumber": 258,
-  "versionCode": 293258,
-  "displayVersion": "v2.9.2 r258",
-  "fullVersion": "2.9.2-r258",
+  "revision": "r259",
+  "buildNumber": 259,
+  "versionCode": 293259,
+  "displayVersion": "v2.9.2 r259",
+  "fullVersion": "2.9.2-r259",
   "policyVersion": "2026.11.22-v2.9.2",
   "releaseDate": "2026-11-23",
   "date": "23 ноября 2026",
@@ -12,6 +12,6 @@
   "adminApkFileName": "klev-pro-admin-v2.9.2.apk",
   "apkUrl": "https://klevpro.ru/apk/klev-pro-v2.9.2.apk",
   "fileSize": "38.8 МБ",
-  "versionBranchNote": "Обновление v2.9.2 (r258): улучшена стабильность определения рыбы по фото, добавлен импорт маршрутов и обновлено отображение офлайн-карт.",
-  "releaseLabel": "v2.9.2 (r258)"
+  "versionBranchNote": "Исправлены ошибки, расширена база городов и водоёмов по всем регионам России, уточнены региональные названия рыб и приоритет видов из настроек.",
+  "releaseLabel": "v2.9.2 (r259)"
 }

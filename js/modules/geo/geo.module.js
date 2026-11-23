@@ -1,6 +1,6 @@
-import { renderFishVisual } from '../../ui/svg.js?v=2.9.2-r258';
-import { MAP_LAYERS, SPOT_CATEGORIES, getCompatibleMethods } from '../../core/config.js?v=2.9.2-r258';
-import { events, KLEV_EVENTS, safeModuleRun } from '../../core/events.js?v=2.9.2-r258';
+import { renderFishVisual } from '../../ui/svg.js?v=2.9.2-r259';
+import { MAP_LAYERS, SPOT_CATEGORIES, getCompatibleMethods } from '../../core/config.js?v=2.9.2-r259';
+import { events, KLEV_EVENTS, safeModuleRun } from '../../core/events.js?v=2.9.2-r259';
 import {
   ARC_TRANSPORT_MODES,
   calcHaversineKm,
@@ -14,7 +14,7 @@ import {
   parseTrackTimestampMs,
   extractKmlFromKmzBuffer,
   parseTrackFromExternalFileText
-} from './geo.routing.js?v=2.9.2-r258';
+} from './geo.routing.js?v=2.9.2-r259';
 
 export {
   cleanTrackNameFromFileName,
@@ -33,20 +33,20 @@ import {
   _estimateSatellitesFromAccuracy,
   _gpsFilterIngest as _gpsFilterIngestImpl,
   computeGpsTelemetryStep
-} from './geo.gps.js?v=2.9.2-r258';
+} from './geo.gps.js?v=2.9.2-r259';
 import {
   normalizeSpotCatKey,
   computeDeduplicatedMapCounts as _overlaysComputeDeduplicatedMapCounts,
   prepareOverlayMarkerLists
-} from './geo.overlays.js?v=2.9.2-r258';
-import { storage, safeJsonParse } from '../../core/storage.js?v=2.9.2-r258';
-import { router } from '../../core/router.js?v=2.9.2-r258';
-import { store } from '../../core/store.js?v=2.9.2-r258';
-import { fetchWithTimeout } from '../../core/http.js?v=2.9.2-r258';
-import { installShortcut, syncInstallButtons } from '../../core/pwa.js?v=2.9.2-r258';
-import { triggerHaptic, RELAY_WORKER_URL } from '../../core/telegram.js?v=2.9.2-r258';
-import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.9.2-r258';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.9.2-r258';
+} from './geo.overlays.js?v=2.9.2-r259';
+import { storage, safeJsonParse } from '../../core/storage.js?v=2.9.2-r259';
+import { router } from '../../core/router.js?v=2.9.2-r259';
+import { store } from '../../core/store.js?v=2.9.2-r259';
+import { fetchWithTimeout } from '../../core/http.js?v=2.9.2-r259';
+import { installShortcut, syncInstallButtons } from '../../core/pwa.js?v=2.9.2-r259';
+import { triggerHaptic, RELAY_WORKER_URL } from '../../core/telegram.js?v=2.9.2-r259';
+import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin, getSpotEcoregion, isSpeciesInGeoRange, rankSpeciesWithUserPriority } from '../../data/basins.js?v=2.9.2-r259';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.9.2-r259';
 import {
   RUSSIA_CITIES,
   RUSSIA_WATERS,
@@ -54,10 +54,10 @@ import {
   getNearestRussianSettlements,
   getNearestRussianWaters,
   getWaterTypeShortTag
-} from '../../data/russia-waters.js?v=2.9.2-r258';
-import { FISH_DB } from '../../data/species.js?v=2.9.2-r258';
-import { routeOnGrid } from './grid-router.js?v=2.9.2-r258';
-import { routeBoatRobust } from './boat-router.js?v=2.9.2-r258';
+} from '../../data/russia-waters.js?v=2.9.2-r259';
+import { FISH_DB } from '../../data/species.js?v=2.9.2-r259';
+import { routeOnGrid } from './grid-router.js?v=2.9.2-r259';
+import { routeBoatRobust } from './boat-router.js?v=2.9.2-r259';
 import {
   isVoiceGuidanceScreenEnabled,
   isVoiceGuidanceBackgroundEnabled,
@@ -69,7 +69,7 @@ import {
   formatSpokenRouteDistanceRu as _ttsFormatSpokenRouteDistanceRu,
   _normalizeDistanceTokensForSpeechRu,
   speakRouteGuidanceRu
-} from './geo.tts.js?v=2.9.2-r258';
+} from './geo.tts.js?v=2.9.2-r259';
 import {
   COMPASS_DEADBAND_DEG,
   COMPASS_ROT_DEADBAND_DEG,
@@ -82,11 +82,11 @@ import {
   computeMapRotationStep,
   stabilizeOverlayElement,
   stabilizeMapOverlaysInBox
-} from './geo.compass.js?v=2.9.2-r258';
-import { escapeHtml, createPill, showToast, openModal, closeModal, openConfirmDeleteModal, downloadFileCrossPlatform, flashHighlightElement, isGeoDistributionConsentActive, ensureGeoDistributionConsent, setGeoDistributionConsentState } from '../../ui/components.js?v=2.9.2-r258';
-import { fetchWeather, weatherModule } from '../weather/weather.module.js?v=2.9.2-r258';
-import { calcDayBest } from '../forecast/forecast.module.js?v=2.9.2-r258';
-import { computeHexPolygonForCircle, getEffectiveCircleRadiusKm, getCircleHexDecayState, canUserAccessCrewItem, getCurrentFisherIdentity, isUserAdmin, isCurrentUserBetaTester, verifyBetaTesterStatusFromCloud, isCircleItemMine, isCircleItemHidden, openAddThematicMapPointModal } from '../circle/circle.module.js?v=2.9.2-r258';
+} from './geo.compass.js?v=2.9.2-r259';
+import { escapeHtml, createPill, showToast, openModal, closeModal, openConfirmDeleteModal, downloadFileCrossPlatform, flashHighlightElement, isGeoDistributionConsentActive, ensureGeoDistributionConsent, setGeoDistributionConsentState } from '../../ui/components.js?v=2.9.2-r259';
+import { fetchWeather, weatherModule } from '../weather/weather.module.js?v=2.9.2-r259';
+import { calcDayBest } from '../forecast/forecast.module.js?v=2.9.2-r259';
+import { computeHexPolygonForCircle, getEffectiveCircleRadiusKm, getCircleHexDecayState, canUserAccessCrewItem, getCurrentFisherIdentity, isUserAdmin, isCurrentUserBetaTester, verifyBetaTesterStatusFromCloud, isCircleItemMine, isCircleItemHidden, openAddThematicMapPointModal } from '../circle/circle.module.js?v=2.9.2-r259';
 // ============================================================================
 // АВТОНОМНОЕ ЯДРО, РЕПРОЕКТОР EPSG:3395 И ИНСПЕКТОР ПРОВЕРКИ ОФЛАЙН-КАРТ (ФАЗА 1 • v2)
 // Хранение в формате инлайн-DataURL (100% сохранность после перезапуска Android WebView)
@@ -10386,14 +10386,18 @@ function computeTop10RegionalFishAtMapPoint(s) {
   );
   if (!pool.length) pool = FISH_DB.filter(f => f.legal !== 'redbook');
 
-  const ranked = pool.map(f => {
-    const compat = getCompatibleMethods(f, dayObj?.iceState || s.iceState, s.water, dayObj?.waterTemp ?? 10);
-    const bestM = compat[0]?.val || s.method;
-    const sc = dayObj ? calcDayBest(f, dayObj, bestM, s.water, s.depth, s.normPress, dayObj.iceState || s.iceState) : 65;
-    const sIdx = sigSet.has(f.id) ? sigSet.get(f.id) : -1;
-    const bonus = sIdx >= 0 ? Math.max(6, 24 - sIdx * 2) : 0;
-    return { fish: f, score: sc, rank: sc + bonus };
-  }).sort((a, b) => b.rank - a.rank).slice(0, 10);
+  const ranked = rankSpeciesWithUserPriority(
+    pool.map(f => {
+      const compat = getCompatibleMethods(f, dayObj?.iceState || s.iceState, s.water, dayObj?.waterTemp ?? 10);
+      const bestM = compat[0]?.val || s.method;
+      const sc = dayObj ? calcDayBest(f, dayObj, bestM, s.water, s.depth, s.normPress, dayObj.iceState || s.iceState) : 65;
+      const sIdx = sigSet.has(f.id) ? sigSet.get(f.id) : -1;
+      const bonus = sIdx >= 0 ? Math.max(6, 24 - sIdx * 2) : 0;
+      return { fish: f, score: sc, rank: sc + bonus };
+    }),
+    s.userProfile?.targetSpecies || [],
+    s.favorites || []
+  ).slice(0, 10);
 
   const avgScore = ranked.length
     ? Math.round(ranked.reduce((acc, x) => acc + x.score, 0) / ranked.length)
@@ -12621,14 +12625,18 @@ export function render(container) {
         const isCoastLocal = Boolean(s.isCoastal || s.water.startsWith('sea'));
         const waterSpecies = FISH_DB.filter(f => f.legal !== 'redbook' && isSpeciesInGeoRange(f, s.lat, s.lon, s.basinCode, s.water, activeRadius, rTypes, isCoastLocal, hasCool, activeWaterTitle));
         const sigSet = new Map((ecoreg.signatureSpecies || []).map((id, i) => [id, i]));
-        const ranked = waterSpecies.map(f => {
-          const compat = getCompatibleMethods(f, dayObj?.iceState || s.iceState, s.water, dayObj?.waterTemp ?? 10);
-          const bestM = compat[0]?.val || s.method;
-          const sc = dayObj ? calcDayBest(f, dayObj, bestM, s.water, s.depth, s.normPress, dayObj.iceState || s.iceState) : 65;
-          const sIdx = sigSet.has(f.id) ? sigSet.get(f.id) : -1;
-          const bonus = sIdx >= 0 ? Math.max(6, 24 - sIdx * 2) : 0;
-          return { fish: f, score: sc, rank: sc + bonus };
-        }).sort((a, b) => b.rank - a.rank).slice(0, 6);
+        const ranked = rankSpeciesWithUserPriority(
+          waterSpecies.map(f => {
+            const compat = getCompatibleMethods(f, dayObj?.iceState || s.iceState, s.water, dayObj?.waterTemp ?? 10);
+            const bestM = compat[0]?.val || s.method;
+            const sc = dayObj ? calcDayBest(f, dayObj, bestM, s.water, s.depth, s.normPress, dayObj.iceState || s.iceState) : 65;
+            const sIdx = sigSet.has(f.id) ? sigSet.get(f.id) : -1;
+            const bonus = sIdx >= 0 ? Math.max(6, 24 - sIdx * 2) : 0;
+            return { fish: f, score: sc, rank: sc + bonus };
+          }),
+          s.userProfile?.targetSpecies || [],
+          s.favorites || []
+        ).slice(0, 6);
         if (!ranked.length) return '';
         return `
           <div id="geoWaterIchthyoCard" style="margin-top:8px;padding:9px 11px;background:var(--panel);border:1.5px solid var(--border);border-radius:var(--r-sm);transition:border-color 0.25s ease, box-shadow 0.25s ease;">
