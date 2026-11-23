@@ -1,8 +1,8 @@
-// Автоматическая синхронизация имени APK (v2.9.2-r259, versionCode 293259) через $GITHUB_PATH (без $GITHUB_ENV и без NODE_OPTIONS)
-version = "2.9.2-r259"
+// Автоматическая синхронизация имени APK (v2.9.2-r258, versionCode 293258) через $GITHUB_PATH (без $GITHUB_ENV и без NODE_OPTIONS)
+version = "2.9.2-r258"
 ext {
-    versionCode = 293259
-    versionName = "2.9.2-r259"
+    versionCode = 293258
+    versionName = "2.9.2-r258"
 }
 try {
     def ghPath = System.getenv("GITHUB_PATH")

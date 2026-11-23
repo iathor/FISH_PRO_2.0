@@ -124,10 +124,6 @@ function main() {
   if (!fs.existsSync(WEBPACK_BIN)) {
     throw new Error(`Webpack binary not found at ${WEBPACK_BIN}`);
   }
-  const geoBuildPath = path.join(ROOT, 'tools/build-geo-db.mjs');
-  if (fs.existsSync(geoBuildPath)) {
-    execFileSync(process.execPath, [geoBuildPath], { cwd: ROOT, stdio: 'inherit' });
-  }
   for (const target of TARGETS) {
     buildTarget(target);
   }

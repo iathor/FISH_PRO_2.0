@@ -1,19 +1,19 @@
-import { getFilteredFishList, openFishDetail } from '../fish/fish.module.js?v=2.9.2-r259';
-import { logBlankTrip } from '../log/log.module.js?v=2.9.2-r259';
-import { getSpotEcoregion, isSpeciesInGeoRange, rankSpeciesWithUserPriority } from '../../data/basins.js?v=2.9.2-r259';
-import { RU } from '../../i18n/ru.js?v=2.9.2-r259';
-import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.9.2-r259';
-import { events } from '../../core/events.js?v=2.9.2-r259';
-import { storage } from '../../core/storage.js?v=2.9.2-r259';
-import { store } from '../../core/store.js?v=2.9.2-r259';
-import { formatLocalYYYYMMDD, fmtDeltaPress, fmtHM } from '../../core/format.js?v=2.9.2-r259';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.9.2-r259';
-import { FISH_DB, getLocalizedFishDisplayName } from '../../data/species.js?v=2.9.2-r259';
-import { renderFiveFish , renderFishVisual } from '../../ui/svg.js?v=2.9.2-r259';
-import { createPill, showToast, openModal, closeModal, openFishLightbox, flashHighlightElement } from '../../ui/components.js?v=2.9.2-r259';
-import { computeIceSafetyIndex, evaluateRoadAndWeatherHazards } from '../weather/weather.module.js?v=2.9.2-r259';
-import { evaluateCircleFieldConfirmation, requireRegisteredFisherId } from '../circle/circle.module.js?v=2.9.2-r259';
-import { isTelegramWebApp, getTelegramUser, shareToTelegramChat, openBotChatInTelegram, buildForecastShareUrls, TELEGRAM_BOT_USERNAME } from '../../core/telegram.js?v=2.9.2-r259';
+import { getFilteredFishList, openFishDetail } from '../fish/fish.module.js?v=2.9.2-r258';
+import { logBlankTrip } from '../log/log.module.js?v=2.9.2-r258';
+import { getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.9.2-r258';
+import { RU } from '../../i18n/ru.js?v=2.9.2-r258';
+import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.9.2-r258';
+import { events } from '../../core/events.js?v=2.9.2-r258';
+import { storage } from '../../core/storage.js?v=2.9.2-r258';
+import { store } from '../../core/store.js?v=2.9.2-r258';
+import { formatLocalYYYYMMDD, fmtDeltaPress, fmtHM } from '../../core/format.js?v=2.9.2-r258';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.9.2-r258';
+import { FISH_DB } from '../../data/species.js?v=2.9.2-r258';
+import { renderFiveFish , renderFishVisual } from '../../ui/svg.js?v=2.9.2-r258';
+import { createPill, showToast, openModal, closeModal, openFishLightbox, flashHighlightElement } from '../../ui/components.js?v=2.9.2-r258';
+import { computeIceSafetyIndex, evaluateRoadAndWeatherHazards } from '../weather/weather.module.js?v=2.9.2-r258';
+import { evaluateCircleFieldConfirmation, requireRegisteredFisherId } from '../circle/circle.module.js?v=2.9.2-r258';
+import { isTelegramWebApp, getTelegramUser, shareToTelegramChat, openBotChatInTelegram, buildForecastShareUrls, TELEGRAM_BOT_USERNAME } from '../../core/telegram.js?v=2.9.2-r258';
 /**
  * Список морских, проходных и полупроходных видов, которые заходят в пресные реки
  * (big_river, small_river) и эстуарии (sea_gulf) при нересте, сезонных миграциях или приливах/отливах.
@@ -1852,16 +1852,15 @@ export function renderExpress(container) {
     f.legal !== 'redbook' &&
     isSpeciesInGeoRange(f, s.lat, s.lon, s.basinCode, s.water, s.waterRadiusKm || 50, radiusTypesBento, s.isCoastal, hasCoolingBento, s.selectedWaterName)
   );
-  const top6Species = rankSpeciesWithUserPriority(
-    (regionalPool.length ? regionalPool : FISH_DB.slice(0, 8)).map(f => {
+  const top6Species = (regionalPool.length ? regionalPool : FISH_DB.slice(0, 8))
+    .map(f => {
       const scDay = calcDayBest(f, activeDayForTackle, s.method, s.water, s.depth, s.normPress, s.iceState);
       const sigIdx = sigMapBento.has(f.id) ? sigMapBento.get(f.id) : -1;
       const bonus = sigIdx >= 0 ? Math.max(6, 24 - sigIdx * 2) : -6;
       return { fish: f, scDay, rankSc: scDay + bonus };
-    }),
-    s.userProfile?.targetSpecies || [],
-    s.favorites || []
-  ).slice(0, 6);
+    })
+    .sort((a, b) => b.rankSc - a.rankSc)
+    .slice(0, 6);
   const top3Bento = top6Species.slice(0, 3);
   const methodLabelsShort = {
     spin_micro: 'Микроджиг / Мормышинг',
@@ -3189,16 +3188,15 @@ function renderMobileRedesignForecast(container) {
     f.legal !== 'redbook' &&
     isSpeciesInGeoRange(f, s.lat, s.lon, s.basinCode, s.water, s.waterRadiusKm || 50, radiusTypesBento, s.isCoastal, hasCoolingBento, s.selectedWaterName)
   );
-  const speciesStripList = rankSpeciesWithUserPriority(
-    (regionalPool.length ? regionalPool : FISH_DB.slice(0, 12)).map(f => {
+  const speciesStripList = (regionalPool.length ? regionalPool : FISH_DB.slice(0, 12))
+    .map(f => {
       const scDay = calcDayBest(f, activeDayForTackle, s.method, s.water, s.depth, s.normPress, effIceForTackle);
       const sigIdx = sigMapBento.has(f.id) ? sigMapBento.get(f.id) : -1;
       const bonus = sigIdx >= 0 ? Math.max(6, 24 - sigIdx * 2) : -6;
       return { fish: f, scDay, rankSc: scDay + bonus };
-    }),
-    s.userProfile?.targetSpecies || [],
-    s.favorites || []
-  ).slice(0, 14);
+    })
+    .sort((a, b) => b.rankSc - a.rankSc)
+    .slice(0, 14);
   if (!speciesStripList.some(item => item.fish.id === fish.id)) {
     speciesStripList.unshift({ fish, scDay: activeHeroScore, rankSc: 999 });
   }

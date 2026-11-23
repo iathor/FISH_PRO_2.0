@@ -1,15 +1,15 @@
-import { RU } from '../../i18n/ru.js?v=2.9.2-r259';
-import { events } from '../../core/events.js?v=2.9.2-r259';
-import { store } from '../../core/store.js?v=2.9.2-r259';
-import { router } from '../../core/router.js?v=2.9.2-r259';
-import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.9.2-r259';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.9.2-r259';
-import { RUSSIA_CITIES, findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.9.2-r259';
-import { FISH_DB, getLocalizedFishDisplayName } from '../../data/species.js?v=2.9.2-r259';
-import { renderFishVisual, renderFiveFish } from '../../ui/svg.js?v=2.9.2-r259';
-import { createPill, showToast, openModal, closeModal, openFishLightbox, openUserAgreementModal, isUserAgreementAccepted, requestSystemNotificationsAccess, flashHighlightElement } from '../../ui/components.js?v=2.9.2-r259';
-import { setLocation, detectUserPosition } from '../geo/geo.module.js?v=2.9.2-r259';
-import { installShortcut, isApkOrTmaContainer, isAppInstalledOrShortcutPresent } from '../../core/pwa.js?v=2.9.2-r259';
+import { RU } from '../../i18n/ru.js?v=2.9.2-r258';
+import { events } from '../../core/events.js?v=2.9.2-r258';
+import { store } from '../../core/store.js?v=2.9.2-r258';
+import { router } from '../../core/router.js?v=2.9.2-r258';
+import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.9.2-r258';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.9.2-r258';
+import { RUSSIA_CITIES, findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.9.2-r258';
+import { FISH_DB } from '../../data/species.js?v=2.9.2-r258';
+import { renderFishVisual, renderFiveFish } from '../../ui/svg.js?v=2.9.2-r258';
+import { createPill, showToast, openModal, closeModal, openFishLightbox, openUserAgreementModal, isUserAgreementAccepted, requestSystemNotificationsAccess, flashHighlightElement } from '../../ui/components.js?v=2.9.2-r258';
+import { setLocation, detectUserPosition } from '../geo/geo.module.js?v=2.9.2-r258';
+import { installShortcut, isApkOrTmaContainer, isAppInstalledOrShortcutPresent } from '../../core/pwa.js?v=2.9.2-r258';
 import {
   openAuthAndBackupModal,
   openNotificationsModal,
@@ -21,11 +21,11 @@ import {
   syncCurrentProfileToCloudIfLoggedIn,
   renderSettingsZoneTabsHtml,
   bindSettingsZoneTabs
-} from '../circle/circle.module.js?v=2.9.2-r259';
-import { fetchWeather } from '../weather/weather.module.js?v=2.9.2-r259';
-import { checkForReleaseUpdate, isAndroidWebsiteVisitor, getCachedApkManifest, triggerApkFileDownload } from '../../core/updater.js?v=2.9.2-r259';
-import { calcDayBest } from '../forecast/forecast.module.js?v=2.9.2-r259';
-import { openFishPhotoScannerModal, analyzeFishPhotoHybrid, estimateWeightByLengthAndSpecies, getStoredGeminiApiKey, saveStoredGeminiApiKey, getLocalGeminiQuotaState, incrementLocalGeminiQuotaUsed, callGeminiClientSmart } from './scanner.js?v=2.9.2-r259';
+} from '../circle/circle.module.js?v=2.9.2-r258';
+import { fetchWeather } from '../weather/weather.module.js?v=2.9.2-r258';
+import { checkForReleaseUpdate, isAndroidWebsiteVisitor, getCachedApkManifest, triggerApkFileDownload } from '../../core/updater.js?v=2.9.2-r258';
+import { calcDayBest } from '../forecast/forecast.module.js?v=2.9.2-r258';
+import { openFishPhotoScannerModal, analyzeFishPhotoHybrid, estimateWeightByLengthAndSpecies, getStoredGeminiApiKey, saveStoredGeminiApiKey, getLocalGeminiQuotaState, incrementLocalGeminiQuotaUsed, callGeminiClientSmart } from './scanner.js?v=2.9.2-r258';
 /**
  * Региональные приоритетные виды для каждого бассейна РФ,
  * чтобы самые популярные и характерные для региона виды (например, Елец и Пелядь/Сырок в Новом Уренгое)
@@ -149,7 +149,6 @@ export function getFilteredFishList(state) {
       }
     }
   }
-  const targetSet = new Set(Array.isArray(s.userProfile?.targetSpecies) ? s.userProfile.targetSpecies : []);
   const favSet = new Set(s.favorites || []);
   const sigOrder = ecoregion.signatureSpecies || REGIONAL_SIGNATURE_SPECIES[s.basinCode] || [];
   const sigMap = new Map(sigOrder.map((id, idx) => [id, idx]));
@@ -177,9 +176,6 @@ export function getFilteredFishList(state) {
       const bStarts = normalizeSearchText(b.name).startsWith(q) ? 1 : 0;
       if (aStarts !== bStarts) return bStarts - aStarts;
     }
-    const aTarget = targetSet.has(a.id) ? 1 : 0;
-    const bTarget = targetSet.has(b.id) ? 1 : 0;
-    if (aTarget !== bTarget) return bTarget - aTarget;
     const aFav = favSet.has(a.id) ? 1 : 0;
     const bFav = favSet.has(b.id) ? 1 : 0;
     if (aFav !== bFav) return bFav - aFav;
@@ -215,8 +211,8 @@ export function openFishDetail(fishId) {
           <span class="fish-detail-zoom-hint">Нажмите для увеличения</span>
         </div>
         <div class="fish-detail-title-col">
-          <div style="font-size:var(--fs-lg);font-weight:800;line-height:1.22;color:var(--text);">${getLocalizedFishDisplayName(f, store.getState()?.basinCode, store.getState()?.locAdmin1, store.getState()?.lat, store.getState()?.lon)}</div>
-          <div style="font-size:var(--fs-xs);color:var(--muted);font-style:italic;">${f.latin || ""}${f.family ? ` • ${f.family}` : ""}</div>
+          <div style="font-size:var(--fs-lg);font-weight:800;line-height:1.22;color:var(--text);">${f.name}</div>
+          <div style="font-size:var(--fs-xs);color:var(--muted);font-style:italic;">${f.latin || ""}</div>
           ${aliasesText ? `<div style="font-size:var(--fs-xs);color:var(--accent);margin-top:2px;">Народные названия: <b>${aliasesText}</b></div>` : ""}
           <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
             ${isRed
@@ -801,11 +797,7 @@ export function openFishingPrefsModal(isEditMode = true, onBackToHub = null) {
       : [s.method || 'spin_micro']
   );
   const selectedFishes = new Set(
-    isEditMode
-      ? ((Array.isArray(s.userProfile?.targetSpecies) && s.userProfile.targetSpecies.length > 0)
-          ? s.userProfile.targetSpecies
-          : (s.favoritesExplicitlySet ? (s.favorites || []) : []))
-      : []
+    isEditMode && s.favoritesExplicitlySet ? (s.favorites || []) : []
   );
   const TACKLE_OPTIONS = [
     { val: 'spin_micro', text: 'Нано-джиг / Мормышинг / Ультралайт (0.2–5 г)' },
@@ -1192,7 +1184,7 @@ export function openFishingPrefsModal(isEditMode = true, onBackToHub = null) {
             preferredMethods: preferredMethodsArr
           }
         });
-        if (!Array.isArray(s.favorites) || s.favorites.length === 0) { store.dispatch({ type: 'SET_FAVORITES_LIST', payload: favArray }); }
+        store.dispatch({ type: 'SET_FAVORITES_LIST', payload: favArray });
         const specSelVal = bodyEl.querySelector('#onbSpecificWaterSelect')?.value || '';
         const [specWType, specWName, specDefD] = specSelVal.split('|');
         const effWaterType = specWType || primaryWater;
