@@ -5,14 +5,14 @@
  * - Единый прямой промпт без рамок/точек/квадратов на фото: «Определи, что за рыба на фото, примерный размер и вес»
  * - Автоматическая подстановка ответа нейросети (вид, размер, вес в г/кг, диагностические признаки и разбор нескольких рыб в кадре) в карточку Атласа РФ
  */
-import { store } from '../../core/store.js?v=2.9.2-r259';
-import { router } from '../../core/router.js?v=2.9.2-r259';
-import { RELAY_WORKER_URL, triggerHaptic } from '../../core/telegram.js?v=2.9.2-r259';
-import { workerFetch } from '../circle/circle.module.js?v=2.9.2-r259';
-import { BASIN_CONFIGS } from '../../data/basins.js?v=2.9.2-r259';
-import { FISH_DB, getLocalizedFishDisplayName } from '../../data/species.js?v=2.9.2-r259';
-import { renderFishVisual } from '../../ui/svg.js?v=2.9.2-r259';
-import { escapeHtml, openModal, closeModal, showToast, flashHighlightElement } from '../../ui/components.js?v=2.9.2-r259';
+import { store } from '../../core/store.js?v=2.9.2-r258';
+import { router } from '../../core/router.js?v=2.9.2-r258';
+import { RELAY_WORKER_URL, triggerHaptic } from '../../core/telegram.js?v=2.9.2-r258';
+import { workerFetch } from '../circle/circle.module.js?v=2.9.2-r258';
+import { BASIN_CONFIGS } from '../../data/basins.js?v=2.9.2-r258';
+import { FISH_DB } from '../../data/species.js?v=2.9.2-r258';
+import { renderFishVisual } from '../../ui/svg.js?v=2.9.2-r258';
+import { escapeHtml, openModal, closeModal, showToast, flashHighlightElement } from '../../ui/components.js?v=2.9.2-r258';
 /**
  * Коэффициент упитанности Фултона (k) по видам рыб для расчёта веса по длине:
  * W (кг) = (k * L_см^3) / 100000
@@ -769,121 +769,123 @@ function saveLocalVisionCache(hashKey, resultObj) {
  * Словарь синонимов, народных названий и корней для 100% сопоставления ответа Gemini с карточками FISH_DB
  */
 const SPECIES_KEYWORD_RULES = [
+  { id: "crucian", rx: /карас|carassius/i },
+  { id: "flounder", rx: /речная камбал|камбал.*flesus|platichthys|камбал/i },
+  { id: "plaice", rx: /морская камбал|pleuronectes/i },
+  { id: "starry_flounder", rx: /звездчатая камбал|звёздчатая камбал/i },
+  { id: "halibut", rx: /палтус|hippoglossus/i },
+  { id: "turbot", rx: /калкан|тюрбо|scophthalmus/i },
   { id: "amur_pike", rx: /амурская щук|reichertii/i },
-  { id: "pike", rx: /щук|щурогай|травянк|esox lucius/i },
-  { id: "chinese_perch", rx: /ауха|китайский окун|мандаринк|siniperca/i },
-  { id: "sea_bass", rx: /смарид|морской окун|клювач|spicara|sebastes/i },
-  { id: "perch", rx: /окун|матросик|горбач|perca fluviatilis/i },
-  { id: "volga_zander", rx: /берш|волжский судак|подсулок|sander volgensis/i },
-  { id: "zander", rx: /судак|клыкаст|напильник|сула|sander lucioperca/i },
-  { id: "buffalo", rx: /буффало|большерот|ictiobus/i },
-  { id: "sea_bream", rx: /ласкир|морской карас|дорадо|зубарик|diplodus|sparus/i },
-  { id: "crucian", rx: /карас|душман|гибрид|carassius/i },
-  { id: "ruffe", rx: /ёрш|ерш|бирючок|носар|gymnocephalus/i },
+  { id: "pike", rx: /щук|щурён|щурен|esox/i },
+  { id: "chinese_perch", rx: /ауха|китайский окун|siniperca/i },
+  { id: "sea_bass", rx: /сибас|лаврак|морской окун|dicentrarchus|sebastes/i },
+  { id: "perch", rx: /окун|окушок|матросик|perca/i },
+  { id: "volga_zander", rx: /берш|volgensis/i },
+  { id: "zander", rx: /судак|клыкач|sander lucioperca/i },
+  { id: "ruffe", rx: /ёрш|ерш|gymnocephalus/i },
   { id: "rotan", rx: /ротан|головешк|perccottus/i },
-  { id: "goby", rx: /бычок|бычки|мартовик|кругляк|neogobius|ponticola|mesogobius/i },
-  { id: "taran", rx: /тарань|таранк|heckelii/i },
-  { id: "vobla", rx: /вобла|каспийская вобл|rutilus caspicus/i },
-  { id: "kutum", rx: /кутум|вырезуб|rutilus frisii/i },
-  { id: "roach", rx: /плотв|сорог|сорожк|серушк|rutilus rutilus|rutilus lacustris/i },
-  { id: "dace", rx: /елец|ельчик|мохтик|мофтик|мегдым|чебак|leuciscus leuciscus|leuciscus baicalensis|leuciscus waleckii/i },
+  { id: "goby", rx: /бычок|бычки|neogobius|ponticola/i },
+  { id: "taran", rx: /тарань|heckeli/i },
+  { id: "vobla", rx: /вобла|caspicus/i },
+  { id: "kutum", rx: /кутум|вырезуб|frisii/i },
+  { id: "roach", rx: /плотв|сорог|сорожк|чебак|rutilus/i },
+  { id: "dace", rx: /елец|ельчик|мохтик|leuciscus/i },
   { id: "ide", rx: /язь|подъязок|leuciscus idus/i },
-  { id: "chub", rx: /голавл|лобаст|squalius|cephalus/i },
+  { id: "chub", rx: /голавл|squalius|cephalus/i },
   { id: "rudd", rx: /красноперк|краснопёрк|scardinius/i },
-  { id: "asp", rx: /жерех|шереспер|шереспёр|белизн|aspius/i },
-  { id: "white_bream", rx: /густер|тарашк|забар|bjoerkna/i },
-  { id: "sopa", rx: /белоглазк|сопа|клепец|ballerus sapa/i },
-  { id: "blue_bream", rx: /синец|синюх|ballerus ballerus/i },
-  { id: "parabramis", rx: /белый амурский лещ|черный лещ|амурский лещ|parabramis|megalobrama/i },
-  { id: "bream", rx: /лещ|подлещик|фанерк|лаврушк|донской чебак|abramis brama/i },
+  { id: "asp", rx: /жерех|шереспер|aspius/i },
+  { id: "white_bream", rx: /густер|bjoerkna/i },
+  { id: "blue_bream", rx: /синец|balliche|ballerus/i },
+  { id: "sopa", rx: /белоглазк|сопа|sapa/i },
+  { id: "parabramis", rx: /белый амурский лещ|черный лещ|parabramis/i },
+  { id: "bream", rx: /лещ|подлещик|abramis brama/i },
   { id: "grass_carp", rx: /белый амур|ctenopharyngodon/i },
   { id: "black_carp", rx: /черный амур|чёрный амур|mylopharyngodon/i },
   { id: "silver_carp", rx: /толстолоб|hypophthalmichthys/i },
+  { id: "buffalo", rx: /буффало|ictiobus/i },
   { id: "carp", rx: /карп|сазан|cyprinus/i },
   { id: "tench", rx: /линь|линёк|tinca/i },
-  { id: "shemaya", rx: /шемая|шамая|шемайк|chalcoides|leobergi/i },
-  { id: "bleak", rx: /уклейк|уклея|себел|шеклея|верховодк|верховк|овсянк|alburnus alburnus|leucaspius/i },
-  { id: "gudgeon", rx: /пескар|бубыр|gobio/i },
-  { id: "chekhon", rx: /чехон|сабля|чеша|pelecus/i },
-  { id: "undermouth", rx: /подуст|чернобрюшк|chondrostoma/i },
+  { id: "dace", rx: /гольян|озерный гольян|речной гольян|phoxinus|мохтик|елец|ельчик|leuciscus/i },
+  { id: "bleak", rx: /верховк|овсянк|малявк|leucaspius|уклейк|уклея|alburnus/i },
+  { id: "gudgeon", rx: /пескар|gobio/i },
+  { id: "shemaya", rx: /шемая|chalcoides/i },
+  { id: "bleak", rx: /уклейк|уклея|alburnus/i },
+  { id: "chekhon", rx: /чехон|pelecus/i },
+  { id: "undermouth", rx: /подуст|chondrostoma/i },
   { id: "vimba", rx: /рыбец|сырть|vimba/i },
-  { id: "barbel", rx: /усач|марен|мирон|barbus/i },
+  { id: "barbel", rx: /усач|мирон|barbus/i },
   { id: "sky_gazer", rx: /верхогляд|chanodichthys/i },
   { id: "yellowcheek", rx: /желтощек|желтощёк|elopichthys/i },
-  { id: "tarpon_carp", rx: /конь-губар|конь губар|пестрый конь|пёстрый конь|троегуб|hemibarbus|opsariichthys/i },
+  { id: "tarpon_carp", rx: /монгольский краснопер|краснопёр|остролучк/i },
   { id: "loach", rx: /вьюн|щиповк|голец усат|misgurnus|cobitis/i },
-  { id: "burbot", rx: /налим|менёк|мень|lota lota/i },
-  { id: "amur_catfish", rx: /амурский сом|дальневосточный сом|silurus asotus|parasilurus/i },
+  { id: "burbot", rx: /налим|lota lota/i },
+  { id: "amur_catfish", rx: /амурский сом|parasilurus/i },
   { id: "channel_catfish", rx: /канальный сом|ictalurus/i },
-  { id: "catfish", rx: /сом обыкновен|европейский сом|\bсом\b|сомён|silurus glanis/i },
-  { id: "taimen", rx: /таймен|чевиц|hucho|parahucho/i },
-  { id: "lenok", rx: /ленок|линок|лимба|ускуч|brachymystax/i },
-  { id: "baikal_grayling", rx: /байкальский хариус|baicalensis|brevipinnis/i },
-  { id: "grayling", rx: /хариус|харюз|thymallus/i },
+  { id: "catfish", rx: /сом обыкновен|европейский сом|\bсом\b|сомён|silurus/i },
+  { id: "taimen", rx: /таймен|hucho/i },
+  { id: "lenok", rx: /ленок|ускуч|brachymystax/i },
+  { id: "baikal_grayling", rx: /байкальский хариус|baicalensis/i },
+  { id: "grayling", rx: /хариус|thymallus/i },
   { id: "rainbow_trout", rx: /радужная форел|микиж|mykiss|parasalmo/i },
-  { id: "brown_trout", rx: /ручьевая форел|пеструшк|fario/i },
-  { id: "trout", rx: /кумж|озерная форел|озёрная форел|черноморский лосос|каспийский лосос|salmo trutta/i },
-  { id: "salmon", rx: /сёмг|семг|атлантический лосос|балтийский лосос|озерный лосос|salmo salar/i },
-  { id: "dolly_varden", rx: /мальм|кундж|malma|leucomaenis/i },
-  { id: "char", rx: /арктический голец|палия|\bголец\b|salvelinus alpinus|salvelinus lepechini/i },
+  { id: "brown_trout", rx: /кумж|ручьевая форел|пеструшк|salmo trutta/i },
+  { id: "trout", rx: /форел|озерная форел/i },
+  { id: "salmon", rx: /сёмг|семг|атлантический лосос|salmo salar/i },
+  { id: "dolly_varden", rx: /мальм| кундж|malma/i },
+  { id: "char", rx: /голец|арктический голец|палия|salvelinus/i },
   { id: "pink_salmon", rx: /горбуш|gorbuscha/i },
   { id: "chum_salmon", rx: /кета|кеты|oncorhynchus keta/i },
-  { id: "sockeye_salmon", rx: /нерк|красниц|кокани|nerka/i },
+  { id: "sockeye_salmon", rx: /нерк|nerka/i },
   { id: "coho_salmon", rx: /кижуч|kisutch/i },
   { id: "chinook_salmon", rx: /чавыч|tshawytscha/i },
-  { id: "cherry_salmon", rx: /сима|масу|masou/i },
-  { id: "nelma", rx: /нельма|stenodus leucichthys nelma/i },
-  { id: "white_salmon", rx: /белорыбиц|stenodus leucichthys leucichthys/i },
-  { id: "muksun", rx: /муксун|колодк|muksun/i },
-  { id: "chir", rx: /чир|щокур|щекур|щeкур|coregonus nasus/i },
-  { id: "peled", rx: /пеляд|сырок|сырочек|coregonus peled/i },
-  { id: "pizhyan", rx: /пыжьян|сибирский сиг|полкур|pidschian/i },
-  { id: "broad_whitefish", rx: /лудог|валаамк|широколобик|widegreni/i },
-  { id: "whitefish", rx: /сиг обыкновен|\bсиг\b|coregonus lavaretus/i },
-  { id: "omul_arctic", rx: /арктический омул|морской омул|autumnalis/i },
+  { id: "cherry_salmon", rx: /сима|masou/i },
+  { id: "white_salmon", rx: /белорыбиц|leucichthys/i },
+  { id: "nelma", rx: /нельма|stenodus/i },
+  { id: "muksun", rx: /муксун|muksun/i },
+  { id: "chir", rx: /чир|щокур|щекур|nasus/i },
+  { id: "peled", rx: /пеляд|сырок|peled/i },
+  { id: "pizhyan", rx: /пыжьян|сибирский сиг|pidschian/i },
+  { id: "whitefish", rx: /сиг обыкновен|\bсиг\b|валаамк|lavaretus/i },
+  { id: "broad_whitefish", rx: /чир|широколобик/i },
+  { id: "omul_arctic", rx: /арктический омул|autumnalis/i },
   { id: "omul", rx: /омул|байкальский омул|migratorius/i },
-  { id: "cisco", rx: /сибирская ряпушк|зельдь|саурей|туруханк|sardinella/i },
-  { id: "vendace", rx: /ряпушк|рипус|килец|переславская сельд|albula/i },
-  { id: "tugun", rx: /тугун|сосьвинская сельд|манерк|coregonus tugun/i },
-  { id: "valek", rx: /валёк|валек|конёк|cylindraceum|prosopium/i },
-  { id: "smelt", rx: /корюшк|зубар|снеток|малоротк|писуч|osmerus|hypomesus/i },
-  { id: "capelin", rx: /мойв|уёк|уек|mallotus/i },
-  { id: "saffron_cod", rx: /сайк|полярная тресочк|boreogadus saida/i },
-  { id: "navaga", rx: /наваг|вахня|eleginus|gracilis/i },
-  { id: "cod", rx: /треск|скрей|пертуй|gadus morhua/i },
+  { id: "vendace", rx: /ряпушк|рипус|albula/i },
+  { id: "cisco", rx: /сибирская ряпушк|зельдь|sardinella/i },
+  { id: "tugun", rx: /тугун|сосьвинская сельд|манерк|tugun/i },
+  { id: "valek", rx: /валёк|валек|cylindraceus|prosopium/i },
+  { id: "smelt", rx: /корюшк|зубар|снеток|osmerus|hypomesus/i },
+  { id: "capelin", rx: /мойв|уёк|mallotus/i },
+  { id: "saffron_cod", rx: /дальневосточная наваг|вахня|gracilis/i },
+  { id: "navaga", rx: /наваг|eleginus/i },
+  { id: "cod", rx: /треск|gadus morhua/i },
   { id: "haddock", rx: /пикш|melanogrammus/i },
   { id: "saithe", rx: /сайд|pollachius/i },
   { id: "walleye_pollock", rx: /минтай|chalcogrammus|theragra/i },
   { id: "wolffish", rx: /зубатк|anarhichas/i },
-  { id: "greenling", rx: /терпуг|зайчик морской|pleurogrammus|hexagrammos/i },
-  { id: "herring", rx: /сельдь|селедк|селёдк|салак|беломорк|пузанок|черноспинк|clupea|alosa/i },
-  { id: "mackerel", rx: /скумбр|макрел|scomber/i },
+  { id: "greenling", rx: /терпуг|зайчик морской|pleurogrammus/i },
+  { id: "herring", rx: /сельдь|селедк|селёдк|clupea/i },
+  { id: "mackerel", rx: /скумбр|scomber/i },
   { id: "horse_mackerel", rx: /ставрид|trachurus/i },
   { id: "bluefish", rx: /луфар|pomatomus/i },
-  { id: "mullet", rx: /кефал|лобан|сингил|остронос|пеленгас|пиленгас|чуларк|mugil|planiliza|liza/i },
+  { id: "mullet", rx: /кефал|лобан|сингил|остронос|пеленгас|mugil|planiza|liza/i },
   { id: "red_mullet", rx: /барабул|султанк|mullus/i },
   { id: "garfish", rx: /сарган|belone/i },
   { id: "scorpionfish", rx: /скорпен|морской ёрш|морской ерш|scorpaena/i },
-  { id: "wrasse", rx: /зеленушк|рулен|губан|symphodus/i },
-  { id: "turbot", rx: /калкан|тюрбо|scophthalmus/i },
-  { id: "starry_flounder", rx: /звездчатая камбал|звёздчатая камбал|stellatus/i },
-  { id: "plaice", rx: /морская камбал|ершоватк|лиманд|platessa|limanda/i },
-  { id: "flounder", rx: /речная камбал|глосс|камбал|platichthys/i },
-  { id: "halibut", rx: /палтус|hippoglossus|reinhardtius/i },
+  { id: "sea_bream", rx: /дорад|зубарик|ласкир|морской карас|sparus|diplodus/i },
+  { id: "wrasse", rx: /зеленушк|губан|symphodus/i },
   { id: "sand_eel", rx: /песчанк|ammodytes/i },
   { id: "anglerfish", rx: /удильщик|морской чёрт|морской черт|lophius/i },
   { id: "eel", rx: /угор|речной угор|anguilla/i },
-  { id: "sterlet", rx: /стерляд|чечуг|ruthenus/i },
+  { id: "sterlet", rx: /стерляд|ruthenus/i },
   { id: "stellate_sturgeon", rx: /севрюг|stellatus/i },
   { id: "beluga", rx: /белуг|huso huso/i },
   { id: "kaluga", rx: /калуг|dauricus/i },
-  { id: "siberian_sturgeon", rx: /сибирский осётр|сибирский осетр|кострюк|карыш|baerii/i },
+  { id: "siberian_sturgeon", rx: /сибирский осётр|сибирский осетр|baerii/i },
   { id: "russian_sturgeon", rx: /русский осётр|русский осетр|\bосётр\b|\bосетр\b|gueldenstaedtii/i },
   { id: "paddlefish", rx: /веслонос|polyodon/i },
   { id: "snakehead", rx: /змееголов|channa/i },
   { id: "tilapia", rx: /тиляп|тилап|oreochromis/i },
-  { id: "king_crab", rx: /камчатский краб|королевский краб|paralithodes/i },
-  { id: "crab", rx: /краб|стригун|волосатик|eriphia|chionoecetes|cancer/i },
+  { id: "king_crab", rx: /камчатский краб|paralithodes/i },
+  { id: "crab", rx: /краб|стригун|волосатик|chionoecetes|cancer/i },
   { id: "crayfish", rx: /речной рак|узкопалый рак|широкопалый рак|\bрак\b|astacus|pontastacus/i }
 ];
 
@@ -1011,11 +1013,7 @@ export function parseGeminiFishResponse(rawText = "") {
         }
       }
       const conf = Math.max(50, Math.min(99, Math.round(Number(obj.confidence || topFromMatches?.confidence) || 95)));
-      const curSt = store.getState() || {};
-      const localizedFishName = getLocalizedFishDisplayName(fish, curSt.basinCode, curSt.locAdmin1, curSt.lat, curSt.lon);
-      const displayTitle = (fish.id === 'roach' || fish.id === 'vobla' || fish.id === 'taran' || fish.id === 'dace' || fish.id === 'peled' || fish.id === 'chir' || fish.id === 'pizhyan')
-        ? localizedFishName
-        : (rawNameRu && !FISH_DB.some(f => f.id === rawNameRu) && !/вобл/i.test(rawNameRu) ? rawNameRu : localizedFishName);
+      const displayTitle = rawNameRu && !FISH_DB.some(f => f.id === rawNameRu) ? rawNameRu : fish.name;
       const displayLatin = rawNameLat || fish.latin || "";
       const sizeText = String(obj.sizeText || `Длина: ~${lenCm} см • Вес: ${formatWeightHuman(weightKg)}`).trim();
       const rawDetected = Array.isArray(obj.detectedFish)
@@ -1869,7 +1867,7 @@ ${escapeHtml(fullAnalysisText || activeMatch.reason || fish.idTraits || "")}
               </div>
               <div style="padding:8px 10px;border-radius:8px;background:${isRedBook ? "rgba(239,68,68,0.14)" : "rgba(16,185,129,0.09)"};border:1px solid ${isRedBook ? "var(--bad)" : "var(--good)"};font-size:11.5px;line-height:1.4;">
                 <b style="color:${isRedBook ? "var(--bad)" : "var(--good)"};">
-                  ${isRedBook ? "ВНИМАНИЕ: КРАСНАЯ КНИГА! ВЫЛОВ ЗАПРЕЩЁН!" : "Справка из Атласа РФ (" + escapeHtml(getLocalizedFishDisplayName(fish, store.getState()?.basinCode, store.getState()?.locAdmin1, store.getState()?.lat, store.getState()?.lon)) + "):"}
+                  ${isRedBook ? "ВНИМАНИЕ: КРАСНАЯ КНИГА! ВЫЛОВ ЗАПРЕЩЁН!" : "Справка из Атласа РФ (" + escapeHtml(fish.name) + "):"}
                 </b>
                 ${isRedBook
                   ? escapeHtml(fish.handlingAdvice || "Немедленно освободите рыбу от крючка прямо в воде и бережно отпустите.")

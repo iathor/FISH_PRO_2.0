@@ -40,9 +40,9 @@ if (!versionRaw) {
 }
 const VER = JSON.parse(versionRaw);
 const V_NUM = String(VER.version || '2.9.2').trim();
-const V_REV = String(VER.revision || 'r259').trim();
+const V_REV = String(VER.revision || 'r258').trim();
 const V_BUILD = Number(VER.buildNumber || 258);
-const V_CODE = Number(VER.versionCode || 293259);
+const V_CODE = Number(VER.versionCode || 293258);
 const V_DISPLAY = String(VER.displayVersion || `v${V_NUM} ${V_REV}`).trim();
 const V_FULL = String(VER.fullVersion || `${V_NUM}-${V_REV}`).trim();
 const V_POLICY = String(VER.policyVersion || `2026.11.22-v${V_NUM}`).trim();

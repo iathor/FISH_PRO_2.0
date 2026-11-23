@@ -2,17 +2,17 @@
  * @file circle.chat.js
  * @description Изолированная отрисовка каналов и сообщений чата (#klevFullScreenChatOverlay) с обязательным экранированием escapeHtml().
  */
-import { store } from '../../core/store.js?v=2.9.2-r259';
-import { storage } from '../../core/storage.js?v=2.9.2-r259';
-import { router } from '../../core/router.js?v=2.9.2-r259';
-import { escapeHtml } from '../../ui/components.js?v=2.9.2-r259';
+import { store } from '../../core/store.js?v=2.9.2-r258';
+import { storage } from '../../core/storage.js?v=2.9.2-r258';
+import { router } from '../../core/router.js?v=2.9.2-r258';
+import { escapeHtml } from '../../ui/components.js?v=2.9.2-r258';
 import {
   OWNER_BOUND_FISHER_ID,
   OWNER_SECONDARY_FISHER_ID,
   isAdminContourActive,
   isOwnerFisherId
-} from '../admin/admin.auth.js?v=2.9.2-r259';
-import { canUserAccessCrewItem } from './circle.ownership.js?v=2.9.2-r259';
+} from '../admin/admin.auth.js?v=2.9.2-r258';
+import { canUserAccessCrewItem } from './circle.ownership.js?v=2.9.2-r258';
 import {
   RUSSIA_REGIONS_DIRECTORY,
   CHAT_MSG_EDIT_MAX_AGE_MS,
@@ -33,7 +33,7 @@ import {
   setChatUiState,
   getRelaySyncRuntimeRefs,
   bindChatViewEvents
-} from './circle.module.js?v=2.9.2-r259';
+} from './circle.module.js?v=2.9.2-r258';
 
 /**
  * Форматирует безопасный заголовок собеседника с обязательным экранированием escapeHtml().

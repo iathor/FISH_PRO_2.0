@@ -1,4 +1,4 @@
-import { routeOnGrid } from './grid-router.js?v=2.9.2-r259';
+import { routeOnGrid } from './grid-router.js?v=2.9.2-r258';
 
 const R = 6371000, D = Math.PI / 180;
 const distM = (p, q) => {

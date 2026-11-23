@@ -1,12 +1,12 @@
-import { APP_VERSION, APP_REVISION } from './core/config.js?v=2.9.2-r259';
-import { storage } from './core/storage.js?v=2.9.2-r259';
-import { svgIcon } from './ui/icons.js?v=2.9.2-r259';
-import { initReleaseUpdater, checkForReleaseUpdate } from './core/updater.js?v=2.9.2-r259';
-import { RU } from './i18n/ru.js?v=2.9.2-r259';
-import { events, KLEV_EVENTS, safeModuleRun } from './core/events.js?v=2.9.2-r259';
-import { store } from './core/store.js?v=2.9.2-r259';
-import { router } from './core/router.js?v=2.9.2-r259';
-import { installShortcut, initPwa } from './core/pwa.js?v=2.9.2-r259';
+import { APP_VERSION, APP_REVISION } from './core/config.js?v=2.9.2-r258';
+import { storage } from './core/storage.js?v=2.9.2-r258';
+import { svgIcon } from './ui/icons.js?v=2.9.2-r258';
+import { initReleaseUpdater, checkForReleaseUpdate } from './core/updater.js?v=2.9.2-r258';
+import { RU } from './i18n/ru.js?v=2.9.2-r258';
+import { events, KLEV_EVENTS, safeModuleRun } from './core/events.js?v=2.9.2-r258';
+import { store } from './core/store.js?v=2.9.2-r258';
+import { router } from './core/router.js?v=2.9.2-r258';
+import { installShortcut, initPwa } from './core/pwa.js?v=2.9.2-r258';
 import {
   initTelegramMiniApp,
   extractIncomingDeepLinkParams,
@@ -16,20 +16,20 @@ import {
   syncTelegramTheme,
   syncTelegramBackButton,
   getTelegramUser
-} from './core/telegram.js?v=2.9.2-r259';
-import { FISH_DB } from './data/species.js?v=2.9.2-r259';
-import { WATER_PROFILES } from './data/waters.js?v=2.9.2-r259';
-import { showToast, openModal, closeModal } from './ui/components.js?v=2.9.2-r259';
-import { weatherModule } from './modules/weather/weather.module.js?v=2.9.2-r259';
-import { geoModule } from './modules/geo/geo.module.js?v=2.9.2-r259';
-import { fishModule } from './modules/fish/fish.module.js?v=2.9.2-r259';
-import { forecastModule } from './modules/forecast/forecast.module.js?v=2.9.2-r259';
-import { calendarModule } from './modules/calendar/calendar.module.js?v=2.9.2-r259';
-import { logModule } from './modules/log/log.module.js?v=2.9.2-r259';
-import { circleModule } from './modules/circle/circle.module.js?v=2.9.2-r259';
-import './shells/shell.desktop.js?v=2.9.2-r259';
-import './shells/shell.mobile.js?v=2.9.2-r259';
-import './shells/shell.ios-pwa.js?v=2.9.2-r259';
+} from './core/telegram.js?v=2.9.2-r258';
+import { FISH_DB } from './data/species.js?v=2.9.2-r258';
+import { WATER_PROFILES } from './data/waters.js?v=2.9.2-r258';
+import { showToast, openModal, closeModal } from './ui/components.js?v=2.9.2-r258';
+import { weatherModule } from './modules/weather/weather.module.js?v=2.9.2-r258';
+import { geoModule } from './modules/geo/geo.module.js?v=2.9.2-r258';
+import { fishModule } from './modules/fish/fish.module.js?v=2.9.2-r258';
+import { forecastModule } from './modules/forecast/forecast.module.js?v=2.9.2-r258';
+import { calendarModule } from './modules/calendar/calendar.module.js?v=2.9.2-r258';
+import { logModule } from './modules/log/log.module.js?v=2.9.2-r258';
+import { circleModule } from './modules/circle/circle.module.js?v=2.9.2-r258';
+import './shells/shell.desktop.js?v=2.9.2-r258';
+import './shells/shell.mobile.js?v=2.9.2-r258';
+import './shells/shell.ios-pwa.js?v=2.9.2-r258';
 if (typeof window !== 'undefined') {
   window.__KLEV_BOOTSTRAPPED__ = true;
   window.__KLEV_STORE__ = store;
@@ -453,7 +453,7 @@ function updateHeaderUI() {
   if (seasonMain && seasonSub) {
     if (!_adminModLoaded && (typeof window === 'undefined' || window.__KLEV_BUILD_TARGET__ !== 'user')) {
       _adminModLoaded = true;
-      import(/* webpackMode: "eager" */ './modules/admin/admin.module.js?v=2.9.2-r259')
+      import(/* webpackMode: "eager" */ './modules/admin/admin.module.js?v=2.9.2-r258')
         .then((m) => {
           if (typeof window !== 'undefined' && window.__KLEV_ADMIN_CONTOUR__ === true && m && typeof m.renderAdminSection === 'function') {
             const admSec = document.getElementById('secAdmin');
