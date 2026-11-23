@@ -668,17 +668,17 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String getAppVersion() {
-            return "2.9.2-r255";
+            return "2.9.2-r256";
         }
 
         @JavascriptInterface
         public int getAppBuildNumber() {
-            return 255;
+            return 256;
         }
 
         @JavascriptInterface
         public String getAppRevision() {
-            return "r255";
+            return "r256";
         }
 
         private boolean isTelegramUri(Uri uri) {
@@ -1083,7 +1083,7 @@ public class MainActivity extends Activity {
         ws.setCacheMode(WebSettings.LOAD_DEFAULT);
         // Пользовательские данные защищены в Context.getFilesDir()/klev_appdata_vault; кэш WebView не очищается принудительно
         String baseUa = ws.getUserAgentString();
-        ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.9.2-r255");
+        ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.9.2-r256");
 
         webView.addJavascriptInterface(new NativeBridge(this), "AndroidBridge");
 
@@ -1739,7 +1739,7 @@ public class MainActivity extends Activity {
             }
         }
         String entryHtml = getPackageName().contains("admin") ? "kp-control-89.html" : "index.html";
-        String baseUrl = VIRTUAL_ORIGIN + "/assets/www/" + entryHtml + "?v=2.9.2_r255_" + System.currentTimeMillis();
+        String baseUrl = VIRTUAL_ORIGIN + "/assets/www/" + entryHtml + "?v=2.9.2_r256_" + System.currentTimeMillis();
         if (intent != null && intent.getData() != null) {
             Uri data = intent.getData();
             String q = data.getEncodedQuery();

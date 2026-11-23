@@ -2,17 +2,17 @@
  * @file circle.chat.js
  * @description Изолированная отрисовка каналов и сообщений чата (#klevFullScreenChatOverlay) с обязательным экранированием escapeHtml().
  */
-import { store } from '../../core/store.js?v=2.9.3-r239';
-import { storage } from '../../core/storage.js?v=2.9.3-r239';
-import { router } from '../../core/router.js?v=2.9.3-r239';
-import { escapeHtml } from '../../ui/components.js?v=2.9.3-r239';
+import { store } from '../../core/store.js?v=2.9.2-r256';
+import { storage } from '../../core/storage.js?v=2.9.2-r256';
+import { router } from '../../core/router.js?v=2.9.2-r256';
+import { escapeHtml } from '../../ui/components.js?v=2.9.2-r256';
 import {
   OWNER_BOUND_FISHER_ID,
   OWNER_SECONDARY_FISHER_ID,
   isAdminContourActive,
   isOwnerFisherId
-} from '../admin/admin.auth.js?v=2.9.3-r239';
-import { canUserAccessCrewItem } from './circle.ownership.js?v=2.9.3-r239';
+} from '../admin/admin.auth.js?v=2.9.2-r256';
+import { canUserAccessCrewItem } from './circle.ownership.js?v=2.9.2-r256';
 import {
   RUSSIA_REGIONS_DIRECTORY,
   CHAT_MSG_EDIT_MAX_AGE_MS,
@@ -33,7 +33,7 @@ import {
   setChatUiState,
   getRelaySyncRuntimeRefs,
   bindChatViewEvents
-} from './circle.module.js?v=2.9.3-r239';
+} from './circle.module.js?v=2.9.2-r256';
 
 /**
  * Форматирует безопасный заголовок собеседника с обязательным экранированием escapeHtml().

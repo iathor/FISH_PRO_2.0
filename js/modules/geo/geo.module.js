@@ -1,6 +1,6 @@
-import { renderFishVisual } from '../../ui/svg.js?v=2.9.3-r239';
-import { MAP_LAYERS, SPOT_CATEGORIES, getCompatibleMethods } from '../../core/config.js?v=2.9.3-r239';
-import { events, KLEV_EVENTS, safeModuleRun } from '../../core/events.js?v=2.9.3-r239';
+import { renderFishVisual } from '../../ui/svg.js?v=2.9.2-r256';
+import { MAP_LAYERS, SPOT_CATEGORIES, getCompatibleMethods } from '../../core/config.js?v=2.9.2-r256';
+import { events, KLEV_EVENTS, safeModuleRun } from '../../core/events.js?v=2.9.2-r256';
 import {
   ARC_TRANSPORT_MODES,
   calcHaversineKm,
@@ -10,7 +10,7 @@ import {
   _smoothRecordedTrackPoints,
   simplifyTrackRdp,
   evaluateRouteSegments
-} from './geo.routing.js';
+} from './geo.routing.js?v=2.9.2-r256';
 import {
   isManualLocationSession,
   setManualLocationSession,
@@ -22,20 +22,20 @@ import {
   _estimateSatellitesFromAccuracy,
   _gpsFilterIngest as _gpsFilterIngestImpl,
   computeGpsTelemetryStep
-} from './geo.gps.js';
+} from './geo.gps.js?v=2.9.2-r256';
 import {
   normalizeSpotCatKey,
   computeDeduplicatedMapCounts as _overlaysComputeDeduplicatedMapCounts,
   prepareOverlayMarkerLists
-} from './geo.overlays.js?v=2.9.3-r239';
-import { storage, safeJsonParse } from '../../core/storage.js?v=2.9.3-r239';
-import { router } from '../../core/router.js?v=2.9.3-r239';
-import { store } from '../../core/store.js?v=2.9.3-r239';
-import { fetchWithTimeout } from '../../core/http.js?v=2.9.3-r239';
-import { installShortcut, syncInstallButtons } from '../../core/pwa.js?v=2.9.3-r239';
-import { triggerHaptic } from '../../core/telegram.js?v=2.9.3-r239';
-import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.9.3-r239';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.9.3-r239';
+} from './geo.overlays.js?v=2.9.2-r256';
+import { storage, safeJsonParse } from '../../core/storage.js?v=2.9.2-r256';
+import { router } from '../../core/router.js?v=2.9.2-r256';
+import { store } from '../../core/store.js?v=2.9.2-r256';
+import { fetchWithTimeout } from '../../core/http.js?v=2.9.2-r256';
+import { installShortcut, syncInstallButtons } from '../../core/pwa.js?v=2.9.2-r256';
+import { triggerHaptic, RELAY_WORKER_URL } from '../../core/telegram.js?v=2.9.2-r256';
+import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.9.2-r256';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.9.2-r256';
 import {
   RUSSIA_CITIES,
   RUSSIA_WATERS,
@@ -43,9 +43,10 @@ import {
   getNearestRussianSettlements,
   getNearestRussianWaters,
   getWaterTypeShortTag
-} from '../../data/russia-waters.js?v=2.9.3-r239';
-import { FISH_DB } from '../../data/species.js?v=2.9.3-r239';
-import { routeOnGrid } from './grid-router.js?v=2.9.1-r245';
+} from '../../data/russia-waters.js?v=2.9.2-r256';
+import { FISH_DB } from '../../data/species.js?v=2.9.2-r256';
+import { routeOnGrid } from './grid-router.js?v=2.9.2-r256';
+import { routeBoatRobust } from './boat-router.js?v=2.9.2-r256';
 import {
   isVoiceGuidanceScreenEnabled,
   isVoiceGuidanceBackgroundEnabled,
@@ -57,7 +58,7 @@ import {
   formatSpokenRouteDistanceRu as _ttsFormatSpokenRouteDistanceRu,
   _normalizeDistanceTokensForSpeechRu,
   speakRouteGuidanceRu
-} from './geo.tts.js';
+} from './geo.tts.js?v=2.9.2-r256';
 import {
   COMPASS_DEADBAND_DEG,
   COMPASS_ROT_DEADBAND_DEG,
@@ -70,11 +71,11 @@ import {
   computeMapRotationStep,
   stabilizeOverlayElement,
   stabilizeMapOverlaysInBox
-} from './geo.compass.js';
-import { escapeHtml, createPill, showToast, openModal, closeModal, openConfirmDeleteModal, downloadFileCrossPlatform, flashHighlightElement, isGeoDistributionConsentActive, ensureGeoDistributionConsent, setGeoDistributionConsentState } from '../../ui/components.js?v=2.9.3-r239';
-import { fetchWeather, weatherModule } from '../weather/weather.module.js?v=2.9.3-r239';
-import { calcDayBest } from '../forecast/forecast.module.js?v=2.9.3-r239';
-import { computeHexPolygonForCircle, getEffectiveCircleRadiusKm, getCircleHexDecayState, canUserAccessCrewItem, getCurrentFisherIdentity, isUserAdmin, isCurrentUserBetaTester, verifyBetaTesterStatusFromCloud, isCircleItemMine, isCircleItemHidden, openAddThematicMapPointModal } from '../circle/circle.module.js?v=2.9.3-r239';
+} from './geo.compass.js?v=2.9.2-r256';
+import { escapeHtml, createPill, showToast, openModal, closeModal, openConfirmDeleteModal, downloadFileCrossPlatform, flashHighlightElement, isGeoDistributionConsentActive, ensureGeoDistributionConsent, setGeoDistributionConsentState } from '../../ui/components.js?v=2.9.2-r256';
+import { fetchWeather, weatherModule } from '../weather/weather.module.js?v=2.9.2-r256';
+import { calcDayBest } from '../forecast/forecast.module.js?v=2.9.2-r256';
+import { computeHexPolygonForCircle, getEffectiveCircleRadiusKm, getCircleHexDecayState, canUserAccessCrewItem, getCurrentFisherIdentity, isUserAdmin, isCurrentUserBetaTester, verifyBetaTesterStatusFromCloud, isCircleItemMine, isCircleItemHidden, openAddThematicMapPointModal } from '../circle/circle.module.js?v=2.9.2-r256';
 // ============================================================================
 // АВТОНОМНОЕ ЯДРО, РЕПРОЕКТОР EPSG:3395 И ИНСПЕКТОР ПРОВЕРКИ ОФЛАЙН-КАРТ (ФАЗА 1 • v2)
 // Хранение в формате инлайн-DataURL (100% сохранность после перезапуска Android WebView)
@@ -1848,10 +1849,10 @@ export async function startOfflinePackDownload({
   const stFallback = store.getState();
   const mcFallback = (mapInstance && typeof mapInstance.getCenter === 'function') ? mapInstance.getCenter() : null;
   if (!Number.isFinite(Number(centerLat))) {
-    centerLat = (mcFallback && Number.isFinite(mcFallback.lat)) ? mcFallback.lat : Number(stFallback.lat || 66.0833);
+    centerLat = (mcFallback && Number.isFinite(mcFallback.lat)) ? mcFallback.lat : Number(stFallback.lat || 55.7558);
   }
   if (!Number.isFinite(Number(centerLon))) {
-    centerLon = (mcFallback && Number.isFinite(mcFallback.lng)) ? mcFallback.lng : Number(stFallback.lon || 76.6333);
+    centerLon = (mcFallback && Number.isFinite(mcFallback.lng)) ? mcFallback.lng : Number(stFallback.lon || 37.6173);
   }
   if (_activeDownloadJob && !_activeDownloadJob.cancelled) {
     showToast('Загрузка офлайн-карты уже выполняется', 'warn');
@@ -2240,10 +2241,10 @@ export async function openOfflineMapsManagerModal(rawOpts = {}) {
   const mcNow = (mapInstance && typeof mapInstance.getCenter === 'function') ? mapInstance.getCenter() : null;
   const centerLat = Number.isFinite(Number(opts.centerLat))
     ? Number(opts.centerLat)
-    : ((mcNow && Number.isFinite(mcNow.lat)) ? mcNow.lat : Number(stNow.lat || 66.0833));
+    : ((mcNow && Number.isFinite(mcNow.lat)) ? mcNow.lat : Number(stNow.lat || 55.7558));
   const centerLon = Number.isFinite(Number(opts.centerLon))
     ? Number(opts.centerLon)
-    : ((mcNow && Number.isFinite(mcNow.lng)) ? mcNow.lng : Number(stNow.lon || 76.6333));
+    : ((mcNow && Number.isFinite(mcNow.lng)) ? mcNow.lng : Number(stNow.lon || 37.6173));
   const locationTitle = opts.locationTitle || stNow.selectedWaterName || stNow.locLabel || 'Выбранный водоём';
   const waterPoints = Array.isArray(opts.waterPoints) && opts.waterPoints.length > 0
     ? opts.waterPoints
@@ -2263,8 +2264,8 @@ export async function openOfflineMapsManagerModal(rawOpts = {}) {
     ? opts.onSelectPackLocation
     : (pack) => {
         if (!pack) return;
-        const pLat = Number.isFinite(Number(pack.centerLat)) ? Number(pack.centerLat) : Number(stNow.lat || 66.0833);
-        const pLon = Number.isFinite(Number(pack.centerLon)) ? Number(pack.centerLon) : Number(stNow.lon || 76.6333);
+        const pLat = Number.isFinite(Number(pack.centerLat)) ? Number(pack.centerLat) : Number(stNow.lat || 55.7558);
+        const pLon = Number.isFinite(Number(pack.centerLon)) ? Number(pack.centerLon) : Number(stNow.lon || 37.6173);
         _offlineMapsEnabledOnMap = true;
         setOfflineMapLayerEnabled(true);
         if (pack.layerMode === 'satellite' && currentLayerKey === 'yandex_map') currentLayerKey = 'yandex_hybrid';
@@ -3389,15 +3390,33 @@ export async function autoDetectStartupLocation() {
           fetchWeather(stNow.lat, stNow.lon, true);
         }
       },
-      () => {
-        if (weatherStale && Number.isFinite(s.lat) && Number.isFinite(s.lon)) {
-          fetchWeather(s.lat, s.lon, true);
+      async () => {
+        if (typeof window !== 'undefined' && window.__KLEV_MANUAL_LOC_SESSION__) return;
+        const stNow = store.getState();
+        if (!stNow.hasUserLocation) {
+          const ipLoc = await locateByIpFallback().catch(() => null);
+          if (ipLoc && Number.isFinite(ipLoc.lat) && Number.isFinite(ipLoc.lon)) {
+            await setLocation(ipLoc.lat, ipLoc.lon);
+            return;
+          }
+        }
+        if (weatherStale && Number.isFinite(stNow.lat) && Number.isFinite(stNow.lon)) {
+          fetchWeather(stNow.lat, stNow.lon, true);
         }
       },
       { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
     );
-  } else if (weatherStale && Number.isFinite(s.lat) && Number.isFinite(s.lon)) {
-    fetchWeather(s.lat, s.lon, true);
+  } else {
+    if (!s.hasUserLocation) {
+      const ipLoc = await locateByIpFallback().catch(() => null);
+      if (ipLoc && Number.isFinite(ipLoc.lat) && Number.isFinite(ipLoc.lon)) {
+        await setLocation(ipLoc.lat, ipLoc.lon);
+        return;
+      }
+    }
+    if (weatherStale && Number.isFinite(s.lat) && Number.isFinite(s.lon)) {
+      fetchWeather(s.lat, s.lon, true);
+    }
   }
 }
 export async function locateByIpFallback() {
@@ -4721,8 +4740,8 @@ export function openNavigateToSpotChoiceModal({ lat, lon, title = 'Точка л
   if (!Number.isFinite(destLat) || !Number.isFinite(destLon)) return;
   const isTma = _isInsideTelegramMiniAppEnv();
   const s = store.getState();
-  const startLat = _liveGpsFix.hasRealFix ? _liveGpsFix.lat : Number(s.lat || 66.0833);
-  const startLon = _liveGpsFix.hasRealFix ? _liveGpsFix.lon : Number(s.lon || 76.6333);
+  const startLat = _liveGpsFix.hasRealFix ? _liveGpsFix.lat : Number(s.lat || 55.7558);
+  const startLon = _liveGpsFix.hasRealFix ? _liveGpsFix.lon : Number(s.lon || 37.6173);
   const directDistKm = calcHaversineKm(startLat, startLon, destLat, destLon);
 
   const yandexUrl = `https://yandex.ru/maps/?rtext=${startLat.toFixed(6)},${startLon.toFixed(6)}~${destLat.toFixed(6)},${destLon.toFixed(6)}&rtt=auto`;
@@ -4889,10 +4908,13 @@ export async function startNavigationToTargetSpot({ destLat, destLon, destTitle 
   const s = store.getState();
   const smartRt = await computeSmartTransportRoute([{ lat: destLat, lon: destLon }], _arcTransportMode || 'car', 'waypoints', 'user_gps');
   let routeToUse = smartRt;
+  if ((!routeToUse || !Array.isArray(routeToUse.points) || routeToUse.points.length < 2) && (_arcTransportMode || 'car') === 'boat') {
+    return;
+  }
   if (!routeToUse || !Array.isArray(routeToUse.points) || routeToUse.points.length < 2) {
     const freshFix = (await acquireStableStartFix(4500, 25)) || (await acquireFreshHighAccuracyGpsFix(2500));
-    const startLat = freshFix && freshFix.hasRealFix ? freshFix.lat : Number(s.lat || 66.0833);
-    const startLon = freshFix && freshFix.hasRealFix ? freshFix.lon : Number(s.lon || 76.6333);
+    const startLat = freshFix && freshFix.hasRealFix ? freshFix.lat : Number(s.lat || 55.7558);
+    const startLon = freshFix && freshFix.hasRealFix ? freshFix.lon : Number(s.lon || 37.6173);
     const built = await buildRoadOrTrailRouteBetween(startLat, startLon, destLat, destLon);
     routeToUse = {
       mode: 'waypoints',
@@ -4912,7 +4934,7 @@ export async function startNavigationToTargetSpot({ destLat, destLon, destTitle 
   const trk = _activatePhase3GuidanceFromBuiltRoute(routeToUse, recordTrackAlong, destTitle);
   renderArcRouteDraftAndActiveOnMap();
 
-  const p0 = trk?.points?.[0] || { lat: Number(s.lat || 66.0833), lon: Number(s.lon || 76.6333) };
+  const p0 = trk?.points?.[0] || { lat: Number(s.lat || 55.7558), lon: Number(s.lon || 37.6173) };
   const p1 = trk?.points?.[Math.min(1, (trk?.points?.length || 1) - 1)] || { lat: destLat, lon: destLon };
   const initBearing = Math.round(calcBearingDeg(p0.lat, p0.lon, p1.lat, p1.lon));
   const initDirRu = bearingToSpokenDirectionRu(initBearing);
@@ -5349,10 +5371,10 @@ export function startPhase3RouteRecording(customTitle = '', emergencyLost = fals
   // Старт берётся СТРОГО от реальных GPS-координат пользователя (explicitStartCoords или _liveGpsFix).
   const realStartLat = Number.isFinite(Number(explicitStartCoords?.lat))
     ? Number(explicitStartCoords.lat)
-    : (_liveGpsFix.hasRealFix && Number.isFinite(_liveGpsFix.lat) ? _liveGpsFix.lat : Number(s.lat || 66.0833));
+    : (_liveGpsFix.hasRealFix && Number.isFinite(_liveGpsFix.lat) ? _liveGpsFix.lat : Number(s.lat || 55.7558));
   const realStartLon = Number.isFinite(Number(explicitStartCoords?.lon))
     ? Number(explicitStartCoords.lon)
-    : (_liveGpsFix.hasRealFix && Number.isFinite(_liveGpsFix.lon) ? _liveGpsFix.lon : Number(s.lon || 76.6333));
+    : (_liveGpsFix.hasRealFix && Number.isFinite(_liveGpsFix.lon) ? _liveGpsFix.lon : Number(s.lon || 37.6173));
   const realStartAcc = Number(explicitStartCoords?.acc || _liveGpsFix.acc || 5);
 
   if (!_phase3ActiveTrack || !emergencyLost) {
@@ -5856,7 +5878,7 @@ function _updateActiveRouteOnScreenHud() {
   const isNav = trk.status === 'returning' || trk.status === 'navigating_to_spot';
   const isForward = trk.status === 'navigating_to_spot';
   const pts = trk.points || [];
-  const userPos = _phase3ReturnUserPos || (_liveGpsFix.hasRealFix ? _liveGpsFix : (pts[pts.length - 1] || { lat: 66.0833, lon: 76.6333 }));
+  const userPos = _phase3ReturnUserPos || (_liveGpsFix.hasRealFix ? _liveGpsFix : (pts[pts.length - 1] || { lat: Number(store.getState()?.lat || 55.7558), lon: Number(store.getState()?.lon || 37.6173) }));
   const calcPts = isForward ? [...pts].reverse() : pts;
   const navState = isNav ? _computeReturnProgressAlongTrack(userPos.lat, userPos.lon, calcPts) : null;
   const walkedKm = isForward ? (trk.recordedDistKm || 0) : (trk.totalDistKm || 0);
@@ -6065,7 +6087,7 @@ export function openPhase3RoutesModal(container = null) {
     const savedRoutes = getSavedPhase3Routes();
     const trk = _phase3ActiveTrack;
     const isRet = trk && trk.status === 'returning';
-    const livePos = _phase3ReturnUserPos || (_liveGpsFix.hasRealFix ? _liveGpsFix : (trk?.points?.[trk.points.length - 1] || { lat: 66.0833, lon: 76.6333 }));
+    const livePos = _phase3ReturnUserPos || (_liveGpsFix.hasRealFix ? _liveGpsFix : (trk?.points?.[trk.points.length - 1] || { lat: Number(s.lat || 55.7558), lon: Number(s.lon || 37.6173) }));
     const navState = trk ? _computeReturnProgressAlongTrack(livePos.lat, livePos.lon, trk.points || []) : null;
     const distToStartKm = navState ? navState.remainingTrailKm : 0;
     const bearingToStart = navState ? navState.bearingDeg : 0;
@@ -6348,7 +6370,7 @@ export function openPhase3RoutesModal(container = null) {
             ? _densifyPolylineToMaxStep(found.points, 0.010)
             : (found.points || []);
           const endSavedPt = denseSavedPts[denseSavedPts.length - 1] || denseSavedPts[0];
-          const initPos = _liveGpsFix.hasRealFix ? _liveGpsFix : (endSavedPt || { lat: 66.0833, lon: 76.6333 });
+          const initPos = _liveGpsFix.hasRealFix ? _liveGpsFix : (endSavedPt || { lat: Number(s.lat || 55.7558), lon: Number(s.lon || 37.6173) });
           const navStSaved = _computeReturnProgressAlongTrack(initPos.lat, initPos.lon, denseSavedPts);
           _phase3ActiveTrack = {
             ...found,
@@ -8036,6 +8058,119 @@ async function _queryOverpassJson(queryStr, timeoutMs = 12000) {
   }
 }
 
+async function _getWaterElementsForGrid(G) {
+  if (_forceOfflineTestMode || (typeof navigator !== 'undefined' && navigator.onLine === false)) return null;
+  const WORKER = ((typeof window !== 'undefined' && window.KLEV_API_BASE) || RELAY_WORKER_URL || '').replace(/\/$/, '');
+  const isApk = typeof window !== 'undefined' && Boolean(window.AndroidBridge);
+  const wrapApkProxyForWorker = (u) => isApk ? `https://appassets.androidplatform.net/__klev_net_proxy__?url=${encodeURIComponent(u)}` : u;
+  const step = 0.25;
+  const tiles = [];
+  const [swLat, swLon, neLat, neLon] = G.bboxStr.split(',').map(Number);
+  for (let la = Math.floor(swLat / step) * step; la < neLat - 1e-9; la += step) {
+    for (let lo = Math.floor(swLon / step) * step; lo < neLon - 1e-9; lo += step) {
+      tiles.push(`${la.toFixed(2)}_${lo.toFixed(2)}`);
+    }
+  }
+  if (tiles.length === 0 || tiles.length > 36) return null;
+
+  const seen = new Set();
+  const out = [];
+  const res = await Promise.all(tiles.map(async (t) => {
+    try {
+      const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      const timer = ctrl ? setTimeout(() => ctrl.abort(), 7500) : null;
+      try {
+        const r = await fetch(wrapApkProxyForWorker(`${WORKER}/api/water?t=${t}`), { signal: ctrl?.signal });
+        if (!r || !r.ok) return null;
+        const j = await r.json();
+        return (j && Array.isArray(j.elements)) ? j.elements : null;
+      } finally {
+        if (timer) clearTimeout(timer);
+      }
+    } catch (_e) {
+      return null;
+    }
+  }));
+
+  if (res.some(x => x === null)) {
+    if (tiles.length <= 4) {
+      const q = `[out:json][timeout:8];(way["waterway"~"^(river|stream|canal|fairway|riverbank|weir|dam|waterfall)$"](${G.bboxStr});way["natural"="water"](${G.bboxStr});relation["natural"="water"](${G.bboxStr});relation["waterway"="riverbank"](${G.bboxStr});way["landuse"="reservoir"](${G.bboxStr});relation["landuse"="reservoir"](${G.bboxStr}););out geom;`;
+      const fb = await _queryOverpassJson(q, 5500);
+      return (fb && Array.isArray(fb.elements) && fb.elements.length > 0) ? fb.elements : null;
+    }
+    return null;
+  }
+
+  for (const els of res) {
+    for (const el of els) {
+      if (!el) continue;
+      const k = `${el.type || ''}${el.id || ''}`;
+      if (seen.has(k)) continue;
+      seen.add(k);
+      out.push(el);
+    }
+  }
+  return out;
+}
+
+export function formatBoatDiagBannerText(diag) {
+  if (!diag || typeof diag !== 'object') return 'BOAT v2 | no diag';
+  if (diag.reason === 'ice') return `BOAT v2 | reason: ice (${diag.iceState || 'ice'})`;
+  const triesStr = Array.isArray(diag.tries) && diag.tries.length > 0
+    ? diag.tries.map(tr => `[${tr.padRatio}:${tr.ok ? `ok cell ${tr.cellM || diag.cellM || 0}м` : 'fail'}]`).join(' ')
+    : '[-]';
+  const elCnt = Number(diag.el) || 0;
+  const tSec = Number(diag.tSec) || 0;
+  const snapS = Math.round(Number(diag.snapStartM) || 0);
+  const snapG = Math.round(Number(diag.snapGoalM) || 0);
+  const ref = Number(diag.refined) || 0;
+  const kept = Number(diag.keptCoarse) || 0;
+  const unc = Number(diag.unclosedRings) || 0;
+  return `BOAT v2 | tries: ${triesStr} | el: ${elCnt} | t: ${tSec}с | snap: ${snapS}/${snapG} м | refined: ${ref}/${kept}${unc ? ` | unclosed: ${unc}` : ''}`;
+}
+
+function _bindGlobalBoatDebugLongPress() {
+  if (typeof window === 'undefined' || typeof document === 'undefined' || window.__KLEV_DEBUG_LONGPRESS_BOUND__) return;
+  window.__KLEV_DEBUG_LONGPRESS_BOUND__ = true;
+  let pressTimer = null;
+  const clearTimer = () => {
+    if (pressTimer) {
+      clearTimeout(pressTimer);
+      pressTimer = null;
+    }
+  };
+  const startPress = (ev) => {
+    const t = ev.target && typeof ev.target.closest === 'function'
+      ? ev.target.closest('#onbVersionCheckBtn, #relModalOkBtn, #arcActiveRouteBanner')
+      : null;
+    if (!t) return;
+    if (ev.target.closest && ev.target.closest('#arcClearBuiltRouteBtn')) return;
+    clearTimer();
+    pressTimer = setTimeout(() => {
+      pressTimer = null;
+      try {
+        const nextVal = localStorage.getItem('klev_debug') === '1' ? '0' : '1';
+        localStorage.setItem('klev_debug', nextVal);
+        const diagTxt = (nextVal === '1' && window.__KLEV_BOAT_DIAG__)
+          ? ` (${formatBoatDiagBannerText(window.__KLEV_BOAT_DIAG__)})`
+          : '';
+        showToast(nextVal === '1' ? `Диагностика лодочного роутера включена${diagTxt}` : 'Диагностика лодочного роутера выключена', 'info');
+        const secGeo = document.getElementById('secGeo');
+        if (secGeo) render(secGeo);
+      } catch (_e) {}
+    }, 700);
+  };
+  document.addEventListener('pointerdown', startPress, { passive: true });
+  document.addEventListener('pointerup', clearTimer, { passive: true });
+  document.addEventListener('pointercancel', clearTimer, { passive: true });
+  document.addEventListener('pointermove', (ev) => {
+    if (pressTimer && (Math.abs(ev.movementX || 0) > 12 || Math.abs(ev.movementY || 0) > 12)) {
+      clearTimer();
+    }
+  }, { passive: true });
+}
+_bindGlobalBoatDebugLongPress();
+
 const _osmRiverInFlightByKey = new Set();
 
 // П. 5: Загрузка реальных водных путей из OpenStreetMap и отрисовка стрелочек течения СТРОГО по руслам рек (без возможности рекурсивного зацикливания!)
@@ -8218,8 +8353,47 @@ function renderArcRouteDraftAndActiveOnMap() {
       lineCap: 'round'
     };
     if (dashByTransport) lineOpts.dashArray = dashByTransport;
-    const line = L.polyline(_arcBuiltRoute.points, lineOpts);
-    _arcRouteDraftLayerGroup.addLayer(line);
+    const pts = _arcBuiltRoute.points;
+    const boatGaps = (tr === 'boat' && Array.isArray(_arcBuiltRoute.boatGaps)) ? _arcBuiltRoute.boatGaps : [];
+    if (boatGaps.length > 0) {
+      const gapSegSet = new Set();
+      for (const g of boatGaps) {
+        if (!Array.isArray(g) || g.length < 2) continue;
+        const g0 = Math.max(0, Math.min(pts.length - 2, Number(g[0]) || 0));
+        const g1 = Math.max(g0 + 1, Math.min(pts.length - 1, Number(g[1]) || 0));
+        for (let sIdx = g0; sIdx < g1; sIdx++) gapSegSet.add(sIdx);
+        const gapSlice = pts.slice(g0, g1 + 1);
+        if (gapSlice.length >= 2) {
+          const gapLine = L.polyline(gapSlice, {
+            color: '#f97316',
+            weight: 5,
+            opacity: 0.95,
+            dashArray: '4, 8',
+            lineJoin: 'round',
+            lineCap: 'round'
+          }).bindPopup('Нет маршрута по воде');
+          _arcRouteDraftLayerGroup.addLayer(gapLine);
+        }
+      }
+      let curRun = [];
+      for (let i = 0; i < pts.length - 1; i++) {
+        if (gapSegSet.has(i)) {
+          if (curRun.length >= 2) {
+            _arcRouteDraftLayerGroup.addLayer(L.polyline(curRun, lineOpts));
+          }
+          curRun = [];
+        } else {
+          if (curRun.length === 0) curRun.push(pts[i]);
+          curRun.push(pts[i + 1]);
+        }
+      }
+      if (curRun.length >= 2) {
+        _arcRouteDraftLayerGroup.addLayer(L.polyline(curRun, lineOpts));
+      }
+    } else {
+      const line = L.polyline(pts, lineOpts);
+      _arcRouteDraftLayerGroup.addLayer(line);
+    }
 
     const startPt = _arcBuiltRoute.points[0];
     const endPt = _arcBuiltRoute.points[_arcBuiltRoute.points.length - 1];
@@ -8879,9 +9053,32 @@ if (typeof window !== 'undefined') {
 
 async function _buildOsmNetworkPathBetween(a, b, transportMode = 'car') {
   if (transportMode === 'boat') {
+    const stBoat = store.getState();
+    const dayBoat = stBoat?.weatherDays?.[stBoat.dayIdx] || stBoat?.weatherDays?.[2] || stBoat?.weatherDays?.[0];
+    const effIceBoat = dayBoat?.iceState || stBoat?.iceState || 'open_water';
+    const useV2 = (() => { try { return localStorage.getItem('klev_boat_router_v2') !== '0'; } catch (_e) { return true; } })();
+    if (useV2) {
+      if (effIceBoat !== 'open_water') {
+        if (typeof window !== 'undefined') window.__KLEV_BOAT_DIAG__ = { reason: 'ice', iceState: effIceBoat, tries: [] };
+        return null;
+      }
+      try {
+        const res = await routeBoatRobust(a, b, {
+          iceState: effIceBoat,
+          getElements: _getWaterElementsForGrid,
+          queryOverpass: _queryOverpassJson,
+          offline: _forceOfflineTestMode
+        });
+        if (typeof window !== 'undefined') window.__KLEV_BOAT_DIAG__ = res.diag || null;
+        if (res.ok && Array.isArray(res.points) && res.points.length >= 2) return res.points;
+        return null;
+      } catch (_e) {
+        return null;
+      }
+    }
     try {
       const gridRes = await routeOnGrid(a, b, 'boat', {
-        iceState: store.getState()?.iceState || 'open_water',
+        iceState: effIceBoat,
         queryOverpass: _queryOverpassJson,
         offline: _forceOfflineTestMode
       });
@@ -9392,8 +9589,22 @@ export async function computeSmartTransportRoute(waypointsList, transportMode = 
   const skipHomeStart = resolvedStartOrigin === 'first_point' && effectiveTargets.length >= 2;
   const chain = skipHomeStart ? [...effectiveTargets] : [startPt, ...effectiveTargets];
   let finalPoly = [];
+  const gaps = [];
+  let boatHadFailedWaterSeg = false;
+  let boatHadSuccessWaterSeg = false;
+  let boatFarSnapStartM = 0;
+  let boatFarSnapGoalM = 0;
 
   if (transportMode === 'boat') {
+    const dayBoat = s?.weatherDays?.[s.dayIdx] || s?.weatherDays?.[2] || s?.weatherDays?.[0];
+    const effIceBoat = dayBoat?.iceState || s?.iceState || 'open_water';
+    const useV2 = (() => { try { return localStorage.getItem('klev_boat_router_v2') !== '0'; } catch (_e) { return true; } })();
+    if (useV2 && effIceBoat !== 'open_water') {
+      if (typeof window !== 'undefined') window.__KLEV_BOAT_DIAG__ = { reason: 'ice', iceState: effIceBoat, tries: [] };
+      showToast('Сейчас лёд. Маршрут для лодки не строится', 'warn');
+      return null;
+    }
+
     const aFirst = chain[0];
     const bLast = chain[chain.length - 1];
     const midLat = (aFirst[0] + bLast[0]) / 2;
@@ -9406,31 +9617,62 @@ export async function computeSmartTransportRoute(waypointsList, transportMode = 
       for (const rp of denseW) allRiverNodes.push(rp);
     }
 
-    if (isFreehand && chain.length >= 2) {
-      finalPoly = chain.map(pt => {
-        let bestRp = null;
-        let bestD = 0.22;
-        for (const rp of allRiverNodes) {
-          const d = calcHaversineKm(pt[0], pt[1], rp[0], rp[1]);
-          if (d < bestD) {
-            bestD = d;
-            bestRp = rp;
-          }
+    const snapPtToRiver220m = (pt) => {
+      let bestRp = null;
+      let bestD = 0.22;
+      for (const rp of allRiverNodes) {
+        const d = calcHaversineKm(pt[0], pt[1], rp[0], rp[1]);
+        if (d < bestD) {
+          bestD = d;
+          bestRp = rp;
         }
-        return bestRp ? [bestRp[0], bestRp[1]] : [pt[0], pt[1]];
-      });
+      }
+      return bestRp ? [bestRp[0], bestRp[1]] : [pt[0], pt[1]];
+    };
+
+    if (isFreehand && chain.length >= 2 && !useV2) {
+      finalPoly = chain.map(pt => snapPtToRiver220m(pt));
     } else {
-      const boatChain = chain.length === 1 ? [startPt, chain[0]] : chain;
+      let boatChain;
+      if (isFreehand && chain.length >= 2) {
+        const anchorStep = Math.max(1, Math.floor(chain.length / 6));
+        const anchors = [snapPtToRiver220m(chain[0])];
+        for (let i = anchorStep; i < chain.length - 1; i += anchorStep) {
+          if (anchors.length < 5) anchors.push(chain[i]);
+        }
+        anchors.push(snapPtToRiver220m(chain[chain.length - 1]));
+        boatChain = anchors;
+      } else {
+        boatChain = chain.length === 1 ? [startPt, chain[0]] : chain;
+      }
+
       for (let i = 0; i < boatChain.length - 1; i++) {
         const a = boatChain[i];
         const b = boatChain[i + 1];
-        let waterSeg = await _buildOsmNetworkPathBetween(a, b, 'boat');
+        const waterSeg = await _buildOsmNetworkPathBetween(a, b, 'boat');
+        const segDiag = (typeof window !== 'undefined') ? window.__KLEV_BOAT_DIAG__ : null;
         if (waterSeg && waterSeg.length >= 2) {
+          boatHadSuccessWaterSeg = true;
+          const segStartIdx = finalPoly.length === 0 ? 0 : finalPoly.length - 1;
           if (finalPoly.length === 0) finalPoly.push(...waterSeg);
           else finalPoly.push(...waterSeg.slice(1));
+          const segEndIdx = finalPoly.length - 1;
+          if (useV2 && i === 0 && Number(segDiag?.snapStartM) > 300 && segEndIdx > segStartIdx) {
+            boatFarSnapStartM = Math.round(Number(segDiag.snapStartM));
+            gaps.push([segStartIdx, segStartIdx + 1]);
+          }
+          if (useV2 && i === boatChain.length - 2 && Number(segDiag?.snapGoalM) > 300 && segEndIdx > segStartIdx) {
+            boatFarSnapGoalM = Math.round(Number(segDiag.snapGoalM));
+            gaps.push([segEndIdx - 1, segEndIdx]);
+          }
         } else {
+          boatHadFailedWaterSeg = true;
           if (finalPoly.length === 0) finalPoly.push(a);
+          const i0 = finalPoly.length - 1;
           finalPoly.push(b);
+          if (useV2) {
+            gaps.push([i0, finalPoly.length - 1]);
+          }
         }
       }
     }
@@ -9483,6 +9725,10 @@ export async function computeSmartTransportRoute(waypointsList, transportMode = 
     const expEnd = chain[chain.length - 1];
     if (calcHaversineKm(expStart[0], expStart[1], finalPoly[0][0], finalPoly[0][1]) > 0.005) {
       finalPoly.unshift([expStart[0], expStart[1]]);
+      for (const g of gaps) {
+        g[0] += 1;
+        g[1] += 1;
+      }
     } else {
       finalPoly[0] = [expStart[0], expStart[1]];
     }
@@ -9493,7 +9739,20 @@ export async function computeSmartTransportRoute(waypointsList, transportMode = 
     }
   }
 
-  const { totalKm, turns, etaMin } = evaluateRouteSegments(finalPoly, transportMode);
+  if (transportMode === 'boat') {
+    if (boatHadFailedWaterSeg) {
+      showToast('Маршрут по воде не построен: нет данных по этому участку (или нет сети). Поставьте промежуточные точки по руслу — для каждого отрезка маршрут строится отдельно', 'warn');
+    } else if (boatFarSnapStartM > 300 || boatFarSnapGoalM > 300) {
+      const snapDistM = boatFarSnapStartM > 300 ? boatFarSnapStartM : boatFarSnapGoalM;
+      showToast(`Старт в ${snapDistM} м от воды. Участок до воды — по прямой (пунктир)`, 'warn');
+    }
+    if (boatHadSuccessWaterSeg && typeof window !== 'undefined' && !window.__KLEV_BOAT_OSM_NOTICE_SHOWN__) {
+      window.__KLEV_BOAT_OSM_NOTICE_SHOWN__ = true;
+      showToast('Маршрут по данным OpenStreetMap. Глубины, мели и перекаты не учитываются — ориентируйтесь по обстановке', 'info');
+    }
+  }
+
+  const { totalKm, waterKm, gapKm, hasGaps, turns, etaMin } = evaluateRouteSegments(finalPoly, transportMode, gaps);
   const routeHazards = (typeof window !== 'undefined' && typeof window.__KLEV_GET_ROUTE_WEATHER_HAZARDS__ === 'function')
     ? window.__KLEV_GET_ROUTE_WEATHER_HAZARDS__(transportMode)
     : { hasHazards: false, activeForMode: [], summaryText: '' };
@@ -9505,6 +9764,10 @@ export async function computeSmartTransportRoute(waypointsList, transportMode = 
     transport: transportMode,
     targetWaypoints: effectiveTargets,
     points: finalPoly,
+    boatGaps: transportMode === 'boat' ? gaps : [],
+    hasBoatGaps: Boolean(transportMode === 'boat' && (gaps.length > 0 || hasGaps)),
+    waterKm: transportMode === 'boat' ? waterKm : totalKm,
+    gapKm: transportMode === 'boat' ? gapKm : 0,
     distKm: Math.max(0.05, totalKm),
     etaMin,
     turns,
@@ -9887,6 +10150,15 @@ function renderArcMobileMap(container, s, prevLiveMapBox) {
         const hazRowHtml = liveHaz && liveHaz.hasHazards && liveHaz.summaryText
           ? `<div id="arcRouteHazardAlertRow" style="margin-top:6px;padding:5px 9px;border-radius:10px;background:${liveHaz.severity === 'bad' ? 'rgba(239,68,68,0.20)' : 'rgba(245,158,11,0.18)'};border:1px solid ${liveHaz.severity === 'bad' ? 'rgba(239,68,68,0.55)' : 'rgba(245,158,11,0.50)'};color:${liveHaz.severity === 'bad' ? '#fca5a5' : '#fde68a'};font-size:11px;font-weight:800;line-height:1.25;">Внимание на маршруте: ${escapeHtml(liveHaz.summaryText)}</div>`
           : '';
+        const hasBoatGaps = Boolean(_arcBuiltRoute.transport === 'boat' && (_arcBuiltRoute.hasBoatGaps || (Array.isArray(_arcBuiltRoute.boatGaps) && _arcBuiltRoute.boatGaps.length > 0)));
+        const gapNote = hasBoatGaps ? ' * (участок не по воде)' : '';
+        const isDebugOn = (() => { try { return typeof localStorage !== 'undefined' && localStorage.getItem('klev_debug') === '1'; } catch (_e) { return false; } })();
+        const boatDiagLine = (isDebugOn && _arcBuiltRoute.transport === 'boat' && typeof window !== 'undefined' && window.__KLEV_BOAT_DIAG__)
+          ? formatBoatDiagBannerText(window.__KLEV_BOAT_DIAG__)
+          : '';
+        const diagRowHtml = boatDiagLine
+          ? `<div id="arcBoatDiagBannerRow" style="margin-top:5px;padding:4px 8px;border-radius:8px;background:rgba(15,23,42,0.84);border:1px solid rgba(56,189,248,0.4);color:#93c5fd;font-family:monospace;font-size:10.5px;font-weight:700;line-height:1.3;word-break:break-word;">${escapeHtml(boatDiagLine)}</div>`
+          : '';
         return `
         <div class="klev-arc-glass" id="arcActiveRouteBanner" style="position:absolute;top:84px;left:12px;right:12px;z-index:922;border-radius:18px;padding:9px 13px;display:flex;flex-direction:column;">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
@@ -9901,19 +10173,20 @@ function renderArcMobileMap(container, s, prevLiveMapBox) {
                   </div>
                   <div style="min-width:0;">
                     <div style="font-size:15px;font-weight:900;line-height:1.15;">${nextDistM} м • ${nextDir}</div>
-                    <div style="font-size:11.5px;font-weight:800;color:var(--muted);">${_arcBuiltRoute.distKm.toFixed(1).replace('.', ',')} км • ${_arcBuiltRoute.etaMin} мин</div>
+                    <div style="font-size:11.5px;font-weight:800;color:var(--muted);">${_arcBuiltRoute.distKm.toFixed(1).replace('.', ',')} км • ${_arcBuiltRoute.etaMin} мин${gapNote}</div>
                   </div>
                 </div>
               `;
             })() : `
               <div style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:900;">
                 <span style="color:#38bdf8;">${curTransport.svg}</span>
-                <span>${_arcBuiltRoute.distKm.toFixed(1).replace('.', ',')} км • ${_arcBuiltRoute.etaMin} мин</span>
+                <span>${_arcBuiltRoute.distKm.toFixed(1).replace('.', ',')} км • ${_arcBuiltRoute.etaMin} мин${gapNote}</span>
               </div>
             `}
             <button type="button" class="btn btn-sm" id="arcClearBuiltRouteBtn" style="min-height:28px;padding:2px 8px;font-weight:900;">&times;</button>
           </div>
           ${hazRowHtml}
+          ${diagRowHtml}
         </div>
         `;
       })() : ''}
@@ -10768,7 +11041,7 @@ function bindArcMobileMapEvents(container) {
 
   container.querySelector('#arcWpAddPointBtn')?.addEventListener('click', (e) => {
     e.stopPropagation();
-    const c = mapInstance ? mapInstance.getCenter() : { lat: Number(s.lat || 66.0833), lng: Number(s.lon || 76.6333) };
+    const c = mapInstance ? mapInstance.getCenter() : { lat: Number(s.lat || 55.7558), lng: Number(s.lon || 37.6173) };
     _arcWaypointsDraft.push({ lat: c.lat, lon: c.lng });
     renderArcRouteDraftAndActiveOnMap();
     render(container);
@@ -10784,7 +11057,7 @@ function bindArcMobileMapEvents(container) {
   container.querySelector('#arcWpFinishBuildBtn')?.addEventListener('click', async (e) => {
     e.stopPropagation();
     if (_arcWaypointsDraft.length === 0) {
-      const c = mapInstance ? mapInstance.getCenter() : { lat: Number(s.lat || 66.0865), lng: Number(s.lon || 76.6420) };
+      const c = mapInstance ? mapInstance.getCenter() : { lat: Number(s.lat || 55.7558), lng: Number(s.lon || 37.6173) };
       _arcWaypointsDraft.push({ lat: c.lat, lon: c.lng });
     }
     const draftCopy = [..._arcWaypointsDraft];
@@ -11258,8 +11531,8 @@ function bindArcMobileMapEvents(container) {
     e.stopPropagation();
     const rad = parseInt(e.currentTarget.getAttribute('data-rad'), 10) || 50;
     const mc = (mapInstance && typeof mapInstance.getCenter === 'function') ? mapInstance.getCenter() : null;
-    const cLat = (mc && Number.isFinite(mc.lat)) ? mc.lat : Number(s.lat || 66.0833);
-    const cLon = (mc && Number.isFinite(mc.lng)) ? mc.lng : Number(s.lon || 76.6333);
+    const cLat = (mc && Number.isFinite(mc.lat)) ? mc.lat : Number(s.lat || 55.7558);
+    const cLon = (mc && Number.isFinite(mc.lng)) ? mc.lng : Number(s.lon || 37.6173);
     _arcOfflinePromptRadiusKm = null;
     _arcExpandedPlaqueId = null;
     setOfflineMapLayerEnabled(true);

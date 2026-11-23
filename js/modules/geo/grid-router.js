@@ -77,7 +77,7 @@ export function chooseGrid(a, b, padRatio = 0.35, minPadM = 1200, maxCells = 140
   };
 }
 
-export function assembleRings(members, roleFilter = 'outer') {
+export function assembleRings(members, roleFilter = 'outer', diag = null) {
   const segs = [];
   for (const m of (members || [])) {
     if (m.type !== 'way' || !Array.isArray(m.geometry) || m.geometry.length < 2) continue;
@@ -125,7 +125,12 @@ export function assembleRings(members, roleFilter = 'outer') {
         }
       }
     }
-    if (cur.length >= 3) rings.push(cur);
+    if (cur.length >= 3) {
+      if (diag && keyOf(cur[0]) !== keyOf(cur[cur.length - 1])) {
+        diag.unclosedRings = (diag.unclosedRings || 0) + 1;
+      }
+      rings.push(cur);
+    }
   }
   return rings;
 }
@@ -327,7 +332,7 @@ export function nearestPassable(grid, cols, rows, sx, sy, maxR = 14) {
   return null;
 }
 
-export function astarGrid(grid, cols, rows, startCell, goalCell, shoreDist = null, shoreWeight = 0) {
+export function astarGrid(grid, cols, rows, startCell, goalCell, shoreDist = null, shoreWeight = 0, hMin = 0.6) {
   const sIdx = startCell[1] * cols + startCell[0];
   const gIdx = goalCell[1] * cols + goalCell[0];
   if (!Number.isFinite(grid[sIdx]) || !Number.isFinite(grid[gIdx])) return null;
@@ -339,7 +344,10 @@ export function astarGrid(grid, cols, rows, startCell, goalCell, shoreDist = nul
   came.fill(-1);
   const closed = new Uint8Array(n);
 
-  const h = (cx, cy) => { const dx = Math.abs(goalCell[0] - cx), dy = Math.abs(goalCell[1] - cy); return 0.6 * (dx + dy + (Math.SQRT2 - 2) * Math.min(dx, dy)); };
+  const h = (cx, cy) => {
+    const dx = Math.abs(goalCell[0] - cx), dy = Math.abs(goalCell[1] - cy);
+    return hMin * (dx + dy + (Math.SQRT2 - 2) * Math.min(dx, dy));
+  };
   const heap = new MinHeap();
   gScore[sIdx] = 0;
   heap.push(sIdx, h(startCell[0], startCell[1]));
@@ -436,7 +444,7 @@ export function smoothPath(grid, cols, path, opts = {}) {
 
 const _gridOverpassCache = new Map();
 
-export function buildCostGridFromElements(G, elements, mode = 'boat', iceState = 'open_water') {
+export function buildCostGridFromElements(G, elements, mode = 'boat', iceState = 'open_water', diag = null) {
   const n = G.cols * G.rows;
   const grid = new Float32Array(n);
 
@@ -448,12 +456,16 @@ export function buildCostGridFromElements(G, elements, mode = 'boat', iceState =
       const isWaterArea = t.natural === 'water' || t.waterway === 'riverbank' || t.landuse === 'reservoir' || t.water;
       if (!isWaterArea) continue;
       if (el.type === 'relation' && Array.isArray(el.members)) {
-        const outers = assembleRings(el.members, 'outer');
-        const inners = assembleRings(el.members, 'inner');
+        const outers = assembleRings(el.members, 'outer', diag);
+        const inners = assembleRings(el.members, 'inner', diag);
         fillFeature(grid, G, outers, inners, 1.0, 'min');
+        if (G.cellM >= 60) {
+          for (const r of outers) stampLine(grid, G, r, 0, 1.0, 'min');
+        }
       } else if (el.type === 'way' && Array.isArray(el.geometry) && el.geometry.length >= 3) {
         const ring = el.geometry.map(pt => [pt.lat, pt.lon]);
         fillFeature(grid, G, [ring], [], 1.0, 'min');
+        if (G.cellM >= 60) stampLine(grid, G, ring, 0, 1.0, 'min');
       }
     }
     // 2. Линейные реки, протоки и судовой ход
@@ -495,7 +507,7 @@ export function buildCostGridFromElements(G, elements, mode = 'boat', iceState =
       else if (t.building) polyCost = Infinity;
       if (polyCost === null) continue;
       if (el.type === 'relation' && Array.isArray(el.members)) {
-        fillFeature(grid, G, assembleRings(el.members, 'outer'), assembleRings(el.members, 'inner'), polyCost, 'set');
+        fillFeature(grid, G, assembleRings(el.members, 'outer', diag), assembleRings(el.members, 'inner', diag), polyCost, 'set');
       } else if (el.type === 'way' && Array.isArray(el.geometry) && el.geometry.length >= 3) {
         fillFeature(grid, G, [el.geometry.map(pt => [pt.lat, pt.lon])], [], polyCost, 'set');
       }
@@ -530,8 +542,8 @@ export function buildCostGridFromElements(G, elements, mode = 'boat', iceState =
     }
     if (polyCost === null) continue;
     if (el.type === 'relation' && Array.isArray(el.members)) {
-      const outers = assembleRings(el.members, 'outer');
-      const inners = assembleRings(el.members, 'inner');
+      const outers = assembleRings(el.members, 'outer', diag);
+      const inners = assembleRings(el.members, 'inner', diag);
       fillFeature(grid, G, outers, inners, polyCost, 'set');
     } else if (el.type === 'way' && Array.isArray(el.geometry) && el.geometry.length >= 3) {
       fillFeature(grid, G, [el.geometry.map(pt => [pt.lat, pt.lon])], [], polyCost, 'set');
@@ -572,42 +584,69 @@ export async function routeOnGrid(a, b, mode = 'boat', opts = {}) {
   const {
     iceState = 'open_water',
     queryOverpass = null,
-    offline = false
+    getElements = null,
+    offline = false,
+    padRatio = mode === 'boat' ? 0.35 : 0.30,
+    minPadM = 1200,
+    maxCells = 140000
   } = opts;
 
   if (!Array.isArray(a) || !Array.isArray(b)) return null;
-  const G = chooseGrid(a, b, mode === 'boat' ? 0.35 : 0.30);
+  const G = chooseGrid(a, b, padRatio, minPadM, maxCells);
   const cacheKey = `${mode}|${iceState}|${G.bboxStr}`;
   let elements = _gridOverpassCache.get(cacheKey);
+  let fetchMs = 0;
 
   if (!elements) {
-    if (offline || typeof queryOverpass !== 'function') return null;
-    const q = mode === 'boat'
-      ? `[out:json][timeout:8];(way["waterway"~"^(river|stream|canal|fairway|riverbank|weir|dam|waterfall)$"](${G.bboxStr});way["natural"="water"](${G.bboxStr});relation["natural"="water"](${G.bboxStr});way["landuse"="reservoir"](${G.bboxStr});relation["landuse"="reservoir"](${G.bboxStr}););out geom;`
-      : `[out:json][timeout:8];(way["highway"~"^(track|path|winter_road|service|unclassified|residential)$"](${G.bboxStr});way["winter_road"="yes"](${G.bboxStr});way["ice_road"="yes"](${G.bboxStr});way["man_made"="cutline"](${G.bboxStr});way["natural"~"^(water|wood|wetland)$"](${G.bboxStr});relation["natural"="water"](${G.bboxStr});way["landuse"~"^(forest|reservoir)$"](${G.bboxStr});way["building"](${G.bboxStr});way["barrier"~"^(fence|wall)$"](${G.bboxStr}););out geom;`;
-    const data = await queryOverpass(q, 5500);
-    if (!data || !Array.isArray(data.elements) || data.elements.length === 0) return null;
-    elements = data.elements;
+    if (offline) return null;
+    const t0 = Date.now();
+    if (typeof getElements === 'function') {
+      elements = await getElements(G, mode);
+    } else if (typeof queryOverpass === 'function') {
+      const q = mode === 'boat'
+        ? `[out:json][timeout:8];(way["waterway"~"^(river|stream|canal|fairway|riverbank|weir|dam|waterfall)$"](${G.bboxStr});way["natural"="water"](${G.bboxStr});relation["natural"="water"](${G.bboxStr});way["landuse"="reservoir"](${G.bboxStr});relation["landuse"="reservoir"](${G.bboxStr}););out geom;`
+        : `[out:json][timeout:8];(way["highway"~"^(track|path|winter_road|service|unclassified|residential)$"](${G.bboxStr});way["winter_road"="yes"](${G.bboxStr});way["ice_road"="yes"](${G.bboxStr});way["man_made"="cutline"](${G.bboxStr});way["natural"~"^(water|wood|wetland)$"](${G.bboxStr});relation["natural"="water"](${G.bboxStr});way["landuse"~"^(forest|reservoir)$"](${G.bboxStr});way["building"](${G.bboxStr});way["barrier"~"^(fence|wall)$"](${G.bboxStr}););out geom;`;
+      const data = await queryOverpass(q, 5500);
+      elements = data?.elements;
+    } else {
+      return null;
+    }
+    fetchMs = Date.now() - t0;
+    if (!Array.isArray(elements) || elements.length === 0) return null;
     _gridOverpassCache.set(cacheKey, elements);
   }
 
-  const grid = buildCostGridFromElements(G, elements, mode, iceState);
+  const ringDiag = { unclosedRings: 0 };
+  const grid = buildCostGridFromElements(G, elements, mode, iceState, ringDiag);
   const rawStart = G.toCell(a[0], a[1]);
   const rawGoal = G.toCell(b[0], b[1]);
-  const startCell = nearestPassable(grid, G.cols, G.rows, rawStart[0], rawStart[1], 18);
-  const goalCell = nearestPassable(grid, G.cols, G.rows, rawGoal[0], rawGoal[1], 18);
+  const snapMaxCells = mode === 'boat' ? Math.max(6, Math.ceil(1500 / G.cellM)) : 18;
+  const startCell = nearestPassable(grid, G.cols, G.rows, rawStart[0], rawStart[1], snapMaxCells);
+  const goalCell = nearestPassable(grid, G.cols, G.rows, rawGoal[0], rawGoal[1], snapMaxCells);
   if (!startCell || !goalCell) return null;
+  const snapStartM = Math.hypot(startCell[0] - rawStart[0], startCell[1] - rawStart[1]) * G.cellM;
+  const snapGoalM = Math.hypot(goalCell[0] - rawGoal[0], goalCell[1] - rawGoal[1]) * G.cellM;
 
   const shore = mode === 'boat' ? distToLand(grid, G.cols, G.rows) : null;
-  const rawPath = astarGrid(grid, G.cols, G.rows, startCell, goalCell, shore, mode === 'boat' ? 1.5 : 0);
+  const hasFairway = mode === 'boat' && elements.some(el => el?.tags?.waterway === 'fairway');
+  const hMin = mode === 'boat' ? (hasFairway ? 0.75 : 1.0) : 0.6;
+  const rawPath = astarGrid(grid, G.cols, G.rows, startCell, goalCell, shore, mode === 'boat' ? 1.5 : 0, hMin);
   if (!rawPath || rawPath.length < 2) return null;
 
   const smoothed = smoothPath(grid, G.cols, rawPath, mode === 'boat'
     ? { maxSpanSteps: 4, shoreDist: shore, minShoreCells: 2 }
     : { maxSpanSteps: 40 });
   const points = smoothed.map(([cx, cy]) => G.toLatLon(cx, cy));
-  points[0] = [a[0], a[1]];
-  points[points.length - 1] = [b[0], b[1]];
+  if (mode === 'boat' && snapStartM > 300) {
+    points.unshift([a[0], a[1]]);
+  } else {
+    points[0] = [a[0], a[1]];
+  }
+  if (mode === 'boat' && snapGoalM > 300) {
+    points.push([b[0], b[1]]);
+  } else {
+    points[points.length - 1] = [b[0], b[1]];
+  }
 
   const warnings = [];
   if (mode === 'snowmobile' && iceState === 'ice_slush') {
@@ -615,7 +654,17 @@ export async function routeOnGrid(a, b, mode = 'boat', opts = {}) {
   }
   return {
     points,
-    stats: { cols: G.cols, rows: G.rows, cellM: G.cellM, steps: smoothed.length },
+    stats: {
+      cols: G.cols,
+      rows: G.rows,
+      cellM: G.cellM,
+      steps: smoothed.length,
+      snapStartM,
+      snapGoalM,
+      elements: elements.length,
+      unclosedRings: ringDiag.unclosedRings,
+      fetchMs
+    },
     warnings
   };
 }

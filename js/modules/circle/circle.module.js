@@ -9,13 +9,13 @@
  * - Выделенная вкладка « Чаты» на нижней панели навигации + отправка карточки улова прямо в чат.
  * - Закрытый режим Супер-Админа (только для Владельца + управляемая База Администраторов с синхронизацией).
  */
-import { events, KLEV_EVENTS, safeModuleRun } from '../../core/events.js?v=2.9.3-r239';
+import { events, KLEV_EVENTS, safeModuleRun } from '../../core/events.js?v=2.9.2-r256';
 import {
   isCircleItemMine as _ownershipIsCircleItemMine,
   isCircleItemHidden,
   canUserAccessCrewItem,
   filterCircleItemsByOwnership
-} from './circle.ownership.js?v=2.9.3-r239';
+} from './circle.ownership.js?v=2.9.2-r256';
 import {
   DB_GATEWAY_CATALOG,
   getCustomDbRelayBridgeUrl,
@@ -30,23 +30,23 @@ import {
   pullRelayPackets,
   runAdminGatewayDatabaseDiagnostics,
   syncNearbyCirclePointsFromServer
-} from './circle.api.js?v=2.9.3-r239';
+} from './circle.api.js?v=2.9.2-r256';
 import {
   formatCleanPeerTitle,
   renderChatsSubView,
   renderFullScreenChatWindowHtml,
   mountFullScreenChatOverlayPortal,
   renderChatsSection as _renderChatsSectionImpl
-} from './circle.chat.js?v=2.9.3-r239';
-import { store } from '../../core/store.js?v=2.9.3-r239';
-import { storage, calcGeoDistanceKm, safeJsonParse } from '../../core/storage.js?v=2.9.3-r239';
-import { router } from '../../core/router.js?v=2.9.3-r239';
-import { APP_VERSION, APP_REVISION, APP_DISPLAY_VERSION, getSeasonalBaitsForContext, SPOT_CATEGORIES } from '../../core/config.js?v=2.9.3-r239';
-import { detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.9.3-r239';
-import { findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.9.3-r239';
-import { WATER_PROFILES } from '../../data/waters.js?v=2.9.3-r239';
-import { FISH_DB } from '../../data/species.js?v=2.9.3-r239';
-import { escapeHtml, isAnonymousCallsignValid, createPill, showToast, openModal, closeModal, copyFisherIdToClipboard, openConfirmDeleteModal, openUserAgreementModal, isUserAgreementAccepted, downloadFileCrossPlatform, triggerSystemNotificationCrossPlatform, requestSystemNotificationsAccess, flashHighlightElement, isPolicyVersionAccepted, getSavedPolicyConsentMeta, POLICY_CONSENT_META_KEY, ACTIVE_POLICY_VERSION_DEFAULT, ACTIVE_APP_VERSION_DEFAULT, saveRemotePolicyToClientEnv, getRemotePolicyFromClientEnv, parsePolicySectionsFromEditableText, formatPolicySectionsToEditableText, DEFAULT_POLICY_SECTIONS, isGeoDistributionConsentActive, ensureGeoDistributionConsent, setGeoDistributionConsentState } from '../../ui/components.js?v=2.9.3-r239';
+} from './circle.chat.js?v=2.9.2-r256';
+import { store } from '../../core/store.js?v=2.9.2-r256';
+import { storage, calcGeoDistanceKm, safeJsonParse } from '../../core/storage.js?v=2.9.2-r256';
+import { router } from '../../core/router.js?v=2.9.2-r256';
+import { APP_VERSION, APP_REVISION, APP_DISPLAY_VERSION, getSeasonalBaitsForContext, SPOT_CATEGORIES } from '../../core/config.js?v=2.9.2-r256';
+import { detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.9.2-r256';
+import { findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.9.2-r256';
+import { WATER_PROFILES } from '../../data/waters.js?v=2.9.2-r256';
+import { FISH_DB } from '../../data/species.js?v=2.9.2-r256';
+import { escapeHtml, isAnonymousCallsignValid, createPill, showToast, openModal, closeModal, copyFisherIdToClipboard, openConfirmDeleteModal, openUserAgreementModal, isUserAgreementAccepted, downloadFileCrossPlatform, triggerSystemNotificationCrossPlatform, requestSystemNotificationsAccess, flashHighlightElement, isPolicyVersionAccepted, getSavedPolicyConsentMeta, POLICY_CONSENT_META_KEY, ACTIVE_POLICY_VERSION_DEFAULT, ACTIVE_APP_VERSION_DEFAULT, saveRemotePolicyToClientEnv, getRemotePolicyFromClientEnv, parsePolicySectionsFromEditableText, formatPolicySectionsToEditableText, DEFAULT_POLICY_SECTIONS, isGeoDistributionConsentActive, ensureGeoDistributionConsent, setGeoDistributionConsentState } from '../../ui/components.js?v=2.9.2-r256';
 import {
   RELAY_WORKER_URL,
   buildShareUrls,
@@ -59,7 +59,7 @@ import {
   syncToTelegramCloud,
   readFromTelegramCloud,
   triggerHaptic
-} from '../../core/telegram.js?v=2.9.3-r239';
+} from '../../core/telegram.js?v=2.9.2-r256';
 import {
   OWNER_BOUND_LOGIN,
   OWNER_BOUND_PIN_HASH,
@@ -77,9 +77,9 @@ import {
   getServerAdminSessionToken,
   setServerAdminSessionToken,
   setAdminAuthRequired
-} from '../admin/admin.auth.js?v=2.9.3-r239';
-import { setLocation } from '../geo/geo.module.js?v=2.9.3-r239';
-import { calcDynamicRig } from '../forecast/forecast.module.js?v=2.9.3-r239';
+} from '../admin/admin.auth.js?v=2.9.2-r256';
+import { setLocation } from '../geo/geo.module.js?v=2.9.2-r256';
+import { calcDynamicRig } from '../forecast/forecast.module.js?v=2.9.2-r256';
 export const CREW_TTL_MS = 72 * 60 * 60 * 1000;
 /**
  * Вычисляет точное время окончания действия ссылки на длинную экспедицию:
@@ -355,7 +355,7 @@ export const RUSSIA_REGIONS_DIRECTORY = [
   { code: '89', name: 'Ямало-Ненецкий АО' },
   { code: '92', name: 'г. Севастополь' }
 ];
-export function getRegionNameByCode(regCode = '89') {
+export function getRegionNameByCode(regCode = '77') {
   const clean = String(regCode || '89').replace(/\D/g, '').padStart(2, '0').slice(-2);
   const found = RUSSIA_REGIONS_DIRECTORY.find(r => r.code === clean);
   return found ? found.name : `Регион ${clean}`;
@@ -465,7 +465,7 @@ function _persistRelaySyncState() {
     }));
   } catch (e) {}
 }
-function _getOrCreateLockedDeviceReserveId(regCode = '89', devId = 'dev_local', rawSavedFid = '') {
+function _getOrCreateLockedDeviceReserveId(regCode = '77', devId = 'dev_local', rawSavedFid = '') {
   const now = Date.now();
   try {
     if (typeof localStorage !== 'undefined') {
@@ -642,19 +642,32 @@ export function deriveSecureAuthToken(loginNorm = '', passClean = '') {
  */
 export function resolveRussianRegionCode(stateOrText = null, lat = null, lon = null) {
   let text = '';
-  let effLat = Number(lat);
-  let effLon = Number(lon);
+  let effLat = (lat !== null && lat !== undefined && lat !== '') ? Number(lat) : NaN;
+  let effLon = (lon !== null && lon !== undefined && lon !== '') ? Number(lon) : NaN;
+  let stateObj = null;
+  let hasRealLoc = true;
   if (typeof stateOrText === 'string') {
     text = stateOrText;
   } else if (stateOrText && typeof stateOrText === 'object') {
-    text = `${stateOrText.locAdmin1 || ''} ${stateOrText.locLabel || ''} ${stateOrText.locAdmin2 || ''}`;
-    if (!Number.isFinite(effLat)) effLat = Number(stateOrText.lat);
-    if (!Number.isFinite(effLon)) effLon = Number(stateOrText.lon);
+    stateObj = stateOrText;
+    hasRealLoc = Boolean(stateObj.hasUserLocation || (lat !== null && lat !== undefined));
+    text = `${stateObj.locAdmin1 || ''} ${stateObj.locLabel || ''} ${stateObj.locAdmin2 || ''}`;
+    if (!Number.isFinite(effLat)) effLat = Number(stateObj.lat);
+    if (!Number.isFinite(effLon)) effLon = Number(stateObj.lon);
   } else {
-    const s = store.getState();
-    text = `${s?.locAdmin1 || ''} ${s?.locLabel || ''} ${s?.locAdmin2 || ''}`;
-    if (!Number.isFinite(effLat)) effLat = Number(s?.lat);
-    if (!Number.isFinite(effLon)) effLon = Number(s?.lon);
+    stateObj = store.getState();
+    hasRealLoc = Boolean(stateObj?.hasUserLocation || (lat !== null && lat !== undefined));
+    text = `${stateObj?.locAdmin1 || ''} ${stateObj?.locLabel || ''} ${stateObj?.locAdmin2 || ''}`;
+    if (!Number.isFinite(effLat)) effLat = Number(stateObj?.lat);
+    if (!Number.isFinite(effLon)) effLon = Number(stateObj?.lon);
+  }
+  if (stateObj && lat === null && lon === null) {
+    const up = stateObj.userProfile || {};
+    const fidUp = String(up.fisherId || '').trim().toUpperCase();
+    const loginLow = String(up.login || '').trim().toLowerCase();
+    if (up.ownerUnlocked || fidUp === 'FP_89VIP089' || fidUp === 'FP_FMP089' || loginLow === 'iathor') {
+      return '89';
+    }
   }
   const norm = String(text || '').toLowerCase().replace(/ё/g, 'е').trim();
   if (norm) {
@@ -662,7 +675,7 @@ export function resolveRussianRegionCode(stateOrText = null, lat = null, lon = n
       if (norm.includes(kw)) return code;
     }
   }
-  if (Number.isFinite(effLat) && Number.isFinite(effLon)) {
+  if (hasRealLoc && Number.isFinite(effLat) && Number.isFinite(effLon)) {
     const nearCity = findNearestRussianSettlement(effLat, effLon);
     if (nearCity && nearCity.admin1) {
       const admNorm = String(nearCity.admin1).toLowerCase().replace(/ё/g, 'е');
@@ -671,7 +684,9 @@ export function resolveRussianRegionCode(stateOrText = null, lat = null, lon = n
       }
     }
   }
-  return '89';
+  const savedReg = String(stateObj?.userProfile?.regionCode || '').trim();
+  if (/^\d{2,3}$/.test(savedReg)) return savedReg;
+  return '77';
 }
 /**
  * Генерирует региональный Рыболовный ID формата FP_<RR><AAA..ZZZ><001..999>
@@ -680,7 +695,7 @@ export function resolveRussianRegionCode(stateOrText = null, lat = null, lon = n
  * - index0 = 998 -> FP_89AAA999 (999-й рыбак в регионе)
  * - index0 = 999 -> FP_89AAB001 (1000-й рыбак в регионе — строго 001, без 000!)
  */
-export function formatFisherIdFromIndex(regionCode = '89', index0Based = 0) {
+export function formatFisherIdFromIndex(regionCode = '77', index0Based = 0) {
   const regDigits = String(regionCode || '89').replace(/\D/g, '').padStart(2, '0').slice(-2);
   const reg = (regDigits === '00' ? '89' : regDigits);
   const idx = Math.max(0, Math.floor(Number(index0Based) || 0));
@@ -695,7 +710,7 @@ export function formatFisherIdFromIndex(regionCode = '89', index0Based = 0) {
  * Генерирует временный резервный ID для незарегистрированного рыбака формата FP_XXRZYYYY
  * где XX — код региона РФ (01..92), RZ — шаблон резерва, YYYY — номер от 0001 до 9999.
  */
-export function formatTempReserveFisherId(regionCode = '89', seedNumOrStr = 1) {
+export function formatTempReserveFisherId(regionCode = '77', seedNumOrStr = 1) {
   const regDigits = String(regionCode || '89').replace(/\D/g, '').padStart(2, '0').slice(-2);
   const reg = (regDigits === '00' ? '89' : regDigits);
   let num = 1;
@@ -709,7 +724,7 @@ export function formatTempReserveFisherId(regionCode = '89', seedNumOrStr = 1) {
 export function isTemporaryReserveId(fid = '') {
   return /^FP_\d{2}RZ\d{4}$/i.test(String(fid || '').trim());
 }
-export function normalizeFisherId(rawStr = '', fallbackRegion = '89') {
+export function normalizeFisherId(rawStr = '', fallbackRegion = '77') {
   const clean = String(rawStr || '').trim().toUpperCase().replace(/-/g, '_');
   if (!clean) return '';
   if (clean === 'FP_89VIP089' || clean === '89VIP089' || clean === 'FP_89A01') {
@@ -1386,12 +1401,12 @@ export async function ensureFisherIdentityInitialized(forceReallocateForRegion =
       body: JSON.stringify({
         deviceId: ident.deviceId,
         currentFisherId: ident.fisherId,
-        regionCode: regCode,
+        regionCode: hasRealLoc ? regCode : (curUpNow.regionCode || ''),
         hasUserLocation: hasRealLoc,
         regionConfirmed: Boolean(curUpNow.regionConfirmed || hasRealLoc),
         profileBackup: null,
-        locLabel: s.locLabel || 'Новый Уренгой',
-        locAdmin1: s.locAdmin1 || '',
+        locLabel: hasRealLoc ? (s.locLabel || '') : '',
+        locAdmin1: hasRealLoc ? (s.locAdmin1 || '') : '',
         login: ident.isRegistered ? (ident.login || curUpNow.login || '') : '',
         authTokenHash: ident.isRegistered ? (curUpNow.authTokenHash || curUpNow.sessionToken || curUpNow.adminSessionToken || '') : '',
         pinHash: ident.isRegistered ? (curUpNow.pinHash || '') : '',
@@ -1400,13 +1415,29 @@ export async function ensureFisherIdentityInitialized(forceReallocateForRegion =
         tgUsername: ident.isRegistered ? (ident.tgUsername || '') : '',
         platform: detectClientPlatformLabel(),
         version: APP_VERSION,
-        lat: s.lat,
-        lon: s.lon
+        lat: hasRealLoc ? s.lat : null,
+        lon: hasRealLoc ? s.lon : null
       })
     });
     if (res.ok) {
       const data = await res.json();
       if (data && data.ok && data.fisherId) {
+        if (data.cfGeo && Number.isFinite(Number(data.cfGeo.lat)) && Number.isFinite(Number(data.cfGeo.lon))) {
+          if (!store.getState().hasUserLocation && (typeof window === 'undefined' || !window.__KLEV_MANUAL_LOC_SESSION__)) {
+            store.dispatch({
+              type: 'SET_LOCATION',
+              payload: {
+                lat: Number(data.cfGeo.lat),
+                lon: Number(data.cfGeo.lon),
+                locCountry: 'Россия',
+                locAdmin1: data.cfGeo.locAdmin1 || data.cfGeo.admin1 || 'Регион РФ',
+                locAdmin2: data.cfGeo.locAdmin2 || data.cfGeo.cityName || data.cfGeo.locLabel || '',
+                locLabel: data.cfGeo.locLabel || data.cfGeo.cityName || 'Водоём РФ',
+                hasUserLocation: false
+              }
+            });
+          }
+        }
         const curState = store.getState();
         const curUp = curState.userProfile || {};
         const curIdent = getCurrentFisherIdentity(curState);
@@ -1425,9 +1456,10 @@ export async function ensureFisherIdentityInitialized(forceReallocateForRegion =
           type: 'UPDATE_USER_PROFILE',
           payload: {
             fisherId: srvFid,
+            regionCode: srvReg,
             deviceId: curIdent.deviceId,
             serverIdAllocated: true,
-            regionConfirmed: Boolean(curUp.regionConfirmed || hasRealLoc || srvReg !== '89')
+            regionConfirmed: Boolean(curUp.regionConfirmed || hasRealLoc || Boolean(data.cfGeo))
           }
         });
         storage.saveSettings(store.getState());
@@ -1619,11 +1651,12 @@ export function buildProfileCloudSnapshot(stateObj = null) {
     notifSettings: ident.notifSettings,
     appMode: s.appMode || 'angler',
     theme: s.theme || 'auto',
-    lat: s.lat,
-    lon: s.lon,
-    locLabel: s.locLabel,
-    locAdmin1: s.locAdmin1,
-    locAdmin2: s.locAdmin2,
+    hasUserLocation: Boolean(s.hasUserLocation),
+    lat: s.hasUserLocation ? s.lat : null,
+    lon: s.hasUserLocation ? s.lon : null,
+    locLabel: (s.hasUserLocation && s.locLabel && !String(s.locLabel).includes('определяется')) ? s.locLabel : '',
+    locAdmin1: (s.hasUserLocation && s.locAdmin1 && s.locAdmin1 !== 'Регион РФ') ? s.locAdmin1 : '',
+    locAdmin2: s.hasUserLocation ? (s.locAdmin2 || '') : '',
     water: s.water,
     method: s.method,
     preferredWaters: up.preferredWaters || [s.water],
@@ -3153,9 +3186,9 @@ async function _persistCrewPointForeverToSpots(item) {
       id: spotId,
       name: `${prefixLabel}: ${item.wn || item.lb || 'Точка'} (${item.fn || 'Рыба'})`,
       category: 'camp',
-      lat: Number(item.lat) || 66.0833,
-      lon: Number(item.lon) || 76.6800,
-      basinCode: detectBasinByCoords(Number(item.lat) || 66.0833, Number(item.lon) || 76.6800),
+      lat: Number(item.lat) || Number(store.getState()?.lat) || 55.7558,
+      lon: Number(item.lon) || Number(store.getState()?.lon) || 37.6173,
+      basinCode: detectBasinByCoords(Number(item.lat) || Number(store.getState()?.lat) || 55.7558, Number(item.lon) || Number(store.getState()?.lon) || 37.6173),
       water: item.wt || 'small_river',
       selectedWaterName: item.wn || item.lb || '',
       depth: Number(item.dp) || 2.5,
@@ -4998,11 +5031,11 @@ export function openAuthAndBackupModal(onBackToHub = null) {
                 РЕГИОНАЛЬНАЯ ГРУППА ИЛИ ТОЧКА НА КАРТЕ (НЕОБЯЗАТЕЛЬНО):
               </div>
               <div style="font-size:11px;color:var(--muted);line-height:1.36;">
-                При регистрации вы можете указать свой регион из списка ниже или выбрать точку на карте для формирования кода региона в вашем постоянном ID (<code>FP_XXAAA001</code>). Параметр <b>необязательный</b> — если не указывать, перед сохранением мы уточним вашу текущую региональную группу: <b>[${resolveRussianRegionCode(s)} — ${getRegionNameByCode(resolveRussianRegionCode(s))}]</b> (${escapeHtml(s.locLabel || 'Новый Уренгой')}).
+                При регистрации вы можете указать свой регион из списка ниже или выбрать точку на карте для формирования кода региона в вашем постоянном ID (<code>FP_XXAAA001</code>). Параметр <b>необязательный</b> — если не указывать, перед сохранением мы уточним вашу текущую региональную группу: <b>[${resolveRussianRegionCode(s)} — ${getRegionNameByCode(resolveRussianRegionCode(s))}]</b> (${escapeHtml((s.locLabel && !String(s.locLabel).includes('определяется')) ? s.locLabel : 'Регион РФ')}).
               </div>
               <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
                 <select id="authOptionalRegionSelect" class="input" style="flex:1;min-width:190px;font-size:12.5px;">
-                  <option value=""> Не выбрано — текущая точка: [${resolveRussianRegionCode(s)}] ${getRegionNameByCode(resolveRussianRegionCode(s))} (${escapeHtml(s.locLabel || 'Новый Уренгой')})</option>
+                  <option value=""> Не выбрано — текущая точка: [${resolveRussianRegionCode(s)}] ${getRegionNameByCode(resolveRussianRegionCode(s))} (${escapeHtml((s.locLabel && !String(s.locLabel).includes('определяется')) ? s.locLabel : 'Регион РФ')})</option>
                   ${RUSSIA_REGIONS_DIRECTORY.map(r => `<option value="${r.code}">[${r.code}] ${r.name}</option>`).join('')}
                 </select>
                 <button type="button" class="btn btn-sm" id="authPickMapPointBtn" style="white-space:nowrap;font-weight:700;">
@@ -5298,7 +5331,7 @@ export function openAuthAndBackupModal(onBackToHub = null) {
           const curState = store.getState();
           const autoRegCode = resolveRussianRegionCode(curState);
           const autoRegName = getRegionNameByCode(autoRegCode);
-          const curSpotName = curState.locLabel || 'Новый Уренгой';
+          const curSpotName = (curState.locLabel && !String(curState.locLabel).includes('определяется')) ? curState.locLabel : (autoRegName || 'Регион РФ');
           const confirmHtml = `
             <div style="display:flex;flex-direction:column;gap:12px;font-size:var(--fs-sm);line-height:1.48;">
               <div style="padding:12px;background:rgba(245,158,11,0.12);border:1.5px solid var(--warn);border-radius:var(--r-sm);">
@@ -5853,7 +5886,7 @@ export async function openFullServerWebConsoleModal() {
     const active7d = users.filter(u => u && (now - (u.lastSeen || 0)) < 7 * 86400000).length;
     const regStats = {};
     for (const u of users) {
-      const rc = u.regionCode || '89';
+      const rc = u.regionCode || 'РФ';
       regStats[rc] = (regStats[rc] || 0) + 1;
     }
     const regBadgesHtml = Object.entries(regStats)
@@ -5921,7 +5954,7 @@ export async function openFullServerWebConsoleModal() {
                     <tr data-wc-search="${rowSearch}" style="border-bottom:1px solid var(--border);">
                       <td style="padding:6px;font-family:monospace;font-weight:800;color:${isOwn ? 'var(--good)' : 'var(--accent)'};" data-copy-fisher-id="${escapeHtml(u.fisherId)}">${escapeHtml(u.fisherId)}</td>
                       <td style="padding:6px;"><b>${escapeHtml(u.login || u.callsign || 'Гость')}</b> ${u.tgUsername ? `<span style="color:var(--accent);">@${escapeHtml(u.tgUsername)}</span>` : ''}</td>
-                      <td style="padding:6px;">[${escapeHtml(u.regionCode || '89')}] ${escapeHtml(u.locLabel || 'РФ')}</td>
+                      <td style="padding:6px;">[${escapeHtml(u.regionCode || 'РФ')}] ${escapeHtml(u.locLabel || 'РФ')}</td>
                       <td style="padding:6px;">${escapeHtml(u.platform || 'WEB')} <span style="color:var(--muted);font-size:10px;">v${escapeHtml(u.version || APP_VERSION)}</span></td>
                       <td style="padding:6px;text-align:right;">
                         ${isOwn ? '<span style="color:var(--good);font-weight:800;">Владелец</span>' : `<button type="button" class="btn btn-sm" data-wc-del-user="${escapeHtml(u.fisherId)}" style="min-height:24px;padding:1px 7px;color:var(--bad);border-color:var(--bad);">Удалить</button>`}

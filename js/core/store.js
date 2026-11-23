@@ -5,11 +5,11 @@
  * выделенная вкладка « Чаты» с отправкой улова, автопривязка и автокопирование ID рыбака FP-XXXXX,
  * закрытый Супер-Админ + управляемая База Администраторов) (Ревизия 2.1.1)
  */
-import { DEFAULT_STATE, getCompatibleMethods, getSeasonalBaitsForContext } from './config.js?v=2.9.3-r239';
-import { storage } from './storage.js?v=2.9.3-r239';
-import { detectBasinByCoords, BASIN_CONFIGS, isCoastalInBasin, getSpotEcoregion } from '../data/basins.js?v=2.9.3-r239';
-import { findNearestRussianSettlement } from '../data/russia-waters.js?v=2.9.3-r239';
-import { FISH_DB } from '../data/species.js?v=2.9.3-r239';
+import { DEFAULT_STATE, getCompatibleMethods, getSeasonalBaitsForContext } from './config.js?v=2.9.2-r256';
+import { storage } from './storage.js?v=2.9.2-r256';
+import { detectBasinByCoords, BASIN_CONFIGS, isCoastalInBasin, getSpotEcoregion } from '../data/basins.js?v=2.9.2-r256';
+import { findNearestRussianSettlement } from '../data/russia-waters.js?v=2.9.2-r256';
+import { FISH_DB } from '../data/species.js?v=2.9.2-r256';
 function getActiveDaySeasonContext(state, overrideDays = null, overrideDayIdx = null, overrideIceState = null) {
   const rawDays = overrideDays ?? state?.weatherDays;
   const days = Array.isArray(rawDays) ? rawDays : [];
@@ -535,10 +535,19 @@ function reducer(state, action) {
   }
 }
 const rawSavedSettings = storage.loadSettings() || {};
-const isOldDefaultMoscow = (!rawSavedSettings.hasUserLocation && (rawSavedSettings.locLabel === 'Москва' || Math.abs((rawSavedSettings.lat || 0) - 55.7558) < 0.01));
-const saved = isOldDefaultMoscow
+const savedLoginLow = String(rawSavedSettings?.userProfile?.login || '').trim().toLowerCase();
+const savedFidUp = String(rawSavedSettings?.userProfile?.fisherId || '').trim().toUpperCase();
+const isOwnerSaved = Boolean(rawSavedSettings?.userProfile?.ownerUnlocked || savedFidUp === 'FP_89VIP089' || savedFidUp === 'FP_FMP089' || savedLoginLow === 'iathor');
+const isOldUnconfirmedDefault = (!rawSavedSettings.hasUserLocation && !isOwnerSaved && (
+  rawSavedSettings.locLabel === 'Москва' ||
+  rawSavedSettings.locLabel === 'Новый Уренгой' ||
+  rawSavedSettings.locAdmin1 === 'Ямало-Ненецкий АО' ||
+  (Math.abs((Number(rawSavedSettings.lat) || 0) - 66.0833) < 0.02 && Math.abs((Number(rawSavedSettings.lon) || 0) - 76.6800) < 0.02)
+));
+const saved = isOldUnconfirmedDefault
   ? { ...rawSavedSettings, lat: DEFAULT_STATE.lat, lon: DEFAULT_STATE.lon, locLabel: DEFAULT_STATE.locLabel, locAdmin1: DEFAULT_STATE.locAdmin1, locAdmin2: DEFAULT_STATE.locAdmin2 }
   : rawSavedSettings;
+const hasConfirmedLoc = Boolean(saved.hasUserLocation || isOwnerSaved);
 const initLat = saved.lat ?? DEFAULT_STATE.lat;
 const initLon = saved.lon ?? DEFAULT_STATE.lon;
 const initBasin = detectBasinByCoords(initLat, initLon);
@@ -548,16 +557,16 @@ if (!initCoastal && (initWater === 'sea_gulf' || initWater === 'open_sea')) {
   initWater = 'small_river';
 }
 const initEcoregion = getSpotEcoregion(initLat, initLon, initBasin, initWater, saved.selectedWaterName || '');
-const nearestSettlement = findNearestRussianSettlement(initLat, initLon);
+const nearestSettlement = hasConfirmedLoc ? findNearestRussianSettlement(initLat, initLon) : null;
 const rawSavedLabel = saved.locLabel || '';
 const isStuckLabel = !rawSavedLabel || rawSavedLabel.includes('Определение') || rawSavedLabel.includes('Поиск');
 const initLocLabel = !isStuckLabel
   ? rawSavedLabel
-  : (nearestSettlement ? nearestSettlement.label : 'Новый Уренгой');
+  : (nearestSettlement ? nearestSettlement.label : DEFAULT_STATE.locLabel);
 const rawSavedAdmin1 = saved.locAdmin1 || '';
 const initLocAdmin1 = (rawSavedAdmin1 && rawSavedAdmin1 !== 'Автоопределение')
   ? rawSavedAdmin1
-  : (nearestSettlement ? nearestSettlement.admin1 : 'Ямало-Ненецкий АО');
+  : (nearestSettlement ? nearestSettlement.admin1 : DEFAULT_STATE.locAdmin1);
 const initFavorites = saved.favoritesExplicitlySet === true && Array.isArray(saved.favorites)
   ? saved.favorites
   : [];
@@ -585,7 +594,7 @@ export const store = createStore(syncTackleForContext({
   appMode: initAppMode,
   locLabel: initLocLabel,
   locAdmin1: initLocAdmin1,
-  locAdmin2: saved.locAdmin2 || (nearestSettlement?.name || initLocLabel),
+  locAdmin2: saved.locAdmin2 || (nearestSettlement?.name || (hasConfirmedLoc ? initLocLabel : '')),
   favorites: initFavorites,
   favoritesExplicitlySet: Boolean(saved.favoritesExplicitlySet),
   onlyFavoritesFilter: false,

@@ -1,6 +1,6 @@
-import { safeModuleRun } from '../../core/events.js?v=2.9.3-r239';
-import { store } from '../../core/store.js?v=2.9.3-r239';
-import { calcHaversineKm, calcBearingDeg } from './geo.routing.js';
+import { safeModuleRun } from '../../core/events.js?v=2.9.2-r256';
+import { store } from '../../core/store.js?v=2.9.2-r256';
+import { calcHaversineKm, calcBearingDeg } from './geo.routing.js?v=2.9.2-r256';
 
 export const LAST_REAL_USER_GPS_KEY = 'klev_pro_last_real_gps_v1';
 export const GPSF_MODE_VMAX = { walk: 3.5, bike: 12, boat: 18, snowmobile: 30, car: 45 };
@@ -107,8 +107,13 @@ export function getTrueUserGpsCoords(stateObj = null, liveGpsFix = null) {
     if (_startupHomeCoords) {
       return { lat: _startupHomeCoords.lat, lon: _startupHomeCoords.lon, acc: 25, isRealGps: false };
     }
-    return { lat: 66.0845, lon: 76.6809, acc: 25, isRealGps: false };
-  }, { lat: 66.0845, lon: 76.6809, acc: 25, isRealGps: false });
+    return {
+      lat: Number.isFinite(Number(s?.lat)) ? Number(s.lat) : 55.7558,
+      lon: Number.isFinite(Number(s?.lon)) ? Number(s.lon) : 37.6173,
+      acc: 25,
+      isRealGps: false
+    };
+  }, { lat: 55.7558, lon: 37.6173, acc: 25, isRealGps: false });
 }
 
 export function _estimateSatellitesFromAccuracy(accMeters, hasFix) {

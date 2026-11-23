@@ -40,9 +40,9 @@ if (!versionRaw) {
 }
 const VER = JSON.parse(versionRaw);
 const V_NUM = String(VER.version || '2.9.2').trim();
-const V_REV = String(VER.revision || 'r255').trim();
-const V_BUILD = Number(VER.buildNumber || 255);
-const V_CODE = Number(VER.versionCode || 293255);
+const V_REV = String(VER.revision || 'r256').trim();
+const V_BUILD = Number(VER.buildNumber || 256);
+const V_CODE = Number(VER.versionCode || 293256);
 const V_DISPLAY = String(VER.displayVersion || `v${V_NUM} ${V_REV}`).trim();
 const V_FULL = String(VER.fullVersion || `${V_NUM}-${V_REV}`).trim();
 const V_POLICY = String(VER.policyVersion || `2026.11.22-v${V_NUM}`).trim();
@@ -934,6 +934,7 @@ function patchFrontendAndServiceWorker() {
     if (fs.existsSync(rtFull)) fs.unlinkSync(rtFull);
   } else {
     writeTextIfChanged('app-runtime.js', runtimeCode.trim() + '\n');
+    writeTextIfChanged('js/app.bundle.js', runtimeCode.trim() + '\n');
     const extTag = `<script id="klevBundledAppRuntime" src="app-runtime.js?v=${V_FULL}"></script>`;
     if (inlineRuntimeRe.test(idx)) {
       idx = idx.replace(inlineRuntimeRe, extTag);

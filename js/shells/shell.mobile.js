@@ -1,4 +1,4 @@
-import { safeModuleRun } from '../core/events.js?v=2.9.3-r239';
+import { safeModuleRun } from '../core/events.js?v=2.9.2-r256';
 
 function syncMobileViewport() {
   if (typeof window === 'undefined' || typeof document === 'undefined') return;

@@ -2,21 +2,21 @@
  * @file circle.api.js
  * @description Сетевое взаимодействие с Cloudflare Worker (workerFetch, E2E-шлюзы, /relay/pull с заголовками X-Auth-Token/X-Admin-Token и syncNearbyCirclePointsFromServer).
  */
-import { events, KLEV_EVENTS } from '../../core/events.js?v=2.9.3-r239';
-import { store } from '../../core/store.js?v=2.9.3-r239';
-import { storage, calcGeoDistanceKm } from '../../core/storage.js?v=2.9.3-r239';
-import { APP_VERSION } from '../../core/config.js?v=2.9.3-r239';
-import { showToast } from '../../ui/components.js?v=2.9.3-r239';
-import { RELAY_WORKER_URL } from '../../core/telegram.js?v=2.9.3-r239';
+import { events, KLEV_EVENTS } from '../../core/events.js?v=2.9.2-r256';
+import { store } from '../../core/store.js?v=2.9.2-r256';
+import { storage, calcGeoDistanceKm } from '../../core/storage.js?v=2.9.2-r256';
+import { APP_VERSION } from '../../core/config.js?v=2.9.2-r256';
+import { showToast } from '../../ui/components.js?v=2.9.2-r256';
+import { RELAY_WORKER_URL } from '../../core/telegram.js?v=2.9.2-r256';
 import {
   isAdminContourActive,
   getActiveAdminToken,
   isOwnerAdmin,
   setAdminAuthRequired
-} from '../admin/admin.auth.js?v=2.9.3-r239';
+} from '../admin/admin.auth.js?v=2.9.2-r256';
 import {
   isCircleItemMine
-} from './circle.ownership.js?v=2.9.3-r239';
+} from './circle.ownership.js?v=2.9.2-r256';
 import {
   getCurrentFisherIdentity,
   normalizeCrewSecretKey,
@@ -36,7 +36,7 @@ import {
   patchAdminRuntimeSnapshot,
   getRelaySyncRuntimeRefs,
   persistRelaySyncState
-} from './circle.module.js?v=2.9.3-r239';
+} from './circle.module.js?v=2.9.2-r256';
 
 const PINNED_DB_GATEWAY_STORAGE_KEY = 'klev_pinned_db_gateway_kind_v2';
 const LAST_WORKING_DB_GATEWAY_SESSION_KEY = 'klev_last_working_db_gateway_v2';
@@ -738,15 +738,15 @@ export async function syncNearbyCirclePointsFromServer(showFeedbackToast = false
       ...ident.unlockedCrewKeys.map(k => (normalizeCrewSecretKey(k) || String(k).toUpperCase())).filter(Boolean)
     ])).join(',');
     const qs = new URLSearchParams({
-      lat: String(Number(s.lat || 66.0833).toFixed(4)),
-      lon: String(Number(s.lon || 76.6333).toFixed(4)),
+      lat: String(Number(s.lat || 55.7558).toFixed(4)),
+      lon: String(Number(s.lon || 37.6173).toFixed(4)),
       radius: String(radiusKm),
       fid: ident.fisherId,
       deviceId: ident.deviceId,
       crewKeys: crewKeyTags,
       platform: detectClientPlatformLabel(),
       version: APP_VERSION,
-      locLabel: s.locLabel || ''
+      locLabel: (s.hasUserLocation && s.locLabel && !String(s.locLabel).includes('определяется')) ? s.locLabel : ''
     });
     const res = await workerFetch(`/api/circle/nearby?${qs.toString()}`, { method: 'GET' }, 4800, 1);
     if (!res.ok) {

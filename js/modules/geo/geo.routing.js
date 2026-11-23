@@ -1,4 +1,4 @@
-import { safeModuleRun } from '../../core/events.js?v=2.9.3-r239';
+import { safeModuleRun } from '../../core/events.js?v=2.9.2-r256';
 
 export const ARC_TRANSPORT_MODES = {
   car: {
@@ -139,14 +139,23 @@ export function simplifyTrackRdp(points, epsM = 3) {
   }, Array.isArray(points) ? points.slice() : []);
 }
 
-export function evaluateRouteSegments(finalPoly, transportMode = 'car') {
+export function evaluateRouteSegments(finalPoly, transportMode = 'car', boatGaps = []) {
   return safeModuleRun('geo:routing', () => {
     const pts = Array.isArray(finalPoly) ? finalPoly : [];
+    const gaps = (transportMode === 'boat' && Array.isArray(boatGaps)) ? boatGaps : [];
+    const isGapSeg = (segIdx) => gaps.some(g => Array.isArray(g) && segIdx >= g[0] && segIdx < g[1]);
     let totalKm = 0;
+    let waterKm = 0;
+    let gapKm = 0;
     const turns = [];
     for (let i = 0; i < pts.length - 1; i++) {
       const d = calcHaversineKm(pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1]);
       totalKm += d;
+      if (isGapSeg(i)) {
+        gapKm += d;
+      } else {
+        waterKm += d;
+      }
       if (i > 0 && i < pts.length - 1) {
         const b1 = calcBearingDeg(pts[i - 1][0], pts[i - 1][1], pts[i][0], pts[i][1]);
         const b2 = calcBearingDeg(pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1]);
@@ -161,13 +170,20 @@ export function evaluateRouteSegments(finalPoly, transportMode = 'car') {
         }
       }
     }
+    const hasGaps = gaps.length > 0 && gapKm > 0;
     const speed = ARC_TRANSPORT_MODES[transportMode]?.avgSpeedKmh || 30;
-    const etaMin = Math.max(1, Math.round((totalKm / speed) * 60));
+    const effectiveKmForEta = (transportMode === 'boat' && hasGaps)
+      ? (waterKm > 0.01 ? waterKm : totalKm)
+      : totalKm;
+    const etaMin = Math.max(1, Math.round((effectiveKmForEta / speed) * 60));
     return {
       totalKm,
+      waterKm,
+      gapKm,
+      hasGaps,
       distKm: Math.max(0.05, totalKm),
       turns,
       etaMin
     };
-  }, { totalKm: 0, distKm: 0.05, turns: [], etaMin: 1 });
+  }, { totalKm: 0, waterKm: 0, gapKm: 0, hasGaps: false, distKm: 0.05, turns: [], etaMin: 1 });
 }

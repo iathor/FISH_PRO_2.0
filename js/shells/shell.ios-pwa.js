@@ -1,5 +1,5 @@
-import { safeModuleRun } from '../core/events.js?v=2.9.3-r239';
-import { showToast } from '../ui/components.js?v=2.9.3-r239';
+import { safeModuleRun } from '../core/events.js?v=2.9.2-r256';
+import { showToast } from '../ui/components.js?v=2.9.2-r256';
 
 const IOS_HINT_STORAGE_KEY = 'klev_ios_pwa_hint_seen_v1';
 

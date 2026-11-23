@@ -1,19 +1,19 @@
-import { getFilteredFishList, openFishDetail } from '../fish/fish.module.js?v=2.9.3-r239';
-import { logBlankTrip } from '../log/log.module.js?v=2.9.3-r239';
-import { getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.9.3-r239';
-import { RU } from '../../i18n/ru.js?v=2.9.3-r239';
-import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.9.3-r239';
-import { events } from '../../core/events.js?v=2.9.3-r239';
-import { storage } from '../../core/storage.js?v=2.9.3-r239';
-import { store } from '../../core/store.js?v=2.9.3-r239';
-import { formatLocalYYYYMMDD, fmtDeltaPress, fmtHM } from '../../core/format.js?v=2.9.3-r239';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.9.3-r239';
-import { FISH_DB } from '../../data/species.js?v=2.9.3-r239';
-import { renderFiveFish , renderFishVisual } from '../../ui/svg.js?v=2.9.3-r239';
-import { createPill, showToast, openModal, closeModal, openFishLightbox, flashHighlightElement } from '../../ui/components.js?v=2.9.3-r239';
-import { computeIceSafetyIndex, evaluateRoadAndWeatherHazards } from '../weather/weather.module.js?v=2.9.3-r239';
-import { evaluateCircleFieldConfirmation, requireRegisteredFisherId } from '../circle/circle.module.js?v=2.9.3-r239';
-import { isTelegramWebApp, getTelegramUser, shareToTelegramChat, openBotChatInTelegram, buildForecastShareUrls, TELEGRAM_BOT_USERNAME } from '../../core/telegram.js?v=2.9.3-r239';
+import { getFilteredFishList, openFishDetail } from '../fish/fish.module.js?v=2.9.2-r256';
+import { logBlankTrip } from '../log/log.module.js?v=2.9.2-r256';
+import { getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.9.2-r256';
+import { RU } from '../../i18n/ru.js?v=2.9.2-r256';
+import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.9.2-r256';
+import { events } from '../../core/events.js?v=2.9.2-r256';
+import { storage } from '../../core/storage.js?v=2.9.2-r256';
+import { store } from '../../core/store.js?v=2.9.2-r256';
+import { formatLocalYYYYMMDD, fmtDeltaPress, fmtHM } from '../../core/format.js?v=2.9.2-r256';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.9.2-r256';
+import { FISH_DB } from '../../data/species.js?v=2.9.2-r256';
+import { renderFiveFish , renderFishVisual } from '../../ui/svg.js?v=2.9.2-r256';
+import { createPill, showToast, openModal, closeModal, openFishLightbox, flashHighlightElement } from '../../ui/components.js?v=2.9.2-r256';
+import { computeIceSafetyIndex, evaluateRoadAndWeatherHazards } from '../weather/weather.module.js?v=2.9.2-r256';
+import { evaluateCircleFieldConfirmation, requireRegisteredFisherId } from '../circle/circle.module.js?v=2.9.2-r256';
+import { isTelegramWebApp, getTelegramUser, shareToTelegramChat, openBotChatInTelegram, buildForecastShareUrls, TELEGRAM_BOT_USERNAME } from '../../core/telegram.js?v=2.9.2-r256';
 /**
  * Список морских, проходных и полупроходных видов, которые заходят в пресные реки
  * (big_river, small_river) и эстуарии (sea_gulf) при нересте, сезонных миграциях или приливах/отливах.
@@ -1273,10 +1273,11 @@ export function openTripChecklistModal() {
   const rig = calcDynamicRig(s.method, s.water, s.depth, windMax, fish, effWaterTemp, effIce);
   const seasonalBaits = getSeasonalBaitsForContext(fish, s.method, effWaterTemp, effIce);
   const waterTitle = s.selectedWaterName || WATER_PROFILES[s.water]?.shortName || 'Водоём';
-  const lat = Number(s.lat || 55.75);
-  const lon = Number(s.lon || 37.62);
+  const lat = Number(s.lat ?? 55.7558);
+  const lon = Number(s.lon ?? 37.6173);
   const basin = String(s.basinCode || '');
-  const isTaigaBearRegion = lat >= 56.0 || lon >= 58.0 || ['ob_lower', 'ob_middle', 'pur_taz', 'nadym', 'yenisei', 'lena', 'amur', 'kamchatka', 'sakhalin', 'karelia', 'kola', 'pechora', 'baikal'].some(k => basin.includes(k));
+  const hasConfirmedRegion = Boolean(s.hasUserLocation || (s.locAdmin1 && s.locAdmin1 !== 'Регион РФ') || (s.locLabel && !String(s.locLabel).includes('определяется')));
+  const isTaigaBearRegion = hasConfirmedRegion && (lat >= 56.0 || lon >= 58.0 || ['ob_lower', 'ob_middle', 'pur_taz', 'nadym', 'yenisei', 'lena', 'amur', 'kamchatka', 'sakhalin', 'karelia', 'kola', 'pechora', 'baikal'].some(k => basin.includes(k)));
   const isBoatOrBigWater = !isWinterIce && ['big_river', 'reservoir', 'lake', 'sea_gulf', 'coastal'].includes(s.water);
   const isPredator = ['pike', 'zander', 'perch', 'burbot', 'taimen', 'lenok', 'asp', 'catfish', 'trout', 'chub'].includes(fish.id);
 
@@ -3070,8 +3071,8 @@ export function openShareForecastAndTackleModal() {
         ea: mode === 'crew' ? (Date.now() + 72 * 3600 * 1000) : (Date.now() + 48 * 3600 * 1000),
         fid: up.fisherId || 'FP_89AAA014',
         au: up.callsign || up.login || 'Рыболов',
-        lat: Number(stNow.lat || 66.08),
-        lon: Number(stNow.lon || 76.68),
+        lat: Number(stNow.lat ?? 55.7558),
+        lon: Number(stNow.lon ?? 37.6173),
         lb: stNow.locLabel || 'Водоём',
         wn: waterTitle,
         fi: fish.id,

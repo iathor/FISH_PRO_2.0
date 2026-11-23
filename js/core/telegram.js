@@ -5,10 +5,10 @@
  * с аккаунтом Telegram (@KlevProClubBot) по запросу пользователя, нативными кнопками BackButton / MainButton,
  * синхронизацией цветов шапки Telegram, Telegram CloudStorage, HapticFeedback и Deep-Linking (Ревизия 2.1.1).
  */
-import { showToast } from '../ui/components.js?v=2.9.3-r239';
-import { syncInstallButtons } from './pwa.js?v=2.9.3-r239';
-import { store } from './store.js?v=2.9.3-r239';
-import { storage } from './storage.js?v=2.9.3-r239';
+import { showToast } from '../ui/components.js?v=2.9.2-r256';
+import { syncInstallButtons } from './pwa.js?v=2.9.2-r256';
+import { store } from './store.js?v=2.9.2-r256';
+import { storage } from './storage.js?v=2.9.2-r256';
 export const TELEGRAM_BOT_USERNAME = 'KlevProClubBot';
 export const TELEGRAM_BOT_HTTP_URL = 'http://t.me/KlevProClubBot';
 export const TELEGRAM_BOT_HTTPS_URL = 'https://t.me/KlevProClubBot';
@@ -47,8 +47,9 @@ let _bindFocusListenerAttached = false;
  * Пример: (57.6261, 39.8845, 'zander') -> 'KPLOC_576261_398845_zander'
  */
 export function encodeKplocToken(lat, lon, fishId = 'pike', fisherId = '') {
-  const latInt = Math.round((Number(lat) || 66.0833) * 10000);
-  const lonInt = Math.round((Number(lon) || 76.6800) * 10000);
+  const s = store.getState();
+  const latInt = Math.round((Number(lat) || Number(s?.lat) || 55.7558) * 10000);
+  const lonInt = Math.round((Number(lon) || Number(s?.lon) || 37.6173) * 10000);
   const latStr = latInt < 0 ? `M${Math.abs(latInt)}` : String(latInt);
   const lonStr = lonInt < 0 ? `M${Math.abs(lonInt)}` : String(lonInt);
   const cleanFish = String(fishId || 'pike').replace(/[^A-Za-z0-9_-]/g, '');
@@ -251,7 +252,7 @@ export async function bindFisherIdWithTelegram(options = {}) {
           tgId: String(tgUser.id),
           tgUsername: tgUser.username || '',
           tgFirstName: tgUser.firstName || '',
-          locLabel: s?.locLabel || 'Новый Уренгой'
+          locLabel: (s?.hasUserLocation && s?.locLabel && !s.locLabel.includes('определяется')) ? s.locLabel : ''
         })
       });
     } catch (e) {}
@@ -275,7 +276,7 @@ export async function bindFisherIdWithTelegram(options = {}) {
         authTokenHash,
         tgId: up.tgLinkedId || '',
         tgUsername: up.tgUsername || '',
-        locLabel: s?.locLabel || 'Новый Уренгой'
+        locLabel: (s?.hasUserLocation && s?.locLabel && !s.locLabel.includes('определяется')) ? s.locLabel : ''
       })
     }).catch(() => {});
   } catch (e) {}

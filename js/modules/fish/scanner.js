@@ -5,14 +5,14 @@
  * - Единый прямой промпт без рамок/точек/квадратов на фото: «Определи, что за рыба на фото, примерный размер и вес»
  * - Автоматическая подстановка ответа нейросети (вид, размер, вес в г/кг, диагностические признаки и разбор нескольких рыб в кадре) в карточку Атласа РФ
  */
-import { store } from '../../core/store.js?v=2.9.3-r239';
-import { router } from '../../core/router.js?v=2.9.3-r239';
-import { RELAY_WORKER_URL, triggerHaptic } from '../../core/telegram.js?v=2.9.3-r239';
-import { workerFetch } from '../circle/circle.module.js?v=2.9.3-r239';
-import { BASIN_CONFIGS } from '../../data/basins.js?v=2.9.3-r239';
-import { FISH_DB } from '../../data/species.js?v=2.9.3-r239';
-import { renderFishVisual } from '../../ui/svg.js?v=2.9.3-r239';
-import { escapeHtml, openModal, closeModal, showToast, flashHighlightElement } from '../../ui/components.js?v=2.9.3-r239';
+import { store } from '../../core/store.js?v=2.9.2-r256';
+import { router } from '../../core/router.js?v=2.9.2-r256';
+import { RELAY_WORKER_URL, triggerHaptic } from '../../core/telegram.js?v=2.9.2-r256';
+import { workerFetch } from '../circle/circle.module.js?v=2.9.2-r256';
+import { BASIN_CONFIGS } from '../../data/basins.js?v=2.9.2-r256';
+import { FISH_DB } from '../../data/species.js?v=2.9.2-r256';
+import { renderFishVisual } from '../../ui/svg.js?v=2.9.2-r256';
+import { escapeHtml, openModal, closeModal, showToast, flashHighlightElement } from '../../ui/components.js?v=2.9.2-r256';
 /**
  * Коэффициент упитанности Фултона (k) по видам рыб для расчёта веса по длине:
  * W (кг) = (k * L_см^3) / 100000
@@ -396,7 +396,7 @@ export function notifyServerGeminiUsage(usedKey = "", modelId = "", meta = {}) {
   try {
     const st = store.getState();
     const up = st?.userProfile || {};
-    const fid = String(meta?.fisherId || up.fisherId || "FP_89RZ0001").trim().toUpperCase();
+    const fid = String(meta?.fisherId || up.fisherId || "FP_77RZ0001").trim().toUpperCase();
     const callsign = String(meta?.callsign || up.login || up.callsign || "Рыболов").trim();
     const envName = typeof window !== "undefined" && typeof window.__KLEV_GET_ERROR_AUTHOR_META__ === "function"
       ? (window.__KLEV_GET_ERROR_AUTHOR_META__().env || "WEB")
@@ -1102,7 +1102,7 @@ export async function analyzeFishPhotoHybrid(imgSrc, bypassCache = false) {
   const s = store.getState();
   const basinCode = s.basinCode || "arctic_ob_taz";
   const basinName = BASIN_CONFIGS[basinCode]?.name || "Водоёмы РФ";
-  const locLabel = s.locLabel || s.locAdmin2 || s.locAdmin1 || "Новый Уренгой";
+  const locLabel = ((s.locLabel && !String(s.locLabel).includes('определяется')) ? s.locLabel : '') || s.locAdmin2 || ((s.locAdmin1 && s.locAdmin1 !== 'Регион РФ') ? s.locAdmin1 : '') || "Водоёмы РФ";
 
   const feat = await extractPhotoVisualFeatures(imgSrc);
   const cacheHashKey = feat.dhash;

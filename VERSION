@@ -1,10 +1,10 @@
 {
   "version": "2.9.2",
-  "revision": "r255",
-  "buildNumber": 255,
-  "versionCode": 293255,
-  "displayVersion": "v2.9.2 r255",
-  "fullVersion": "2.9.2-r255",
+  "revision": "r256",
+  "buildNumber": 256,
+  "versionCode": 293256,
+  "displayVersion": "v2.9.2 r256",
+  "fullVersion": "2.9.2-r256",
   "policyVersion": "2026.11.22-v2.9.2",
   "releaseDate": "2026-11-22",
   "date": "22 ноября 2026",
@@ -12,5 +12,5 @@
   "adminApkFileName": "klev-pro-admin-v2.9.2.apk",
   "apkUrl": "https://klevpro.ru/apk/klev-pro-v2.9.2.apk",
   "fileSize": "38.8 МБ",
-  "versionBranchNote": "Релиз v2.9.2 (ревизия r255): синхронизация ядра, оболочек, телеметрии ошибок, динамических иконок PWA, нативного сейфа данных и конвейера сборки Android APK."
+  "versionBranchNote": "Релиз v2.9.2 (ревизия r256): синхронизация ядра, оболочек, телеметрии ошибок, динамических иконок PWA, нативного сейфа данных и конвейера сборки Android APK."
 }

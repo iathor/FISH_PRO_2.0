@@ -76,8 +76,8 @@ test('3.3 Регулярка шлюз тайлов блокирует чужие
 
 test('3.4 & 4.8 Единый источник версии VERSION (2.9.0 r240) синхронизирован во всех файлах и ссылка на APK валидна', () => {
   assert.equal(verData.version, '2.9.2');
-  assert.equal(verData.revision, 'r255');
-  assert.equal(verData.versionCode, 293255);
+  assert.equal(verData.revision, 'r256');
+  assert.equal(verData.versionCode, 293256);
 
   const vJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'version.json'), 'utf8'));
   const apkVJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'apk/apk-version.json'), 'utf8'));
@@ -376,7 +376,7 @@ test('6.6 Аудит r248: пересобранный app-runtime.js + app.bundl
   const wf = fs.readFileSync(path.join(ROOT, '.github/workflows/build-android-apk.yml'), 'utf8');
   const verJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'VERSION'), 'utf8'));
 
-  assert.equal(verJson.fullVersion, '2.9.2-r255', 'В VERSION должен быть fullVersion 2.9.2-r255');
+  assert.equal(verJson.fullVersion, '2.9.2-r256', 'В VERSION должен быть fullVersion 2.9.2-r256');
   assert.equal(rtSrc, bundleSrc, 'app-runtime.js и js/app.bundle.js должны быть идентичны');
   for (const sym of ['transform-origin:14px 27px;', 'fcWeatherRoadStormCard', 'fcWeatherHourlyWaveCard', '_klevTouchStart', '__KLEV_STARTUP_GPS_SYNCED__']) {
     assert.ok(rtSrc.includes(sym), `В скомпилированном app-runtime.js отсутствует ${sym}`);
@@ -385,7 +385,7 @@ test('6.6 Аудит r248: пересобранный app-runtime.js + app.bundl
   assert.ok(layoutCss.includes('img.leaflet-marker-icon') && idxHtml.includes('img.leaflet-marker-icon'), 'Синий дефолтный img.leaflet-marker-icon должен скрываться на мобильных через CSS');
   assert.ok(!/\.compass-bearing-active\s+#mapBox\s*\{[^}]*transform:\s*none/i.test(idxHtml), 'В index.html не должно быть transform: none для #mapBox');
   assert.ok(!/\.compass-bearing-active\s+#mapBox\s*\{[^}]*transform:\s*none/i.test(kpHtml), 'В kp-control-89.html не должно быть transform: none для #mapBox');
-  assert.ok(gradle.includes('applicationId "ru.klevpro.app"') && gradle.includes('versionName "2.9.2-r255"'), 'В android/app/build.gradle должны быть ru.klevpro.app и 2.9.2-r255');
+  assert.ok(gradle.includes('applicationId "ru.klevpro.app"') && gradle.includes('versionName "2.9.2-r256"'), 'В android/app/build.gradle должны быть ru.klevpro.app и 2.9.2-r256');
   assert.ok(stringsXml.includes('Клёв ПРО 2.0'), 'В strings.xml должно быть имя Клёв ПРО 2.0');
   assert.ok(mainJava.includes('compassWanted = true') && mainJava.includes('TYPE_MAGNETIC_FIELD'), 'В MainActivity.java должен быть включён компас с резервом TYPE_MAGNETIC_FIELD');
   assert.ok(wf.includes('/tmp/klev-android-user') && wf.includes('/tmp/klev-android-admin'), 'Workflow должен собирать User и Admin APK в изолированных директориях');
@@ -588,10 +588,10 @@ test('r255: закрытие всех 9 пунктов глубокой инсп
   assert.ok(adminJs.includes('setChatUiState') && adminJs.includes('setChatUiState({ isFullScreenChatOpen: false })'), 'В admin.module.js должен вызываться сеттер setChatUiState');
 
   // 3. Синхронизация buildNumber === 255 и getAppBuildNumber() -> 255
-  assert.equal(verJson.buildNumber, 255, 'buildNumber в version.json должен быть 255');
-  assert.equal(apkVerJson.buildNumber, 255, 'buildNumber в apk/apk-version.json должен быть 255');
-  assert.ok(configJs.includes('export const APP_BUILD_NUMBER = 255;') && configJs.includes('"buildNumber": 255'), 'В config.js должен быть APP_BUILD_NUMBER = 255');
-  assert.ok(/public\s+int\s+getAppBuildNumber\(\)\s*\{\s*return\s+255;\s*\}/.test(mainJava), 'В MainActivity.java getAppBuildNumber() должен возвращать 255');
+  assert.equal(verJson.buildNumber, 256, 'buildNumber в version.json должен быть 256');
+  assert.equal(apkVerJson.buildNumber, 256, 'buildNumber в apk/apk-version.json должен быть 256');
+  assert.ok(configJs.includes('export const APP_BUILD_NUMBER = 256;') && configJs.includes('"buildNumber": 256'), 'В config.js должен быть APP_BUILD_NUMBER = 256');
+  assert.ok(/public\s+int\s+getAppBuildNumber\(\)\s*\{\s*return\s+256;\s*\}/.test(mainJava), 'В MainActivity.java getAppBuildNumber() должен возвращать 256');
   assert.ok(gatewayJava.includes('KlevPro/2.9.2'), 'В LocalGatewayClient.java должен быть User-Agent KlevPro/2.9.2');
 
   // 4. prevUserPos и remMeters <= 25 в geo.module.js
@@ -616,4 +616,32 @@ test('r255: закрытие всех 9 пунктов глубокой инсп
 
   // 9. isCircleItemMine в circle.api.js
   assert.ok(circleApiJs.includes('isCircleItemMine') && circleApiJs.includes("from './circle.ownership.js"), 'В circle.api.js должна импортироваться и вызываться isCircleItemMine');
+});
+
+test('r256: очистка гео-дефолтов для новых рыбаков и модернизация лодочного роутинга v2 по KLEV_PRO_BOAT_ROUTING_PLAN.md', () => {
+  const cfgJs = fs.readFileSync(path.join(ROOT, 'js/core/config.js'), 'utf8');
+  const storeJs = fs.readFileSync(path.join(ROOT, 'js/core/store.js'), 'utf8');
+  const storageJs = fs.readFileSync(path.join(ROOT, 'js/core/storage.js'), 'utf8');
+  const circleJs = fs.readFileSync(path.join(ROOT, 'js/modules/circle/circle.module.js'), 'utf8');
+  const gridJs = fs.readFileSync(path.join(ROOT, 'js/modules/geo/grid-router.js'), 'utf8');
+  const boatJs = fs.readFileSync(path.join(ROOT, 'js/modules/geo/boat-router.js'), 'utf8');
+  const geoJs = fs.readFileSync(path.join(ROOT, 'js/modules/geo/geo.module.js'), 'utf8');
+  const geoRoutingJs = fs.readFileSync(path.join(ROOT, 'js/modules/geo/geo.routing.js'), 'utf8');
+  const workerJs = fs.readFileSync(path.join(ROOT, 'cloudflare-worker-bot.js'), 'utf8');
+  const indexHtml = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+
+  // 1. Гео-дефолты: нейтральный старт без Нового Уренгоя/ЯНАО у новых пользователей
+  assert.ok(cfgJs.includes("locLabel: 'Локация определяется...'") && cfgJs.includes("locAdmin1: 'Регион РФ'"), 'В config.js DEFAULT_STATE должен быть нейтральным без Нового Уренгоя');
+  assert.ok(storageJs.includes("locLabel: 'Локация определяется...'"), 'В storage.js миграция должна быть нейтральной без Нового Уренгоя');
+  assert.ok(storeJs.includes("hasConfirmedLoc"), 'В store.js не должен вызываться findNearestRussianSettlement до подтверждения локации');
+  assert.ok(circleJs.includes("data.cfGeo"), 'В circle.module.js должен применяться серверный cfGeo по IP при отсутствии GPS');
+  assert.ok(indexHtml.includes('<span class="header-id-sub" id="headerProfileIdSub">Регион РФ</span>'), 'В index.html в шапке не должно быть статического Ямало-Ненецкого АО');
+  assert.ok(workerJs.includes("function resolveCfClientGeo(") && workerJs.includes("locLabel: cityName") && workerJs.includes("cfGeo,"), 'В воркере должен быть resolveCfClientGeo по request.cf и базе _CITIES');
+
+  // 2. Лодочный роутинг v2 по KLEV_PRO_BOAT_ROUTING_PLAN.md (шаги 1-8)
+  assert.ok(gridJs.includes("snapStartM") && gridJs.includes("snapGoalM") && gridJs.includes("unclosedRings"), 'В grid-router.js должны быть привязка 1500 м, snapStartM/snapGoalM и подсчет unclosedRings');
+  assert.ok(boatJs.includes("export async function routeBoatRobust(") && boatJs.includes("const LADDER = ["), 'В boat-router.js должны быть LADDER и routeBoatRobust');
+  assert.ok(geoJs.includes("klev_boat_router_v2") && geoJs.includes("_getWaterElementsForGrid") && geoJs.includes("formatBoatDiagBannerText") && geoJs.includes("boatGaps"), 'В geo.module.js должны быть подключены routeBoatRobust, _getWaterElementsForGrid, boatGaps и диагностика BOAT v2');
+  assert.ok(geoRoutingJs.includes("waterKm") && geoRoutingJs.includes("gapKm") && geoRoutingJs.includes("hasGaps"), 'В geo.routing.js evaluateRouteSegments должен учитывать boatGaps');
+  assert.ok(workerJs.includes("matchWorkerRoute(normPath, '/api/water')") && workerJs.includes("simplifyGeom") && workerJs.includes("simplifyElements"), 'В воркере должен быть эндпоинт GET /api/water с упрощением геометрии Дугласа-Пекера');
 });

@@ -1,11 +1,11 @@
-import { RU } from '../../i18n/ru.js?v=2.9.3-r239';
-import { events } from '../../core/events.js?v=2.9.3-r239';
-import { storage } from '../../core/storage.js?v=2.9.3-r239';
-import { store } from '../../core/store.js?v=2.9.3-r239';
-import { fetchWithTimeout, fallbackChain } from '../../core/http.js?v=2.9.3-r239';
-import { formatLocalYYYYMMDD, fmtHM, fmtDeltaPress } from '../../core/format.js?v=2.9.3-r239';
-import { WATER_PROFILES } from '../../data/waters.js?v=2.9.3-r239';
-import { createPill, showToast } from '../../ui/components.js?v=2.9.3-r239';
+import { RU } from '../../i18n/ru.js?v=2.9.2-r256';
+import { events } from '../../core/events.js?v=2.9.2-r256';
+import { storage } from '../../core/storage.js?v=2.9.2-r256';
+import { store } from '../../core/store.js?v=2.9.2-r256';
+import { fetchWithTimeout, fallbackChain } from '../../core/http.js?v=2.9.2-r256';
+import { formatLocalYYYYMMDD, fmtHM, fmtDeltaPress } from '../../core/format.js?v=2.9.2-r256';
+import { WATER_PROFILES } from '../../data/waters.js?v=2.9.2-r256';
+import { createPill, showToast } from '../../ui/components.js?v=2.9.2-r256';
 
 function escapeHtml(str) {
   return String(str ?? '')
@@ -50,8 +50,8 @@ export const METEOINFO_RU_STATIONS = [
 ];
 
 export function findNearestMeteoinfoStations(lat, lon, k = 3) {
-  const effLat = Number.isFinite(lat) ? lat : 66.0833;
-  const effLon = Number.isFinite(lon) ? lon : 76.6800;
+  const effLat = Number.isFinite(lat) ? lat : (store.getState()?.lat ?? 55.7558);
+  const effLon = Number.isFinite(lon) ? lon : (store.getState()?.lon ?? 37.6173);
   const withDist = METEOINFO_RU_STATIONS.map(st => {
     const dLat = ((st.lat - effLat) * Math.PI) / 180;
     const dLon = ((st.lon - effLon) * Math.PI) / 180;
@@ -349,8 +349,8 @@ export function evaluateDayIce(historyMeanTemps, tDayMax, tNightMin, waterTemp, 
   const flow = Number.isFinite(prof.flow) ? prof.flow : 1.0;
   const flowLabel = flow >= 1.8 ? 'быстрое течение' : (flow >= 1.1 ? 'умеренное течение' : 'стоячая вода');
   const wind = Number.isFinite(windSpeed) ? windSpeed : 3;
-  const effLat = Math.abs(Number.isFinite(lat) ? lat : (store.getState()?.lat ?? 66.08));
-  const effLon = Number.isFinite(store.getState()?.lon) ? store.getState().lon : 76.68;
+  const effLat = Math.abs(Number.isFinite(lat) ? lat : (store.getState()?.lat ?? 55.7558));
+  const effLon = Number.isFinite(store.getState()?.lon) ? store.getState().lon : 37.6173;
   const dt = dateStr ? new Date(dateStr + 'T12:00:00') : new Date();
   const monthNum = dt.getMonth() + 1;
   const startOfYear = new Date(dt.getFullYear(), 0, 0);
@@ -581,7 +581,7 @@ function getRelativeDayTitle(relOffset) {
   if (relOffset === 2) return 'Послезавтра';
   return '';
 }
-export function buildFallback(lat = 55.75, waterType = 'small_river') {
+export function buildFallback(lat = store.getState()?.lat ?? 55.7558, waterType = 'small_river') {
   const todayDt = new Date();
   todayDt.setHours(0, 0, 0, 0);
   const dayOfYear = Math.floor((todayDt - new Date(todayDt.getFullYear(), 0, 0)) / 86400000);
@@ -798,7 +798,7 @@ export function normalizeOpenMeteo(data, waterType) {
     iceNote: todayObj?.iceNote || '',
     roadHazard,
     spaceWeather,
-    meteoStationsIdw: data._meteoStationsIdw || findNearestMeteoinfoStations(data.latitude || 66.08, data.longitude || 76.68, 3)
+    meteoStationsIdw: data._meteoStationsIdw || findNearestMeteoinfoStations(data.latitude || (store.getState()?.lat ?? 55.7558), data.longitude || (store.getState()?.lon ?? 37.6173), 3)
   };
 }
 /**
@@ -1368,7 +1368,7 @@ if (typeof window !== 'undefined') {
       const s = store.getState();
       let days = s.weatherDays;
       if (!Array.isArray(days) || days.length === 0) {
-        const fb = buildFallback(s.lat ?? 66.0833, s.water || 'small_river');
+        const fb = buildFallback(s.lat ?? 55.7558, s.water || 'small_river');
         days = Array.isArray(fb?.days) ? fb.days : fb;
       }
       const day = days[s.dayIdx ?? 2] || days[2] || days[0];

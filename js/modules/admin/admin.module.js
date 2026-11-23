@@ -2,11 +2,11 @@
  * @file admin.module.js
  * @description Изолированный админ-контур (UI консоли Супер-Админа #secAdmin, аудит 7 факторов, управление D1).
  */
-import { safeModuleRun } from '../../core/events.js?v=2.9.3-r239';
-import { store } from '../../core/store.js?v=2.9.3-r239';
-import { storage } from '../../core/storage.js?v=2.9.3-r239';
-import { router } from '../../core/router.js?v=2.9.3-r239';
-import { APP_VERSION, APP_REVISION, APP_DISPLAY_VERSION } from '../../core/config.js?v=2.9.3-r239';
+import { safeModuleRun } from '../../core/events.js?v=2.9.2-r256';
+import { store } from '../../core/store.js?v=2.9.2-r256';
+import { storage } from '../../core/storage.js?v=2.9.2-r256';
+import { router } from '../../core/router.js?v=2.9.2-r256';
+import { APP_VERSION, APP_REVISION, APP_DISPLAY_VERSION } from '../../core/config.js?v=2.9.2-r256';
 import {
   escapeHtml,
   showToast,
@@ -19,8 +19,8 @@ import {
   parsePolicySectionsFromEditableText,
   formatPolicySectionsToEditableText,
   DEFAULT_POLICY_SECTIONS
-} from '../../ui/components.js?v=2.9.3-r239';
-import { RELAY_WORKER_URL, getTelegramUser, openBotChatInTelegram } from '../../core/telegram.js?v=2.9.3-r239';
+} from '../../ui/components.js?v=2.9.2-r256';
+import { RELAY_WORKER_URL, getTelegramUser, openBotChatInTelegram } from '../../core/telegram.js?v=2.9.2-r256';
 import {
   OWNER_BOUND_FISHER_ID,
   OWNER_SECONDARY_FISHER_ID,
@@ -31,7 +31,7 @@ import {
   isOwnerAdmin,
   isOwnerFisherId,
   getServerAdminSessionToken
-} from './admin.auth.js?v=2.9.3-r239';
+} from './admin.auth.js?v=2.9.2-r256';
 import {
   DB_GATEWAY_CATALOG,
   DEFAULT_ADMIN_IDS,
@@ -75,7 +75,7 @@ import {
   syncAdminWhitelistWithCloud,
   syncCurrentProfileToCloudIfLoggedIn,
   workerFetch
-} from '../circle/circle.module.js?v=2.9.3-r239';
+} from '../circle/circle.module.js?v=2.9.2-r256';
 
 const SECURITY_AUDIT_LOCAL_KEY = 'klev_pro_security_audit_v1';
 let _adminSecurityFactorFilter = 'all';
@@ -374,7 +374,7 @@ export function renderAdminSection(customContainer = null) {
 
   const regStats = {};
   for (const u of users) {
-    const rc = u.regionCode || '89';
+    const rc = u.regionCode || 'РФ';
     if (!regStats[rc]) regStats[rc] = { perm: 0, rz: 0 };
     if (isTemporaryReserveId(u.fisherId)) regStats[rc].rz++;
     else regStats[rc].perm++;
@@ -679,7 +679,7 @@ export function renderAdminSection(customContainer = null) {
         ${users.length > 0 ? `
           <select id="admBetaPickExistingUserSelect" class="input" style="width:100%;min-height:40px;font-size:12.5px;font-weight:800;">
             <option value="">— Выбрать рыбака из базы D1 (${users.length} чел.) или ввести ID вручную ниже —</option>
-            ${users.map(u => `<option value="${escapeHtml(u.fisherId)}|${escapeHtml(u.login || u.callsign || 'Рыболов')}">${escapeHtml(u.fisherId)} — ${escapeHtml(u.login || u.callsign || 'Гость')} ([${escapeHtml(u.regionCode || '89')}] ${escapeHtml(u.locLabel || '')})</option>`).join('')}
+            ${users.map(u => `<option value="${escapeHtml(u.fisherId)}|${escapeHtml(u.login || u.callsign || 'Рыболов')}">${escapeHtml(u.fisherId)} — ${escapeHtml(u.login || u.callsign || 'Гость')} ([${escapeHtml(u.regionCode || 'РФ')}] ${escapeHtml(u.locLabel || '')})</option>`).join('')}
           </select>
         ` : ''}
         <input type="text" id="admBetaAddFidInput" class="input" placeholder="Введите ID пользователя (например: FP_89AAA001)" style="width:100%;min-height:42px;font-family:monospace;font-size:13.5px;font-weight:900;text-transform:uppercase;">
@@ -733,7 +733,7 @@ export function renderAdminSection(customContainer = null) {
                 </div>
               </div>
               <div style="font-size:12px;color:var(--text);">
-                <b>${escapeHtml(u.login || u.callsign || 'Гость')}</b> • [${escapeHtml(u.regionCode || '89')}] ${escapeHtml(u.locLabel || 'РФ')}
+                <b>${escapeHtml(u.login || u.callsign || 'Гость')}</b> • [${escapeHtml(u.regionCode || 'РФ')}] ${escapeHtml(u.locLabel || 'РФ')}
                 ${u.tgUsername ? ` • <span style="color:#38bdf8;">@${escapeHtml(u.tgUsername)}</span>` : ''}
               </div>
               <div style="font-size:11px;color:var(--muted);">
@@ -1504,8 +1504,8 @@ function bindAdminSectionEvents(container, users) {
           adminToken: tok,
           token: tok,
           forceSync: true,
-          lat: stNow.lat || 66.08,
-          lon: stNow.lon || 76.68
+          lat: store.getState()?.lat || 55.7558,
+          lon: store.getState()?.lon || 37.6173
         })
       }, 7500, 1).catch(() => null);
       if (res && res.ok) {

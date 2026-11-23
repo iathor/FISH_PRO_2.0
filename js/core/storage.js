@@ -1,5 +1,5 @@
-import { STATE_CACHE_KEY, WEATHER_CACHE_KEY, WEATHER_TTL_MS } from './config.js?v=2.9.3-r239';
-import { formatLocalYYYYMMDD } from './format.js?v=2.9.3-r239';
+import { STATE_CACHE_KEY, WEATHER_CACHE_KEY, WEATHER_TTL_MS } from './config.js?v=2.9.2-r256';
+import { formatLocalYYYYMMDD } from './format.js?v=2.9.2-r256';
 const DB_NAME = 'KlevProDB_v2_1_1';
 export const CLEAN_SLATE_FLAG_KEY = 'klev_pro_clean_slate_v2_1_1_r4';
 export const CLEAN_SLATE_NOTICE_KEY = 'klev_pro_clean_slate_notice_v2_1_1_r4';
@@ -189,12 +189,12 @@ export function runCleanSlateMigrationV2100() {
         localStorage.setItem(STATE_CACHE_KEY, JSON.stringify({
           appMode: preservedUserProfile.appMode || 'angler',
           hasUserLocation: false,
-          lat: 66.0833,
-          lon: 76.6800,
+          lat: 55.7558,
+          lon: 37.6173,
           locCountry: 'Россия',
-          locAdmin1: 'Ямало-Ненецкий АО',
-          locAdmin2: 'Новый Уренгой',
-          locLabel: 'Новый Уренгой',
+          locAdmin1: 'Регион РФ',
+          locAdmin2: '',
+          locLabel: 'Локация определяется...',
           userProfile: preservedUserProfile
         }));
       } catch (_) {}
@@ -597,7 +597,7 @@ export const storage = {
     return {
       schema: 'KlevProFullBackup_v3',
       version: '2.9.2',
-      revision: 'r255',
+      revision: 'r256',
       exportedAt: new Date().toISOString(),
       deviceId: this.getDeviceId(),
       summary: {

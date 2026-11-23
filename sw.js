@@ -3,7 +3,7 @@
  * @description Service Worker для PWA «Клёв ПРО 2.0: Круг» (Ревизия 2.9.1 r245).
  */
 
-const CACHE_VERSION = 'klev-pro-v2.9.2-r255';
+const CACHE_VERSION = 'klev-pro-v2.9.2-r256';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 
 const CORE_ASSETS = [
@@ -12,14 +12,14 @@ const CORE_ASSETS = [
   './manifest.json',
   './version.json',
   './policy-version.json',
-  './manifest.json?v=2.9.2-r255',
-  './icon-192.png?v=2.9.2-r255',
-  './apple-touch-icon.png?v=2.9.2-r255',
-  './css/tokens.css?v=2.9.2-r255',
-  './css/base.css?v=2.9.2-r255',
-  './css/components.css?v=2.9.2-r255',
-  './css/layout.css?v=2.9.2-r255',
-  './app-runtime.js?v=2.9.2-r255'
+  './manifest.json?v=2.9.2-r256',
+  './icon-192.png?v=2.9.2-r256',
+  './apple-touch-icon.png?v=2.9.2-r256',
+  './css/tokens.css?v=2.9.2-r256',
+  './css/base.css?v=2.9.2-r256',
+  './css/components.css?v=2.9.2-r256',
+  './css/layout.css?v=2.9.2-r256',
+  './app-runtime.js?v=2.9.2-r256'
 ];
 
 function isMapTileHostname(hostname = '') {
