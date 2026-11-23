@@ -1,15 +1,15 @@
-import { RU } from '../../i18n/ru.js?v=2.9.2-r256';
-import { events } from '../../core/events.js?v=2.9.2-r256';
-import { store } from '../../core/store.js?v=2.9.2-r256';
-import { router } from '../../core/router.js?v=2.9.2-r256';
-import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.9.2-r256';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.9.2-r256';
-import { RUSSIA_CITIES, findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.9.2-r256';
-import { FISH_DB } from '../../data/species.js?v=2.9.2-r256';
-import { renderFishVisual, renderFiveFish } from '../../ui/svg.js?v=2.9.2-r256';
-import { createPill, showToast, openModal, closeModal, openFishLightbox, openUserAgreementModal, isUserAgreementAccepted, requestSystemNotificationsAccess, flashHighlightElement } from '../../ui/components.js?v=2.9.2-r256';
-import { setLocation, detectUserPosition } from '../geo/geo.module.js?v=2.9.2-r256';
-import { installShortcut, isApkOrTmaContainer, isAppInstalledOrShortcutPresent } from '../../core/pwa.js?v=2.9.2-r256';
+import { RU } from '../../i18n/ru.js?v=2.9.2-r257';
+import { events } from '../../core/events.js?v=2.9.2-r257';
+import { store } from '../../core/store.js?v=2.9.2-r257';
+import { router } from '../../core/router.js?v=2.9.2-r257';
+import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.9.2-r257';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.9.2-r257';
+import { RUSSIA_CITIES, findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.9.2-r257';
+import { FISH_DB } from '../../data/species.js?v=2.9.2-r257';
+import { renderFishVisual, renderFiveFish } from '../../ui/svg.js?v=2.9.2-r257';
+import { createPill, showToast, openModal, closeModal, openFishLightbox, openUserAgreementModal, isUserAgreementAccepted, requestSystemNotificationsAccess, flashHighlightElement } from '../../ui/components.js?v=2.9.2-r257';
+import { setLocation, detectUserPosition } from '../geo/geo.module.js?v=2.9.2-r257';
+import { installShortcut, isApkOrTmaContainer, isAppInstalledOrShortcutPresent } from '../../core/pwa.js?v=2.9.2-r257';
 import {
   openAuthAndBackupModal,
   openNotificationsModal,
@@ -21,11 +21,11 @@ import {
   syncCurrentProfileToCloudIfLoggedIn,
   renderSettingsZoneTabsHtml,
   bindSettingsZoneTabs
-} from '../circle/circle.module.js?v=2.9.2-r256';
-import { fetchWeather } from '../weather/weather.module.js?v=2.9.2-r256';
-import { checkForReleaseUpdate, isAndroidWebsiteVisitor, getCachedApkManifest, triggerApkFileDownload } from '../../core/updater.js?v=2.9.2-r256';
-import { calcDayBest } from '../forecast/forecast.module.js?v=2.9.2-r256';
-import { openFishPhotoScannerModal, analyzeFishPhotoHybrid, estimateWeightByLengthAndSpecies, getStoredGeminiApiKey, saveStoredGeminiApiKey, getLocalGeminiQuotaState, incrementLocalGeminiQuotaUsed, callGeminiClientSmart } from './scanner.js?v=2.9.2-r256';
+} from '../circle/circle.module.js?v=2.9.2-r257';
+import { fetchWeather } from '../weather/weather.module.js?v=2.9.2-r257';
+import { checkForReleaseUpdate, isAndroidWebsiteVisitor, getCachedApkManifest, triggerApkFileDownload } from '../../core/updater.js?v=2.9.2-r257';
+import { calcDayBest } from '../forecast/forecast.module.js?v=2.9.2-r257';
+import { openFishPhotoScannerModal, analyzeFishPhotoHybrid, estimateWeightByLengthAndSpecies, getStoredGeminiApiKey, saveStoredGeminiApiKey, getLocalGeminiQuotaState, incrementLocalGeminiQuotaUsed, callGeminiClientSmart } from './scanner.js?v=2.9.2-r257';
 /**
  * Региональные приоритетные виды для каждого бассейна РФ,
  * чтобы самые популярные и характерные для региона виды (например, Елец и Пелядь/Сырок в Новом Уренгое)
@@ -227,7 +227,7 @@ export function openFishDetail(fishId) {
       </div>
       <!-- Памятка рыболову -->
       ${f.handlingAdvice ? `
-        <div class="card" style="padding:12px;border-radius:var(--r-sm);background:${isRed ? "var(--pill-bad-bg)" : (isLic ? "var(--pill-warn-bg)" : "rgba(56,189,248,0.10)")};border:1.5px solid ${isRed ? "var(--bad)" : (isLic ? "var(--warn)" : "var(--accent)")};color:${isRed ? "var(--pill-bad-text)" : "var(--text)"};font-size:var(--fs-sm);line-height:1.45;">
+        <div class="card" style="padding:12px;border-radius:var(--r-sm);background:${isRed ? "var(--pill-bad-bg)" : (isLic ? "var(--pill-warn-bg)" : "var(--accent-soft-bg)")};border:1.5px solid ${isRed ? "var(--bad)" : (isLic ? "var(--warn)" : "var(--accent)")};color:${isRed ? "var(--pill-bad-text)" : "var(--text)"};font-size:var(--fs-sm);line-height:1.45;">
           <div style="font-weight:800;margin-bottom:4px;">
             ${isRed ? "<svg class=\"k-ico\" style=\"color:var(--bad);\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"12\" cy=\"12\" r=\"9.5\" fill=\"#dc2626\" stroke=\"#fca5a5\" stroke-width=\"1.8\"/><text x=\"12\" y=\"15\" text-anchor=\"middle\" fill=\"#fff\" font-size=\"7.5\" font-weight=\"900\" font-family=\"sans-serif\">SOS</text></svg> ВНИМАНИЕ! КРАСНАЯ КНИГА — ЧТО ДЕЛАТЬ ПРИ ПОИМКЕ:" : (isLic ? "<svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M12 3v18M5 7h14M5 7l-3 6h6l-3-6zm14 0l-3 6h6l-3-6zM8 21h8\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg> ПРАВИЛА ЛИЦЕНЗИОННОГО ЛОВА И ОБРАЩЕНИЯ С РЫБОЙ:" : "<svg class=\"k-ico\" style=\"color:#fbbf24;\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z\" fill=\"rgba(251,191,36,0.32)\" stroke=\"#fbbf24\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/></svg> ПРАКТИЧЕСКАЯ ПАМЯТКА РЫБОЛОВУ:")}
           </div>
@@ -482,15 +482,15 @@ export function openAppParamsModal(onBackToHub = null) {
           <div id="onbModeContainer" class="modal-grid-3">
             <button type="button" class="btn btn-sm ${currentAppMode === 'novice' ? 'btn-good' : ''}" data-onb-mode="novice" style="flex-direction:column;min-height:44px;gap:2px;">
               <span>Новичок</span>
-              <span style="font-size:10px;opacity:0.85;">Светофор + ТОП-3</span>
+              <span style="font-size:11.5px;opacity:0.85;">Светофор + ТОП-3</span>
             </button>
             <button type="button" class="btn btn-sm ${currentAppMode === 'angler' ? 'btn-accent' : ''}" data-onb-mode="angler" style="flex-direction:column;min-height:44px;gap:2px;">
               <span>Рыбак</span>
-              <span style="font-size:10px;opacity:0.85;">Полный + Круг</span>
+              <span style="font-size:11.5px;opacity:0.85;">Полный + Круг</span>
             </button>
             <button type="button" class="btn btn-sm ${currentAppMode === 'pro' ? 'btn-accent' : ''}" data-onb-mode="pro" style="flex-direction:column;min-height:44px;gap:2px;">
               <span>Профи</span>
-              <span style="font-size:10px;opacity:0.85;">8 факт. + GPX</span>
+              <span style="font-size:11.5px;opacity:0.85;">8 факт. + GPX</span>
             </button>
           </div>
           <div id="onbModeDescBox" style="padding:6px 8px;background:var(--panel);border:1px solid var(--border);border-radius:var(--r-sm);font-size:11.5px;line-height:1.38;color:var(--text);">
@@ -507,7 +507,7 @@ export function openAppParamsModal(onBackToHub = null) {
             <button type="button" class="btn btn-sm ${curTheme === 'auto' ? 'btn-accent' : ''}" data-onb-theme="auto">Авто</button>
             <button type="button" class="btn btn-sm ${curTheme === 'dark' ? 'btn-accent' : ''}" data-onb-theme="dark">Тёмная</button>
             <button type="button" class="btn btn-sm ${curTheme === 'light' ? 'btn-accent' : ''}" data-onb-theme="light">Светлая</button>
-            <button type="button" class="btn btn-sm ${curTheme === 'contrast' ? 'btn-accent' : ''}" data-onb-theme="contrast">Контраст (Солнце)</button>
+            <button type="button" class="btn btn-sm ${curTheme === 'contrast' ? 'btn-accent' : ''}" data-onb-theme="contrast">OLED (Контраст)</button>
           </div>
           <div style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
             <div>
@@ -571,7 +571,7 @@ export function openAppParamsModal(onBackToHub = null) {
                   <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 9px;background:var(--panel);border-radius:6px;border:1px solid var(--border);">
                     <div>
                       <b>1. Системная геолокация (GPS/ГЛОНАСС)</b>
-                      <div style="font-size:10.5px;color:var(--warn);">Геолокация выключена — включите GPS в настройках</div>
+                      <div style="font-size:11.5px;color:var(--warn);">Геолокация выключена — включите GPS в настройках</div>
                     </div>
                     <button type="button" class="btn btn-sm" id="settingsOpenSysLocationBtn" style="min-height:32px;font-weight:800;flex-shrink:0;">Настройки GPS</button>
                   </div>
@@ -580,7 +580,7 @@ export function openAppParamsModal(onBackToHub = null) {
                   <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 9px;background:var(--panel);border-radius:6px;border:1px solid var(--border);">
                     <div>
                       <b>2. Работа геолокации в фоновом режиме</b>
-                      <div style="font-size:10.5px;color:var(--muted);">Необходимо для записи пути и ведения по маршруту при выключенном экране</div>
+                      <div style="font-size:11.5px;color:var(--muted);">Необходимо для записи пути и ведения по маршруту при выключенном экране</div>
                     </div>
                     <button type="button" class="btn btn-sm btn-accent" id="settingsReqBgLocBtn" style="min-height:32px;font-weight:800;flex-shrink:0;">Разрешить фон</button>
                   </div>
@@ -589,7 +589,7 @@ export function openAppParamsModal(onBackToHub = null) {
                   <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 9px;background:var(--panel);border-radius:6px;border:1px solid var(--border);">
                     <div>
                       <b>3. Отключение экономии заряда батареи</b>
-                      <div style="font-size:10.5px;color:var(--warn);">Отключите экономию, чтобы система не останавливала запись маршрута</div>
+                      <div style="font-size:11.5px;color:var(--warn);">Отключите экономию, чтобы система не останавливала запись маршрута</div>
                     </div>
                     <button type="button" class="btn btn-sm btn-good" id="settingsReqBatteryOptBtn" style="min-height:32px;font-weight:800;flex-shrink:0;">Настроить батарею</button>
                   </div>
@@ -1211,17 +1211,17 @@ export function openProfileHubModal() {
   const adminMode = isUserAdmin(s);
   const savedLogin = s.userProfile?.login || (ident.callsign !== 'Рыболов' ? ident.callsign : '');
   const modeLabels = { novice: 'Новичок', angler: 'Рыбак', pro: 'Профи' };
-  const themeLabels = { auto: 'Авто (День/Ночь)', dark: 'Тёмная', light: 'Светлая' };
+  const themeLabels = { auto: 'Авто (День/Ночь)', dark: 'Тёмная', light: 'Светлая', contrast: 'OLED (Контраст)' };
   const favCount = Array.isArray(s.favorites) ? s.favorites.length : 0;
   const uaAccepted = isUserAgreementAccepted() || ident.isRegistered;
   const html = `
     <div style="display:flex;flex-direction:column;gap:10px;font-size:var(--fs-sm);">
-      <div style="padding:10px 12px;background:rgba(56,189,248,0.12);border:1.5px solid var(--accent);border-radius:var(--r-sm);">
+      <div style="padding:10px 12px;background:var(--accent-soft-bg);border:1.5px solid var(--accent);border-radius:var(--r-sm);">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
           <div style="font-weight:800;font-size:var(--fs-md);color:var(--accent);">
             <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" fill="rgba(56,189,248,0.22)" stroke="currentColor" stroke-width="1.8"/><path d="M4 20c0-3.8 3.6-6.5 8-6.5s8 2.7 8 6.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> ${savedLogin || ident.callsign} ${ownerMode ? '• Владелец' : (adminMode ? '• Админ' : '')}
           </div>
-          <button type="button" class="btn btn-sm btn-good fisher-id-copy-badge" data-copy-fisher-id="${ident.fisherId}" title="Нажмите для автокопирования вашего ID рыбака" style="min-height:30px;padding:3px 10px;font-family:monospace;font-weight:900;">
+          <button type="button" class="btn btn-sm btn-good fisher-id-copy-badge" data-copy-fisher-id="${ident.fisherId}" title="Нажмите для автокопирования вашего ID рыбака" style="min-height:30px;padding:3px 10px;font-family:var(--font-mono);font-weight:900;">
             <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> ${ident.fisherId} Копировать ID
           </button>
         </div>
@@ -1266,12 +1266,12 @@ export function openProfileHubModal() {
       </button>
       <!-- ЗОНА 4: ФАЗА 2 И 3 (ДОСТУПНО АДМИНУ И УЧАСТНИКАМ БЕТА-ТЕСТА) -->
       ${(adminMode || isCurrentUserBetaTester(s) || (typeof localStorage !== 'undefined' && localStorage.getItem('klev_pro_beta_tester_granted_v1') === '1')) ? `
-      <button type="button" class="settings-hub-card" data-open-hub-zone="offgrid" id="hubZoneOffGridBtn" style="border-color:rgba(56,189,248,0.55);">
+      <button type="button" class="settings-hub-card" data-open-hub-zone="offgrid" id="hubZoneOffGridBtn" style="border-color:var(--accent);">
         <div class="settings-hub-card-icon"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5M19.1 4.9C23 8.8 23 15.2 19.1 19.1" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="#ef4444"/></svg></div>
         <div class="settings-hub-card-body">
           <div class="settings-hub-card-title" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
             <span>4. Автономная связь и Авто-SOS (Тайга / Море)</span>
-            <span class="pill pill-good" style="font-size:9.5px;padding:1px 6px;">АДМИН-ТЕСТ</span>
+            <span class="pill pill-good" style="font-size:11px;padding:1px 6px;">АДМИН-ТЕСТ</span>
           </div>
           <div class="settings-hub-card-sub">
             Контрольный таймер возвращения, радиомодем AFSK через рацию, пробой 2G/SMS, LoRa/P2P-эстафета, крипто-защита Zero-Trust и маяк выживания
@@ -1285,7 +1285,7 @@ export function openProfileHubModal() {
         <div class="settings-hub-card-body">
           <div class="settings-hub-card-title" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
             <span>4. Автономная связь и Авто-SOS (Тайга / Море)</span>
-            <span class="pill pill-warn" style="font-size:9.5px;padding:1px 7px;font-weight:900;">Скоро</span>
+            <span class="pill pill-warn" style="font-size:11px;padding:1px 7px;font-weight:900;">Скоро</span>
           </div>
           <div class="settings-hub-card-sub">
             Контрольный таймер возвращения, передача координат через рацию, пробой 2G/SMS и маяк выживания — скоро станет доступно
@@ -1297,7 +1297,7 @@ export function openProfileHubModal() {
       <div class="card" style="background:var(--card);padding:10px 12px;border:1px solid var(--border);display:flex;flex-direction:column;gap:8px;font-size:11.5px;">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
           <span style="font-weight:800;color:var(--accent);">ПОЛЬЗОВАТЕЛЬСКОЕ СОГЛАШЕНИЕ И БЕЗОПАСНОСТЬ</span>
-          <span class="pill ${uaAccepted ? 'pill-good' : 'pill-warn'}" style="font-size:10px;">
+          <span class="pill ${uaAccepted ? 'pill-good' : 'pill-warn'}" style="font-size:11.5px;">
             ${uaAccepted ? 'Ознакомлен и принято' : 'Требуется при регистрации'}
           </span>
         </div>
@@ -1452,7 +1452,7 @@ function updateFishDynamicParts(container, s, list) {
   }
   const showAllBtn = container.querySelector('#fishShowAllBtn');
   if (showAllBtn) {
-    showAllBtn.className = `btn btn-sm ${s.showAllSpecies ? 'btn-warn' : 'btn-accent'}`;
+    showAllBtn.className = `btn btn-sm ${s.showAllSpecies ? 'pill-btn active' : 'btn-accent'}`;
     showAllBtn.textContent = s.showAllSpecies ? 'Включить фильтр по региону' : `Регион (${list.length}) • Все 115 РФ`;
   }
   const clearBtn = container.querySelector('#fishSearchClearBtn');
@@ -1521,14 +1521,14 @@ export function renderFishStrip(container, state) {
         <button type="button" class="btn btn-sm ${s.onlyFavoritesFilter ? 'btn-accent' : ''}" id="fishFavFilterBtn" title="Открыть список избранных видов рыб">
           Избранное (${(s.favorites || []).length})${s.onlyFavoritesFilter ? ' • ВКЛ' : ''}
         </button>
-        <button type="button" class="btn btn-sm ${s.showAllSpecies ? 'btn-warn' : 'btn-accent'}" id="fishShowAllBtn" style="grid-column:1 / -1;width:100%;" title="Переключить между рыбами вашего водоёма/бассейна и полным справочником 115 видов РФ">
+        <button type="button" class="btn btn-sm ${s.showAllSpecies ? 'pill-btn active' : 'btn-accent'}" id="fishShowAllBtn" style="grid-column:1 / -1;width:100%;" title="Переключить между рыбами вашего водоёма/бассейна и полным справочником 115 видов РФ">
           ${s.showAllSpecies ? 'Включить фильтр по региону' : `Регион (${list.length}) • Все 115 РФ`}
         </button>
       </div>
       <!-- Строка 1: Полноразмерный поиск с кнопкой очистки (без потери фокуса на смартфонах!) -->
       <div id="fishSearchWrap" style="position:relative;margin-bottom:8px;display:flex;align-items:center;">
         <input type="text" inputmode="search" enterkeyhint="search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" id="fishSearchInput" class="input" style="width:100%;min-height:42px;padding:8px 38px 8px 12px;font-size:var(--fs-sm);" placeholder="${getSpotEcoregion(s.lat, s.lon, s.basinCode, s.water, s.selectedWaterName).searchPlaceholder || ' Поиск рыбы (щука, окунь, плотва, карась, лещ, судак...)'}" value="${s.fishSearch || ''}">
-        <button type="button" id="fishSearchClearBtn" aria-label="Очистить поиск" style="display:${hasSearch ? 'inline-flex' : 'none'};position:absolute;right:6px;width:30px;height:30px;border:none;background:var(--card);color:var(--muted);border-radius:999px;align-items:center;justify-content:center;cursor:pointer;font-size:14px;font-weight:800;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button>
+        <button type="button" class="pill-btn" id="fishSearchClearBtn" aria-label="Очистить поиск" style="display:${hasSearch ? 'inline-flex' : 'none'};position:absolute;right:6px;width:30px;height:30px;border:none;background:var(--card);color:var(--muted);border-radius:999px;align-items:center;justify-content:center;cursor:pointer;font-size:14px;font-weight:800;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button>
       </div>
       <!-- Строка 2: Выбор групп рыб -->
       <div class="chip-scroll-row" id="fishGroupsRow" style="margin-bottom:10px;width:100%;">

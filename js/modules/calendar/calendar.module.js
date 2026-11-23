@@ -1,9 +1,9 @@
-import { RU } from '../../i18n/ru.js?v=2.9.2-r256';
-import { store } from '../../core/store.js?v=2.9.2-r256';
-import { generateSpawnICS } from '../../core/format.js?v=2.9.2-r256';
-import { BASIN_CONFIGS, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.9.2-r256';
-import { FISH_DB } from '../../data/species.js?v=2.9.2-r256';
-import { showToast, downloadFileCrossPlatform, flashHighlightElement } from '../../ui/components.js?v=2.9.2-r256';
+import { RU } from '../../i18n/ru.js?v=2.9.2-r257';
+import { store } from '../../core/store.js?v=2.9.2-r257';
+import { generateSpawnICS } from '../../core/format.js?v=2.9.2-r257';
+import { BASIN_CONFIGS, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.9.2-r257';
+import { FISH_DB } from '../../data/species.js?v=2.9.2-r257';
+import { showToast, downloadFileCrossPlatform, flashHighlightElement } from '../../ui/components.js?v=2.9.2-r257';
 const COMPARE_COLORS = ['#10b981', '#38bdf8', '#a855f7'];
 export function getSpawnWindows(fishId, basinCode) {
   const fish = FISH_DB.find(f => f.id === fishId) || FISH_DB[0];
@@ -122,7 +122,7 @@ export function renderCalendar(container, fishId) {
           .slice(0, 16);
       })().map(f => {
         const active = s.compareSpeciesIds.includes(f.id);
-        return `<button type="button" class="btn btn-sm ${active ? 'btn-accent' : ''}" data-cal-cmp="${f.id}">${f.name}</button>`;
+        return `<button type="button" class="pill-btn ${active ? 'active' : ''}" style="padding:5px 11px;font-size:11.5px;" data-cal-cmp="${f.id}">${f.name}</button>`;
       }).join('')}
     </div>
     <!-- Адаптивная легенда сравниваемых видов -->
@@ -176,8 +176,8 @@ export function renderCalendar(container, fishId) {
           <div style="font-size:var(--fs-xs);color:var(--accent);font-weight:700;margin-top:2px;">${info.shiftNote}</div>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <button type="button" class="btn btn-sm ${s.calendarMode === 'single' ? 'btn-accent' : ''}" data-cal-mode="single">Одна рыба</button>
-          <button type="button" class="btn btn-sm ${s.calendarMode === 'compare' ? 'btn-accent' : ''}" data-cal-mode="compare">Сравнить 2–3 вида</button>
+          <button type="button" class="pill-btn ${s.calendarMode === 'single' ? 'active' : ''}" data-cal-mode="single">Одна рыба</button>
+          <button type="button" class="pill-btn ${s.calendarMode === 'compare' ? 'active' : ''}" data-cal-mode="compare">Сравнить 2–3 вида</button>
 
         </div>
       </div>

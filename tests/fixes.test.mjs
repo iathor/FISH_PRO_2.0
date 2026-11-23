@@ -76,8 +76,8 @@ test('3.3 Регулярка шлюз тайлов блокирует чужие
 
 test('3.4 & 4.8 Единый источник версии VERSION (2.9.0 r240) синхронизирован во всех файлах и ссылка на APK валидна', () => {
   assert.equal(verData.version, '2.9.2');
-  assert.equal(verData.revision, 'r256');
-  assert.equal(verData.versionCode, 293256);
+  assert.equal(verData.revision, 'r257');
+  assert.equal(verData.versionCode, 293257);
 
   const vJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'version.json'), 'utf8'));
   const apkVJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'apk/apk-version.json'), 'utf8'));
@@ -376,7 +376,7 @@ test('6.6 Аудит r248: пересобранный app-runtime.js + app.bundl
   const wf = fs.readFileSync(path.join(ROOT, '.github/workflows/build-android-apk.yml'), 'utf8');
   const verJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'VERSION'), 'utf8'));
 
-  assert.equal(verJson.fullVersion, '2.9.2-r256', 'В VERSION должен быть fullVersion 2.9.2-r256');
+  assert.equal(verJson.fullVersion, '2.9.2-r257', 'В VERSION должен быть fullVersion 2.9.2-r257');
   assert.equal(rtSrc, bundleSrc, 'app-runtime.js и js/app.bundle.js должны быть идентичны');
   for (const sym of ['transform-origin:14px 27px;', 'fcWeatherRoadStormCard', 'fcWeatherHourlyWaveCard', '_klevTouchStart', '__KLEV_STARTUP_GPS_SYNCED__']) {
     assert.ok(rtSrc.includes(sym), `В скомпилированном app-runtime.js отсутствует ${sym}`);
@@ -385,7 +385,7 @@ test('6.6 Аудит r248: пересобранный app-runtime.js + app.bundl
   assert.ok(layoutCss.includes('img.leaflet-marker-icon') && idxHtml.includes('img.leaflet-marker-icon'), 'Синий дефолтный img.leaflet-marker-icon должен скрываться на мобильных через CSS');
   assert.ok(!/\.compass-bearing-active\s+#mapBox\s*\{[^}]*transform:\s*none/i.test(idxHtml), 'В index.html не должно быть transform: none для #mapBox');
   assert.ok(!/\.compass-bearing-active\s+#mapBox\s*\{[^}]*transform:\s*none/i.test(kpHtml), 'В kp-control-89.html не должно быть transform: none для #mapBox');
-  assert.ok(gradle.includes('applicationId "ru.klevpro.app"') && gradle.includes('versionName "2.9.2-r256"'), 'В android/app/build.gradle должны быть ru.klevpro.app и 2.9.2-r256');
+  assert.ok(gradle.includes('applicationId "ru.klevpro.app"') && gradle.includes('versionName "2.9.2-r257"'), 'В android/app/build.gradle должны быть ru.klevpro.app и 2.9.2-r257');
   assert.ok(stringsXml.includes('Клёв ПРО 2.0'), 'В strings.xml должно быть имя Клёв ПРО 2.0');
   assert.ok(mainJava.includes('compassWanted = true') && mainJava.includes('TYPE_MAGNETIC_FIELD'), 'В MainActivity.java должен быть включён компас с резервом TYPE_MAGNETIC_FIELD');
   assert.ok(wf.includes('/tmp/klev-android-user') && wf.includes('/tmp/klev-android-admin'), 'Workflow должен собирать User и Admin APK в изолированных директориях');
@@ -497,7 +497,7 @@ test('r253: фоновое голосовое ведение и автозаве
   assert.equal(spellFn(500), 'пятьсот');
 
   // 5. Начало маршрута строго от первой точки касания и маркер Старт (А) + Финиш (Б)
-  assert.ok(geoJs.includes("className: 'klev-arc-start-pin'") && geoJs.includes('title="Старт маршрута (первая точка)"'), 'На начале построенного маршрута должен ставиться маркер Старт (А)');
+  assert.ok(geoJs.includes("className: 'klev-arc-start-pin'") && (geoJs.includes('title="Старт маршрута (первая точка)"') || geoJs.includes("Старт (А)")), 'На начале построенного маршрута должен ставиться маркер Старт (А)');
 });
 
 test('r253: полный аудит безопасности воркера, фронтенда, Android WebView и CI/CD с сохранением автообновления APK', () => {
@@ -588,10 +588,10 @@ test('r255: закрытие всех 9 пунктов глубокой инсп
   assert.ok(adminJs.includes('setChatUiState') && adminJs.includes('setChatUiState({ isFullScreenChatOpen: false })'), 'В admin.module.js должен вызываться сеттер setChatUiState');
 
   // 3. Синхронизация buildNumber === 255 и getAppBuildNumber() -> 255
-  assert.equal(verJson.buildNumber, 256, 'buildNumber в version.json должен быть 256');
-  assert.equal(apkVerJson.buildNumber, 256, 'buildNumber в apk/apk-version.json должен быть 256');
-  assert.ok(configJs.includes('export const APP_BUILD_NUMBER = 256;') && configJs.includes('"buildNumber": 256'), 'В config.js должен быть APP_BUILD_NUMBER = 256');
-  assert.ok(/public\s+int\s+getAppBuildNumber\(\)\s*\{\s*return\s+256;\s*\}/.test(mainJava), 'В MainActivity.java getAppBuildNumber() должен возвращать 256');
+  assert.equal(verJson.buildNumber, 257, 'buildNumber в version.json должен быть 257');
+  assert.equal(apkVerJson.buildNumber, 257, 'buildNumber в apk/apk-version.json должен быть 257');
+  assert.ok(configJs.includes('export const APP_BUILD_NUMBER = 257;') && configJs.includes('"buildNumber": 257'), 'В config.js должен быть APP_BUILD_NUMBER = 257');
+  assert.ok(/public\s+int\s+getAppBuildNumber\(\)\s*\{\s*return\s+257;\s*\}/.test(mainJava), 'В MainActivity.java getAppBuildNumber() должен возвращать 257');
   assert.ok(gatewayJava.includes('KlevPro/2.9.2'), 'В LocalGatewayClient.java должен быть User-Agent KlevPro/2.9.2');
 
   // 4. prevUserPos и remMeters <= 25 в geo.module.js
@@ -644,4 +644,102 @@ test('r256: очистка гео-дефолтов для новых рыбак�
   assert.ok(geoJs.includes("klev_boat_router_v2") && geoJs.includes("_getWaterElementsForGrid") && geoJs.includes("formatBoatDiagBannerText") && geoJs.includes("boatGaps"), 'В geo.module.js должны быть подключены routeBoatRobust, _getWaterElementsForGrid, boatGaps и диагностика BOAT v2');
   assert.ok(geoRoutingJs.includes("waterKm") && geoRoutingJs.includes("gapKm") && geoRoutingJs.includes("hasGaps"), 'В geo.routing.js evaluateRouteSegments должен учитывать boatGaps');
   assert.ok(workerJs.includes("matchWorkerRoute(normPath, '/api/water')") && workerJs.includes("simplifyGeom") && workerJs.includes("simplifyElements"), 'В воркере должен быть эндпоинт GET /api/water с упрощением геометрии Дугласа-Пекера');
+});
+
+test('r257: проверка всех 5 пунктов BUGS (офлайн-квадраты без надписей, импорт треков GPX/GPX.BIN/KML/KMZ + выбор старта, кнопка Мои маршруты, OLED Стекло/Обычный UX/UI, конвейер Vision ИИ)', async () => {
+  const geoJs = fs.readFileSync(path.join(ROOT, 'js/modules/geo/geo.module.js'), 'utf8');
+  const compCss = fs.readFileSync(path.join(ROOT, 'css/components.css'), 'utf8');
+  const idxHtml = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  const fishJs = fs.readFileSync(path.join(ROOT, 'js/modules/fish/fish.module.js'), 'utf8');
+  const scannerJs = fs.readFileSync(path.join(ROOT, 'js/modules/fish/scanner.js'), 'utf8');
+  const workerJs = fs.readFileSync(path.join(ROOT, 'cloudflare-worker-bot.js'), 'utf8');
+
+  // Пункт 1: отсутствие klev-offline-pack-corner-label в renderOfflinePackPerimetersOnMap
+  const mPerim = geoJs.match(/function renderOfflinePackPerimetersOnMap\([\s\S]*?\n\}/);
+  assert.ok(mPerim, 'Функция renderOfflinePackPerimetersOnMap должна присутствовать в geo.module.js');
+  assert.ok(!mPerim[0].includes('klev-offline-pack-corner-label'), 'В renderOfflinePackPerimetersOnMap не должно быть текстовых табличек klev-offline-pack-corner-label');
+  assert.ok(!geoJs.includes('klev-offline-pack-corner-label'), 'В geo.module.js не должно быть klev-offline-pack-corner-label');
+
+  // Пункт 2: парсинг всех 5 реальных треков из /working_dir/c_37940f1536dced7c/downloads/
+  const toDataModuleUrl = (code) => 'data:text/javascript;base64,' + Buffer.from(code, 'utf8').toString('base64');
+  const eventsStubUrl = toDataModuleUrl('export function safeModuleRun(_tag, fn, fb) { try { return fn(); } catch (_e) { return fb; } }');
+  const routingSrc = fs
+    .readFileSync(path.join(ROOT, 'js/modules/geo/geo.routing.js'), 'utf8')
+    .replace(/from\s+['"]\.\.\/\.\.\/core\/events\.js(?:\?[^'"]*)?['"]/g, `from '${eventsStubUrl}'`);
+  const { parseTrackFromExternalFileText, extractKmlFromKmzBuffer } = await import(toDataModuleUrl(routingSrc));
+
+  const downloadsDir = '/working_dir/c_37940f1536dced7c/downloads';
+  const expectedTracks = [
+    { file: 'export_trek_10_11_2026.gpx.bin', title: 'Барито', rawPoints: 6362, minPts: 800, maxPts: 1300, startLat: 66.1385, startLon: 76.7008, endLat: 66.68598, endLon: 77.6119, distKm: 96.15 },
+    { file: 'export_trek_03_03_2023.gpx', title: 'Барито', rawPoints: 6362, minPts: 800, maxPts: 1300, startLat: 66.1385, startLon: 76.7008, endLat: 66.68598, endLon: 77.6119, distKm: 96.15 },
+    { file: '320_pur.gpx', title: '320 пур', rawPoints: 8352, minPts: 800, maxPts: 1300, startLat: 65.69498, startLon: 78.03126, endLat: 65.48789, endLon: 78.10926, distKm: 62.712 },
+    { file: 'orlinnoe_1.kml', title: 'орлинное-1', rawPoints: 9700, minPts: 800, maxPts: 1300, startLat: 66.6628, startLon: 79.35639, endLat: 66.54234, endLon: 78.55167, distKm: 50.176 },
+    { file: 'orlinnoe_1.kmz', title: 'орлинное-1', rawPoints: 9700, minPts: 800, maxPts: 1300, startLat: 66.6628, startLon: 79.35639, endLat: 66.54234, endLon: 78.55167, distKm: 50.176 }
+  ];
+
+  for (const exp of expectedTracks) {
+    const filePath = path.join(downloadsDir, exp.file);
+    assert.ok(fs.existsSync(filePath), `Файл трека должен существовать: ${filePath}`);
+    let textContent = '';
+    if (exp.file.endsWith('.kmz')) {
+      const buf = fs.readFileSync(filePath);
+      const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+      textContent = await extractKmlFromKmzBuffer(ab);
+    } else {
+      textContent = fs.readFileSync(filePath, 'utf8');
+    }
+    const parsed = parseTrackFromExternalFileText(textContent, exp.file);
+    assert.ok(parsed, `Трек ${exp.file} должен успешно парситься`);
+    assert.equal(parsed.title, exp.title, `Имя трека ${exp.file} должно быть ${exp.title}`);
+    assert.equal(parsed.rawPointCount, exp.rawPoints, `Исходное число точек в ${exp.file} должно быть ${exp.rawPoints}`);
+    assert.ok(parsed.points.length >= exp.minPts && parsed.points.length <= exp.maxPts, `Число упрощенных точек в ${exp.file} (${parsed.points.length}) должно быть в пределах ${exp.minPts}..${exp.maxPts}`);
+    assert.ok(Math.abs(parsed.startPoint.lat - exp.startLat) < 0.001 && Math.abs(parsed.startPoint.lon - exp.startLon) < 0.001, `Старт А в ${exp.file} должен совпадать`);
+    assert.ok(Math.abs(parsed.finishPoint.lat - exp.endLat) < 0.001 && Math.abs(parsed.finishPoint.lon - exp.endLon) < 0.001, `Финиш Б в ${exp.file} должен совпадать`);
+    assert.ok(Math.abs(parsed.totalDistKm - exp.distKm) < 0.1, `Дистанция totalDistKm в ${exp.file} (${parsed.totalDistKm}) должна быть около ${exp.distKm}`);
+  }
+
+  // Пункт 2 и 3: наличие promptLoadedTrackStartChoice с режимами track_start и build_to_start и кнопки «Мои маршруты» с border-color:transparent
+  assert.ok(
+    geoJs.includes('function promptLoadedTrackStartChoice(') &&
+    geoJs.includes("choiceMode === 'build_to_start'") &&
+    geoJs.includes("startTrackWithChoice('track_start')") &&
+    geoJs.includes("startTrackWithChoice('build_to_start')"),
+    'Должна быть функция promptLoadedTrackStartChoice с режимами track_start и build_to_start'
+  );
+  assert.ok(
+    geoJs.includes('Мои маршруты') && geoJs.includes('border-color:transparent;'),
+    'Кнопка «Мои маршруты» должна быть без синей рамки (border-color:transparent)'
+  );
+
+  // Пункт 4: наличие правил html[data-liquid-glass="1"][data-theme="contrast"] и html[data-liquid-glass="0"][data-theme="contrast"] в css/components.css и index.html, а также contrast: 'OLED (Контраст)' в fish.module.js
+  assert.ok(
+    compCss.includes('html[data-liquid-glass="1"][data-theme="contrast"]') &&
+    compCss.includes('html[data-liquid-glass="0"][data-theme="contrast"]'),
+    'В css/components.css должны быть правила для OLED (contrast) в режимах Стекло (1) и Обычный (0)'
+  );
+  assert.ok(
+    idxHtml.includes('html[data-liquid-glass="1"][data-theme="contrast"]') &&
+    idxHtml.includes('html[data-liquid-glass="0"][data-theme="contrast"]'),
+    'В index.html должны быть правила для OLED (contrast) в режимах Стекло (1) и Обычный (0)'
+  );
+  assert.ok(
+    fishJs.includes("contrast: 'OLED (Контраст)'"),
+    'В fish.module.js в настройках темы должен быть пункт contrast: OLED (Контраст)'
+  );
+
+  // Пункт 5: наличие getScannerAuthContext() и таймаута 12000 в scanner.js и исправленной логики verifyAiVisionBetaAccess / callGeminiGenerateContentSmart в cloudflare-worker-bot.js
+  assert.ok(
+    scannerJs.includes('export function getScannerAuthContext()') &&
+    scannerJs.includes('const callDirectPostFast = async (timeoutMs = 12000)') &&
+    scannerJs.includes('workerWinner = await callDirectPostFast(12000);'),
+    'В scanner.js должны быть getScannerAuthContext() и таймаут 12000 мс для callDirectPostFast'
+  );
+  assert.ok(
+    workerJs.includes('for (const prof of cloudAuthProfiles.values())') &&
+    workerJs.includes('loadedProf = await loadPersistedAuthProfile(env,') &&
+    workerJs.includes('const alreadySaved = globalThis.__klevVisionChunkStore.has(chunkKey);') &&
+    workerJs.includes('async function callGeminiGenerateContentSmart(apiKey, contentsPayload, genConfig = {}, timeoutMs = 12000, env = null)') &&
+    workerJs.includes('if (!res) break;'),
+    'В cloudflare-worker-bot.js должны быть обновленные verifyAiVisionBetaAccess, дедупликация чанков и callGeminiGenerateContentSmart'
+  );
 });

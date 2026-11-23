@@ -9,13 +9,13 @@
  * - Выделенная вкладка « Чаты» на нижней панели навигации + отправка карточки улова прямо в чат.
  * - Закрытый режим Супер-Админа (только для Владельца + управляемая База Администраторов с синхронизацией).
  */
-import { events, KLEV_EVENTS, safeModuleRun } from '../../core/events.js?v=2.9.2-r256';
+import { events, KLEV_EVENTS, safeModuleRun } from '../../core/events.js?v=2.9.2-r257';
 import {
   isCircleItemMine as _ownershipIsCircleItemMine,
   isCircleItemHidden,
   canUserAccessCrewItem,
   filterCircleItemsByOwnership
-} from './circle.ownership.js?v=2.9.2-r256';
+} from './circle.ownership.js?v=2.9.2-r257';
 import {
   DB_GATEWAY_CATALOG,
   getCustomDbRelayBridgeUrl,
@@ -30,23 +30,23 @@ import {
   pullRelayPackets,
   runAdminGatewayDatabaseDiagnostics,
   syncNearbyCirclePointsFromServer
-} from './circle.api.js?v=2.9.2-r256';
+} from './circle.api.js?v=2.9.2-r257';
 import {
   formatCleanPeerTitle,
   renderChatsSubView,
   renderFullScreenChatWindowHtml,
   mountFullScreenChatOverlayPortal,
   renderChatsSection as _renderChatsSectionImpl
-} from './circle.chat.js?v=2.9.2-r256';
-import { store } from '../../core/store.js?v=2.9.2-r256';
-import { storage, calcGeoDistanceKm, safeJsonParse } from '../../core/storage.js?v=2.9.2-r256';
-import { router } from '../../core/router.js?v=2.9.2-r256';
-import { APP_VERSION, APP_REVISION, APP_DISPLAY_VERSION, getSeasonalBaitsForContext, SPOT_CATEGORIES } from '../../core/config.js?v=2.9.2-r256';
-import { detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.9.2-r256';
-import { findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.9.2-r256';
-import { WATER_PROFILES } from '../../data/waters.js?v=2.9.2-r256';
-import { FISH_DB } from '../../data/species.js?v=2.9.2-r256';
-import { escapeHtml, isAnonymousCallsignValid, createPill, showToast, openModal, closeModal, copyFisherIdToClipboard, openConfirmDeleteModal, openUserAgreementModal, isUserAgreementAccepted, downloadFileCrossPlatform, triggerSystemNotificationCrossPlatform, requestSystemNotificationsAccess, flashHighlightElement, isPolicyVersionAccepted, getSavedPolicyConsentMeta, POLICY_CONSENT_META_KEY, ACTIVE_POLICY_VERSION_DEFAULT, ACTIVE_APP_VERSION_DEFAULT, saveRemotePolicyToClientEnv, getRemotePolicyFromClientEnv, parsePolicySectionsFromEditableText, formatPolicySectionsToEditableText, DEFAULT_POLICY_SECTIONS, isGeoDistributionConsentActive, ensureGeoDistributionConsent, setGeoDistributionConsentState } from '../../ui/components.js?v=2.9.2-r256';
+} from './circle.chat.js?v=2.9.2-r257';
+import { store } from '../../core/store.js?v=2.9.2-r257';
+import { storage, calcGeoDistanceKm, safeJsonParse } from '../../core/storage.js?v=2.9.2-r257';
+import { router } from '../../core/router.js?v=2.9.2-r257';
+import { APP_VERSION, APP_REVISION, APP_DISPLAY_VERSION, getSeasonalBaitsForContext, SPOT_CATEGORIES } from '../../core/config.js?v=2.9.2-r257';
+import { detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.9.2-r257';
+import { findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.9.2-r257';
+import { WATER_PROFILES } from '../../data/waters.js?v=2.9.2-r257';
+import { FISH_DB } from '../../data/species.js?v=2.9.2-r257';
+import { escapeHtml, isAnonymousCallsignValid, createPill, showToast, openModal, closeModal, copyFisherIdToClipboard, openConfirmDeleteModal, openUserAgreementModal, isUserAgreementAccepted, downloadFileCrossPlatform, triggerSystemNotificationCrossPlatform, requestSystemNotificationsAccess, flashHighlightElement, isPolicyVersionAccepted, getSavedPolicyConsentMeta, POLICY_CONSENT_META_KEY, ACTIVE_POLICY_VERSION_DEFAULT, ACTIVE_APP_VERSION_DEFAULT, saveRemotePolicyToClientEnv, getRemotePolicyFromClientEnv, parsePolicySectionsFromEditableText, formatPolicySectionsToEditableText, DEFAULT_POLICY_SECTIONS, isGeoDistributionConsentActive, ensureGeoDistributionConsent, setGeoDistributionConsentState } from '../../ui/components.js?v=2.9.2-r257';
 import {
   RELAY_WORKER_URL,
   buildShareUrls,
@@ -59,7 +59,7 @@ import {
   syncToTelegramCloud,
   readFromTelegramCloud,
   triggerHaptic
-} from '../../core/telegram.js?v=2.9.2-r256';
+} from '../../core/telegram.js?v=2.9.2-r257';
 import {
   OWNER_BOUND_LOGIN,
   OWNER_BOUND_PIN_HASH,
@@ -77,9 +77,9 @@ import {
   getServerAdminSessionToken,
   setServerAdminSessionToken,
   setAdminAuthRequired
-} from '../admin/admin.auth.js?v=2.9.2-r256';
-import { setLocation } from '../geo/geo.module.js?v=2.9.2-r256';
-import { calcDynamicRig } from '../forecast/forecast.module.js?v=2.9.2-r256';
+} from '../admin/admin.auth.js?v=2.9.2-r257';
+import { setLocation } from '../geo/geo.module.js?v=2.9.2-r257';
+import { calcDynamicRig } from '../forecast/forecast.module.js?v=2.9.2-r257';
 export const CREW_TTL_MS = 72 * 60 * 60 * 1000;
 /**
  * Вычисляет точное время окончания действия ссылки на длинную экспедицию:
@@ -1217,7 +1217,7 @@ export function openWelcomeOnboardingGuideModal(forceOpen = false) {
         </div>
         <div style="padding:14px;background:var(--card);border:1.5px solid var(--accent);border-radius:14px;display:flex;flex-direction:column;gap:10px;">
           <div style="display:flex;align-items:center;gap:10px;">
-            <div style="width:42px;height:42px;border-radius:12px;background:rgba(56,189,248,0.14);border:1px solid rgba(56,189,248,0.4);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">
+            <div style="width:42px;height:42px;border-radius:12px;background:var(--accent-soft-bg);border:1px solid var(--accent);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">
               ${stObj.icon}
             </div>
             <div style="font-size:15px;font-weight:900;color:var(--text);line-height:1.28;">
@@ -2290,7 +2290,7 @@ export function syncCircleNavBadge() {
       if (!badge) {
         badge = document.createElement('span');
         badge.id = badgeId;
-        badge.style.cssText = 'position:absolute;top:2px;right:10%;min-width:16px;height:16px;padding:0 4px;border-radius:999px;background:var(--bad);color:#fff;font-size:10px;font-weight:900;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,0.45);pointer-events:none;';
+        badge.style.cssText = 'position:absolute;top:2px;right:10%;min-width:16px;height:16px;padding:0 4px;border-radius:999px;background:var(--bad);color:#fff;font-size:11.5px;font-weight:900;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,0.45);pointer-events:none;';
         navBtn.appendChild(badge);
       }
       badge.textContent = count > 99 ? '99+' : String(count);
@@ -4102,7 +4102,7 @@ export function openAddThematicMapPointModal(initialCat = 'slip') {
 
   const html = `
     <div style="display:flex;flex-direction:column;gap:12px;font-size:var(--fs-sm);">
-      <div style="padding:9px 11px;background:rgba(56,189,248,0.10);border:1px solid var(--accent);border-radius:var(--r-sm);font-size:var(--fs-xs);line-height:1.42;">
+      <div style="padding:9px 11px;background:var(--accent-soft-bg);border:1px solid var(--accent);border-radius:var(--r-sm);font-size:var(--fs-xs);line-height:1.42;">
         <b>Координаты точки:</b> ${Number(s.lat).toFixed(4)}°N, ${Number(s.lon).toFixed(4)}°E (${escapeHtml(wTitle)})
       </div>
       <div>
@@ -4307,7 +4307,7 @@ export function openShareModalForCurrentContext(initialMode = 'circle', override
     const ident = getCurrentFisherIdentity();
     bodyEl.innerHTML = `
       <div style="display:flex;flex-direction:column;gap:12px;font-size:var(--fs-sm);">
-        <div style="padding:10px 12px;background:rgba(56,189,248,0.10);border:1px solid var(--accent);border-radius:var(--r-sm);font-size:var(--fs-xs);line-height:1.45;">
+        <div style="padding:10px 12px;background:var(--accent-soft-bg);border:1px solid var(--accent);border-radius:var(--r-sm);font-size:var(--fs-xs);line-height:1.45;">
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:4px;">
             <b>Автопривязка вашего ID к точке:</b>
             <span class="fisher-id-copy-badge" data-copy-fisher-id="${ident.fisherId}" title="Нажмите для автокопирования ID"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> ${ident.fisherId} <svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="9" y="9" width="11" height="11" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
@@ -4321,15 +4321,15 @@ export function openShareModalForCurrentContext(initialMode = 'circle', override
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:6px;">
           <button type="button" class="btn btn-sm ${currentMode === 'circle' ? 'btn-accent' : ''}" data-share-mode="circle" style="min-height:44px;flex-direction:column;gap:2px;">
             <span>В Круг (±5/10 км)</span>
-            <span style="font-size:10px;opacity:0.85;">Гексагон без пина</span>
+            <span style="font-size:11.5px;opacity:0.85;">Гексагон без пина</span>
           </button>
           <button type="button" class="btn btn-sm ${currentMode === 'crew' ? 'btn-accent' : ''}" data-share-mode="crew" style="min-height:44px;flex-direction:column;gap:2px;">
             <span>Экипаж (72 ч)</span>
-            <span style="font-size:10px;opacity:0.85;">По ключу ${escapeHtml(pack.packObj.crewKey || '')}</span>
+            <span style="font-size:11.5px;opacity:0.85;">По ключу ${escapeHtml(pack.packObj.crewKey || '')}</span>
           </button>
           <button type="button" class="btn btn-sm ${currentMode === 'sos' ? 'btn-good' : ''}" data-share-mode="sos" style="min-height:44px;flex-direction:column;gap:2px;border-color:var(--bad);color:${currentMode === 'sos' ? '#fff' : 'var(--bad)'};background:${currentMode === 'sos' ? 'var(--bad)' : 'var(--card)'};">
             <span>SOS</span>
-            <span style="font-size:10px;opacity:0.9;">Дублируйте по 112 / рации</span>
+            <span style="font-size:11.5px;opacity:0.9;">Дублируйте по 112 / рации</span>
           </button>
         </div>
         ${currentMode === 'crew' ? `
@@ -4341,11 +4341,11 @@ export function openShareModalForCurrentContext(initialMode = 'circle', override
             ${isExpeditionMode ? `
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
                 <div>
-                  <label style="display:block;font-size:10.5px;font-weight:800;color:var(--muted);margin-bottom:3px;">НАЧАЛО ЭКСПЕДИЦИИ:</label>
+                  <label style="display:block;font-size:11.5px;font-weight:800;color:var(--muted);margin-bottom:3px;">НАЧАЛО ЭКСПЕДИЦИИ:</label>
                   <input type="date" id="shareExpStartInput" class="input" value="${escapeHtml(expStartDate)}" style="min-height:36px;padding:4px 8px;font-size:12.5px;">
                 </div>
                 <div>
-                  <label style="display:block;font-size:10.5px;font-weight:800;color:var(--muted);margin-bottom:3px;">ОКОНЧАНИЕ ЭКСПЕДИЦИИ:</label>
+                  <label style="display:block;font-size:11.5px;font-weight:800;color:var(--muted);margin-bottom:3px;">ОКОНЧАНИЕ ЭКСПЕДИЦИИ:</label>
                   <input type="date" id="shareExpEndInput" class="input" value="${escapeHtml(expEndDate)}" min="${escapeHtml(expStartDate)}" style="min-height:36px;padding:4px 8px;font-size:12.5px;">
                 </div>
               </div>
@@ -4375,7 +4375,7 @@ export function openShareModalForCurrentContext(initialMode = 'circle', override
         <div class="card" style="background:var(--card);padding:10px 12px;border:1px solid ${currentMode === 'sos' ? 'var(--bad)' : 'var(--border)'};font-size:var(--fs-xs);line-height:1.45;color:var(--text);">
           <div style="font-size:11.5px;color:var(--accent);font-weight:800;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;" id="shareShortUrlPreview">
             <span>Координаты упакованы (откроются в 1 клик)</span>
-            <span class="pill pill-good" style="font-size:10px;padding:1px 7px;">Готово</span>
+            <span class="pill pill-good" style="font-size:11.5px;padding:1px 7px;">Готово</span>
           </div>
           <div style="white-space:pre-line;" id="sharePreviewBox">${escapeHtml(pack.summaryText)}</div>
         </div>
@@ -4445,7 +4445,7 @@ export function openShareModalForCurrentContext(initialMode = 'circle', override
         const prevBox = bodyEl.querySelector('#sharePreviewBox');
         const urlBox = bodyEl.querySelector('#shareShortUrlPreview');
         if (prevBox) prevBox.textContent = updatedPack.summaryText;
-        if (urlBox) urlBox.innerHTML = `<span>Координаты упакованы (откроются в 1 клик)</span><span class="pill pill-good" style="font-size:10px;padding:1px 7px;">Готово</span>`;
+        if (urlBox) urlBox.innerHTML = `<span>Координаты упакованы (откроются в 1 клик)</span><span class="pill pill-good" style="font-size:11.5px;padding:1px 7px;">Готово</span>`;
       });
     }
     const publishToRelayIfApplicable = async (finalPack) => {
@@ -4517,7 +4517,7 @@ export function openImportPackModal() {
         <label style="display:block;font-weight:800;font-size:var(--fs-xs);color:var(--muted);margin-bottom:4px;">
           ИЛИ ВСТАВЬТЕ ССЫЛКУ <code>#p=KP1_...</code> / ЗАШИФРОВАННОЕ СООБЩЕНИЕ <code>KPE2E_...</code>:
         </label>
-        <textarea id="importPackTextarea" class="input" rows="3" placeholder="Вставьте короткую ссылку https://klevpro.ru/#p=KP1_... или код..." style="min-height:80px;font-family:monospace;font-size:12px;"></textarea>
+        <textarea id="importPackTextarea" class="input" rows="3" placeholder="Вставьте короткую ссылку https://klevpro.ru/#p=KP1_... или код..." style="min-height:80px;font-family:var(--font-mono);font-size:12px;"></textarea>
       </div>
       <div style="display:flex;gap:8px;">
         <button type="button" class="btn btn-good" id="importPackConfirmBtn" style="width:100%;">Расшифровать и добавить в навигатор</button>
@@ -4629,7 +4629,7 @@ export function openNotificationsModal(onBackToHub = null) {
               <div class="card" style="padding:8px 10px;background:var(--card);border:1px solid ${borderCol};font-size:var(--fs-xs);cursor:pointer;" data-notif-jump="${n.id}">
                 <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;">
                   <b style="color:${n.category === 'sos' ? 'var(--bad)' : 'var(--text)'};">${escapeHtml(n.title)}</b>
-                  <span style="font-size:10px;color:var(--muted);">${timeStr}</span>
+                  <span style="font-size:11.5px;color:var(--muted);">${timeStr}</span>
                 </div>
                 <div style="color:var(--muted);margin-top:3px;">${escapeHtml(n.body)}</div>
               </div>
@@ -4966,7 +4966,7 @@ export function openAuthAndBackupModal(onBackToHub = null) {
       <div style="display:flex;flex-direction:column;gap:12px;font-size:var(--fs-sm);">
         ${renderSettingsZoneTabsHtml('auth')}
         <!-- Статус текущего ID (Временный резерв FP_XXRZYYYY vs Постоянный FP_XXAAA001 vs Владелец FP_89VIP089 / FP_FMP089) -->
-        <div style="padding:11px 12px;background:${ident.isOwner ? 'rgba(16,185,129,0.12)' : (ident.isRegistered ? 'rgba(56,189,248,0.10)' : 'rgba(245,158,11,0.12)')};border:1.5px solid ${ident.isOwner ? 'var(--good)' : (ident.isRegistered ? 'var(--accent)' : 'var(--warn)')};border-radius:var(--r-sm);font-size:var(--fs-xs);line-height:1.45;">
+        <div style="padding:11px 12px;background:${ident.isOwner ? 'rgba(16,185,129,0.12)' : (ident.isRegistered ? 'var(--accent-soft-bg)' : 'rgba(245,158,11,0.12)')};border:1.5px solid ${ident.isOwner ? 'var(--good)' : (ident.isRegistered ? 'var(--accent)' : 'var(--warn)')};border-radius:var(--r-sm);font-size:var(--fs-xs);line-height:1.45;">
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:6px;">
             <span style="font-weight:900;color:${ident.isOwner ? 'var(--good)' : (ident.isRegistered ? 'var(--accent)' : 'var(--warn)')};">
               ${ident.isOwner
@@ -4976,11 +4976,11 @@ export function openAuthAndBackupModal(onBackToHub = null) {
                     : 'ВРЕМЕННЫЙ РЕЗЕРВНЫЙ ID (БЕЗ РЕГИСТРАЦИИ):')}
             </span>
             <div style="display:flex;gap:6px;flex-wrap:wrap;">
-              <button type="button" class="btn btn-sm ${ident.isRegistered ? 'btn-good' : ''}" data-copy-fisher-id="${ident.fisherId}" style="font-family:monospace;font-size:13px;font-weight:900;padding:4px 10px;">
+              <button type="button" class="btn btn-sm ${ident.isRegistered ? 'btn-good' : ''}" data-copy-fisher-id="${ident.fisherId}" style="font-family:var(--font-mono);font-size:13px;font-weight:900;padding:4px 10px;">
                 <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> ${ident.fisherId} <svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="9" y="9" width="11" height="11" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
               </button>
               ${ident.isOwner ? `
-                <button type="button" class="btn btn-sm btn-accent" data-copy-fisher-id="${ident.fisherId === OWNER_BOUND_FISHER_ID ? OWNER_SECONDARY_FISHER_ID : OWNER_BOUND_FISHER_ID}" style="font-family:monospace;font-size:12px;font-weight:900;padding:4px 8px;">
+                <button type="button" class="btn btn-sm btn-accent" data-copy-fisher-id="${ident.fisherId === OWNER_BOUND_FISHER_ID ? OWNER_SECONDARY_FISHER_ID : OWNER_BOUND_FISHER_ID}" style="font-family:var(--font-mono);font-size:12px;font-weight:900;padding:4px 8px;">
                   <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg> ${ident.fisherId === OWNER_BOUND_FISHER_ID ? OWNER_SECONDARY_FISHER_ID : OWNER_BOUND_FISHER_ID} <svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="9" y="9" width="11" height="11" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
                 </button>
               ` : ''}
@@ -5026,7 +5026,7 @@ export function openAuthAndBackupModal(onBackToHub = null) {
             </div>
           </div>
           ${!ident.isRegistered ? `
-            <div style="padding:9px 10px;background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.32);border-radius:var(--r-sm);display:flex;flex-direction:column;gap:6px;">
+            <div style="padding:9px 10px;background:var(--accent-soft-bg);border:1px solid var(--border);border-radius:var(--r-sm);display:flex;flex-direction:column;gap:6px;">
               <div style="font-size:11.5px;font-weight:800;color:var(--accent);">
                 РЕГИОНАЛЬНАЯ ГРУППА ИЛИ ТОЧКА НА КАРТЕ (НЕОБЯЗАТЕЛЬНО):
               </div>
@@ -5062,9 +5062,9 @@ export function openAuthAndBackupModal(onBackToHub = null) {
               <span style="font-weight:800;font-size:11.5px;color:var(--accent);">СВЯЗКА ПОСТОЯННОГО ID С TELEGRAM:</span>
               <div style="display:flex;align-items:center;gap:4px;">
                 ${ident.isRegistered && (ident.tgLinkedId || tgUser?.id || (ident.isOwner && ident.tgUsername))
-                  ? `<span class="pill pill-good" style="font-size:10.5px;">Связан: ${(ident.tgUsername || tgUser?.username || (ident.isOwner ? 'thorantony82' : '')) ? '@' + (ident.tgUsername || tgUser?.username || 'thorantony82') : 'ID ' + (ident.tgLinkedId || tgUser?.id)}</span>`
-                  : `<span class="pill" style="font-size:10.5px;">Не привязан</span>`}
-                <button type="button" class="btn btn-sm" id="authCheckTgBindBtn" style="padding:2px 7px;font-size:10.5px;min-height:24px;" title="Проверить статус привязки в боте @KlevProClubBot">Проверить</button>
+                  ? `<span class="pill pill-good" style="font-size:11.5px;">Связан: ${(ident.tgUsername || tgUser?.username || (ident.isOwner ? 'thorantony82' : '')) ? '@' + (ident.tgUsername || tgUser?.username || 'thorantony82') : 'ID ' + (ident.tgLinkedId || tgUser?.id)}</span>`
+                  : `<span class="pill" style="font-size:11.5px;">Не привязан</span>`}
+                <button type="button" class="btn btn-sm" id="authCheckTgBindBtn" style="padding:2px 7px;font-size:11.5px;min-height:24px;" title="Проверить статус привязки в боте @KlevProClubBot">Проверить</button>
               </div>
             </div>
             <div style="font-size:11px;color:var(--muted);line-height:1.35;">
@@ -5093,7 +5093,7 @@ export function openAuthAndBackupModal(onBackToHub = null) {
             <div style="font-size:var(--fs-xs);font-weight:800;color:${isGeoDistributionConsentActive() ? 'var(--good)' : 'var(--accent)'};">
               ${isGeoDistributionConsentActive() ? '[✓] Согласие на передачу геолокации в сеть активно' : '[ ] Согласие на передачу геолокации в сеть не выдано'}
             </div>
-            <span class="pill ${isGeoDistributionConsentActive() ? 'pill-good' : 'pill-neutral'}" style="font-size:10px;">152-ФЗ ст. 10.1</span>
+            <span class="pill ${isGeoDistributionConsentActive() ? 'pill-good' : 'pill-neutral'}" style="font-size:11.5px;">152-ФЗ ст. 10.1</span>
           </div>
           <div style="font-size:11px;color:var(--muted);line-height:1.38;">
             Отзыв согласия немедленно удаляет все ранее переданные вами геоданные из «Круга», «Экипажей», «Слипов» и всех чатов.
@@ -5448,20 +5448,20 @@ function renderCompactCircleRow(item, s, ident, now) {
   let rowBorderColor = mine ? 'rgba(16,185,129,0.55)' : 'var(--border)';
   let rowBg = 'var(--card)';
   if (item.t === 'crew' && item.sos) {
-    catBadge = `<span class="pill pill-bad" style="font-size:10px;padding:1px 6px;">SOS</span>`;
+    catBadge = `<span class="pill pill-bad" style="font-size:11.5px;padding:1px 6px;">SOS</span>`;
     titleText = escapeHtml(`${item.lb || 'Водоём'}${item.wn && item.wn !== item.lb ? ` • ${item.wn}` : ''}`);
     subMetaText = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="4.5" stroke="#38bdf8" stroke-width="1.6"/><circle cx="12" cy="12" r="1.8" fill="#10b981"/></svg> ${Number(item.lat).toFixed(3)}°N, ${Number(item.lon).toFixed(3)}°E • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.5 2" stroke="#38bdf8" stroke-width="1.9" stroke-linecap="round"/></svg> ${formatRemainingHours(item.ea)}`;
     rowBorderColor = 'var(--bad)';
     rowBg = 'rgba(239,68,68,0.08)';
   } else if (item.t === 'crew') {
     const cKey = escapeHtml(item.crewKey || formatCrewKeyFromHash(computeCrewKeyHash(item.id)));
-    catBadge = `<span class="pill pill-ice" style="font-size:10px;padding:1px 6px;">Экипаж ${cKey}</span>`;
+    catBadge = `<span class="pill pill-ice" style="font-size:11.5px;padding:1px 6px;">Экипаж ${cKey}</span>`;
     titleText = escapeHtml(`${item.fn || 'Рыба'} • ${item.wn || item.lb || 'Точка'}`);
     subMetaText = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="3" y="8" width="18" height="8" rx="2" transform="rotate(-35 12 12)" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8"/><path d="M8 11l1.5 2M11 9l1.5 2M14 7l1.5 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg> ${Number(item.dp) || 2}м • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> ${Number(item.tw ?? 8)}°C • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.5 2" stroke="#38bdf8" stroke-width="1.9" stroke-linecap="round"/></svg> ${formatRemainingHours(item.ea)}`;
   } else if (item.t === 'spot') {
     const normCat = (item.cat === 'hole' || item.cat === 'spot') ? 'bite' : (item.cat === 'hazard' ? 'danger' : (item.cat || 'slip'));
     const spCat = SPOT_CATEGORIES[normCat] || SPOT_CATEGORIES.slip;
-    catBadge = `<span class="pill" style="font-size:10px;padding:1px 6px;border:1px solid ${spCat.color};color:${spCat.color};">${spCat.icon} ${spCat.short}</span>`;
+    catBadge = `<span class="pill" style="font-size:11.5px;padding:1px 6px;border:1px solid ${spCat.color};color:${spCat.color};">${spCat.icon} ${spCat.short}</span>`;
     titleText = escapeHtml(`${item.wn || item.fn || item.lb || 'Точка на карте'}`);
     const hasDepthForCat = (normCat === 'snag' || normCat === 'bite') && Number(item.dp) > 0;
     const hasClipForCat = normCat === 'slip' && Number(item.clipMeters) > 0;
@@ -5473,18 +5473,18 @@ function renderCompactCircleRow(item, s, ident, now) {
     subMetaText = `${escapeHtml(cleanSpotNote || fallbackSpotMeta)} • ${ageLabel}`;
     rowBorderColor = spCat.color;
   } else if (item.t === 'workshop') {
-    catBadge = `<span class="pill pill-warn" style="font-size:10px;padding:1px 6px;">Снасть</span>`;
+    catBadge = `<span class="pill pill-warn" style="font-size:11.5px;padding:1px 6px;">Снасть</span>`;
     titleText = escapeHtml(`${item.fn || 'Рыба'}: ${(item.rw || 'Монтаж').split(',')[0]}`);
     subMetaText = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 18c0-4 4-4 4-8s4-4 4-6 5-1 5 3-3 5-3 8 4 4 6 2" stroke="#f43f5e" stroke-width="2.2" stroke-linecap="round"/></svg> ${escapeHtml(item.bt || 'приманка')} • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> ${Number(item.twMin ?? 4)}..${Number(item.twMax ?? 16)}°C`;
   } else {
     const decay = getCircleHexDecayState(item, now);
-    catBadge = `<span class="pill pill-good" style="font-size:10px;padding:1px 6px;">⬡ ±${decay.radiusKm}км • ~${decay.hoursLeft}ч</span>`;
+    catBadge = `<span class="pill pill-good" style="font-size:11.5px;padding:1px 6px;">⬡ ±${decay.radiusKm}км • ~${decay.hoursLeft}ч</span>`;
     titleText = escapeHtml(`${item.fn || 'Рыба'}${item.kg ? ` (${item.kg} кг)` : ''} • ${item.wn || item.lb || 'Сектор'}`);
     subMetaText = `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 18c0-4 4-4 4-8s4-4 4-6 5-1 5 3-3 5-3 8 4 4 6 2" stroke="#f43f5e" stroke-width="2.2" stroke-linecap="round"/></svg> ${escapeHtml(item.bt || 'по сезону')} • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> ${Number(item.tw ?? 8)}°C • Свежесть ${Math.round(decay.freshness * 100)}% (${ageLabel})`;
   }
   const ownerPill = mine
-    ? `<span class="pill pill-good" style="font-size:10px;padding:1px 6px;">Моё</span>`
-    : `<span class="pill pill-neutral" style="font-size:10px;padding:1px 6px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" stroke="currentColor" stroke-width="1.6"/></svg> ${authorDisplay}</span>`;
+    ? `<span class="pill pill-good" style="font-size:11.5px;padding:1px 6px;">Моё</span>`
+    : `<span class="pill pill-neutral" style="font-size:11.5px;padding:1px 6px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" stroke="currentColor" stroke-width="1.6"/></svg> ${authorDisplay}</span>`;
   const cKey = item.t === 'crew' && !item.sos ? (item.crewKey || formatCrewKeyFromHash(computeCrewKeyHash(item.id))) : '';
   const canApplyRig = !item.sos && item.t !== 'spot' && Boolean(item.t === 'workshop' || (item.fi && FISH_DB.some(f => f.id === item.fi)));
   return `
@@ -5514,7 +5514,7 @@ function renderCompactCircleRow(item, s, ident, now) {
               <span style="color:var(--muted);font-size:11px;">Активен ещё: <b>${formatRemainingHours(item.ea || (item.ca ? item.ca + 72*3600000 : now + 72*3600000))}</b></span>
             </div>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:6px;margin:2px 0;">
-              <div><b>Точные координаты:</b> <span style="font-family:monospace;font-weight:900;">${Number(item.lat).toFixed(4)}°N, ${Number(item.lon).toFixed(4)}°E</span></div>
+              <div><b>Точные координаты:</b> <span style="font-family:var(--font-mono);font-weight:900;">${Number(item.lat).toFixed(4)}°N, ${Number(item.lon).toFixed(4)}°E</span></div>
               <div><b>Ориентир / Водоём:</b> ${escapeHtml(item.wn || item.lb || 'Водоём')}</div>
               <div><b>Отправитель:</b> ${authorDisplay} (${escapeHtml(itemFid)})</div>
             </div>
@@ -5525,7 +5525,7 @@ function renderCompactCircleRow(item, s, ident, now) {
             </div>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:6px;margin:2px 0;">
               <div><b>Локация:</b> ${escapeHtml(item.lb || 'Водоём')}</div>
-              ${Number.isFinite(Number(item.lat)) && Number.isFinite(Number(item.lon)) ? `<div><b>Координаты:</b> <span style="font-family:monospace;font-weight:800;">${Number(item.lat).toFixed(4)}°N, ${Number(item.lon).toFixed(4)}°E</span></div>` : ''}
+              ${Number.isFinite(Number(item.lat)) && Number.isFinite(Number(item.lon)) ? `<div><b>Координаты:</b> <span style="font-family:var(--font-mono);font-weight:800;">${Number(item.lat).toFixed(4)}°N, ${Number(item.lon).toFixed(4)}°E</span></div>` : ''}
               ${(item.cat === 'snag' || item.cat === 'bite' || item.cat === 'hole') && Number(item.dp) > 0 ? `<div><b>Глубина:</b> ~${Number(item.dp)} м</div>` : ''}
               ${item.cat === 'slip' && Number(item.clipMeters) > 0 ? `<div><b>Дистанция / Клипса:</b> ${Number(item.clipMeters)} м</div>` : ''}
               <div><b>Автор:</b> ${authorDisplay}</div>
@@ -5601,7 +5601,7 @@ export function renderCircleChatsHubBar(activeMode = 'radar') {
     <div class="circle-chats-hub-bar" role="tablist" aria-label="Единый центр связи: Чаты, Круг и Точки">
       <button type="button" class="btn circle-chats-hub-btn ${activeMode === 'chats' ? 'btn-accent' : ''}" data-hub-switch="chats" role="tab" aria-selected="${activeMode === 'chats' ? 'true' : 'false'}">
         <span>Чаты</span>
-        ${unreadChats > 0 ? `<span class="pill pill-bad" style="font-size:10px;padding:1px 5px;margin-left:2px;">+${unreadChats}</span>` : ''}
+        ${unreadChats > 0 ? `<span class="pill pill-bad" style="font-size:11.5px;padding:1px 5px;margin-left:2px;">+${unreadChats}</span>` : ''}
       </button>
       <button type="button" class="btn circle-chats-hub-btn ${activeMode === 'radar' ? 'btn-accent' : ''}" data-hub-switch="radar" role="tab" aria-selected="${activeMode === 'radar' ? 'true' : 'false'}">
         <span>Круг (${radarCount})</span>
@@ -5672,7 +5672,7 @@ export function bindCircleChatsHubBarEvents(container) {
 }
 const _chatAttachSlipSpotBtnTemplate = `
   <button type="button" class="btn" id="chatAttachSlipSpotBtn" title="Добавить слип или точку на карту" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:10px 6px;border-radius:14px;background:var(--panel);border:1px solid var(--border);">
-    <span style="width:42px;height:42px;border-radius:50%;background:rgba(56,189,248,0.16);border:1.5px solid #38bdf8;display:inline-flex;align-items:center;justify-content:center;color:#38bdf8;">
+    <span style="width:42px;height:42px;border-radius:50%;background:var(--accent-soft-bg);border:1.5px solid var(--accent);display:inline-flex;align-items:center;justify-content:center;color:var(--accent);">
       <svg class="k-svg" style="width:20px;height:20px;"><use href="#point-slip"></use></svg>
     </span>
     <span style="font-size:11.5px;font-weight:800;color:var(--text);">Слипы</span>
@@ -5719,7 +5719,7 @@ export function render(container) {
               </div>
 
             </div>
-            <span class="pill pill-warn" style="font-size:10px;">Кластер &lt; 1 км/см</span>
+            <span class="pill pill-warn" style="font-size:11.5px;">Кластер &lt; 1 км/см</span>
           </div>
           <div class="circle-spot-add-grid" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;">
             <button type="button" class="btn btn-sm btn-accent" data-add-spot-cat="slip" style="min-height:38px;font-weight:800;width:100%;justify-content:flex-start;">${SPOT_CATEGORIES.slip.icon} Слип / Спуск лодки</button>
@@ -5782,7 +5782,7 @@ export function render(container) {
         </div>
       ` : `
         <!-- 1. Шапка статуса профиля с симметричной сеткой кнопок 2×2 -->
-        <div style="display:flex;flex-direction:column;gap:8px;padding:10px 12px;background:${ident.isOwner ? 'rgba(16,185,129,0.10)' : (ident.isRegistered ? 'rgba(56,189,248,0.08)' : 'rgba(245,158,11,0.10)')};border:1.5px solid ${ident.isOwner ? 'var(--good)' : (ident.isRegistered ? 'var(--accent)' : 'var(--warn)')};border-radius:var(--r-sm);margin-bottom:12px;">
+        <div style="display:flex;flex-direction:column;gap:8px;padding:10px 12px;background:${ident.isOwner ? 'rgba(16,185,129,0.10)' : (ident.isRegistered ? 'var(--accent-soft-bg)' : 'rgba(245,158,11,0.10)')};border:1.5px solid ${ident.isOwner ? 'var(--good)' : (ident.isRegistered ? 'var(--accent)' : 'var(--warn)')};border-radius:var(--r-sm);margin-bottom:12px;">
           <div>
             <div style="font-weight:800;font-size:var(--fs-xs);color:var(--text);">
               ${ident.isOwner
@@ -5811,14 +5811,14 @@ export function render(container) {
           <button type="button" class="card" data-quick-share="circle" style="text-align:left;cursor:pointer;padding:10px 12px;background:var(--card);border:1.5px solid var(--good);display:flex;flex-direction:column;gap:4px;">
             <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;">
               <span style="font-weight:900;font-size:var(--fs-sm);color:var(--good);">Сводка в Круг (±5 км)</span>
-              <span class="pill pill-good" style="font-size:10px;">Приватно</span>
+              <span class="pill pill-good" style="font-size:11.5px;">Приватно</span>
             </div>
 
           </button>
           <button type="button" class="card" data-quick-share="crew" style="text-align:left;cursor:pointer;padding:10px 12px;background:var(--card);border:1.5px solid var(--accent);display:flex;flex-direction:column;gap:4px;">
             <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;">
               <span style="font-weight:900;font-size:var(--fs-sm);color:var(--accent);">Экипаж (72 ч)</span>
-              <span class="pill pill-ice" style="font-size:10px;">По ключу</span>
+              <span class="pill pill-ice" style="font-size:11.5px;">По ключу</span>
             </div>
 
           </button>
@@ -5915,15 +5915,15 @@ export async function openFullServerWebConsoleModal() {
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;">
           <div class="card" style="padding:8px 10px;background:var(--card);">
             <div style="font-size:18px;font-weight:900;color:var(--good);">${users.length}</div>
-            <div style="font-size:10.5px;color:var(--muted);">Всего рыбаков в БД</div>
+            <div style="font-size:11.5px;color:var(--muted);">Всего рыбаков в БД</div>
           </div>
           <div class="card" style="padding:8px 10px;background:var(--card);">
             <div style="font-size:18px;font-weight:900;color:var(--accent);">${active24h} / ${active7d}</div>
-            <div style="font-size:10.5px;color:var(--muted);">Активны 24ч / 7д</div>
+            <div style="font-size:11.5px;color:var(--muted);">Активны 24ч / 7д</div>
           </div>
           <div class="card" style="padding:8px 10px;background:var(--card);">
             <div style="font-size:18px;font-weight:900;color:var(--warn);">${points.length}</div>
-            <div style="font-size:10.5px;color:var(--muted);">Точек Круга / Экипажей</div>
+            <div style="font-size:11.5px;color:var(--muted);">Точек Круга / Экипажей</div>
           </div>
         </div>
         <div class="card" style="padding:8px 10px;background:var(--card);">
@@ -5952,10 +5952,10 @@ export async function openFullServerWebConsoleModal() {
                   const rowSearch = escapeHtml(`${u.fisherId || ''} ${u.login || ''} ${u.callsign || ''} ${u.tgUsername || ''} ${u.locLabel || ''} ${u.regionCode || ''}`.toLowerCase());
                   return `
                     <tr data-wc-search="${rowSearch}" style="border-bottom:1px solid var(--border);">
-                      <td style="padding:6px;font-family:monospace;font-weight:800;color:${isOwn ? 'var(--good)' : 'var(--accent)'};" data-copy-fisher-id="${escapeHtml(u.fisherId)}">${escapeHtml(u.fisherId)}</td>
+                      <td style="padding:6px;font-family:var(--font-mono);font-weight:800;color:${isOwn ? 'var(--good)' : 'var(--accent)'};" data-copy-fisher-id="${escapeHtml(u.fisherId)}">${escapeHtml(u.fisherId)}</td>
                       <td style="padding:6px;"><b>${escapeHtml(u.login || u.callsign || 'Гость')}</b> ${u.tgUsername ? `<span style="color:var(--accent);">@${escapeHtml(u.tgUsername)}</span>` : ''}</td>
                       <td style="padding:6px;">[${escapeHtml(u.regionCode || 'РФ')}] ${escapeHtml(u.locLabel || 'РФ')}</td>
-                      <td style="padding:6px;">${escapeHtml(u.platform || 'WEB')} <span style="color:var(--muted);font-size:10px;">v${escapeHtml(u.version || APP_VERSION)}</span></td>
+                      <td style="padding:6px;">${escapeHtml(u.platform || 'WEB')} <span style="color:var(--muted);font-size:11.5px;">v${escapeHtml(u.version || APP_VERSION)}</span></td>
                       <td style="padding:6px;text-align:right;">
                         ${isOwn ? '<span style="color:var(--good);font-weight:800;">Владелец</span>' : `<button type="button" class="btn btn-sm" data-wc-del-user="${escapeHtml(u.fisherId)}" style="min-height:24px;padding:1px 7px;color:var(--bad);border-color:var(--bad);">Удалить</button>`}
                       </td>
@@ -5975,8 +5975,8 @@ export async function openFullServerWebConsoleModal() {
                 <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 8px;background:var(--panel);border:1px solid var(--border);border-radius:6px;">
                   <div style="min-width:0;flex:1;">
                     <b>[${escapeHtml(pt.t || 'circle')}] ${escapeHtml(pt.fn || 'Рыба')}</b> • ${escapeHtml(pt.wn || pt.lb || 'Водоём')} •
-                    <span style="font-family:monospace;color:var(--accent);">${escapeHtml(pt.fid || '')}</span> •
-                    <span style="color:var(--muted);font-size:10.5px;">осталось ~${decay.hoursLeft} ч</span>
+                    <span style="font-family:var(--font-mono);color:var(--accent);">${escapeHtml(pt.fid || '')}</span> •
+                    <span style="color:var(--muted);font-size:11.5px;">осталось ~${decay.hoursLeft} ч</span>
                   </div>
                   <button type="button" class="btn btn-sm" data-wc-del-point="${escapeHtml(pt.id)}" style="min-height:24px;padding:1px 7px;color:var(--bad);border-color:var(--bad);">Удалить</button>
                 </div>
@@ -6670,7 +6670,7 @@ function deleteChatChannelWithConfirm(targetChanId, targetTitle, container) {
   const identConfirm = getCurrentFisherIdentity();
   const html = isRegional ? `
     <div style="display:flex;flex-direction:column;gap:10px;font-size:var(--fs-sm);line-height:1.45;">
-      <div style="padding:10px 12px;background:rgba(56,189,248,0.10);border:1px solid var(--accent);border-radius:var(--r-sm);color:var(--text);">
+      <div style="padding:10px 12px;background:var(--accent-soft-bg);border:1px solid var(--accent);border-radius:var(--r-sm);color:var(--text);">
         <b>Управление региональным чатом «${cleanTitle}»</b>:<br>
         Вы можете удалить все свои сообщения из этого регионального чата (как при выходе из чата, так и оставаясь в нём) либо просто скрыть чат на своём устройстве.
       </div>
@@ -8402,7 +8402,7 @@ export function openOffGridCommModal(initialTab = 'timer') {
     bodyEl.innerHTML = `
       <div style="display:flex;flex-direction:column;gap:10px;font-size:var(--fs-sm);">
         ${renderSettingsZoneTabsHtml('offgrid')}
-        <div style="padding:9px 12px;background:rgba(56,189,248,0.10);border:1.5px solid var(--accent);border-radius:var(--r-sm);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+        <div style="padding:9px 12px;background:var(--accent-soft-bg);border:1.5px solid var(--accent);border-radius:var(--r-sm);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
           <div>
             <div style="font-weight:900;color:var(--accent);font-size:12.5px;">
               АВТОНОМНАЯ СВЯЗЬ И АВТО-SOS (ЭТАП 2)
@@ -8411,7 +8411,7 @@ export function openOffGridCommModal(initialTab = 'timer') {
               ID: <b>${ident.fisherId}</b> • Координаты: <b>${Number(curState.lat).toFixed(5)}° N, ${Number(curState.lon).toFixed(5)}° E</b> (${escapeHtml(curState.locLabel || '')})
             </div>
           </div>
-          ${isAdminContourActive() ? '<span class="pill pill-good" style="font-size:10px;font-weight:800;">КОНТУР АДМИНА</span>' : '<span class="pill pill-good" style="font-size:10px;font-weight:800;">АВТОНОМНЫЙ РЕЖИМ</span>'}
+          ${isAdminContourActive() ? '<span class="pill pill-good" style="font-size:11.5px;font-weight:800;">КОНТУР АДМИНА</span>' : '<span class="pill pill-good" style="font-size:11.5px;font-weight:800;">АВТОНОМНЫЙ РЕЖИМ</span>'}
         </div>
 
         <!-- Обмен путевыми точками и глубинами эхолота (.GPX / .KML / .JSON) — перенесён в Фазу 2 (только по бета-тесту) -->
@@ -8443,7 +8443,7 @@ export function openOffGridCommModal(initialTab = 'timer') {
               <div style="font-weight:900;font-size:13px;color:var(--text);">
                 Контрольный таймер возвращения (Авто-SOS на сервере)
               </div>
-              <span class="pill ${dm.active ? (dm.triggered ? 'pill-bad' : 'pill-good') : 'pill-warn'}" id="dmStatusPill" style="font-size:10.5px;font-weight:900;">
+              <span class="pill ${dm.active ? (dm.triggered ? 'pill-bad' : 'pill-good') : 'pill-warn'}" id="dmStatusPill" style="font-size:11.5px;font-weight:900;">
                 ${dm.active ? (dm.triggered ? 'ТРЕВОГА: ВРЕМЯ ИСТЕКЛО' : 'НА КОНТРОЛЕ') : 'ОТКЛЮЧЁН'}
               </span>
             </div>
@@ -8452,8 +8452,8 @@ export function openOffGridCommModal(initialTab = 'timer') {
             </div>
             <div class="klev-sos-timer-info-box" style="padding:10px 12px;background:var(--panel);border:1.5px solid var(--border);border-radius:8px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
               <div>
-                <div style="font-size:10.5px;color:var(--muted);text-transform:uppercase;font-weight:800;">Обратный отсчёт до Авто-SOS:</div>
-                <div id="dmCountdownValue" style="font-family:monospace;font-size:22px;font-weight:900;color:${dm.active ? (dm.triggered ? 'var(--bad)' : 'var(--accent)') : 'var(--muted)'};">
+                <div style="font-size:11.5px;color:var(--muted);text-transform:uppercase;font-weight:800;">Обратный отсчёт до Авто-SOS:</div>
+                <div id="dmCountdownValue" style="font-family:var(--font-mono);font-size:22px;font-weight:900;color:${dm.active ? (dm.triggered ? 'var(--bad)' : 'var(--accent)') : 'var(--muted)'};">
                   ${dm.active ? formatRemainingHms(dm.deadlineMs) : '00:00:00'}
                 </div>
               </div>
@@ -8502,15 +8502,15 @@ export function openOffGridCommModal(initialTab = 'timer') {
           <div class="card" style="padding:12px;border:1.5px solid var(--accent);display:flex;flex-direction:column;gap:10px;">
             <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
               <div style="font-weight:900;font-size:13px;">Акустический радиомодем AFSK (через рацию) и пробой 2G/SMS</div>
-              <span class="pill pill-good" style="font-size:10px;">1200 / 2200 Гц • CRC-16</span>
+              <span class="pill pill-good" style="font-size:11.5px;">1200 / 2200 Гц • CRC-16</span>
             </div>
             <div style="font-size:11.5px;color:var(--muted);line-height:1.42;">
               Позволяет передать точные GPS-координаты и сигнал SOS через любую аналоговую УКВ/КВ рацию (Baofeng, Vector, Аргут, речной/морской диапазон): поднесите динамик смартфона к микрофону рации с зажатой тангентой PTT.
             </div>
             <div class="klev-sos-timer-info-box" style="padding:8px 10px;background:var(--panel);border:1px solid var(--border);border-radius:8px;">
-              <div style="font-size:10.5px;color:var(--muted);font-weight:800;margin-bottom:4px;">СФОРМИРОВАННЫЙ РАДИОКАДР AFSK (${firstAfsk.byteLength} байт, CRC-16: ${firstAfsk.crc}):</div>
-              <div id="afskFrameCode" style="font-family:monospace;font-size:11px;color:var(--accent);font-weight:800;word-break:break-all;">${escapeHtml(firstAfsk.frame)}</div>
-              <canvas id="offgridAfskCanvas" width="360" height="58" style="width:100%;height:58px;margin-top:6px;background:#090d16;border-radius:6px;border:1px solid rgba(56,189,248,0.28);"></canvas>
+              <div style="font-size:11.5px;color:var(--muted);font-weight:800;margin-bottom:4px;">СФОРМИРОВАННЫЙ РАДИОКАДР AFSK (${firstAfsk.byteLength} байт, CRC-16: ${firstAfsk.crc}):</div>
+              <div id="afskFrameCode" style="font-family:var(--font-mono);font-size:11px;color:var(--accent);font-weight:800;word-break:break-all;">${escapeHtml(firstAfsk.frame)}</div>
+              <canvas id="offgridAfskCanvas" width="360" height="58" style="width:100%;height:58px;margin-top:6px;background:#090d16;border-radius:6px;border:1px solid var(--border);"></canvas>
             </div>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px;">
               <button type="button" class="btn btn-accent" id="afskTransmitBtn" style="min-height:40px;font-weight:800;">
@@ -8529,7 +8529,7 @@ export function openOffGridCommModal(initialTab = 'timer') {
             <div style="border-top:1px solid var(--border);padding-top:8px;display:flex;flex-direction:column;gap:8px;">
               <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
                 <span style="font-weight:800;font-size:12px;">Очередь авто-пробоя слабого 2G (Store-and-Forward) и SMS-пакет</span>
-                <span class="pill pill-warn" id="outboxCountBadge" style="font-size:10px;">В очереди: ${outbox.filter(x => x.status !== 'sent').length}</span>
+                <span class="pill pill-warn" id="outboxCountBadge" style="font-size:11.5px;">В очереди: ${outbox.filter(x => x.status !== 'sent').length}</span>
               </div>
               <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:6px;">
                 <button type="button" class="btn btn-sm btn-accent" id="outboxEnqueueBtn" style="min-height:38px;font-weight:800;">
@@ -8542,7 +8542,7 @@ export function openOffGridCommModal(initialTab = 'timer') {
                   Открыть экстренный SMS-пакет
                 </button>
               </div>
-              <div class="klev-sos-timer-info-box" style="font-family:monospace;font-size:10.5px;color:var(--text);padding:6px 8px;background:var(--panel);border:1px solid var(--border);border-radius:6px;word-break:break-all;">
+              <div class="klev-sos-timer-info-box" style="font-family:var(--font-mono);font-size:11.5px;color:var(--text);padding:6px 8px;background:var(--panel);border:1px solid var(--border);border-radius:6px;word-break:break-all;">
                 Текст SMS-пакета: ${escapeHtml(smsBodyStr)}
               </div>
             </div>
@@ -8553,7 +8553,7 @@ export function openOffGridCommModal(initialTab = 'timer') {
           <div class="card" style="padding:12px;border:1.5px solid var(--accent);display:flex;flex-direction:column;gap:10px;">
             <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
               <div style="font-weight:900;font-size:13px;">LoRa Mesh (Meshtastic BLE) и P2P-эстафета через попутчиков (DTN)</div>
-              <span class="pill pill-good" style="font-size:10px;">868 / 433 МГц • Bluetooth LE</span>
+              <span class="pill pill-good" style="font-size:11.5px;">868 / 433 МГц • Bluetooth LE</span>
             </div>
             <div style="font-size:11.5px;color:var(--muted);line-height:1.42;">
               Подключение к внешним карманным LoRa-радиомодемам (Meshtastic T-Beam / Heltec / LilyGo) по Bluetooth LE для связи между лодками на дистанции 10–30 км без сотовых вышек, а также курьерская эстафета запечатанных пакетов через встречных рыбаков.
@@ -8570,8 +8570,8 @@ export function openOffGridCommModal(initialTab = 'timer') {
               Статус Bluetooth LE (UUID 6ba1b218-15a8-461f-9fa8-5dcae273eafd): ${_bleMeshtasticDevice ? `Подключено (${escapeHtml(_bleMeshtasticDevice.name || 'LoRa Node')})` : 'Ожидание подключения LoRa-узла или курьерской капсулы'}
             </div>
             <div>
-              <label style="display:block;font-size:10.5px;font-weight:800;color:var(--muted);margin-bottom:4px;">КАПСУЛА P2P-ЭСТАФЕТЫ (ДЛЯ ПЕРЕДАЧИ ПОПУТНОМУ СУДНУ / СНЕГОХОДУ):</label>
-              <textarea id="dtnCapsuleText" class="input" rows="3" style="font-family:monospace;font-size:11px;width:100%;box-sizing:border-box;" placeholder="Нажмите «Запечатать капсулу P2P-эстафеты» или вставьте полученную от другого рыбака капсулу KP2GCM..."></textarea>
+              <label style="display:block;font-size:11.5px;font-weight:800;color:var(--muted);margin-bottom:4px;">КАПСУЛА P2P-ЭСТАФЕТЫ (ДЛЯ ПЕРЕДАЧИ ПОПУТНОМУ СУДНУ / СНЕГОХОДУ):</label>
+              <textarea id="dtnCapsuleText" class="input" rows="3" style="font-family:var(--font-mono);font-size:11px;width:100%;box-sizing:border-box;" placeholder="Нажмите «Запечатать капсулу P2P-эстафеты» или вставьте полученную от другого рыбака капсулу KP2GCM..."></textarea>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
               <button type="button" class="btn btn-sm" id="dtnAcceptCourierBtn" style="min-height:38px;font-weight:800;">
@@ -8588,7 +8588,7 @@ export function openOffGridCommModal(initialTab = 'timer') {
           <div class="card" style="padding:12px;border:1.5px solid #10b981;display:flex;flex-direction:column;gap:10px;">
             <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
               <div style="font-weight:900;font-size:13px;">Крипто-ядро Zero-Trust (ECDSA P-256 + AES-256-GCM + Anti-Replay)</div>
-              <span class="pill pill-good" style="font-size:10px;">WebCrypto API • Стандарт P-256</span>
+              <span class="pill pill-good" style="font-size:11.5px;">WebCrypto API • Стандарт P-256</span>
             </div>
             <div style="font-size:11.5px;color:var(--muted);line-height:1.42;">
               Каждый экстренный и навигационный пакет подписывается личным асимметричным ключом <b>ECDSA P-256 (SHA-256)</b> и шифруется <b>AES-256-GCM (PBKDF2 100 000 итераций)</b>. Любое изменение координат на 1 бит в эфире или повторная отправка старого пакета мгновенно отсекаются.
@@ -8606,7 +8606,7 @@ export function openOffGridCommModal(initialTab = 'timer') {
           <div class="card" style="padding:12px;border:1.5px solid var(--bad);display:flex;flex-direction:column;gap:10px;">
             <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
               <div style="font-weight:900;font-size:13px;">Полевой маяк выживания и офлайн-пеленгатор выхода</div>
-              <span class="pill pill-bad" style="font-size:10px;">Морзе SOS • 3000 Гц</span>
+              <span class="pill pill-bad" style="font-size:11.5px;">Морзе SOS • 3000 Гц</span>
             </div>
             <div id="survivalStrobeBox" class="klev-sos-timer-info-box" style="padding:14px;background:var(--panel);border:2px solid var(--border);border-radius:10px;text-align:center;color:var(--text);transition:background 0.08s ease;">
               <div style="font-weight:900;font-size:15px;letter-spacing:2px;" id="survivalStrobeLabel">ОПТИЧЕСКИЙ МАЯК МОРЗЕ SOS (• • • — — — • • •)</div>
@@ -9088,9 +9088,9 @@ export function openOffGridCommModal(initialTab = 'timer') {
               <div style="padding:6px 8px;background:rgba(15,23,42,0.8);border:1px solid rgba(16,185,129,0.35);border-radius:6px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
                 <div>
                   <div style="font-weight:800;font-size:11.5px;">${escapeHtml(r.step)}</div>
-                  <div style="font-size:10.5px;color:var(--muted);font-family:monospace;">${escapeHtml(r.detail)}</div>
+                  <div style="font-size:11.5px;color:var(--muted);font-family:var(--font-mono);">${escapeHtml(r.detail)}</div>
                 </div>
-                <span class="pill pill-good" style="font-size:9.5px;font-weight:900;">${escapeHtml(r.status)}</span>
+                <span class="pill pill-good" style="font-size:11px;font-weight:900;">${escapeHtml(r.status)}</span>
               </div>
             `).join('')}
           </div>

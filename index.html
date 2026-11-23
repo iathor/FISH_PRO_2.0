@@ -71,7 +71,7 @@
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta http-equiv="X-Content-Type-Options" content="nosniff">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: blob:; object-src 'none'; base-uri 'self'; script-src 'self' 'unsafe-inline' https://telegram.org https://yastatic.net https://cdn.jsdelivr.net https://appassets.androidplatform.net; style-src 'self' 'unsafe-inline' https://yastatic.net https://cdn.jsdelivr.net https://appassets.androidplatform.net; img-src 'self' data: blob: https:; connect-src 'self' https: data: blob: https://klevpro.ru https://www.klevpro.ru https://xn--b1apdneg0j.xn--p1ai https://api.github.com https://klevprohbot.thorantony82.workers.dev https://*.workers.dev https://generativelanguage.googleapis.com https://text.pollinations.ai https://ia-thor.github.io https://api.open-meteo.com https://archive-api.open-meteo.com https://api.met.no https://allorigins.hexlet.app https://*.hexlet.app https://corsproxy-seven.vercel.app https://every-origin.vercel.app https://*.vercel.app https://script.google.com https://script.googleusercontent.com https://*.yandexcloud.net https://maps.mail.ru https://overpass.kumi.systems https://overpass.private.coffee https://overpass-api.de https://nominatim.openstreetmap.org https://api.bigdatacloud.net https://ipwho.is https://ipapi.co https://raw.githubusercontent.com https://github.com https://*.githubusercontent.com https://appassets.androidplatform.net;">
-    <meta http-equiv="Content-Security-Policy-Report-Only" content="default-src 'self' https: data: blob:; script-src 'self' https://telegram.org https://yastatic.net https://cdn.jsdelivr.net 'unsafe-inline' 'sha256-pWKZ46dD0R3uv61NCqhg1MHP4J923JawuTmmWbluAow=' 'sha256-rifi5STemlllT2G412oIzKP1XxKzD9F3mFCqMiZmxPw=' 'sha256-wZnFVYkkhVSUo+fUPtl94rKI/HaIucciLCBX3AmND/Q=' 'sha256-OG7YhXtKbyYnZ5GautT/oaA7nAp5wnCu8KFhe6u08fM=' 'sha256-Q/auiEQiE8rU0ewycQaOnEtBXLOMe6wEDXa95O6E7oI='; style-src 'self' https: 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'self' https: wss:;">
+    <meta http-equiv="Content-Security-Policy-Report-Only" content="default-src 'self' https: data: blob:; script-src 'self' https://telegram.org https://yastatic.net https://cdn.jsdelivr.net 'unsafe-inline' 'sha256-pWKZ46dD0R3uv61NCqhg1MHP4J923JawuTmmWbluAow=' 'sha256-UcAEs6jYbmpRCnDiVJUxvDOzFRG0mAKmc2rU0uB0csI=' 'sha256-wZnFVYkkhVSUo+fUPtl94rKI/HaIucciLCBX3AmND/Q=' 'sha256-OG7YhXtKbyYnZ5GautT/oaA7nAp5wnCu8KFhe6u08fM=' 'sha256-Q/auiEQiE8rU0ewycQaOnEtBXLOMe6wEDXa95O6E7oI='; style-src 'self' https: 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'self' https: wss:;">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
   <meta name="theme-color" content="#0b1120">
   <meta name="mobile-web-app-capable" content="yes">
@@ -108,7 +108,7 @@
     "applicationCategory": "SportsApplication",
     "operatingSystem": "Android, iOS, Windows, Web",
     "inLanguage": "ru-RU",
-    "softwareVersion": "2.9.2-r256",
+    "softwareVersion": "2.9.2-r257",
     "contentRating": "12+",
     "image": "https://klevpro.ru/icon-512.png",
     "downloadUrl": "https://klevpro.ru/apk/klev-pro-v2.9.2.apk",
@@ -120,9 +120,9 @@
   }
   </script>
   <script src="https://telegram.org/js/telegram-web-app.js" async onload="window.__KLEV_ON_TG_SDK_LOAD__&&window.__KLEV_ON_TG_SDK_LOAD__()"></script>
-  <link rel="manifest" href="manifest.json?v=2.9.2-r256">
-  <link id="dynamicFavicon" rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=2.9.2-r256">
-  <link id="dynamicTouchIcon" rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=2.9.2-r256">
+  <link rel="manifest" href="manifest.json?v=2.9.2-r257">
+  <link id="dynamicFavicon" rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=2.9.2-r257">
+  <link id="dynamicTouchIcon" rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=2.9.2-r257">
   <script>
     window.__KLEV_ADMIN_CONTOUR__ = false;
     (function() {
@@ -202,7 +202,7 @@
         if ((inApkNow || localStorage.getItem(MIGRATION_KEY) !== '1') && 'caches' in window) {
           caches.keys().then(function(keys) {
             return Promise.all(
-              keys.map(function(k) { return (k === 'klev-pro-v2.9.2-r256-static' && !inApkNow) ? Promise.resolve() : caches.delete(k); })
+              keys.map(function(k) { return (k === 'klev-pro-v2.9.2-r257-static' && !inApkNow) ? Promise.resolve() : caches.delete(k); })
             );
           }).then(function() {
             localStorage.setItem(MIGRATION_KEY, '1');
@@ -211,10 +211,10 @@
       } catch (e) {}
     })();
   </script>
-  <link rel="stylesheet" href="css/tokens.css?v=2.9.2-r256">
-  <link rel="stylesheet" href="css/base.css?v=2.9.2-r256">
-  <link rel="stylesheet" href="css/components.css?v=2.9.2-r256">
-  <link rel="stylesheet" href="css/layout.css?v=2.9.2-r256">
+  <link rel="stylesheet" href="css/tokens.css?v=2.9.2-r257">
+  <link rel="stylesheet" href="css/base.css?v=2.9.2-r257">
+  <link rel="stylesheet" href="css/components.css?v=2.9.2-r257">
+  <link rel="stylesheet" href="css/layout.css?v=2.9.2-r257">
   <style id="klevCoreBundledCss">
 :root,
 [data-theme="dark"] {
@@ -228,6 +228,8 @@
   --muted: #94b8d7;
   --accent: #00e5ff;
   --accent-strong: #0284c7;
+  --accent-soft-bg: rgba(0, 229, 255, 0.12);
+  --accent-glow: rgba(56, 189, 248, 0.28);
   --good: #00e676;
   --warn: #ffb300;
   --bad: #ff5252;
@@ -261,6 +263,7 @@
   --pill-ice-text: #7dd3fc;
 
   --font-ui: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   --fs-xs: 13px;
   --fs-sm: 15px;
   --fs-md: 17px;
@@ -285,6 +288,8 @@
   --muted: #4b6584;
   --accent: #2563eb;
   --accent-strong: #1d4ed8;
+  --accent-soft-bg: rgba(37, 99, 235, 0.10);
+  --accent-glow: rgba(37, 99, 235, 0.20);
   --good: #10b981;
   --warn: #d97706;
   --bad: #dc2626;
@@ -317,27 +322,31 @@
   --pill-ice-bg: #e0f2fe;
   --pill-ice-text: #0369a1;
 
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
   --shadow-card: 0 6px 18px 0 rgba(20, 45, 76, 0.08);
   --shadow-header: 0 3px 14px 0 rgba(20, 45, 76, 0.10);
 }
 
 [data-theme="contrast"] {
-  /* Смягчённая тактическая контрастная схема (без резкого оранжевого «пчелиного жала»):
-     глубокий графитово-сланцевый фон, мягкий тёплый янтарь, спокойный изумруд и бирюза */
+  /* Смягчённая тактическая контрастная схема OLED:
+     глубокий графитово-сланцевый непрозрачный фон, мягкий тёплый янтарь, спокойный изумруд и бирюза */
   --bg: #0f1520;
   --bg-grad: linear-gradient(180deg, #111827 0%, #0d131d 55%, #090e16 100%);
-  --panel: rgba(20, 28, 42, 0.96);
-  --card: rgba(26, 36, 54, 0.94);
+  --panel: #121926;
+  --card: #182232;
   --input-bg: #0d131f;
   --text: #f8fafc;
   --muted: #a3b8cc;
   --accent: #f59e0b;
   --accent-strong: #b45309;
+  --accent-soft-bg: rgba(245, 158, 11, 0.14);
+  --accent-glow: rgba(245, 158, 11, 0.30);
   --good: #10b981;
   --warn: #eab308;
   --bad: #ef4444;
   --ice: #38bdf8;
-  --border: rgba(245, 158, 11, 0.26);
+  --border: rgba(245, 158, 11, 0.28);
 
   --hex-bg: #172030;
   --hex-fish: #fbbf24;
@@ -349,7 +358,7 @@
   --wave-fill-bot: rgba(245, 158, 11, 0.03);
   --bento-hero-border: rgba(245, 158, 11, 0.36);
   --bento-chart-border: rgba(16, 185, 129, 0.34);
-  --bento-radar-border: rgba(56, 189, 248, 0.34);
+  --bento-radar-border: rgba(245, 158, 11, 0.34);
   --bento-weather-border: rgba(16, 185, 129, 0.34);
 
   --chip-bg: #172133;
@@ -365,6 +374,8 @@
   --pill-ice-bg: rgba(56, 189, 248, 0.18);
   --pill-ice-text: #7dd3fc;
 
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
   --shadow-card: 0 6px 18px rgba(0, 0, 0, 0.50);
   --shadow-header: 0 3px 14px rgba(0, 0, 0, 0.60);
 }
@@ -375,6 +386,10 @@
   padding: 0;
   font-family: var(--font-ui);
   -webkit-tap-highlight-color: transparent;
+}
+
+code, pre {
+  font-family: var(--font-mono);
 }
 
 html {
@@ -643,7 +658,7 @@ input[type="checkbox"], input[type="radio"] {
 .fish-card:hover { border-color: var(--accent); transform: translateY(-2px); }
 .fish-card.active {
   border-color: var(--accent);
-  background: rgba(56, 189, 248, 0.12);
+  background: var(--accent-soft-bg);
   box-shadow: 0 0 0 2px var(--accent);
 }
 .fish-card.redbook-muted {
@@ -747,7 +762,7 @@ input[type="checkbox"], input[type="radio"] {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 800;
   color: var(--accent);
   background: rgba(15, 23, 42, 0.82);
@@ -1157,10 +1172,10 @@ input[type="checkbox"], input[type="radio"] {
   border-color: var(--accent);
 }
 .cw-date-plaque.active {
-  background: rgba(56, 189, 248, 0.22);
+  background: var(--accent-soft-bg);
   border-color: var(--accent);
-  color: #ffffff;
-  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.25);
+  color: var(--text);
+  box-shadow: 0 0 0 1px var(--accent-glow);
 }
 .modal-chip-wrap {
   display: flex;
@@ -1235,7 +1250,7 @@ input[type="checkbox"], input[type="radio"] {
 .settings-hub-card:hover,
 .settings-hub-card:active {
   border-color: var(--accent);
-  background: rgba(56, 189, 248, 0.08);
+  background: var(--accent-soft-bg);
 }
 .settings-hub-card-icon {
   font-size: 22px;
@@ -1476,6 +1491,19 @@ a:hover {
     inset 0 -2px 4px rgba(0, 0, 0, 0.40) !important;
 }
 
+/* Опасные / Удаляющие 3D-кнопки (.btn-danger) */
+.btn-danger,
+.btn.btn-danger {
+  background: linear-gradient(180deg, #ef4444 0%, #dc2626 55%, #b91c1c 100%) !important;
+  border-color: #fca5a5 !important;
+  color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  box-shadow:
+    0 6px 16px rgba(220, 38, 38, 0.40),
+    inset 0 1.5px 1.5px rgba(255, 255, 255, 0.48),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.42) !important;
+}
+
 /* Выпуклые стеклянные чипы (.w-chip) */
 .w-chip {
   background: linear-gradient(180deg, rgba(28, 52, 84, 0.85) 0%, rgba(12, 25, 45, 0.94) 100%);
@@ -1527,7 +1555,7 @@ a:hover {
   border-color: var(--accent);
   box-shadow:
     inset 0 2px 5px rgba(0, 0, 0, 0.55),
-    0 0 0 2px rgba(56, 189, 248, 0.25);
+    0 0 0 2px var(--accent-glow);
 }
 [data-theme="light"] .input, [data-theme="light"] select {
   background: linear-gradient(180deg, #eef5fc 0%, #ffffff 100%);
@@ -1637,6 +1665,15 @@ html[data-liquid-glass="1"] .btn.btn-good {
     inset 0 2px 2px rgba(255, 255, 255, 0.52),
     inset 0 -2px 5px rgba(0, 0, 0, 0.35),
     0 6px 16px rgba(16, 185, 129, 0.36);
+}
+html[data-liquid-glass="1"] .btn.btn-danger {
+  background: linear-gradient(155deg, rgba(239, 68, 68, 0.88) 0%, rgba(220, 38, 38, 0.84) 55%, rgba(185, 28, 28, 0.92) 100%) !important;
+  border-color: rgba(254, 202, 202, 0.72) !important;
+  color: #ffffff !important;
+  box-shadow:
+    inset 0 1.5px 1.5px rgba(255, 255, 255, 0.48),
+    inset 0 -2px 5px rgba(0, 0, 0, 0.35),
+    0 6px 16px rgba(220, 38, 38, 0.36) !important;
 }
 html[data-liquid-glass="1"] .w-chip {
   background: linear-gradient(155deg, rgba(56, 189, 248, 0.14) 0%, rgba(22, 40, 64, 0.66) 100%);
@@ -1749,7 +1786,7 @@ html[data-liquid-glass="0"] .bottom-nav-inner {
   gap: 5px;
 }
 .klev-select-group-lbl {
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 900;
   color: var(--muted);
   text-transform: uppercase;
@@ -1782,10 +1819,10 @@ html[data-liquid-glass="0"] .bottom-nav-inner {
 }
 .klev-select-opt.selected {
   border-color: var(--accent);
-  background: rgba(56, 189, 248, 0.15);
+  background: var(--accent-soft-bg);
   color: var(--text);
   font-weight: 900;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 0 0 1px rgba(56, 189, 248, 0.28);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 0 0 1px var(--accent-glow);
 }
 .klev-select-check {
   width: 20px;
@@ -1857,6 +1894,15 @@ html[data-liquid-glass="0"] .bottom-nav-inner {
   color: #475569 !important;
   font-weight: 700 !important;
 }
+[data-theme="contrast"] .leaflet-popup-content-wrapper {
+  background: #121926 !important;
+  color: #f8fafc !important;
+  border: 1.5px solid rgba(245, 158, 11, 0.48) !important;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.78) !important;
+}
+[data-theme="contrast"] .leaflet-popup-tip {
+  background: #121926 !important;
+}
 #mapBox[data-ymap-hydro="1"] img.klev-base-tile-layer {
   filter: contrast(1.22) saturate(1.38);
 }
@@ -1915,6 +1961,753 @@ html[data-liquid-glass="0"] .bottom-nav-inner {
   font-family: var(--font-ui) !important;
   -webkit-text-size-adjust: 100% !important;
   text-size-adjust: 100% !important;
+}
+
+
+/* ==========================================================================
+   КЛЁВ ПРО 2.0 • v2.9.1 (r241) TACTILE GLASSMORPHISM REDESIGN
+   Мобильная, планшетная и складная (Flip/Fold) версии по эталону Видео 1
+   с полным сохранением десктопной веб-версии (html[data-desktop-web="1"])
+   ========================================================================== */
+
+/* 1. Отключаем тяжёлую GPU-перерастеризацию огромных секций (устранение тормозов и фризов при переключении вкладок) */
+.klev-sec-slide-right,
+.klev-sec-slide-left,
+.klev-sec-slide-fade {
+  animation: none !important;
+  transform: none !important;
+  will-change: auto !important;
+  opacity: 1 !important;
+}
+
+/* 2. На мобильных и планшетах скрываем старую двухэтажную шапку .app-header */
+html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .app-header {
+  display: none !important;
+}
+
+html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) body {
+  padding-top: max(8px, env(safe-area-inset-top, 8px)) !important;
+  padding-bottom: calc(74px + env(safe-area-inset-bottom, 0px)) !important;
+}
+
+/* На десктопе скрываем мобильные шапки вложенных экранов и кнопку Меню нижнего дока */
+html[data-desktop-web="1"] .klev-mobile-subscreen-bar,
+html[data-desktop-web="1"] .klev-fc-subtabs-bar,
+html[data-desktop-web="1"] #bottomNavMenuTriggerBtn,
+html[data-desktop-web="1"] #klevCompactMenuBackdrop {
+  display: none !important;
+}
+
+/* 3. Постоянный нижний док из 4 разделов (Прогноз, Карта, Журнал, Меню) высотой 64px с монохромными SVG-иконками UX_UI */
+html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav {
+  position: fixed !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  height: calc(64px + env(safe-area-inset-bottom, 0px)) !important;
+  padding: 0 8px env(safe-area-inset-bottom, 0px) !important;
+  background: rgba(15, 23, 42, 0.90) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border-top: 1px solid rgba(148, 163, 184, 0.18) !important;
+  border-radius: 0 !important;
+  z-index: 4600 !important;
+  transform: none !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+html[data-theme="light"]:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border-top-color: rgba(15, 23, 42, 0.12) !important;
+}
+
+html[data-theme="contrast"]:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav {
+  background: rgba(8, 8, 8, 0.96) !important;
+  border-top-color: rgba(245, 158, 11, 0.28) !important;
+}
+
+html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav .quick-dock-tab-label,
+html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav #navCircleChatsHubBtn,
+html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav #bottomQuickSosBtn,
+html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav .klev-nav-glider {
+  display: none !important;
+}
+
+html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav-inner {
+  width: 100% !important;
+  display: grid !important;
+  grid-template-columns: repeat(4, 1fr) !important;
+  align-items: center !important;
+  gap: 4px !important;
+}
+
+html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav #navForecastMainBtn { order: 1; }
+html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav [data-nav-tab="geo"] { order: 2; }
+html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav [data-nav-tab="log"] { order: 3; }
+html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav #bottomNavMenuTriggerBtn { order: 4; }
+
+html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav .nav-tab {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: var(--muted) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 3px !important;
+  padding: 4px 2px !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+}
+
+html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav .nav-tab.active {
+  color: var(--accent) !important;
+  font-weight: 800 !important;
+}
+
+html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav .nav-tab.active .dock-ico svg {
+  filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.45));
+}
+
+html[data-theme="contrast"]:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav .nav-tab.active .dock-ico svg {
+  filter: drop-shadow(0 0 8px rgba(245, 158, 11, 0.55));
+}
+
+/* 4. Кнопки и панели на Карте (#secGeo) в едином стиле UX_UI Tactile Glassmorphism */
+.klev-arc-map-stage .klev-arc-icon-btn {
+  width: 46px !important;
+  height: 46px !important;
+  border-radius: 50% !important;
+  color: var(--text) !important;
+}
+
+.klev-arc-map-stage .klev-arc-icon-btn svg,
+.klev-arc-map-stage #arcBtnWeather svg,
+.klev-arc-map-stage #arcBtnSearchToggle svg {
+  stroke: currentColor !important;
+  fill: none !important;
+}
+
+.klev-arc-map-stage #arcPopoverTransport .btn,
+.klev-arc-map-stage #arcPopoverLayers .btn,
+.klev-arc-map-stage #arcPopoverSpotGrid .btn {
+  background: var(--card) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 14px !important;
+  color: var(--text) !important;
+  box-shadow: none !important;
+}
+
+.klev-arc-map-stage #arcPopoverTransport .btn.btn-accent,
+.klev-arc-map-stage #arcPopoverLayers .btn.btn-accent,
+.klev-arc-map-stage #arcPopoverSpotGrid .btn.btn-accent {
+  background: var(--accent-soft-bg) !important;
+  border-color: var(--accent) !important;
+  color: var(--accent) !important;
+  box-shadow: 0 0 12px var(--accent-glow) !important;
+}
+
+/* 5. Компоненты Tactile Glassmorphism (линзы, пилюли, сегменты, переключатели .klev-switch) */
+.k-svg {
+  width: 22px;
+  height: 22px;
+  stroke: currentColor;
+  stroke-width: 1.6px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+  flex-shrink: 0;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--good, #10B981);
+  box-shadow: 0 0 8px var(--good, #10B981);
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.code-tag {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 7px;
+  background: var(--accent-soft-bg);
+  color: var(--accent, #38BDF8);
+  white-space: nowrap;
+}
+
+.subscreen-nav-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid var(--border);
+}
+
+.glass-panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  transition: border-color 0.18s ease;
+}
+
+.pill-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 7px 13px;
+  border-radius: 9999px;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--text);
+  transition: border-color 0.18s ease, color 0.18s ease;
+}
+
+.pill-btn.active {
+  border-color: var(--accent);
+  background: var(--accent-soft-bg);
+  color: var(--accent);
+  box-shadow: 0 0 14px var(--accent-glow);
+}
+
+.compact-menu-seg-stack {
+  display: grid;
+  grid-template-columns: 1.38fr 1fr;
+  gap: 6px;
+  width: 100%;
+}
+
+@media (max-width: 380px) {
+  .compact-menu-seg-stack {
+    grid-template-columns: 1fr;
+  }
+}
+
+.seg-bar {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  align-items: center;
+  background: rgba(15, 23, 42, 0.42);
+  border: 1px solid var(--border);
+  border-radius: 9999px;
+  padding: 3px;
+  gap: 2px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+html[data-theme="light"] .seg-bar {
+  background: rgba(226, 232, 240, 0.78);
+}
+
+.seg-btn {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  padding: 7px 2px;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: all 0.16s ease;
+  text-align: center;
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+  letter-spacing: -0.15px;
+}
+
+.seg-btn.active {
+  background: var(--card);
+  border-color: var(--accent);
+  color: var(--text);
+  font-weight: 800;
+  box-shadow: 0 2px 10px var(--accent-glow);
+}
+
+.cta-full-btn {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 16px;
+  font-size: 13.5px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  cursor: pointer;
+  background: var(--card);
+  border: 1.5px solid var(--accent);
+  color: var(--text);
+  box-shadow: 0 4px 16px var(--accent-glow);
+}
+
+.chart-floating-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border-radius: 9999px;
+  font-size: 11.5px;
+  font-weight: 800;
+  background: var(--panel);
+  border: 1px solid var(--accent);
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Тумблер-переключатель (.klev-switch + глобальная замена всех чекбоксов на переключатель) */
+.klev-switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.klev-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+.klev-switch-slider {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.28);
+  border: 1px solid var(--border);
+  transition: all 0.22s ease;
+}
+.klev-switch-slider::before {
+  content: "";
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  left: 2px;
+  top: 2px;
+  border-radius: 50%;
+  background: #E2E8F0;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.35);
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), background 0.22s ease;
+}
+.klev-switch input:checked + .klev-switch-slider {
+  background: var(--accent-soft-bg);
+  border-color: var(--accent);
+}
+.klev-switch input:checked + .klev-switch-slider::before {
+  transform: translateX(20px);
+  background: var(--accent);
+}
+
+
+
+/* 6. 6 однострочных мини-плашек внизу карты */
+.map-single-pill {
+  flex-shrink: 0;
+  padding: 9px 14px;
+  border-radius: 9999px;
+  font-size: 12.5px;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+  background: var(--card);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  color: var(--text);
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+.map-single-pill.active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* 7. Компактное всплывающее Меню над нижним доком (всегда фиксировано во вьюпорте, z-index 4500) */
+.compact-menu-backdrop {
+  position: fixed !important;
+  left: 0 !important;
+  right: 0 !important;
+  top: 0 !important;
+  bottom: calc(64px + env(safe-area-inset-bottom, 0px)) !important;
+  z-index: 4500 !important;
+  background: rgba(4, 9, 18, 0.72);
+  display: none;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 10px 12px;
+}
+.compact-menu-backdrop.open {
+  display: flex !important;
+}
+.compact-menu-popover {
+  width: 100%;
+  max-width: 410px;
+  padding: 13px 14px 14px;
+  border-radius: 24px;
+  background: var(--panel);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1.5px solid var(--accent);
+  box-shadow: 0 -10px 34px rgba(0, 0, 0, 0.65), 0 0 22px var(--accent-glow);
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+.sheet-grabber {
+  width: 38px;
+  height: 4px;
+  border-radius: 99px;
+  background: rgba(148, 163, 184, 0.38);
+  margin: 0 auto 2px;
+}
+.menu-grid-5 {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0;
+  padding: 6px 0;
+  width: 100%;
+  align-items: center;
+  justify-items: center;
+}
+.lens-item-wrap {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  cursor: pointer;
+  user-select: none;
+}
+.lens-btn {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.32);
+  color: var(--text);
+  transition: transform 0.16s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.lens-btn:active {
+  transform: scale(0.94);
+}
+.lens-btn.active {
+  border-color: var(--accent);
+  background: var(--accent-soft-bg);
+  color: var(--accent);
+  box-shadow: 0 0 18px var(--accent-glow);
+}
+.lens-btn svg {
+  width: 27px;
+  height: 27px;
+  stroke: currentColor;
+  stroke-width: 1.75px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+.lens-label {
+  display: none !important;
+}
+.sos-hold-track {
+  position: relative;
+  width: 100%;
+  height: 48px;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, rgba(127, 29, 29, 0.78), rgba(69, 10, 10, 0.90));
+  border: 1px solid rgba(248, 113, 113, 0.50);
+  box-shadow: 0 0 18px rgba(239, 68, 68, 0.24);
+  display: flex;
+  align-items: center;
+  padding: 5px;
+  overflow: hidden;
+  cursor: pointer;
+  user-select: none;
+  touch-action: none;
+}
+.sos-hold-progress {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 0%;
+  background: linear-gradient(90deg, rgba(239, 68, 68, 0.65), rgba(245, 158, 11, 0.75));
+  pointer-events: none;
+}
+.sos-hold-knob {
+  position: relative;
+  z-index: 2;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 25%, #F87171, #DC2626);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #FFFFFF;
+  flex-shrink: 0;
+}
+.sos-hold-text {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  text-align: center;
+  font-size: 12.5px;
+  font-weight: 800;
+  color: #FEE2E2;
+  padding-right: 18px;
+}
+
+/* 8. Горизонтальный режим (Landscape) для планшетов, больших смартфонов и раскладушек (Flip / Fold) */
+.klev-fc-mobile-bento-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+@media (orientation: landscape) and (max-width: 1180px) {
+  html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .klev-fc-mobile-bento-grid {
+    display: grid !important;
+    grid-template-columns: minmax(260px, 320px) minmax(0, 1fr) !important;
+    gap: 12px !important;
+    align-items: start !important;
+  }
+  html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) #bentoHeroSonarStage,
+  html:not([data-desktop-web="1"]):not([data-admin-contour="1"]) #bentoHeroSonarCanvas {
+    width: 196px !important;
+    height: 196px !important;
+  }
+}
+
+
+/* 9. Полноценный режим «Стекло (Liquid Glass)» vs «Обычный (Tactile Matte)» для всех новых компонентов */
+html[data-liquid-glass="1"] .klev-arc-glass,
+html[data-liquid-glass="1"] .map-single-pill,
+html[data-liquid-glass="1"] .lens-btn,
+html[data-liquid-glass="1"] .compact-menu-popover,
+html[data-liquid-glass="1"] .glass-panel,
+html[data-liquid-glass="1"] .pill-btn,
+html[data-liquid-glass="1"] .seg-bar,
+html[data-liquid-glass="1"] .klev-arc-map-stage #arcPopoverTransport .btn,
+html[data-liquid-glass="1"] .klev-arc-map-stage #arcPopoverLayers .btn,
+html[data-liquid-glass="1"] .klev-arc-map-stage #arcPopoverSpotGrid .btn {
+  background:
+    radial-gradient(120% 80% at 30% 8%, rgba(255, 255, 255, 0.24) 0%, rgba(255, 255, 255, 0) 58%),
+    linear-gradient(155deg, rgba(40, 74, 118, 0.56) 0%, rgba(16, 33, 58, 0.68) 55%, rgba(8, 18, 34, 0.78) 100%) !important;
+  backdrop-filter: blur(24px) saturate(190%) brightness(1.06) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(190%) brightness(1.06) !important;
+  border: 1.5px solid rgba(148, 226, 255, 0.46) !important;
+  box-shadow:
+    inset 0 1.5px 1.5px rgba(255, 255, 255, 0.54),
+    inset 1px 0 1px rgba(255, 255, 255, 0.22),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.44),
+    inset 0 -1px 1.5px rgba(56, 189, 248, 0.28),
+    0 10px 26px rgba(2, 8, 20, 0.46) !important;
+}
+
+html[data-liquid-glass="1"]:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav {
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0) 65%),
+    rgba(12, 24, 44, 0.64) !important;
+  backdrop-filter: blur(24px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(190%) !important;
+  border-top: 1.5px solid rgba(148, 226, 255, 0.36) !important;
+  box-shadow: inset 0 1.5px 1px rgba(255, 255, 255, 0.32), 0 -8px 24px rgba(0, 0, 0, 0.38) !important;
+}
+
+html[data-liquid-glass="1"][data-theme="light"] .klev-arc-glass,
+html[data-liquid-glass="1"][data-theme="light"] .map-single-pill,
+html[data-liquid-glass="1"][data-theme="light"] .lens-btn,
+html[data-liquid-glass="1"][data-theme="light"] .compact-menu-popover,
+html[data-liquid-glass="1"][data-theme="light"] .glass-panel,
+html[data-liquid-glass="1"][data-theme="light"] .pill-btn,
+html[data-liquid-glass="1"][data-theme="light"] .seg-bar,
+html[data-liquid-glass="1"][data-theme="light"] .klev-arc-map-stage #arcPopoverTransport .btn,
+html[data-liquid-glass="1"][data-theme="light"] .klev-arc-map-stage #arcPopoverLayers .btn,
+html[data-liquid-glass="1"][data-theme="light"] .klev-arc-map-stage #arcPopoverSpotGrid .btn {
+  background:
+    radial-gradient(120% 80% at 30% 8%, rgba(255, 255, 255, 0.85) 0%, rgba(255, 255, 255, 0) 60%),
+    linear-gradient(155deg, rgba(255, 255, 255, 0.72) 0%, rgba(226, 242, 255, 0.62) 100%) !important;
+  border-color: rgba(56, 189, 248, 0.45) !important;
+  box-shadow:
+    inset 0 1.5px 1px rgba(255, 255, 255, 0.96),
+    inset 0 -1.5px 3px rgba(2, 132, 199, 0.14),
+    0 8px 22px rgba(15, 38, 64, 0.16) !important;
+}
+
+html[data-liquid-glass="1"][data-theme="light"]:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav {
+  background: rgba(242, 248, 255, 0.72) !important;
+  border-top: 1.5px solid rgba(56, 189, 248, 0.35) !important;
+  box-shadow: inset 0 1.5px 1px #ffffff, 0 -6px 20px rgba(15, 38, 64, 0.12) !important;
+}
+
+html[data-liquid-glass="1"] .pill-btn.active,
+html[data-liquid-glass="1"] .lens-btn.active,
+html[data-liquid-glass="1"] .map-single-pill.active,
+html[data-liquid-glass="1"] .klev-arc-icon-btn.active,
+html[data-liquid-glass="1"] .seg-btn.active {
+  border-color: rgba(125, 211, 252, 0.92) !important;
+  box-shadow:
+    inset 0 1.5px 1.5px rgba(255, 255, 255, 0.65),
+    0 0 0 2px rgba(56, 189, 248, 0.32),
+    0 6px 18px rgba(2, 132, 199, 0.42) !important;
+}
+
+/* Полные правила режима «Стекло» для контрастной темы OLED (html[data-liquid-glass="1"][data-theme="contrast"]) */
+html[data-liquid-glass="1"][data-theme="contrast"] .btn {
+  background: linear-gradient(155deg, rgba(245, 158, 11, 0.14) 0%, rgba(26, 36, 54, 0.84) 52%, rgba(14, 20, 32, 0.94) 100%) !important;
+  border: 1.5px solid rgba(245, 158, 11, 0.40) !important;
+  color: var(--text) !important;
+  box-shadow:
+    inset 0 1.5px 1.5px rgba(255, 255, 255, 0.26),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.48),
+    0 5px 14px rgba(0, 0, 0, 0.45) !important;
+}
+
+html[data-liquid-glass="1"][data-theme="contrast"] .btn.btn-accent,
+html[data-liquid-glass="1"][data-theme="contrast"] .w-chip.active {
+  background: linear-gradient(155deg, rgba(245, 158, 11, 0.90) 0%, rgba(217, 119, 6, 0.86) 55%, rgba(180, 83, 9, 0.94) 100%) !important;
+  border: 1.5px solid rgba(253, 230, 138, 0.72) !important;
+  color: #ffffff !important;
+  box-shadow:
+    inset 0 1.5px 1.5px rgba(255, 255, 255, 0.45),
+    0 6px 18px rgba(217, 119, 6, 0.38) !important;
+}
+
+html[data-liquid-glass="1"][data-theme="contrast"] .w-chip,
+html[data-liquid-glass="1"][data-theme="contrast"] .pill-btn,
+html[data-liquid-glass="1"][data-theme="contrast"] .lens-btn,
+html[data-liquid-glass="1"][data-theme="contrast"] .seg-bar,
+html[data-liquid-glass="1"][data-theme="contrast"] .glass-panel,
+html[data-liquid-glass="1"][data-theme="contrast"] .klev-arc-glass,
+html[data-liquid-glass="1"][data-theme="contrast"] .map-single-pill,
+html[data-liquid-glass="1"][data-theme="contrast"] .bento-card,
+html[data-liquid-glass="1"][data-theme="contrast"] .card,
+html[data-liquid-glass="1"][data-theme="contrast"] .klev-arc-map-stage #arcPopoverTransport .btn,
+html[data-liquid-glass="1"][data-theme="contrast"] .klev-arc-map-stage #arcPopoverLayers .btn,
+html[data-liquid-glass="1"][data-theme="contrast"] .klev-arc-map-stage #arcPopoverSpotGrid .btn {
+  background: linear-gradient(155deg, rgba(30, 41, 59, 0.84) 0%, rgba(15, 23, 42, 0.92) 100%) !important;
+  border: 1.5px solid rgba(245, 158, 11, 0.38) !important;
+  box-shadow:
+    inset 0 1.5px 1.5px rgba(255, 255, 255, 0.22),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.52),
+    0 10px 26px rgba(0, 0, 0, 0.62) !important;
+}
+
+html[data-liquid-glass="1"][data-theme="contrast"] .compact-menu-popover {
+  background: linear-gradient(165deg, rgba(22, 30, 46, 0.94) 0%, rgba(11, 15, 25, 0.97) 100%) !important;
+  backdrop-filter: blur(26px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(26px) saturate(160%) !important;
+  border: 1.5px solid rgba(245, 158, 11, 0.45) !important;
+  box-shadow:
+    inset 0 1.5px 1.5px rgba(255, 255, 255, 0.24),
+    0 -12px 38px rgba(0, 0, 0, 0.82),
+    0 0 22px rgba(245, 158, 11, 0.22) !important;
+}
+
+html[data-liquid-glass="1"][data-theme="contrast"] .pill-btn.active,
+html[data-liquid-glass="1"][data-theme="contrast"] .lens-btn.active,
+html[data-liquid-glass="1"][data-theme="contrast"] .map-single-pill.active,
+html[data-liquid-glass="1"][data-theme="contrast"] .klev-arc-icon-btn.active,
+html[data-liquid-glass="1"][data-theme="contrast"] .seg-btn.active {
+  border-color: var(--accent) !important;
+  background: linear-gradient(155deg, rgba(245, 158, 11, 0.28) 0%, rgba(180, 83, 9, 0.22) 100%) !important;
+  color: var(--accent) !important;
+  box-shadow:
+    inset 0 1.5px 1.5px rgba(255, 255, 255, 0.45),
+    0 0 0 2px rgba(245, 158, 11, 0.32),
+    0 6px 16px rgba(217, 119, 6, 0.35) !important;
+}
+
+html[data-liquid-glass="1"][data-theme="contrast"]:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav {
+  background: rgba(12, 17, 26, 0.90) !important;
+  border-top: 1.5px solid rgba(245, 158, 11, 0.36) !important;
+  box-shadow: inset 0 1.5px 1px rgba(255, 255, 255, 0.18), 0 -8px 24px rgba(0, 0, 0, 0.65) !important;
+}
+
+/* Режим «Обычный (Tactile Matte)»: data-liquid-glass="0" */
+html[data-liquid-glass="0"] .klev-arc-glass,
+html[data-liquid-glass="0"] .map-single-pill,
+html[data-liquid-glass="0"] .lens-btn,
+html[data-liquid-glass="0"] .glass-panel,
+html[data-liquid-glass="0"] .pill-btn,
+html[data-liquid-glass="0"] .seg-bar,
+html[data-liquid-glass="0"] .klev-arc-map-stage #arcPopoverTransport .btn,
+html[data-liquid-glass="0"] .klev-arc-map-stage #arcPopoverLayers .btn,
+html[data-liquid-glass="0"] .klev-arc-map-stage #arcPopoverSpotGrid .btn {
+  background: var(--card) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.22) !important;
+}
+
+html[data-liquid-glass="0"] .compact-menu-backdrop {
+  background: rgba(4, 9, 18, 0.72) !important;
+}
+
+html[data-liquid-glass="0"] .compact-menu-popover {
+  background: var(--panel) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: 1.5px solid var(--border) !important;
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.85) !important;
+}
+
+html[data-liquid-glass="0"][data-theme="contrast"] .seg-bar {
+  background: #0d131f !important;
+  border: 1px solid rgba(245, 158, 11, 0.35) !important;
+}
+
+html[data-liquid-glass="0"][data-theme="contrast"] .lens-btn,
+html[data-liquid-glass="0"][data-theme="contrast"] .pill-btn {
+  background: #1c2739 !important;
+  border: 1px solid rgba(245, 158, 11, 0.35) !important;
+}
+
+html[data-liquid-glass="0"] .pill-btn.active,
+html[data-liquid-glass="0"] .lens-btn.active,
+html[data-liquid-glass="0"] .map-single-pill.active,
+html[data-liquid-glass="0"] .klev-arc-icon-btn.active,
+html[data-liquid-glass="0"] .seg-btn.active {
+  background: var(--accent-soft-bg) !important;
+  border-color: var(--accent) !important;
+  color: var(--accent) !important;
+  box-shadow: 0 0 12px var(--accent-glow) !important;
+}
+
+html[data-liquid-glass="0"]:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav {
+  background: var(--bg) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border-top: 1px solid var(--border) !important;
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.25) !important;
 }
 
 /* Main application layout & 3D Liquid Glass UI System (v2.5.0 r187 — по Фото 2) */
@@ -1983,6 +2776,10 @@ body {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(232, 242, 252, 0.95) 100%);
   border-bottom-color: #b8d4ee;
   box-shadow: 0 4px 16px rgba(20, 45, 76, 0.12), inset 0 1px 0 #ffffff;
+}
+[data-theme="contrast"] .app-header {
+  background: linear-gradient(180deg, rgba(18, 25, 38, 0.96) 0%, rgba(12, 17, 26, 0.98) 100%);
+  border-bottom-color: rgba(245, 158, 11, 0.34);
 }
 
 .header-bar {
@@ -2124,6 +2921,10 @@ body {
   border-color: #b5d0ea;
   box-shadow: inset 0 1.5px 1px #ffffff, 0 3px 8px rgba(20, 45, 76, 0.10);
 }
+[data-theme="contrast"] .btn-theme-chip {
+  background: linear-gradient(180deg, #243044 0%, #141c2b 100%);
+  border-color: rgba(245, 158, 11, 0.38);
+}
 
 .header-id-profile-btn {
   display: inline-flex;
@@ -2154,7 +2955,7 @@ body {
 }
 
 .header-id-code {
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 900;
   color: var(--text);
@@ -2165,7 +2966,7 @@ body {
 }
 
 .header-id-sub {
-  font-size: 9.5px;
+  font-size: 11px;
   font-weight: 800;
   color: var(--muted);
   white-space: nowrap;
@@ -2227,6 +3028,10 @@ body {
   border-color: #b4d0eb;
   box-shadow: inset 0 1.5px 1px #ffffff, inset 0 -1.5px 3px rgba(20, 45, 76, 0.08), 0 3px 8px rgba(20, 45, 76, 0.10);
 }
+[data-theme="contrast"] .top-nav-item {
+  background: linear-gradient(180deg, #243146 0%, #141c2b 100%);
+  border-color: rgba(245, 158, 11, 0.34);
+}
 .top-nav-item::before {
   content: "";
   position: absolute;
@@ -2251,7 +3056,7 @@ body {
 }
 
 .top-nav-lbl {
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 800;
   letter-spacing: -0.15px;
   white-space: nowrap;
@@ -2488,6 +3293,10 @@ body {
   background: linear-gradient(180deg, #ffffff 0%, #eaf3fc 100%);
   border-color: #bdd4ea;
 }
+[data-theme="contrast"] .bento-top3-item {
+  background: linear-gradient(180deg, #222f43 0%, #141c2b 100%);
+  border-color: rgba(245, 158, 11, 0.32);
+}
 
 .bento-top3-item.active {
   border: 1.5px solid var(--accent);
@@ -2511,7 +3320,7 @@ body {
 }
 
 .bento-top3-pct {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 900;
   color: var(--good);
 }
@@ -2615,6 +3424,10 @@ body {
   background: linear-gradient(180deg, #ffffff 0%, #ebf4fc 100%);
   border-color: #bdd4ea;
   box-shadow: inset 0 1px 0 #ffffff, 0 3px 8px rgba(20, 45, 76, 0.08);
+}
+[data-theme="contrast"] .bento-metric-tile {
+  background: linear-gradient(180deg, #202c3f 0%, #131b29 100%);
+  border-color: rgba(245, 158, 11, 0.30);
 }
 
 .bento-metric-label {
@@ -2887,14 +3700,22 @@ body {
   border-color: #bdd4ea;
   box-shadow: inset 0 1px 0 #ffffff, 0 3px 8px rgba(20, 45, 76, 0.08);
 }
+[data-theme="contrast"] .day-card {
+  background: linear-gradient(180deg, #202c3f 0%, #131b29 100%);
+  border-color: rgba(245, 158, 11, 0.30);
+}
 .day-card:hover { border-color: var(--accent); }
 .day-card.active {
   border-color: var(--accent);
-  background: linear-gradient(180deg, rgba(56, 189, 248, 0.24) 0%, rgba(14, 42, 68, 0.95) 100%);
+  background: linear-gradient(180deg, var(--accent-soft-bg) 0%, rgba(14, 42, 68, 0.95) 100%);
   box-shadow: inset 0 1.5px 1px rgba(255, 255, 255, 0.4), 0 0 0 1.5px var(--accent);
 }
 [data-theme="light"] .day-card.active {
   background: linear-gradient(180deg, #dbeafe 0%, #eff6ff 100%);
+}
+[data-theme="contrast"] .day-card.active {
+  background: linear-gradient(180deg, rgba(245, 158, 11, 0.24) 0%, #182232 100%);
+  border-color: var(--accent);
 }
 
 .day-card.archive-day {
@@ -3233,7 +4054,7 @@ body {
 .app-splash-pct {
   font-size: 12.5px;
   font-weight: 900;
-  font-family: monospace;
+  font-family: var(--font-mono);
   color: #38bdf8;
   flex-shrink: 0;
 }
@@ -3326,10 +4147,10 @@ body {
   position: absolute;
   transform: translate(-50%, -100%);
   background: var(--panel, rgba(15, 23, 42, 0.94));
-  border: 1px solid rgba(56, 189, 248, 0.48);
+  border: 1px solid var(--border);
   border-radius: 999px;
   padding: 2px 8px;
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 800;
   color: var(--text, #f8fafc);
   white-space: nowrap;
@@ -3363,13 +4184,13 @@ body {
 }
 
 .bento-chart-tick-hr {
-  font-size: 9.5px;
+  font-size: 11px;
   font-weight: 700;
   color: var(--muted);
 }
 
 .bento-chart-tick-val {
-  font-size: 10.5px;
+  font-size: 11.5px;
   font-weight: 900;
 }
 
@@ -4058,10 +4879,10 @@ html[data-desktop-web="1"] .bottom-nav {
 }
 
 [data-theme="contrast"] .klev-arc-glass {
-  background: linear-gradient(145deg, rgba(14, 20, 30, 0.96) 0%, rgba(4, 7, 12, 0.98) 100%);
-  border: 2px solid #fde047;
-  box-shadow: inset 0 1.5px 0 rgba(253, 224, 71, 0.55), 0 10px 28px rgba(0, 0, 0, 0.85);
-  color: #ffffff;
+  background: linear-gradient(145deg, rgba(26, 36, 54, 0.94) 0%, rgba(14, 20, 32, 0.96) 100%);
+  border: 1.5px solid rgba(245, 158, 11, 0.38);
+  box-shadow: inset 0 1.5px 1px rgba(255, 255, 255, 0.22), 0 10px 28px rgba(0, 0, 0, 0.75);
+  color: var(--text);
 }
 
 .klev-arc-glass:active {
@@ -4084,8 +4905,8 @@ html[data-desktop-web="1"] .bottom-nav {
   border-color: var(--accent) !important;
   box-shadow:
     inset 0 1.5px 1.5px rgba(255, 255, 255, 0.48),
-    0 0 0 2.5px rgba(56, 189, 248, 0.42),
-    0 8px 22px rgba(2, 132, 199, 0.45) !important;
+    0 0 0 2.5px var(--accent-glow),
+    0 8px 22px var(--accent-glow) !important;
 }
 
 /* Язычки «Разделы и шапка» (сверху) и «Быстрый доступ» (снизу) */
@@ -4279,12 +5100,12 @@ body:has(#appModalBackdrop.open) .klev-arc-edge-handle {
   z-index: 0;
   border-radius: 13px;
   pointer-events: none;
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.36) 0%, rgba(14, 165, 233, 0.24) 55%, rgba(16, 185, 129, 0.22) 100%);
+  background: linear-gradient(135deg, var(--accent-soft-bg) 0%, rgba(16, 185, 129, 0.18) 100%);
   border: 1.5px solid var(--accent);
   box-shadow:
-    0 0 18px rgba(0, 229, 255, 0.34),
+    0 0 18px var(--accent-glow),
     inset 0 1.5px 2px rgba(255, 255, 255, 0.48),
-    inset 0 -1.5px 3px rgba(2, 132, 199, 0.28);
+    inset 0 -1.5px 3px var(--accent-glow);
   opacity: 0;
   will-change: left, right, transform;
   transition:
@@ -4416,6 +5237,20 @@ html[data-scroll-compact="1"]:not([data-arc-map-active="1"]) .bottom-nav {
   opacity: 0.88 !important;
 }
 
+/* Карточка выбранной долгим нажатием точки и левая кнопка сброса */
+.klev-arc-picked-spot-sheet {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+  z-index: 942;
+  border-radius: 20px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+}
 </style>
   <style id="klevCoreLeafletOfflineCss">
     .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-map-pane,.leaflet-overlay-pane svg,.leaflet-overlay-pane canvas{position:absolute;left:0;top:0}
@@ -4431,7 +5266,7 @@ html[data-scroll-compact="1"]:not([data-arc-map-active="1"]) .bottom-nav {
     .leaflet-control-zoom a{display:flex;align-items:center;justify-content:center;width:32px;height:32px;color:#f8fafc;text-decoration:none;font-weight:900;font-size:18px;border-bottom:1px solid rgba(148,163,184,0.22);cursor:pointer}
     .leaflet-control-zoom a:last-child{border-bottom:none}
     .leaflet-popup{position:absolute;text-align:center;margin-bottom:20px;z-index:700}
-    .leaflet-popup-content-wrapper{padding:1px;text-align:left;border-radius:12px;background:#0f172a;color:#f8fafc;border:1px solid rgba(56,189,248,0.4);box-shadow:0 8px 24px rgba(0,0,0,0.65)}
+    .leaflet-popup-content-wrapper{padding:1px;text-align:left;border-radius:12px;background:#0f172a;color:#f8fafc;border:1px solid var(--border);box-shadow:0 8px 24px rgba(0,0,0,0.65)}
     .leaflet-popup-content{margin:10px 12px;line-height:1.35;font-size:12px;min-width:190px}
     .leaflet-div-icon{background:transparent;border:none}
     #mapBox[data-ymap-layer="yandex_dark"] img.klev-base-tile-layer[data-offline-hit="1"],#mapBox[data-ymap-layer="yandex_dark"] img.klev-base-tile-layer[data-offline-overzoom]{filter:invert(0.92) hue-rotate(185deg) saturate(1.15) brightness(0.88) contrast(1.15)}
@@ -4655,31 +5490,14 @@ html[data-theme="contrast"]:not([data-desktop-web="1"]):not([data-admin-contour=
   box-shadow: 0 0 14px rgba(56, 189, 248, 0.22);
 }
 
-.compact-menu-seg-stack {
-  display: grid;
-  grid-template-columns: 1.38fr 1fr;
-  gap: 6px;
-  width: 100%;
-}
-
-@media (max-width: 380px) {
-  .compact-menu-seg-stack {
-    grid-template-columns: 1fr;
-  }
-}
-
 .seg-bar {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(0, 1fr);
+  display: flex;
   align-items: center;
   background: rgba(15, 23, 42, 0.42);
   border: 1px solid var(--border);
   border-radius: 9999px;
   padding: 3px;
-  gap: 2px;
-  width: 100%;
-  box-sizing: border-box;
+  gap: 3px;
 }
 
 html[data-theme="light"] .seg-bar {
@@ -4687,22 +5505,21 @@ html[data-theme="light"] .seg-bar {
 }
 
 .seg-btn {
-  width: 100%;
+  flex: 1;
   min-width: 0;
   border: 1px solid transparent;
   background: transparent;
   color: var(--muted);
-  font-size: 11px;
-  font-weight: 800;
-  padding: 7px 2px;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 7px 4px;
   border-radius: 9999px;
   cursor: pointer;
   transition: all 0.16s ease;
   text-align: center;
   white-space: nowrap;
-  overflow: visible;
-  text-overflow: clip;
-  letter-spacing: -0.15px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .seg-btn.active {
@@ -4885,15 +5702,12 @@ input[type="checkbox"]:not(.klev-switch input):checked::before {
 }
 .menu-grid-5 {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 0;
-  padding: 6px 0;
-  width: 100%;
-  align-items: center;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px 6px;
+  padding: 4px 0;
   justify-items: center;
 }
 .lens-item-wrap {
-  width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -4903,8 +5717,8 @@ input[type="checkbox"]:not(.klev-switch input):checked::before {
   user-select: none;
 }
 .lens-btn {
-  width: 58px;
-  height: 58px;
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
   display: inline-flex;
   align-items: center;
@@ -4912,30 +5726,31 @@ input[type="checkbox"]:not(.klev-switch input):checked::before {
   cursor: pointer;
   padding: 0;
   background: var(--card);
-  border: 1.5px solid var(--border);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.32);
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
   color: var(--text);
-  transition: transform 0.16s ease, border-color 0.2s ease, box-shadow 0.2s ease;
-}
-.lens-btn:active {
-  transform: scale(0.94);
+  transition: transform 0.16s ease, border-color 0.2s ease;
 }
 .lens-btn.active {
   border-color: var(--accent);
   color: var(--accent);
-  box-shadow: 0 0 18px rgba(56, 189, 248, 0.35);
+  box-shadow: 0 0 18px rgba(56, 189, 248, 0.32);
 }
 .lens-btn svg {
-  width: 27px;
-  height: 27px;
+  width: 23px;
+  height: 23px;
   stroke: currentColor;
-  stroke-width: 1.75px;
+  stroke-width: 1.6px;
   stroke-linecap: round;
   stroke-linejoin: round;
   fill: none;
 }
 .lens-label {
-  display: none !important;
+  margin-top: 5px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--accent);
+  line-height: 1.2;
 }
 .sos-hold-track {
   position: relative;
@@ -6780,11 +7595,11 @@ input[type="checkbox"]:not(.klev-switch input):checked::before {
   <main id="app" class="app-main">
     <div id="androidApkSiteBanner" class="bento-card" style="display:none;background:rgba(16,185,129,0.12);border:1.5px solid var(--good);padding:9px 12px;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:2px;">
       <div style="min-width:0;flex:1;">
-        <div id="androidApkBannerTitle" style="font-weight:800;font-size:var(--fs-xs);color:var(--good);">Приложение «Клёв ПРО 2.0» для Android (v2.9.2 r256)</div>
+        <div id="androidApkBannerTitle" style="font-weight:800;font-size:var(--fs-xs);color:var(--good);">Приложение «Клёв ПРО 2.0» для Android (v2.9.2 r257)</div>
         <div style="font-size:11px;color:var(--muted);">Установите автономное приложение (.APK) на ваш смартфон</div>
       </div>
       <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
-        <button type="button" class="btn btn-sm btn-good" id="androidApkBannerDownloadBtn" style="min-height:32px;padding:4px 10px;font-size:11.5px;font-weight:800;">Скачать APK (v2.9.2 r256)</button>
+        <button type="button" class="btn btn-sm btn-good" id="androidApkBannerDownloadBtn" style="min-height:32px;padding:4px 10px;font-size:11.5px;font-weight:800;">Скачать APK (v2.9.2 r257)</button>
         <button type="button" class="btn btn-sm" id="androidApkBannerCloseBtn" title="Скрыть плашку" aria-label="Закрыть плашку загрузки APK" style="min-height:32px;padding:4px 8px;font-size:12px;">Закрыть</button>
       </div>
     </div>
@@ -6816,7 +7631,7 @@ input[type="checkbox"]:not(.klev-switch input):checked::before {
       </article>
     </noscript>
     <div id="appLegalScannerMeta" style="display:none;" aria-hidden="true">
-      © 2025–2026 «Клёв ПРО 2.0: Круг» (версия 2.9.2 r256) • Возрастная маркировка: 12+ (ст. 6 ФЗ № 436-ФЗ).
+      © 2025–2026 «Клёв ПРО 2.0: Круг» (версия 2.9.2 r257) • Возрастная маркировка: 12+ (ст. 6 ФЗ № 436-ФЗ).
       Правообладатель программы для ЭВМ, базы данных и графических иллюстраций (ст. 1259, 1260, 1261, 1334 ГК РФ): Тхор Антон Сергеевич (Тхор А. С.) • Контакт для обращений (ст. 10 и ст. 10.2-2 ФЗ № 149-ФЗ): i@athor.ru.
       Правовой статус: бесплатный некоммерческий информационно-справочный проект (возмездные услуги и торговая деятельность не осуществляются; реквизиты ИНН / ОГРН / ОГРНИП по ст. 9 ЗоЗПП РФ не применяются).
       Политика конфиденциальности (ФЗ № 152-ФЗ ст. 3, 12, 18.1, 22): архитектура Zero-PII с вымышленными рыболовными позывными без сбора ФИО, телефонов и e-mail. При фоновом прогнозе координаты обрабатываются локально на устройстве; при публикации в «Круг» размываются гексагоном ±5..10 км; передача точных координат точки осуществляется только при добровольной публикации пользователем в «Экипаж (72 ч)», «Слипы/Точки», личный диалог или при активации вспомогательного сигнала «SOS на воде».
@@ -6933,6 +7748,6 @@ input[type="checkbox"]:not(.klev-switch input):checked::before {
     </div>
   </div>
 
-  <script id="klevBundledAppRuntime" src="app-runtime.js?v=2.9.2-r256"></script>
+  <script id="klevBundledAppRuntime" src="app-runtime.js?v=2.9.2-r257"></script>
 </body>
 </html>

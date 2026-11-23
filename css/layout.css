@@ -65,6 +65,10 @@ body {
   border-bottom-color: #b8d4ee;
   box-shadow: 0 4px 16px rgba(20, 45, 76, 0.12), inset 0 1px 0 #ffffff;
 }
+[data-theme="contrast"] .app-header {
+  background: linear-gradient(180deg, rgba(18, 25, 38, 0.96) 0%, rgba(12, 17, 26, 0.98) 100%);
+  border-bottom-color: rgba(245, 158, 11, 0.34);
+}
 
 .header-bar {
   max-width: 1200px;
@@ -205,6 +209,10 @@ body {
   border-color: #b5d0ea;
   box-shadow: inset 0 1.5px 1px #ffffff, 0 3px 8px rgba(20, 45, 76, 0.10);
 }
+[data-theme="contrast"] .btn-theme-chip {
+  background: linear-gradient(180deg, #243044 0%, #141c2b 100%);
+  border-color: rgba(245, 158, 11, 0.38);
+}
 
 .header-id-profile-btn {
   display: inline-flex;
@@ -235,7 +243,7 @@ body {
 }
 
 .header-id-code {
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 900;
   color: var(--text);
@@ -246,7 +254,7 @@ body {
 }
 
 .header-id-sub {
-  font-size: 9.5px;
+  font-size: 11px;
   font-weight: 800;
   color: var(--muted);
   white-space: nowrap;
@@ -308,6 +316,10 @@ body {
   border-color: #b4d0eb;
   box-shadow: inset 0 1.5px 1px #ffffff, inset 0 -1.5px 3px rgba(20, 45, 76, 0.08), 0 3px 8px rgba(20, 45, 76, 0.10);
 }
+[data-theme="contrast"] .top-nav-item {
+  background: linear-gradient(180deg, #243146 0%, #141c2b 100%);
+  border-color: rgba(245, 158, 11, 0.34);
+}
 .top-nav-item::before {
   content: "";
   position: absolute;
@@ -332,7 +344,7 @@ body {
 }
 
 .top-nav-lbl {
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 800;
   letter-spacing: -0.15px;
   white-space: nowrap;
@@ -569,6 +581,10 @@ body {
   background: linear-gradient(180deg, #ffffff 0%, #eaf3fc 100%);
   border-color: #bdd4ea;
 }
+[data-theme="contrast"] .bento-top3-item {
+  background: linear-gradient(180deg, #222f43 0%, #141c2b 100%);
+  border-color: rgba(245, 158, 11, 0.32);
+}
 
 .bento-top3-item.active {
   border: 1.5px solid var(--accent);
@@ -592,7 +608,7 @@ body {
 }
 
 .bento-top3-pct {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 900;
   color: var(--good);
 }
@@ -696,6 +712,10 @@ body {
   background: linear-gradient(180deg, #ffffff 0%, #ebf4fc 100%);
   border-color: #bdd4ea;
   box-shadow: inset 0 1px 0 #ffffff, 0 3px 8px rgba(20, 45, 76, 0.08);
+}
+[data-theme="contrast"] .bento-metric-tile {
+  background: linear-gradient(180deg, #202c3f 0%, #131b29 100%);
+  border-color: rgba(245, 158, 11, 0.30);
 }
 
 .bento-metric-label {
@@ -968,14 +988,22 @@ body {
   border-color: #bdd4ea;
   box-shadow: inset 0 1px 0 #ffffff, 0 3px 8px rgba(20, 45, 76, 0.08);
 }
+[data-theme="contrast"] .day-card {
+  background: linear-gradient(180deg, #202c3f 0%, #131b29 100%);
+  border-color: rgba(245, 158, 11, 0.30);
+}
 .day-card:hover { border-color: var(--accent); }
 .day-card.active {
   border-color: var(--accent);
-  background: linear-gradient(180deg, rgba(56, 189, 248, 0.24) 0%, rgba(14, 42, 68, 0.95) 100%);
+  background: linear-gradient(180deg, var(--accent-soft-bg) 0%, rgba(14, 42, 68, 0.95) 100%);
   box-shadow: inset 0 1.5px 1px rgba(255, 255, 255, 0.4), 0 0 0 1.5px var(--accent);
 }
 [data-theme="light"] .day-card.active {
   background: linear-gradient(180deg, #dbeafe 0%, #eff6ff 100%);
+}
+[data-theme="contrast"] .day-card.active {
+  background: linear-gradient(180deg, rgba(245, 158, 11, 0.24) 0%, #182232 100%);
+  border-color: var(--accent);
 }
 
 .day-card.archive-day {
@@ -1314,7 +1342,7 @@ body {
 .app-splash-pct {
   font-size: 12.5px;
   font-weight: 900;
-  font-family: monospace;
+  font-family: var(--font-mono);
   color: #38bdf8;
   flex-shrink: 0;
 }
@@ -1407,10 +1435,10 @@ body {
   position: absolute;
   transform: translate(-50%, -100%);
   background: var(--panel, rgba(15, 23, 42, 0.94));
-  border: 1px solid rgba(56, 189, 248, 0.48);
+  border: 1px solid var(--border);
   border-radius: 999px;
   padding: 2px 8px;
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 800;
   color: var(--text, #f8fafc);
   white-space: nowrap;
@@ -1444,13 +1472,13 @@ body {
 }
 
 .bento-chart-tick-hr {
-  font-size: 9.5px;
+  font-size: 11px;
   font-weight: 700;
   color: var(--muted);
 }
 
 .bento-chart-tick-val {
-  font-size: 10.5px;
+  font-size: 11.5px;
   font-weight: 900;
 }
 
@@ -2139,10 +2167,10 @@ html[data-desktop-web="1"] .bottom-nav {
 }
 
 [data-theme="contrast"] .klev-arc-glass {
-  background: linear-gradient(145deg, rgba(14, 20, 30, 0.96) 0%, rgba(4, 7, 12, 0.98) 100%);
-  border: 2px solid #fde047;
-  box-shadow: inset 0 1.5px 0 rgba(253, 224, 71, 0.55), 0 10px 28px rgba(0, 0, 0, 0.85);
-  color: #ffffff;
+  background: linear-gradient(145deg, rgba(26, 36, 54, 0.94) 0%, rgba(14, 20, 32, 0.96) 100%);
+  border: 1.5px solid rgba(245, 158, 11, 0.38);
+  box-shadow: inset 0 1.5px 1px rgba(255, 255, 255, 0.22), 0 10px 28px rgba(0, 0, 0, 0.75);
+  color: var(--text);
 }
 
 .klev-arc-glass:active {
@@ -2165,8 +2193,8 @@ html[data-desktop-web="1"] .bottom-nav {
   border-color: var(--accent) !important;
   box-shadow:
     inset 0 1.5px 1.5px rgba(255, 255, 255, 0.48),
-    0 0 0 2.5px rgba(56, 189, 248, 0.42),
-    0 8px 22px rgba(2, 132, 199, 0.45) !important;
+    0 0 0 2.5px var(--accent-glow),
+    0 8px 22px var(--accent-glow) !important;
 }
 
 /* Язычки «Разделы и шапка» (сверху) и «Быстрый доступ» (снизу) */
@@ -2360,12 +2388,12 @@ body:has(#appModalBackdrop.open) .klev-arc-edge-handle {
   z-index: 0;
   border-radius: 13px;
   pointer-events: none;
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.36) 0%, rgba(14, 165, 233, 0.24) 55%, rgba(16, 185, 129, 0.22) 100%);
+  background: linear-gradient(135deg, var(--accent-soft-bg) 0%, rgba(16, 185, 129, 0.18) 100%);
   border: 1.5px solid var(--accent);
   box-shadow:
-    0 0 18px rgba(0, 229, 255, 0.34),
+    0 0 18px var(--accent-glow),
     inset 0 1.5px 2px rgba(255, 255, 255, 0.48),
-    inset 0 -1.5px 3px rgba(2, 132, 199, 0.28);
+    inset 0 -1.5px 3px var(--accent-glow);
   opacity: 0;
   will-change: left, right, transform;
   transition:

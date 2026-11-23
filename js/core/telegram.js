@@ -5,10 +5,10 @@
  * с аккаунтом Telegram (@KlevProClubBot) по запросу пользователя, нативными кнопками BackButton / MainButton,
  * синхронизацией цветов шапки Telegram, Telegram CloudStorage, HapticFeedback и Deep-Linking (Ревизия 2.1.1).
  */
-import { showToast } from '../ui/components.js?v=2.9.2-r256';
-import { syncInstallButtons } from './pwa.js?v=2.9.2-r256';
-import { store } from './store.js?v=2.9.2-r256';
-import { storage } from './storage.js?v=2.9.2-r256';
+import { showToast } from '../ui/components.js?v=2.9.2-r257';
+import { syncInstallButtons } from './pwa.js?v=2.9.2-r257';
+import { store } from './store.js?v=2.9.2-r257';
+import { storage } from './storage.js?v=2.9.2-r257';
 export const TELEGRAM_BOT_USERNAME = 'KlevProClubBot';
 export const TELEGRAM_BOT_HTTP_URL = 'http://t.me/KlevProClubBot';
 export const TELEGRAM_BOT_HTTPS_URL = 'https://t.me/KlevProClubBot';

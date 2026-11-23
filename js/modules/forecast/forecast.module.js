@@ -1,19 +1,19 @@
-import { getFilteredFishList, openFishDetail } from '../fish/fish.module.js?v=2.9.2-r256';
-import { logBlankTrip } from '../log/log.module.js?v=2.9.2-r256';
-import { getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.9.2-r256';
-import { RU } from '../../i18n/ru.js?v=2.9.2-r256';
-import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.9.2-r256';
-import { events } from '../../core/events.js?v=2.9.2-r256';
-import { storage } from '../../core/storage.js?v=2.9.2-r256';
-import { store } from '../../core/store.js?v=2.9.2-r256';
-import { formatLocalYYYYMMDD, fmtDeltaPress, fmtHM } from '../../core/format.js?v=2.9.2-r256';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.9.2-r256';
-import { FISH_DB } from '../../data/species.js?v=2.9.2-r256';
-import { renderFiveFish , renderFishVisual } from '../../ui/svg.js?v=2.9.2-r256';
-import { createPill, showToast, openModal, closeModal, openFishLightbox, flashHighlightElement } from '../../ui/components.js?v=2.9.2-r256';
-import { computeIceSafetyIndex, evaluateRoadAndWeatherHazards } from '../weather/weather.module.js?v=2.9.2-r256';
-import { evaluateCircleFieldConfirmation, requireRegisteredFisherId } from '../circle/circle.module.js?v=2.9.2-r256';
-import { isTelegramWebApp, getTelegramUser, shareToTelegramChat, openBotChatInTelegram, buildForecastShareUrls, TELEGRAM_BOT_USERNAME } from '../../core/telegram.js?v=2.9.2-r256';
+import { getFilteredFishList, openFishDetail } from '../fish/fish.module.js?v=2.9.2-r257';
+import { logBlankTrip } from '../log/log.module.js?v=2.9.2-r257';
+import { getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.9.2-r257';
+import { RU } from '../../i18n/ru.js?v=2.9.2-r257';
+import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.9.2-r257';
+import { events } from '../../core/events.js?v=2.9.2-r257';
+import { storage } from '../../core/storage.js?v=2.9.2-r257';
+import { store } from '../../core/store.js?v=2.9.2-r257';
+import { formatLocalYYYYMMDD, fmtDeltaPress, fmtHM } from '../../core/format.js?v=2.9.2-r257';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.9.2-r257';
+import { FISH_DB } from '../../data/species.js?v=2.9.2-r257';
+import { renderFiveFish , renderFishVisual } from '../../ui/svg.js?v=2.9.2-r257';
+import { createPill, showToast, openModal, closeModal, openFishLightbox, flashHighlightElement } from '../../ui/components.js?v=2.9.2-r257';
+import { computeIceSafetyIndex, evaluateRoadAndWeatherHazards } from '../weather/weather.module.js?v=2.9.2-r257';
+import { evaluateCircleFieldConfirmation, requireRegisteredFisherId } from '../circle/circle.module.js?v=2.9.2-r257';
+import { isTelegramWebApp, getTelegramUser, shareToTelegramChat, openBotChatInTelegram, buildForecastShareUrls, TELEGRAM_BOT_USERNAME } from '../../core/telegram.js?v=2.9.2-r257';
 /**
  * Список морских, проходных и полупроходных видов, которые заходят в пресные реки
  * (big_river, small_river) и эстуарии (sea_gulf) при нересте, сезонных миграциях или приливах/отливах.
@@ -1583,8 +1583,8 @@ export function openRigEncyclopediaModal(fishParam) {
         </div>
       `).join('')}
 
-      <div style="padding:11px 13px;background:var(--panel);border:1.5px solid var(--ice);border-radius:14px;">
-        <div style="font-weight:900;font-size:13px;color:var(--ice);width:100%;margin-bottom:4px;">
+      <div style="padding:11px 13px;background:var(--accent-soft-bg);border:1.5px solid var(--accent);border-radius:14px;">
+        <div style="font-weight:900;font-size:13px;color:var(--accent);width:100%;margin-bottom:4px;">
           Проверенные узлы под оснастку «${escapeHtml(fish.name)}»
         </div>
         <div style="font-size:12px;color:var(--text);display:flex;flex-direction:column;gap:5px;">
@@ -1706,7 +1706,7 @@ function buildSpecializedTacticalHtml(fish, s, day, waterTemp, iceState) {
       <div class="bento-card" style="padding:12px 14px;display:flex;flex-direction:column;gap:9px;">
         <div style="width:100%;display:flex;justify-content:space-between;align-items:center;gap:8px;">
           <span style="font-size:14px;font-weight:800;">Таймер перезаброса / проверки</span>
-          <span id="fcRecastTimerDisplay" class="pill ${timerLeftSec > 0 ? 'pill-good' : 'pill-neutral'}" style="font-family:monospace;font-size:13.5px;font-weight:900;">${timerLeftSec > 0 ? `${timerMm}:${timerSs}` : '15:00'}</span>
+          <span id="fcRecastTimerDisplay" class="pill ${timerLeftSec > 0 ? 'pill-good' : 'pill-neutral'}" style="font-family:var(--font-mono);font-size:13.5px;font-weight:900;">${timerLeftSec > 0 ? `${timerMm}:${timerSs}` : '15:00'}</span>
         </div>
         <div class="seg-bar" style="display:grid;grid-template-columns:repeat(4,1fr);">
           <button type="button" class="seg-btn" data-recast-timer-min="10">10 мин</button>
@@ -1946,7 +1946,7 @@ export function renderExpress(container) {
         <button type="button" class="w-chip ${item.fish.id === fish.id ? 'active' : ''}" data-novice-pick-fish="${item.fish.id}" style="padding:4px 10px;min-height:36px;display:inline-flex;align-items:center;gap:6px;flex-shrink:0;white-space:nowrap;">
           <span style="width:28px;height:15px;display:inline-flex;align-items:center;justify-content:center;">${renderFishVisual(item.fish)}</span>
           <span>${item.fish.name}</span>
-          <span style="font-size:10.5px;opacity:0.85;">${item.scDay}%</span>
+          <span style="font-size:11.5px;opacity:0.85;">${item.scDay}%</span>
         </button>
       `).join('')}
       <button type="button" class="w-chip" id="bentoOpenAllFishBtn" style="padding:4px 10px;min-height:36px;color:var(--accent);border-color:var(--accent);flex-shrink:0;white-space:nowrap;">
@@ -1988,12 +1988,12 @@ export function renderExpress(container) {
             <div class="bento-active-status-row">
               <div class="bento-splash-fish-box" data-open-fish-zoom="${fish.id}" style="cursor:zoom-in;position:relative;" title="Нажмите для просмотра карточки рыбы или увеличения">
                 ${renderFishVisual(fish)}
-                <span data-open-fish-lightbox="${fish.id}" title="Увеличить изображение на весь экран" style="position:absolute;bottom:2px;right:2px;width:20px;height:20px;border-radius:6px;background:rgba(7,17,31,0.78);border:1px solid rgba(56,189,248,0.45);display:inline-flex;align-items:center;justify-content:center;font-size:10px;opacity:0.92;cursor:zoom-in;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="2"/><path d="M16 16l4.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>
+                <span data-open-fish-lightbox="${fish.id}" title="Увеличить изображение на весь экран" style="position:absolute;bottom:2px;right:2px;width:20px;height:20px;border-radius:6px;background:rgba(7,17,31,0.78);border:1px solid var(--border);display:inline-flex;align-items:center;justify-content:center;font-size:11.5px;opacity:0.92;cursor:zoom-in;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="2"/><path d="M16 16l4.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>
               </div>
               <div data-open-fish-zoom="${fish.id}" style="cursor:pointer;" title="Открыть карточку вида (Справка ихтиолога)">
                 <div class="bento-status-verdict" style="color:${heroTone};">${heroStatusShort}</div>
                 <div style="font-size:11px;font-weight:800;color:var(--muted);margin-top:2px;">
-                  <span style="text-decoration:underline;text-decoration-color:rgba(56,189,248,0.45);text-underline-offset:2px;">${fish.name}</span> • ${activeHeroWin}
+                  <span style="text-decoration:underline;text-decoration-color:var(--accent);text-underline-offset:2px;">${fish.name}</span> • ${activeHeroWin}
                 </div>
               </div>
             </div>
@@ -2027,7 +2027,7 @@ export function renderExpress(container) {
                 <span class="bento-gauge-pct" style="color:${heroTone};">${activeHeroScore}%</span>
               </div>
             </div>
-            <div style="font-size:10.5px;font-weight:800;color:var(--accent);text-align:center;margin-top:-2px;margin-bottom:3px;">
+            <div style="font-size:11.5px;font-weight:800;color:var(--accent);text-align:center;margin-top:-2px;margin-bottom:3px;">
               Сейчас <b>${hrScores[s.selectedHour ?? new Date().getHours()] ?? activeHeroScore}%</b> (${String(s.selectedHour ?? new Date().getHours()).padStart(2, '0')}:00) • Пик <b>${activeHeroScore}%</b> в ${String(activeHeroWin || '07:00').slice(0, 5)}
             </div>
             <div class="bento-tackle-summary">
@@ -2086,7 +2086,7 @@ export function renderExpress(container) {
               ${String(mPt.hr).padStart(2, '0')}:00 (${mPt.sc}%)
             </div>
             <div class="bento-chart-dot bento-chart-default-marker" style="left:${((ePt.x / svgW) * 100).toFixed(1)}%;top:${((ePt.y / svgH) * 100).toFixed(1)}%;background:#38bdf8;"></div>
-            <div class="bento-chart-badge bento-chart-default-marker" style="left:${Math.max(12, Math.min(88, (ePt.x / svgW) * 100)).toFixed(1)}%;top:${Math.max(18, ((ePt.y / svgH) * 100) - 6).toFixed(1)}%;border-color:rgba(56,189,248,0.55);">
+            <div class="bento-chart-badge bento-chart-default-marker" style="left:${Math.max(12, Math.min(88, (ePt.x / svgW) * 100)).toFixed(1)}%;top:${Math.max(18, ((ePt.y / svgH) * 100) - 6).toFixed(1)}%;border-color:var(--accent);">
               ${String(ePt.hr).padStart(2, '0')}:00 (${ePt.sc}%)
             </div>
             <!-- Интерактивный ползунок-скраббер при зажатии и движении пальцем / мышью -->
@@ -2135,7 +2135,7 @@ export function renderExpress(container) {
             <svg viewBox="0 0 240 136" width="100%" height="100%" preserveAspectRatio="xMidYMid slice" fill="none">
               <path d="M-10,28 Q60,6 130,38 T250,22 L250,145 L-10,145 Z" fill="rgba(59,130,246,0.18)"/>
               <path d="M-10,76 Q75,48 145,82 T250,62 L250,145 L-10,145 Z" fill="rgba(14,165,233,0.24)"/>
-              <polygon points="120,18 158,40 158,84 120,106 82,84 82,40" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="5 3" fill="rgba(56,189,248,0.12)"/>
+              <polygon points="120,18 158,40 158,84 120,106 82,84 82,40" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="5 3" fill="var(--accent-soft-bg)"/>
               <circle cx="120" cy="62" r="24" stroke="var(--good)" stroke-width="1.2" stroke-dasharray="3 2" fill="rgba(16,185,129,0.14)"/>
               <line x1="120" y1="62" x2="152" y2="36" stroke="#10b981" stroke-width="2" stroke-linecap="round"/>
               <circle cx="120" cy="62" r="6.5" fill="var(--accent)" stroke="#ffffff" stroke-width="2.2"/>
@@ -2162,25 +2162,25 @@ export function renderExpress(container) {
             <div class="bento-temp-split">
               <div>
                 <div class="bento-temp-air">${tAirStr}</div>
-                <div style="font-size:10.5px;color:var(--muted);font-weight:700;">Воздух (${activeDayForTackle.windDir || 'З'} ${activeDayForTackle.windMax || 3} м/с)</div>
+                <div style="font-size:11.5px;color:var(--muted);font-weight:700;">Воздух (${activeDayForTackle.windDir || 'З'} ${activeDayForTackle.windMax || 3} м/с)</div>
               </div>
               <div class="bento-temp-water-box">
                 <div style="font-size:13.5px;font-weight:900;color:var(--accent);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> ${tWatStr}</div>
-                <div style="font-size:10.5px;color:var(--muted);font-weight:700;">Вода</div>
+                <div style="font-size:11.5px;color:var(--muted);font-weight:700;">Вода</div>
               </div>
             </div>
             <div class="bento-weather-item-row">
               <span style="font-size:17px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><polygon points="16,8 13.5,13.5 8,16 10.5,10.5" fill="#38bdf8" stroke="currentColor" stroke-width="1.3"/></svg></span>
               <div>
                 <div style="font-weight:900;color:var(--text);">${activeDayForTackle.pressAvg || 750} мм рт. ст.</div>
-                <div style="font-size:10.5px;color:var(--muted);">Давление (${fmtDeltaPress(activeDayForTackle.dP)})</div>
+                <div style="font-size:11.5px;color:var(--muted);">Давление (${fmtDeltaPress(activeDayForTackle.dP)})</div>
               </div>
             </div>
             <div class="bento-weather-item-row bento-ice-hazard">
               <span style="font-size:17px;">${effIceForTackle === 'open_water' ? '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg>' : '<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1" stroke="#7dd3fc" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="#38bdf8"/></svg>'}</span>
               <div>
                 <div style="font-weight:900;color:var(--text);">${iceMainTitle}</div>
-                <div style="font-size:10.5px;color:var(--muted);">${iceSubTitle}</div>
+                <div style="font-size:11.5px;color:var(--muted);">${iceSubTitle}</div>
               </div>
             </div>
           </div>
@@ -2594,11 +2594,11 @@ function renderArchiveDayLogger(container, s, defaultDay, currentFish) {
         <div style="font-size:12px;font-weight:900;color:var(--text);">${String(hIdx).padStart(2, '0')}:00</div>
         <div style="margin:2px 0;">${skyIcon}</div>
         <div style="font-size:14px;font-weight:900;color:var(--text);white-space:nowrap;">${tStr}</div>
-        <div style="font-size:10.5px;font-weight:800;color:var(--muted);white-space:nowrap;">${wDir} ${wVal} м/с</div>
+        <div style="font-size:11.5px;font-weight:800;color:var(--muted);white-space:nowrap;">${wDir} ${wVal} м/с</div>
         <div style="font-size:11.5px;font-weight:900;color:var(--accent);white-space:nowrap;">${pVal} мм</div>
         <div style="margin-top:2px;display:flex;flex-direction:column;align-items:center;gap:2px;">
           ${renderFiveFish(sc, 11, curTheme, false)}
-          <span style="font-size:10.5px;font-weight:900;color:${scColor};">Клёв ${sc}%</span>
+          <span style="font-size:11.5px;font-weight:900;color:${scColor};">Клёв ${sc}%</span>
         </div>
       </div>
     `;
@@ -3307,7 +3307,7 @@ function renderMobileRedesignForecast(container) {
             Воздух ${tDayS} • Вода ${tWatS} • ${d.pressAvg} мм (${fmtDeltaPress(d.dP)}) • ${d.windDir} ${d.windMax} м/с
           </div>
         </div>
-        <span style="padding:5px 10px;border-radius:10px;background:rgba(56,189,248,0.14);border:1px solid ${scColor};color:${scColor};font-size:13px;font-weight:900;flex-shrink:0;">${sc}%</span>
+        <span style="padding:5px 10px;border-radius:10px;background:var(--accent-soft-bg);border:1px solid ${scColor};color:${scColor};font-size:13px;font-weight:900;flex-shrink:0;">${sc}%</span>
       </div>
     `;
   }).join('');
@@ -3454,7 +3454,7 @@ function renderMobileRedesignForecast(container) {
                 <span data-scrub-hour="20" style="cursor:pointer;">20:00</span>
                 <span data-scrub-hour="23" style="cursor:pointer;">24:00</span>
               </div>
-              <div id="bentoChartScrubLiveRow" style="display:none;justify-content:space-between;align-items:center;padding:5px 8px;margin-top:5px;border-radius:8px;background:rgba(56,189,248,0.12);border:1px solid var(--accent);font-size:11.5px;font-weight:800;color:var(--text);flex-wrap:wrap;gap:6px;"></div>
+              <div id="bentoChartScrubLiveRow" style="display:none;justify-content:space-between;align-items:center;padding:5px 8px;margin-top:5px;border-radius:8px;background:var(--accent-soft-bg);border:1px solid var(--accent);font-size:11.5px;font-weight:800;color:var(--text);flex-wrap:wrap;gap:6px;"></div>
             </div>
 
             <!-- Карточка: Тактика и 8 факторов (свёрнута по умолчанию!) -->
@@ -3571,9 +3571,9 @@ function renderMobileRedesignForecast(container) {
                         const wCol = wSlot.waveM >= 0.8 ? 'var(--bad)' : (wSlot.waveM >= 0.45 ? 'var(--warn)' : 'var(--good)');
                         return `
                           <div class="glass-panel" style="padding:6px 4px;border-radius:10px;display:flex;flex-direction:column;align-items:center;gap:2px;">
-                            <span style="font-size:10.5px;font-weight:800;color:var(--muted);">${String(hIdx).padStart(2, '0')}:00</span>
+                            <span style="font-size:11.5px;font-weight:800;color:var(--muted);">${String(hIdx).padStart(2, '0')}:00</span>
                             <span style="font-size:13.5px;font-weight:900;color:${wCol};white-space:nowrap;">${wSlot.waveM.toFixed(1)} м</span>
-                            <span style="font-size:10.5px;font-weight:800;color:var(--accent);white-space:nowrap;">${escapeHtml(wSlot.dir)} • ${Math.round(wSlot.windMs)} м/с</span>
+                            <span style="font-size:11.5px;font-weight:800;color:var(--accent);white-space:nowrap;">${escapeHtml(wSlot.dir)} • ${Math.round(wSlot.windMs)} м/с</span>
                           </div>
                         `;
                       }).join('')}
@@ -3613,8 +3613,8 @@ function renderMobileRedesignForecast(container) {
                 <svg viewBox="0 0 ${pSvgW} ${pSvgH}" width="100%" height="100%" preserveAspectRatio="none" style="display:block;width:100%;height:100%;">
                   <defs>
                     <linearGradient id="fcPressSubGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stop-color="rgba(56,189,248,0.34)"/>
-                      <stop offset="100%" stop-color="rgba(56,189,248,0.02)"/>
+                      <stop offset="0%" stop-color="var(--wave-fill-top, rgba(56,189,248,0.34))"/>
+                      <stop offset="100%" stop-color="var(--wave-fill-bot, rgba(56,189,248,0.02))"/>
                     </linearGradient>
                   </defs>
                   <line x1="${pPadL}" y1="${normPY}" x2="${pSvgW - pPadR}" y2="${normPY}" stroke="var(--accent)" stroke-dasharray="4 3" stroke-width="1.2" vector-effect="non-scaling-stroke" opacity="0.65"/>
@@ -3627,7 +3627,7 @@ function renderMobileRedesignForecast(container) {
                   const pObj = pPts[hIdx] || pPts[0];
                   return `
                     <div style="display:flex;flex-direction:column;gap:1px;">
-                      <span style="font-size:10.5px;color:var(--muted);font-weight:700;">${String(hIdx).padStart(2, '0')}:00</span>
+                      <span style="font-size:11.5px;color:var(--muted);font-weight:700;">${String(hIdx).padStart(2, '0')}:00</span>
                       <span style="font-size:12px;font-weight:900;color:var(--text);">${pObj.p}</span>
                     </div>
                   `;
@@ -3639,9 +3639,9 @@ function renderMobileRedesignForecast(container) {
               <div style="font-size:14px;font-weight:800;width:100%;">Ветер и геомагнитный фон</div>
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
                 <div class="glass-panel" style="padding:10px 11px;border-radius:14px;display:flex;align-items:center;gap:10px;">
-                  <div style="width:42px;height:42px;border-radius:50%;border:1.5px solid var(--accent);background:rgba(56,189,248,0.10);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                  <div style="width:42px;height:42px;border-radius:50%;border:1.5px solid var(--accent);background:var(--accent-soft-bg);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="transform:rotate(${windRotDeg}deg);">
-                      <path d="M12 3L16.5 19L12 15.8L7.5 19L12 3Z" fill="rgba(56,189,248,0.35)" stroke="var(--accent)" stroke-width="1.8" stroke-linejoin="round"/>
+                      <path d="M12 3L16.5 19L12 15.8L7.5 19L12 3Z" fill="var(--accent-soft-bg)" stroke="var(--accent)" stroke-width="1.8" stroke-linejoin="round"/>
                     </svg>
                   </div>
                   <div style="min-width:0;flex:1;">

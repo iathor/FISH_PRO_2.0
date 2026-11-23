@@ -2,17 +2,17 @@
  * @file circle.chat.js
  * @description Изолированная отрисовка каналов и сообщений чата (#klevFullScreenChatOverlay) с обязательным экранированием escapeHtml().
  */
-import { store } from '../../core/store.js?v=2.9.2-r256';
-import { storage } from '../../core/storage.js?v=2.9.2-r256';
-import { router } from '../../core/router.js?v=2.9.2-r256';
-import { escapeHtml } from '../../ui/components.js?v=2.9.2-r256';
+import { store } from '../../core/store.js?v=2.9.2-r257';
+import { storage } from '../../core/storage.js?v=2.9.2-r257';
+import { router } from '../../core/router.js?v=2.9.2-r257';
+import { escapeHtml } from '../../ui/components.js?v=2.9.2-r257';
 import {
   OWNER_BOUND_FISHER_ID,
   OWNER_SECONDARY_FISHER_ID,
   isAdminContourActive,
   isOwnerFisherId
-} from '../admin/admin.auth.js?v=2.9.2-r256';
-import { canUserAccessCrewItem } from './circle.ownership.js?v=2.9.2-r256';
+} from '../admin/admin.auth.js?v=2.9.2-r257';
+import { canUserAccessCrewItem } from './circle.ownership.js?v=2.9.2-r257';
 import {
   RUSSIA_REGIONS_DIRECTORY,
   CHAT_MSG_EDIT_MAX_AGE_MS,
@@ -33,7 +33,7 @@ import {
   setChatUiState,
   getRelaySyncRuntimeRefs,
   bindChatViewEvents
-} from './circle.module.js?v=2.9.2-r256';
+} from './circle.module.js?v=2.9.2-r257';
 
 /**
  * Форматирует безопасный заголовок собеседника с обязательным экранированием escapeHtml().
@@ -223,7 +223,7 @@ export function renderChatsSubView(s, ident, visibleCrews) {
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
             <div style="font-weight:800;font-size:11px;color:var(--good);">ЛИЧНЫЙ ДИАЛОГ С РЫБАКОМ:</div>
             ${isAdminContourActive()
-              ? `<span class="pill pill-good" style="font-size:9.5px;">Режим Ответа Супер-Админа</span>`
+              ? `<span class="pill pill-good" style="font-size:11px;">Режим Ответа Супер-Админа</span>`
               : `<button type="button" class="btn btn-sm" id="chatWriteAdminBtn" style="min-height:28px;padding:2px 8px;font-size:11px;border-color:var(--good);color:var(--good);font-weight:800;">Написать Админу</button>`}
           </div>
           ${isAdminContourActive() && Array.isArray(adminDashboardCache?.users) && adminDashboardCache.users.length > 0 ? `
@@ -259,13 +259,13 @@ export function renderChatsSubView(s, ident, visibleCrews) {
                 <div style="min-width:0;flex:1;">
                   <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
                     <span style="font-weight:800;font-size:var(--fs-sm);color:var(--text);word-break:break-word;">${ch.title}</span>
-                    ${unreadCnt > 0 ? `<span class="pill pill-bad" style="font-size:10px;padding:1px 6px;">+${unreadCnt} новых</span>` : ''}
+                    ${unreadCnt > 0 ? `<span class="pill pill-bad" style="font-size:11.5px;padding:1px 6px;">+${unreadCnt} новых</span>` : ''}
                   </div>
                   <div style="font-size:11.5px;color:var(--muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
                     ${escapeHtml(ch.subtitle || 'Нажмите, чтобы открыть окно чата')}
                   </div>
                 </div>
-                ${timeLbl ? `<span style="font-size:10.5px;color:var(--muted);flex-shrink:0;">${escapeHtml(timeLbl)}</span>` : ''}
+                ${timeLbl ? `<span style="font-size:11.5px;color:var(--muted);flex-shrink:0;">${escapeHtml(timeLbl)}</span>` : ''}
               </div>
               <div style="display:grid;grid-template-columns:1fr auto;gap:8px;width:100%;align-items:center;">
                 <button type="button" class="btn btn-sm btn-accent" data-select-chat-chan="${escapeHtml(ch.channelId)}" style="min-height:34px;padding:4px 12px;font-size:12px;font-weight:800;width:100%;justify-content:center;">
@@ -329,7 +329,7 @@ export function renderFullScreenChatWindowHtml(s, ident, visibleCrews, opts = {}
 
   const slipBtnHtml = opts.attachSlipSpotBtnHtml || `
     <button type="button" class="btn" id="chatAttachSlipSpotBtn" title="Добавить слип или точку на карту" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:10px 6px;border-radius:14px;background:var(--panel);border:1px solid var(--border);">
-      <span style="width:42px;height:42px;border-radius:50%;background:rgba(56,189,248,0.16);border:1.5px solid #38bdf8;display:inline-flex;align-items:center;justify-content:center;color:#38bdf8;">
+      <span style="width:42px;height:42px;border-radius:50%;background:var(--accent-soft-bg);border:1.5px solid var(--accent);display:inline-flex;align-items:center;justify-content:center;color:var(--accent);">
         <svg class="k-svg" style="width:20px;height:20px;"><use href="#point-slip"></use></svg>
       </span>
       <span style="font-size:11.5px;font-weight:800;color:var(--text);">Слипы</span>
@@ -348,13 +348,13 @@ export function renderFullScreenChatWindowHtml(s, ident, visibleCrews, opts = {}
               <div style="font-weight:900;font-size:var(--fs-sm);color:var(--accent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
                 ${activeChan.title}
               </div>
-              <div style="font-size:10.5px;color:var(--muted);">
+              <div style="font-size:11.5px;color:var(--muted);">
                 ${activeChan.type === 'crew' ? 'Чат участников канала / экипажа' : 'Личный диалог рыбаков'}
               </div>
             </div>
           </div>
           <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">
-            ${activeChan.crewKey ? `<span class="fisher-id-copy-badge" data-copy-fisher-id="${escapeHtml(activeChan.crewKey)}" data-copy-label="Ключ экипажа" style="font-size:11px;font-family:monospace;font-weight:800;cursor:pointer;padding:4px 7px;background:var(--card);border:1px solid var(--border);border-radius:6px;">${escapeHtml(activeChan.crewKey)}</span>` : ''}
+            ${activeChan.crewKey ? `<span class="fisher-id-copy-badge" data-copy-fisher-id="${escapeHtml(activeChan.crewKey)}" data-copy-label="Ключ экипажа" style="font-size:11px;font-family:var(--font-mono);font-weight:800;cursor:pointer;padding:4px 7px;background:var(--card);border:1px solid var(--border);border-radius:6px;">${escapeHtml(activeChan.crewKey)}</span>` : ''}
             <button type="button" class="btn btn-sm" id="chatDeleteHistoryBtn" title="Удалить переписку" style="color:var(--bad);border-color:rgba(239,68,68,0.4);min-height:36px;padding:4px 9px;">
               <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </button>
@@ -381,11 +381,11 @@ export function renderFullScreenChatWindowHtml(s, ident, visibleCrews, opts = {}
             const tokenMatch = String(m.text || '').match(/KP1_[A-Za-z0-9_-]+/);
             const packTok = m.catchMeta?.token || (tokenMatch ? tokenMatch[0] : '');
             return `
-              <div data-chat-msg-bubble="${escapeHtml(m.id)}" data-msg-ts="${msgTs}" data-msg-mine="${isMe ? '1' : '0'}" data-msg-autoshare="${isAutoGeneratedShareChatMessage(m) ? '1' : '0'}" style="align-self:${isMe ? 'flex-end' : 'flex-start'};max-width:86%;padding:9px 12px;border-radius:12px;background:${isMe ? 'rgba(56,189,248,0.16)' : 'var(--card)'};border:1px solid ${isSelected ? 'var(--accent)' : (isMe ? 'var(--accent)' : 'var(--border)' )};box-shadow:${isSelected ? '0 0 0 2px var(--accent)' : 'none'};font-size:var(--fs-xs);flex-shrink:0;user-select:none;-webkit-user-select:none;transition:box-shadow 0.15s ease;">
+              <div data-chat-msg-bubble="${escapeHtml(m.id)}" data-msg-ts="${msgTs}" data-msg-mine="${isMe ? '1' : '0'}" data-msg-autoshare="${isAutoGeneratedShareChatMessage(m) ? '1' : '0'}" style="align-self:${isMe ? 'flex-end' : 'flex-start'};max-width:86%;padding:9px 12px;border-radius:12px;background:${isMe ? 'var(--accent-soft-bg)' : 'var(--card)'};border:1px solid ${isSelected ? 'var(--accent)' : (isMe ? 'var(--accent)' : 'var(--border)' )};box-shadow:${isSelected ? '0 0 0 2px var(--accent)' : 'none'};font-size:var(--fs-xs);flex-shrink:0;user-select:none;-webkit-user-select:none;transition:box-shadow 0.15s ease;">
                 <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap;">
                   <b style="color:${isMe ? 'var(--accent)' : 'var(--good)'};">${senderDisplay}</b>
                   <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
-                    <span style="font-size:10px;color:var(--muted);">${escapeHtml(timeStr)}${editedBadge}</span>
+                    <span style="font-size:11.5px;color:var(--muted);">${escapeHtml(timeStr)}${editedBadge}</span>
                     <span data-chat-msg-actions="${escapeHtml(m.id)}" style="display:${isSelected ? 'inline-flex' : 'none'};align-items:center;gap:5px;">
                       ${canEditMsg ? `
                         <button type="button" class="btn btn-sm" data-edit-chat-msg="${escapeHtml(m.id)}" title="Редактировать сообщение (доступно 3 ч)" aria-label="Редактировать сообщение" style="width:28px;height:28px;min-height:28px;padding:0;border-radius:7px;justify-content:center;color:var(--accent);border-color:var(--accent);">
@@ -527,7 +527,7 @@ export function renderChatsSection(customContainer = null, opts = {}) {
           <button type="button" class="btn btn-sm btn-accent" id="chatBackToAdminConsoleBtn" style="min-height:36px;font-weight:900;">
             ← Вернуться в Консоль Супер-Админа
           </button>
-          <span class="pill pill-good" style="font-size:10px;">Контур Супер-Админа (${escapeHtml(ident.fisherId)})</span>
+          <span class="pill pill-good" style="font-size:11.5px;">Контур Супер-Админа (${escapeHtml(ident.fisherId)})</span>
         </div>
       ` : renderCircleChatsHubBar('chats')}
 

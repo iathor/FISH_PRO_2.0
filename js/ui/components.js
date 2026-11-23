@@ -1,4 +1,4 @@
-import { svgIcon } from './icons.js?v=2.9.2-r256';
+import { svgIcon } from './icons.js?v=2.9.2-r257';
 /**
  * Экранирует пользовательские строки перед вставкой в HTML (защита от DOM XSS и инъекций тегов)
  */
@@ -101,7 +101,7 @@ export function showToast(message, tone = 'info', options = {}) {
     <div class="toast-body" data-toast-body="1">
       <span style="flex-shrink:0;display:inline-flex;align-items:center;">${svgIcon(icoName, accentCol)}</span>
       <span style="flex:1;min-width:0;">${escapeHtml(cleanText)}</span>
-      ${actionLabel ? `<span class="pill" style="font-size:10px;padding:2px 7px;border-color:${accentCol};color:${accentCol};font-weight:900;flex-shrink:0;">${escapeHtml(actionLabel)} →</span>` : ''}
+      ${actionLabel ? `<span class="pill" style="font-size:11.5px;padding:2px 7px;border-color:${accentCol};color:${accentCol};font-weight:900;flex-shrink:0;">${escapeHtml(actionLabel)} →</span>` : ''}
     </div>
     <button type="button" class="toast-close-btn" data-toast-close="1" aria-label="Закрыть уведомление" title="Закрыть">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
@@ -644,7 +644,7 @@ export function ensureGeoDistributionConsent(actionLabel = 'отправки г�
         Вы собираетесь передать данные о своём местоположении (координаты точки или водоёма) на сервер «Клёв ПРО 2.0» для отображения другим пользователям в выбранном разделе («Круг», «Экипаж», «Слипы/Точки», «Чаты» или «SOS»).<br><br>
         Вы можете в любой момент <b>отозвать это согласие</b> в профиле или на карте — при отзыве все ранее переданные вами геоданные и точки будут автоматически удалены из чатов, кругов и базы данных.
       </div>
-      <label style="display:flex;align-items:flex-start;gap:9px;padding:9px 10px;background:rgba(56,189,248,0.08);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:12px;line-height:1.4;">
+      <label style="display:flex;align-items:flex-start;gap:9px;padding:9px 10px;background:var(--accent-soft-bg);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:12px;line-height:1.4;">
         <input type="checkbox" id="geoConsentChk1" style="margin-top:2px;width:18px;height:18px;accent-color:#10b981;flex-shrink:0;">
         <span>Разрешаю приложению определить и использовать мои координаты GPS/ГЛОНАСС для выполнения операции.</span>
       </label>
@@ -741,11 +741,11 @@ export function openUserAgreementModal({
           <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;">
             <div style="font-size:14.5px;font-weight:900;line-height:1.22;color:var(--accent);">Пользовательское соглашение и Политика (152-ФЗ)</div>
             <div style="display:flex;gap:4px;align-items:center;flex-shrink:0;">
-              <span class="pill pill-good" style="font-size:10px;font-weight:900;padding:2px 7px;">Ред. ${escapeHtml(envPol.policyVersion)}</span>
-              <span class="pill" style="font-size:10px;font-weight:900;padding:2px 6px;">12+</span>
+              <span class="pill pill-good" style="font-size:11.5px;font-weight:900;padding:2px 7px;">Ред. ${escapeHtml(envPol.policyVersion)}</span>
+              <span class="pill" style="font-size:11.5px;font-weight:900;padding:2px 6px;">12+</span>
             </div>
           </div>
-          <div style="font-size:10.5px;line-height:1.28;color:var(--muted);margin-top:2px;">
+          <div style="font-size:11.5px;line-height:1.28;color:var(--muted);margin-top:2px;">
             ${requireVerification
               ? 'Для завершения регистрации внимательно прочитайте соглашение и пролистайте его до конца'
               : (isRemotePushUpdate ? 'Обновлена редакция Политики и Пользовательского соглашения — ознакомьтесь и подтвердите согласие' : 'Правовой статус (ЗоЗПП / 149-ФЗ), защита данных (152-ФЗ), авторские права (ГК РФ) и безопасность')}
@@ -753,18 +753,18 @@ export function openUserAgreementModal({
         </div>
       </div>
       ${requireVerification ? `
-        <div style="flex-shrink:0;display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:10.5px;">
+        <div style="flex-shrink:0;display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11.5px;">
           <div id="uaScrollStatusBox" style="padding:5px 7px;border-radius:6px;background:rgba(245,158,11,0.12);border:1px solid var(--warn);color:var(--warn);font-weight:800;text-align:center;">
             Пролистайте текст до конца
           </div>
-          <div id="uaTimerStatusBox" style="padding:5px 7px;border-radius:6px;background:rgba(56,189,248,0.12);border:1px solid var(--accent);color:var(--accent);font-weight:800;text-align:center;">
+          <div id="uaTimerStatusBox" style="padding:5px 7px;border-radius:6px;background:var(--accent-soft-bg);border:1px solid var(--accent);color:var(--accent);font-weight:800;text-align:center;">
             Время чтения: ${secondsLeft} сек.
           </div>
         </div>
       ` : ''}
       <div id="uaScrollTextContainer" style="flex:1 1 0%;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:10px 11px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);font-size:12px;line-height:1.48;color:var(--text);display:flex;flex-direction:column;gap:9px;">
         ${envPol.summary ? `
-          <div id="uaSummaryBannerBox" style="padding:7px 9px;border-radius:7px;background:rgba(56,189,248,0.10);border:1px solid rgba(56,189,248,0.35);font-size:11.5px;line-height:1.38;color:var(--text);">
+          <div id="uaSummaryBannerBox" style="padding:7px 9px;border-radius:7px;background:var(--accent-soft-bg);border:1px solid var(--accent);font-size:11.5px;line-height:1.38;color:var(--text);">
             <b style="color:var(--accent);">Актуальная сводка редакции (${escapeHtml(envPol.policyVersion)}):</b> ${escapeHtml(envPol.summary)}
           </div>
         ` : ''}
@@ -775,7 +775,7 @@ export function openUserAgreementModal({
       </div>
       ${needCheckboxes ? `
         <div style="flex-shrink:0;display:flex;flex-direction:column;gap:4px;font-size:11px;">
-          <label style="display:flex;align-items:flex-start;gap:7px;padding:5px 8px;background:rgba(56,189,248,0.08);border:1px solid var(--border);border-radius:7px;cursor:pointer;line-height:1.26;">
+          <label style="display:flex;align-items:flex-start;gap:7px;padding:5px 8px;background:var(--accent-soft-bg);border:1px solid var(--border);border-radius:7px;cursor:pointer;line-height:1.26;">
             <input type="checkbox" id="uaChkPrivacy" checked style="margin-top:1px;width:15px;height:15px;accent-color:#10b981;flex-shrink:0;">
             <span>Я ознакомился(лась) и принимаю Политику конфиденциальности (ФЗ № 152-ФЗ)</span>
           </label>

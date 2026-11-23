@@ -5,14 +5,14 @@
  * - Единый прямой промпт без рамок/точек/квадратов на фото: «Определи, что за рыба на фото, примерный размер и вес»
  * - Автоматическая подстановка ответа нейросети (вид, размер, вес в г/кг, диагностические признаки и разбор нескольких рыб в кадре) в карточку Атласа РФ
  */
-import { store } from '../../core/store.js?v=2.9.2-r256';
-import { router } from '../../core/router.js?v=2.9.2-r256';
-import { RELAY_WORKER_URL, triggerHaptic } from '../../core/telegram.js?v=2.9.2-r256';
-import { workerFetch } from '../circle/circle.module.js?v=2.9.2-r256';
-import { BASIN_CONFIGS } from '../../data/basins.js?v=2.9.2-r256';
-import { FISH_DB } from '../../data/species.js?v=2.9.2-r256';
-import { renderFishVisual } from '../../ui/svg.js?v=2.9.2-r256';
-import { escapeHtml, openModal, closeModal, showToast, flashHighlightElement } from '../../ui/components.js?v=2.9.2-r256';
+import { store } from '../../core/store.js?v=2.9.2-r257';
+import { router } from '../../core/router.js?v=2.9.2-r257';
+import { RELAY_WORKER_URL, triggerHaptic } from '../../core/telegram.js?v=2.9.2-r257';
+import { workerFetch } from '../circle/circle.module.js?v=2.9.2-r257';
+import { BASIN_CONFIGS } from '../../data/basins.js?v=2.9.2-r257';
+import { FISH_DB } from '../../data/species.js?v=2.9.2-r257';
+import { renderFishVisual } from '../../ui/svg.js?v=2.9.2-r257';
+import { escapeHtml, openModal, closeModal, showToast, flashHighlightElement } from '../../ui/components.js?v=2.9.2-r257';
 /**
  * Коэффициент упитанности Фултона (k) по видам рыб для расчёта веса по длине:
  * W (кг) = (k * L_см^3) / 100000
@@ -291,6 +291,94 @@ export async function extractPhotoVisualFeatures(imgSrc) {
 const LOCAL_VISION_CACHE_KEY = "klev_vision_ai_cache_v263_r202";
 const LOCAL_GEMINI_KEY_STORAGE = "klev_gemini_api_key_v2";
 const LOCAL_GEMINI_QUOTA_STORAGE = "klev_gemini_quota_v2";
+
+export function getScannerAuthContext() {
+  let fisherId = "";
+  let login = "";
+  let deviceId = "";
+  let sessionToken = "";
+  let authTokenHash = "";
+  let adminToken = "";
+  try {
+    const s = store.getState();
+    const up = s?.userProfile || {};
+    fisherId = String(up.fisherId || "").trim().toUpperCase();
+    login = String(up.login || up.callsign || "").trim();
+    deviceId = String(up.deviceId || "").trim();
+    sessionToken = String(up.sessionToken || up.authTokenHash || "").trim();
+    authTokenHash = String(up.authTokenHash || up.sessionToken || "").trim();
+    const isAdminContour = Boolean(typeof window !== "undefined" && window.__KLEV_ADMIN_CONTOUR__);
+    if (isAdminContour || up.ownerUnlocked) {
+      adminToken = String(up.adminSessionToken || "").trim();
+    }
+    if (typeof localStorage !== "undefined") {
+      try {
+        const rawCircleAuth = localStorage.getItem("klev_circle_auth_v1");
+        if (rawCircleAuth) {
+          const ca = JSON.parse(rawCircleAuth);
+          if (ca && typeof ca === "object") {
+            if (!fisherId && ca.fisherId) fisherId = String(ca.fisherId).trim().toUpperCase();
+            if (!login && (ca.login || ca.callsign)) login = String(ca.login || ca.callsign).trim();
+            if (!deviceId && ca.deviceId) deviceId = String(ca.deviceId).trim();
+            if (!sessionToken && (ca.sessionToken || ca.authTokenHash)) sessionToken = String(ca.sessionToken || ca.authTokenHash).trim();
+            if (!authTokenHash && (ca.authTokenHash || ca.sessionToken)) authTokenHash = String(ca.authTokenHash || ca.sessionToken).trim();
+          }
+        }
+      } catch (_e) {}
+      try {
+        const rawUserProf = localStorage.getItem("klev_user_profile_v1") || localStorage.getItem("klev_pro_state_v2.0");
+        if (rawUserProf) {
+          const parsedProf = JSON.parse(rawUserProf);
+          const pObj = (parsedProf && parsedProf.userProfile && typeof parsedProf.userProfile === "object") ? parsedProf.userProfile : parsedProf;
+          if (pObj && typeof pObj === "object") {
+            if (!fisherId && pObj.fisherId) fisherId = String(pObj.fisherId).trim().toUpperCase();
+            if (!login && (pObj.login || pObj.callsign)) login = String(pObj.login || pObj.callsign).trim();
+            if (!deviceId && pObj.deviceId) deviceId = String(pObj.deviceId).trim();
+            if (!sessionToken && (pObj.sessionToken || pObj.authTokenHash)) sessionToken = String(pObj.sessionToken || pObj.authTokenHash).trim();
+            if (!authTokenHash && (pObj.authTokenHash || pObj.sessionToken)) authTokenHash = String(pObj.authTokenHash || pObj.sessionToken).trim();
+            if ((isAdminContour || pObj.ownerUnlocked) && !adminToken && pObj.adminSessionToken) {
+              adminToken = String(pObj.adminSessionToken).trim();
+            }
+          }
+        }
+      } catch (_e) {}
+      if (!deviceId) {
+        deviceId = String(
+          localStorage.getItem("klev_device_id") ||
+          localStorage.getItem("klev_pro_device_id_v2") ||
+          ""
+        ).trim();
+      }
+      if ((isAdminContour || up.ownerUnlocked) && !adminToken) {
+        try {
+          const rawAdmCreds = localStorage.getItem("klev_pro_admin_saved_creds_v2");
+          if (rawAdmCreds) {
+            const admObj = JSON.parse(rawAdmCreds);
+            if (admObj && admObj.adminSessionToken) {
+              adminToken = String(admObj.adminSessionToken).trim();
+            }
+          }
+        } catch (_e) {}
+      }
+    }
+  } catch (_e) {}
+  if (!deviceId) {
+    deviceId = `DEV_${Date.now().toString(36).toUpperCase()}`;
+  }
+  if (!fisherId) {
+    fisherId = deviceId;
+  }
+  if (!sessionToken && authTokenHash) sessionToken = authTokenHash;
+  if (!authTokenHash && sessionToken) authTokenHash = sessionToken;
+  return {
+    fisherId,
+    login,
+    deviceId,
+    sessionToken,
+    authTokenHash,
+    adminToken
+  };
+}
 
 export function getStoredGeminiApiKey() {
   try {
@@ -1156,28 +1244,50 @@ export async function analyzeFishPhotoHybrid(imgSrc, bypassCache = false) {
     "Верни ТОЛЬКО валидный JSON:\n" +
     '{"fishNameRu":"точное название рыбы","fishNameLat":"латинское название","confidence":96,"lengthCm":25,"weightGrams":220,"sizeText":"Длина ~25 см • Вес ~220 г","isMultipleFish":false,"fishCount":1,"traits":"ключевые морфологические признаки на снимке","fullText":"развёрнутое заключение ихтиолога по виду, пропорциям и весу","detectedFish":[{"fishNameRu":"название","positionLabel":"по центру","lengthCm":25,"weightGrams":220,"traits":"признаки"}]}';
 
+  let lastWorkerErrorMsg = "";
+
   if (typeof fetch === "function" && pureB64 && pureB64.length > 100) {
     const geminiQuota = getLocalGeminiQuotaState();
     const activeClientKey = getStoredGeminiApiKey();
+    const authCtx = getScannerAuthContext();
+    const authPayloadFields = {
+      fisherId: authCtx.fisherId,
+      login: authCtx.login,
+      deviceId: authCtx.deviceId,
+      sessionToken: authCtx.sessionToken,
+      authTokenHash: authCtx.authTokenHash,
+      ...(authCtx.adminToken ? { adminToken: authCtx.adminToken } : {})
+    };
+    const directAuthHeaders = {
+      "Content-Type": "text/plain;charset=UTF-8",
+      ...(authCtx.sessionToken || authCtx.authTokenHash ? { "X-Auth-Token": authCtx.sessionToken || authCtx.authTokenHash } : {}),
+      ...(authCtx.fisherId ? { "X-Fisher-Id": authCtx.fisherId } : {}),
+      ...(authCtx.adminToken ? { "X-Admin-Token": authCtx.adminToken } : {})
+    };
 
     // 2А. Многоканальный запрос к Cloudflare Worker /api/ai/identify-fish:
-    // Сначала быстрый прямой POST (2.5 сек), а при задержке отклика — гарантированная пакетная передача
+    // Сначала прямой POST (12 сек для ожидания ответа Gemini Vision), а при сетевом сбое — гарантированная пакетная передача
     // чанков через резервный E2E GET-каскад workerFetch (Hexlet / Vercel / EveryOrigin)
     const workerBodyStr = JSON.stringify({
+      ...authPayloadFields,
       basinCode,
       locLabel,
       dhash: feat.dhash,
       roiDhash: feat.roiDhash,
       imageBase64: pureB64,
-      geminiApiKey: activeClientKey,
-      bypassCache: true,
-      directPrompt: DIRECT_FISH_PROMPT
+      ...(activeClientKey && activeClientKey.length >= 16 ? { geminiApiKey: activeClientKey } : {}),
+      bypassCache: true
     });
 
     const parseWorkerResponseObj = (data) => {
+      if (data && data.ok === false && typeof data.error === "string" && data.error.trim()) {
+        if (/[А-Яа-яЁё]/.test(data.error) || /limit|quota|key|Forbidden|Unauthorized/i.test(data.error)) {
+          lastWorkerErrorMsg = data.error.trim();
+        }
+      }
       const eng = String(data?.engine || "");
       const isOldFallback = eng.includes("v2.5.3") || eng.includes("Морфометрическое ядро") || eng.includes("Гибридный");
-      if (!data || !data.ok || isOldFallback) throw new Error("Worker not ok");
+      if (!data || !data.ok || isOldFallback) throw new Error(data?.error || "Worker not ok");
       const parsed = data.rawGeminiText
         ? parseGeminiFishResponse(data.rawGeminiText)
         : parseGeminiFishResponse(JSON.stringify(data));
@@ -1185,21 +1295,26 @@ export async function analyzeFishPhotoHybrid(imgSrc, bypassCache = false) {
       return { data, parsed };
     };
 
-    const callDirectPostFast = async (timeoutMs = 2600) => {
+    const callDirectPostFast = async (timeoutMs = 12000) => {
       const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
       const timer = ctrl ? setTimeout(() => ctrl.abort(), timeoutMs) : null;
       try {
         const res = await fetch(`${RELAY_WORKER_URL}/api/ai/identify-fish`, {
           method: "POST",
-          headers: { "Content-Type": "text/plain;charset=UTF-8" },
+          headers: directAuthHeaders,
           body: workerBodyStr,
           mode: "cors",
           credentials: "omit",
           signal: ctrl?.signal
         });
         if (timer) clearTimeout(timer);
-        if (!res || !res.ok) throw new Error("Direct HTTP " + (res?.status || 0));
-        const data = await res.json();
+        const data = res ? await res.json().catch(() => null) : null;
+        if (data && data.ok === false && typeof data.error === "string" && data.error.trim()) {
+          if (/[А-Яа-яЁё]/.test(data.error) || /limit|quota|key/i.test(data.error)) {
+            lastWorkerErrorMsg = data.error.trim();
+          }
+        }
+        if (!res || !res.ok) throw new Error(data?.error || ("Direct HTTP " + (res?.status || 0)));
         return parseWorkerResponseObj(data);
       } catch (err) {
         if (timer) clearTimeout(timer);
@@ -1213,6 +1328,7 @@ export async function analyzeFishPhotoHybrid(imgSrc, bypassCache = false) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          ...authPayloadFields,
           basinCode,
           locLabel,
           dhash: feat.dhash,
@@ -1220,8 +1336,13 @@ export async function analyzeFishPhotoHybrid(imgSrc, bypassCache = false) {
           bypassCache: true
         })
       }, 18000, 1);
-      if (!sRes || !sRes.ok) throw new Error('Single-shot GET relay HTTP ' + (sRes?.status || 0));
-      const sData = await sRes.json();
+      const sData = sRes ? await sRes.json().catch(() => null) : null;
+      if (sData && sData.ok === false && typeof sData.error === "string" && sData.error.trim()) {
+        if (/[А-Яа-яЁё]/.test(sData.error) || /limit|quota|key/i.test(sData.error)) {
+          lastWorkerErrorMsg = sData.error.trim();
+        }
+      }
+      if (!sRes || !sRes.ok) throw new Error(sData?.error || ('Single-shot GET relay HTTP ' + (sRes?.status || 0)));
       return parseWorkerResponseObj(sData);
     };
 
@@ -1232,15 +1353,20 @@ export async function analyzeFishPhotoHybrid(imgSrc, bypassCache = false) {
       try {
         const pRes = await fetch(proxyUrl, {
           method: 'POST',
-          headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+          headers: directAuthHeaders,
           body: workerBodyStr,
           mode: 'cors',
           credentials: 'omit',
           signal: ctrl?.signal
         });
         if (timer) clearTimeout(timer);
-        if (!pRes || !pRes.ok) throw new Error('PostProxy HTTP ' + (pRes?.status || 0));
-        const pData = await pRes.json();
+        const pData = pRes ? await pRes.json().catch(() => null) : null;
+        if (pData && pData.ok === false && typeof pData.error === "string" && pData.error.trim()) {
+          if (/[А-Яа-яЁё]/.test(pData.error) || /limit|quota|key/i.test(pData.error)) {
+            lastWorkerErrorMsg = pData.error.trim();
+          }
+        }
+        if (!pRes || !pRes.ok) throw new Error(pData?.error || ('PostProxy HTTP ' + (pRes?.status || 0)));
         return parseWorkerResponseObj(pData);
       } catch (e) {
         if (timer) clearTimeout(timer);
@@ -1262,6 +1388,7 @@ export async function analyzeFishPhotoHybrid(imgSrc, bypassCache = false) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            ...authPayloadFields,
             chunkMode: 'put',
             scanId,
             idx: 0,
@@ -1270,8 +1397,11 @@ export async function analyzeFishPhotoHybrid(imgSrc, bypassCache = false) {
           })
         }, 7000, 1);
         const firstJson = firstRes ? await firstRes.json().catch(() => null) : null;
+        if (firstJson && firstJson.ok === false && typeof firstJson.error === 'string' && /[А-Яа-яЁё]/.test(firstJson.error)) {
+          lastWorkerErrorMsg = firstJson.error.trim();
+        }
         if (!firstJson || !firstJson.ok || typeof firstJson.savedIdx !== 'number') {
-          throw new Error('Worker chunkMode not active or chunk 0 failed');
+          throw new Error(firstJson?.error || 'Worker chunkMode not active or chunk 0 failed');
         }
         // Загружаем остальные чанки батчами по 3 параллельно
         for (let bStart = 1; bStart < chunks.length; bStart += 3) {
@@ -1282,6 +1412,7 @@ export async function analyzeFishPhotoHybrid(imgSrc, bypassCache = false) {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
+                ...authPayloadFields,
                 chunkMode: 'put',
                 scanId,
                 idx,
@@ -1295,11 +1426,12 @@ export async function analyzeFishPhotoHybrid(imgSrc, bypassCache = false) {
             }
           }));
         }
-        // Запускаем распознавание собранного снимка на воркере (без передачи 2.6 КБ directPrompt в URL!)
+        // Запускаем распознавание собранного снимка на воркере (без передачи directPrompt в URL!)
         const execRes = await workerFetch('/api/ai/identify-fish', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            ...authPayloadFields,
             chunkMode: 'exec',
             scanId,
             total: chunks.length,
@@ -1307,12 +1439,15 @@ export async function analyzeFishPhotoHybrid(imgSrc, bypassCache = false) {
             locLabel,
             dhash: feat.dhash,
             roiDhash: feat.roiDhash,
-            geminiApiKey: activeClientKey,
+            ...(activeClientKey && activeClientKey.length >= 16 ? { geminiApiKey: activeClientKey } : {}),
             bypassCache: true
           })
         }, 20000, 1);
-        if (!execRes || !execRes.ok) throw new Error('Chunked exec HTTP ' + (execRes?.status || 0));
-        const execData = await execRes.json();
+        const execData = execRes ? await execRes.json().catch(() => null) : null;
+        if (execData && execData.ok === false && typeof execData.error === 'string' && /[А-Яа-яЁё]/.test(execData.error)) {
+          lastWorkerErrorMsg = execData.error.trim();
+        }
+        if (!execRes || !execRes.ok) throw new Error(execData?.error || ('Chunked exec HTTP ' + (execRes?.status || 0)));
         return parseWorkerResponseObj(execData);
       } catch (_chunkErr) {
         // Если воркер ещё не обновлён или чанки не прошли — пробуем параллельно одиночный компактный E2E GET-пакет и POST-ретранслятор
@@ -1326,7 +1461,7 @@ export async function analyzeFishPhotoHybrid(imgSrc, bypassCache = false) {
     try {
       let workerWinner = null;
       try {
-        workerWinner = await callDirectPostFast(2500);
+        workerWinner = await callDirectPostFast(12000);
       } catch (_directErr) {
         workerWinner = await callChunkedCloudRelay();
       }
@@ -1486,7 +1621,7 @@ export async function analyzeFishPhotoHybrid(imgSrc, bypassCache = false) {
 
   return {
     ok: false,
-    error: "Не удалось получить ответ от нейросети Vision ИИ. Проверьте подключение к интернету или нажмите «Повторить».",
+    error: lastWorkerErrorMsg || "Не удалось получить ответ от нейросети Vision ИИ. Проверьте подключение к интернету или нажмите «Повторить».",
     thumbDataUrl: feat.thumbDataUrl || imgSrc,
     roiDataUrl: feat.thumbDataUrl || imgSrc
   };
@@ -1542,7 +1677,7 @@ export function openFishPhotoScannerModal(options = {}) {
           return;
         }
         root.innerHTML = `
-          <div class="card" style="padding:16px 12px;text-align:center;background:var(--panel);border:1.5px solid var(--accent);">
+          <div class="glass-panel" style="padding:16px 12px;text-align:center;background:var(--panel);border:1px solid var(--border);border-radius:14px;">
             <div style="margin-bottom:10px;border-radius:10px;overflow:hidden;max-height:220px;display:flex;justify-content:center;background:#090f1d;">
               <img src="${currentImgSrc}" alt="Фото" style="max-width:100%;max-height:220px;object-fit:contain;">
             </div>
@@ -1607,9 +1742,9 @@ export function openFishPhotoScannerModal(options = {}) {
 
           ${!hasPhoto ? `
             <!-- Единая стартовая карточка без дублирования -->
-            <div class="card" style="padding:16px 14px;text-align:center;background:var(--card);border:1.5px solid var(--accent);display:flex;flex-direction:column;gap:10px;">
+            <div class="glass-panel" style="padding:16px 14px;text-align:center;background:var(--card);border:1px solid var(--border);border-radius:14px;display:flex;flex-direction:column;gap:10px;">
               <div style="display:flex;justify-content:center;">
-                <span class="pill pill-good" style="font-size:10.5px;font-weight:800;">
+                <span class="pill pill-good" style="font-size:11.5px;font-weight:800;">
                    Нейросеть Gemini Vision ИИ готова к распознаванию
                 </span>
               </div>
@@ -1620,26 +1755,27 @@ export function openFishPhotoScannerModal(options = {}) {
                 Gemini Vision ИИ автоматически определит вид рыбы, оценит длину и вес по масштабу кадра и заполнит карточку.
               </div>
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:2px;">
-                <button type="button" class="btn btn-good" id="scannerOpenLiveCamBtn" style="min-height:42px;font-weight:900;">
-                  Камера
+                <button type="button" class="pill-btn active" id="scannerOpenLiveCamBtn" style="min-height:42px;font-weight:800;width:100%;">
+                  <svg class="k-svg" style="width:16px;height:16px;"><use href="#ui-camera"></use></svg>
+                  <span>Камера</span>
                 </button>
-                <button type="button" class="btn btn-accent" id="scannerHeroGalleryBtn" style="min-height:42px;font-weight:900;">
-                  Из галереи
+                <button type="button" class="pill-btn" id="scannerHeroGalleryBtn" style="min-height:42px;font-weight:800;width:100%;">
+                  <span>Из галереи</span>
                 </button>
               </div>
 
             </div>
           ` : `
             <!-- Компактная карточка загруженного снимка + кнопки управления в одну строку -->
-            <div class="card" style="padding:10px 12px;background:var(--panel);border:1.5px solid ${hasValidResult ? "var(--accent)" : "var(--warn)"};display:flex;flex-direction:column;gap:8px;">
+            <div class="glass-panel" style="padding:10px 12px;background:var(--panel);border:1px solid var(--border);border-radius:14px;display:flex;flex-direction:column;gap:8px;">
               <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
-                <span style="font-size:11.5px;font-weight:800;color:${hasValidResult ? "var(--accent)" : "var(--warn)"};">
+                <span style="font-size:12px;font-weight:800;color:${hasValidResult ? "var(--accent)" : "var(--warn)"};">
                   ${hasValidResult ? escapeHtml(activeResult.sourceMode || "Google Gemini Vision ИИ") : "Повторный запрос к Vision ИИ"}
                 </span>
-                <div style="display:flex;gap:5px;flex-wrap:wrap;">
-                  <button type="button" class="btn btn-sm btn-good" id="scannerOpenLiveCamBtn" style="min-height:30px;padding:2px 8px;font-size:11px;font-weight:800;">Камера</button>
-                  <button type="button" class="btn btn-sm btn-accent" id="scannerHeroGalleryBtn" style="min-height:30px;padding:2px 8px;font-size:11px;font-weight:800;">Галерея</button>
-                  <button type="button" class="btn btn-sm" id="scannerRetryBtn" style="min-height:30px;padding:2px 8px;font-size:11px;font-weight:800;">Повторить</button>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                  <button type="button" class="pill-btn active" id="scannerOpenLiveCamBtn" style="min-height:32px;padding:4px 10px;font-size:11.5px;font-weight:800;">Камера</button>
+                  <button type="button" class="pill-btn" id="scannerHeroGalleryBtn" style="min-height:32px;padding:4px 10px;font-size:11.5px;font-weight:800;">Галерея</button>
+                  <button type="button" class="pill-btn" id="scannerRetryBtn" style="min-height:32px;padding:4px 10px;font-size:11.5px;font-weight:800;">Повторить</button>
                 </div>
               </div>
               <div style="width:100%;border-radius:10px;overflow:hidden;background:#090f1d;border:1px solid var(--border);display:flex;justify-content:center;align-items:center;max-height:230px;">
@@ -1647,11 +1783,11 @@ export function openFishPhotoScannerModal(options = {}) {
               </div>
 
               ${!hasValidResult ? `
-                <div style="padding:8px 10px;border-radius:8px;background:rgba(245,158,11,0.12);border:1px solid var(--warn);text-align:center;">
-                  <div style="font-weight:800;font-size:12.5px;color:var(--warn);margin-bottom:6px;">
+                <div class="glass-panel" style="padding:10px 12px;border-radius:14px;background:var(--card);border:1px solid var(--border);text-align:center;display:flex;flex-direction:column;gap:8px;">
+                  <div style="font-weight:800;font-size:12.5px;color:var(--warn);">
                     ${escapeHtml(activeResult?.error || "Не удалось получить ответ от нейросети Vision ИИ")}
                   </div>
-                  <button type="button" class="btn btn-accent" id="scannerRetryMainBtn" style="min-height:36px;font-weight:900;width:100%;">
+                  <button type="button" class="pill-btn active" id="scannerRetryMainBtn" style="min-height:38px;font-weight:800;width:100%;">
                     Повторить анализ снимка
                   </button>
                 </div>
@@ -1661,16 +1797,16 @@ export function openFishPhotoScannerModal(options = {}) {
 
           ${hasValidResult ? `
             <!-- Результат распознавания нейросетью и карточка вида -->
-            <div class="card" style="padding:12px 14px;background:var(--panel);border:1.5px solid ${isRedBook ? "var(--bad)" : "var(--good)"};display:flex;flex-direction:column;gap:10px;">
+            <div class="glass-panel" style="padding:12px 14px;background:var(--panel);border:1px solid var(--border);border-radius:14px;display:flex;flex-direction:column;gap:10px;">
               <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;">
-                <span style="font-size:11px;font-weight:900;color:var(--muted);">РЕЗУЛЬТАТ РАСПОЗНАВАНИЯ:</span>
+                <span style="font-size:11.5px;font-weight:900;color:var(--muted);">РЕЗУЛЬТАТ РАСПОЗНАВАНИЯ:</span>
                 <div style="display:flex;gap:6px;align-items:center;">
-                  <span class="pill pill-good" style="font-size:10.5px;">Точность: ${activeMatch.confidence}%</span>
+                  <span class="pill pill-good" style="font-size:11.5px;">Точность: ${activeMatch.confidence}%</span>
                   ${isRedBook
-                    ? `<span class="pill pill-bad" style="font-size:10.5px;">Красная книга • Отпусти!</span>`
+                    ? `<span class="pill pill-bad" style="font-size:11.5px;">Красная книга • Отпусти!</span>`
                     : (isLicense
-                        ? `<span class="pill pill-warn" style="font-size:10.5px;">По путёвке / Лицензия</span>`
-                        : `<span class="pill pill-good" style="font-size:10.5px;">Разрешённый вид</span>`)}
+                        ? `<span class="pill pill-warn" style="font-size:11.5px;">По путёвке / Лицензия</span>`
+                        : `<span class="pill pill-good" style="font-size:11.5px;">Разрешённый вид</span>`)}
                 </div>
               </div>
               <div style="display:grid;grid-template-columns:110px 1fr;gap:10px;align-items:center;">
@@ -1691,11 +1827,11 @@ ${escapeHtml(fullAnalysisText || activeMatch.reason || fish.idTraits || "")}
               </div>
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;padding-top:4px;border-top:1px dashed var(--border);">
                 <div>
-                  <label style="display:block;font-size:10.5px;color:var(--muted);font-weight:700;margin-bottom:2px;">ДЛИНА ОСНОВНОЙ РЫБЫ (СМ):</label>
+                  <label style="display:block;font-size:11.5px;color:var(--muted);font-weight:700;margin-bottom:2px;">ДЛИНА ОСНОВНОЙ РЫБЫ (СМ):</label>
                   <input type="number" id="scannerLenInput" class="input" min="1" max="220" step="0.5" value="${curLen}" style="width:100%;min-height:36px;padding:4px 8px;font-weight:800;">
                 </div>
                 <div>
-                  <label style="display:block;font-size:10.5px;color:var(--muted);font-weight:700;margin-bottom:2px;">ВЕС (КГ, напр. 0.005 = 5 г):</label>
+                  <label style="display:block;font-size:11.5px;color:var(--muted);font-weight:700;margin-bottom:2px;">ВЕС (КГ, напр. 0.005 = 5 г):</label>
                   <input type="number" id="scannerWeightInput" class="input" min="0.001" max="100" step="0.005" value="${curWeight}" style="width:100%;min-height:36px;padding:4px 8px;font-weight:800;color:var(--good);">
                 </div>
               </div>
@@ -1714,7 +1850,7 @@ ${escapeHtml(fullAnalysisText || activeMatch.reason || fish.idTraits || "")}
                 : (activeResult.isMultipleFish && activeResult.topMatches.length > 1 ? activeResult.topMatches : []);
               if (detectedList.length > 1) {
                 return `
-                  <div class="card" style="padding:11px 13px;background:rgba(56,189,248,0.10);border:1.5px solid var(--accent);display:flex;flex-direction:column;gap:8px;">
+                  <div class="glass-panel" style="padding:11px 13px;background:var(--accent-soft-bg, rgba(56,189,248,0.10));border:1px solid var(--border);border-radius:14px;display:flex;flex-direction:column;gap:8px;">
                     <div style="font-weight:900;font-size:12.5px;color:var(--accent);line-height:1.35;">
                       На фото несколько рыб! Сейчас показан расчёт для: «${escapeHtml(displayTitle)}»${activeMatch?.positionLabel ? ` (${escapeHtml(activeMatch.positionLabel)})` : ""}.
                     </div>
@@ -1727,14 +1863,14 @@ ${escapeHtml(fullAnalysisText || activeMatch.reason || fish.idTraits || "")}
                         const wStr = formatWeightHuman(m.estimatedWeightKg || estimateWeightByLengthAndSpecies(m.fish.id, m.estimatedLengthCm || 25));
                         const posTag = m.positionLabel ? ` • ${m.positionLabel}` : "";
                         return `
-                          <button type="button" class="btn ${isSel ? "btn-accent" : ""}" data-pick-scanner-match="${idx}" style="width:100%;justify-content:space-between;text-align:left;padding:8px 10px;min-height:42px;display:flex;align-items:center;gap:8px;border:${isSel ? "2px solid var(--accent)" : "1px solid var(--border)"};">
+                          <button type="button" class="pill-btn ${isSel ? "active" : ""}" data-pick-scanner-match="${idx}" style="width:100%;justify-content:space-between;text-align:left;padding:8px 10px;min-height:42px;border-radius:12px;display:flex;align-items:center;gap:8px;">
                             <span style="display:flex;align-items:center;gap:8px;min-width:0;flex:1;">
                               <img src="assets/fish/${m.fish.id}.png" alt="" style="width:36px;height:22px;object-fit:contain;flex-shrink:0;" onerror="this.style.display='none'">
                               <span style="font-weight:800;font-size:12.5px;white-space:normal;line-height:1.25;">
                                 ${isSel ? "✓ " : ""}${idx + 1}. ${escapeHtml(m.displayTitle || m.fish.name)}${escapeHtml(posTag)}
                               </span>
                             </span>
-                            <span class="pill ${isSel ? "pill-good" : "pill-neutral"}" style="font-weight:900;font-size:11px;flex-shrink:0;">
+                            <span class="pill ${isSel ? "pill-good" : "pill-neutral"}" style="font-weight:900;font-size:11.5px;flex-shrink:0;">
                               ~${m.estimatedLengthCm || 25} см • ${wStr}
                             </span>
                           </button>
@@ -1746,25 +1882,25 @@ ${escapeHtml(fullAnalysisText || activeMatch.reason || fish.idTraits || "")}
               }
               if (activeResult.topMatches.length > 1) {
                 return `
-                  <div class="card" style="padding:10px 12px;background:var(--card);">
-                    <div style="font-weight:900;font-size:11px;color:var(--accent);text-transform:uppercase;margin-bottom:6px;">
+                  <div class="glass-panel" style="padding:10px 12px;background:var(--card);border:1px solid var(--border);border-radius:14px;">
+                    <div style="font-weight:900;font-size:11.5px;color:var(--accent);text-transform:uppercase;margin-bottom:6px;">
                       ДРУГИЕ ВАРИАНТЫ / СХОДНЫЕ ВИДЫ (НАЖМИТЕ, ЕСЛИ СРАВНИВАЕТЕ):
                     </div>
                     <div style="display:flex;flex-direction:column;gap:6px;">
                       ${activeResult.topMatches.map((m, idx) => `
-                        <button type="button" class="btn ${idx === selectedMatchIdx ? "btn-accent" : ""}" data-pick-scanner-match="${idx}" style="width:100%;padding:7px 10px;border-radius:8px;display:flex;justify-content:space-between;align-items:center;gap:8px;text-align:left;">
+                        <button type="button" class="pill-btn ${idx === selectedMatchIdx ? "active" : ""}" data-pick-scanner-match="${idx}" style="width:100%;padding:7px 10px;border-radius:12px;display:flex;justify-content:space-between;align-items:center;gap:8px;text-align:left;">
                           <div style="display:flex;align-items:center;gap:8px;min-width:0;flex:1;">
                             <img src="assets/fish/${m.fish.id}.png" alt="" style="width:40px;height:24px;object-fit:contain;flex-shrink:0;" onerror="this.style.display='none'">
                             <div style="min-width:0;flex:1;">
                               <div style="font-weight:800;font-size:12.5px;color:var(--text);">
                                 ${idx + 1}. ${escapeHtml(m.displayTitle || m.fish.name)}
                               </div>
-                              <div style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                              <div style="font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
                                 ${escapeHtml(m.reason)}
                               </div>
                             </div>
                           </div>
-                          <span class="pill ${m.confidence >= 80 ? "pill-good" : "pill-neutral"}" style="font-weight:900;font-size:11px;">${m.confidence}%</span>
+                          <span class="pill ${m.confidence >= 80 ? "pill-good" : "pill-neutral"}" style="font-weight:900;font-size:11.5px;">${m.confidence}%</span>
                         </button>
                       `).join("")}
                     </div>
@@ -1775,14 +1911,14 @@ ${escapeHtml(fullAnalysisText || activeMatch.reason || fish.idTraits || "")}
             })()}
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;">
               ${!isRedBook ? `
-                <button type="button" class="btn btn-good" id="scannerApplyToLogBtn" style="min-height:42px;font-weight:900;">
+                <button type="button" class="pill-btn active" id="scannerApplyToLogBtn" style="min-height:42px;font-weight:800;">
                   <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.2" fill="#10b981"/></svg> + Записать в Журнал
                 </button>
               ` : ""}
-              <button type="button" class="btn btn-accent" id="scannerSelectForForecastBtn" style="min-height:42px;font-weight:800;">
+              <button type="button" class="pill-btn" id="scannerSelectForForecastBtn" style="min-height:42px;font-weight:800;">
                 Прогноз и снасти
               </button>
-              <button type="button" class="btn" id="scannerOpenPassportBtn" style="min-height:42px;font-weight:800;">
+              <button type="button" class="pill-btn" id="scannerOpenPassportBtn" style="min-height:42px;font-weight:800;">
                 Паспорт вида
               </button>
             </div>

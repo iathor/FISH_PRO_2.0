@@ -6,6 +6,10 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+code, pre {
+  font-family: var(--font-mono);
+}
+
 html {
   font-size: 16.5px;
   scroll-behavior: smooth;

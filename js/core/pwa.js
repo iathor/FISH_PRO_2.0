@@ -1,5 +1,5 @@
-import { showToast } from '../ui/components.js?v=2.9.2-r256';
-import { APP_FULL_VERSION } from './config.js?v=2.9.2-r256';
+import { showToast } from '../ui/components.js?v=2.9.2-r257';
+import { APP_FULL_VERSION } from './config.js?v=2.9.2-r257';
 export const PWA_INSTALLED_KEY = 'klev_pro_pwa_installed';
 let deferredInstallPrompt = null;
 export function generateFloatIconDataURL(size = 512) {
@@ -42,7 +42,7 @@ export function generateFloatIconDataURL(size = 512) {
 export function initDynamicTouchIcon() {
   try {
     const isAdminContour = typeof window !== 'undefined' && window.__KLEV_ADMIN_CONTOUR__ === true;
-    const verSuffix = `?v=${APP_FULL_VERSION || '2.9.2-r256'}`;
+    const verSuffix = `?v=${APP_FULL_VERSION || '2.9.2-r257'}`;
     const fav = document.getElementById('dynamicFavicon');
     const touch = document.getElementById('dynamicTouchIcon');
     if (fav) {
@@ -162,15 +162,16 @@ export function showInstallModal(htmlText) {
   if (!modal) {
     modal = document.createElement('div');
     modal.id = 'customInstallModal';
+    modal.className = 'modal-backdrop open';
     modal.style.cssText = 'position:fixed;inset:0;background:rgba(2,6,23,0.78);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;';
     modal.innerHTML = `
-      <div style="background:var(--panel);border:1.5px solid var(--accent);border-radius:16px;max-width:370px;width:100%;padding:18px;box-shadow:var(--shadow-header);text-align:center;">
+      <div class="modal-box card" style="background:var(--panel);border:1.5px solid var(--accent);border-radius:var(--r-md);max-width:370px;width:100%;padding:18px;box-shadow:var(--shadow-header);text-align:center;">
         <img id="modalIconPreview" alt="Клёв ПРО" style="width:72px;height:72px;border-radius:16px;margin-bottom:10px;border:1px solid var(--border);" src="">
-        <div style="font-size:16px;font-weight:800;margin-bottom:8px;color:var(--text);">Установка «Клёв ПРО 2.0»</div>
-        <div id="modalInstallText" style="font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:16px;text-align:left;"></div>
+        <div class="section-title" style="justify-content:center;margin-bottom:8px;color:var(--text);">Установка «Клёв ПРО 2.0»</div>
+        <div id="modalInstallText" style="font-size:var(--fs-xs);color:var(--muted);line-height:1.5;margin-bottom:16px;text-align:left;"></div>
         <div style="display:flex;flex-direction:column;gap:8px;">
           <button type="button" class="btn btn-accent" style="width:100%;" id="closeCustomInstallModalBtn">Понятно</button>
-          <button type="button" class="btn btn-sm" style="width:100%;color:var(--good);border-color:var(--good);" id="markShortcutAddedBtn"><svg class="k-ico" style="color:var(--good);" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="rgba(16,185,129,0.24)" stroke="#10b981" stroke-width="1.9"/><path d="M8 12.5l2.7 2.7L16.5 9.5" stroke="#10b981" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg> Ярлык уже на экране (скрыть кнопку)</button>
+          <button type="button" class="pill-btn" style="width:100%;color:var(--good);border-color:var(--good);" id="markShortcutAddedBtn"><svg class="k-ico" style="color:var(--good);" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="rgba(16,185,129,0.24)" stroke="#10b981" stroke-width="1.9"/><path d="M8 12.5l2.7 2.7L16.5 9.5" stroke="#10b981" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg> Ярлык уже на экране (скрыть кнопку)</button>
         </div>
       </div>
     `;
@@ -187,7 +188,7 @@ export function showInstallModal(htmlText) {
   }
   const iconEl = modal.querySelector('#modalIconPreview');
   const isAdminContour = typeof window !== 'undefined' && window.__KLEV_ADMIN_CONTOUR__ === true;
-  if (iconEl) iconEl.src = `${isAdminContour ? 'icon-admin-192.png' : 'icon-192.png'}?v=${APP_FULL_VERSION || '2.9.2-r256'}`;
+  if (iconEl) iconEl.src = `${isAdminContour ? 'icon-admin-192.png' : 'icon-192.png'}?v=${APP_FULL_VERSION || '2.9.2-r257'}`;
   const txtEl = modal.querySelector('#modalInstallText');
   if (txtEl) {
     const safeHtml = String(htmlText || '')

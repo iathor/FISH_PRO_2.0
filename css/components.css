@@ -226,7 +226,7 @@ input[type="checkbox"], input[type="radio"] {
 .fish-card:hover { border-color: var(--accent); transform: translateY(-2px); }
 .fish-card.active {
   border-color: var(--accent);
-  background: rgba(56, 189, 248, 0.12);
+  background: var(--accent-soft-bg);
   box-shadow: 0 0 0 2px var(--accent);
 }
 .fish-card.redbook-muted {
@@ -330,7 +330,7 @@ input[type="checkbox"], input[type="radio"] {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 800;
   color: var(--accent);
   background: rgba(15, 23, 42, 0.82);
@@ -740,10 +740,10 @@ input[type="checkbox"], input[type="radio"] {
   border-color: var(--accent);
 }
 .cw-date-plaque.active {
-  background: rgba(56, 189, 248, 0.22);
+  background: var(--accent-soft-bg);
   border-color: var(--accent);
-  color: #ffffff;
-  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.25);
+  color: var(--text);
+  box-shadow: 0 0 0 1px var(--accent-glow);
 }
 .modal-chip-wrap {
   display: flex;
@@ -818,7 +818,7 @@ input[type="checkbox"], input[type="radio"] {
 .settings-hub-card:hover,
 .settings-hub-card:active {
   border-color: var(--accent);
-  background: rgba(56, 189, 248, 0.08);
+  background: var(--accent-soft-bg);
 }
 .settings-hub-card-icon {
   font-size: 22px;
@@ -1059,6 +1059,19 @@ a:hover {
     inset 0 -2px 4px rgba(0, 0, 0, 0.40) !important;
 }
 
+/* Опасные / Удаляющие 3D-кнопки (.btn-danger) */
+.btn-danger,
+.btn.btn-danger {
+  background: linear-gradient(180deg, #ef4444 0%, #dc2626 55%, #b91c1c 100%) !important;
+  border-color: #fca5a5 !important;
+  color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  box-shadow:
+    0 6px 16px rgba(220, 38, 38, 0.40),
+    inset 0 1.5px 1.5px rgba(255, 255, 255, 0.48),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.42) !important;
+}
+
 /* Выпуклые стеклянные чипы (.w-chip) */
 .w-chip {
   background: linear-gradient(180deg, rgba(28, 52, 84, 0.85) 0%, rgba(12, 25, 45, 0.94) 100%);
@@ -1110,7 +1123,7 @@ a:hover {
   border-color: var(--accent);
   box-shadow:
     inset 0 2px 5px rgba(0, 0, 0, 0.55),
-    0 0 0 2px rgba(56, 189, 248, 0.25);
+    0 0 0 2px var(--accent-glow);
 }
 [data-theme="light"] .input, [data-theme="light"] select {
   background: linear-gradient(180deg, #eef5fc 0%, #ffffff 100%);
@@ -1220,6 +1233,15 @@ html[data-liquid-glass="1"] .btn.btn-good {
     inset 0 2px 2px rgba(255, 255, 255, 0.52),
     inset 0 -2px 5px rgba(0, 0, 0, 0.35),
     0 6px 16px rgba(16, 185, 129, 0.36);
+}
+html[data-liquid-glass="1"] .btn.btn-danger {
+  background: linear-gradient(155deg, rgba(239, 68, 68, 0.88) 0%, rgba(220, 38, 38, 0.84) 55%, rgba(185, 28, 28, 0.92) 100%) !important;
+  border-color: rgba(254, 202, 202, 0.72) !important;
+  color: #ffffff !important;
+  box-shadow:
+    inset 0 1.5px 1.5px rgba(255, 255, 255, 0.48),
+    inset 0 -2px 5px rgba(0, 0, 0, 0.35),
+    0 6px 16px rgba(220, 38, 38, 0.36) !important;
 }
 html[data-liquid-glass="1"] .w-chip {
   background: linear-gradient(155deg, rgba(56, 189, 248, 0.14) 0%, rgba(22, 40, 64, 0.66) 100%);
@@ -1332,7 +1354,7 @@ html[data-liquid-glass="0"] .bottom-nav-inner {
   gap: 5px;
 }
 .klev-select-group-lbl {
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 900;
   color: var(--muted);
   text-transform: uppercase;
@@ -1365,10 +1387,10 @@ html[data-liquid-glass="0"] .bottom-nav-inner {
 }
 .klev-select-opt.selected {
   border-color: var(--accent);
-  background: rgba(56, 189, 248, 0.15);
+  background: var(--accent-soft-bg);
   color: var(--text);
   font-weight: 900;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 0 0 1px rgba(56, 189, 248, 0.28);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 0 0 1px var(--accent-glow);
 }
 .klev-select-check {
   width: 20px;
@@ -1439,6 +1461,15 @@ html[data-liquid-glass="0"] .bottom-nav-inner {
 [data-theme="light"] .klev-popup-sub {
   color: #475569 !important;
   font-weight: 700 !important;
+}
+[data-theme="contrast"] .leaflet-popup-content-wrapper {
+  background: #121926 !important;
+  color: #f8fafc !important;
+  border: 1.5px solid rgba(245, 158, 11, 0.48) !important;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.78) !important;
+}
+[data-theme="contrast"] .leaflet-popup-tip {
+  background: #121926 !important;
 }
 #mapBox[data-ymap-hydro="1"] img.klev-base-tile-layer {
   filter: contrast(1.22) saturate(1.38);
@@ -1643,10 +1674,10 @@ html[data-theme="contrast"]:not([data-desktop-web="1"]):not([data-admin-contour=
 .klev-arc-map-stage #arcPopoverTransport .btn.btn-accent,
 .klev-arc-map-stage #arcPopoverLayers .btn.btn-accent,
 .klev-arc-map-stage #arcPopoverSpotGrid .btn.btn-accent {
-  background: rgba(56, 189, 248, 0.16) !important;
+  background: var(--accent-soft-bg) !important;
   border-color: var(--accent) !important;
   color: var(--accent) !important;
-  box-shadow: 0 0 12px rgba(56, 189, 248, 0.24) !important;
+  box-shadow: 0 0 12px var(--accent-glow) !important;
 }
 
 /* 5. Компоненты Tactile Glassmorphism (линзы, пилюли, сегменты, переключатели .klev-switch) */
@@ -1672,12 +1703,12 @@ html[data-theme="contrast"]:not([data-desktop-web="1"]):not([data-admin-contour=
 }
 
 .code-tag {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 700;
   padding: 2px 7px;
   border-radius: 7px;
-  background: rgba(56, 189, 248, 0.14);
+  background: var(--accent-soft-bg);
   color: var(--accent, #38BDF8);
   white-space: nowrap;
 }
@@ -1716,8 +1747,9 @@ html[data-theme="contrast"]:not([data-desktop-web="1"]):not([data-admin-contour=
 
 .pill-btn.active {
   border-color: var(--accent);
+  background: var(--accent-soft-bg);
   color: var(--accent);
-  box-shadow: 0 0 14px rgba(56, 189, 248, 0.22);
+  box-shadow: 0 0 14px var(--accent-glow);
 }
 
 .compact-menu-seg-stack {
@@ -1775,7 +1807,7 @@ html[data-theme="light"] .seg-bar {
   border-color: var(--accent);
   color: var(--text);
   font-weight: 800;
-  box-shadow: 0 2px 10px rgba(56, 189, 248, 0.22);
+  box-shadow: 0 2px 10px var(--accent-glow);
 }
 
 .cta-full-btn {
@@ -1792,7 +1824,7 @@ html[data-theme="light"] .seg-bar {
   background: var(--card);
   border: 1.5px solid var(--accent);
   color: var(--text);
-  box-shadow: 0 4px 16px rgba(56, 189, 248, 0.18);
+  box-shadow: 0 4px 16px var(--accent-glow);
 }
 
 .chart-floating-badge {
@@ -1845,7 +1877,7 @@ html[data-theme="light"] .seg-bar {
   transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), background 0.22s ease;
 }
 .klev-switch input:checked + .klev-switch-slider {
-  background: rgba(56, 189, 248, 0.28);
+  background: var(--accent-soft-bg);
   border-color: var(--accent);
 }
 .klev-switch input:checked + .klev-switch-slider::before {
@@ -1885,7 +1917,7 @@ html[data-theme="light"] .seg-bar {
   top: 0 !important;
   bottom: calc(64px + env(safe-area-inset-bottom, 0px)) !important;
   z-index: 4500 !important;
-  background: rgba(4, 9, 18, 0.48);
+  background: rgba(4, 9, 18, 0.72);
   display: none;
   align-items: flex-end;
   justify-content: center;
@@ -1899,11 +1931,11 @@ html[data-theme="light"] .seg-bar {
   max-width: 410px;
   padding: 13px 14px 14px;
   border-radius: 24px;
-  background: var(--bg);
+  background: var(--panel);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
   border: 1.5px solid var(--accent);
-  box-shadow: 0 -10px 34px rgba(0, 0, 0, 0.55), 0 0 22px rgba(56, 189, 248, 0.22);
+  box-shadow: 0 -10px 34px rgba(0, 0, 0, 0.65), 0 0 22px var(--accent-glow);
   display: flex;
   flex-direction: column;
   gap: 11px;
@@ -1954,8 +1986,9 @@ html[data-theme="light"] .seg-bar {
 }
 .lens-btn.active {
   border-color: var(--accent);
+  background: var(--accent-soft-bg);
   color: var(--accent);
-  box-shadow: 0 0 18px rgba(56, 189, 248, 0.35);
+  box-shadow: 0 0 18px var(--accent-glow);
 }
 .lens-btn svg {
   width: 27px;
@@ -2102,17 +2135,6 @@ html[data-liquid-glass="1"][data-theme="light"]:not([data-desktop-web="1"]):not(
   box-shadow: inset 0 1.5px 1px #ffffff, 0 -6px 20px rgba(15, 38, 64, 0.12) !important;
 }
 
-html[data-liquid-glass="1"][data-theme="contrast"] .klev-arc-glass,
-html[data-liquid-glass="1"][data-theme="contrast"] .map-single-pill,
-html[data-liquid-glass="1"][data-theme="contrast"] .lens-btn,
-html[data-liquid-glass="1"][data-theme="contrast"] .compact-menu-popover,
-html[data-liquid-glass="1"][data-theme="contrast"] .glass-panel,
-html[data-liquid-glass="1"][data-theme="contrast"] .pill-btn {
-  background: rgba(12, 18, 28, 0.84) !important;
-  border: 1.5px solid rgba(253, 224, 71, 0.75) !important;
-  box-shadow: inset 0 1.5px 0 rgba(253, 224, 71, 0.48), 0 8px 22px rgba(0, 0, 0, 0.75) !important;
-}
-
 html[data-liquid-glass="1"] .pill-btn.active,
 html[data-liquid-glass="1"] .lens-btn.active,
 html[data-liquid-glass="1"] .map-single-pill.active,
@@ -2125,11 +2147,82 @@ html[data-liquid-glass="1"] .seg-btn.active {
     0 6px 18px rgba(2, 132, 199, 0.42) !important;
 }
 
+/* Полные правила режима «Стекло» для контрастной темы OLED (html[data-liquid-glass="1"][data-theme="contrast"]) */
+html[data-liquid-glass="1"][data-theme="contrast"] .btn {
+  background: linear-gradient(155deg, rgba(245, 158, 11, 0.14) 0%, rgba(26, 36, 54, 0.84) 52%, rgba(14, 20, 32, 0.94) 100%) !important;
+  border: 1.5px solid rgba(245, 158, 11, 0.40) !important;
+  color: var(--text) !important;
+  box-shadow:
+    inset 0 1.5px 1.5px rgba(255, 255, 255, 0.26),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.48),
+    0 5px 14px rgba(0, 0, 0, 0.45) !important;
+}
+
+html[data-liquid-glass="1"][data-theme="contrast"] .btn.btn-accent,
+html[data-liquid-glass="1"][data-theme="contrast"] .w-chip.active {
+  background: linear-gradient(155deg, rgba(245, 158, 11, 0.90) 0%, rgba(217, 119, 6, 0.86) 55%, rgba(180, 83, 9, 0.94) 100%) !important;
+  border: 1.5px solid rgba(253, 230, 138, 0.72) !important;
+  color: #ffffff !important;
+  box-shadow:
+    inset 0 1.5px 1.5px rgba(255, 255, 255, 0.45),
+    0 6px 18px rgba(217, 119, 6, 0.38) !important;
+}
+
+html[data-liquid-glass="1"][data-theme="contrast"] .w-chip,
+html[data-liquid-glass="1"][data-theme="contrast"] .pill-btn,
+html[data-liquid-glass="1"][data-theme="contrast"] .lens-btn,
+html[data-liquid-glass="1"][data-theme="contrast"] .seg-bar,
+html[data-liquid-glass="1"][data-theme="contrast"] .glass-panel,
+html[data-liquid-glass="1"][data-theme="contrast"] .klev-arc-glass,
+html[data-liquid-glass="1"][data-theme="contrast"] .map-single-pill,
+html[data-liquid-glass="1"][data-theme="contrast"] .bento-card,
+html[data-liquid-glass="1"][data-theme="contrast"] .card,
+html[data-liquid-glass="1"][data-theme="contrast"] .klev-arc-map-stage #arcPopoverTransport .btn,
+html[data-liquid-glass="1"][data-theme="contrast"] .klev-arc-map-stage #arcPopoverLayers .btn,
+html[data-liquid-glass="1"][data-theme="contrast"] .klev-arc-map-stage #arcPopoverSpotGrid .btn {
+  background: linear-gradient(155deg, rgba(30, 41, 59, 0.84) 0%, rgba(15, 23, 42, 0.92) 100%) !important;
+  border: 1.5px solid rgba(245, 158, 11, 0.38) !important;
+  box-shadow:
+    inset 0 1.5px 1.5px rgba(255, 255, 255, 0.22),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.52),
+    0 10px 26px rgba(0, 0, 0, 0.62) !important;
+}
+
+html[data-liquid-glass="1"][data-theme="contrast"] .compact-menu-popover {
+  background: linear-gradient(165deg, rgba(22, 30, 46, 0.94) 0%, rgba(11, 15, 25, 0.97) 100%) !important;
+  backdrop-filter: blur(26px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(26px) saturate(160%) !important;
+  border: 1.5px solid rgba(245, 158, 11, 0.45) !important;
+  box-shadow:
+    inset 0 1.5px 1.5px rgba(255, 255, 255, 0.24),
+    0 -12px 38px rgba(0, 0, 0, 0.82),
+    0 0 22px rgba(245, 158, 11, 0.22) !important;
+}
+
+html[data-liquid-glass="1"][data-theme="contrast"] .pill-btn.active,
+html[data-liquid-glass="1"][data-theme="contrast"] .lens-btn.active,
+html[data-liquid-glass="1"][data-theme="contrast"] .map-single-pill.active,
+html[data-liquid-glass="1"][data-theme="contrast"] .klev-arc-icon-btn.active,
+html[data-liquid-glass="1"][data-theme="contrast"] .seg-btn.active {
+  border-color: var(--accent) !important;
+  background: linear-gradient(155deg, rgba(245, 158, 11, 0.28) 0%, rgba(180, 83, 9, 0.22) 100%) !important;
+  color: var(--accent) !important;
+  box-shadow:
+    inset 0 1.5px 1.5px rgba(255, 255, 255, 0.45),
+    0 0 0 2px rgba(245, 158, 11, 0.32),
+    0 6px 16px rgba(217, 119, 6, 0.35) !important;
+}
+
+html[data-liquid-glass="1"][data-theme="contrast"]:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav {
+  background: rgba(12, 17, 26, 0.90) !important;
+  border-top: 1.5px solid rgba(245, 158, 11, 0.36) !important;
+  box-shadow: inset 0 1.5px 1px rgba(255, 255, 255, 0.18), 0 -8px 24px rgba(0, 0, 0, 0.65) !important;
+}
+
 /* Режим «Обычный (Tactile Matte)»: data-liquid-glass="0" */
 html[data-liquid-glass="0"] .klev-arc-glass,
 html[data-liquid-glass="0"] .map-single-pill,
 html[data-liquid-glass="0"] .lens-btn,
-html[data-liquid-glass="0"] .compact-menu-popover,
 html[data-liquid-glass="0"] .glass-panel,
 html[data-liquid-glass="0"] .pill-btn,
 html[data-liquid-glass="0"] .seg-bar,
@@ -2141,6 +2234,40 @@ html[data-liquid-glass="0"] .klev-arc-map-stage #arcPopoverSpotGrid .btn {
   -webkit-backdrop-filter: none !important;
   border: 1px solid var(--border) !important;
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.22) !important;
+}
+
+html[data-liquid-glass="0"] .compact-menu-backdrop {
+  background: rgba(4, 9, 18, 0.72) !important;
+}
+
+html[data-liquid-glass="0"] .compact-menu-popover {
+  background: var(--panel) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: 1.5px solid var(--border) !important;
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.85) !important;
+}
+
+html[data-liquid-glass="0"][data-theme="contrast"] .seg-bar {
+  background: #0d131f !important;
+  border: 1px solid rgba(245, 158, 11, 0.35) !important;
+}
+
+html[data-liquid-glass="0"][data-theme="contrast"] .lens-btn,
+html[data-liquid-glass="0"][data-theme="contrast"] .pill-btn {
+  background: #1c2739 !important;
+  border: 1px solid rgba(245, 158, 11, 0.35) !important;
+}
+
+html[data-liquid-glass="0"] .pill-btn.active,
+html[data-liquid-glass="0"] .lens-btn.active,
+html[data-liquid-glass="0"] .map-single-pill.active,
+html[data-liquid-glass="0"] .klev-arc-icon-btn.active,
+html[data-liquid-glass="0"] .seg-btn.active {
+  background: var(--accent-soft-bg) !important;
+  border-color: var(--accent) !important;
+  color: var(--accent) !important;
+  box-shadow: 0 0 12px var(--accent-glow) !important;
 }
 
 html[data-liquid-glass="0"]:not([data-desktop-web="1"]):not([data-admin-contour="1"]) .bottom-nav {

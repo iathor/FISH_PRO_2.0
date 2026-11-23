@@ -1,6 +1,6 @@
-import { renderFishVisual } from '../../ui/svg.js?v=2.9.2-r256';
-import { MAP_LAYERS, SPOT_CATEGORIES, getCompatibleMethods } from '../../core/config.js?v=2.9.2-r256';
-import { events, KLEV_EVENTS, safeModuleRun } from '../../core/events.js?v=2.9.2-r256';
+import { renderFishVisual } from '../../ui/svg.js?v=2.9.2-r257';
+import { MAP_LAYERS, SPOT_CATEGORIES, getCompatibleMethods } from '../../core/config.js?v=2.9.2-r257';
+import { events, KLEV_EVENTS, safeModuleRun } from '../../core/events.js?v=2.9.2-r257';
 import {
   ARC_TRANSPORT_MODES,
   calcHaversineKm,
@@ -9,8 +9,19 @@ import {
   _densifyPolylineToMaxStep,
   _smoothRecordedTrackPoints,
   simplifyTrackRdp,
-  evaluateRouteSegments
-} from './geo.routing.js?v=2.9.2-r256';
+  evaluateRouteSegments,
+  cleanTrackNameFromFileName,
+  parseTrackTimestampMs,
+  extractKmlFromKmzBuffer,
+  parseTrackFromExternalFileText
+} from './geo.routing.js?v=2.9.2-r257';
+
+export {
+  cleanTrackNameFromFileName,
+  parseTrackTimestampMs,
+  extractKmlFromKmzBuffer,
+  parseTrackFromExternalFileText
+};
 import {
   isManualLocationSession,
   setManualLocationSession,
@@ -22,20 +33,20 @@ import {
   _estimateSatellitesFromAccuracy,
   _gpsFilterIngest as _gpsFilterIngestImpl,
   computeGpsTelemetryStep
-} from './geo.gps.js?v=2.9.2-r256';
+} from './geo.gps.js?v=2.9.2-r257';
 import {
   normalizeSpotCatKey,
   computeDeduplicatedMapCounts as _overlaysComputeDeduplicatedMapCounts,
   prepareOverlayMarkerLists
-} from './geo.overlays.js?v=2.9.2-r256';
-import { storage, safeJsonParse } from '../../core/storage.js?v=2.9.2-r256';
-import { router } from '../../core/router.js?v=2.9.2-r256';
-import { store } from '../../core/store.js?v=2.9.2-r256';
-import { fetchWithTimeout } from '../../core/http.js?v=2.9.2-r256';
-import { installShortcut, syncInstallButtons } from '../../core/pwa.js?v=2.9.2-r256';
-import { triggerHaptic, RELAY_WORKER_URL } from '../../core/telegram.js?v=2.9.2-r256';
-import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.9.2-r256';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.9.2-r256';
+} from './geo.overlays.js?v=2.9.2-r257';
+import { storage, safeJsonParse } from '../../core/storage.js?v=2.9.2-r257';
+import { router } from '../../core/router.js?v=2.9.2-r257';
+import { store } from '../../core/store.js?v=2.9.2-r257';
+import { fetchWithTimeout } from '../../core/http.js?v=2.9.2-r257';
+import { installShortcut, syncInstallButtons } from '../../core/pwa.js?v=2.9.2-r257';
+import { triggerHaptic, RELAY_WORKER_URL } from '../../core/telegram.js?v=2.9.2-r257';
+import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.9.2-r257';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.9.2-r257';
 import {
   RUSSIA_CITIES,
   RUSSIA_WATERS,
@@ -43,10 +54,10 @@ import {
   getNearestRussianSettlements,
   getNearestRussianWaters,
   getWaterTypeShortTag
-} from '../../data/russia-waters.js?v=2.9.2-r256';
-import { FISH_DB } from '../../data/species.js?v=2.9.2-r256';
-import { routeOnGrid } from './grid-router.js?v=2.9.2-r256';
-import { routeBoatRobust } from './boat-router.js?v=2.9.2-r256';
+} from '../../data/russia-waters.js?v=2.9.2-r257';
+import { FISH_DB } from '../../data/species.js?v=2.9.2-r257';
+import { routeOnGrid } from './grid-router.js?v=2.9.2-r257';
+import { routeBoatRobust } from './boat-router.js?v=2.9.2-r257';
 import {
   isVoiceGuidanceScreenEnabled,
   isVoiceGuidanceBackgroundEnabled,
@@ -58,7 +69,7 @@ import {
   formatSpokenRouteDistanceRu as _ttsFormatSpokenRouteDistanceRu,
   _normalizeDistanceTokensForSpeechRu,
   speakRouteGuidanceRu
-} from './geo.tts.js?v=2.9.2-r256';
+} from './geo.tts.js?v=2.9.2-r257';
 import {
   COMPASS_DEADBAND_DEG,
   COMPASS_ROT_DEADBAND_DEG,
@@ -71,11 +82,11 @@ import {
   computeMapRotationStep,
   stabilizeOverlayElement,
   stabilizeMapOverlaysInBox
-} from './geo.compass.js?v=2.9.2-r256';
-import { escapeHtml, createPill, showToast, openModal, closeModal, openConfirmDeleteModal, downloadFileCrossPlatform, flashHighlightElement, isGeoDistributionConsentActive, ensureGeoDistributionConsent, setGeoDistributionConsentState } from '../../ui/components.js?v=2.9.2-r256';
-import { fetchWeather, weatherModule } from '../weather/weather.module.js?v=2.9.2-r256';
-import { calcDayBest } from '../forecast/forecast.module.js?v=2.9.2-r256';
-import { computeHexPolygonForCircle, getEffectiveCircleRadiusKm, getCircleHexDecayState, canUserAccessCrewItem, getCurrentFisherIdentity, isUserAdmin, isCurrentUserBetaTester, verifyBetaTesterStatusFromCloud, isCircleItemMine, isCircleItemHidden, openAddThematicMapPointModal } from '../circle/circle.module.js?v=2.9.2-r256';
+} from './geo.compass.js?v=2.9.2-r257';
+import { escapeHtml, createPill, showToast, openModal, closeModal, openConfirmDeleteModal, downloadFileCrossPlatform, flashHighlightElement, isGeoDistributionConsentActive, ensureGeoDistributionConsent, setGeoDistributionConsentState } from '../../ui/components.js?v=2.9.2-r257';
+import { fetchWeather, weatherModule } from '../weather/weather.module.js?v=2.9.2-r257';
+import { calcDayBest } from '../forecast/forecast.module.js?v=2.9.2-r257';
+import { computeHexPolygonForCircle, getEffectiveCircleRadiusKm, getCircleHexDecayState, canUserAccessCrewItem, getCurrentFisherIdentity, isUserAdmin, isCurrentUserBetaTester, verifyBetaTesterStatusFromCloud, isCircleItemMine, isCircleItemHidden, openAddThematicMapPointModal } from '../circle/circle.module.js?v=2.9.2-r257';
 // ============================================================================
 // АВТОНОМНОЕ ЯДРО, РЕПРОЕКТОР EPSG:3395 И ИНСПЕКТОР ПРОВЕРКИ ОФЛАЙН-КАРТ (ФАЗА 1 • v2)
 // Хранение в формате инлайн-DataURL (100% сохранность после перезапуска Android WebView)
@@ -2222,16 +2233,6 @@ export function renderOfflinePackPerimetersOnMap(mapInst, overlayGroup) {
       interactive: false
     });
     rect.addTo(overlayGroup);
-    const badgeMarker = L.marker([pk.bbox.north, pk.bbox.west], {
-      interactive: false,
-      icon: L.divIcon({
-        className: 'klev-offline-pack-corner-label',
-        html: `<div class="klev-map-pin-rot-inner" style="transform:rotate(${(-_mapRotCur).toFixed(2)}deg);transform-origin:0 50%;display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:6px;background:rgba(9,15,29,0.90);border:1.5px solid ${color};color:#f8fafc;font-size:10px;font-weight:800;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,0.45);">Офлайн ${pk.radiusKm} км: ${escapeHtml(pk.title)} (${hasData ? `${pk.completedTiles} тайлов` : 'требуется загрузка'})</div>`,
-        iconSize: [210, 22],
-        iconAnchor: [0, 0]
-      })
-    });
-    badgeMarker.addTo(overlayGroup);
   });
 }
 
@@ -4146,9 +4147,16 @@ export function exportSpotsToKml() {
  */
 let _bathymetryLayerEnabled = true;
 
-export async function importSpotsFromFileText(fileText) {
+export async function importSpotsFromFileText(fileText, fileName = '') {
   if (!fileText) return 0;
   const trimmedCheck = fileText.trim();
+  if (/(?:<trk\b|<rte\b|<gx:Track\b|<LineString\b|"LineString"|"MultiLineString")/i.test(trimmedCheck)) {
+    const candidateTrack = parseTrackFromExternalFileText(trimmedCheck, fileName);
+    if (candidateTrack && Array.isArray(candidateTrack.points) && candidateTrack.points.length >= 2) {
+      await importExternalTrackFromFileText(trimmedCheck, fileName);
+      return candidateTrack.points.length;
+    }
+  }
   // Поддержка CSV-выгрузок эхолотов (Lowrance / Garmin Quickdraw / Deeper / Humminbird / Практик: lat,lon,depth)
   if (!trimmedCheck.startsWith('<') && !trimmedCheck.startsWith('{') && !trimmedCheck.startsWith('[')) {
     const lines = trimmedCheck.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
@@ -4294,8 +4302,425 @@ async function _importSpotsXmlOrJson(fileText) {
  */
 
 // ============================================================================
-// ФАЗА 3: ЗАПИСЬ МАРШРУТА В ФОНЕ, ВОЗВРАТ ПО МАРШРУТУ И РЕЖИМ «Я ПОТЕРЯЛСЯ»
+// ФАЗА 3: ЗАПИСЬ МАРШРУТА В ФОНЕ, ЗАГРУЗКА СТОРОННИХ ТРЕКОВ И ВОЗВРАТ ПО СЛЕДУ
 // ============================================================================
+
+function _renderTrackDirectionArrowsOnLayer(rawPts, layerGroup, arrowColor = '#38bdf8') {
+  if (!layerGroup || typeof window === 'undefined' || !window.L || !Array.isArray(rawPts) || rawPts.length < 2) return;
+  const L = window.L;
+  const normPts = rawPts
+    .map(p => Array.isArray(p) ? [Number(p[0]), Number(p[1])] : [Number(p?.lat), Number(p?.lon)])
+    .filter(p => Number.isFinite(p[0]) && Number.isFinite(p[1]));
+  if (normPts.length < 2) return;
+  const arrowCount = Math.min(10, Math.max(3, Math.floor(normPts.length / 25)));
+  const step = Math.max(1, Math.floor((normPts.length - 1) / (arrowCount + 1)));
+  for (let idx = step; idx < normPts.length - 1; idx += step) {
+    const p1 = normPts[idx];
+    let nextIdx = idx + 1;
+    while (nextIdx < normPts.length - 1 && calcHaversineKm(p1[0], p1[1], normPts[nextIdx][0], normPts[nextIdx][1]) < 0.005) {
+      nextIdx++;
+    }
+    const p2 = normPts[nextIdx];
+    if (!p1 || !p2 || (p1[0] === p2[0] && p1[1] === p2[1])) continue;
+    const bearing = calcBearingDeg(p1[0], p1[1], p2[0], p2[1]);
+    const rotDeg = (bearing - _mapRotCur + 360) % 360;
+    const arrowMarker = L.marker([p1[0], p1[1]], {
+      interactive: false,
+      keyboard: false,
+      icon: L.divIcon({
+        className: 'klev-track-dir-arrow',
+        iconSize: [16, 16],
+        iconAnchor: [8, 8],
+        html: `<div style="width:16px;height:16px;display:flex;align-items:center;justify-content:center;transform:rotate(${rotDeg.toFixed(1)}deg);pointer-events:none;">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+            <path d="M8 1.5L13.5 13L8 10.2L2.5 13L8 1.5Z" fill="${arrowColor}" stroke="#ffffff" stroke-width="1.3" stroke-linejoin="round"/>
+          </svg>
+        </div>`
+      })
+    });
+    layerGroup.addLayer(arrowMarker);
+  }
+}
+
+function _fitMapBoundsToTrackPoints(rawPts) {
+  if (!mapInstance || typeof window === 'undefined' || !window.L || !Array.isArray(rawPts) || rawPts.length < 2) return;
+  try {
+    const L = window.L;
+    const latlngs = rawPts
+      .map(p => Array.isArray(p) ? [Number(p[0]), Number(p[1])] : [Number(p?.lat), Number(p?.lon)])
+      .filter(p => Number.isFinite(p[0]) && Number.isFinite(p[1]));
+    if (latlngs.length >= 2 && typeof L.latLngBounds === 'function' && typeof mapInstance.fitBounds === 'function') {
+      const bounds = L.latLngBounds(latlngs);
+      if (bounds && (typeof bounds.isValid !== 'function' || bounds.isValid())) {
+        mapInstance.fitBounds(bounds, { padding: [36, 36], maxZoom: 15, animate: true });
+      }
+    }
+  } catch (_e) {}
+}
+
+export function exportPhase3RouteToGpx(routeObj) {
+  if (!routeObj || !Array.isArray(routeObj.points) || routeObj.points.length < 2) {
+    showToast('В маршруте недостаточно точек для выгрузки в .GPX', 'warn');
+    return false;
+  }
+  const safeName = String(routeObj.title || routeObj.name || 'Маршрут Клёв ПРО').replace(/[<>&"']/g, '');
+  const trkpts = routeObj.points.map(pt => {
+    const lat = Array.isArray(pt) ? Number(pt[0]) : Number(pt?.lat);
+    const lon = Array.isArray(pt) ? Number(pt[1]) : Number(pt?.lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return '';
+    const eleTag = Number.isFinite(Number(pt?.ele)) ? `<ele>${Number(pt.ele).toFixed(1)}</ele>` : '';
+    const timeTag = Number.isFinite(Number(pt?.ts)) ? `<time>${new Date(Number(pt.ts)).toISOString()}</time>` : '';
+    return `      <trkpt lat="${lat.toFixed(7)}" lon="${lon.toFixed(7)}">${eleTag}${timeTag}</trkpt>`;
+  }).filter(Boolean).join('\n');
+  const gpxXml = `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="KlevPRO 2.0" xmlns="http://www.topografix.com/GPX/1/1">\n  <trk>\n    <name>${safeName}</name>\n    <trkseg>\n${trkpts}\n    </trkseg>\n  </trk>\n</gpx>`;
+  const slug = safeName.toLowerCase().replace(/[^a-zа-яё0-9_-]+/gi, '_').replace(/^_+|_+$/g, '') || 'track';
+  const fname = `klev-pro-track-${slug}-${new Date().toISOString().slice(0, 10)}.gpx`;
+  downloadFileCrossPlatform(fname, gpxXml, 'application/gpx+xml;charset=utf-8');
+  showToast(`Маршрут «${safeName}» выгружен в файл ${fname}`, 'good');
+  return true;
+}
+
+export async function importExternalTrackFromFileText(fileText, fileName = '', options = {}) {
+  const trackObj = parseTrackFromExternalFileText(fileText, fileName);
+  if (!trackObj || !Array.isArray(trackObj.points) || trackObj.points.length < 2) {
+    showToast('Не удалось распознать точки маршрута в выбранном файле', 'bad');
+    return null;
+  }
+  const existing = getSavedPhase3Routes().filter(r => {
+    if (!r) return false;
+    if (r.id === trackObj.id) return false;
+    const sameTitle = String(r.title || '').toLowerCase() === String(trackObj.title || '').toLowerCase();
+    const sameDist = Math.abs(Number(r.totalDistKm || 0) - Number(trackObj.totalDistKm || 0)) < 0.02;
+    return !(sameTitle && sameDist);
+  });
+  existing.unshift(trackObj);
+  savePhase3RoutesList(existing);
+
+  const polyPts = trackObj.points.map(p => [Number(p.lat), Number(p.lon)]);
+  const segEval = evaluateRouteSegments(polyPts, _arcTransportMode || 'car', []);
+  _arcBuiltRoute = {
+    id: trackObj.id,
+    title: trackObj.title,
+    destTitle: trackObj.title,
+    mode: 'external_track',
+    isExternalTrack: true,
+    startOrigin: 'first_point',
+    startProximityPrompted: false,
+    transport: _arcTransportMode || 'car',
+    targetWaypoints: [polyPts[0], polyPts[polyPts.length - 1]],
+    points: polyPts,
+    startPoint: trackObj.startPoint,
+    finishPoint: trackObj.finishPoint,
+    trackStartVertexIdx: 0,
+    trackEntryPt: null,
+    hasApproachToTrackStart: false,
+    distKm: trackObj.totalDistKm,
+    etaMin: segEval.etaMin,
+    turns: segEval.turns,
+    started: false,
+    paused: false,
+    currentTurnIdx: 0
+  };
+
+  renderArcRouteDraftAndActiveOnMap();
+  renderPhase3TrackOnMap();
+  _fitMapBoundsToTrackPoints(polyPts);
+
+  showToast(
+    `Загружен трек «${trackObj.title}» (${formatExactRouteDistanceRu(trackObj.totalDistKm, 10)} • точек: ${trackObj.rawPointCount || trackObj.points.length})`,
+    'good'
+  );
+
+  const secGeo = typeof document !== 'undefined' ? document.getElementById('secGeo') : null;
+  if (secGeo) render(secGeo);
+
+  if (!options.skipPrompt) {
+    promptLoadedTrackStartChoice(trackObj, options.onAfterStart || null);
+  }
+  return trackObj;
+}
+
+export async function importExternalTrackFromFileObject(file, options = {}) {
+  if (!file) return null;
+  const fName = String(file.name || '');
+  try {
+    const ab = typeof file.arrayBuffer === 'function' ? await file.arrayBuffer() : null;
+    if (ab && ab.byteLength >= 4) {
+      const head = new Uint8Array(ab, 0, 4);
+      const isZipKmz = /\.kmz$/i.test(fName) || (head[0] === 0x50 && head[1] === 0x4b && head[2] === 0x03 && head[3] === 0x04);
+      if (isZipKmz) {
+        const kmlText = await extractKmlFromKmzBuffer(ab);
+        return await importExternalTrackFromFileText(kmlText, fName, options);
+      }
+      const text = new TextDecoder('utf-8').decode(new Uint8Array(ab));
+      return await importExternalTrackFromFileText(text, fName, options);
+    }
+    const textFallback = typeof file.text === 'function' ? await file.text() : '';
+    return await importExternalTrackFromFileText(textFallback, fName, options);
+  } catch (e) {
+    showToast(`Ошибка чтения файла трека «${fName || 'файл'}»`, 'bad');
+    return null;
+  }
+}
+
+export function promptLoadedTrackStartChoice(trackObj, onAfterAction = null) {
+  if (!trackObj || !Array.isArray(trackObj.points) || trackObj.points.length < 2) return;
+  const rawPts = trackObj.points
+    .map(p => Array.isArray(p) ? { lat: Number(p[0]), lon: Number(p[1]) } : { lat: Number(p?.lat), lon: Number(p?.lon), ele: p?.ele, ts: p?.ts })
+    .filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lon));
+  if (rawPts.length < 2) return;
+
+  const trkTitle = trackObj.title || trackObj.name || 'Загруженный трек';
+  let totalKm = Number(trackObj.totalDistKm || 0);
+  if (!(totalKm > 0)) {
+    for (let i = 1; i < rawPts.length; i++) {
+      totalKm += calcHaversineKm(rawPts[i - 1].lat, rawPts[i - 1].lon, rawPts[i].lat, rawPts[i].lon);
+    }
+    totalKm = Number(Math.max(0.01, totalKm).toFixed(3));
+  }
+
+  let direction = 'forward'; // 'forward' = Старт А -> Финиш Б, 'reverse' = Финиш Б -> Старт А
+
+  const getOrderedPoints = () => (direction === 'reverse' ? [...rawPts].reverse() : [...rawPts]);
+
+  const startTrackWithChoice = async (choiceMode) => {
+    const orderedPts = getOrderedPoints();
+    const startA = orderedPts[0];
+    const finishB = orderedPts[orderedPts.length - 1];
+    const dirSuffix = direction === 'reverse' ? ' (Обратно: Б -> А)' : '';
+    const fullTitle = `${trkTitle}${dirSuffix}`;
+    const denseTrackPts = _densifyPolylineToMaxStep(orderedPts, 0.012);
+
+    if (choiceMode === 'build_to_start') {
+      const sNow = store.getState();
+      const userPos = getTrueUserGpsCoords(sNow);
+      let approachPoly = null;
+      const smartApproach = await computeSmartTransportRoute(
+        [{ lat: startA.lat, lon: startA.lon }],
+        _arcTransportMode || 'car',
+        'waypoints',
+        'user_gps'
+      ).catch(() => null);
+      if (smartApproach && Array.isArray(smartApproach.points) && smartApproach.points.length >= 2) {
+        approachPoly = smartApproach.points.map(p => ({ lat: Number(p[0]), lon: Number(p[1]), snapped: true }));
+      } else {
+        const fallbackApproach = await buildRoadOrTrailRouteBetween(userPos.lat, userPos.lon, startA.lat, startA.lon).catch(() => null);
+        if (fallbackApproach && Array.isArray(fallbackApproach.points) && fallbackApproach.points.length >= 2) {
+          approachPoly = fallbackApproach.points;
+        } else {
+          approachPoly = [
+            { lat: Number(userPos.lat.toFixed(6)), lon: Number(userPos.lon.toFixed(6)), snapped: false },
+            { lat: Number(startA.lat.toFixed(6)), lon: Number(startA.lon.toFixed(6)), snapped: false }
+          ];
+        }
+      }
+      const denseApproach = _densifyPolylineToMaxStep(approachPoly, 0.012);
+      let approachDistKm = 0;
+      for (let i = 1; i < denseApproach.length; i++) {
+        approachDistKm += calcHaversineKm(denseApproach[i - 1].lat, denseApproach[i - 1].lon, denseApproach[i].lat, denseApproach[i].lon);
+      }
+      approachDistKm = Number(Math.max(0.01, approachDistKm).toFixed(3));
+      const trackStartVertexIdx = Math.max(1, denseApproach.length - 1);
+      const combinedPts = [...denseApproach, ...denseTrackPts.slice(1)];
+      const combinedPairs = combinedPts.map(p => [p.lat, p.lon]);
+      const totalCombinedKm = Number((approachDistKm + totalKm).toFixed(3));
+      const evalSeg = evaluateRouteSegments(combinedPairs, _arcTransportMode || 'car', []);
+
+      _arcBuiltRoute = {
+        id: `${trackObj.id}_approach`,
+        title: fullTitle,
+        destTitle: fullTitle,
+        mode: 'external_track',
+        isExternalTrack: true,
+        startOrigin: 'user_gps',
+        startProximityPrompted: true,
+        transport: _arcTransportMode || 'car',
+        targetWaypoints: [[startA.lat, startA.lon], [finishB.lat, finishB.lon]],
+        points: combinedPairs,
+        startPoint: { lat: combinedPts[0].lat, lon: combinedPts[0].lon },
+        finishPoint: { lat: finishB.lat, lon: finishB.lon },
+        trackStartVertexIdx,
+        trackEntryPt: { lat: startA.lat, lon: startA.lon },
+        hasApproachToTrackStart: true,
+        approachDistKm,
+        trackOnlyDistKm: totalKm,
+        distKm: totalCombinedKm,
+        etaMin: evalSeg.etaMin,
+        turns: evalSeg.turns,
+        started: true,
+        paused: false,
+        currentTurnIdx: 0
+      };
+
+      const actTrk = _activatePhase3GuidanceFromBuiltRoute(_arcBuiltRoute, false, fullTitle);
+      if (actTrk) {
+        actTrk.isExternalTrack = true;
+        actTrk.alreadySaved = true;
+        actTrk.hasApproachToTrackStart = true;
+        actTrk.trackStartReachedAnnounced = false;
+        actTrk.trackStartVertexIdx = trackStartVertexIdx;
+        actTrk.trackEntryPt = { lat: startA.lat, lon: startA.lon };
+        actTrk.approachDistKm = approachDistKm;
+        actTrk.trackOnlyDistKm = totalKm;
+        actTrk.startLabel = `Мой GPS -> Старт трека А (${startA.lat.toFixed(5)}°N, ${startA.lon.toFixed(5)}°E)`;
+        actTrk.finishLabel = `Финиш Б (${finishB.lat.toFixed(5)}°N, ${finishB.lon.toFixed(5)}°E)`;
+        persistActivePhase3Track();
+      }
+
+      renderArcRouteDraftAndActiveOnMap();
+      renderPhase3TrackOnMap();
+      _updateActiveRouteOnScreenHud();
+      _fitMapBoundsToTrackPoints(combinedPairs);
+
+      const p0 = combinedPts[0];
+      const p1 = combinedPts[Math.min(1, combinedPts.length - 1)];
+      const initDirRu = bearingToSpokenDirectionRu(Math.round(calcBearingDeg(p0.lat, p0.lon, p1.lat, p1.lon)));
+      showToast(
+        `Маршрут до старта трека «${fullTitle}» построен: до точки А ${formatExactRouteDistanceRu(approachDistKm, 10)}, далее по треку ${formatExactRouteDistanceRu(totalKm, 10)}`,
+        'good'
+      );
+      speakRouteGuidanceRu(
+        `Построен маршрут подхода к точке старта трека ${trkTitle}. До начала трека ${formatSpokenRouteDistanceRu(approachDistKm)}, далее по треку ${formatSpokenRouteDistanceRu(totalKm)}. Двигайтесь на ${initDirRu}.`,
+        true
+      );
+    } else {
+      // 'track_start' — С точки отправления в самом треке
+      const polyPairs = denseTrackPts.map(p => [p.lat, p.lon]);
+      const evalSeg = evaluateRouteSegments(polyPairs, _arcTransportMode || 'car', []);
+      _arcBuiltRoute = {
+        id: trackObj.id,
+        title: fullTitle,
+        destTitle: fullTitle,
+        mode: 'external_track',
+        isExternalTrack: true,
+        startOrigin: 'first_point',
+        startProximityPrompted: true,
+        transport: _arcTransportMode || 'car',
+        targetWaypoints: [[startA.lat, startA.lon], [finishB.lat, finishB.lon]],
+        points: polyPairs,
+        startPoint: { lat: startA.lat, lon: startA.lon },
+        finishPoint: { lat: finishB.lat, lon: finishB.lon },
+        trackStartVertexIdx: 0,
+        trackEntryPt: { lat: startA.lat, lon: startA.lon },
+        hasApproachToTrackStart: false,
+        trackOnlyDistKm: totalKm,
+        distKm: totalKm,
+        etaMin: evalSeg.etaMin,
+        turns: evalSeg.turns,
+        started: true,
+        paused: false,
+        currentTurnIdx: 0
+      };
+
+      const actTrk = _activatePhase3GuidanceFromBuiltRoute(_arcBuiltRoute, false, fullTitle);
+      if (actTrk) {
+        actTrk.isExternalTrack = true;
+        actTrk.alreadySaved = true;
+        actTrk.hasApproachToTrackStart = false;
+        actTrk.trackStartReachedAnnounced = true;
+        actTrk.trackStartVertexIdx = 0;
+        actTrk.trackEntryPt = { lat: startA.lat, lon: startA.lon };
+        actTrk.startLabel = `Старт А (${startA.lat.toFixed(5)}°N, ${startA.lon.toFixed(5)}°E)`;
+        actTrk.finishLabel = `Финиш Б (${finishB.lat.toFixed(5)}°N, ${finishB.lon.toFixed(5)}°E)`;
+        persistActivePhase3Track();
+      }
+
+      renderArcRouteDraftAndActiveOnMap();
+      renderPhase3TrackOnMap();
+      _updateActiveRouteOnScreenHud();
+      _fitMapBoundsToTrackPoints(polyPairs);
+
+      const p0 = denseTrackPts[0];
+      const p1 = denseTrackPts[Math.min(1, denseTrackPts.length - 1)];
+      const initDirRu = bearingToSpokenDirectionRu(Math.round(calcBearingDeg(p0.lat, p0.lon, p1.lat, p1.lon)));
+      showToast(
+        `Начато движение по треку «${fullTitle}» (${formatExactRouteDistanceRu(totalKm, 10)}) от точки Старта А`,
+        'good'
+      );
+      speakRouteGuidanceRu(
+        `Начинаем движение по маршруту трека ${trkTitle} от точки отправления. Дистанция ${formatSpokenRouteDistanceRu(totalKm)}. Двигайтесь на ${initDirRu}.`,
+        true
+      );
+    }
+
+    const secGeo = typeof document !== 'undefined' ? document.getElementById('secGeo') : null;
+    if (secGeo) render(secGeo);
+    if (typeof onAfterAction === 'function') onAfterAction(choiceMode, direction);
+  };
+
+  const renderChoiceBody = (bEl) => {
+    if (!bEl) return;
+    const ordered = getOrderedPoints();
+    const curStart = ordered[0];
+    const curFinish = ordered[ordered.length - 1];
+    const userPos = getTrueUserGpsCoords(store.getState());
+    const distFromGpsKm = calcHaversineKm(userPos.lat, userPos.lon, curStart.lat, curStart.lon);
+    const transportObj = ARC_TRANSPORT_MODES[_arcTransportMode || 'car'] || ARC_TRANSPORT_MODES.car;
+
+    bEl.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:11px;font-size:var(--fs-sm);line-height:1.45;">
+        <div style="padding:11px 12px;background:var(--panel);border:1.5px solid var(--accent);border-radius:var(--r-sm);display:flex;flex-direction:column;gap:6px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+            <span style="font-weight:900;font-size:14px;color:var(--text);">Трек: «${escapeHtml(trkTitle)}»</span>
+            <span class="pill pill-good" style="font-size:11.5px;font-weight:800;">${formatExactRouteDistanceRu(totalKm, 10)}</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr;gap:4px;font-size:12px;color:var(--text);padding-top:4px;border-top:1px dashed var(--border);">
+            <div><b style="color:#10b981;">Старт (А):</b> <code style="font-weight:800;">${curStart.lat.toFixed(5)}°N, ${curStart.lon.toFixed(5)}°E</code></div>
+            <div><b style="color:#38bdf8;">Финиш (Б):</b> <code style="font-weight:800;">${curFinish.lat.toFixed(5)}°N, ${curFinish.lon.toFixed(5)}°E</code></div>
+            <div><b>Удаление от вашего GPS до точки старта трека:</b> <span style="color:var(--accent);font-weight:900;">${formatExactRouteDistanceRu(distFromGpsKm, 10)}</span></div>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <div style="font-size:11.5px;font-weight:800;color:var(--muted);text-transform:uppercase;">Направление движения по треку:</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;">
+            <button type="button" class="btn btn-sm ${direction === 'forward' ? 'btn-accent' : ''}" data-trk-dir-btn="forward" style="min-height:38px;font-size:11.5px;font-weight:800;justify-content:center;">
+              Прямое: Старт А -> Финиш Б
+            </button>
+            <button type="button" class="btn btn-sm ${direction === 'reverse' ? 'btn-accent' : ''}" data-trk-dir-btn="reverse" style="min-height:38px;font-size:11.5px;font-weight:800;justify-content:center;">
+              Обратное: Финиш Б -> Старт А
+            </button>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:8px;padding-top:4px;">
+          <button type="button" class="btn btn-good" id="p3TrkChoiceTrackStartBtn" data-track-start-choice="track_start" style="min-height:44px;font-weight:900;font-size:12.5px;width:100%;justify-content:center;">
+            С точки отправления в самом треке
+          </button>
+          <button type="button" class="btn btn-accent" id="p3TrkChoiceBuildToStartBtn" data-track-start-choice="build_to_start" style="min-height:44px;font-weight:900;font-size:12.5px;width:100%;justify-content:center;">
+            Достроить до старта от вашего местоположения (${escapeHtml(transportObj.label)})
+          </button>
+        </div>
+      </div>
+    `;
+
+    bEl.querySelectorAll('[data-trk-dir-btn]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        direction = btn.getAttribute('data-trk-dir-btn') === 'reverse' ? 'reverse' : 'forward';
+        renderChoiceBody(bEl);
+      });
+    });
+
+    bEl.querySelector('#p3TrkChoiceTrackStartBtn')?.addEventListener('click', async () => {
+      closeModal();
+      await startTrackWithChoice('track_start');
+    });
+
+    bEl.querySelector('#p3TrkChoiceBuildToStartBtn')?.addEventListener('click', async (ev) => {
+      const btn = ev.currentTarget;
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Построение подхода к старту трека...';
+      }
+      closeModal();
+      await startTrackWithChoice('build_to_start');
+    });
+  };
+
+  openModal('Запуск маршрута по загруженному треку', '<div id="p3TrackStartChoiceMount"></div>', (bEl) => {
+    renderChoiceBody(bEl);
+  });
+}
 const PHASE3_SAVED_ROUTES_KEY = 'klev_pro_phase3_routes_v1';
 const PHASE3_ACTIVE_TRACK_KEY = 'klev_pro_phase3_active_track_v2';
 let _phase3WatchId = null;
@@ -5725,6 +6150,24 @@ function _processIncomingPhase3GpsFixInner(rawPos) {
     }
     const canAnnounceArrival = !_phase3ActiveTrack.restoredFromStorageAt || Number(_phase3ActiveTrack.sessionMovedMeters || 0) >= 15;
 
+    // Проверка 0: прибытие на точку старта загруженного трека (<= 40 м), если был построен маршрут подхода от текущего GPS
+    if (
+      _phase3ActiveTrack.hasApproachToTrackStart &&
+      !_phase3ActiveTrack.trackStartReachedAnnounced &&
+      _phase3ActiveTrack.trackEntryPt &&
+      Number.isFinite(_phase3ActiveTrack.trackEntryPt.lat) &&
+      Number.isFinite(_phase3ActiveTrack.trackEntryPt.lon)
+    ) {
+      const distToEntryM = calcHaversineKm(rawLat, rawLon, _phase3ActiveTrack.trackEntryPt.lat, _phase3ActiveTrack.trackEntryPt.lon) * 1000;
+      if (distToEntryM <= 40) {
+        _phase3ActiveTrack.trackStartReachedAnnounced = true;
+        const entryMsg = 'Вы прибыли на точку старта трека. Начинаем движение по маршруту трека';
+        showToast(entryMsg, 'good');
+        speakRouteGuidanceRu(`${entryMsg}.`, true);
+        persistActivePhase3Track();
+      }
+    }
+
     // Проверка 1: прибытие в конечную точку назначения или возврат в точку старта (<= 25 м) с автоматическим завершением ведения
     if (remMeters <= 25 && !_phase3ActiveTrack.arrivedAnnounced && canAnnounceArrival) {
       _phase3ActiveTrack.arrivedAnnounced = true;
@@ -6011,17 +6454,78 @@ function renderPhase3TrackOnMap() {
     }).bindPopup(`<b>Ваше положение:</b> осталось ${formatExactRouteDistanceRu(navState.remainingTrailKm, 10)} • Курс ${navState.bearingDeg}°`).addTo(_phase3RouteLayerGroup);
   }
 
-  // Точка старта ВСЕГДА остаётся в исходной точке начала движения (originStartLat/Lon), никогда не прыгает при перестроении
+  _renderTrackDirectionArrowsOnLayer(pts, _phase3RouteLayerGroup, isEmergency ? '#ef4444' : '#38bdf8');
+
+  const trkTitle = _phase3ActiveTrack.title || _phase3ActiveTrack.name || 'Маршрут';
   const originLat = Number.isFinite(_phase3ActiveTrack.originStartLat) ? _phase3ActiveTrack.originStartLat : pts[0]?.lat;
   const originLon = Number.isFinite(_phase3ActiveTrack.originStartLon) ? _phase3ActiveTrack.originStartLon : pts[0]?.lon;
   if (Number.isFinite(originLat) && Number.isFinite(originLon)) {
-    L.circleMarker([originLat, originLon], {
-      radius: 8,
-      color: '#ffffff',
-      fillColor: '#10b981',
-      fillOpacity: 0.95,
-      weight: 2.5
-    }).bindPopup(`<b>Точка старта / База:</b> ${escapeHtml(_phase3ActiveTrack.startLabel || 'Старт')}`).addTo(_phase3RouteLayerGroup);
+    if (typeof L.divIcon === 'function' && typeof L.marker === 'function') {
+      const isGpsApproachStart = Boolean(_phase3ActiveTrack.hasApproachToTrackStart && _phase3ActiveTrack.trackEntryPt);
+      L.marker([originLat, originLon], {
+        icon: L.divIcon({
+          className: 'klev-p3-start-pin',
+          iconSize: [26, 26],
+          iconAnchor: [13, 13],
+          html: `<div class="klev-map-pin-rot-inner" title="Старт (А)" style="transform:rotate(${(-_mapRotCur).toFixed(2)}deg);width:26px;height:26px;border-radius:999px;background:#10b981;border:2.5px solid #ffffff;color:#ffffff;font-size:11.5px;font-weight:900;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(0,0,0,0.6);">${isGpsApproachStart ? 'GPS' : 'А'}</div>`
+        })
+      }).bindPopup(
+        `<b>${isGpsApproachStart ? 'Старт подхода (Мой GPS)' : 'Старт (А)'}:</b> ${escapeHtml(trkTitle)}<br>` +
+        `Координаты: <code>${originLat.toFixed(5)}°N, ${originLon.toFixed(5)}°E</code>`
+      ).addTo(_phase3RouteLayerGroup);
+    } else {
+      L.circleMarker([originLat, originLon], {
+        radius: 8,
+        color: '#ffffff',
+        fillColor: '#10b981',
+        fillOpacity: 0.95,
+        weight: 2.5
+      }).bindPopup(`<b>Старт (А):</b> ${escapeHtml(trkTitle)} (${originLat.toFixed(5)}°N, ${originLon.toFixed(5)}°E)`).addTo(_phase3RouteLayerGroup);
+    }
+  }
+
+  // Промежуточный пин «Старт трека (А)» при достроенном подходе от текущего GPS
+  if (
+    _phase3ActiveTrack.hasApproachToTrackStart &&
+    _phase3ActiveTrack.trackEntryPt &&
+    Number.isFinite(_phase3ActiveTrack.trackEntryPt.lat) &&
+    Number.isFinite(_phase3ActiveTrack.trackEntryPt.lon)
+  ) {
+    const eLat = Number(_phase3ActiveTrack.trackEntryPt.lat);
+    const eLon = Number(_phase3ActiveTrack.trackEntryPt.lon);
+    if (typeof L.divIcon === 'function' && typeof L.marker === 'function') {
+      L.marker([eLat, eLon], {
+        icon: L.divIcon({
+          className: 'klev-p3-track-entry-pin',
+          iconSize: [28, 28],
+          iconAnchor: [14, 14],
+          html: `<div class="klev-map-pin-rot-inner" title="Старт трека (А)" style="transform:rotate(${(-_mapRotCur).toFixed(2)}deg);width:28px;height:28px;border-radius:999px;background:#f59e0b;border:2.5px solid #ffffff;color:#ffffff;font-size:11.5px;font-weight:900;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(0,0,0,0.65);">А</div>`
+        })
+      }).bindPopup(
+        `<b>Старт трека (А):</b> ${escapeHtml(trkTitle)}<br>` +
+        `Координаты: <code>${eLat.toFixed(5)}°N, ${eLon.toFixed(5)}°E</code>`
+      ).addTo(_phase3RouteLayerGroup);
+    }
+  }
+
+  const lastPt = pts[pts.length - 1];
+  const finLat = Number.isFinite(_phase3ActiveTrack.destLat) ? _phase3ActiveTrack.destLat : lastPt?.lat;
+  const finLon = Number.isFinite(_phase3ActiveTrack.destLon) ? _phase3ActiveTrack.destLon : lastPt?.lon;
+  if (pts.length >= 2 && Number.isFinite(finLat) && Number.isFinite(finLon)) {
+    if (typeof L.divIcon === 'function' && typeof L.marker === 'function') {
+      L.marker([finLat, finLon], {
+        icon: L.divIcon({
+          className: 'klev-p3-finish-pin',
+          iconSize: [26, 26],
+          iconAnchor: [13, 13],
+          html: `<div class="klev-map-pin-rot-inner" title="Финиш (Б)" style="transform:rotate(${(-_mapRotCur).toFixed(2)}deg);width:26px;height:26px;border-radius:999px;background:#0ea5e9;border:2.5px solid #ffffff;color:#ffffff;font-size:11.5px;font-weight:900;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(0,0,0,0.6);">Б</div>`
+        })
+      }).bindPopup(
+        `<b>Финиш (Б):</b> ${escapeHtml(trkTitle)}<br>` +
+        `Координаты: <code>${finLat.toFixed(5)}°N, ${finLon.toFixed(5)}°E</code><br>` +
+        `Дистанция: <b>${formatExactRouteDistanceRu(_phase3ActiveTrack.totalDistKm || 0, 10)}</b>`
+      ).addTo(_phase3RouteLayerGroup);
+    }
   }
 }
 
@@ -6223,27 +6727,52 @@ export function openPhase3RoutesModal(container = null) {
           </div>
         </div>
 
-        <!-- Сохранённые маршруты -->
-        <div style="padding:10px 12px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);">
-          <div style="font-weight:900;font-size:12px;color:var(--muted);text-transform:uppercase;margin-bottom:6px;">
-            Сохранённые маршруты в памяти устройства (${savedRoutes.length}):
+        <!-- Загрузка стороннего трека и сохранённые маршруты -->
+        <div style="padding:11px 12px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);display:flex;flex-direction:column;gap:8px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+            <div style="font-weight:900;font-size:12px;color:var(--muted);text-transform:uppercase;">
+              Мои маршруты и загруженные треки (${savedRoutes.length}):
+            </div>
+          </div>
+          <div>
+            <button type="button" class="btn btn-accent" id="p3TriggerImportTrackBtn" style="width:100%;min-height:42px;font-weight:900;font-size:12.5px;justify-content:center;">
+              Загрузить трек (.GPX / .KML / .KMZ)
+            </button>
+            <input type="file" id="p3ImportTrackFileInput" accept=".gpx,.bin,.gpx.bin,.kml,.kmz,.geojson,.json,.xml,.trk,.plt,application/gpx+xml,application/vnd.google-earth.kml+xml,application/vnd.google-earth.kmz,application/octet-stream,*/*" style="display:none;">
           </div>
           ${savedRoutes.length === 0 ? `
-            <div style="font-size:11.5px;color:var(--muted);">У вас пока нет сохранённых маршрутов.</div>
+            <div style="font-size:11.5px;color:var(--muted);">У вас пока нет сохранённых или загруженных маршрутов.</div>
           ` : `
-            <div style="display:flex;flex-direction:column;gap:6px;max-height:180px;overflow-y:auto;">
-              ${savedRoutes.map(rt => `
-                <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 9px;background:var(--panel);border:1px solid var(--border);border-radius:6px;font-size:11.5px;">
-                  <div style="min-width:0;flex:1;">
-                    <div style="font-weight:800;color:var(--text);">${escapeHtml(rt.title || 'Маршрут')}</div>
-                    <div style="font-size:10.5px;color:var(--muted);">${formatExactRouteDistanceRu(rt.totalDistKm || 0, 10)} • Точек: ${(rt.points || []).length}</div>
+            <div style="display:flex;flex-direction:column;gap:7px;max-height:220px;overflow-y:auto;">
+              ${savedRoutes.map(rt => {
+                const ptsList = Array.isArray(rt.points) ? rt.points : [];
+                const pStart = ptsList[0];
+                const pEnd = ptsList[ptsList.length - 1];
+                const sLat = Array.isArray(pStart) ? Number(pStart[0]) : Number(pStart?.lat ?? rt.startLat);
+                const sLon = Array.isArray(pStart) ? Number(pStart[1]) : Number(pStart?.lon ?? rt.startLon);
+                const eLat = Array.isArray(pEnd) ? Number(pEnd[0]) : Number(pEnd?.lat ?? rt.destLat);
+                const eLon = Array.isArray(pEnd) ? Number(pEnd[1]) : Number(pEnd?.lon ?? rt.destLon);
+                const coordsInfo = (Number.isFinite(sLat) && Number.isFinite(eLat))
+                  ? `А: ${sLat.toFixed(4)}°N, ${sLon.toFixed(4)}°E -> Б: ${eLat.toFixed(4)}°N, ${eLon.toFixed(4)}°E`
+                  : '';
+                return `
+                <div style="display:flex;flex-direction:column;gap:6px;padding:8px 10px;background:var(--panel);border:1px solid var(--border);border-radius:8px;font-size:12px;">
+                  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+                    <div style="min-width:0;flex:1;">
+                      <div style="font-weight:800;font-size:12.5px;color:var(--text);">${escapeHtml(rt.title || rt.name || 'Маршрут')}</div>
+                      <div style="font-size:11.5px;color:var(--muted);">${formatExactRouteDistanceRu(rt.totalDistKm || 0, 10)} • Точек: ${ptsList.length}</div>
+                      ${coordsInfo ? `<div style="font-size:11px;color:var(--accent);font-family:monospace;margin-top:2px;">${escapeHtml(coordsInfo)}</div>` : ''}
+                    </div>
                   </div>
-                  <div style="display:flex;gap:5px;">
-                    <button type="button" class="btn btn-sm btn-accent" data-load-saved-route="${escapeHtml(rt.id)}" style="min-height:28px;padding:2px 8px;font-size:11px;">Вести назад</button>
-                    <button type="button" class="btn btn-sm" data-del-saved-route="${escapeHtml(rt.id)}" style="min-height:28px;padding:2px 7px;font-size:11px;color:var(--bad);">✕</button>
+                  <div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center;">
+                    <button type="button" class="btn btn-sm btn-good" data-start-saved-route="${escapeHtml(rt.id)}" style="min-height:30px;padding:3px 9px;font-size:11.5px;font-weight:800;">Старт по треку</button>
+                    <button type="button" class="btn btn-sm btn-accent" data-load-saved-route="${escapeHtml(rt.id)}" style="min-height:30px;padding:3px 9px;font-size:11.5px;font-weight:800;">Вести назад</button>
+                    <button type="button" class="btn btn-sm" data-export-saved-route-gpx="${escapeHtml(rt.id)}" style="min-height:30px;padding:3px 8px;font-size:11.5px;font-weight:800;">GPX</button>
+                    <button type="button" class="btn btn-sm" data-del-saved-route="${escapeHtml(rt.id)}" style="min-height:30px;padding:3px 8px;font-size:11.5px;font-weight:800;color:var(--bad);margin-left:auto;">Удалить</button>
                   </div>
                 </div>
-              `).join('')}
+                `;
+              }).join('')}
             </div>
           `}
         </div>
@@ -6403,6 +6932,35 @@ export function openPhase3RoutesModal(container = null) {
         }
       });
     });
+    bodyEl.querySelector('#p3TriggerImportTrackBtn')?.addEventListener('click', () => {
+      bodyEl.querySelector('#p3ImportTrackFileInput')?.click();
+    });
+    bodyEl.querySelector('#p3ImportTrackFileInput')?.addEventListener('change', async (ev) => {
+      const file = ev.target.files?.[0];
+      if (!file) return;
+      ev.target.value = '';
+      closeModal();
+      await importExternalTrackFromFileObject(file);
+    });
+    bodyEl.querySelectorAll('[data-start-saved-route]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const rid = btn.getAttribute('data-start-saved-route');
+        const found = getSavedPhase3Routes().find(r => r && r.id === rid);
+        if (found) {
+          closeModal();
+          promptLoadedTrackStartChoice(found);
+        }
+      });
+    });
+    bodyEl.querySelectorAll('[data-export-saved-route-gpx]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const rid = btn.getAttribute('data-export-saved-route-gpx');
+        const found = getSavedPhase3Routes().find(r => r && r.id === rid);
+        if (found) {
+          exportPhase3RouteToGpx(found);
+        }
+      });
+    });
     bodyEl.querySelectorAll('[data-del-saved-route]').forEach(btn => {
       btn.addEventListener('click', () => {
         const rid = btn.getAttribute('data-del-saved-route');
@@ -6539,9 +7097,9 @@ function renderMapOverlays(stateObj = null) {
         const catObj = SPOT_CATEGORIES[pt.catKey] || SPOT_CATEGORIES.slip;
         const canDelSpotOnMap = Boolean(pt.mine || (typeof window !== 'undefined' && window.__KLEV_ADMIN_CONTOUR__ === true && Boolean(ident.isOwner)));
         const delOrHideBtn = pt.isSavedSpot
-          ? `<button type="button" data-popup-del-spot="${escapeHtml(pt.id)}" style="margin-top:5px;padding:2px 8px;border-radius:5px;border:1px solid #ef4444;background:#ef4444;color:#fff;font-size:10.5px;font-weight:800;cursor:pointer;">Удалить закладку</button>`
+          ? `<button type="button" class="btn btn-sm" data-popup-del-spot="${escapeHtml(pt.id)}" style="margin-top:5px;min-height:28px;padding:3px 9px;border-color:#ef4444;background:#ef4444;color:#fff;font-size:11.5px;font-weight:800;cursor:pointer;">Удалить закладку</button>`
           : (canDelSpotOnMap
-              ? `<button type="button" data-popup-del-circle="${escapeHtml(pt.id)}" style="margin-top:5px;padding:2px 8px;border-radius:5px;border:1px solid #ef4444;background:#ef4444;color:#fff;font-size:10.5px;font-weight:800;cursor:pointer;">Удалить точку</button>`
+              ? `<button type="button" class="btn btn-sm" data-popup-del-circle="${escapeHtml(pt.id)}" style="margin-top:5px;min-height:28px;padding:3px 9px;border-color:#ef4444;background:#ef4444;color:#fff;font-size:11.5px;font-weight:800;cursor:pointer;">Удалить точку</button>`
               : "");
         let marker;
         if (typeof L.divIcon === 'function' && typeof L.marker === 'function') {
@@ -6579,7 +7137,7 @@ function renderMapOverlays(stateObj = null) {
         } else if (showDepth || showClip) {
           detailLine = `<span class="klev-popup-detail">${showDepth ? `Глубина: ${pt.depth} м` : ''}${showDepth && showClip ? ' • ' : ''}${showClip ? `Клипса: ${pt.clipMeters} м` : ''}</span><br>`;
         }
-        const navRouteBtn = `<button type="button" data-popup-nav-spot="1" data-nav-lat="${pt.lat}" data-nav-lon="${pt.lon}" data-nav-title="${escapeHtml(pt.name)}" data-nav-cat="${escapeHtml(catObj.short)}" style="margin-top:5px;margin-right:5px;padding:3px 9px;border-radius:5px;border:1px solid #10b981;background:#10b981;color:#fff;font-size:10.5px;font-weight:800;cursor:pointer;">Маршрут до точки</button>`;
+        const navRouteBtn = `<button type="button" class="btn btn-sm btn-good" data-popup-nav-spot="1" data-nav-lat="${pt.lat}" data-nav-lon="${pt.lon}" data-nav-title="${escapeHtml(pt.name)}" data-nav-cat="${escapeHtml(catObj.short)}" style="margin-top:5px;margin-right:5px;min-height:28px;padding:3px 10px;font-size:11.5px;font-weight:800;cursor:pointer;">Маршрут до точки</button>`;
         if (_bathymetryLayerEnabled && Number(pt.depth) > 0 && (pt.catKey === 'bite' || pt.catKey === 'snag' || pt.isBathymetryPoint)) {
           const dVal = Number(pt.depth);
           const bathyCol = dVal >= 8 ? '#1d4ed8' : (dVal >= 4 ? '#0284c7' : '#38bdf8');
@@ -6673,7 +7231,7 @@ function renderMapOverlays(stateObj = null) {
       : `<span style="color:#38bdf8;font-weight:800;"><svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"12\" cy=\"12\" r=\"9\" stroke=\"currentColor\" stroke-width=\"1.8\"/><path d=\"M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18\" stroke=\"currentColor\" stroke-width=\"1.6\"/></svg> Чужая</span>`;
     const canDelCircleOnMap = Boolean(mine || (typeof window !== 'undefined' && window.__KLEV_ADMIN_CONTOUR__ === true && Boolean(ident.isOwner)));
     const actionBtnHtml = canDelCircleOnMap
-      ? `<button type="button" data-popup-del-circle="${escapeHtml(item.id)}" style="margin-top:5px;padding:3px 8px;border-radius:5px;border:1px solid #ef4444;background:#ef4444;color:#fff;font-size:11px;font-weight:800;cursor:pointer;"><svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg> Удалить точку</button>`
+      ? `<button type="button" class="btn btn-sm" data-popup-del-circle="${escapeHtml(item.id)}" style="margin-top:5px;min-height:28px;padding:3px 9px;border-color:#ef4444;background:#ef4444;color:#fff;font-size:11.5px;font-weight:800;cursor:pointer;"><svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg> Удалить точку</button>`
       : "";
     const isFocused = (_focusedCircleId && String(_focusedCircleId) === String(item.id));
     if (item.sos) {
@@ -6698,7 +7256,7 @@ function renderMapOverlays(stateObj = null) {
         `<b>Причина SOS:</b> <span style="color:#fca5a5;font-weight:800;">«${escapeHtml(cleanSosReason)}»</span><br>` +
         `<b>Отправитель:</b> ${escapeHtml(item.au || "Рыболов")} (${escapeHtml(item.fid || "")}) • ${sosTimeStr}` +
         `</div>` +
-        `<div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;"><button type="button" data-popup-nav-spot="1" data-nav-lat="${item.lat}" data-nav-lon="${item.lon}" data-nav-title="${escapeHtml('SOS: ' + (item.wn || item.lb || 'Сигнал помощи'))}" data-nav-cat="SOS" style="margin-top:5px;margin-right:5px;padding:3px 8px;border-radius:5px;border:1px solid #10b981;background:#10b981;color:#fff;font-size:11px;font-weight:800;cursor:pointer;">Маршрут до точки</button>${actionBtnHtml}</div></div>`;
+        `<div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;"><button type="button" class="btn btn-sm btn-good" data-popup-nav-spot="1" data-nav-lat="${item.lat}" data-nav-lon="${item.lon}" data-nav-title="${escapeHtml('SOS: ' + (item.wn || item.lb || 'Сигнал помощи'))}" data-nav-cat="SOS" style="margin-top:5px;margin-right:5px;min-height:28px;padding:3px 10px;font-size:11.5px;font-weight:800;cursor:pointer;">Маршрут до точки</button>${actionBtnHtml}</div></div>`;
       sosMarker.bindPopup(sosPopupHtml);
       overlayLayerGroup.addLayer(sosMarker);
       _circleLayersMap.set(item.id, sosMarker);
@@ -6736,8 +7294,8 @@ function renderMapOverlays(stateObj = null) {
         `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" fill="rgba(56,189,248,0.22)" stroke="currentColor" stroke-width="1.8"/><path d="M4 20c0-3.8 3.6-6.5 8-6.5s8 2.7 8 6.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> Напарник: <b>${escapeHtml(item.au || "Экипаж")}</b><br>` +
         `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.5 2" stroke="#38bdf8" stroke-width="1.9" stroke-linecap="round"/></svg> Статус: <b>${item.isExpedition && item.expStart && item.expEnd ? `Экспедиция (${escapeHtml(item.expStart)}..${escapeHtml(item.expEnd)}) • Сохранено навсегда` : (isLinkActive ? `Ссылка активна ~${hrsLeft} ч • Точка сохранена навсегда` : 'Точка экипажа сохранена навсегда')}</b><br>` +
         (item.nt ? `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> «${escapeHtml(item.nt)}»<br>` : "") +
-        (cKey ? `<button type="button" data-popup-crew-chat="${escapeHtml(cKey)}" data-popup-open-crew-chat="${escapeHtml(cKey)}" style="margin-top:6px;padding:3px 9px;border-radius:5px;border:1px solid #10b981;background:#10b981;color:#fff;font-size:11px;font-weight:800;cursor:pointer;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> Чат экипажа (${escapeHtml(cKey)})</button><br>` : "") +
-        (isMobileOrTabletMapMode() ? `<button type="button" data-popup-nav-spot="1" data-nav-lat="${item.lat}" data-nav-lon="${item.lon}" data-nav-title="${escapeHtml(item.wn || item.lb || 'Точка экипажа')}" data-nav-cat="Экипаж" style="margin-top:5px;margin-right:5px;padding:3px 8px;border-radius:5px;border:1px solid #0284c7;background:#0284c7;color:#fff;font-size:11px;font-weight:800;cursor:pointer;">Маршрут до точки</button>` : "") + `${actionBtnHtml}</div>`;
+        (cKey ? `<button type="button" class="btn btn-sm btn-good" data-popup-crew-chat="${escapeHtml(cKey)}" data-popup-open-crew-chat="${escapeHtml(cKey)}" style="margin-top:6px;min-height:28px;padding:3px 10px;font-size:11.5px;font-weight:800;cursor:pointer;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> Чат экипажа (${escapeHtml(cKey)})</button><br>` : "") +
+        (isMobileOrTabletMapMode() ? `<button type="button" class="btn btn-sm btn-accent" data-popup-nav-spot="1" data-nav-lat="${item.lat}" data-nav-lon="${item.lon}" data-nav-title="${escapeHtml(item.wn || item.lb || 'Точка экипажа')}" data-nav-cat="Экипаж" style="margin-top:5px;margin-right:5px;min-height:28px;padding:3px 10px;font-size:11.5px;font-weight:800;cursor:pointer;">Маршрут до точки</button>` : "") + `${actionBtnHtml}</div>`;
       crewZone.bindPopup(crewPopupHtml);
       crewMarker.bindPopup(crewPopupHtml);
       overlayLayerGroup.addLayer(crewZone);
@@ -6789,7 +7347,7 @@ function renderMapOverlays(stateObj = null) {
       ].filter(pt => calcHaversineKm(centerLat, centerLon, pt.lat, pt.lon) <= (decay.radiusKm + 0.6));
       const innerPointsHtml = overlappingPoints.length > 0
         ? `<div style="margin-top:6px;padding:6px 8px;border-radius:7px;background:rgba(15,23,42,0.55);border:1px solid rgba(56,189,248,0.35);">` +
-          `<div style="font-size:10.5px;font-weight:900;color:#38bdf8;margin-bottom:4px;">Точки внутри этого гексагона (${overlappingPoints.length}):</div>` +
+          `<div style="font-size:11.5px;font-weight:900;color:#38bdf8;margin-bottom:4px;">Точки внутри этого гексагона (${overlappingPoints.length}):</div>` +
           overlappingPoints.map(pt => {
             const ptLbl = pt.sos
               ? `SOS: ${escapeHtml(pt.wn || pt.lb || "Сигнал помощи")}`
@@ -6797,21 +7355,21 @@ function renderMapOverlays(stateObj = null) {
                   ? `${escapeHtml((SPOT_CATEGORIES[pt.cat] || SPOT_CATEGORIES.slip).short)}: ${escapeHtml(pt.wn || pt.fn || pt.lb || "Точка")}`
                   : `Экипаж <code>${escapeHtml(pt.crewKey)}</code>: ${escapeHtml(pt.wn || pt.lb || "Стоянка")}`);
             const btnCol = pt.sos ? "#ef4444" : (pt.t === "spot" ? (SPOT_CATEGORIES[pt.cat]?.color || "#38bdf8") : "#10b981");
-            return `<button type="button" data-popup-focus-point="${escapeHtml(pt.id)}" data-popup-open-crew-chat="${escapeHtml(pt.crewKey)}" data-popup-focus-lat="${pt.lat}" data-popup-focus-lon="${pt.lon}" style="display:block;width:100%;text-align:left;margin-top:3px;padding:4px 7px;border-radius:5px;border:1px solid ${btnCol};background:rgba(15,23,42,0.85);color:#fff;font-size:11px;font-weight:800;cursor:pointer;">→ Открыть: ${ptLbl}</button>`;
+            return `<button type="button" class="btn btn-sm" data-popup-focus-point="${escapeHtml(pt.id)}" data-popup-open-crew-chat="${escapeHtml(pt.crewKey)}" data-popup-focus-lat="${pt.lat}" data-popup-focus-lon="${pt.lon}" style="display:flex;width:100%;justify-content:flex-start;text-align:left;margin-top:3px;min-height:28px;padding:4px 8px;border-color:${btnCol};background:rgba(15,23,42,0.85);color:#fff;font-size:11.5px;font-weight:800;cursor:pointer;">→ Открыть: ${ptLbl}</button>`;
           }).join("") +
           `</div>`
         : "";
       const freshnessPct = Math.round(decay.freshness * 100);
       const circlePopupHtml = `<div style="font-size:12px;line-height:1.42;">` +
         `<b style="color:${polyColor};font-size:13px;">⬡ Гексагон Круга ±${decay.radiusKm} км (${ownerBadgeHtml}):</b><br>` +
-        `<span style="display:inline-block;margin:2px 0 4px;padding:1px 7px;border-radius:999px;background:rgba(56,189,248,0.16);border:1px solid ${polyColor};font-size:10.5px;font-weight:800;color:${polyColor};">${decay.stageLabel} • Свежесть ${freshnessPct}% (осталось ~${decay.hoursLeft} ч из 72 ч)</span><br>` +
+        `<span style="display:inline-block;margin:2px 0 4px;padding:2px 8px;border-radius:999px;background:rgba(56,189,248,0.16);border:1px solid ${polyColor};font-size:11.5px;font-weight:800;color:${polyColor};">${decay.stageLabel} • Свежесть ${freshnessPct}% (осталось ~${decay.hoursLeft} ч из 72 ч)</span><br>` +
         `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#ef4444"/></svg> <b>${escapeHtml(item.wn || item.lb || "Водоём")}</b> (глубина ~${item.dp || 1.5} м)<br>` +
         `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M2 12s4-6 11-6c4.2 0 7 2.5 9 6-2 3.5-4.8 6-9 6-7 0-11-6-11-6z" fill="rgba(56,189,248,0.28)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M2 12l-1.5-3.5L5 10.5M2 12l-1.5 3.5L5 13.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="16.5" cy="10.8" r="1.3" fill="currentColor"/></svg> <b>${escapeHtml(item.fn || "Рыба")}${item.kg ? ` (${item.kg} кг)` : ""}</b> • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 3c0 0-6 7.1-6 11.5a6 6 0 0 0 12 0C18 10.1 12 3 12 3z" fill="rgba(56,189,248,0.32)" stroke="#38bdf8" stroke-width="1.8"/><path d="M9.5 15.5c.5 1.2 1.7 2 3 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg> Вода ~${item.tw ?? 8}°C<br>` +
         `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 18c0-4 4-4 4-8s4-4 4-6 5-1 5 3-3 5-3 8 4 4 6 2" stroke="#f43f5e" stroke-width="2.2" stroke-linecap="round"/></svg> Приманка: <b>${escapeHtml(item.bt || "по сезону")}</b><br>` +
         `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" fill="rgba(56,189,248,0.22)" stroke="currentColor" stroke-width="1.8"/><path d="M4 20c0-3.8 3.6-6.5 8-6.5s8 2.7 8 6.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> От: <b>${escapeHtml(item.au || "Рыболов")}</b><br>` +
         (item.nt ? `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> «${escapeHtml(item.nt)}»<br>` : "") +
         innerPointsHtml +
-        `<div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;"><button type="button" data-popup-nav-spot="1" data-nav-lat="${centerLat}" data-nav-lon="${centerLon}" data-nav-title="${escapeHtml(item.wn || item.lb || 'Сектор Круга')}" data-nav-cat="Круг" style="margin-top:5px;margin-right:5px;padding:3px 8px;border-radius:5px;border:1px solid #10b981;background:#10b981;color:#fff;font-size:11px;font-weight:800;cursor:pointer;">Маршрут до точки</button>${actionBtnHtml}</div></div>`;
+        `<div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;"><button type="button" class="btn btn-sm btn-good" data-popup-nav-spot="1" data-nav-lat="${centerLat}" data-nav-lon="${centerLon}" data-nav-title="${escapeHtml(item.wn || item.lb || 'Сектор Круга')}" data-nav-cat="Круг" style="margin-top:5px;margin-right:5px;min-height:28px;padding:3px 10px;font-size:11.5px;font-weight:800;cursor:pointer;">Маршрут до точки</button>${actionBtnHtml}</div></div>`;
       blurZone.bindPopup(circlePopupHtml);
       fishIconMarker.bindPopup(circlePopupHtml);
       overlayLayerGroup.addLayer(blurZone);
@@ -8395,6 +8953,10 @@ function renderArcRouteDraftAndActiveOnMap() {
       _arcRouteDraftLayerGroup.addLayer(line);
     }
 
+    _renderTrackDirectionArrowsOnLayer(pts, _arcRouteDraftLayerGroup, col);
+
+    const trkTitle = _arcBuiltRoute.title || _arcBuiltRoute.destTitle || 'Маршрут';
+    const hasApproach = Boolean(_arcBuiltRoute.hasApproachToTrackStart && Number(_arcBuiltRoute.trackStartVertexIdx) > 0);
     const startPt = _arcBuiltRoute.points[0];
     const endPt = _arcBuiltRoute.points[_arcBuiltRoute.points.length - 1];
     if (startPt && Number.isFinite(startPt[0]) && Number.isFinite(startPt[1])) {
@@ -8403,22 +8965,51 @@ function renderArcRouteDraftAndActiveOnMap() {
           className: 'klev-arc-start-pin',
           iconSize: [26, 26],
           iconAnchor: [13, 13],
-          html: `<div class="klev-map-pin-rot-inner" title="Старт маршрута (первая точка)" style="transform:rotate(${(-_mapRotCur).toFixed(2)}deg);width:26px;height:26px;border-radius:999px;background:#10b981;border:2.5px solid #ffffff;color:#ffffff;font-size:11.5px;font-weight:900;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(0,0,0,0.6);">А</div>`
+          html: `<div class="klev-map-pin-rot-inner" title="${hasApproach ? 'Старт от вашего GPS' : 'Старт (А)'}" style="transform:rotate(${(-_mapRotCur).toFixed(2)}deg);width:26px;height:26px;border-radius:999px;background:#10b981;border:2.5px solid #ffffff;color:#ffffff;font-size:11.5px;font-weight:900;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(0,0,0,0.6);">${hasApproach ? 'GPS' : 'А'}</div>`
         })
-      });
+      }).bindPopup(
+        `<b>${hasApproach ? 'Старт подхода (Мой GPS)' : 'Старт (А)'}:</b> ${escapeHtml(trkTitle)}<br>` +
+        `Координаты: <code>${startPt[0].toFixed(5)}°N, ${startPt[1].toFixed(5)}°E</code>`
+      );
       _arcRouteDraftLayerGroup.addLayer(startMarker);
     }
-    const finishMarker = L.marker(endPt, {
-      icon: L.divIcon({
-        className: 'klev-arc-finish-pin',
-        iconSize: [26, 26],
-        iconAnchor: [13, 13],
-        html: `<div class="klev-map-pin-rot-inner" title="Финиш маршрута" style="transform:rotate(${(-_mapRotCur).toFixed(2)}deg);width:26px;height:26px;border-radius:999px;background:${col};border:2.5px solid #ffffff;color:#ffffff;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(0,0,0,0.6);">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M5 3v18M5 4h13l-2.5 4.5L18 13H5" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </div>`
-      })
-    });
-    _arcRouteDraftLayerGroup.addLayer(finishMarker);
+
+    if (hasApproach) {
+      const joinIdx = Math.min(pts.length - 1, Math.max(1, Number(_arcBuiltRoute.trackStartVertexIdx) || 1));
+      const joinPt = _arcBuiltRoute.trackEntryPt
+        ? [Number(_arcBuiltRoute.trackEntryPt.lat), Number(_arcBuiltRoute.trackEntryPt.lon)]
+        : pts[joinIdx];
+      if (joinPt && Number.isFinite(joinPt[0]) && Number.isFinite(joinPt[1])) {
+        const entryMarker = L.marker(joinPt, {
+          icon: L.divIcon({
+            className: 'klev-arc-track-entry-pin',
+            iconSize: [28, 28],
+            iconAnchor: [14, 14],
+            html: `<div class="klev-map-pin-rot-inner" title="Старт трека (А)" style="transform:rotate(${(-_mapRotCur).toFixed(2)}deg);width:28px;height:28px;border-radius:999px;background:#f59e0b;border:2.5px solid #ffffff;color:#ffffff;font-size:11.5px;font-weight:900;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(0,0,0,0.65);">А</div>`
+          })
+        }).bindPopup(
+          `<b>Старт трека (А):</b> ${escapeHtml(trkTitle)}<br>` +
+          `Координаты: <code>${joinPt[0].toFixed(5)}°N, ${joinPt[1].toFixed(5)}°E</code>`
+        );
+        _arcRouteDraftLayerGroup.addLayer(entryMarker);
+      }
+    }
+
+    if (endPt && Number.isFinite(endPt[0]) && Number.isFinite(endPt[1])) {
+      const finishMarker = L.marker(endPt, {
+        icon: L.divIcon({
+          className: 'klev-arc-finish-pin',
+          iconSize: [26, 26],
+          iconAnchor: [13, 13],
+          html: `<div class="klev-map-pin-rot-inner" title="Финиш (Б)" style="transform:rotate(${(-_mapRotCur).toFixed(2)}deg);width:26px;height:26px;border-radius:999px;background:${col};border:2.5px solid #ffffff;color:#ffffff;font-size:11.5px;font-weight:900;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(0,0,0,0.6);">Б</div>`
+        })
+      }).bindPopup(
+        `<b>Финиш (Б):</b> ${escapeHtml(trkTitle)}<br>` +
+        `Координаты: <code>${endPt[0].toFixed(5)}°N, ${endPt[1].toFixed(5)}°E</code><br>` +
+        `Дистанция: <b>${formatExactRouteDistanceRu(_arcBuiltRoute.distKm || 0, 10)}</b>`
+      );
+      _arcRouteDraftLayerGroup.addLayer(finishMarker);
+    }
   }
 }
 
@@ -9956,7 +10547,7 @@ function renderArcMobileMap(container, s, prevLiveMapBox) {
       pTitle = nearestBase ? `До ближайшей базы: ${nearestBase.distKm.toFixed(1)} км (${escapeHtml(nearestBase.name)})` : 'До ближайшей базы км';
       pBody = `
         <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;">
-          <button type="button" class="btn btn-sm" id="arcPlaqueBtnLost" style="min-height:44px;font-weight:900;font-size:11.5px;border-color:var(--warn);color:var(--warn);">Я потерялся</button>
+          <button type="button" class="btn btn-sm btn-accent" id="arcPlaqueBtnLost" style="min-height:44px;font-weight:900;font-size:11.5px;border-color:transparent;">Мои маршруты</button>
           <button type="button" class="btn btn-sm btn-accent" id="arcPlaqueBtnWaypoints" style="min-height:44px;font-weight:900;font-size:11.5px;">Маршрут по точкам</button>
           <button type="button" class="btn btn-sm btn-good" id="arcPlaqueBtnFreehand" style="min-height:44px;font-weight:900;font-size:11.5px;">Нарисовать пальцем</button>
         </div>
@@ -11578,8 +12169,12 @@ function bindArcMobileMapEvents(container) {
     bathyInp.addEventListener('change', async (ev) => {
       const file = ev.target.files?.[0];
       if (!file) return;
-      const text = await file.text();
-      await importSpotsFromFileText(text);
+      if (/\.kmz$/i.test(file.name || '')) {
+        await importExternalTrackFromFileObject(file);
+      } else {
+        const text = await file.text();
+        await importSpotsFromFileText(text, file.name || '');
+      }
       _bathymetryLayerEnabled = true;
       renderMapOverlays();
       render(container);
@@ -11661,9 +12256,9 @@ export function render(container) {
             <svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>
             <span>Офлайн-карты 50/120 км${getCachedOfflineMapPacksSync().length > 0 ? ` (${getCachedOfflineMapPacksSync().length})` : ''}</span>
           </button>
-          <button type="button" class="btn btn-sm geo-auth-only-block" id="geoOpenPhase3RoutesBtn" style="width:100%;min-height:40px;padding:6px 10px;font-size:11.5px;font-weight:900;justify-content:center;border-color:${_phase3ActiveTrack ? 'var(--bad)' : 'var(--warn)'};color:${_phase3ActiveTrack ? 'var(--bad)' : 'var(--warn)'};background:${_phase3ActiveTrack ? 'rgba(239,68,68,0.14)' : 'rgba(245,158,11,0.10)'};" title="Запись маршрута в фоне, возврат по следу и аварийный режим Я потерялся">
+          <button type="button" class="btn btn-sm btn-accent geo-auth-only-block" id="geoOpenPhase3RoutesBtn" style="width:100%;min-height:40px;padding:6px 10px;font-size:11.5px;font-weight:900;justify-content:center;border-color:transparent;" title="Мои маршруты, загрузка GPX/KML/KMZ, запись пути и возврат по следу">
             <svg class=\"k-ico\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"12\" cy=\"12\" r=\"9\" stroke=\"currentColor\" stroke-width=\"1.8\"/><polygon points=\"16,8 13.5,13.5 8,16 10.5,10.5\" fill=\"currentColor\"/></svg>
-            <span>${_phase3ActiveTrack ? (_phase3ActiveTrack.status === 'returning' ? 'Возврат по следу ВКЛ' : `Маршрут: ${(_phase3ActiveTrack.totalDistKm || 0).toFixed(1)} км`) : 'Маршруты • Я потерялся'}</span>
+            <span>${_phase3ActiveTrack ? (_phase3ActiveTrack.status === 'returning' ? 'Возврат по следу ВКЛ' : `Маршрут: ${(_phase3ActiveTrack.totalDistKm || 0).toFixed(1)} км`) : 'Мои маршруты'}</span>
           </button>
         </div>
         <!-- Статус согласия на передачу геоданных в сеть Интернет (ст. 10.1 152-ФЗ) с кнопкой отзыва -->
@@ -12536,13 +13131,17 @@ function _bindDesktopBathyControls(container, showDrawer = true, syncFilterButto
   renderMapOverlays();
   showToast(_bathymetryLayerEnabled ? 'Слой глубин (изобаты) на карте включён' : 'Слой глубин на карте скрыт', 'info');
  });
- container.querySelector('#geoBathymetryFileInput')?.addEventListener('change', (ev) => {
+ container.querySelector('#geoBathymetryFileInput')?.addEventListener('change', async (ev) => {
   const file = ev.target.files?.[0];
   if (!file) return;
+  ev.target.value = '';
+  if (/\.kmz$/i.test(file.name || '')) {
+   await importExternalTrackFromFileObject(file);
+   return;
+  }
   const reader = new FileReader();
   reader.onload = () => {
-   importSpotsFromFileText(String(reader.result || ''));
-   ev.target.value = '';
+   importSpotsFromFileText(String(reader.result || ''), file.name || '');
   };
   reader.readAsText(file);
  });
@@ -12556,13 +13155,17 @@ function _bindDesktopBathyControls(container, showDrawer = true, syncFilterButto
  }
  const impGpxInput = container.querySelector('#geoImportGpxInput');
  if (impGpxInput) {
- impGpxInput.addEventListener('change', (e) => {
+ impGpxInput.addEventListener('change', async (e) => {
  const file = e.target.files?.[0];
  if (!file) return;
+ impGpxInput.value = '';
+ if (/\.kmz$/i.test(file.name || '')) {
+  await importExternalTrackFromFileObject(file);
+  return;
+ }
  const reader = new FileReader();
  reader.onload = () => {
- importSpotsFromFileText(String(reader.result || ''));
- impGpxInput.value = '';
+ importSpotsFromFileText(String(reader.result || ''), file.name || '');
  };
  reader.readAsText(file);
  });
@@ -12899,7 +13502,13 @@ export const geoModule = {
  setLocation,
  inspectWhatBitesHere,
  exportSpotsToGpx,
+ exportPhase3RouteToGpx,
  importSpotsFromFileText,
+ parseTrackFromExternalFileText,
+ extractKmlFromKmzBuffer,
+ importExternalTrackFromFileText,
+ importExternalTrackFromFileObject,
+ promptLoadedTrackStartChoice,
  autoDetectStartupLocation,
  locateByIpFallback,
  detectUserPosition,
@@ -12919,7 +13528,11 @@ export const geoModule = {
 if (typeof window !== 'undefined') {
   window.__KLEV_EXPORT_SPOTS_GPX__ = () => exportSpotsToGpx();
   window.__KLEV_EXPORT_SPOTS_KML__ = () => exportSpotsToKml();
-  window.__KLEV_IMPORT_SPOTS_TEXT__ = (txt) => importSpotsFromFileText(txt);
+  window.__KLEV_IMPORT_SPOTS_TEXT__ = (txt, fname = '') => importSpotsFromFileText(txt, fname);
+  window.__KLEV_PARSE_EXTERNAL_TRACK__ = (txt, fname = '') => parseTrackFromExternalFileText(txt, fname);
+  window.__KLEV_EXTRACT_KMZ_KML__ = (buf) => extractKmlFromKmzBuffer(buf);
+  window.__KLEV_IMPORT_EXTERNAL_TRACK__ = (txt, fname = '', opts = {}) => importExternalTrackFromFileText(txt, fname, opts);
+  window.__KLEV_PROMPT_TRACK_START_CHOICE__ = (trk, cb) => promptLoadedTrackStartChoice(trk, cb);
   window.__KLEV_GET_BG_PERMS_STATUS__ = () => getDeviceBackgroundPermissionsStatus();
   window.__KLEV_REQ_ROUTE_PERMS__ = async (kind, onDone) => {
     if (kind === 'gps') {

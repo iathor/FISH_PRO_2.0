@@ -1,11 +1,11 @@
-import { RU } from '../../i18n/ru.js?v=2.9.2-r256';
-import { events } from '../../core/events.js?v=2.9.2-r256';
-import { storage } from '../../core/storage.js?v=2.9.2-r256';
-import { store } from '../../core/store.js?v=2.9.2-r256';
-import { fetchWithTimeout, fallbackChain } from '../../core/http.js?v=2.9.2-r256';
-import { formatLocalYYYYMMDD, fmtHM, fmtDeltaPress } from '../../core/format.js?v=2.9.2-r256';
-import { WATER_PROFILES } from '../../data/waters.js?v=2.9.2-r256';
-import { createPill, showToast } from '../../ui/components.js?v=2.9.2-r256';
+import { RU } from '../../i18n/ru.js?v=2.9.2-r257';
+import { events } from '../../core/events.js?v=2.9.2-r257';
+import { storage } from '../../core/storage.js?v=2.9.2-r257';
+import { store } from '../../core/store.js?v=2.9.2-r257';
+import { fetchWithTimeout, fallbackChain } from '../../core/http.js?v=2.9.2-r257';
+import { formatLocalYYYYMMDD, fmtHM, fmtDeltaPress } from '../../core/format.js?v=2.9.2-r257';
+import { WATER_PROFILES } from '../../data/waters.js?v=2.9.2-r257';
+import { createPill, showToast } from '../../ui/components.js?v=2.9.2-r257';
 
 function escapeHtml(str) {
   return String(str ?? '')
@@ -1675,9 +1675,9 @@ export function render(container) {
                   const wCol = wSlot.waveM >= 0.8 ? 'var(--bad)' : (wSlot.waveM >= 0.45 ? 'var(--warn)' : 'var(--good)');
                   return `
                     <div style="padding:6px 4px;border-radius:10px;background:var(--panel);border:1px solid var(--border);display:flex;flex-direction:column;align-items:center;gap:2px;">
-                      <span style="font-size:10.5px;font-weight:800;color:var(--muted);">${String(hIdx).padStart(2, '0')}:00</span>
+                      <span style="font-size:11.5px;font-weight:800;color:var(--muted);">${String(hIdx).padStart(2, '0')}:00</span>
                       <span style="font-size:13.5px;font-weight:900;color:${wCol};white-space:nowrap;">${wSlot.waveM.toFixed(1)} м</span>
-                      <span style="font-size:10.5px;font-weight:800;color:var(--accent);white-space:nowrap;">${wSlot.dir} • ${Math.round(wSlot.windMs)} м/с</span>
+                      <span style="font-size:11.5px;font-weight:800;color:var(--accent);white-space:nowrap;">${wSlot.dir} • ${Math.round(wSlot.windMs)} м/с</span>
                     </div>
                   `;
                 }).join('')}

@@ -2,21 +2,21 @@
  * @file circle.api.js
  * @description Сетевое взаимодействие с Cloudflare Worker (workerFetch, E2E-шлюзы, /relay/pull с заголовками X-Auth-Token/X-Admin-Token и syncNearbyCirclePointsFromServer).
  */
-import { events, KLEV_EVENTS } from '../../core/events.js?v=2.9.2-r256';
-import { store } from '../../core/store.js?v=2.9.2-r256';
-import { storage, calcGeoDistanceKm } from '../../core/storage.js?v=2.9.2-r256';
-import { APP_VERSION } from '../../core/config.js?v=2.9.2-r256';
-import { showToast } from '../../ui/components.js?v=2.9.2-r256';
-import { RELAY_WORKER_URL } from '../../core/telegram.js?v=2.9.2-r256';
+import { events, KLEV_EVENTS } from '../../core/events.js?v=2.9.2-r257';
+import { store } from '../../core/store.js?v=2.9.2-r257';
+import { storage, calcGeoDistanceKm } from '../../core/storage.js?v=2.9.2-r257';
+import { APP_VERSION } from '../../core/config.js?v=2.9.2-r257';
+import { showToast } from '../../ui/components.js?v=2.9.2-r257';
+import { RELAY_WORKER_URL } from '../../core/telegram.js?v=2.9.2-r257';
 import {
   isAdminContourActive,
   getActiveAdminToken,
   isOwnerAdmin,
   setAdminAuthRequired
-} from '../admin/admin.auth.js?v=2.9.2-r256';
+} from '../admin/admin.auth.js?v=2.9.2-r257';
 import {
   isCircleItemMine
-} from './circle.ownership.js?v=2.9.2-r256';
+} from './circle.ownership.js?v=2.9.2-r257';
 import {
   getCurrentFisherIdentity,
   normalizeCrewSecretKey,
@@ -36,7 +36,7 @@ import {
   patchAdminRuntimeSnapshot,
   getRelaySyncRuntimeRefs,
   persistRelaySyncState
-} from './circle.module.js?v=2.9.2-r256';
+} from './circle.module.js?v=2.9.2-r257';
 
 const PINNED_DB_GATEWAY_STORAGE_KEY = 'klev_pinned_db_gateway_kind_v2';
 const LAST_WORKING_DB_GATEWAY_SESSION_KEY = 'klev_last_working_db_gateway_v2';
@@ -296,6 +296,7 @@ async function _buildE2EEnvelopeParam(method, origSearch, bodyStr, customHeaders
   const hdrs = {};
   if (customHeaders && typeof customHeaders === 'object') {
     if (customHeaders['X-Auth-Token']) hdrs['X-Auth-Token'] = String(customHeaders['X-Auth-Token']);
+    if (customHeaders['X-Fisher-Id']) hdrs['X-Fisher-Id'] = String(customHeaders['X-Fisher-Id']);
     if (customHeaders['X-Admin-Token']) hdrs['X-Admin-Token'] = String(customHeaders['X-Admin-Token']);
   }
   const envelopePayload = JSON.stringify({
@@ -465,8 +466,11 @@ export async function workerFetch(endpointOrUrl, options = {}, timeoutMs = 6500,
     const admTok = getActiveAdminToken();
     if (admTok && !reqHeaders['X-Admin-Token']) reqHeaders['X-Admin-Token'] = admTok;
   }
-  const authTok = store.getState()?.userProfile?.authTokenHash || '';
+  const up = store.getState()?.userProfile || {};
+  const authTok = up.sessionToken || up.authTokenHash || '';
   if (authTok && !reqHeaders['X-Auth-Token']) reqHeaders['X-Auth-Token'] = authTok;
+  const fidHdr = String(up.fisherId || '').trim().toUpperCase();
+  if (fidHdr && !reqHeaders['X-Fisher-Id']) reqHeaders['X-Fisher-Id'] = fidHdr;
   const canUseGetPayload = (method === 'POST' && (!bodyStr || bodyStr.length < 7500));
   const relayReady = (method === 'GET') || canUseGetPayload;
   const isAiVisionCall = fullUrl.includes('/api/ai/identify-fish');

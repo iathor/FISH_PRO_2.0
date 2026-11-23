@@ -99,23 +99,23 @@ function downloadPhotoCrossPlatform(filename, dataUrl) {
   }
 }
 
-import { isSpeciesInGeoRange } from '../../data/basins.js?v=2.9.2-r256';
-import { RU } from '../../i18n/ru.js?v=2.9.2-r256';
-import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.9.2-r256';
-import { events } from '../../core/events.js?v=2.9.2-r256';
-import { router } from '../../core/router.js?v=2.9.2-r256';
-import { storage } from '../../core/storage.js?v=2.9.2-r256';
-import { store } from '../../core/store.js?v=2.9.2-r256';
-import { setLocation } from '../geo/geo.module.js?v=2.9.2-r256';
-import { formatLocalYYYYMMDD, fmtDeltaPress } from '../../core/format.js?v=2.9.2-r256';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.9.2-r256';
-import { FISH_DB } from '../../data/species.js?v=2.9.2-r256';
-import { escapeHtml, createPill, showToast, openModal, closeModal, openConfirmDeleteModal, downloadFileCrossPlatform, flashHighlightElement } from '../../ui/components.js?v=2.9.2-r256';
+import { isSpeciesInGeoRange } from '../../data/basins.js?v=2.9.2-r257';
+import { RU } from '../../i18n/ru.js?v=2.9.2-r257';
+import { getSeasonalBaitsForContext, getCompatibleMethods } from '../../core/config.js?v=2.9.2-r257';
+import { events } from '../../core/events.js?v=2.9.2-r257';
+import { router } from '../../core/router.js?v=2.9.2-r257';
+import { storage } from '../../core/storage.js?v=2.9.2-r257';
+import { store } from '../../core/store.js?v=2.9.2-r257';
+import { setLocation } from '../geo/geo.module.js?v=2.9.2-r257';
+import { formatLocalYYYYMMDD, fmtDeltaPress } from '../../core/format.js?v=2.9.2-r257';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.9.2-r257';
+import { FISH_DB } from '../../data/species.js?v=2.9.2-r257';
+import { escapeHtml, createPill, showToast, openModal, closeModal, openConfirmDeleteModal, downloadFileCrossPlatform, flashHighlightElement } from '../../ui/components.js?v=2.9.2-r257';
 const escHtml = escapeHtml;
 let activeLogTab = 'active'; // 'active' | 'trash'
-import { computeMoon } from '../weather/weather.module.js?v=2.9.2-r256';
-import { calcHourly, calcDayBest } from '../forecast/forecast.module.js?v=2.9.2-r256';
-import { openFishPhotoScannerModal, analyzeFishPhotoHybrid, requestAppCameraAndPhotoAccess } from '../fish/scanner.js?v=2.9.2-r256';
+import { computeMoon } from '../weather/weather.module.js?v=2.9.2-r257';
+import { calcHourly, calcDayBest } from '../forecast/forecast.module.js?v=2.9.2-r257';
+import { openFishPhotoScannerModal, analyzeFishPhotoHybrid, requestAppCameraAndPhotoAccess } from '../fish/scanner.js?v=2.9.2-r257';
 let currentFilter = { fishId: 'all', cond: 'all' };
 /**
  * Биологические верхние пределы веса (кг) для защиты от накрутки и опечаток
@@ -595,7 +595,7 @@ export function openCatchWizard(prefill = {}) {
           <label style="font-weight:800;font-size:var(--fs-xs);color:var(--accent);">
             ЛОКАЦИЯ УЛОВА (НА КАРТЕ ИЛИ ИЗ ЗАКЛАДОК):
           </label>
-          <span id="cwCurrentLocBadge" style="font-size:11px;font-weight:800;color:var(--good);font-family:monospace;">
+          <span id="cwCurrentLocBadge" style="font-size:11px;font-weight:800;color:var(--good);font-family:var(--font-mono);">
             ${escapeHtml(s.locLabel)} (${s.lat.toFixed(4)}°N, ${s.lon.toFixed(4)}°E)
           </span>
         </div>
@@ -708,7 +708,7 @@ export function openCatchWizard(prefill = {}) {
             <img id="cwPhotoThumbImg" src="${photoDataUrl || ''}" alt="Превью" style="width:48px;height:48px;object-fit:cover;border-radius:6px;border:1px solid var(--border);flex-shrink:0;cursor:pointer;">
             <div style="font-size:11.5px;line-height:1.35;min-width:0;">
               <b style="color:var(--good);">Фото прикреплено к записи</b>
-              <div style="font-size:10.5px;color:var(--muted);">EXIF и GPS очищены в целях приватности</div>
+              <div style="font-size:11.5px;color:var(--muted);">EXIF и GPS очищены в целях приватности</div>
             </div>
           </div>
           <div style="display:flex;gap:4px;flex-shrink:0;">
@@ -1149,18 +1149,18 @@ export function renderLog(container) {
         ` : `
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(265px,1fr));gap:10px;">
             ${trashRecords.map(c => `
-              <div class="card" style="background:var(--card);padding:10px 12px;border:1.5px dashed var(--warn);display:flex;flex-direction:column;gap:6px;">
+              <div class="glass-panel" style="background:var(--card);padding:10px 12px;border:1.5px dashed var(--warn);border-radius:16px;display:flex;flex-direction:column;gap:6px;">
                 <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;">
                   <span style="font-weight:800;font-size:var(--fs-md);color:var(--warn);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> ${escapeHtml(c.fishName)} ${c.weightKg ? `• ${c.weightKg} кг` : ''}</span>
-                  <span class="pill pill-warn" style="font-size:10px;">На удаление</span>
+                  <span class="pill pill-warn" style="font-size:11.5px;">На удаление</span>
                 </div>
                 <div style="font-size:var(--fs-xs);color:var(--muted);">
                   <svg class="k-ico" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="3" fill="rgba(56,189,248,0.14)" stroke="currentColor" stroke-width="1.8"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="7" y="13" width="3" height="3" rx="0.8" fill="#38bdf8"/><rect x="14" y="13" width="3" height="3" rx="0.8" fill="#10b981"/></svg> ${escapeHtml(c.dateLabel || c.date)}, ${String(c.hour ?? 12).padStart(2, '0')}:00 • <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(239,68,68,0.22)" stroke="#ef4444" stroke-width="1.9"/><circle cx="12" cy="11" r="2.3" fill="#ef4444"/></svg> ${escapeHtml(c.locLabel || 'Водоём')}
                 </div>
                 <div style="font-size:var(--fs-xs);color:var(--accent);">Наживка / приманка: <b>${escapeHtml(c.bait || '—')}</b></div>
                 <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;">
-                  <button type="button" class="btn btn-sm btn-good" data-restore-catch="${escHtml(c.id)}" data-fish="${escHtml(c.fish || c.fishName || '')}" data-water="${escHtml(c.water || c.waterName || '')}" style="flex:1;">Восстановить</button>
-                  <button type="button" class="btn btn-sm" data-purge-catch="${escHtml(c.id)}" style="flex:1;color:var(--bad);border-color:var(--bad);">Удалить навсегда</button>
+                  <button type="button" class="pill-btn active" data-restore-catch="${escHtml(c.id)}" data-fish="${escHtml(c.fish || c.fishName || '')}" data-water="${escHtml(c.water || c.waterName || '')}" style="flex:1;padding:6px 10px;font-size:11.5px;color:var(--good);border-color:var(--good);">Восстановить</button>
+                  <button type="button" class="pill-btn" data-purge-catch="${escHtml(c.id)}" style="flex:1;padding:6px 10px;font-size:11.5px;color:var(--bad);border-color:var(--bad);">Удалить навсегда</button>
                 </div>
               </div>
             `).join('')}
@@ -1189,14 +1189,14 @@ export function renderLog(container) {
         ` : `
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(265px,1fr));gap:10px;">
             ${filtered.map(c => `
-              <div class="card" style="background:var(--card);padding:10px 12px;display:flex;flex-direction:column;gap:5px;">
+              <div class="glass-panel" style="background:var(--card);padding:10px 12px;border-radius:16px;display:flex;flex-direction:column;gap:6px;">
                 <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;">
                   <span style="font-weight:800;font-size:var(--fs-md);">${escapeHtml(c.fishName)} ${c.weightKg ? `• ${c.weightKg} кг` : ''} ${c.lengthCm ? `(${c.lengthCm} см)` : ''}</span>
                   <div style="display:flex;gap:4px;flex-wrap:wrap;">
-                    <button type="button" class="btn btn-sm btn-good" style="min-height:28px;padding:2px 8px;" data-apply-catch-rig="${escHtml(c.id)}" data-fish="${escHtml(c.fish || c.fishName || '')}" data-water="${escHtml(c.water || c.waterName || '')}" title="Повторить снасть: подставить рыбу, способ ловли, глубину и приманку в прогноз">Снасть</button>
-                    <button type="button" class="btn btn-sm btn-accent" style="min-height:28px;padding:2px 8px;" data-chat-share-catch="${escHtml(c.id)}" title="Поделиться карточкой улова в чате Экипажа или личном диалоге">В чат</button>
-                    <button type="button" class="btn btn-sm" style="min-height:28px;padding:2px 8px;" data-share-catch="${escHtml(c.id)}" title="Отправить улов в Круг с размытием координат ±5 км">В Круг</button>
-                    <button type="button" class="btn btn-sm" style="min-height:28px;padding:2px 7px;color:var(--bad);" data-del-catch="${escHtml(c.id)}" title="Пометить на удаление" aria-label="Пометить запись на удаление"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                    <button type="button" class="pill-btn" style="min-height:28px;padding:4px 10px;font-size:11.5px;color:var(--good);border-color:rgba(16,185,129,0.45);" data-apply-catch-rig="${escHtml(c.id)}" data-fish="${escHtml(c.fish || c.fishName || '')}" data-water="${escHtml(c.water || c.waterName || '')}" title="Повторить снасть: подставить рыбу, способ ловли, глубину и приманку в прогноз">Снасть</button>
+                    <button type="button" class="pill-btn active" style="min-height:28px;padding:4px 10px;font-size:11.5px;" data-chat-share-catch="${escHtml(c.id)}" title="Поделиться карточкой улова в чате Экипажа или личном диалоге">В чат</button>
+                    <button type="button" class="pill-btn" style="min-height:28px;padding:4px 10px;font-size:11.5px;" data-share-catch="${escHtml(c.id)}" title="Отправить улов в Круг с размытием координат ±5 км">В Круг</button>
+                    <button type="button" class="pill-btn" style="min-height:28px;padding:4px 8px;font-size:11.5px;color:var(--bad);border-color:rgba(239,68,68,0.4);" data-del-catch="${escHtml(c.id)}" title="Пометить на удаление" aria-label="Пометить запись на удаление"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
                   </div>
                 </div>
                 <div style="font-size:var(--fs-xs);color:var(--muted);">
@@ -1216,10 +1216,10 @@ export function renderLog(container) {
                       <img src="${c.photoDataUrl}" alt="Улов ${escHtml(c.fishName || c.fish)}" style="width:100%;max-height:150px;object-fit:cover;display:block;">
                     </div>
                     <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;">
-                      <button type="button" class="btn btn-sm" data-view-catch-photo="${c.id}" style="min-height:30px;padding:3px 8px;font-size:11px;font-weight:800;">
+                      <button type="button" class="pill-btn" data-view-catch-photo="${c.id}" style="min-height:30px;padding:5px 10px;font-size:11.5px;font-weight:800;">
                         Посмотреть фото
                       </button>
-                      <button type="button" class="btn btn-sm btn-accent" data-download-catch-photo="${c.id}" style="min-height:30px;padding:3px 8px;font-size:11px;font-weight:800;">
+                      <button type="button" class="pill-btn active" data-download-catch-photo="${c.id}" style="min-height:30px;padding:5px 10px;font-size:11.5px;font-weight:800;">
                         Скачать фото
                       </button>
                     </div>
