@@ -76,8 +76,8 @@ test('3.3 Регулярка шлюз тайлов блокирует чужие
 
 test('3.4 & 4.8 Единый источник версии VERSION (2.9.0 r240) синхронизирован во всех файлах и ссылка на APK валидна', () => {
   assert.equal(verData.version, '2.9.2');
-  assert.equal(verData.revision, 'r258');
-  assert.equal(verData.versionCode, 293258);
+  assert.equal(verData.revision, 'r259');
+  assert.equal(verData.versionCode, 293259);
 
   const vJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'version.json'), 'utf8'));
   const apkVJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'apk/apk-version.json'), 'utf8'));
@@ -376,7 +376,7 @@ test('6.6 Аудит r248: пересобранный app-runtime.js + app.bundl
   const wf = fs.readFileSync(path.join(ROOT, '.github/workflows/build-android-apk.yml'), 'utf8');
   const verJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'VERSION'), 'utf8'));
 
-  assert.equal(verJson.fullVersion, '2.9.2-r258', 'В VERSION должен быть fullVersion 2.9.2-r258');
+  assert.equal(verJson.fullVersion, '2.9.2-r259', 'В VERSION должен быть fullVersion 2.9.2-r259');
   assert.equal(rtSrc, bundleSrc, 'app-runtime.js и js/app.bundle.js должны быть идентичны');
   for (const sym of ['transform-origin:14px 27px;', 'fcWeatherRoadStormCard', 'fcWeatherHourlyWaveCard', '_klevTouchStart', '__KLEV_STARTUP_GPS_SYNCED__']) {
     assert.ok(rtSrc.includes(sym), `В скомпилированном app-runtime.js отсутствует ${sym}`);
@@ -385,7 +385,7 @@ test('6.6 Аудит r248: пересобранный app-runtime.js + app.bundl
   assert.ok(layoutCss.includes('img.leaflet-marker-icon') && idxHtml.includes('img.leaflet-marker-icon'), 'Синий дефолтный img.leaflet-marker-icon должен скрываться на мобильных через CSS');
   assert.ok(!/\.compass-bearing-active\s+#mapBox\s*\{[^}]*transform:\s*none/i.test(idxHtml), 'В index.html не должно быть transform: none для #mapBox');
   assert.ok(!/\.compass-bearing-active\s+#mapBox\s*\{[^}]*transform:\s*none/i.test(kpHtml), 'В kp-control-89.html не должно быть transform: none для #mapBox');
-  assert.ok(gradle.includes('applicationId "ru.klevpro.app"') && gradle.includes('versionName "2.9.2-r258"'), 'В android/app/build.gradle должны быть ru.klevpro.app и 2.9.2-r258');
+  assert.ok(gradle.includes('applicationId "ru.klevpro.app"') && gradle.includes('versionName "2.9.2-r259"'), 'В android/app/build.gradle должны быть ru.klevpro.app и 2.9.2-r259');
   assert.ok(stringsXml.includes('Клёв ПРО 2.0'), 'В strings.xml должно быть имя Клёв ПРО 2.0');
   assert.ok(mainJava.includes('compassWanted = true') && mainJava.includes('TYPE_MAGNETIC_FIELD'), 'В MainActivity.java должен быть включён компас с резервом TYPE_MAGNETIC_FIELD');
   assert.ok(wf.includes('/tmp/klev-android-user') && wf.includes('/tmp/klev-android-admin'), 'Workflow должен собирать User и Admin APK в изолированных директориях');
@@ -588,10 +588,10 @@ test('r255: закрытие всех 9 пунктов глубокой инсп
   assert.ok(adminJs.includes('setChatUiState') && adminJs.includes('setChatUiState({ isFullScreenChatOpen: false })'), 'В admin.module.js должен вызываться сеттер setChatUiState');
 
   // 3. Синхронизация buildNumber === 255 и getAppBuildNumber() -> 255
-  assert.equal(verJson.buildNumber, 258, 'buildNumber в version.json должен быть 258');
-  assert.equal(apkVerJson.buildNumber, 258, 'buildNumber в apk/apk-version.json должен быть 258');
-  assert.ok(configJs.includes('export const APP_BUILD_NUMBER = 258;') && configJs.includes('"buildNumber": 258'), 'В config.js должен быть APP_BUILD_NUMBER = 258');
-  assert.ok(/public\s+int\s+getAppBuildNumber\(\)\s*\{\s*return\s+258;\s*\}/.test(mainJava), 'В MainActivity.java getAppBuildNumber() должен возвращать 258');
+  assert.equal(verJson.buildNumber, 259, 'buildNumber в version.json должен быть 259');
+  assert.equal(apkVerJson.buildNumber, 259, 'buildNumber в apk/apk-version.json должен быть 259');
+  assert.ok(configJs.includes('export const APP_BUILD_NUMBER = 259;') && configJs.includes('"buildNumber": 259'), 'В config.js должен быть APP_BUILD_NUMBER = 259');
+  assert.ok(/public\s+int\s+getAppBuildNumber\(\)\s*\{\s*return\s+259;\s*\}/.test(mainJava), 'В MainActivity.java getAppBuildNumber() должен возвращать 259');
   assert.ok(gatewayJava.includes('KlevPro/2.9.2'), 'В LocalGatewayClient.java должен быть User-Agent KlevPro/2.9.2');
 
   // 4. prevUserPos и remMeters <= 25 в geo.module.js
@@ -744,7 +744,7 @@ test('r257: проверка всех 5 пунктов BUGS (офлайн-ква
   );
 });
 
-test('r258: защита ключей GEMINI_CONFIG_V2 / GEMINI_KEYS_VAULT_V2 в D1, порядок синхронизации в боте, каскад шлюзов и диагностика Vision ИИ', () => {
+test('r259: защита ключей GEMINI_CONFIG_V2 / GEMINI_KEYS_VAULT_V2 в D1, порядок синхронизации в боте, каскад шлюзов и диагностика Vision ИИ', () => {
   const workerJs = fs.readFileSync(path.join(ROOT, 'cloudflare-worker-bot.js'), 'utf8');
   const botWorkerJs = fs.readFileSync(path.join(ROOT, 'bot/cloudflare-worker-bot.js'), 'utf8');
   const scannerJs = fs.readFileSync(path.join(ROOT, 'js/modules/fish/scanner.js'), 'utf8');
@@ -755,11 +755,11 @@ test('r258: защита ключей GEMINI_CONFIG_V2 / GEMINI_KEYS_VAULT_V2 в
 
   // Побайтовая идентичность корневого воркера и bot/cloudflare-worker-bot.js + синхронизация Android assets/www
   assert.equal(workerJs, botWorkerJs, 'cloudflare-worker-bot.js и bot/cloudflare-worker-bot.js должны быть побайтово идентичны');
-  assert.ok(/public\s+String\s+getAppRevision\(\)\s*\{\s*return\s+"r258";\s*\}/.test(mainJava), 'В MainActivity.java getAppRevision() должен возвращать r258');
-  assert.ok(wwwIdx.includes('2.9.2-r258'), 'В android/app/src/main/assets/www/index.html должна быть версия 2.9.2-r258');
-  assert.equal(wwwVer.fullVersion, '2.9.2-r258', 'В android/app/src/main/assets/www/version.json должна быть версия 2.9.2-r258');
-  assert.equal(wwwVer.buildNumber, 258, 'В android/app/src/main/assets/www/version.json buildNumber должен быть 258');
-  assert.ok(wwwCfg.includes('export const APP_BUILD_NUMBER = 258;') && wwwCfg.includes('2.9.2-r258'), 'В android/app/src/main/assets/www/js/core/config.js должна быть версия 2.9.2-r258 (258)');
+  assert.ok(/public\s+String\s+getAppRevision\(\)\s*\{\s*return\s+"r259";\s*\}/.test(mainJava), 'В MainActivity.java getAppRevision() должен возвращать r259');
+  assert.ok(wwwIdx.includes('2.9.2-r259'), 'В android/app/src/main/assets/www/index.html должна быть версия 2.9.2-r259');
+  assert.equal(wwwVer.fullVersion, '2.9.2-r259', 'В android/app/src/main/assets/www/version.json должна быть версия 2.9.2-r259');
+  assert.equal(wwwVer.buildNumber, 259, 'В android/app/src/main/assets/www/version.json buildNumber должен быть 259');
+  assert.ok(wwwCfg.includes('export const APP_BUILD_NUMBER = 259;') && wwwCfg.includes('2.9.2-r259'), 'В android/app/src/main/assets/www/js/core/config.js должна быть версия 2.9.2-r259 (259)');
 
   // 1. Защита и восстановление всех 3 слотов apiKeys в applyParsedGeminiConfigToStore, syncFreshGeminiConfigFromD1 и persistSystemMeta
   assert.ok(
@@ -833,4 +833,44 @@ test('r258: защита ключей GEMINI_CONFIG_V2 / GEMINI_KEYS_VAULT_V2 в
     scannerJs.includes('lastWorkerErrorMsg = wJson.error.trim();'),
     'scanner.js должен сохранять точный wJson.error от сервера в lastWorkerErrorMsg'
   );
+});
+
+test('r259: модульная гео-база data/geo (89 субъектов РФ, 3596 НП и 1501 водоём), ихтиобаза 115 видов, биотопная изоляция, зимний прогноз ТГ-бота и 4-уровневый приоритет рыб', () => {
+  const districts = ['cfo', 'szfo', 'yufo', 'skfo', 'pfo', 'urfo', 'sfo', 'dfo'];
+  let totalSettlements = 0;
+  let totalWaters = 0;
+  const admin1Set = new Set();
+  for (const d of districts) {
+    const p = path.join(ROOT, 'data', 'geo', `${d}.json`);
+    assert.ok(fs.existsSync(p), `Должен существовать файл округа data/geo/${d}.json`);
+    const obj = JSON.parse(fs.readFileSync(p, 'utf8'));
+    assert.ok(Array.isArray(obj.settlements) && obj.settlements.length > 0);
+    assert.ok(Array.isArray(obj.waters) && obj.waters.length > 0);
+    totalSettlements += obj.settlements.length;
+    totalWaters += obj.waters.length;
+    obj.settlements.forEach(s => admin1Set.add(s.admin1));
+  }
+  assert.strictEqual(admin1Set.size, 89, 'Должны быть охвачены все 89 субъектов РФ');
+  assert.ok(totalSettlements >= 3500, `В базе должно быть не менее 3500 населённых пунктов РФ (сейчас ${totalSettlements})`);
+  assert.ok(totalWaters >= 1450, `В базе должно быть не менее 1450 водоёмов РФ (сейчас ${totalWaters})`);
+
+  const rwSrc = fs.readFileSync(path.join(ROOT, 'js/data/russia-waters.js'), 'utf8');
+  assert.ok(rwSrc.includes('const _W_RAW = ['), 'russia-waters.js должен использовать компактное кортежное представление _W_RAW');
+  assert.ok(rwSrc.includes('const _C_RAW = ['), 'russia-waters.js должен использовать компактное кортежное представление _C_RAW');
+
+  const spSrc = fs.readFileSync(path.join(ROOT, 'js/data/species.js'), 'utf8');
+  assert.ok(spSrc.includes('export function getLocalizedFishDisplayName('), 'В species.js должна быть функция getLocalizedFishDisplayName');
+  assert.ok(spSrc.includes('Плотва сибирская (Сорога)'), 'В species.js должна быть региональная привязка Сороги');
+  assert.ok(spSrc.includes('Плотва сибирская (Чебак)'), 'В species.js должна быть региональная привязка Чебака');
+  assert.ok(spSrc.includes('Елец сибирский (Мохтик)'), 'В species.js должна быть региональная привязка Мохтика');
+
+  const basinsSrc = fs.readFileSync(path.join(ROOT, 'js/data/basins.js'), 'utf8');
+  assert.ok(basinsSrc.includes('export function rankSpeciesWithUserPriority('), 'В basins.js должен быть 4-уровневый алгоритм rankSpeciesWithUserPriority');
+  assert.ok(basinsSrc.includes('const hasExplicitWater = wNameLower.length > 0;'), 'В basins.js должна быть строгая биотопная изоляция выбранного водоёма');
+
+  assert.ok(workerSrc.includes('function evaluateBotIceAndSeasonState('), 'В воркере должен быть расчёт ледостава evaluateBotIceAndSeasonState');
+  assert.ok(workerSrc.includes('function getBotSeasonalGearText('), 'В воркере должен быть двухсезонный выбор снастей getBotSeasonalGearText');
+  assert.ok(workerSrc.includes('function computeBotSolarBiteWindow('), 'В воркере должен быть астрономический расчёт светового окна computeBotSolarBiteWindow');
+  assert.ok(workerSrc.includes('function getLocalizedBotFishName('), 'В воркере должна быть региональная локализация названия рыбы getLocalizedBotFishName');
+  assert.ok(workerSrc.includes('if (Array.isArray(snap.targetSpecies))'), 'В воркере должна поддерживаться синхронизация targetSpecies отдельно от favorites');
 });

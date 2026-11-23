@@ -1,11 +1,11 @@
-import { RU } from '../../i18n/ru.js?v=2.9.2-r258';
-import { events } from '../../core/events.js?v=2.9.2-r258';
-import { storage } from '../../core/storage.js?v=2.9.2-r258';
-import { store } from '../../core/store.js?v=2.9.2-r258';
-import { fetchWithTimeout, fallbackChain } from '../../core/http.js?v=2.9.2-r258';
-import { formatLocalYYYYMMDD, fmtHM, fmtDeltaPress } from '../../core/format.js?v=2.9.2-r258';
-import { WATER_PROFILES } from '../../data/waters.js?v=2.9.2-r258';
-import { createPill, showToast } from '../../ui/components.js?v=2.9.2-r258';
+import { RU } from '../../i18n/ru.js?v=2.9.2-r259';
+import { events } from '../../core/events.js?v=2.9.2-r259';
+import { storage } from '../../core/storage.js?v=2.9.2-r259';
+import { store } from '../../core/store.js?v=2.9.2-r259';
+import { fetchWithTimeout, fallbackChain } from '../../core/http.js?v=2.9.2-r259';
+import { formatLocalYYYYMMDD, fmtHM, fmtDeltaPress } from '../../core/format.js?v=2.9.2-r259';
+import { WATER_PROFILES } from '../../data/waters.js?v=2.9.2-r259';
+import { createPill, showToast } from '../../ui/components.js?v=2.9.2-r259';
 
 function escapeHtml(str) {
   return String(str ?? '')
