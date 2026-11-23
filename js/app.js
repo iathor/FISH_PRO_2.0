@@ -1,8 +1,9 @@
+import { APP_VERSION, APP_REVISION } from './core/config.js?v=2.9.3-r239';
 import { storage } from './core/storage.js?v=2.9.3-r239';
 import { svgIcon } from './ui/icons.js?v=2.9.3-r239';
 import { initReleaseUpdater, checkForReleaseUpdate } from './core/updater.js?v=2.9.3-r239';
 import { RU } from './i18n/ru.js?v=2.9.3-r239';
-import { events } from './core/events.js?v=2.9.3-r239';
+import { events, KLEV_EVENTS, safeModuleRun } from './core/events.js?v=2.9.3-r239';
 import { store } from './core/store.js?v=2.9.3-r239';
 import { router } from './core/router.js?v=2.9.3-r239';
 import { installShortcut, initPwa } from './core/pwa.js?v=2.9.3-r239';
@@ -26,9 +27,14 @@ import { forecastModule } from './modules/forecast/forecast.module.js?v=2.9.3-r2
 import { calendarModule } from './modules/calendar/calendar.module.js?v=2.9.3-r239';
 import { logModule } from './modules/log/log.module.js?v=2.9.3-r239';
 import { circleModule } from './modules/circle/circle.module.js?v=2.9.3-r239';
+import './shells/shell.desktop.js?v=2.9.3-r239';
+import './shells/shell.mobile.js?v=2.9.3-r239';
+import './shells/shell.ios-pwa.js?v=2.9.3-r239';
 if (typeof window !== 'undefined') {
   window.__KLEV_BOOTSTRAPPED__ = true;
   window.__KLEV_STORE__ = store;
+  window.__KLEV_EVENTS__ = events;
+  window.__KLEV_SAFE_RUN__ = safeModuleRun;
 }
 window.addEventListener('message', (e) => { if (!e || (e.origin && e.origin !== window.location.origin && e.origin !== 'null')) return; if (e.data === 'klev_close_admin_console') closeModal(); });
 const CLIENT_ERROR_LOG_KEY = 'klev_pro_client_error_log_v1';
@@ -132,13 +138,19 @@ export function getDiagErrorRingLog() {
   return _klevDiagErrorRing.slice();
 }
 
-export function logErr(tag, err) {
+export function logErr(tagOrMsg, errOrSrc, lineno = 0, colno = 0, errObj = null) {
   try {
-    const msg = err && err.message ? err.message : String(err || 'Unknown error');
+    const isExtendedSig = errObj !== null || (typeof errOrSrc === 'string' && errOrSrc.startsWith('module:')) || arguments.length >= 3;
+    const tag = isExtendedSig ? String(errOrSrc || 'module') : String(tagOrMsg || 'internal');
+    const actualErr = isExtendedSig ? (errObj || tagOrMsg) : errOrSrc;
+    const msg = isExtendedSig
+      ? String(tagOrMsg || (actualErr && actualErr.message) || 'Unknown error')
+      : (actualErr && actualErr.message ? actualErr.message : String(actualErr || 'Unknown error'));
     const line = `${new Date().toISOString()} [${tag}]: ${msg}`;
     _klevDiagErrorRing.push(line);
     if (_klevDiagErrorRing.length > 200) _klevDiagErrorRing.shift();
-    recordClientErrorTelemetry(tag || 'internal', msg, err && err.stack ? String(err.stack).slice(0, 220) : tag);
+    const stackOrSrc = (actualErr && actualErr.stack) ? String(actualErr.stack).slice(0, 220) : String(tag);
+    recordClientErrorTelemetry(tag || 'internal', msg, stackOrSrc);
   } catch (_e) {}
 }
 
@@ -164,7 +176,7 @@ export function recordClientErrorTelemetry(type, message, sourceOrStack = '') {
       msg: msgStr,
       src: String(sourceOrStack || '').slice(0, 220),
       route: String(window.location?.hash || '#/forecast'),
-      ver: '2.9.1-r247',
+      ver: `${APP_VERSION}-${APP_REVISION}`,
       env: envLabel,
       fisherId: uInfo.fisherId,
       login: uInfo.login,
@@ -398,6 +410,7 @@ export function applyAppTheme(themeMode, showNotificationToast = false) {
 if (typeof window !== 'undefined') {
   window.__KLEV_APPLY_THEME__ = applyTheme;
 }
+let _adminModLoaded = false;
 function updateHeaderUI() {
   const s = store.getState();
   const statusBlock = document.getElementById('headerStatusBlock');
@@ -438,7 +451,20 @@ function updateHeaderUI() {
     statusBlock.className = 'header-status-block ' + stripCls;
   }
   if (seasonMain && seasonSub) {
-    if (typeof window !== 'undefined' && window.__KLEV_ADMIN_CONTOUR__ === true) {
+    if (!_adminModLoaded && (typeof window === 'undefined' || window.__KLEV_BUILD_TARGET__ !== 'user')) {
+      _adminModLoaded = true;
+      import(/* webpackMode: "eager" */ './modules/admin/admin.module.js?v=2.9.3-r239')
+        .then((m) => {
+          if (typeof window !== 'undefined' && window.__KLEV_ADMIN_CONTOUR__ === true && m && typeof m.renderAdminSection === 'function') {
+            const admSec = document.getElementById('secAdmin');
+            if (!admSec || !admSec.children || admSec.children.length === 0) {
+              m.renderAdminSection();
+            }
+          }
+        })
+        .catch(() => {});
+    }
+  if (typeof window !== 'undefined' && window.__KLEV_ADMIN_CONTOUR__ === true) {
       seasonMain.textContent = 'КЛЁВ ПРО АДМИН';
       seasonSub.innerHTML = '<span>Консоль D1 • Управление • 152-ФЗ</span>';
       if (statusBlock) {

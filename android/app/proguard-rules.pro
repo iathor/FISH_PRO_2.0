@@ -18,3 +18,7 @@
 -keep public class ru.klevpro.app.NavService {
     public protected *;
 }
+
+-keep class ru.klevpro.app.WebViewSecurityClient { *; }
+-keep class ru.klevpro.app.LocalGatewayClient { *; }
+-keep class ru.klevpro.app.AppDataVault { *; }

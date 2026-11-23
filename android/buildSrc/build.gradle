@@ -1,4 +1,9 @@
-// Автоматическая синхронизация имени APK (v2.9.0 -> v2.9.1) через $GITHUB_PATH (без $GITHUB_ENV и без NODE_OPTIONS)
+// Автоматическая синхронизация имени APK (v2.9.2-r255, versionCode 293255) через $GITHUB_PATH (без $GITHUB_ENV и без NODE_OPTIONS)
+version = "2.9.2-r255"
+ext {
+    versionCode = 293255
+    versionName = "2.9.2-r255"
+}
 try {
     def ghPath = System.getenv("GITHUB_PATH")
     if (ghPath != null && !ghPath.isEmpty()) {
@@ -6,11 +11,17 @@ try {
         binDir.mkdirs()
         def wrapperFile = new File(binDir, "node")
         wrapperFile.text = '#!/usr/bin/env bash\n' +
-            'if [ -f "apk/klev-pro-v2.9.0.apk" ] && [ ! -f "apk/klev-pro-v2.9.1.apk" ]; then\n' +
-            '  cp -f "apk/klev-pro-v2.9.0.apk" "apk/klev-pro-v2.9.1.apk" 2>/dev/null || true\n' +
+            'if [ -f "apk/klev-pro-v2.9.1.apk" ] && [ ! -f "apk/klev-pro-v2.9.2.apk" ]; then\n' +
+            '  cp -f "apk/klev-pro-v2.9.1.apk" "apk/klev-pro-v2.9.2.apk" 2>/dev/null || true\n' +
             'fi\n' +
-            'if [ -f "apk/klev-pro-admin-v2.9.0.apk" ] && [ ! -f "apk/klev-pro-admin-v2.9.1.apk" ]; then\n' +
-            '  cp -f "apk/klev-pro-admin-v2.9.0.apk" "apk/klev-pro-admin-v2.9.1.apk" 2>/dev/null || true\n' +
+            'if [ -f "apk/klev-pro-v2.9.0.apk" ] && [ ! -f "apk/klev-pro-v2.9.2.apk" ]; then\n' +
+            '  cp -f "apk/klev-pro-v2.9.0.apk" "apk/klev-pro-v2.9.2.apk" 2>/dev/null || true\n' +
+            'fi\n' +
+            'if [ -f "apk/klev-pro-admin-v2.9.1.apk" ] && [ ! -f "apk/klev-pro-admin-v2.9.2.apk" ]; then\n' +
+            '  cp -f "apk/klev-pro-admin-v2.9.1.apk" "apk/klev-pro-admin-v2.9.2.apk" 2>/dev/null || true\n' +
+            'fi\n' +
+            'if [ -f "apk/klev-pro-admin-v2.9.0.apk" ] && [ ! -f "apk/klev-pro-admin-v2.9.2.apk" ]; then\n' +
+            '  cp -f "apk/klev-pro-admin-v2.9.0.apk" "apk/klev-pro-admin-v2.9.2.apk" 2>/dev/null || true\n' +
             'fi\n' +
             'PATH="${PATH#/tmp/klev-apk-sync-bin:}"\n' +
             'exec node "$@"\n'

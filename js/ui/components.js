@@ -294,7 +294,7 @@ export function openModal(title, contentHtml, onMount = null, canClose = true, o
   } else if (backdrop.parentElement === document.body && backdrop.nextElementSibling) {
     document.body.appendChild(backdrop);
   }
-  backdrop.style.zIndex = '11500';
+  backdrop.style.zIndex = '12000';
   backdrop.onclick = (e) => {
     if (canClose && e.target === backdrop) closeModal();
   };

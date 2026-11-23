@@ -766,9 +766,7 @@ export function openAppParamsModal(onBackToHub = null) {
       });
     });
     bodyEl.querySelector('#appParamsResetWeightsBtn')?.addEventListener('click', () => {
-      ['temp', 'press', 'archive_shock', 'circle_field'].forEach(k => {
-        store.dispatch({ type: 'SET_PRO_FACTOR_WEIGHT', payload: { key: k, val: 1.0 } });
-      });
+      store.dispatch({ type: 'SET_PRO_FACTOR_WEIGHT', payload: null });
       renderParamsBody(bodyEl);
       showToast('Веса факторов прогноза сброшены на 100%', 'good');
     });

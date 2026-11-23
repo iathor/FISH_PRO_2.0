@@ -1,4 +1,5 @@
 import { showToast } from '../ui/components.js?v=2.9.3-r239';
+import { APP_FULL_VERSION } from './config.js?v=2.9.3-r239';
 export const PWA_INSTALLED_KEY = 'klev_pro_pwa_installed';
 let deferredInstallPrompt = null;
 export function generateFloatIconDataURL(size = 512) {
@@ -40,10 +41,18 @@ export function generateFloatIconDataURL(size = 512) {
 }
 export function initDynamicTouchIcon() {
   try {
+    const isAdminContour = typeof window !== 'undefined' && window.__KLEV_ADMIN_CONTOUR__ === true;
+    const verSuffix = `?v=${APP_FULL_VERSION || '2.9.2-r255'}`;
     const fav = document.getElementById('dynamicFavicon');
     const touch = document.getElementById('dynamicTouchIcon');
-    if (fav) fav.href = 'icon-192.png?v=2.5.0';
-    if (touch) touch.href = 'apple-touch-icon.png?v=2.5.0';
+    if (fav) {
+      const curHref = fav.getAttribute('href') || '';
+      const useAdminIcon = isAdminContour || curHref.includes('icon-admin');
+      fav.href = `${useAdminIcon ? 'icon-admin-192.png' : 'icon-192.png'}${verSuffix}`;
+    }
+    if (touch) {
+      touch.href = `${isAdminContour ? 'icon-admin-192.png' : 'apple-touch-icon.png'}${verSuffix}`;
+    }
   } catch (e) {}
 }
 /**
@@ -177,7 +186,8 @@ export function showInstallModal(htmlText) {
     });
   }
   const iconEl = modal.querySelector('#modalIconPreview');
-  if (iconEl) iconEl.src = 'icon-192.png?v=2.5.0';
+  const isAdminContour = typeof window !== 'undefined' && window.__KLEV_ADMIN_CONTOUR__ === true;
+  if (iconEl) iconEl.src = `${isAdminContour ? 'icon-admin-192.png' : 'icon-192.png'}?v=${APP_FULL_VERSION || '2.9.2-r255'}`;
   const txtEl = modal.querySelector('#modalInstallText');
   if (txtEl) {
     const safeHtml = String(htmlText || '')

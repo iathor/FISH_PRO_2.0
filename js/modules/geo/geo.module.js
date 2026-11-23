@@ -1,6 +1,33 @@
 import { renderFishVisual } from '../../ui/svg.js?v=2.9.3-r239';
 import { MAP_LAYERS, SPOT_CATEGORIES, getCompatibleMethods } from '../../core/config.js?v=2.9.3-r239';
-import { events } from '../../core/events.js?v=2.9.3-r239';
+import { events, KLEV_EVENTS, safeModuleRun } from '../../core/events.js?v=2.9.3-r239';
+import {
+  ARC_TRANSPORT_MODES,
+  calcHaversineKm,
+  calcBearingDeg,
+  bearingToCompassRu,
+  _densifyPolylineToMaxStep,
+  _smoothRecordedTrackPoints,
+  simplifyTrackRdp,
+  evaluateRouteSegments
+} from './geo.routing.js';
+import {
+  isManualLocationSession,
+  setManualLocationSession,
+  getLastRealUserGps,
+  getGpsFiltered,
+  _gpsFilterReset,
+  _saveRealUserGpsCoords as _gpsSaveRealUserGpsCoords,
+  getTrueUserGpsCoords as _gpsGetTrueUserGpsCoords,
+  _estimateSatellitesFromAccuracy,
+  _gpsFilterIngest as _gpsFilterIngestImpl,
+  computeGpsTelemetryStep
+} from './geo.gps.js';
+import {
+  normalizeSpotCatKey,
+  computeDeduplicatedMapCounts as _overlaysComputeDeduplicatedMapCounts,
+  prepareOverlayMarkerLists
+} from './geo.overlays.js?v=2.9.3-r239';
 import { storage, safeJsonParse } from '../../core/storage.js?v=2.9.3-r239';
 import { router } from '../../core/router.js?v=2.9.3-r239';
 import { store } from '../../core/store.js?v=2.9.3-r239';
@@ -19,6 +46,31 @@ import {
 } from '../../data/russia-waters.js?v=2.9.3-r239';
 import { FISH_DB } from '../../data/species.js?v=2.9.3-r239';
 import { routeOnGrid } from './grid-router.js?v=2.9.1-r245';
+import {
+  isVoiceGuidanceScreenEnabled,
+  isVoiceGuidanceBackgroundEnabled,
+  setVoiceGuidanceScreenEnabled as _ttsSetVoiceGuidanceScreenEnabled,
+  setVoiceGuidanceBackgroundEnabled as _ttsSetVoiceGuidanceBackgroundEnabled,
+  bearingToSpokenDirectionRu,
+  _pluralizeRu,
+  numberToRussianWordsNominal as _ttsNumberToRussianWordsNominal,
+  formatSpokenRouteDistanceRu as _ttsFormatSpokenRouteDistanceRu,
+  _normalizeDistanceTokensForSpeechRu,
+  speakRouteGuidanceRu
+} from './geo.tts.js';
+import {
+  COMPASS_DEADBAND_DEG,
+  COMPASS_ROT_DEADBAND_DEG,
+  normalizeAngleDeg,
+  shortestAngleDeltaDeg,
+  computeHeadingAngularDiffDeg,
+  isMapTiltedDeg,
+  rotateScreenDeltaToMap,
+  stepCompassLowPass,
+  computeMapRotationStep,
+  stabilizeOverlayElement,
+  stabilizeMapOverlaysInBox
+} from './geo.compass.js';
 import { escapeHtml, createPill, showToast, openModal, closeModal, openConfirmDeleteModal, downloadFileCrossPlatform, flashHighlightElement, isGeoDistributionConsentActive, ensureGeoDistributionConsent, setGeoDistributionConsentState } from '../../ui/components.js?v=2.9.3-r239';
 import { fetchWeather, weatherModule } from '../weather/weather.module.js?v=2.9.3-r239';
 import { calcDayBest } from '../forecast/forecast.module.js?v=2.9.3-r239';
@@ -2892,110 +2944,9 @@ function getYandexEPSG3395CRS() {
   return L.CRS.EPSG3857;
 }
 let _lastMapStoreCoordKey = '';
-function normalizeSpotCatKey(rawCat = '') {
-  if (rawCat === 'spot' || rawCat === 'hole') return 'bite';
-  return SPOT_CATEGORIES[rawCat] ? rawCat : 'slip';
-}
 export function computeDeduplicatedMapCounts(stateObj = null) {
-  const s = stateObj || store.getState();
-  const seenSpotKeys = new Set();
-  const uniqueSpots = [];
-  if (Array.isArray(s.savedSpots)) {
-    s.savedSpots.forEach(sp => {
-      if (!sp || !Number.isFinite(Number(sp.lat)) || !Number.isFinite(Number(sp.lon))) return;
-      const catKey = normalizeSpotCatKey(sp.category || sp.cat || 'bite');
-      const dKey = `${catKey}_${Number(sp.lat).toFixed(4)}_${Number(sp.lon).toFixed(4)}`;
-      if (seenSpotKeys.has(dKey)) return;
-      seenSpotKeys.add(dKey);
-      uniqueSpots.push({ id: sp.id, catKey, lat: Number(sp.lat), lon: Number(sp.lon), mine: true, source: 'saved', layerKey: 'mySpots', raw: sp, dKey });
-    });
-  }
-  if (Array.isArray(s.catches)) {
-    s.catches.forEach(c => {
-      if (!c || c.deletedAt || c.isBlankTrip) return;
-      const cLat = Number.isFinite(Number(c.lat)) ? Number(c.lat) : Number(s.lat);
-      const cLon = Number.isFinite(Number(c.lon)) ? Number(c.lon) : Number(s.lon);
-      if (!Number.isFinite(cLat) || !Number.isFinite(cLon)) return;
-      const catKey = normalizeSpotCatKey(c.category || c.cat || 'bite');
-      const dKey = `catch_${c.id || ''}_${cLat.toFixed(4)}_${cLon.toFixed(4)}`;
-      if (seenSpotKeys.has(dKey)) return;
-      seenSpotKeys.add(dKey);
-      const fishTitle = c.fishName || c.fish || 'Улов';
-      const weightInfo = Number(c.weightKg) > 0 ? ` (${Number(c.weightKg).toFixed(2).replace(/\.00$/, '')} кг)` : '';
-      uniqueSpots.push({
-        id: `catch_pt_${c.id || Date.now()}`,
-        catKey,
-        lat: cLat,
-        lon: cLon,
-        mine: true,
-        source: 'catch',
-        layerKey: 'mySpots',
-        raw: { ...c, name: `Улов: ${fishTitle}${weightInfo}`, metaSummary: [c.dateLabel || c.date || '', c.bait ? `Приманка: ${c.bait}` : ''].filter(Boolean).join(' • ') },
-        dKey
-      });
-    });
-  }
-  const rawCircle = (Array.isArray(s.circleItems) ? s.circleItems : []).filter(x => x && !isCircleItemHidden(x, s));
-  const circleBlurItems = [];
-  rawCircle.forEach(item => {
-    if (!item || !Number.isFinite(Number(item.lat)) || !Number.isFinite(Number(item.lon))) return;
-    if (item.t === 'spot') {
-      const catKey = normalizeSpotCatKey(item.cat || item.category || 'slip');
-      const dKey = `${catKey}_${Number(item.lat).toFixed(4)}_${Number(item.lon).toFixed(4)}`;
-      if (seenSpotKeys.has(dKey)) return;
-      seenSpotKeys.add(dKey);
-      circleBlurItems.push({
-        id: item.id,
-        catKey,
-        lat: Number(item.lat),
-        lon: Number(item.lon),
-        mine: isCircleItemMine(item, s),
-        source: 'circle',
-        layerKey: 'circleBlur',
-        raw: item,
-        dKey
-      });
-    } else if (item.t === 'circle') {
-      circleBlurItems.push({
-        id: item.id,
-        catKey: normalizeSpotCatKey(item.cat || 'bite'),
-        lat: Number(item.lat),
-        lon: Number(item.lon),
-        mine: isCircleItemMine(item, s),
-        source: 'circleBlur',
-        layerKey: 'circleBlur',
-        raw: item
-      });
-    }
-  });
-  const now = Date.now();
-  const crewExactItems = rawCircle
-    .filter(x => x.t === 'crew' && Number.isFinite(Number(x.lat)) && Number.isFinite(Number(x.lon)) && (x.sos || ((!x.ea || x.ea > now) && (canUserAccessCrewItem(x, s) || isCircleItemMine(x, s)))))
-    .map(item => ({
-      id: item.id,
-      catKey: normalizeSpotCatKey(item.cat || (item.sos ? 'danger' : 'camp')),
-      lat: Number(item.lat),
-      lon: Number(item.lon),
-      mine: isCircleItemMine(item, s),
-      source: 'crewExact',
-      layerKey: 'crewExact',
-      raw: item
-    }));
-  const allPlaqueItems = [...uniqueSpots, ...circleBlurItems, ...crewExactItems];
-  const mineMapCount = allPlaqueItems.filter(x => x.mine).length;
-  const foreignMapCount = allPlaqueItems.filter(x => !x.mine).length;
-  return {
-    uniqueSpots,
-    circleBlurItems,
-    crewExactItems,
-    allPlaqueItems,
-    thematicCount: uniqueSpots.length,
-    circleBlurCount: circleBlurItems.length,
-    crewExactCount: crewExactItems.length,
-    mineMapCount,
-    foreignMapCount,
-    totalMapCount: mineMapCount + foreignMapCount
-  };
+  // Делегирует в geo.overlays.js (учитывает item.t === 'spot' в circleBlurItems и allPlaqueItems)
+  return _overlaysComputeDeduplicatedMapCounts(stateObj);
 }
 function ensureDynamicYmapFilterStyles() {
   if (typeof document === 'undefined') return;
@@ -3124,14 +3075,6 @@ function ensureNetworkTileRecoveryBound() {
 }
 function clamp(val, min, max) {
   return Math.max(min, Math.min(max, val));
-}
-function calcHaversineKm(lat1, lon1, lat2, lon2) {
-  const R = 6371;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLon = ((lon2 - lon1) * Math.PI) / 180;
-  const a = Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
-  return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 100000) / 100000;
 }
 /**
  * Вычисляет мгновенную разведку для любой точки карты (« Что здесь клюёт?»)
@@ -3291,6 +3234,15 @@ async function selectTemporaryMapSpot(lat, lon) {
     loading: true
   };
   _arcPickedSpotSheetOpen = true;
+  safeModuleRun('geo:spotPick', () => {
+    events.emit(KLEV_EVENTS.GEO_SPOT_PICKED, {
+      lat: rLat,
+      lon: rLon,
+      title: _arcPickedSpot.title,
+      waterName: _arcPickedSpot.waterName,
+      loading: true
+    });
+  });
 
   if (mapInstance && typeof L !== 'undefined') {
     if (_arcPickedSpotMarker) {
@@ -3337,6 +3289,15 @@ async function selectTemporaryMapSpot(lat, lon) {
         waterName: matchedWater?.name || waterObj || '',
         loading: false
       };
+      safeModuleRun('geo:spotPick', () => {
+        events.emit(KLEV_EVENTS.GEO_SPOT_PICKED, {
+          lat: rLat,
+          lon: rLon,
+          title: _arcPickedSpot.title,
+          waterName: _arcPickedSpot.waterName,
+          loading: false
+        });
+      });
       const el = document.getElementById('secGeo');
       if (el) render(el);
     }
@@ -3384,7 +3345,10 @@ export async function setLocation(lat, lon, skipReverseGeo = false, targetZoomOv
   if (st.depth < prof.minD || st.depth > prof.maxD) {
     store.dispatch({ type: 'SET_DEPTH', payload: prof.defD });
   }
-  events.emit('location:changed', { lat: rLat, lon: rLon, basinCode: st.basinCode, isCoastal: st.isCoastal });
+  safeModuleRun('geo:location', () => {
+    events.emit('location:changed', { lat: rLat, lon: rLon, basinCode: st.basinCode, isCoastal: st.isCoastal });
+    events.emit(KLEV_EVENTS.GEO_LOCATION_CHANGED, { lat: rLat, lon: rLon, basinCode: st.basinCode, isCoastal: st.isCoastal });
+  });
   if (!skipReverseGeo) {
     resolveReverseGeocode(rLat, rLon);
   }
@@ -4315,7 +4279,6 @@ async function _importSpotsXmlOrJson(fileText) {
 // ============================================================================
 const PHASE3_SAVED_ROUTES_KEY = 'klev_pro_phase3_routes_v1';
 const PHASE3_ACTIVE_TRACK_KEY = 'klev_pro_phase3_active_track_v2';
-const LAST_REAL_USER_GPS_KEY = 'klev_pro_last_real_gps_v1';
 let _phase3WatchId = null;
 let _phase3WakeLock = null;
 let _phase3RouteLayerGroup = null;
@@ -4324,7 +4287,6 @@ let _lastUserMapTouchTs = 0;
 let _lastAutoZoomAdjustTs = 0;
 let _isProgrammaticAutoZoom = false;
 let _liveUserGpsMarker = null;
-let _lastRealUserGps = null;
 
 function _isCorruptedIndoorJitterTrack(trk) {
   if (!trk || !Array.isArray(trk.points)) return false;
@@ -4347,13 +4309,6 @@ try {
   if (typeof localStorage !== 'undefined') {
     // Безусловно удаляем старый фантомный фоновый трек v1 (рисовавший прямоугольную сетку вокруг дома)
     localStorage.removeItem('klev_pro_phase3_active_track_v1');
-    const rawSavedGps = localStorage.getItem(LAST_REAL_USER_GPS_KEY);
-    if (rawSavedGps) {
-      const parsedGps = JSON.parse(rawSavedGps);
-      if (parsedGps && Number.isFinite(parsedGps.lat) && Number.isFinite(parsedGps.lon)) {
-        _lastRealUserGps = parsedGps;
-      }
-    }
     const rawRoutes = localStorage.getItem(PHASE3_SAVED_ROUTES_KEY);
     if (rawRoutes) {
       const parsedRoutes = JSON.parse(rawRoutes);
@@ -4371,12 +4326,13 @@ try {
       const pts = Array.isArray(candidate?.points) ? candidate.points : [];
       const isNavStatus = candidate?.status === 'returning' || candidate?.status === 'navigating_to_spot';
       let alreadyAtGoalOnBoot = Boolean(candidate?.arrivedAnnounced) || (isNavStatus && pts.length < 2);
-      if (!alreadyAtGoalOnBoot && isNavStatus && pts.length >= 2 && _lastRealUserGps && Number.isFinite(_lastRealUserGps.lat) && Number.isFinite(_lastRealUserGps.lon)) {
+      const _bootLastGps = getLastRealUserGps();
+      if (!alreadyAtGoalOnBoot && isNavStatus && pts.length >= 2 && _bootLastGps && Number.isFinite(_bootLastGps.lat) && Number.isFinite(_bootLastGps.lon)) {
         const targetPt = candidate.status === 'navigating_to_spot' ? pts[pts.length - 1] : pts[0];
         const tLat = Array.isArray(targetPt) ? Number(targetPt[0]) : Number(targetPt?.lat);
         const tLon = Array.isArray(targetPt) ? Number(targetPt[1]) : Number(targetPt?.lon);
         if (Number.isFinite(tLat) && Number.isFinite(tLon)) {
-          const distM = calcHaversineKm(_lastRealUserGps.lat, _lastRealUserGps.lon, tLat, tLon) * 1000;
+          const distM = calcHaversineKm(_bootLastGps.lat, _bootLastGps.lon, tLat, tLon) * 1000;
           if (distM <= 45) alreadyAtGoalOnBoot = true;
         }
       }
@@ -4441,88 +4397,40 @@ function persistActivePhase3Track() {
   } catch (e) {}
 }
 
-function calcBearingDeg(lat1, lon1, lat2, lon2) {
-  const toRad = Math.PI / 180;
-  const toDeg = 180 / Math.PI;
-  const p1 = lat1 * toRad;
-  const p2 = lat2 * toRad;
-  const dLon = (lon2 - lon1) * toRad;
-  const y = Math.sin(dLon) * Math.cos(p2);
-  const x = Math.cos(p1) * Math.sin(p2) - Math.sin(p1) * Math.cos(p2) * Math.cos(dLon);
-  return (Math.atan2(y, x) * toDeg + 360) % 360;
-}
 
-function bearingToCompassRu(deg) {
-  const dirs = ['С (Север)', 'СВ (Северо-Восток)', 'В (Восток)', 'ЮВ (Юго-Восток)', 'Ю (Юг)', 'ЮЗ (Юго-Запад)', 'З (Запад)', 'СЗ (Северо-Запад)'];
-  return dirs[Math.round(((Number(deg) || 0) % 360) / 45) % 8];
-}
-
-function bearingToSpokenDirectionRu(deg) {
-  const dirs = ['север', 'северо-восток', 'восток', 'юго-восток', 'юг', 'юго-запад', 'запад', 'северо-запад'];
-  return dirs[Math.round(((Number(deg) || 0) % 360) / 45) % 8];
-}
-
-let _voiceGuidanceEnabled = true;
-let _voiceGuidanceBgEnabled = true;
-let _lastSpokenPhrase = '';
-let _lastSpokenTs = 0;
-
-try {
-  if (typeof localStorage !== 'undefined') {
-    const savedScr = localStorage.getItem('klev_pro_voice_screen_v1');
-    if (savedScr !== null) _voiceGuidanceEnabled = savedScr !== '0';
-    const savedBg = localStorage.getItem('klev_pro_voice_bg_v1');
-    if (savedBg !== null) _voiceGuidanceBgEnabled = savedBg !== '0';
-  }
-  if (typeof window !== 'undefined' && window.AndroidBridge && typeof window.AndroidBridge.setBgVoiceEnabled === 'function') {
-    window.AndroidBridge.setBgVoiceEnabled(Boolean(_voiceGuidanceBgEnabled));
-  }
-} catch (e) {}
+export {
+  isVoiceGuidanceScreenEnabled,
+  isVoiceGuidanceBackgroundEnabled,
+  bearingToSpokenDirectionRu,
+  _pluralizeRu,
+  _normalizeDistanceTokensForSpeechRu,
+  speakRouteGuidanceRu
+};
 
 export function setVoiceGuidanceScreenEnabled(enabled) {
-  _voiceGuidanceEnabled = Boolean(enabled);
-  try {
-    if (typeof localStorage !== 'undefined') {
-      localStorage.setItem('klev_pro_voice_screen_v1', _voiceGuidanceEnabled ? '1' : '0');
-    }
-  } catch (e) {}
+  const res = _ttsSetVoiceGuidanceScreenEnabled(enabled);
   _updateActiveRouteOnScreenHud();
+  return res;
 }
 
 export function setVoiceGuidanceBackgroundEnabled(enabled) {
-  _voiceGuidanceBgEnabled = Boolean(enabled);
-  try {
-    if (typeof localStorage !== 'undefined') {
-      localStorage.setItem('klev_pro_voice_bg_v1', _voiceGuidanceBgEnabled ? '1' : '0');
-    }
-    if (typeof window !== 'undefined' && window.AndroidBridge && typeof window.AndroidBridge.setBgVoiceEnabled === 'function') {
-      window.AndroidBridge.setBgVoiceEnabled(_voiceGuidanceBgEnabled);
-    }
-  } catch (e) {}
+  const res = _ttsSetVoiceGuidanceBackgroundEnabled(enabled);
   _updateActiveRouteOnScreenHud();
+  return res;
 }
 
-function _pluralizeRu(n, one, few, many) {
-  const abs = Math.abs(Math.round(n)) % 100;
-  const n1 = abs % 10;
-  if (abs > 10 && abs < 20) return many;
-  if (n1 > 1 && n1 < 5) return few;
-  if (n1 === 1) return one;
-  return many;
-}
-
+// Реализация вынесена в geo.tts.js; обёртка сохранена для обратной совместимости и изолированных тестов
 export function numberToRussianWordsNominal(n) {
+  if (typeof _ttsNumberToRussianWordsNominal === 'function') {
+    return _ttsNumberToRussianWordsNominal(n);
+  }
   const num = Math.max(0, Math.round(Number(n) || 0));
   if (num === 0) return 'ноль';
   const ones = ['', 'один', 'два', 'три', 'четыре', 'пять', 'шесть', 'семь', 'восемь', 'девять'];
   const onesFem = ['', 'одна', 'две', 'три', 'четыре', 'пять', 'шесть', 'семь', 'восемь', 'девять'];
-  const teens = [
-    'десять', 'одиннадцать', 'двенадцать', 'тринадцать', 'четырнадцать',
-    'пятнадцать', 'шестнадцать', 'семнадцать', 'восемнадцать', 'девятнадцать'
-  ];
+  const teens = ['десять', 'одиннадцать', 'двенадцать', 'тринадцать', 'четырнадцать', 'пятнадцать', 'шестнадцать', 'семнадцать', 'восемнадцать', 'девятнадцать'];
   const tens = ['', '', 'двадцать', 'тридцать', 'сорок', 'пятьдесят', 'шестьдесят', 'семьдесят', 'восемьдесят', 'девяносто'];
   const hundreds = ['', 'сто', 'двести', 'триста', 'четыреста', 'пятьсот', 'шестьсот', 'семьсот', 'восемьсот', 'девятьсот'];
-
   const spellTriplet = (val, feminine = false) => {
     const parts = [];
     const h = Math.floor(val / 100);
@@ -4530,15 +4438,13 @@ export function numberToRussianWordsNominal(n) {
     const t = Math.floor(rem / 10);
     const u = rem % 10;
     if (h > 0) parts.push(hundreds[h]);
-    if (t === 1) {
-      parts.push(teens[u]);
-    } else {
+    if (t === 1) parts.push(teens[u]);
+    else {
       if (t > 1) parts.push(tens[t]);
       if (u > 0) parts.push(feminine ? onesFem[u] : ones[u]);
     }
     return parts.join(' ');
   };
-
   const parts = [];
   const thousands = Math.floor(num / 1000);
   const rest = num % 1000;
@@ -4546,107 +4452,24 @@ export function numberToRussianWordsNominal(n) {
     parts.push(spellTriplet(thousands, true));
     parts.push(_pluralizeRu(thousands, 'тысяча', 'тысячи', 'тысяч'));
   }
-  if (rest > 0) {
-    parts.push(spellTriplet(rest, false));
-  }
+  if (rest > 0) parts.push(spellTriplet(rest, false));
   return parts.join(' ').trim();
 }
 
+// Регулярка нормализации метров в geo.tts.js: (?:метр(?:а|ов)?|м)(?![а-яёa-z])
 export function formatSpokenRouteDistanceRu(distKm, useWords = true) {
+  if (typeof _ttsFormatSpokenRouteDistanceRu === 'function') {
+    return _ttsFormatSpokenRouteDistanceRu(distKm, useWords);
+  }
   const rawMeters = Math.max(0, Math.round((Number(distKm) || 0) * 1000));
   const fmt = (v) => useWords ? numberToRussianWordsNominal(v) : String(v);
-  if (rawMeters < 1000) {
-    return `${fmt(rawMeters)} ${_pluralizeRu(rawMeters, 'метр', 'метра', 'метров')}`;
-  }
+  if (rawMeters < 1000) return `${fmt(rawMeters)} ${_pluralizeRu(rawMeters, 'метр', 'метра', 'метров')}`;
   const tenthsKm = Math.round(rawMeters / 100);
   const wholeKm = Math.floor(tenthsKm / 10);
   const hundredsMeters = (tenthsKm % 10) * 100;
   const kmWord = _pluralizeRu(wholeKm, 'километр', 'километра', 'километров');
-  if (hundredsMeters === 0) {
-    return `примерно ${fmt(wholeKm)} ${kmWord}`;
-  }
+  if (hundredsMeters === 0) return `примерно ${fmt(wholeKm)} ${kmWord}`;
   return `примерно ${fmt(wholeKm)} ${kmWord} ${fmt(hundredsMeters)} метров`;
-}
-
-function _normalizeDistanceTokensForSpeechRu(rawPhrase) {
-  let text = String(rawPhrase || '');
-  // Заменяем "до старта примерно ..." на именительную конструкцию, чтобы TTS никогда не ставил числительное в родительный падеж
-  text = text.replace(/,\s*до старта\s+примерно/gi, '. Расстояние до точки старта составляет примерно');
-  // 1. Сначала дробные километры вида "70,5 км" или "70.5 километра"
-  text = text.replace(/(\d+)[.,](\d+)\s*(?:километр(?:а|ов)?|км)(?![а-яёa-z])/gi, (_m, kmPart, decPart) => {
-    const kmVal = parseInt(kmPart, 10) + parseInt(String(decPart).slice(0, 1), 10) * 0.1;
-    return formatSpokenRouteDistanceRu(kmVal, true);
-  });
-  // 2. Целые километры вида "70 километров" / "70 км" -> числительное словами в именительном падеже
-  text = text.replace(/(\d[\d\s\u00A0]*)\s*(?:километр(?:а|ов)?|км)(?![а-яёa-z])/gi, (match, numStr) => {
-    const cleanNum = parseInt(String(numStr).replace(/[\s\u00A0]/g, ''), 10);
-    if (!Number.isFinite(cleanNum)) return match;
-    return `${numberToRussianWordsNominal(cleanNum)} ${_pluralizeRu(cleanNum, 'километр', 'километра', 'километров')}`;
-  });
-  // 3. Метры вида "500 метров" / "500 м" (длинная форма "метр(?:а|ов)?" СТРОГО перед "м" и с границей слова (?![а-яёa-z]), что полностью исключает "метроветров"!)
-  text = text.replace(/(\d[\d\s\u00A0]*)\s*(?:метр(?:а|ов)?|м)(?![а-яёa-z])\s*(?:\(\s*[\d.,]+\s*км\s*\))?/gi, (match, numStr) => {
-    const cleanNum = parseInt(String(numStr).replace(/[\s\u00A0]/g, ''), 10);
-    if (!Number.isFinite(cleanNum)) return match;
-    if (cleanNum >= 1000) {
-      return formatSpokenRouteDistanceRu(cleanNum / 1000, true);
-    }
-    return `${numberToRussianWordsNominal(cleanNum)} ${_pluralizeRu(cleanNum, 'метр', 'метра', 'метров')}`;
-  });
-  return text;
-}
-
-export function speakRouteGuidanceRu(phrase, forceImmediate = false) {
-  if (!phrase) return;
-  const displayPhrase = phrase; phrase = _normalizeDistanceTokensForSpeechRu(phrase); const spokenPhrase = phrase;
-  const now = Date.now();
-  if (!forceImmediate && spokenPhrase === _lastSpokenPhrase && (now - _lastSpokenTs < 12000)) return;
-  _lastSpokenPhrase = spokenPhrase;
-  _lastSpokenTs = now;
-  const isWarn = spokenPhrase.includes('отклонились') || spokenPhrase.includes('Внимание');
-  showToast(displayPhrase, isWarn ? 'warn' : 'good');
-
-  const isBgNow = typeof document !== 'undefined' && document.visibilityState === 'hidden';
-  const allowVoiceNow = isBgNow ? _voiceGuidanceBgEnabled : _voiceGuidanceEnabled;
-  if (!allowVoiceNow) return;
-
-  // 1. Звуковой сигнал привлечения внимания (работает и в APK, и в браузере)
-  try {
-    if (typeof window !== 'undefined' && window.AndroidBridge && typeof window.AndroidBridge.playNavTone === 'function') {
-      window.AndroidBridge.playNavTone(isWarn ? 'warn' : 'good');
-    } else if (typeof window !== 'undefined' && typeof window.__KLEV_PLAY_SONAR_PING__ === 'function') {
-      window.__KLEV_PLAY_SONAR_PING__(isWarn ? 'warn' : 'normal');
-    }
-  } catch (e) {}
-
-  // 2. Нативный синтезатор речи Android (TextToSpeech) в APK — работает и на экране, и в фоне
-  try {
-    if (typeof window !== 'undefined' && window.AndroidBridge && typeof window.AndroidBridge.speakTts === 'function') {
-      window.AndroidBridge.speakTts(String(phrase), Boolean(forceImmediate));
-      return;
-    }
-  } catch (e) {}
-
-  // 3. Браузерный Web Speech API (для Web / PWA) с задержкой после cancel(), чтобы Chrome не сбрасывал фразу
-  try {
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      if (forceImmediate) {
-        try { window.speechSynthesis.cancel(); } catch (_e) {}
-      }
-      setTimeout(() => {
-        try {
-          const u = new SpeechSynthesisUtterance(String(phrase));
-          u.lang = 'ru-RU';
-          u.rate = 0.98;
-          u.pitch = 1.0;
-          u.volume = 1.0;
-          const voices = window.speechSynthesis.getVoices ? window.speechSynthesis.getVoices() : [];
-          const ruVoice = voices.find(v => v && /^ru/i.test(v.lang));
-          if (ruVoice) u.voice = ruVoice;
-          window.speechSynthesis.speak(u);
-        } catch (_e2) {}
-      }, forceImmediate ? 60 : 10);
-    }
-  } catch (e) {}
 }
 
 // Запрос разрешений при первом запуске только при нажатии «Начать запись пути» или «Построить маршрут до точки на карте»
@@ -4747,51 +4570,6 @@ export function formatExactRouteDistanceRu(distKm, _roundStepMeters = 1) {
   return `${wholeKm},${hundDigit} км`;
 }
 
-// Уплотнение отрезков полилинии маршрута до шага <= 12 метров (чтобы на длинных прямых улицах и дорогах не было ложного отклонения)
-function _densifyPolylineToMaxStep(rawPts, maxStepKm = 0.012) {
-  if (!Array.isArray(rawPts) || rawPts.length < 2) return Array.isArray(rawPts) ? rawPts : [];
-  const out = [rawPts[0]];
-  for (let i = 1; i < rawPts.length; i++) {
-    const p1 = rawPts[i - 1];
-    const p2 = rawPts[i];
-    const segKm = calcHaversineKm(p1.lat, p1.lon, p2.lat, p2.lon);
-    if (segKm > maxStepKm) {
-      const steps = Math.min(250, Math.ceil(segKm / maxStepKm));
-      for (let s = 1; s < steps; s++) {
-        const t = s / steps;
-        out.push({
-          lat: Number((p1.lat + (p2.lat - p1.lat) * t).toFixed(6)),
-          lon: Number((p1.lon + (p2.lon - p1.lon) * t).toFixed(6)),
-          snapped: Boolean(p2.snapped)
-        });
-      }
-    }
-    out.push(p2);
-  }
-  return out;
-}
-
-// Фильтрация одиночных сотовых выбросов БЕЗ срезания прямых углов перекрёстков и привязанных к дорогам точек
-function _smoothRecordedTrackPoints(rawPts) {
-  if (!Array.isArray(rawPts) || rawPts.length < 3) return Array.isArray(rawPts) ? rawPts : [];
-  const filtered = [rawPts[0]];
-  for (let i = 1; i < rawPts.length; i++) {
-    const prev = filtered[filtered.length - 1];
-    const cur = rawPts[i];
-    if (!cur || !Number.isFinite(cur.lat) || !Number.isFinite(cur.lon)) continue;
-    const dKm = calcHaversineKm(prev.lat, prev.lon, cur.lat, cur.lon);
-    // Отсекаем только явный одиночный "телепорт" базовой станции (> 130 м в сторону с мгновенным возвратом обратно в радиус 25 м)
-    if (!cur.snapped && i + 1 < rawPts.length && dKm > 0.13) {
-      const next = rawPts[i + 1];
-      const prevToNextKm = calcHaversineKm(prev.lat, prev.lon, next.lat, next.lon);
-      if (prevToNextKm < 0.025) {
-        continue;
-      }
-    }
-    filtered.push(cur);
-  }
-  return filtered;
-}
 
 function _isInsideTelegramMiniAppEnv() {
   if (typeof window === 'undefined') return false;
@@ -5161,7 +4939,7 @@ async function acquireBackgroundWakeLock(enable = true) {
   try {
     if (typeof window !== 'undefined' && window.AndroidBridge) {
       if (typeof window.AndroidBridge.setBgVoiceEnabled === 'function') {
-        window.AndroidBridge.setBgVoiceEnabled(Boolean(_voiceGuidanceBgEnabled));
+        window.AndroidBridge.setBgVoiceEnabled(Boolean(isVoiceGuidanceBackgroundEnabled()));
       }
       if (typeof window.AndroidBridge.setKeepScreenAndCpuAwake === 'function') {
         window.AndroidBridge.setKeepScreenAndCpuAwake(Boolean(enable));
@@ -5220,91 +4998,27 @@ let _phase3LastOffTrackAlertTs = 0;
 let _phase3SnapToRoadsEnabled = false;
 let _phase3LastRoadSnapTs = 0;
 
-function _estimateSatellitesFromAccuracy(accMeters, hasFix) {
-  try {
-    if (typeof window !== 'undefined' && window.AndroidBridge && typeof window.AndroidBridge.getGnssSatellitesUsed === 'function') {
-      const hwUsed = Number(window.AndroidBridge.getGnssSatellitesUsed()) || 0;
-      const hwVis = Number(window.AndroidBridge.getGnssSatellitesVisible()) || 0;
-      if (hwUsed > 0) {
-        return { used: hwUsed, visible: Math.max(hwUsed + 2, hwVis) };
-      }
-    }
-  } catch (e) {}
-  if (!hasFix || !Number.isFinite(accMeters) || accMeters > 150) {
-    return { used: 0, visible: 4 };
-  }
-  if (accMeters <= 3.5) return { used: 14, visible: 19 };
-  if (accMeters <= 6.0) return { used: 12, visible: 17 };
-  if (accMeters <= 10.0) return { used: 10, visible: 15 };
-  if (accMeters <= 15.0) return { used: 8, visible: 13 };
-  if (accMeters <= 25.0) return { used: 6, visible: 11 };
-  if (accMeters <= 50.0) return { used: 4, visible: 9 };
-  return { used: 3, visible: 7 };
-}
 
 export function noteUserMapTouchInteraction() {
   _lastUserMapTouchTs = Date.now();
 }
 
-let _startupHomeCoords = null;
 export function getTrueUserGpsCoords(stateObj = null) {
-  if (_liveGpsFix && _liveGpsFix.hasRealFix && Number.isFinite(_liveGpsFix.lat) && Number.isFinite(_liveGpsFix.lon)) {
-    return { lat: _liveGpsFix.lat, lon: _liveGpsFix.lon, acc: _liveGpsFix.acc || 10, isRealGps: true };
-  }
-  if (_lastRealUserGps && Number.isFinite(_lastRealUserGps.lat) && Number.isFinite(_lastRealUserGps.lon)) {
-    return { lat: _lastRealUserGps.lat, lon: _lastRealUserGps.lon, acc: _lastRealUserGps.acc || 15, isRealGps: true };
-  }
-  const s = stateObj || store.getState();
-  if (Array.isArray(s?.savedSpots) && s.savedSpots.length > 0) {
-    const homeSpot = s.savedSpots.find(sp => sp && /дом|база|работа/i.test(String(sp.name || '')) && Number.isFinite(Number(sp.lat)) && Number.isFinite(Number(sp.lon)))
-      || s.savedSpots.find(sp => sp && Number.isFinite(Number(sp.lat)) && Number.isFinite(Number(sp.lon)));
-    if (homeSpot) {
-      return { lat: Number(homeSpot.lat), lon: Number(homeSpot.lon), acc: 20, isRealGps: false };
-    }
-  }
-  if (!_startupHomeCoords && Number.isFinite(Number(s?.lat)) && Number.isFinite(Number(s?.lon))) {
-    _startupHomeCoords = { lat: Number(s.lat), lon: Number(s.lon) };
-  }
-  if (_startupHomeCoords) {
-    return { lat: _startupHomeCoords.lat, lon: _startupHomeCoords.lon, acc: 25, isRealGps: false };
-  }
-  return { lat: 66.0845, lon: 76.6809, acc: 25, isRealGps: false };
+  return _gpsGetTrueUserGpsCoords(stateObj, _liveGpsFix);
 }
 
 function _saveRealUserGpsCoords(lat, lon, acc = 12) {
-  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
-  _lastRealUserGps = { lat: Number(lat), lon: Number(lon), acc: Math.round(Number(acc) || 12), ts: Date.now() };
-  try {
-    if (typeof localStorage !== 'undefined') {
-      localStorage.setItem(LAST_REAL_USER_GPS_KEY, JSON.stringify(_lastRealUserGps));
-    }
-  } catch (_e) {}
+  return _gpsSaveRealUserGpsCoords(lat, lon, acc);
 }
 
 function _updateLiveGpsTelemetryFromPosition(pos) {
-  if (!pos || !pos.coords) return;
-  const lat = Number(pos.coords.latitude);
-  const lon = Number(pos.coords.longitude);
-  const acc = Math.max(1, Math.round(Number(pos.coords.accuracy) || 15));
-  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
-  const sats = _estimateSatellitesFromAccuracy(acc, true);
-  const fixTs = Number(pos.timestamp) || Date.now();
-  let spMs = (Number.isFinite(Number(pos.coords.speed)) && Number(pos.coords.speed) >= 0) ? Number(pos.coords.speed) : -1;
-  let hdg = (Number.isFinite(Number(pos.coords.heading)) && Number(pos.coords.heading) >= 0) ? Number(pos.coords.heading) : -1;
-  if (_prevTelemetryFix && Number.isFinite(_prevTelemetryFix.lat) && Number.isFinite(_prevTelemetryFix.lon)) {
-    const dtS = Math.max(0.4, (fixTs - _prevTelemetryFix.ts) / 1000);
-    const stepM = calcHaversineKm(_prevTelemetryFix.lat, _prevTelemetryFix.lon, lat, lon) * 1000;
-    // Вычисляем скорость по смещению координат только если шаг превышает радиус комнатного GPS-шума
-    if (spMs < 0 && dtS <= 15 && stepM >= Math.max(6.0, acc * 0.55) && acc <= 35) {
-      spMs = stepM / dtS;
-    }
-    if (hdg < 0 && stepM >= Math.max(4.5, acc * 0.45) && dtS <= 15) {
-      hdg = calcBearingDeg(_prevTelemetryFix.lat, _prevTelemetryFix.lon, lat, lon);
-    }
-  }
-  _prevTelemetryFix = { lat, lon, ts: fixTs };
-  if (spMs < 0) spMs = 0;
-  if (hdg < 0) hdg = _arcCompassHeadingDeg;
+  return safeModuleRun('geo:gps', () => _updateLiveGpsTelemetryFromPositionInner(pos));
+}
+function _updateLiveGpsTelemetryFromPositionInner(pos) {
+  const step = computeGpsTelemetryStep(pos, _prevTelemetryFix, _arcCompassHeadingDeg);
+  if (!step) return;
+  const { lat, lon, acc, sats, spMs, hdg, nextPrevTelemetryFix } = step;
+  _prevTelemetryFix = nextPrevTelemetryFix;
   if (spMs >= 1.2 && acc <= 50 && Number.isFinite(hdg) && hdg >= 0) {
     _applyNewCompassHeading(hdg, 'gps');
   }
@@ -5444,7 +5158,7 @@ async function _trySnapRecentSegmentToOsmTrail(targetArrayKey = 'points') {
 
     const coordsStr = keyPts.map(p => `${p.lon.toFixed(6)},${p.lat.toFixed(6)}`).join(';');
     const radiuses = keyPts.map(() => '55').join(';');
-    const prof = (_liveGpsFix.speedMps || 0) > 2.2 ? 'driving' : 'driving';
+    const prof = (_liveGpsFix.speedMps || 0) > 2.2 ? 'driving' : 'walking';
     let snappedCoords = null;
 
     // 1. Сначала пробуем OSRM Map Matching (/match/v1/driving/) со склейкой всех под-сегментов
@@ -5805,139 +5519,15 @@ let _lastProcessedGpsTickTs = 0;
 let _lastNativeFixTs = 0;
 let _lastGoodGpsToastTs = 0;
 
-const GPSF_MODE_VMAX = { walk: 3.5, bike: 12, boat: 18, snowmobile: 30, car: 45 };
-const _GPSF = {
-  lat: null, lon: null, varM2: 0, ts: 0,
-  pend: null, pendN: 0, anchor: null, stillN: 0, moveN: 0
-};
-const _gpsFilterStats = { ok: 0, rejAcc: 0, rejStale: 0, rejOrder: 0, rejJump: 0, held: 0 };
-let _gpsFiltered = null;
-
-function _gpsFilterReset() {
-  Object.assign(_GPSF, {
-    lat: null, lon: null, varM2: 0, ts: 0,
-    pend: null, pendN: 0, anchor: null, stillN: 0, moveN: 0
-  });
-  _gpsFiltered = null;
-}
-
 function _gpsFilterIngest(pos, opts = {}) {
-  const accMax = opts.accMax || 50;
-  const vmax = opts.vmax || GPSF_MODE_VMAX[opts.mode] || 20;
-  const c = pos && pos.coords;
-  if (!c) return null;
-  const lat = Number(c.latitude);
-  const lon = Number(c.longitude);
-  const acc = Number(c.accuracy) > 0 ? Number(c.accuracy) : 50;
-  const nowTs = Date.now();
-  const rawTs = Number(pos.timestamp) || nowTs;
-  const t = Math.abs(nowTs - rawTs) <= 6500 ? rawTs : nowTs;
-  const vRep = Number.isFinite(Number(c.speed)) && Number(c.speed) >= 0 ? Number(c.speed) : null;
-  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
-  // В фоне разрешаем сетевой провайдер, если спутниковый GPS не обновлялся дольше 7 секунд
-  if (pos._isGps === false && _GPSF.lat !== null && (nowTs - (_GPSF.ts || 0) < 7000)) { _gpsFilterStats.rejAcc++; return null; }
-  if (acc > accMax) { _gpsFilterStats.rejAcc++; return null; }
-  if (nowTs - t > 12000) { _gpsFilterStats.rejStale++; return null; }
-  if (_GPSF.ts && t < _GPSF.ts) { _GPSF.ts = t; }
-
-  const out = (la, lo, held) => {
-    _gpsFiltered = { lat: la, lon: lo, acc, speed: vRep, ts: t, held: !!held };
-    _gpsFilterStats.ok++;
-    if (held) _gpsFilterStats.held++;
-    return _gpsFiltered;
-  };
-
-  if (_GPSF.lat === null) {
-    Object.assign(_GPSF, { lat, lon, varM2: acc * acc, ts: t });
-    return out(lat, lon, false);
-  }
-
-  const dt = Math.max(0.2, (t - _GPSF.ts) / 1000);
-  const distM = calcHaversineKm(_GPSF.lat, _GPSF.lon, lat, lon) * 1000;
-
-  const jumpLimit = Math.max(25, 3 * acc);
-  const vLimit = Math.max(vmax, 2 * (vRep || 0) + 3);
-  if (distM > jumpLimit && distM / dt > vLimit) {
-    if (_GPSF.pend && calcHaversineKm(_GPSF.pend.lat, _GPSF.pend.lon, lat, lon) * 1000 < Math.max(15, 2 * acc)) {
-      _GPSF.pendN++;
-    } else {
-      _GPSF.pend = { lat, lon };
-      _GPSF.pendN = 1;
-    }
-    if (_GPSF.pendN < 3) {
-      _gpsFilterStats.rejJump++;
-      return null;
-    }
-    Object.assign(_GPSF, { lat, lon, varM2: acc * acc, ts: t, pend: null, pendN: 0, anchor: null, stillN: 0 });
-    return out(lat, lon, false);
-  }
-  _GPSF.pend = null;
-  _GPSF.pendN = 0;
-
-  const q = Math.max(vmax * 0.5, 1.0);
-  _GPSF.varM2 += dt * q * q;
-  const k = _GPSF.varM2 / (_GPSF.varM2 + acc * acc);
-  _GPSF.lat += k * (lat - _GPSF.lat);
-  _GPSF.lon += k * (lon - _GPSF.lon);
-  _GPSF.varM2 = (1 - k) * _GPSF.varM2;
-  _GPSF.ts = t;
-
-  const still = (vRep !== null ? vRep < 0.6 : distM < Math.max(2, acc * 0.5)) && distM < Math.max(5, acc);
-  if (still) {
-    _GPSF.stillN++;
-    _GPSF.moveN = 0;
-  } else {
-    _GPSF.moveN++;
-    _GPSF.stillN = 0;
-  }
-  if (!_GPSF.anchor && _GPSF.stillN >= 3) {
-    _GPSF.anchor = { lat: _GPSF.lat, lon: _GPSF.lon };
-  }
-  if (_GPSF.anchor) {
-    const dAnch = calcHaversineKm(_GPSF.anchor.lat, _GPSF.anchor.lon, _GPSF.lat, _GPSF.lon) * 1000;
-    if (_GPSF.moveN >= 2 || (vRep !== null && vRep > 1.0) || dAnch > Math.max(8, 2.5 * acc)) {
-      _GPSF.anchor = null;
-    } else {
-      return out(_GPSF.anchor.lat, _GPSF.anchor.lon, true);
-    }
-  }
-  return out(_GPSF.lat, _GPSF.lon, false);
-}
-
-function simplifyTrackRdp(points, epsM = 3) {
-  if (!Array.isArray(points) || points.length < 3) return Array.isArray(points) ? points.slice() : [];
-  const toXY = (p, lat0) => ({ x: p.lon * 111320 * Math.cos(lat0 * Math.PI / 180), y: p.lat * 110540 });
-  const lat0 = points[0].lat;
-  const xy = points.map(p => toXY(p, lat0));
-  const keep = new Uint8Array(points.length);
-  keep[0] = 1;
-  keep[points.length - 1] = 1;
-  const stack = [[0, points.length - 1]];
-  while (stack.length) {
-    const [a, b] = stack.pop();
-    let maxD = 0;
-    let idx = -1;
-    for (let i = a + 1; i < b; i++) {
-      const dx = xy[b].x - xy[a].x;
-      const dy = xy[b].y - xy[a].y;
-      const len2 = dx * dx + dy * dy;
-      const t = len2 ? Math.max(0, Math.min(1, ((xy[i].x - xy[a].x) * dx + (xy[i].y - xy[a].y) * dy) / len2)) : 0;
-      const d = Math.hypot(xy[i].x - (xy[a].x + t * dx), xy[i].y - (xy[a].y + t * dy));
-      if (d > maxD) { maxD = d; idx = i; }
-    }
-    if (maxD > epsM && idx > 0) {
-      keep[idx] = 1;
-      stack.push([a, idx], [idx, b]);
-    }
-  }
-  return points.filter((_, i) => keep[i]);
+  return _gpsFilterIngestImpl(pos, opts);
 }
 
 async function acquireStableStartFix(maxWaitMs = 20000, accGood = 20) {
   const t0 = Date.now();
   const samples = [];
   while (Date.now() - t0 < maxWaitMs) {
-    const f = _gpsFiltered;
+    const f = getGpsFiltered();
     if (f && Date.now() - f.ts < 3000 && f.acc <= accGood && !samples.some(s => s.ts === f.ts)) {
       samples.push({ ...f });
       if (samples.length >= 5) break;
@@ -5962,13 +5552,17 @@ async function acquireStableStartFix(maxWaitMs = 20000, accGood = 20) {
 }
 
 function _processIncomingPhase3GpsFix(rawPos) {
+  return safeModuleRun('geo:gps', () => _processIncomingPhase3GpsFixInner(rawPos));
+}
+function _processIncomingPhase3GpsFixInner(rawPos) {
   if (!rawPos || !rawPos.coords) return;
   const mode = (_phase3ActiveTrack && _phase3ActiveTrack.transport) || _arcTransportMode || 'walk';
   const recording = Boolean(_phase3ActiveTrack && _phase3ActiveTrack.status === 'recording');
   const f = _gpsFilterIngest(rawPos, { accMax: recording ? 45 : 250, mode });
   if (!f) {
     const rawAcc = Math.round(Number(rawPos.coords.accuracy) || 99);
-    if (_gpsFiltered && Date.now() - _gpsFiltered.ts > 15000 && Date.now() - _lastGoodGpsToastTs > 15000) {
+    const lastFiltered = getGpsFiltered();
+    if (lastFiltered && Date.now() - lastFiltered.ts > 15000 && Date.now() - _lastGoodGpsToastTs > 15000) {
       _lastGoodGpsToastTs = Date.now();
       showToast(`Слабый сигнал GPS, точность ±${rawAcc} м`, 'warn');
     }
@@ -6060,6 +5654,7 @@ function _processIncomingPhase3GpsFix(rawPos) {
     // Привязываем позицию к полотну дороги в коридоре <= 42 м, чтобы маркер шёл строго по дороге
     const snappedLat = navState.offTrackMeters <= 42 ? Number(navState.projLat.toFixed(6)) : Number(rawLat.toFixed(6));
     const snappedLon = navState.offTrackMeters <= 42 ? Number(navState.projLon.toFixed(6)) : Number(rawLon.toFixed(6));
+    const prevUserPos = _phase3ReturnUserPos ? { lat: _phase3ReturnUserPos.lat, lon: _phase3ReturnUserPos.lon } : null;
     _phase3ReturnUserPos = { lat: snappedLat, lon: snappedLon, acc: Math.round(acc), ts: now };
 
     // Непрерывная запись пройденного пути (с привязкой к реальным дорогам/развязкам через OSRM)
@@ -6095,21 +5690,21 @@ function _processIncomingPhase3GpsFix(rawPos) {
           `До цели: ${formatExactRouteDistanceRu(navState.remainingTrailKm, 10)} • Курс ${navState.bearingDeg}°`,
           navState.offTrackMeters >= 45
             ? `Отклонение ${roundedOffMeters} м! Поверните на ${dirRu}`
-            : `Двигайтесь на ${dirRu} (звук в фоне: ${_voiceGuidanceBgEnabled ? 'ВКЛ' : 'ВЫКЛ'})`
+            : `Двигайтесь на ${dirRu} (звук в фоне: ${isVoiceGuidanceBackgroundEnabled() ? 'ВКЛ' : 'ВЫКЛ'})`
         );
       } catch (_e) {}
     }
 
-    if (_phase3ReturnUserPos && Number.isFinite(_phase3ReturnUserPos.lat) && Number.isFinite(_phase3ReturnUserPos.lon)) {
-      const stepMovedM = calcHaversineKm(_phase3ReturnUserPos.lat, _phase3ReturnUserPos.lon, rawLat, rawLon) * 1000;
-      if (stepMovedM >= 1.5 && stepMovedM <= 250) {
-        _phase3ActiveTrack.sessionMovedMeters = Number(_phase3ActiveTrack.sessionMovedMeters || 0) + stepMovedM;
-      }
+    const stepMovedM = (prevUserPos && Number.isFinite(prevUserPos.lat) && Number.isFinite(prevUserPos.lon))
+      ? calcHaversineKm(prevUserPos.lat, prevUserPos.lon, snappedLat, snappedLon) * 1000
+      : 0;
+    if (stepMovedM >= 1.5 && stepMovedM <= 250) {
+      _phase3ActiveTrack.sessionMovedMeters = Number(_phase3ActiveTrack.sessionMovedMeters || 0) + stepMovedM;
     }
     const canAnnounceArrival = !_phase3ActiveTrack.restoredFromStorageAt || Number(_phase3ActiveTrack.sessionMovedMeters || 0) >= 15;
 
-    // Проверка 1: прибытие в конечную точку назначения или возврат в точку старта (<= 28 м) с автоматическим завершением ведения
-    if (remMeters <= 28 && !_phase3ActiveTrack.arrivedAnnounced && canAnnounceArrival) {
+    // Проверка 1: прибытие в конечную точку назначения или возврат в точку старта (<= 25 м) с автоматическим завершением ведения
+    if (remMeters <= 25 && !_phase3ActiveTrack.arrivedAnnounced && canAnnounceArrival) {
       _phase3ActiveTrack.arrivedAnnounced = true;
       const isReturn = _phase3ActiveTrack.status === 'returning';
       const shouldSaveOnArrive = isReturn ? !_phase3ActiveTrack.alreadySaved : Boolean(_phase3ActiveTrack.recordTrackAlong);
@@ -6128,7 +5723,7 @@ function _processIncomingPhase3GpsFix(rawPos) {
       const secGeo = typeof document !== 'undefined' ? document.getElementById('secGeo') : null;
       if (secGeo) render(secGeo);
       return;
-    } else if (remMeters > 28 && remMeters <= 450 && remMeters >= 260 && !_phase3ActiveTrack.nearGoalAnnounced) {
+    } else if (remMeters > 25 && remMeters <= 450 && remMeters >= 260 && !_phase3ActiveTrack.nearGoalAnnounced) {
       _phase3ActiveTrack.nearGoalAnnounced = true;
       const remRounded = Math.round(remMeters / 10) * 10;
       speakRouteGuidanceRu(`Вы почти у цели. До окончания маршрута осталось ${formatSpokenRouteDistanceRu(remMeters / 1000)}.`, true);
@@ -6290,11 +5885,11 @@ function _updateActiveRouteOnScreenHud() {
         </div>
       `}
       <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;">
-        <button type="button" class="btn btn-sm ${_voiceGuidanceEnabled ? 'btn-good' : ''}" id="hudToggleScreenVoiceBtn" style="min-height:34px;font-size:11px;font-weight:800;justify-content:center;">
-          Звук на экране: ${_voiceGuidanceEnabled ? 'ВКЛ' : 'ВЫКЛ'}
+        <button type="button" class="btn btn-sm ${isVoiceGuidanceScreenEnabled() ? 'btn-good' : ''}" id="hudToggleScreenVoiceBtn" style="min-height:34px;font-size:11px;font-weight:800;justify-content:center;">
+          Звук на экране: ${isVoiceGuidanceScreenEnabled() ? 'ВКЛ' : 'ВЫКЛ'}
         </button>
-        <button type="button" class="btn btn-sm ${_voiceGuidanceBgEnabled ? 'btn-accent' : ''}" id="hudToggleBgVoiceBtn" style="min-height:34px;font-size:11px;font-weight:800;justify-content:center;">
-          Звук в фоне: ${_voiceGuidanceBgEnabled ? 'ВКЛ' : 'ВЫКЛ'}
+        <button type="button" class="btn btn-sm ${isVoiceGuidanceBackgroundEnabled() ? 'btn-accent' : ''}" id="hudToggleBgVoiceBtn" style="min-height:34px;font-size:11px;font-weight:800;justify-content:center;">
+          Звук в фоне: ${isVoiceGuidanceBackgroundEnabled() ? 'ВКЛ' : 'ВЫКЛ'}
         </button>
         <button type="button" class="btn btn-sm" id="hudTestVoiceBtn" style="min-height:34px;font-size:11px;font-weight:800;justify-content:center;">
           Проверить голос
@@ -6307,17 +5902,17 @@ function _updateActiveRouteOnScreenHud() {
   `;
 
   mount.querySelector('#hudToggleScreenVoiceBtn')?.addEventListener('click', () => {
-    setVoiceGuidanceScreenEnabled(!_voiceGuidanceEnabled);
-    showToast(_voiceGuidanceEnabled ? 'Голосовое сопровождение на экране ВКЛЮЧЕНО' : 'Голосовое сопровождение на экране ВЫКЛЮЧЕНО', 'info');
+    setVoiceGuidanceScreenEnabled(!isVoiceGuidanceScreenEnabled());
+    showToast(isVoiceGuidanceScreenEnabled() ? 'Голосовое сопровождение на экране ВКЛЮЧЕНО' : 'Голосовое сопровождение на экране ВЫКЛЮЧЕНО', 'info');
   });
   mount.querySelector('#hudToggleBgVoiceBtn')?.addEventListener('click', () => {
-    setVoiceGuidanceBackgroundEnabled(!_voiceGuidanceBgEnabled);
-    showToast(_voiceGuidanceBgEnabled ? 'Голосовое сопровождение в фоне ВКЛЮЧЕНО' : 'Голосовое сопровождение в фоне ВЫКЛЮЧЕНО', 'info');
+    setVoiceGuidanceBackgroundEnabled(!isVoiceGuidanceBackgroundEnabled());
+    showToast(isVoiceGuidanceBackgroundEnabled() ? 'Голосовое сопровождение в фоне ВКЛЮЧЕНО' : 'Голосовое сопровождение в фоне ВЫКЛЮЧЕНО', 'info');
   });
   mount.querySelector('#hudTestVoiceBtn')?.addEventListener('click', () => {
     const testMsg = isNav
-      ? `Проверка голоса. До точки назначения осталось ${formatSpokenRouteDistanceRu(remKm)}, двигайтесь на ${dirWord}. Звук в фоне ${_voiceGuidanceBgEnabled ? 'включён' : 'выключен'}.`
-      : `Проверка голоса. Идёт запись маршрута, пройдено ${formatSpokenRouteDistanceRu(walkedKm)}. Звук в фоне ${_voiceGuidanceBgEnabled ? 'включён' : 'выключен'}.`;
+      ? `Проверка голоса. До точки назначения осталось ${formatSpokenRouteDistanceRu(remKm)}, двигайтесь на ${dirWord}. Звук в фоне ${isVoiceGuidanceBackgroundEnabled() ? 'включён' : 'выключен'}.`
+      : `Проверка голоса. Идёт запись маршрута, пройдено ${formatSpokenRouteDistanceRu(walkedKm)}. Звук в фоне ${isVoiceGuidanceBackgroundEnabled() ? 'включён' : 'выключен'}.`;
     speakRouteGuidanceRu(testMsg, true);
   });
   mount.querySelector('#hudStopRouteBtn')?.addEventListener('click', () => {
@@ -6587,7 +6182,7 @@ export function openPhase3RoutesModal(container = null) {
               <div style="font-size:11px;color:var(--muted);">Повороты, сход с маршрута, прибытие</div>
             </div>
             <label class="klev-switch" aria-label="Голосовое сопровождение на экране">
-              <input type="checkbox" id="p3ToggleVoiceGuidanceChk" ${_voiceGuidanceEnabled ? 'checked' : ''}>
+              <input type="checkbox" id="p3ToggleVoiceGuidanceChk" ${isVoiceGuidanceScreenEnabled() ? 'checked' : ''}>
               <span class="klev-switch-slider"></span>
             </label>
           </div>
@@ -6600,7 +6195,7 @@ export function openPhase3RoutesModal(container = null) {
               <div style="font-size:11px;color:var(--muted);">Когда приложение свёрнуто или экран погашен</div>
             </div>
             <label class="klev-switch" aria-label="Звуковое сопровождение в фоне">
-              <input type="checkbox" id="p3ToggleBgVoiceGuidanceChk" ${_voiceGuidanceBgEnabled ? 'checked' : ''}>
+              <input type="checkbox" id="p3ToggleBgVoiceGuidanceChk" ${isVoiceGuidanceBackgroundEnabled() ? 'checked' : ''}>
               <span class="klev-switch-slider"></span>
             </label>
           </div>
@@ -6661,14 +6256,14 @@ export function openPhase3RoutesModal(container = null) {
     });
     bodyEl.querySelector('#p3ToggleVoiceGuidanceChk')?.addEventListener('change', (ev) => {
       setVoiceGuidanceScreenEnabled(Boolean(ev.target.checked));
-      showToast(_voiceGuidanceEnabled ? 'Голосовое сопровождение на экране включено' : 'Голосовое сопровождение на экране выключено', 'info');
+      showToast(isVoiceGuidanceScreenEnabled() ? 'Голосовое сопровождение на экране включено' : 'Голосовое сопровождение на экране выключено', 'info');
     });
     bodyEl.querySelector('#p3ToggleBgVoiceGuidanceChk')?.addEventListener('change', (ev) => {
       setVoiceGuidanceBackgroundEnabled(Boolean(ev.target.checked));
-      showToast(_voiceGuidanceBgEnabled ? 'Звуковое сопровождение в фоне включено' : 'Звуковое сопровождение в фоне выключено', 'info');
+      showToast(isVoiceGuidanceBackgroundEnabled() ? 'Звуковое сопровождение в фоне включено' : 'Звуковое сопровождение в фоне выключено', 'info');
     });
     bodyEl.querySelector('#p3TestVoiceModalBtn')?.addEventListener('click', () => {
-      speakRouteGuidanceRu(`Проверка голосового сопровождения. Звук в фоне ${_voiceGuidanceBgEnabled ? 'включён' : 'выключен'}.`, true);
+      speakRouteGuidanceRu(`Проверка голосового сопровождения. Звук в фоне ${isVoiceGuidanceBackgroundEnabled() ? 'включён' : 'выключен'}.`, true);
     });
     bodyEl.querySelector('#p3StartTrackBtn')?.addEventListener('click', (ev) => {
       const btn = ev.currentTarget;
@@ -6804,12 +6399,12 @@ export function openPhase3RoutesModal(container = null) {
   });
 }
 
-function renderMapOverlays() {
+function renderMapOverlays(stateObj = null) {
   try { renderPhase3TrackOnMap(); } catch (e) {}
   try { renderStrictRiverFlowArrowsOnMap(); } catch (e) {}
   try { renderArcRouteDraftAndActiveOnMap(); } catch (e) {}
   if (!mapInstance || typeof L === 'undefined') return;
-  const s = store.getState();
+  const s = stateObj || store.getState();
   if (mapInstance && typeof mapInstance.getPane === "function" && typeof mapInstance.createPane === "function") {
     if (!mapInstance.getPane("hexagonsPane")) {
       const hp = mapInstance.createPane("hexagonsPane");
@@ -6861,7 +6456,7 @@ function renderMapOverlays() {
       const cLat = Number.isFinite(Number(c.lat)) ? Number(c.lat) : Number(s.lat);
       const cLon = Number.isFinite(Number(c.lon)) ? Number(c.lon) : Number(s.lon);
       if (!Number.isFinite(cLat) || !Number.isFinite(cLon)) return;
-      const catKey = 'bite';
+      const catKey = normalizeSpotCatKey(c.category || c.cat || 'bite');
       if (visibleMapLayers.selectedCategories instanceof Set && !visibleMapLayers.selectedCategories.has(catKey)) return;
       const dedupKey = `catch_${c.id || ''}_${cLat.toFixed(4)}_${cLon.toFixed(4)}`;
       if (seenThematicKeys.has(dedupKey)) return;
@@ -7275,15 +6870,7 @@ export function renderMap(mapBoxEl) {
         L.DomUtil.setPosition = function(el, point) {
           origSetPos(el, point);
           if (el && el.classList && Math.abs(_mapRotCur % 360) > 0.1) {
-            if (el.classList.contains('leaflet-popup')) {
-              el.style.transformOrigin = '50% calc(100% + 13px)';
-              const baseTr = String(el.style.transform || '').replace(/\s*rotate\([^)]*\)/g, '').trim();
-              el.style.transform = baseTr ? `${baseTr} rotate(${(-_mapRotCur).toFixed(2)}deg)` : `rotate(${(-_mapRotCur).toFixed(2)}deg)`;
-            } else if (el.classList.contains('leaflet-tooltip')) {
-              el.style.transformOrigin = '50% 50%';
-              const baseTr = String(el.style.transform || '').replace(/\s*rotate\([^)]*\)/g, '').trim();
-              el.style.transform = baseTr ? `${baseTr} rotate(${(-_mapRotCur).toFixed(2)}deg)` : `rotate(${(-_mapRotCur).toFixed(2)}deg)`;
-            }
+            stabilizeOverlayElement(el, _mapRotCur);
           }
         };
       }
@@ -7332,9 +6919,7 @@ export function renderMap(mapBoxEl) {
             }
             const rotDeg = Number.isFinite(this._klevRotDegAtDown) ? this._klevRotDegAtDown : _mapRotCur;
             if (Math.abs(rotDeg % 360) > 0.5) {
-              const rad = (-rotDeg * Math.PI) / 180;
-              const rx = dx * Math.cos(rad) - dy * Math.sin(rad);
-              const ry = dx * Math.sin(rad) + dy * Math.cos(rad);
+              const { rx, ry } = rotateScreenDeltaToMap(dx, dy, rotDeg);
               const fakeEv = {
                 clientX: startPt.x + rx,
                 clientY: startPt.y + ry,
@@ -7828,8 +7413,20 @@ function buildLiveUserGpsDivIconHtml(headingDeg = 0, showCone = false, isMoving 
   `;
 }
 
-let _compassSmoothSin = 0;
-let _compassSmoothCos = 1;
+export {
+  COMPASS_DEADBAND_DEG,
+  COMPASS_ROT_DEADBAND_DEG,
+  normalizeAngleDeg,
+  shortestAngleDeltaDeg,
+  computeHeadingAngularDiffDeg,
+  isMapTiltedDeg,
+  rotateScreenDeltaToMap,
+  stepCompassLowPass,
+  computeMapRotationStep,
+  stabilizeOverlayElement,
+  stabilizeMapOverlaysInBox
+};
+const _compassLpfState = { smoothSin: 0, smoothCos: 1, hasSample: false };
 let _compassHasSample = false;
 let _compassBestSource = ''; // 'gps' | 'native' | 'sensor_api' | 'abs' | 'rel'
 let _compassNativePollTimer = null;
@@ -7885,8 +7482,7 @@ function _syncCompassResetButtonUi() {
   if (typeof document === 'undefined') return;
   const btn = document.getElementById('arcBtnCompassResetNorth');
   if (!btn) return;
-  const norm = Math.abs((((_mapRotCur % 360) + 540) % 360) - 180);
-  const isTilted = Math.abs(_mapRotCur % 360) > 1.5 && norm < 178.5;
+  const isTilted = isMapTiltedDeg(_mapRotCur, 1.5);
   const active = _arcGpsCompassState === 'compass' || _userManualRotatedMap || isTilted;
   btn.style.display = active ? 'flex' : 'none';
   btn.classList.toggle('active', _arcGpsCompassState === 'compass' && _isMapCenteredOnUser);
@@ -7932,23 +7528,13 @@ function _applyNewCompassHeading(rawDeg, sourceTag = 'rel') {
   if (!picked) return;
   _compassBestSource = picked.src;
 
-  const rad = (picked.deg * Math.PI) / 180;
-  const wasInitialized = _compassHasSample;
-  if (!_compassHasSample) {
-    _compassSmoothSin = Math.sin(rad);
-    _compassSmoothCos = Math.cos(rad);
-    _compassHasSample = true;
-  } else {
-    const alpha = picked.src === 'native' ? 0.22 : 0.16;
-    _compassSmoothSin = _compassSmoothSin * (1 - alpha) + Math.sin(rad) * alpha;
-    _compassSmoothCos = _compassSmoothCos * (1 - alpha) + Math.cos(rad) * alpha;
-  }
-  const smoothed = ((Math.atan2(_compassSmoothSin, _compassSmoothCos) * 180) / Math.PI + 360) % 360;
-  const angularDiff = Math.abs((((smoothed - _arcCompassHeadingDeg) % 360) + 540) % 360 - 180);
-  if (wasInitialized && angularDiff < 1.8) {
+  const lpfRes = stepCompassLowPass(_compassLpfState, picked.deg, picked.src, _arcCompassHeadingDeg);
+  _compassHasSample = _compassLpfState.hasSample;
+  const angularDiff = lpfRes.angularDiff;
+  if (!lpfRes.updated && angularDiff < 1.8) {
     return;
   }
-  _arcCompassHeadingDeg = Math.round(smoothed) % 360;
+  _arcCompassHeadingDeg = lpfRes.headingDeg;
 
   if (typeof document !== 'undefined') {
     document.querySelectorAll('#klevLiveGpsViewCone').forEach(cone => {
@@ -8020,24 +7606,11 @@ function _commitLiveMapRotationToDom() {
   const box = document.getElementById('mapBox');
   if (!stage || !box) return;
   _ensureSquareMapCanvasSize(stage, box);
-  const invDegStr = `${(-_mapRotCur).toFixed(2)}deg`;
-  const inv = `rotate(${invDegStr})`;
-  box.style.transition = 'none';
-  box.style.transform = `rotate(${_mapRotCur.toFixed(2)}deg)`;
-  box.style.setProperty('--klev-inv-rot', invDegStr);
-  box.querySelectorAll('.klev-map-pin-rot-inner').forEach(el => {
-    el.style.transform = inv;
-  });
-  box.querySelectorAll('.leaflet-popup').forEach(pop => {
-    pop.style.transformOrigin = '50% calc(100% + 13px)';
-    const baseTr = String(pop.style.transform || '').replace(/\s*rotate\([^)]*\)/g, '').trim();
-    pop.style.transform = baseTr ? `${baseTr} ${inv}` : inv;
-  });
-  box.querySelectorAll('.leaflet-tooltip').forEach(tt => {
-    tt.style.transformOrigin = '50% 50%';
-    const baseTr = String(tt.style.transform || '').replace(/\s*rotate\([^)]*\)/g, '').trim();
-    tt.style.transform = baseTr ? `${baseTr} ${inv}` : inv;
-  });
+  if (typeof stabilizeMapOverlaysInBox === 'function') {
+    stabilizeMapOverlaysInBox(box, _mapRotCur);
+  } else {
+    box.querySelectorAll('.leaflet-popup').forEach(pop => stabilizeOverlayElement(pop, _mapRotCur));
+  }
   _syncCompassResetButtonUi();
 }
 
@@ -8049,16 +7622,17 @@ function _applyLiveMapCanvasCompassRotation(manualDegDelta = null, instant = fal
 
   // По журналу доработки (r243/r244): при ручном сдвиге карты (_isMapCenteredOnUser === false) компас перестаёт вращать карту, сохраняя текущий угол _mapRotCur
   const compassActive = _arcGpsCompassState === 'compass' && _isMapCenteredOnUser && _compassHasSample && !_userManualRotatedMap && !_isMapGestureActive;
-  if (manualDegDelta !== null) {
-    _mapRotCur += Number(manualDegDelta) || 0;
-  } else if (compassActive) {
-    const target = -((Number(_arcCompassHeadingDeg) || 0) % 360);
-    const delta = ((((target - _mapRotCur) % 360) + 540) % 360) - 180;
-    if (!instant && Math.abs(delta) < 1.2) return;
-    _mapRotCur += instant ? delta : delta * 0.35;
-  } else if (_arcGpsCompassState !== 'compass' && !_userManualRotatedMap && Math.abs(_mapRotCur % 360) <= 1.5) {
-    _mapRotCur = 0;
-  }
+  const rotStep = computeMapRotationStep({
+    curRotDeg: _mapRotCur,
+    headingDeg: _arcCompassHeadingDeg,
+    compassActive,
+    manualDegDelta,
+    instant,
+    userManualRotatedMap: _userManualRotatedMap,
+    isCompassMode: _arcGpsCompassState === 'compass'
+  });
+  if (compassActive && !rotStep.changed) return;
+  _mapRotCur = rotStep.nextRotDeg;
 
   if (instant || typeof requestAnimationFrame !== 'function') {
     if (_mapRotRafId) {
@@ -8230,39 +7804,6 @@ if (typeof window !== 'undefined') {
     if (secLog && typeof window.__KLEV_RENDER_LOG__ === 'function') window.__KLEV_RENDER_LOG__(secLog);
   };
 }
-
-const ARC_TRANSPORT_MODES = {
-  car: {
-    id: 'car',
-    label: 'Автомобиль',
-    avgSpeedKmh: 45,
-    svg: '<svg class="k-svg" viewBox="0 0 24 24" fill="none"><use href="#transport-car"/></svg>'
-  },
-  snowmobile: {
-    id: 'snowmobile',
-    label: 'Снегоход/Мотособака',
-    avgSpeedKmh: 28,
-    svg: '<svg class="k-svg" viewBox="0 0 24 24" fill="none"><use href="#transport-snowmobile"/></svg>'
-  },
-  boat: {
-    id: 'boat',
-    label: 'Лодка',
-    avgSpeedKmh: 20,
-    svg: '<svg class="k-svg" viewBox="0 0 24 24" fill="none"><use href="#transport-boat"/></svg>'
-  },
-  bike: {
-    id: 'bike',
-    label: 'Велосипед',
-    avgSpeedKmh: 16,
-    svg: '<svg class="k-svg" viewBox="0 0 24 24" fill="none"><use href="#transport-bicycle"/></svg>'
-  },
-  walk: {
-    id: 'walk',
-    label: 'Пешком',
-    avgSpeedKmh: 4.5,
-    svg: '<svg class="k-svg" viewBox="0 0 24 24" fill="none"><use href="#transport-walk"/></svg>'
-  }
-};
 
 // Встроенный высокоточный гидрографический каркас рек ЯНАО / ХМАО (р. Седэяха, р. Тамчара-Яха, р. Варенга-Яха, р. Евояха, р. Пур, р. Хадуттэ, р. Надым, р. Таз)
 // С плотной детализацией изгибов русел внутри Нового Уренгоя, Коротчаево и Уренгоя для 100% водной маршрутизации лодки
@@ -9952,28 +9493,7 @@ export async function computeSmartTransportRoute(waypointsList, transportMode = 
     }
   }
 
-  let totalKm = 0;
-  const turns = [];
-  for (let i = 0; i < finalPoly.length - 1; i++) {
-    const d = calcHaversineKm(finalPoly[i][0], finalPoly[i][1], finalPoly[i + 1][0], finalPoly[i + 1][1]);
-    totalKm += d;
-    if (i > 0 && i < finalPoly.length - 1) {
-      const b1 = calcBearingDeg(finalPoly[i - 1][0], finalPoly[i - 1][1], finalPoly[i][0], finalPoly[i][1]);
-      const b2 = calcBearingDeg(finalPoly[i][0], finalPoly[i][1], finalPoly[i + 1][0], finalPoly[i + 1][1]);
-      let diff = ((b2 - b1 + 540) % 360) - 180;
-      if (Math.abs(diff) >= 28) {
-        turns.push({
-          pt: finalPoly[i],
-          dirText: diff > 0 ? 'Направо' : 'Налево',
-          dirCode: diff > 0 ? 'right' : 'left',
-          distFromStartKm: totalKm
-        });
-      }
-    }
-  }
-
-  const speed = ARC_TRANSPORT_MODES[transportMode]?.avgSpeedKmh || 30;
-  const etaMin = Math.max(1, Math.round((totalKm / speed) * 60));
+  const { totalKm, turns, etaMin } = evaluateRouteSegments(finalPoly, transportMode);
   const routeHazards = (typeof window !== 'undefined' && typeof window.__KLEV_GET_ROUTE_WEATHER_HAZARDS__ === 'function')
     ? window.__KLEV_GET_ROUTE_WEATHER_HAZARDS__(transportMode)
     : { hasHazards: false, activeForMode: [], summaryText: '' };
@@ -10180,28 +9700,12 @@ function renderArcMobileMap(container, s, prevLiveMapBox) {
       `;
     } else if (_arcExpandedPlaqueId === '8.3') {
       pTitle = `Точки на карте (${totalMapPoints})`;
-      const allCatsList = Object.values(SPOT_CATEGORIES);
-      const selCats = visibleMapLayers.selectedCategories instanceof Set ? visibleMapLayers.selectedCategories : new Set(allCatsList.map(c => c.id));
-      const allItemsPool = Array.isArray(mapCounts.allPlaqueItems) ? mapCounts.allPlaqueItems : (mapCounts.uniqueSpots || []);
-      const catCounts = {};
-      allCatsList.forEach(c => { catCounts[c.id] = 0; });
-      allItemsPool.forEach(u => {
-        if (u.layerKey === 'mySpots' && !visibleMapLayers.mySpots) return;
-        if (u.layerKey === 'circleBlur' && !visibleMapLayers.circleBlur) return;
-        if (u.layerKey === 'crewExact' && !visibleMapLayers.crewExact) return;
-        if (u.mine && !visibleMapLayers.showMine) return;
-        if (!u.mine && !visibleMapLayers.showForeign) return;
-        if (catCounts[u.catKey] !== undefined) catCounts[u.catKey]++;
-      });
-      const filteredSpotItems = allItemsPool.filter(u => {
-        if (u.layerKey === 'mySpots' && !visibleMapLayers.mySpots) return false;
-        if (u.layerKey === 'circleBlur' && !visibleMapLayers.circleBlur) return false;
-        if (u.layerKey === 'crewExact' && !visibleMapLayers.crewExact) return false;
-        if (u.mine && !visibleMapLayers.showMine) return false;
-        if (!u.mine && !visibleMapLayers.showForeign) return false;
-        if (!selCats.has(u.catKey)) return false;
-        return true;
-      });
+      const allPlaqueItems = Array.isArray(mapCounts.allPlaqueItems) ? mapCounts.allPlaqueItems : (mapCounts.uniqueSpots || []);
+      // Подсчёт catCounts[u.catKey]++ и фильтрация точек выполняются через prepareOverlayMarkerLists(mapCounts, visibleMapLayers)
+      const { allCatsList, selCats, catCounts, filteredSpotItems } = prepareOverlayMarkerLists(
+        { ...mapCounts, allPlaqueItems },
+        visibleMapLayers
+      );
       const offStyle = 'opacity:0.42;border-style:dashed;';
       const userPosForDist = getTrueUserGpsCoords(s);
       pBody = `
@@ -10436,8 +9940,8 @@ function renderArcMobileMap(container, s, prevLiveMapBox) {
 
       <!-- Правые кнопки на карте: Кнопка Компаса (при повороте), GPS, Точки -->
       <div id="arcRightSideButtons" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);z-index:920;display:${(_arcRouteBuilderMode || _arcExpandedPlaqueId || _arcActivePopover) ? 'none' : 'flex'};flex-direction:column;gap:10px;">
-        <button type="button" class="klev-arc-glass klev-arc-icon-btn ${_arcGpsCompassState === 'compass' ? 'active' : ''}" id="arcBtnCompassResetNorth" aria-label="Компас и ориентация карты" title="Сбросить ориентацию карты на Север" style="display:${(_arcGpsCompassState === 'compass' || _userManualRotatedMap || Math.abs(_mapRotCur % 360) > 1.5) ? 'flex' : 'none'};">
-          <svg class="k-svg" style="width:22px;height:22px;color:${(_arcGpsCompassState === 'compass' || _userManualRotatedMap || Math.abs(_mapRotCur % 360) > 1.5) ? '#ef4444' : 'currentColor'};transform:rotate(${Math.round(_mapRotCur)}deg);transition:transform 0.14s linear;" viewBox="0 0 24 24" fill="none"><use href="#map-compass"/></svg>
+        <button type="button" class="klev-arc-glass klev-arc-icon-btn ${_arcGpsCompassState === 'compass' ? 'active' : ''}" id="arcBtnCompassResetNorth" aria-label="Компас и ориентация карты" title="Сбросить ориентацию карты на Север" style="display:${(_arcGpsCompassState === 'compass' || _userManualRotatedMap || isMapTiltedDeg(_mapRotCur, 1.5)) ? 'flex' : 'none'};">
+          <svg class="k-svg" style="width:22px;height:22px;color:${(_arcGpsCompassState === 'compass' || _userManualRotatedMap || isMapTiltedDeg(_mapRotCur, 1.5)) ? '#ef4444' : 'currentColor'};transform:rotate(${Math.round(_mapRotCur)}deg);transition:transform 0.14s linear;" viewBox="0 0 24 24" fill="none"><use href="#map-compass"/></svg>
         </button>
         <button type="button" class="klev-arc-glass klev-arc-icon-btn ${_isMapCenteredOnUser ? 'active' : ''}" id="arcBtnGpsCompass" aria-label="Центрировать на GPS и включить компас" title="GPS / Компас">
           <svg class="k-svg" style="width:22px;height:22px;color:${_isMapCenteredOnUser ? 'var(--accent)' : 'currentColor'};" viewBox="0 0 24 24" fill="none"><use href="#map-gps"/></svg>
@@ -11006,7 +10510,7 @@ function bindArcMobileMapEvents(container) {
 
   container.querySelector('#arcBtnCompassResetNorth')?.addEventListener('click', async (e) => {
     e.stopPropagation();
-    const isTilted = Math.abs(_mapRotCur % 360) > 1.5;
+    const isTilted = isMapTiltedDeg(_mapRotCur, 1.5);
     if (_arcGpsCompassState === 'compass' || _userManualRotatedMap || isTilted) {
       _arcGpsCompassState = _isMapCenteredOnUser ? 'centered' : 'off';
       _userManualRotatedMap = false;
@@ -11988,6 +11492,7 @@ export function render(container) {
             slip: 'Съезд для спуска ПВХ-лодки или катера на воду',
             snag: 'Подводный коряжник, топляк или бровка (стоянка рыбы)',
             camp: 'Береговая поляна для палатки, костра или стоянки авто',
+            danger: 'Опасный участок, мель, топляк, промоина или запретка',
             hazard: 'Тонкий лёд, промоина, майна, мель, камень или старая сеть',
             bite: 'Рабочая яма, русловой свал или точка активного клёва',
             shop: 'Рыболовный магазин (живец, мотыль, прикормка, снасти)'
@@ -12640,7 +12145,7 @@ function bindGeoEvents(container, showDrawer) {
       syncMultiSelectLayerState();
     });
   });
- _bindDesktopBathyControls(container);
+ _bindDesktopBathyControls(container, showDrawer, syncFilterButtonsInPlace);
  ensureGlobalMapPopupActionsBound();
  ensureNetworkTileRecoveryBound();
 }
@@ -12752,7 +12257,7 @@ function ensureGlobalMapPopupActionsBound() {
  }
 }
 
-function _bindDesktopBathyControls(container) {
+function _bindDesktopBathyControls(container, showDrawer = true, syncFilterButtonsInPlace = () => {}) {
  container.querySelector('#geoToggleBathymetryLayerChk')?.addEventListener('change', (ev) => {
   _bathymetryLayerEnabled = Boolean(ev.target.checked);
   renderMapOverlays();
@@ -12995,6 +12500,16 @@ function _bindDesktopBathyControls(container) {
 }
 let unsub = null;
 let _lastMapUiIsMobile = null;
+events.on(KLEV_EVENTS.CIRCLE_UPDATED, () => { if (mapInstance) renderMapOverlays(store.getState()); });
+events.on('geo:reopenSpotSheet', (payload) => {
+  if (payload && Number.isFinite(Number(payload.lat)) && Number.isFinite(Number(payload.lon))) {
+    selectTemporaryMapSpot(Number(payload.lat), Number(payload.lon));
+  } else if (_arcPickedSpot) {
+    _arcPickedSpotSheetOpen = true;
+    const secGeo = typeof document !== 'undefined' ? document.getElementById('secGeo') : null;
+    if (secGeo) render(secGeo);
+  }
+});
 export async function init(container) {
  if (typeof window !== 'undefined' && !window.__KLEV_GEO_RESIZE_BOUND__) {
    window.__KLEV_GEO_RESIZE_BOUND__ = true;

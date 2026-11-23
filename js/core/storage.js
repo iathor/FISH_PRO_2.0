@@ -87,7 +87,11 @@ export function hydrateFromAndroidAppDataVault() {
                 try {
                   const curObj = JSON.parse(curLocal);
                   const vaultObj = JSON.parse(vaultVal);
-                  if (!curObj?.userProfile?.fisherId && vaultObj?.userProfile?.fisherId) {
+                  const curFid = String(curObj?.userProfile?.fisherId || '').trim();
+                  const vaultFid = String(vaultObj?.userProfile?.fisherId || '').trim();
+                  const isCurTemp = !curFid || /^FP_\d{2}RZ\d{4}$/i.test(curFid) || Boolean(curObj?.userProfile?.isTemporaryReserve);
+                  const isVaultPerm = Boolean(vaultFid && !/^FP_\d{2}RZ\d{4}$/i.test(vaultFid));
+                  if ((!curFid && vaultFid) || (isCurTemp && isVaultPerm)) {
                     localStorage.setItem(k, vaultVal);
                     restoredKeys++;
                   }
@@ -592,8 +596,8 @@ export const storage = {
     } catch (e) {}
     return {
       schema: 'KlevProFullBackup_v3',
-      version: '2.5.6',
-      revision: 'r215',
+      version: '2.9.2',
+      revision: 'r255',
       exportedAt: new Date().toISOString(),
       deviceId: this.getDeviceId(),
       summary: {
@@ -1076,3 +1080,22 @@ export const storage = {
     });
   }
 };
+function flushPendingSettingsOnHide() {
+  if (_saveSettingsTimer) {
+    clearTimeout(_saveSettingsTimer);
+    _saveSettingsTimer = null;
+  }
+  if (_pendingSettingsState && typeof storage !== 'undefined' && typeof storage._flushSettingsNow === 'function') {
+    storage._flushSettingsNow();
+  }
+}
+if (typeof window !== 'undefined') {
+  window.addEventListener('pagehide', flushPendingSettingsOnHide);
+}
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      flushPendingSettingsOnHide();
+    }
+  });
+}

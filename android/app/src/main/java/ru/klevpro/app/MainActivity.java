@@ -13,16 +13,11 @@ import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
-import org.json.JSONObject;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import android.location.GnssStatus;
 import android.location.Location;
 import android.location.LocationListener;
@@ -82,8 +77,8 @@ public class MainActivity extends Activity {
     private static final int REQ_FILE_CHOOSER = 1002;
     private static final int REQ_CAMERA_CAPTURE = 1003;
     private static final int REQ_CAMERA_PERM = 1004;
-    private static final String VIRTUAL_HOST = "appassets.androidplatform.net";
-    private static final String VIRTUAL_ORIGIN = "https://" + VIRTUAL_HOST;
+    private static final String VIRTUAL_HOST = WebViewSecurityClient.VIRTUAL_HOST;
+    private static final String VIRTUAL_ORIGIN = WebViewSecurityClient.VIRTUAL_ORIGIN;
     private static final int MAX_VAULT_VALUE_CHARS = 15 * 1024 * 1024;
     private static final int MAX_DOWNLOAD_FILE_BYTES = 15 * 1024 * 1024;
     private static final int MAX_TTS_TEXT_LENGTH = 1000;
@@ -138,103 +133,27 @@ public class MainActivity extends Activity {
     private volatile boolean russianTtsAvailable = true;
 
     private static boolean isDomainOrSubdomain(String host, String domain) {
-        if (host == null || domain == null) return false;
-        String h = host.trim().toLowerCase(Locale.ROOT);
-        String d = domain.trim().toLowerCase(Locale.ROOT);
-        return h.equals(d) || h.endsWith("." + d);
-    }
-
-    private static boolean isAllowedNetProxyHost(String host) {
-        if (host == null || host.isEmpty()) return false;
-        String[] allowed = new String[]{
-            "meteoinfo.ru",
-            "met.no",
-            "open-meteo.com",
-            "project-osrm.org",
-            "openstreetmap.de",
-            "openstreetmap.org",
-            "maps.mail.ru",
-            "overpass-api.de",
-            "overpass.kumi.systems",
-            "overpass.private.coffee",
-            "workers.dev",
-            "klevpro.ru"
-        };
-        for (String d : allowed) {
-            if (isDomainOrSubdomain(host, d)) return true;
-        }
-        return false;
+        return WebViewSecurityClient.isDomainOrSubdomain(host, domain);
     }
 
     private static boolean isAllowedTileProxyHost(String host) {
-        if (host == null || host.isEmpty()) return false;
-        String[] allowed = new String[]{
-            "maps.yandex.net",
-            "yandex.net",
-            "arcgisonline.com",
-            "openstreetmap.org",
-            "openstreetmap.fr",
-            "cartocdn.com",
-            "opentopomap.org",
-            "maps.mail.ru",
-            "mt0.google.com",
-            "mt1.google.com",
-            "mt2.google.com",
-            "mt3.google.com",
-            "khms0.google.com",
-            "khms1.google.com"
-        };
-        for (String d : allowed) {
-            if (isDomainOrSubdomain(host, d)) return true;
-        }
-        return false;
+        return WebViewSecurityClient.isAllowedTileProxyHost(host);
     }
 
     private static boolean isTrustedExternalHost(String host) {
-        if (host == null || host.isEmpty()) return false;
-        String[] allowed = new String[]{
-            "yandex.ru",
-            "yandex.net",
-            "yandex.com",
-            "google.com",
-            "google.ru",
-            "2gis.ru",
-            "2gis.com",
-            "openstreetmap.org",
-            "openstreetmap.de",
-            "leafletjs.com",
-            "open-meteo.com",
-            "met.no",
-            "meteoinfo.ru",
-            "klevpro.ru",
-            "xn--b1apdneg0j.xn--p1ai",
-            "github.com",
-            "githubusercontent.com",
-            "workers.dev"
-        };
-        for (String d : allowed) {
-            if (isDomainOrSubdomain(host, d)) return true;
-        }
-        return false;
+        return WebViewSecurityClient.isTrustedExternalHost(host);
     }
 
     private static boolean isTrustedWebOrigin(Uri uri) {
-        if (uri == null) return false;
-        String scheme = uri.getScheme() != null ? uri.getScheme().trim().toLowerCase(Locale.ROOT) : "";
-        String host = uri.getHost() != null ? uri.getHost().trim().toLowerCase(Locale.ROOT) : "";
-        if (!"https".equals(scheme)) return false;
-        return VIRTUAL_HOST.equals(host)
-            || isDomainOrSubdomain(host, "klevpro.ru")
-            || "xn--b1apdneg0j.xn--p1ai".equals(host);
+        return WebViewSecurityClient.isTrustedWebOrigin(uri);
     }
 
     private static boolean isTrustedWebOriginStr(String origin) {
-        if (origin == null || origin.trim().isEmpty()) return false;
-        try {
-            return isTrustedWebOrigin(Uri.parse(origin.trim()));
-        } catch (Exception e) {
-            return false;
-        }
+        return WebViewSecurityClient.isTrustedWebOriginStr(origin);
+    }
+
+    private static boolean isTrustedApkUpdateUri(Uri uri) {
+        return WebViewSecurityClient.isTrustedApkUpdateUri(uri);
     }
 
     private boolean isBridgeCallerTrusted() {
@@ -379,229 +298,19 @@ public class MainActivity extends Activity {
         } catch (Exception ignored) {}
         compassRegistered = false;
     }
+
     private boolean pendingCameraLaunchAfterPerm = false;
     private Uri pendingCameraPhotoUri = null;
     private volatile String pendingNotifActionJson = null;
     private long lastRootBackPressMs = 0L;
     private OnBackInvokedCallback backInvokedCallback;
+    private AppDataVault appDataVault;
 
-
-    private static final String APPDATA_PREFS_NAME = "klev_pro_appdata_vault_v1";
-    private static final String APPDATA_DIR_NAME = "klev_appdata_vault";
-    private static final Object VAULT_LOCK = new Object();
-
-    private File getPrimaryAppDataVaultDir() {
-        File dir = new File(getFilesDir(), APPDATA_DIR_NAME);
-        if (!dir.exists()) {
-            dir.mkdirs();
+    private AppDataVault getAppDataVault() {
+        if (appDataVault == null) {
+            appDataVault = new AppDataVault(this);
         }
-        return dir;
-    }
-
-    private File getMirrorAppDataVaultDir() {
-        File dir = getDir("klev_userdata_mirror", Context.MODE_PRIVATE);
-        if (dir != null && !dir.exists()) {
-            dir.mkdirs();
-        }
-        return dir;
-    }
-
-    private static String sanitizeVaultKeyFileName(String key) {
-        if (key == null) return "empty_key";
-        return key.trim().replaceAll("[^a-zA-Z0-9._-]", "_") + ".dat";
-    }
-
-    private static void writeFileAtomically(File targetFile, byte[] bytes) throws Exception {
-        if (targetFile == null) return;
-        File parent = targetFile.getParentFile();
-        if (parent != null && !parent.exists()) {
-            parent.mkdirs();
-        }
-        File tmpFile = new File(parent, targetFile.getName() + ".tmp");
-        try (FileOutputStream fos = new FileOutputStream(tmpFile)) {
-            fos.write(bytes);
-            fos.getFD().sync();
-        }
-        if (!tmpFile.renameTo(targetFile)) {
-            try (FileOutputStream fos2 = new FileOutputStream(targetFile)) {
-                fos2.write(bytes);
-                fos2.getFD().sync();
-            }
-            tmpFile.delete();
-        }
-    }
-
-    private static String readFileUtf8(File file) {
-        if (file == null || !file.exists() || !file.isFile()) return null;
-        try (InputStream is = new java.io.FileInputStream(file);
-             ByteArrayOutputStream bos = new ByteArrayOutputStream()) {
-            byte[] buf = new byte[8192];
-            int r;
-            while ((r = is.read(buf)) != -1) {
-                bos.write(buf, 0, r);
-            }
-            return new String(bos.toByteArray(), StandardCharsets.UTF_8);
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    private boolean saveKeyToNativeAppDataVault(String key, String value) {
-        if (key == null || key.trim().isEmpty() || value == null) return false;
-        String cleanKey = key.trim();
-        if (cleanKey.length() > 256 || value.length() > MAX_VAULT_VALUE_CHARS) return false;
-        synchronized (VAULT_LOCK) {
-            boolean ok = false;
-            try {
-                byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
-                if (bytes.length > MAX_VAULT_VALUE_CHARS) return false;
-                String fName = sanitizeVaultKeyFileName(cleanKey);
-                File primaryFile = new File(getPrimaryAppDataVaultDir(), fName);
-                writeFileAtomically(primaryFile, bytes);
-                ok = true;
-
-                File mirrorDir = getMirrorAppDataVaultDir();
-                if (mirrorDir != null) {
-                    File mirrorFile = new File(mirrorDir, fName);
-                    writeFileAtomically(mirrorFile, bytes);
-                }
-
-                // Store index of keys + small/medium values in SharedPreferences (also in App Data, never cleared by Clear Cache)
-                SharedPreferences prefs = getSharedPreferences(APPDATA_PREFS_NAME, Context.MODE_PRIVATE);
-                SharedPreferences.Editor ed = prefs.edit();
-                String rawIndex = prefs.getString("__vault_keys_index__", "{}");
-                JSONObject idxObj;
-                try {
-                    idxObj = new JSONObject(rawIndex);
-                } catch (Exception ex) {
-                    idxObj = new JSONObject();
-                }
-                idxObj.put(cleanKey, fName);
-                ed.putString("__vault_keys_index__", idxObj.toString());
-                if (value.length() <= 262144) {
-                    ed.putString("k_" + cleanKey, value);
-                }
-                ed.apply();
-            } catch (Exception ignored) {}
-            return ok;
-        }
-    }
-
-    private String loadKeyFromNativeAppDataVault(String key) {
-        if (key == null || key.trim().isEmpty()) return null;
-        String cleanKey = key.trim();
-        synchronized (VAULT_LOCK) {
-            try {
-                String fName = sanitizeVaultKeyFileName(cleanKey);
-                File primaryFile = new File(getPrimaryAppDataVaultDir(), fName);
-                String val = readFileUtf8(primaryFile);
-                if (val != null && !val.isEmpty()) return val;
-
-                File mirrorDir = getMirrorAppDataVaultDir();
-                if (mirrorDir != null) {
-                    File mirrorFile = new File(mirrorDir, fName);
-                    val = readFileUtf8(mirrorFile);
-                    if (val != null && !val.isEmpty()) {
-                        try {
-                            writeFileAtomically(primaryFile, val.getBytes(StandardCharsets.UTF_8));
-                        } catch (Exception ignored) {}
-                        return val;
-                    }
-                }
-
-                SharedPreferences prefs = getSharedPreferences(APPDATA_PREFS_NAME, Context.MODE_PRIVATE);
-                val = prefs.getString("k_" + cleanKey, null);
-                if (val != null && !val.isEmpty()) {
-                    try {
-                        writeFileAtomically(primaryFile, val.getBytes(StandardCharsets.UTF_8));
-                    } catch (Exception ignored) {}
-                    return val;
-                }
-            } catch (Exception ignored) {}
-            return null;
-        }
-    }
-
-    private boolean removeKeyFromNativeAppDataVault(String key) {
-        if (key == null || key.trim().isEmpty()) return false;
-        String cleanKey = key.trim();
-        synchronized (VAULT_LOCK) {
-            try {
-                String fName = sanitizeVaultKeyFileName(cleanKey);
-                File primaryFile = new File(getPrimaryAppDataVaultDir(), fName);
-                if (primaryFile.exists()) primaryFile.delete();
-                File mirrorDir = getMirrorAppDataVaultDir();
-                if (mirrorDir != null) {
-                    File mirrorFile = new File(mirrorDir, fName);
-                    if (mirrorFile.exists()) mirrorFile.delete();
-                }
-                SharedPreferences prefs = getSharedPreferences(APPDATA_PREFS_NAME, Context.MODE_PRIVATE);
-                SharedPreferences.Editor ed = prefs.edit();
-                ed.remove("k_" + cleanKey);
-                String rawIndex = prefs.getString("__vault_keys_index__", "{}");
-                try {
-                    JSONObject idxObj = new JSONObject(rawIndex);
-                    idxObj.remove(cleanKey);
-                    ed.putString("__vault_keys_index__", idxObj.toString());
-                } catch (Exception ignored) {}
-                ed.apply();
-                return true;
-            } catch (Exception e) {
-                return false;
-            }
-        }
-    }
-
-    private String loadAllNativeAppDataVaultJson() {
-        synchronized (VAULT_LOCK) {
-            JSONObject out = new JSONObject();
-            try {
-                SharedPreferences prefs = getSharedPreferences(APPDATA_PREFS_NAME, Context.MODE_PRIVATE);
-                String rawIndex = prefs.getString("__vault_keys_index__", "{}");
-                JSONObject idxObj;
-                try {
-                    idxObj = new JSONObject(rawIndex);
-                } catch (Exception ex) {
-                    idxObj = new JSONObject();
-                }
-                String[] defaultKeys = new String[]{
-                    "klev_pro_state_v2.0",
-                    "klev_pro_weather_v2.0",
-                    "klev_pro_v200_state",
-                    "klev_pro_spots_backup_v2",
-                    "klev_pro_catches_backup_v2",
-                    "klev_pro_phase3_routes_v1",
-                    "klev_pro_phase3_active_track_v1",
-                    "klev_pro_circle_packs_v2",
-                    "klev_pro_circle_chats_v2",
-                    "klev_pro_circle_notifs_v2",
-                    "klev_pro_device_id_v2",
-                    "klev_pro_photo_dhashes_v2",
-                    "klev_pro_geo_weather_archive_v2",
-                    "klev_pro_v259_waters_cache_r196",
-                    "klev_pro_bg_voice_v1",
-                    "klev_pro_voice_nav_v1",
-                    "klev_pro_voice_screen_v1",
-                    "klev_pro_voice_bg_v1",
-                    "klev_pro_clean_slate_v2_1_1_r4",
-                    "klev_pro_clean_slate_notice_v2_1_1_r4"
-                };
-                for (String dk : defaultKeys) {
-                    if (!idxObj.has(dk)) {
-                        idxObj.put(dk, sanitizeVaultKeyFileName(dk));
-                    }
-                }
-                java.util.Iterator<String> keys = idxObj.keys();
-                while (keys.hasNext()) {
-                    String k = keys.next();
-                    String val = loadKeyFromNativeAppDataVault(k);
-                    if (val != null && !val.isEmpty()) {
-                        out.put(k, val);
-                    }
-                }
-            } catch (Exception ignored) {}
-            return out.toString();
-        }
+        return appDataVault;
     }
 
     public class NativeBridge {
@@ -930,64 +639,46 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public boolean saveAppDataKey(String key, String value) {
             if (!isBridgeCallerTrusted()) return false;
-            return saveKeyToNativeAppDataVault(key, value);
+            return getAppDataVault().saveKey(key, value);
         }
 
         @JavascriptInterface
         public String loadAppDataKey(String key) {
             if (!isBridgeCallerTrusted()) return "";
-            String val = loadKeyFromNativeAppDataVault(key);
+            String val = getAppDataVault().loadKey(key);
             return val != null ? val : "";
         }
 
         @JavascriptInterface
         public boolean removeAppDataKey(String key) {
             if (!isBridgeCallerTrusted()) return false;
-            return removeKeyFromNativeAppDataVault(key);
+            return getAppDataVault().removeKey(key);
         }
 
         @JavascriptInterface
         public String loadAllAppDataJson() {
             if (!isBridgeCallerTrusted()) return "{}";
-            return loadAllNativeAppDataVaultJson();
+            return getAppDataVault().loadAllJson();
         }
 
         @JavascriptInterface
         public String getAppDataVaultStats() {
-            try {
-                File dir = getPrimaryAppDataVaultDir();
-                File[] files = dir.listFiles();
-                int count = files != null ? files.length : 0;
-                long bytes = 0L;
-                if (files != null) {
-                    for (File f : files) {
-                        if (f.isFile()) bytes += f.length();
-                    }
-                }
-                JSONObject st = new JSONObject();
-                st.put("storageLocation", "Android Internal AppData (Context.getFilesDir)");
-                st.put("immuneToClearCache", true);
-                st.put("filesCount", count);
-                st.put("totalBytes", bytes);
-                return st.toString();
-            } catch (Exception e) {
-                return "{\"immuneToClearCache\":true}";
-            }
+            return getAppDataVault().getStatsJson();
         }
 
         @JavascriptInterface
         public String getAppVersion() {
-            return "2.9.1-r252";
+            return "2.9.2-r255";
         }
 
         @JavascriptInterface
         public int getAppBuildNumber() {
-            return 250;
+            return 255;
         }
 
         @JavascriptInterface
         public String getAppRevision() {
-            return "r252";
+            return "r255";
         }
 
         private boolean isTelegramUri(Uri uri) {
@@ -997,8 +688,7 @@ public class MainActivity extends Activity {
             String s = scheme.trim().toLowerCase(Locale.ROOT);
             if ("tg".equals(s)) return true;
             if (!"https".equals(s) && !"http".equals(s)) return false;
-            String host = uri.getHost() != null ? uri.getHost().trim().toLowerCase(Locale.ROOT) : "";
-            return "t.me".equals(host) || "www.t.me".equals(host) || "telegram.me".equals(host) || "www.telegram.me".equals(host) || "telegram.dog".equals(host);
+            return WebViewSecurityClient.isTelegramUri(uri);
         }
 
         private boolean isAllowedExternalUri(Uri uri) {
@@ -1015,16 +705,10 @@ public class MainActivity extends Activity {
             if ("github.com".equals(h) || "www.github.com".equals(h) || "raw.githubusercontent.com".equals(h)) {
                 return p.startsWith("/iathor/");
             }
-            if ("objects.githubusercontent.com".equals(h) || "release-assets.githubusercontent.com".equals(h)) {
+            if ("klevpro.ru".equals(h) || "xn--b1apdneg0j.xn--p1ai".equals(h)) {
                 return true;
             }
-            if (isDomainOrSubdomain(h, "workers.dev")) {
-                return true;
-            }
-            return "klevpro.ru".equals(h)
-                || "www.klevpro.ru".equals(h)
-                || isDomainOrSubdomain(h, "klevpro.ru")
-                || "xn--b1apdneg0j.xn--p1ai".equals(h);
+            return WebViewSecurityClient.isAllowedExternalUri(uri);
         }
 
         @JavascriptInterface
@@ -1223,7 +907,7 @@ public class MainActivity extends Activity {
             if (lowerName.endsWith(".apk") || lowerName.endsWith(".dex") || lowerName.endsWith(".so") || lowerName.endsWith(".sh") || lowerName.endsWith(".jar") || lowerName.endsWith(".oat") || lowerName.endsWith(".odex")) {
                 return false;
             }
-            final String effMime = (mimeType != null && !mimeType.trim().isEmpty()) ? mimeType.trim() : guessMimeType(cleanName);
+            final String effMime = (mimeType != null && !mimeType.trim().isEmpty()) ? mimeType.trim() : LocalGatewayClient.guessMimeType(cleanName);
             try {
                 byte[] bytes;
                 if (isBase64) {
@@ -1291,24 +975,29 @@ public class MainActivity extends Activity {
             }
             return false;
         }
-    }
 
-    private static boolean isTrustedApkUpdateUri(Uri uri) {
-        if (uri == null) return false;
-        String scheme = uri.getScheme() != null ? uri.getScheme().trim().toLowerCase(Locale.ROOT) : "";
-        if (!"https".equals(scheme)) return false;
-        String host = uri.getHost() != null ? uri.getHost().trim().toLowerCase(Locale.ROOT) : "";
-        String path = uri.getPath() != null ? uri.getPath().trim().toLowerCase(Locale.ROOT) : "";
-        if ("github.com".equals(host) || "www.github.com".equals(host) || "raw.githubusercontent.com".equals(host)) {
-            return path.startsWith("/iathor/");
+        @JavascriptInterface
+        public boolean saveBase64ImageToGallery(String dataUrl, String filename) {
+            if (!isBridgeCallerTrusted()) return false;
+            if (dataUrl == null || filename == null) return false;
+            if (!dataUrl.startsWith("data:") && dataUrl.length() < 260 && (filename.startsWith("data:") || filename.length() > 260)) {
+                String tmp = dataUrl;
+                dataUrl = filename;
+                filename = tmp;
+            }
+            String mimeType = "image/jpeg";
+            if (dataUrl.startsWith("data:image/")) {
+                int semiIdx = dataUrl.indexOf(";base64,");
+                if (semiIdx == -1) semiIdx = dataUrl.indexOf(';');
+                if (semiIdx > 5) {
+                    String extracted = dataUrl.substring(5, semiIdx).trim();
+                    if (!extracted.isEmpty()) {
+                        mimeType = extracted;
+                    }
+                }
+            }
+            return saveFileToDownloads(filename, dataUrl, mimeType, true);
         }
-        if ("objects.githubusercontent.com".equals(host) || "release-assets.githubusercontent.com".equals(host)) {
-            return true;
-        }
-        return isDomainOrSubdomain(host, "klevpro.ru")
-            || "xn--b1apdneg0j.xn--p1ai".equals(host)
-            || isDomainOrSubdomain(host, "workers.dev")
-            || isDomainOrSubdomain(host, "githubusercontent.com");
     }
 
     private void initNotificationChannels() {
@@ -1362,25 +1051,6 @@ public class MainActivity extends Activity {
         }
     }
 
-    private static String guessMimeType(String path) {
-        String p = path.toLowerCase(Locale.ROOT);
-        if (p.endsWith(".html") || p.endsWith(".htm")) return "text/html";
-        if (p.endsWith(".js") || p.endsWith(".mjs")) return "application/javascript";
-        if (p.endsWith(".css")) return "text/css";
-        if (p.endsWith(".json")) return "application/json";
-        if (p.endsWith(".gpx")) return "application/gpx+xml";
-        if (p.endsWith(".kml")) return "application/vnd.google-earth.kml+xml";
-        if (p.endsWith(".csv")) return "text/csv";
-        if (p.endsWith(".ics")) return "text/calendar";
-        if (p.endsWith(".svg")) return "image/svg+xml";
-        if (p.endsWith(".png")) return "image/png";
-        if (p.endsWith(".jpg") || p.endsWith(".jpeg")) return "image/jpeg";
-        if (p.endsWith(".webp")) return "image/webp";
-        if (p.endsWith(".ico")) return "image/x-icon";
-        if (p.endsWith(".apk")) return "application/vnd.android.package-archive";
-        return "application/octet-stream";
-    }
-
     @SuppressLint("SetJavaScriptEnabled")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -1413,7 +1083,7 @@ public class MainActivity extends Activity {
         ws.setCacheMode(WebSettings.LOAD_DEFAULT);
         // Пользовательские данные защищены в Context.getFilesDir()/klev_appdata_vault; кэш WebView не очищается принудительно
         String baseUa = ws.getUserAgentString();
-        ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.9.1-r252");
+        ws.setUserAgentString((baseUa != null ? baseUa : "") + " KlevProAPK/2.9.2-r255");
 
         webView.addJavascriptInterface(new NativeBridge(this), "AndroidBridge");
 
@@ -1451,172 +1121,16 @@ public class MainActivity extends Activity {
 
             @Override
             public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
-                Uri uri = request.getUrl();
+                Uri uri = request != null ? request.getUrl() : null;
                 if (uri != null && VIRTUAL_HOST.equalsIgnoreCase(uri.getHost())) {
                     String path = uri.getPath();
                     if ("/__klev_net_proxy__".equals(path)) {
-                        String targetUrl = uri.getQueryParameter("url");
-                        if (targetUrl != null && targetUrl.startsWith("https://")) {
-                            HttpURLConnection conn = null;
-                            try {
-                                String currentUrl = targetUrl;
-                                for (int redirectStep = 0; redirectStep <= 2; redirectStep++) {
-                                    URL u = new URL(currentUrl);
-                                    String h = u.getHost() != null ? u.getHost().toLowerCase(Locale.ROOT) : "";
-                                    if (!"https".equalsIgnoreCase(u.getProtocol()) || !isAllowedNetProxyHost(h)) {
-                                        break;
-                                    }
-                                    conn = (HttpURLConnection) u.openConnection();
-                                    conn.setInstanceFollowRedirects(false);
-                                    conn.setRequestMethod("GET");
-                                    conn.setConnectTimeout(6500);
-                                    conn.setReadTimeout(7500);
-                                    conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14; KlevPro/2.8.3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36");
-                                    conn.setRequestProperty("Accept", "application/json,text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
-                                    conn.setRequestProperty("Accept-Language", "ru-RU,ru;q=0.9,en;q=0.5");
-                                    int code = conn.getResponseCode();
-                                    if (code == HttpURLConnection.HTTP_MOVED_PERM || code == HttpURLConnection.HTTP_MOVED_TEMP || code == HttpURLConnection.HTTP_SEE_OTHER || code == 307 || code == 308) {
-                                        String loc = conn.getHeaderField("Location");
-                                        try { conn.disconnect(); } catch (Exception ignored) {}
-                                        conn = null;
-                                        if (loc == null || loc.trim().isEmpty() || redirectStep == 2) break;
-                                        URL nextUrl = new URL(u, loc.trim());
-                                        String nextHost = nextUrl.getHost() != null ? nextUrl.getHost().toLowerCase(Locale.ROOT) : "";
-                                        if (!"https".equalsIgnoreCase(nextUrl.getProtocol()) || !isAllowedNetProxyHost(nextHost)) {
-                                            break;
-                                        }
-                                        currentUrl = nextUrl.toString();
-                                        continue;
-                                    }
-                                    if (code >= 200 && code < 300) {
-                                        InputStream netIn = conn.getInputStream();
-                                        ByteArrayOutputStream bos = new ByteArrayOutputStream();
-                                        byte[] buf = new byte[8192];
-                                        int r;
-                                        while ((r = netIn.read(buf)) != -1) {
-                                            bos.write(buf, 0, r);
-                                        }
-                                        netIn.close();
-                                        byte[] data = bos.toByteArray();
-                                        String cType = conn.getContentType();
-                                        if (cType == null || cType.isEmpty()) cType = "application/json";
-                                        String mimeOnly = cType.contains(";") ? cType.split(";")[0].trim() : cType.trim();
-                                        Map<String, String> corsHeaders = new HashMap<>();
-                                        corsHeaders.put("Access-Control-Allow-Origin", VIRTUAL_ORIGIN);
-                                        corsHeaders.put("Cache-Control", "no-store");
-                                        return new WebResourceResponse(mimeOnly, "UTF-8", 200, "OK", corsHeaders, new ByteArrayInputStream(data));
-                                    }
-                                    break;
-                                }
-                            } catch (Exception ignored) {
-                            } finally {
-                                if (conn != null) {
-                                    try { conn.disconnect(); } catch (Exception ignored) {}
-                                }
-                            }
-                        }
-                        Map<String, String> errHeaders = new HashMap<>();
-                        errHeaders.put("Access-Control-Allow-Origin", VIRTUAL_ORIGIN);
-                        return new WebResourceResponse("application/json", "UTF-8", 502, "Net Gateway Error", errHeaders, new ByteArrayInputStream("{\"ok\":false}".getBytes(StandardCharsets.UTF_8)));
+                        return LocalGatewayClient.handleNetProxy(uri);
                     }
                     if ("/__klev_tile_proxy__".equals(path)) {
-                        String targetUrl = uri.getQueryParameter("url");
-                        if (targetUrl == null || targetUrl.isEmpty()) {
-                            String layer = uri.getQueryParameter("layer");
-                            String zParam = uri.getQueryParameter("z");
-                            String xParam = uri.getQueryParameter("x");
-                            String yParam = uri.getQueryParameter("y");
-                            if (layer != null && zParam != null && xParam != null && yParam != null
-                                && zParam.matches("\\d{1,2}") && xParam.matches("\\d{1,7}") && yParam.matches("\\d{1,7}")) {
-                                if ("yandex_sat".equals(layer)) {
-                                    targetUrl = "https://sat01.maps.yandex.net/tiles?l=sat&x=" + xParam + "&y=" + yParam + "&z=" + zParam + "&lang=ru_RU";
-                                } else if ("yandex_skl".equals(layer)) {
-                                    targetUrl = "https://core-renderer-tiles.maps.yandex.net/tiles?l=skl&v=24.10.30-0&x=" + xParam + "&y=" + yParam + "&z=" + zParam + "&scale=2&lang=ru_RU";
-                                } else {
-                                    targetUrl = "https://core-renderer-tiles.maps.yandex.net/tiles?l=map&v=24.10.30-0&x=" + xParam + "&y=" + yParam + "&z=" + zParam + "&scale=2&lang=ru_RU";
-                                }
-                            }
-                        }
-                        if (targetUrl != null && targetUrl.startsWith("https://")) {
-                            HttpURLConnection conn = null;
-                            try {
-                                String currentUrl = targetUrl;
-                                for (int redirectStep = 0; redirectStep <= 2; redirectStep++) {
-                                    URL u = new URL(currentUrl);
-                                    String h = u.getHost() != null ? u.getHost().toLowerCase(Locale.ROOT) : "";
-                                    if (!"https".equalsIgnoreCase(u.getProtocol()) || !isAllowedTileProxyHost(h)) {
-                                        break;
-                                    }
-                                    conn = (HttpURLConnection) u.openConnection();
-                                    conn.setInstanceFollowRedirects(false);
-                                    conn.setRequestMethod("GET");
-                                    conn.setConnectTimeout(6000);
-                                    conn.setReadTimeout(7000);
-                                    conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36");
-                                    conn.setRequestProperty("Referer", "https://yandex.ru/maps/");
-                                    conn.setRequestProperty("Accept", "image/avif,image/webp,image/apng,image/*,*/*;q=0.8");
-                                    int code = conn.getResponseCode();
-                                    if (code == HttpURLConnection.HTTP_MOVED_PERM || code == HttpURLConnection.HTTP_MOVED_TEMP || code == HttpURLConnection.HTTP_SEE_OTHER || code == 307 || code == 308) {
-                                        String loc = conn.getHeaderField("Location");
-                                        try { conn.disconnect(); } catch (Exception ignored) {}
-                                        conn = null;
-                                        if (loc == null || loc.trim().isEmpty() || redirectStep == 2) break;
-                                        URL nextUrl = new URL(u, loc.trim());
-                                        String nextHost = nextUrl.getHost() != null ? nextUrl.getHost().toLowerCase(Locale.ROOT) : "";
-                                        if (!"https".equalsIgnoreCase(nextUrl.getProtocol()) || !isAllowedTileProxyHost(nextHost)) {
-                                            break;
-                                        }
-                                        currentUrl = nextUrl.toString();
-                                        continue;
-                                    }
-                                    if (code >= 200 && code < 300) {
-                                        InputStream netIn = conn.getInputStream();
-                                        ByteArrayOutputStream bos = new ByteArrayOutputStream();
-                                        byte[] buf = new byte[8192];
-                                        int r;
-                                        while ((r = netIn.read(buf)) != -1) {
-                                            bos.write(buf, 0, r);
-                                        }
-                                        netIn.close();
-                                        byte[] data = bos.toByteArray();
-                                        String cType = conn.getContentType();
-                                        if (cType == null || cType.isEmpty()) cType = "image/png";
-                                        if (cType.contains(";")) cType = cType.split(";")[0].trim();
-                                        Map<String, String> corsHeaders = new HashMap<>();
-                                        corsHeaders.put("Access-Control-Allow-Origin", VIRTUAL_ORIGIN);
-                                        corsHeaders.put("Cache-Control", "public, max-age=86400");
-                                        return new WebResourceResponse(cType, null, 200, "OK", corsHeaders, new ByteArrayInputStream(data));
-                                    }
-                                    break;
-                                }
-                            } catch (Exception ignored) {
-                            } finally {
-                                if (conn != null) {
-                                    try { conn.disconnect(); } catch (Exception ignored) {}
-                                }
-                            }
-                        }
-                        Map<String, String> errHeaders = new HashMap<>();
-                        errHeaders.put("Access-Control-Allow-Origin", VIRTUAL_ORIGIN);
-                        return new WebResourceResponse("text/plain", "UTF-8", 502, "Tile Gateway Error", errHeaders, new ByteArrayInputStream(new byte[0]));
+                        return LocalGatewayClient.handleTileProxy(uri);
                     }
-                    if (path == null || path.isEmpty() || path.equals("/")) {
-                        path = "/assets/www/index.html";
-                    }
-                    String assetPath = path.startsWith("/assets/") ? path.substring("/assets/".length()) : path.replaceFirst("^/+", "");
-                    if (assetPath.contains("..")) {
-                        return new WebResourceResponse("text/plain", "UTF-8", 403, "Forbidden", null, null);
-                    }
-                    try {
-                        InputStream is = getAssets().open(assetPath);
-                        String mime = guessMimeType(assetPath);
-                        Map<String, String> headers = new HashMap<>();
-                        headers.put("Access-Control-Allow-Origin", VIRTUAL_ORIGIN);
-                        headers.put("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
-                        return new WebResourceResponse(mime, "UTF-8", 200, "OK", headers, is);
-                    } catch (Exception e) {
-                        return new WebResourceResponse("text/plain", "UTF-8", 404, "Not Found", null, null);
-                    }
+                    return LocalGatewayClient.handleLocalAsset(MainActivity.this, path);
                 }
                 return super.shouldInterceptRequest(view, request);
             }
@@ -1656,7 +1170,7 @@ public class MainActivity extends Activity {
                     view.loadUrl(sb.toString());
                     return true;
                 }
-                if (("tg".equals(scheme)) || (("https".equals(scheme) || "http".equals(scheme)) && (host.equals("t.me") || host.equals("www.t.me") || host.equals("telegram.me") || host.equals("www.telegram.me") || host.equals("telegram.dog")))) {
+                if (WebViewSecurityClient.isTelegramUri(uri)) {
                     try {
                         Uri tgUri = uri;
                         if (!scheme.equals("tg")) {
@@ -2225,7 +1739,7 @@ public class MainActivity extends Activity {
             }
         }
         String entryHtml = getPackageName().contains("admin") ? "kp-control-89.html" : "index.html";
-        String baseUrl = VIRTUAL_ORIGIN + "/assets/www/" + entryHtml + "?v=2.9.1_r252_" + System.currentTimeMillis();
+        String baseUrl = VIRTUAL_ORIGIN + "/assets/www/" + entryHtml + "?v=2.9.2_r255_" + System.currentTimeMillis();
         if (intent != null && intent.getData() != null) {
             Uri data = intent.getData();
             String q = data.getEncodedQuery();

@@ -1368,7 +1368,8 @@ if (typeof window !== 'undefined') {
       const s = store.getState();
       let days = s.weatherDays;
       if (!Array.isArray(days) || days.length === 0) {
-        days = buildFallback(s.lat ?? 66.0833, s.lon ?? 76.6333, s.water || 'small_river', Boolean(s.isCoastal), s.elevationM ?? 46, s.selectedWaterName || '');
+        const fb = buildFallback(s.lat ?? 66.0833, s.water || 'small_river');
+        days = Array.isArray(fb?.days) ? fb.days : fb;
       }
       const day = days[s.dayIdx ?? 2] || days[2] || days[0];
       const ev = evaluateRoadAndWeatherHazards(day, s);

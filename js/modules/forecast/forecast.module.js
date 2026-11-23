@@ -3083,10 +3083,9 @@ export function openShareForecastAndTackleModal() {
         nt: `Прогноз клёва ${sc}% (${win}) • Снасть: ${rig.weight} • Насадка: ${activeBait}`,
         crewKey: up.crewKey || 'KP-7777'
       };
-      const curList = Array.isArray(stNow.circleItems) ? [...stNow.circleItems] : [];
-      curList.unshift(newItem);
-      store.dispatch({ type: 'SET_CIRCLE_ITEMS', payload: curList });
-      try { storage.putToStore('circle', newItem); } catch (_e) {}
+      const nextCircle = Array.isArray(stNow.circleItems) ? [newItem, ...stNow.circleItems] : [newItem];
+      store.dispatch({ type: 'SET_CIRCLE_ITEMS', payload: nextCircle });
+      try { storage.saveCircleItems(nextCircle); } catch (_e) {}
       closeModal();
       showToast(mode === 'crew' ? 'Сводка прогноза и снасти отправлена в Экипаж (72 ч)' : 'Сводка прогноза и снасти опубликована в Круге', 'good');
     };

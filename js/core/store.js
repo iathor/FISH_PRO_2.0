@@ -273,11 +273,43 @@ function reducer(state, action) {
         }
       };
     }
-    case 'SET_PRO_FACTOR_WEIGHTS': {
+    case 'SET_PRO_FACTOR_WEIGHT': {
+      const defWeights = { temp: 1.0, press: 1.0, archive_shock: 1.0, circle_field: 1.0 };
+      if (action.payload === null) {
+        return {
+          ...state,
+          proFactorWeights: { ...defWeights }
+        };
+      }
+      if (action.payload && typeof action.payload === 'object' && 'key' in action.payload) {
+        return {
+          ...state,
+          proFactorWeights: {
+            ...(state.proFactorWeights || defWeights),
+            [action.payload.key]: action.payload.val
+          }
+        };
+      }
       return {
         ...state,
         proFactorWeights: {
-          ...(state.proFactorWeights || { temp: 1.0, press: 1.0, archive_shock: 1.0, circle_field: 1.0 }),
+          ...(state.proFactorWeights || defWeights),
+          ...(action.payload || {})
+        }
+      };
+    }
+    case 'SET_PRO_FACTOR_WEIGHTS': {
+      const defWeights = { temp: 1.0, press: 1.0, archive_shock: 1.0, circle_field: 1.0 };
+      if (action.payload === null) {
+        return {
+          ...state,
+          proFactorWeights: { ...defWeights }
+        };
+      }
+      return {
+        ...state,
+        proFactorWeights: {
+          ...(state.proFactorWeights || defWeights),
           ...(action.payload || {})
         }
       };
@@ -380,6 +412,7 @@ function reducer(state, action) {
       return { ...state, showAllSpecies: !state.showAllSpecies };
     case 'TOGGLE_ONLY_FAVORITES':
       return { ...state, onlyFavoritesFilter: !state.onlyFavoritesFilter };
+    case 'SET_FAVORITES':
     case 'SET_FAVORITES_LIST': {
       const favs = Array.isArray(action.payload) ? action.payload : [];
       return {

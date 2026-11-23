@@ -11,7 +11,7 @@ import { showToast, escapeHtml } from '../ui/components.js?v=2.9.3-r239';
 
 export const PUBLIC_SITE_ORIGIN = 'https://klevpro.ru';
 export const APK_MANIFEST_PATH = '/apk/apk-version.json';
-export const DEFAULT_APK_DOWNLOAD_URL = 'https://klevpro.ru/apk/klev-pro-v2.9.3.apk';
+export const DEFAULT_APK_DOWNLOAD_URL = 'https://klevpro.ru/apk/klev-pro-v2.9.2.apk';
 export const APK_BANNER_DISMISSED_KEY = 'klev_pro_hide_apk_banner_v2.8.3_r235';
 const WEB_CACHE_SYNCED_VER_KEY = 'klev_pro_web_cache_synced_ver_v2';
 
@@ -66,11 +66,13 @@ export function extractBuildRevisionNumber(rawRevOrObj) {
     return rawRevOrObj > 100000 ? (rawRevOrObj % 1000) : rawRevOrObj;
   }
   if (rawRevOrObj && typeof rawRevOrObj === 'object') {
-    if (Number.isFinite(Number(rawRevOrObj.buildNumber))) return Number(rawRevOrObj.buildNumber);
     const str = String(rawRevOrObj.revision || rawRevOrObj.buildRevision || rawRevOrObj.version || '');
     const m = str.match(/r(\d+)/i);
-    if (m && m[1]) return parseInt(m[1], 10);
-    if (Number.isFinite(Number(rawRevOrObj.versionCode)) && Number.isFinite(Number(rawRevOrObj.versionCode)) > 100000) {
+    const revNum = (m && m[1]) ? parseInt(m[1], 10) : 0;
+    const buildNum = Number.isFinite(Number(rawRevOrObj.buildNumber)) ? Number(rawRevOrObj.buildNumber) : 0;
+    const best = Math.max(revNum, buildNum);
+    if (best > 0) return best;
+    if (Number.isFinite(Number(rawRevOrObj.versionCode)) && Number(rawRevOrObj.versionCode) > 100000) {
       return Number(rawRevOrObj.versionCode) % 1000;
     }
     return 0;

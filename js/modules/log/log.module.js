@@ -60,8 +60,7 @@ export function openCatchPhotoViewerModal({ photoUrl, fishName = 'Улов', dat
 function downloadPhotoCrossPlatform(filename, dataUrl) {
   try {
     if (typeof window !== 'undefined' && window.AndroidBridge && typeof window.AndroidBridge.saveBase64ImageToGallery === 'function') {
-      const pureB64 = dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl;
-      const ok = window.AndroidBridge.saveBase64ImageToGallery(filename, pureB64);
+      const ok = window.AndroidBridge.saveBase64ImageToGallery(dataUrl, filename);
       if (ok) {
         showToast(`Фото сохранено в галерею смартфона: ${filename}`, 'good');
         return true;
@@ -112,6 +111,7 @@ import { formatLocalYYYYMMDD, fmtDeltaPress } from '../../core/format.js?v=2.9.3
 import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.9.3-r239';
 import { FISH_DB } from '../../data/species.js?v=2.9.3-r239';
 import { escapeHtml, createPill, showToast, openModal, closeModal, openConfirmDeleteModal, downloadFileCrossPlatform, flashHighlightElement } from '../../ui/components.js?v=2.9.3-r239';
+const escHtml = escapeHtml;
 let activeLogTab = 'active'; // 'active' | 'trash'
 import { computeMoon } from '../weather/weather.module.js?v=2.9.3-r239';
 import { calcHourly, calcDayBest } from '../forecast/forecast.module.js?v=2.9.3-r239';
@@ -642,7 +642,7 @@ export function openCatchWizard(prefill = {}) {
       <div>
         <label for="cwFishId" style="display:block;font-weight:700;font-size:var(--fs-xs);color:var(--muted);">ШАГ 1. ПОЙМАННАЯ РЫБА (ИЗБРАННЫЕ ВВЕРХУ)</label>
         <select id="cwFishId" style="margin-top:3px;width:100%;">
-          ${sortedSpecies.map(f => `<option value="${f.id}" ${f.id === currentFish.id ? 'selected' : ''}>${favSet.has(f.id) ? '★ ' : ''}${f.name}</option>`).join('')}
+          ${sortedSpecies.map(item => `<option value="${escHtml(item.id)}" data-fish="${escHtml(item.fish || item.name)}" ${item.id === currentFish.id ? 'selected' : ''}>${favSet.has(item.id) ? '★ ' : ''}${escHtml(item.name)}</option>`).join('')}
         </select>
       </div>
 
@@ -656,10 +656,10 @@ export function openCatchWizard(prefill = {}) {
       <div>
         <label for="cwBaitSelect" style="display:block;font-weight:700;font-size:var(--fs-xs);color:var(--muted);">ШАГ 3. СЕЗОННАЯ НАЖИВКА / ПРИМАНКА</label>
         <select id="cwBaitSelect" style="margin-top:3px;width:100%;">
-          ${seasonalBaits.map(b => `<option value="${b}" ${b === defaultBait ? 'selected' : ''}>${b}</option>`).join('')}
+          ${seasonalBaits.map(b => `<option value="${escHtml(b)}" ${b === defaultBait ? 'selected' : ''}>${escHtml(b)}</option>`).join('')}
           <option value="__custom__">Свой вариант наживки / воблера...</option>
         </select>
-        <input type="text" id="cwBaitCustom" class="input" value="${defaultBait}" placeholder="Уточните модель воблера, насадку или цвет..." style="margin-top:6px;width:100%;">
+        <input type="text" id="cwBaitCustom" class="input" value="${escHtml(defaultBait)}" placeholder="Уточните модель воблера, насадку или цвет..." style="margin-top:6px;width:100%;">
       </div>
 
       <!-- Шаг 4 и Шаг 5 выровнены на всю ширину без перекоса заголовков и без обрезания названий водоёмов и часов -->
@@ -667,8 +667,8 @@ export function openCatchWizard(prefill = {}) {
         <div>
           <label for="cwWaterSelect" style="display:block;font-weight:700;font-size:var(--fs-xs);color:var(--muted);">ШАГ 4. БЛИЖАЙШИЙ ВОДОЁМ И ТОЧНОЕ НАЗВАНИЕ</label>
           <select id="cwWaterSelect" style="margin-top:3px;width:100%;">
-            ${(s.nearbyWaters || []).map(w => `<option value="${w.name || w.label}" ${s.selectedWaterName === w.name ? 'selected' : ''}>${String(w.label || '').replace(/<[^>]+>/g, '').trim()}</option>`).join('')}
-            ${availWaters.map(w => `<option value="${w.shortName}">${String(w.name || '').replace(/<[^>]+>/g, '').trim()}</option>`).join('')}
+            ${(s.nearbyWaters || []).map(w => `<option value="${escHtml(w.name || w.label)}" ${s.selectedWaterName === w.name ? 'selected' : ''}>${escHtml(String(w.label || '').replace(/<[^>]+>/g, '').trim())}</option>`).join('')}
+            ${availWaters.map(w => `<option value="${escHtml(w.shortName)}">${escHtml(String(w.name || '').replace(/<[^>]+>/g, '').trim())}</option>`).join('')}
           </select>
           <input type="text" id="cwWaterName" class="input" value="${escapeHtml(initialWaterName)}" placeholder="Точное название реки, озера или протоки..." style="margin-top:6px;width:100%;">
         </div>
@@ -865,7 +865,7 @@ export function openCatchWizard(prefill = {}) {
           const mVal = newMethods[0]?.val;
           const newBaits = getSeasonalBaitsForContext(fObj, mVal, day.waterTemp ?? 12, day.iceState || s.iceState);
           if (baitSel) {
-            baitSel.innerHTML = newBaits.map(b => `<option value="${b}">${b}</option>`).join('') + '<option value="__custom__">Свой вариант...</option>';
+            baitSel.innerHTML = newBaits.map(b => `<option value="${escHtml(b)}">${escHtml(b)}</option>`).join('') + '<option value="__custom__">Свой вариант...</option>';
             if (baitCustom) baitCustom.value = newBaits[0] || '';
           }
         }
@@ -878,7 +878,7 @@ export function openCatchWizard(prefill = {}) {
         const fObj = FISH_DB.find(x => x.id === chosenFishId) || currentFish;
         const newBaits = getSeasonalBaitsForContext(fObj, chosenMethod, day.waterTemp ?? 12, day.iceState || s.iceState);
         if (baitSel) {
-          baitSel.innerHTML = newBaits.map(b => `<option value="${b}">${b}</option>`).join('') + '<option value="__custom__">Свой вариант...</option>';
+          baitSel.innerHTML = newBaits.map(b => `<option value="${escHtml(b)}">${escHtml(b)}</option>`).join('') + '<option value="__custom__">Свой вариант...</option>';
           if (baitCustom) baitCustom.value = newBaits[0] || '';
         }
       });
@@ -920,11 +920,7 @@ export function openCatchWizard(prefill = {}) {
           }
           showToast('Фото прикреплено (EXIF скрыт). Выполняется ИИ-проверка вида...', 'good');
           try {
-            const aiRes = await analyzeFishPhotoHybrid(photoDataUrl, {
-              basinCode: s.basinCode,
-              lat: s.lat,
-              lon: s.lon
-            });
+            const aiRes = await analyzeFishPhotoHybrid(photoDataUrl, false);
             const top = aiRes?.topMatch;
             if (top && aiBadgeEl) {
               aiBadgeEl.style.display = 'block';
@@ -1163,8 +1159,8 @@ export function renderLog(container) {
                 </div>
                 <div style="font-size:var(--fs-xs);color:var(--accent);">Наживка / приманка: <b>${escapeHtml(c.bait || '—')}</b></div>
                 <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;">
-                  <button type="button" class="btn btn-sm btn-good" data-restore-catch="${c.id}" style="flex:1;">Восстановить</button>
-                  <button type="button" class="btn btn-sm" data-purge-catch="${c.id}" style="flex:1;color:var(--bad);border-color:var(--bad);">Удалить навсегда</button>
+                  <button type="button" class="btn btn-sm btn-good" data-restore-catch="${escHtml(c.id)}" data-fish="${escHtml(c.fish || c.fishName || '')}" data-water="${escHtml(c.water || c.waterName || '')}" style="flex:1;">Восстановить</button>
+                  <button type="button" class="btn btn-sm" data-purge-catch="${escHtml(c.id)}" style="flex:1;color:var(--bad);border-color:var(--bad);">Удалить навсегда</button>
                 </div>
               </div>
             `).join('')}
@@ -1176,7 +1172,7 @@ export function renderLog(container) {
           <select id="logFilterFish" style="max-width:220px;">
             <option value="all" ${currentFilter.fishId === 'all' ? 'selected' : ''}>Все рыбы (${activeRecords.length})</option>
             ${FISH_DB.filter(f => activeRecords.some(c => c.fishId === f.id)).map(f => `
-              <option value="${f.id}" ${currentFilter.fishId === f.id ? 'selected' : ''}>${f.name}</option>
+              <option value="${escHtml(f.id)}" ${currentFilter.fishId === f.id ? 'selected' : ''}>${escHtml(f.name)}</option>
             `).join('')}
           </select>
           <select id="logFilterCond" style="max-width:240px;">
@@ -1197,10 +1193,10 @@ export function renderLog(container) {
                 <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;">
                   <span style="font-weight:800;font-size:var(--fs-md);">${escapeHtml(c.fishName)} ${c.weightKg ? `• ${c.weightKg} кг` : ''} ${c.lengthCm ? `(${c.lengthCm} см)` : ''}</span>
                   <div style="display:flex;gap:4px;flex-wrap:wrap;">
-                    <button type="button" class="btn btn-sm btn-good" style="min-height:28px;padding:2px 8px;" data-apply-catch-rig="${c.id}" title="Повторить снасть: подставить рыбу, способ ловли, глубину и приманку в прогноз">Снасть</button>
-                    <button type="button" class="btn btn-sm btn-accent" style="min-height:28px;padding:2px 8px;" data-chat-share-catch="${c.id}" title="Поделиться карточкой улова в чате Экипажа или личном диалоге">В чат</button>
-                    <button type="button" class="btn btn-sm" style="min-height:28px;padding:2px 8px;" data-share-catch="${c.id}" title="Отправить улов в Круг с размытием координат ±5 км">В Круг</button>
-                    <button type="button" class="btn btn-sm" style="min-height:28px;padding:2px 7px;color:var(--bad);" data-del-catch="${c.id}" title="Пометить на удаление" aria-label="Пометить запись на удаление"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                    <button type="button" class="btn btn-sm btn-good" style="min-height:28px;padding:2px 8px;" data-apply-catch-rig="${escHtml(c.id)}" data-fish="${escHtml(c.fish || c.fishName || '')}" data-water="${escHtml(c.water || c.waterName || '')}" title="Повторить снасть: подставить рыбу, способ ловли, глубину и приманку в прогноз">Снасть</button>
+                    <button type="button" class="btn btn-sm btn-accent" style="min-height:28px;padding:2px 8px;" data-chat-share-catch="${escHtml(c.id)}" title="Поделиться карточкой улова в чате Экипажа или личном диалоге">В чат</button>
+                    <button type="button" class="btn btn-sm" style="min-height:28px;padding:2px 8px;" data-share-catch="${escHtml(c.id)}" title="Отправить улов в Круг с размытием координат ±5 км">В Круг</button>
+                    <button type="button" class="btn btn-sm" style="min-height:28px;padding:2px 7px;color:var(--bad);" data-del-catch="${escHtml(c.id)}" title="Пометить на удаление" aria-label="Пометить запись на удаление"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
                   </div>
                 </div>
                 <div style="font-size:var(--fs-xs);color:var(--muted);">
@@ -1217,7 +1213,7 @@ export function renderLog(container) {
                 ${(c.photoDataUrl && /^data:image\/(jpeg|png|webp);base64,/i.test(c.photoDataUrl)) ? `
                   <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px;">
                     <div style="position:relative;cursor:pointer;overflow:hidden;border-radius:8px;border:1px solid var(--border);background:#050811;" data-view-catch-photo="${c.id}" title="Нажмите для полноэкранного просмотра фото">
-                      <img src="${c.photoDataUrl}" alt="Улов ${escapeHtml(c.fishName)}" style="width:100%;max-height:150px;object-fit:cover;display:block;">
+                      <img src="${c.photoDataUrl}" alt="Улов ${escHtml(c.fishName || c.fish)}" style="width:100%;max-height:150px;object-fit:cover;display:block;">
                     </div>
                     <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;">
                       <button type="button" class="btn btn-sm" data-view-catch-photo="${c.id}" style="min-height:30px;padding:3px 8px;font-size:11px;font-weight:800;">

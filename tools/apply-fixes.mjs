@@ -39,13 +39,13 @@ if (!versionRaw) {
   throw new Error('Отсутствует корневой файл VERSION');
 }
 const VER = JSON.parse(versionRaw);
-const V_NUM = String(VER.version || '2.9.0').trim();
-const V_REV = String(VER.revision || 'r240').trim();
-const V_BUILD = Number(VER.buildNumber || 240);
-const V_CODE = Number(VER.versionCode || 293240);
+const V_NUM = String(VER.version || '2.9.2').trim();
+const V_REV = String(VER.revision || 'r255').trim();
+const V_BUILD = Number(VER.buildNumber || 255);
+const V_CODE = Number(VER.versionCode || 293255);
 const V_DISPLAY = String(VER.displayVersion || `v${V_NUM} ${V_REV}`).trim();
 const V_FULL = String(VER.fullVersion || `${V_NUM}-${V_REV}`).trim();
-const V_POLICY = String(VER.policyVersion || `2026.11.17-v${V_NUM}`).trim();
+const V_POLICY = String(VER.policyVersion || `2026.11.22-v${V_NUM}`).trim();
 const V_APK_FILE = String(VER.apkFileName || `klev-pro-v${V_NUM}.apk`).trim();
 const V_ADMIN_APK_FILE = String(VER.adminApkFileName || `klev-pro-admin-v${V_NUM}.apk`).trim();
 const V_APK_URL = String(VER.apkUrl || `https://klevpro.ru/apk/${V_APK_FILE}`).trim();

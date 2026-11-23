@@ -9,7 +9,35 @@
  * - Выделенная вкладка « Чаты» на нижней панели навигации + отправка карточки улова прямо в чат.
  * - Закрытый режим Супер-Админа (только для Владельца + управляемая База Администраторов с синхронизацией).
  */
-import { events } from '../../core/events.js?v=2.9.3-r239';
+import { events, KLEV_EVENTS, safeModuleRun } from '../../core/events.js?v=2.9.3-r239';
+import {
+  isCircleItemMine as _ownershipIsCircleItemMine,
+  isCircleItemHidden,
+  canUserAccessCrewItem,
+  filterCircleItemsByOwnership
+} from './circle.ownership.js?v=2.9.3-r239';
+import {
+  DB_GATEWAY_CATALOG,
+  getCustomDbRelayBridgeUrl,
+  setCustomDbRelayBridgeUrl,
+  getEffectiveGatewayCatalog,
+  getLastActiveDbGatewayLabel,
+  getPinnedDbGatewayKind,
+  setPinnedDbGatewayKind,
+  getGatewayDiagnosticsState,
+  resetNearbySyncInFlight,
+  workerFetch,
+  pullRelayPackets,
+  runAdminGatewayDatabaseDiagnostics,
+  syncNearbyCirclePointsFromServer
+} from './circle.api.js?v=2.9.3-r239';
+import {
+  formatCleanPeerTitle,
+  renderChatsSubView,
+  renderFullScreenChatWindowHtml,
+  mountFullScreenChatOverlayPortal,
+  renderChatsSection as _renderChatsSectionImpl
+} from './circle.chat.js?v=2.9.3-r239';
 import { store } from '../../core/store.js?v=2.9.3-r239';
 import { storage, calcGeoDistanceKm, safeJsonParse } from '../../core/storage.js?v=2.9.3-r239';
 import { router } from '../../core/router.js?v=2.9.3-r239';
@@ -32,6 +60,24 @@ import {
   readFromTelegramCloud,
   triggerHaptic
 } from '../../core/telegram.js?v=2.9.3-r239';
+import {
+  OWNER_BOUND_LOGIN,
+  OWNER_BOUND_PIN_HASH,
+  OWNER_BOUND_FISHER_ID,
+  OWNER_SECONDARY_FISHER_ID,
+  ADMIN_SAVED_CREDS_KEY,
+  getSavedAdminCredentials,
+  loadSavedAdminCredentials,
+  saveAdminCredentialsToStorage,
+  isAdminContourActive,
+  getActiveAdminToken,
+  isOwnerFisherId,
+  isLoginOwnerMatch,
+  isOwnerAdmin,
+  getServerAdminSessionToken,
+  setServerAdminSessionToken,
+  setAdminAuthRequired
+} from '../admin/admin.auth.js?v=2.9.3-r239';
 import { setLocation } from '../geo/geo.module.js?v=2.9.3-r239';
 import { calcDynamicRig } from '../forecast/forecast.module.js?v=2.9.3-r239';
 export const CREW_TTL_MS = 72 * 60 * 60 * 1000;
@@ -64,83 +110,35 @@ const CIPHER_SALT = 'KlevProCircle_v2.1_Salt_RU';
 const E2E_PREFIX = 'KPE2E_';
 const EPOCH_2024_MS = 1704067200000; // 2024-01-01T00:00:00Z
 const OWNER_TG_USERNAMES = ['thorantony82', 'iathor', 'iathor82'];
-export const OWNER_BOUND_LOGIN = 'iAthor';
-export const OWNER_BOUND_PIN_HASH = 'owner_iathor_vip089';
-export const OWNER_BOUND_FISHER_ID = 'FP_89VIP089';
-export const OWNER_SECONDARY_FISHER_ID = 'FP_FMP089';
-const DEFAULT_ADMIN_IDS = [OWNER_BOUND_FISHER_ID, OWNER_SECONDARY_FISHER_ID];
+export const DEFAULT_ADMIN_IDS = [OWNER_BOUND_FISHER_ID, OWNER_SECONDARY_FISHER_ID];
 let _adminDashboardCache = null;
 let _adminDashboardLoading = false;
 let _serverDynamicAdminSlotHtml = '';
-const ADMIN_SAVED_CREDS_KEY = 'klev_pro_admin_saved_creds_v2';
-let _serverAdminSessionToken = '';
 let _activeAdminSubTab = 'dashboard';
 
-try {
-  if (typeof localStorage !== 'undefined') {
-    const rawSavedAdm = localStorage.getItem(ADMIN_SAVED_CREDS_KEY);
-    if (rawSavedAdm) {
-      const parsedAdm = JSON.parse(rawSavedAdm);
-      if (parsedAdm && typeof parsedAdm === 'object') {
-        if (parsedAdm.adminSessionToken) {
-          _serverAdminSessionToken = String(parsedAdm.adminSessionToken).trim();
-        }
-        if ('password' in parsedAdm) {
-          delete parsedAdm.password;
-          localStorage.setItem(ADMIN_SAVED_CREDS_KEY, JSON.stringify(parsedAdm));
-        }
-      }
-    }
+export function getAdminRuntimeSnapshot() {
+  const gwState = getGatewayDiagnosticsState();
+  return {
+    activeAdminSubTab: _activeAdminSubTab,
+    adminDashboardCache: _adminDashboardCache,
+    adminDashboardLoading: _adminDashboardLoading,
+    authRequestInFlight: _authRequestInFlight,
+    dbGatewayDiagRunning: gwState.dbGatewayDiagRunning,
+    lastAdminDashboardFetchTs: _lastAdminDashboardFetchTs,
+    lastDbGatewayDiagReport: gwState.lastDbGatewayDiagReport,
+    lastWorkingGatewayKind: gwState.lastWorkingGatewayKind
+  };
+}
+
+export function patchAdminRuntimeSnapshot(patch = {}) {
+  if (!patch || typeof patch !== 'object') return;
+  if ('activeAdminSubTab' in patch) _activeAdminSubTab = patch.activeAdminSubTab;
+  if ('adminDashboardCache' in patch) {
+    _adminDashboardCache = patch.adminDashboardCache;
+    setAdminAuthRequired(Boolean(_adminDashboardCache && _adminDashboardCache.authRequired === true));
   }
-} catch (e) {}
-
-export function getSavedAdminCredentials() {
-  try {
-    if (typeof localStorage === 'undefined') return null;
-    const raw = localStorage.getItem(ADMIN_SAVED_CREDS_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (parsed && typeof parsed === 'object' && 'password' in parsed) {
-      delete parsed.password;
-      try { localStorage.setItem(ADMIN_SAVED_CREDS_KEY, JSON.stringify(parsed)); } catch (_e) {}
-    }
-    return parsed;
-  } catch (e) {
-    return null;
-  }
-}
-export const loadSavedAdminCredentials = getSavedAdminCredentials;
-
-export function saveAdminCredentialsToStorage({ login = 'iAthor', adminSessionToken = '' } = {}) {
-  try {
-    if (typeof localStorage === 'undefined') return;
-    const prev = getSavedAdminCredentials() || {};
-    const nextToken = adminSessionToken !== undefined
-      ? String(adminSessionToken || '').trim()
-      : String(prev.adminSessionToken || _serverAdminSessionToken || '').trim();
-    const rec = {
-      login: login || prev.login || 'iAthor',
-      adminSessionToken: nextToken,
-      savedAt: Date.now()
-    };
-    if (rec.adminSessionToken) _serverAdminSessionToken = rec.adminSessionToken;
-    localStorage.setItem(ADMIN_SAVED_CREDS_KEY, JSON.stringify(rec));
-  } catch (e) {}
-}
-
-export function isAdminContourActive() {
-  return Boolean(typeof window !== 'undefined' && window.__KLEV_ADMIN_CONTOUR__ === true);
-}
-
-export function getActiveAdminToken(stateObj = null) {
-  const s = stateObj || store.getState();
-  const saved = getSavedAdminCredentials();
-  return String(
-    _serverAdminSessionToken ||
-    s?.userProfile?.adminSessionToken ||
-    saved?.adminSessionToken ||
-    ''
-  ).trim();
+  if ('adminDashboardLoading' in patch) _adminDashboardLoading = Boolean(patch.adminDashboardLoading);
+  if ('lastAdminDashboardFetchTs' in patch) _lastAdminDashboardFetchTs = Number(patch.lastAdminDashboardFetchTs) || 0;
 }
 
 export function switchAdminWorkspaceTab(tabId = 'dashboard', opts = {}) {
@@ -173,7 +171,6 @@ if (typeof window !== 'undefined') {
   window.__KLEV_SWITCH_ADMIN_TAB__ = switchAdminWorkspaceTab;
 }
 let _idAllocationInFlight = false;
-let _lastNearbyCircleSyncTs = 0;
 export const PACK_WATER_KEYS = ['small_river', 'big_river', 'quarry', 'tundra_lake', 'cooling_reservoir', 'sea_gulf', 'open_sea'];
 export const PACK_METHOD_KEYS = ['spin_micro', 'spin_jig', 'spin_lure', 'bottom', 'float', 'winter_jig', 'winter_lure', 'fly', 'sea_rock'];
 export const RUSSIA_REGION_CODE_RULES = [
@@ -376,7 +373,6 @@ export const CHAT_MSG_EDIT_MAX_AGE_MS = 3 * 60 * 60 * 1000; // 3 часа
 let _cloudSessionVerified = false;
 let relayPollTimer = null;
 let _relayPollInFlight = false;
-let _nearbySyncInFlight = false;
 let _outboxFlushInFlight = false;
 let _iosLifecycleBound = false;
 let _explicitMapPointChosenForReg = false;
@@ -422,6 +418,42 @@ let lastRelayPullTs = (() => {
   } catch (e) {}
   return Date.now() - 30000;
 })();
+export function getRelaySyncRuntimeRefs() {
+  return {
+    explicitlyDeletedLocalIds: _explicitlyDeletedLocalIds,
+    recentlyPublishedLocalIds: _recentlyPublishedLocalIds
+  };
+}
+export function persistRelaySyncState() {
+  return _persistRelaySyncState();
+}
+export function getChatUiState() {
+  return {
+    activeChatChannelId,
+    isFullScreenChatOpen,
+    selectedChatMsgId: _selectedChatMsgId,
+    isChatAttachSheetOpen: _isChatAttachSheetOpen,
+    chatComposerDraftText: _chatComposerDraftText
+  };
+}
+export function setChatUiState(patch = {}) {
+  if (!patch || typeof patch !== 'object') return;
+  if ('activeChatChannelId' in patch) activeChatChannelId = patch.activeChatChannelId || '';
+  if ('isFullScreenChatOpen' in patch) isFullScreenChatOpen = Boolean(patch.isFullScreenChatOpen);
+  if ('selectedChatMsgId' in patch) _selectedChatMsgId = patch.selectedChatMsgId || '';
+  if ('isChatAttachSheetOpen' in patch) _isChatAttachSheetOpen = Boolean(patch.isChatAttachSheetOpen);
+  if ('chatComposerDraftText' in patch) _chatComposerDraftText = String(patch.chatComposerDraftText ?? '');
+}
+function commitCircleItems(nextItems = [], reason = 'update', saveToStorage = true) {
+  const list = Array.isArray(nextItems) ? nextItems : [];
+  if (saveToStorage) storage.saveCircleItems(list);
+  store.dispatch({ type: 'SET_CIRCLE_ITEMS', payload: list });
+  events.emit(KLEV_EVENTS.CIRCLE_UPDATED, {
+    items: list,
+    count: list.length,
+    reason
+  });
+}
 function _persistRelaySyncState() {
   try {
     if (typeof localStorage === 'undefined') return;
@@ -549,641 +581,7 @@ function _removeOutboxRelay(key) {
  * - Для POST-запросов использует Content-Type: text/plain;charset=UTF-8 (CORS Simple Request без блокирующего OPTIONS preflight в WebKit)
  * - На iOS WebKit включает keepalive, анти-кэш метку _t на всех GET-запросах и быстрый переход на GET ?payload=... при малейшей задержке POST-сокета
  */
-const PINNED_DB_GATEWAY_STORAGE_KEY = 'klev_pinned_db_gateway_kind_v2';
-const LAST_WORKING_DB_GATEWAY_SESSION_KEY = 'klev_last_working_db_gateway_v2';
-const CUSTOM_DB_RELAY_URL_STORAGE_KEY = 'klev_custom_db_relay_url_v1';
-
-export const DB_GATEWAY_CATALOG = [
-  { kind: 'relay_hexlet_raw', label: 'Шлюз РФ Hexlet Raw (E2E AES-256-GCM)', host: 'allorigins.hexlet.app/raw', isRelay: true, note: 'Российский узел вне Cloudflare (сквозное шифрование конверта ?e2e=)' },
-  { kind: 'relay_hexlet_json', label: 'Шлюз РФ Hexlet JSON (E2E AES-256-GCM)', host: 'allorigins.hexlet.app/get', isRelay: true, note: 'Зашифрованный контейнер D1 через российский узел Hexlet' },
-  { kind: 'relay_vercel_seven', label: 'Шлюз Vercel AWS (E2E AES-256-GCM)', host: 'corsproxy-seven.vercel.app', isRelay: true, note: 'Серверлесс-шлюз AWS в режиме сквозного шифрования ?e2e=' },
-  { kind: 'relay_everyorigin', label: 'Шлюз EveryOrigin AWS (E2E AES-256-GCM)', host: 'every-origin.vercel.app', isRelay: true, note: 'Резервный зашифрованный канал на базе AWS / Vercel' },
-  { kind: 'direct_get_payload', label: 'Прямой E2E GET-пакет D1 (?e2e=...)', host: 'klevprohbot.thorantony82.workers.dev', isRelay: false, note: 'Прямой зашифрованный GET-канал Cloudflare D1' },
-  { kind: 'direct', label: 'Прямой канал D1 / Edge (POST/GET)', host: 'klevprohbot.thorantony82.workers.dev', isRelay: false, note: 'Стандартное прямое HTTPS-соединение с Cloudflare Worker' }
-];
-
-let _preferredRelayProxyUntil = Date.now() + 900000;
-let _customDbRelayBridgeUrl = (() => {
-  try {
-    if (typeof localStorage !== 'undefined') {
-      return String(localStorage.getItem(CUSTOM_DB_RELAY_URL_STORAGE_KEY) || '').trim();
-    }
-  } catch (_e) {}
-  return '';
-})();
-let _lastWorkingGatewayKind = (() => {
-  try {
-    if (typeof sessionStorage !== 'undefined') {
-      return sessionStorage.getItem(LAST_WORKING_DB_GATEWAY_SESSION_KEY) || '';
-    }
-  } catch (_e) {}
-  return '';
-})();
-let _pinnedDbGatewayKind = (() => {
-  try {
-    if (typeof localStorage !== 'undefined') {
-      const v = localStorage.getItem(PINNED_DB_GATEWAY_STORAGE_KEY) || 'auto';
-      return (v === 'auto' || v === 'relay_custom_bridge' || DB_GATEWAY_CATALOG.some(g => g.kind === v)) ? v : 'auto';
-    }
-  } catch (_e) {}
-  return 'auto';
-})();
-let _lastWorkingGatewayLabel = _lastWorkingGatewayKind
-  ? (DB_GATEWAY_CATALOG.find(g => g.kind === _lastWorkingGatewayKind)?.label || 'Авто-каскад шлюзов РФ (облачный каскад)')
-  : 'Авто-каскад шлюзов РФ (Hexlet / Vercel AWS / D1)';
-let _lastDbGatewayDiagReport = null;
-let _dbGatewayDiagRunning = false;
-
-export function getCustomDbRelayBridgeUrl() {
-  return _customDbRelayBridgeUrl;
-}
-export function setCustomDbRelayBridgeUrl(rawUrl = '') {
-  _customDbRelayBridgeUrl = String(rawUrl || '').trim();
-  try {
-    if (typeof localStorage !== 'undefined') {
-      if (_customDbRelayBridgeUrl) localStorage.setItem(CUSTOM_DB_RELAY_URL_STORAGE_KEY, _customDbRelayBridgeUrl);
-      else localStorage.removeItem(CUSTOM_DB_RELAY_URL_STORAGE_KEY);
-    }
-  } catch (_e) {}
-  return _customDbRelayBridgeUrl;
-}
-export function getEffectiveGatewayCatalog() {
-  if (_customDbRelayBridgeUrl && _customDbRelayBridgeUrl.startsWith('https://')) {
-    let hostLabel = 'script.google.com / Личный мост';
-    try { hostLabel = new URL(_customDbRelayBridgeUrl).hostname; } catch (_e) {}
-    return [
-      { kind: 'relay_custom_bridge', label: 'Личный мост Супер-Админа (Google / Yandex / Vercel)', host: hostLabel, isRelay: true, note: 'Персональный приватный HTTPS-ретранслятор без лимитов' },
-      ...DB_GATEWAY_CATALOG
-    ];
-  }
-  return DB_GATEWAY_CATALOG;
-}
-export function getLastActiveDbGatewayLabel() {
-  return _lastWorkingGatewayLabel;
-}
-export function getPinnedDbGatewayKind() {
-  return _pinnedDbGatewayKind || 'auto';
-}
-export function setPinnedDbGatewayKind(kind = 'auto') {
-  const catalog = getEffectiveGatewayCatalog();
-  const valid = kind === 'auto' || catalog.some(g => g.kind === kind);
-  _pinnedDbGatewayKind = valid ? kind : 'auto';
-  try {
-    if (typeof localStorage !== 'undefined') {
-      localStorage.setItem(PINNED_DB_GATEWAY_STORAGE_KEY, _pinnedDbGatewayKind);
-    }
-  } catch (_e) {}
-  if (_pinnedDbGatewayKind !== 'auto') {
-    const found = catalog.find(g => g.kind === _pinnedDbGatewayKind);
-    if (found) {
-      _lastWorkingGatewayKind = found.kind;
-      _lastWorkingGatewayLabel = found.label;
-      _preferredRelayProxyUntil = found.isRelay ? (Date.now() + 1800000) : 0;
-    }
-  }
-  return _pinnedDbGatewayKind;
-}
-
-const VALID_BUSINESS_ERROR_CODES = new Set([
-  'REGISTRATION_REQUIRED',
-  'LOGIN_TAKEN',
-  'BRUTE_FORCE_LOCKED',
-  'INVALID_CREDENTIALS'
-]);
-
-function _unwrapRelayContainerText(rawText) {
-  if (!rawText || typeof rawText !== 'string') return '';
-  const trimmed = rawText.trim();
-  if (!trimmed.startsWith('{')) return rawText;
-  try {
-    const outer = JSON.parse(trimmed);
-    if (outer && typeof outer === 'object' && typeof outer.contents === 'string' && !('ok' in outer) && !('d1Status' in outer)) {
-      const innerTrim = outer.contents.trim();
-      if (innerTrim.startsWith('{') && (innerTrim.includes('"ok"') || innerTrim.includes('"error"'))) {
-        return outer.contents;
-      }
-      const upstreamStatus = Number(outer?.status?.http_code ?? outer?.statusCode ?? 200);
-      if (upstreamStatus >= 400 || upstreamStatus === 0) {
-        throw new Error(`Upstream HTTP ${upstreamStatus}`);
-      }
-      return outer.contents;
-    }
-    if (outer && typeof outer === 'object' && typeof outer.body === 'string' && !('ok' in outer) && ('statusCode' in outer || 'status' in outer)) {
-      const innerTrim = outer.body.trim();
-      if (innerTrim.startsWith('{') && (innerTrim.includes('"ok"') || innerTrim.includes('"error"'))) {
-        return outer.body;
-      }
-      const upstreamStatus = Number(outer.statusCode ?? outer.status ?? 200);
-      if (upstreamStatus >= 400 || upstreamStatus === 0) {
-        throw new Error(`Upstream HTTP ${upstreamStatus}`);
-      }
-      return outer.body;
-    }
-  } catch (e) {
-    if (String(e?.message || '').startsWith('Upstream HTTP')) throw e;
-  }
-  return rawText;
-}
-
-function _isValidWorkerPayloadText(rawText, isHtmlExpected = false) {
-  if (!rawText || typeof rawText !== 'string') return false;
-  const trimmed = rawText.trim();
-  if (!trimmed) return false;
-  if (isHtmlExpected && (trimmed.includes('Клёв ПРО') || trimmed.includes('Веб-Консоль') || trimmed.includes('ЗАКРЫТАЯ БАЗА'))) {
-    return true;
-  }
-  if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) return false;
-  try {
-    const parsed = JSON.parse(trimmed);
-    if (!parsed || typeof parsed !== 'object') return false;
-    if (parsed.ok === false) {
-      if (parsed.authRequired === true || parsed.error === 'Unauthorized' || parsed.error === 'Forbidden') return true;
-      if (parsed.code && VALID_BUSINESS_ERROR_CODES.has(parsed.code)) return true;
-      if (typeof parsed.error === 'string' && /[А-Яа-яЁё]/.test(parsed.error)) return true;
-      return false;
-    }
-    if ('error' in parsed && parsed.ok !== true) {
-      return false;
-    }
-    const keys = ['ok', 'version', 'items', 'users', 'fisherId', 'whitelist', 'packets', 'bound', 'deleted', 'deletedChannel', 'appName', 'totalUsers', 'd1Status', 'aiQuota', 'securityAudit', 'betaTesters', 'policyState'];
-    return keys.some(k => k in parsed);
-  } catch (e) {
-    return false;
-  }
-}
-
-function _formatGatewayErrorRu(err) {
-  const msg = String(err?.message || err || '').trim();
-  if (/aborted|AbortError|timeout/i.test(msg)) {
-    return 'Превышено время ожидания ответа от сервера';
-  }
-  if (/Failed to fetch|NetworkError|Load failed/i.test(msg)) {
-    return 'Сброс сетевого соединения с узлом';
-  }
-  if (/HTTP (4\d\d|5\d\d)/i.test(msg)) {
-    const m = msg.match(/HTTP (\d+)/i);
-    return `Отказ транзитного узла (HTTP ${m ? m[1] : 'ошибка'})`;
-  }
-  if (/Invalid gateway payload/i.test(msg)) {
-    return 'Некорректный формат ответа вместо JSON базы D1';
-  }
-  return msg.slice(0, 64) || 'Канал недоступен';
-}
-
-const WORKER_ENVELOPE_PUBLIC_JWK = {"key_ops":["encrypt"],"ext":true,"kty":"RSA","n":"tLqIvyZO8p_qT0zDChD0QfWFXQ2BPhJX8k1-JKnafxxTUoK_SMYS3ggSGP-e84EW4JpNIHUqFliTfs49PrisvwzqXOGFQ1OflUf1j98MjO3ETnEnA1LYmjUuomR9HFoslj7nGgkeVRtV9oWxGvRDdDko4nHybIOZ8BvvyhWvtS58qG1JO-wVjrT8IGx8TLMr4hOUxLzqyKqXvX5jtb0ct_wgLZsE8FL1Vl6jZBzMn2pC3hD6F-peHkzWm3ON_ooiyFghelGoQewT8ZC5Np3eD6_Ci5eHkVsbyfsA95k9lf6_Wx2i37cLRn5bhziASGTc898NRpb_OS5QpYP9kNk1YQ","e":"AQAB","alg":"RSA-OAEP-256"};
-const CLIENT_E2E_FALLBACK_SEED = 'KLEV_E2E_V2_FALLBACK_796B06F969B53B94D769D114273739BF';
-let _cachedWorkerPubCryptoKey = null;
-
-function _bytesToB64Url(bytes) {
-  const u8 = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
-  let bin = '';
-  for (let i = 0; i < u8.length; i++) bin += String.fromCharCode(u8[i]);
-  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-
-function _b64UrlToBytes(b64url = '') {
-  const b64 = String(b64url || '').replace(/-/g, '+').replace(/_/g, '/');
-  const pad = b64.length % 4 === 0 ? '' : '='.repeat(4 - (b64.length % 4));
-  const bin = atob(b64 + pad);
-  const out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-  return out;
-}
-
-function _randomHex(byteLen = 16) {
-  const b = new Uint8Array(byteLen);
-  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
-    crypto.getRandomValues(b);
-  } else {
-    for (let i = 0; i < byteLen; i++) b[i] = Math.floor(Math.random() * 256);
-  }
-  return Array.from(b, x => x.toString(16).padStart(2, '0')).join('').toUpperCase();
-}
-
-function _hexToBytes(hex = '') {
-  const clean = String(hex || '').trim();
-  const out = new Uint8Array(clean.length / 2);
-  for (let i = 0; i < out.length; i++) out[i] = parseInt(clean.slice(i * 2, i * 2 + 2), 16) || 0;
-  return out;
-}
-
-async function _getWorkerEnvelopePublicKey() {
-  if (_cachedWorkerPubCryptoKey) return _cachedWorkerPubCryptoKey;
-  if (typeof crypto !== 'undefined' && crypto.subtle && typeof crypto.subtle.importKey === 'function') {
-    _cachedWorkerPubCryptoKey = await crypto.subtle.importKey(
-      'jwk',
-      WORKER_ENVELOPE_PUBLIC_JWK,
-      { name: 'RSA-OAEP', hash: 'SHA-256' },
-      false,
-      ['encrypt']
-    );
-    return _cachedWorkerPubCryptoKey;
-  }
-  return null;
-}
-
-async function _buildE2EEnvelopeParam(method, origSearch, bodyStr, customHeaders = null) {
-  const respKeyHex = _randomHex(32); // 256-bit one-time response key
-  const nonceHex = _randomHex(12);
-  const hdrs = {};
-  if (customHeaders && typeof customHeaders === 'object') {
-    if (customHeaders['X-Auth-Token']) hdrs['X-Auth-Token'] = String(customHeaders['X-Auth-Token']);
-    if (customHeaders['X-Admin-Token']) hdrs['X-Admin-Token'] = String(customHeaders['X-Admin-Token']);
-  }
-  const envelopePayload = JSON.stringify({
-    v: 1,
-    m: String(method || 'GET').toUpperCase(),
-    q: String(origSearch || ''),
-    b: bodyStr !== undefined ? String(bodyStr) : '',
-    h: hdrs,
-    rk: respKeyHex,
-    ts: Date.now(),
-    n: nonceHex
-  });
-  const plainBytes = new TextEncoder().encode(envelopePayload);
-  const pubKey = await _getWorkerEnvelopePublicKey().catch(() => null);
-  if (pubKey && typeof crypto !== 'undefined' && crypto.subtle) {
-    const aesRaw = new Uint8Array(32);
-    const iv = new Uint8Array(12);
-    crypto.getRandomValues(aesRaw);
-    crypto.getRandomValues(iv);
-    const aesKey = await crypto.subtle.importKey('raw', aesRaw, { name: 'AES-GCM' }, false, ['encrypt']);
-    const cipherBuf = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, aesKey, plainBytes);
-    const wrappedKeyBuf = await crypto.subtle.encrypt({ name: 'RSA-OAEP' }, pubKey, aesRaw);
-    return {
-      e2eParam: `E2E1.${_bytesToB64Url(new Uint8Array(wrappedKeyBuf))}.${_bytesToB64Url(iv)}.${_bytesToB64Url(new Uint8Array(cipherBuf))}`,
-      respKeyHex
-    };
-  }
-  throw new Error('WebCrypto RSA-OAEP/AES-GCM required for E2E relay envelope');
-}
-
-async function _decryptWorkerE2EResponse(e2eRespStr, respKeyHex) {
-  const raw = String(e2eRespStr || '').trim();
-  if (raw.startsWith('E2E1.')) {
-    const parts = raw.split('.');
-    if (parts.length !== 3) throw new Error('Invalid E2E1 response format');
-    const iv = _b64UrlToBytes(parts[1]);
-    const cipherBytes = _b64UrlToBytes(parts[2]);
-    const keyBytes = _hexToBytes(respKeyHex);
-    const aesKey = await crypto.subtle.importKey('raw', keyBytes, { name: 'AES-GCM' }, false, ['decrypt']);
-    const plainBuf = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, aesKey, cipherBytes);
-    const decoded = JSON.parse(new TextDecoder().decode(plainBuf));
-    return decoded;
-  }
-  throw new Error('Unsupported E2E response container');
-}
-
-async function _executeSingleGatewayRequest(kind, fullUrl, method, bodyStr, canUseGetPayload, timeoutMs, tag, recordWinner = true, customHeaders = null) {
-  const parsedUrl = new URL(fullUrl);
-  const origSearch = parsedUrl.search || '';
-  const baseEndpointUrl = `${parsedUrl.origin}${parsedUrl.pathname}`;
-  let targetUrl = fullUrl;
-  let reqMethod = method;
-  let e2eSession = null;
-
-  if (kind === 'direct') {
-    reqMethod = method;
-    if (reqMethod === 'GET') {
-      const sep = fullUrl.includes('?') ? '&' : '?';
-      targetUrl = fullUrl.includes('_t=') ? `${fullUrl}&_r=${tag}` : `${fullUrl}${sep}_t=${Date.now()}_${tag}`;
-    } else {
-      targetUrl = fullUrl;
-    }
-  } else {
-    // Этап 2: Через ретрансляторы и GET-пакеты передаётся ТОЛЬКО зашифрованный E2E-конверт ?e2e=... (RSA-OAEP-2048 + AES-256-GCM)
-    e2eSession = await _buildE2EEnvelopeParam(method, origSearch, bodyStr, customHeaders);
-    const innerUrl = `${baseEndpointUrl}?e2e=${encodeURIComponent(e2eSession.e2eParam)}&_t=${Date.now()}_${kind}_${tag}`;
-    reqMethod = 'GET';
-    if (kind === 'direct_get_payload') {
-      targetUrl = innerUrl;
-    } else if (kind === 'relay_custom_bridge' && _customDbRelayBridgeUrl) {
-      const bSep = _customDbRelayBridgeUrl.includes('?') ? (_customDbRelayBridgeUrl.endsWith('=') || _customDbRelayBridgeUrl.endsWith('?') || _customDbRelayBridgeUrl.endsWith('&') ? '' : '&url=') : '?url=';
-      targetUrl = `${_customDbRelayBridgeUrl}${bSep}${encodeURIComponent(innerUrl)}`;
-    } else if (kind === 'relay_hexlet_raw') {
-      targetUrl = `https://allorigins.hexlet.app/raw?disableCache=true&url=${encodeURIComponent(innerUrl)}`;
-    } else if (kind === 'relay_hexlet_json') {
-      targetUrl = `https://allorigins.hexlet.app/get?disableCache=true&url=${encodeURIComponent(innerUrl)}&_t=${Date.now()}`;
-    } else if (kind === 'relay_vercel_seven') {
-      targetUrl = `https://corsproxy-seven.vercel.app/api?url=${encodeURIComponent(innerUrl)}`;
-    } else if (kind === 'relay_everyorigin') {
-      targetUrl = `https://every-origin.vercel.app/api/get?url=${encodeURIComponent(innerUrl)}&_t=${Date.now()}`;
-    } else {
-      throw new Error(`Unsupported or deprecated gateway kind: ${kind}`);
-    }
-  }
-
-  const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-  const timer = ctrl ? setTimeout(() => { try { ctrl.abort(); } catch (e) {} }, timeoutMs) : null;
-  try {
-    const fetchOpts = {
-      method: reqMethod,
-      mode: 'cors',
-      credentials: 'omit',
-      cache: 'no-store',
-      signal: ctrl ? ctrl.signal : undefined
-    };
-    if (kind === 'direct' && customHeaders && typeof customHeaders === 'object') {
-      fetchOpts.headers = { ...customHeaders };
-    }
-    if (kind === 'direct' && reqMethod === 'POST' && bodyStr !== undefined) {
-      fetchOpts.headers = {
-        ...(fetchOpts.headers || {}),
-        'Content-Type': customHeaders?.['Content-Type'] ? customHeaders['Content-Type'] : 'application/json;charset=UTF-8'
-      };
-      fetchOpts.body = bodyStr;
-    }
-    const res = await fetch(targetUrl, fetchOpts);
-    if (timer) clearTimeout(timer);
-    if (!res) throw new Error('Empty response');
-    let textBody = await res.text();
-    textBody = _unwrapRelayContainerText(textBody);
-    let finalStatus = res.status;
-
-    if (e2eSession) {
-      const parsedOuter = JSON.parse(textBody);
-      if (!parsedOuter || typeof parsedOuter.e2eResp !== 'string') {
-        throw new Error(`Untrusted unencrypted response from gateway ${kind}`);
-      }
-      const decResp = await _decryptWorkerE2EResponse(parsedOuter.e2eResp, e2eSession.respKeyHex);
-      textBody = String(decResp.body ?? '');
-      finalStatus = Number(decResp.status || 200);
-    }
-
-    const isHtmlConsole = fullUrl.includes('/fp-vip089-console');
-    if (finalStatus >= 400) {
-      if (!_isValidWorkerPayloadText(textBody, isHtmlConsole)) {
-        throw new Error(`Gateway ${kind} HTTP ${finalStatus}`);
-      }
-    }
-    if (!_isValidWorkerPayloadText(textBody, isHtmlConsole)) {
-      throw new Error(`Invalid gateway payload from ${kind}`);
-    }
-    if (recordWinner) {
-      const catalog = getEffectiveGatewayCatalog();
-      const gwMeta = catalog.find(g => g.kind === kind);
-      _lastWorkingGatewayKind = kind;
-      _lastWorkingGatewayLabel = gwMeta ? gwMeta.label : (kind.startsWith('relay_') ? `Резервный E2E шлюз (${kind.replace('relay_', '')})` : 'Прямой канал D1 / Edge');
-      try {
-        if (typeof sessionStorage !== 'undefined') {
-          sessionStorage.setItem(LAST_WORKING_DB_GATEWAY_SESSION_KEY, kind);
-        }
-      } catch (_e) {}
-      if (kind.startsWith('relay_')) {
-        _preferredRelayProxyUntil = Date.now() + 900000;
-      }
-    }
-    return new Response(textBody, {
-      status: finalStatus,
-      headers: {
-        'Content-Type': isHtmlConsole ? 'text/html;charset=utf-8' : 'application/json;charset=utf-8',
-        'X-Klev-Gateway': kind
-      }
-    });
-  } catch (err) {
-    if (timer) clearTimeout(timer);
-    throw err;
-  }
-}
-
-export async function workerFetch(endpointOrUrl, options = {}, timeoutMs = 6500, retries = 2) {
-  const fullUrl = String(endpointOrUrl || '').startsWith('http')
-    ? endpointOrUrl
-    : `${RELAY_WORKER_URL}${endpointOrUrl}`;
-  const method = String(options.method || 'GET').toUpperCase();
-  const bodyStr = typeof options.body === 'string' ? options.body : (options.body ? JSON.stringify(options.body) : undefined);
-  const isAuthEndpoint = fullUrl.includes('/auth/login') || fullUrl.includes('/auth/sync') || fullUrl.includes('/auth/register');
-  const reqHeaders = { ...(options.headers || {}) };
-  if (isAdminContourActive() || isOwnerAdmin()) {
-    const admTok = getActiveAdminToken();
-    if (admTok && !reqHeaders['X-Admin-Token']) reqHeaders['X-Admin-Token'] = admTok;
-  }
-  const authTok = store.getState()?.userProfile?.authTokenHash || '';
-  if (authTok && !reqHeaders['X-Auth-Token']) reqHeaders['X-Auth-Token'] = authTok;
-  const canUseGetPayload = (method === 'POST' && (!bodyStr || bodyStr.length < 7500));
-  const relayReady = (method === 'GET') || canUseGetPayload;
-  const isAiVisionCall = fullUrl.includes('/api/ai/identify-fish');
-  const perRelayTimeout = isAiVisionCall
-    ? Math.max(11000, Math.min(24000, timeoutMs + 2000))
-    : Math.max(5500, Math.min(9500, timeoutMs + 1500));
-
-  if (isAuthEndpoint) {
-    const authGateways = Array.from(new Set([
-      ...(_pinnedDbGatewayKind && _pinnedDbGatewayKind !== 'auto' ? [_pinnedDbGatewayKind] : []),
-      ...(_lastWorkingGatewayKind ? [_lastWorkingGatewayKind] : []),
-      ...(_customDbRelayBridgeUrl ? ['relay_custom_bridge'] : []),
-      'relay_hexlet_json',
-      'relay_hexlet_raw',
-      'relay_everyorigin',
-      'relay_vercel_seven',
-      'direct_get_payload',
-      'direct'
-    ]));
-    let lastAuthErr = null;
-    for (const gwKind of authGateways) {
-      try {
-        const res = await _executeSingleGatewayRequest(gwKind, fullUrl, method, bodyStr, canUseGetPayload, 5200, 'auth_seq', true, reqHeaders);
-        return res;
-      } catch (err) {
-        lastAuthErr = err;
-      }
-    }
-    throw lastAuthErr || new Error('Auth network timeout');
-  }
-
-  const runParallelRelayRace = (raceTag = 'r0', excludeKind = '') => {
-    const relayOrder = [
-      ...(_customDbRelayBridgeUrl ? ['relay_custom_bridge'] : []),
-      'relay_hexlet_raw',
-      'relay_hexlet_json',
-      'relay_vercel_seven',
-      'relay_everyorigin'
-    ].filter(k => k !== excludeKind);
-    const candidates = relayOrder.map(k =>
-      _executeSingleGatewayRequest(k, fullUrl, method, bodyStr, canUseGetPayload, perRelayTimeout, raceTag, true, reqHeaders)
-    );
-    if (method === 'POST' && canUseGetPayload && excludeKind !== 'direct_get_payload') {
-      candidates.push(_executeSingleGatewayRequest('direct_get_payload', fullUrl, method, bodyStr, canUseGetPayload, Math.min(timeoutMs, 3800), raceTag, true, reqHeaders));
-    } else if (excludeKind !== 'direct') {
-      candidates.push(_executeSingleGatewayRequest('direct', fullUrl, method, bodyStr, canUseGetPayload, Math.min(timeoutMs, 3800), raceTag, true, reqHeaders));
-    }
-    return Promise.any(candidates);
-  };
-
-  const executeAttempt = async (attemptIdx) => {
-    const aTag = `a${attemptIdx}`;
-    if (_pinnedDbGatewayKind && _pinnedDbGatewayKind !== 'auto') {
-      if (!_pinnedDbGatewayKind.startsWith('relay_') || relayReady) {
-        try {
-          const pinTimeout = isAiVisionCall ? perRelayTimeout : Math.min(perRelayTimeout, 4800);
-          return await _executeSingleGatewayRequest(_pinnedDbGatewayKind, fullUrl, method, bodyStr, canUseGetPayload, pinTimeout, `pin_${aTag}`, true, reqHeaders);
-        } catch (_pinErr) {
-          if (relayReady) return await runParallelRelayRace(`pin_fb_${aTag}`, _pinnedDbGatewayKind);
-          throw _pinErr;
-        }
-      }
-    }
-
-    if (relayReady && _lastWorkingGatewayKind) {
-      let hedgeTimer = null;
-      let rejectHedge = null;
-      const hedgeDelayMs = isAiVisionCall ? 4500 : 950;
-      const stickyPromise = _executeSingleGatewayRequest(_lastWorkingGatewayKind, fullUrl, method, bodyStr, canUseGetPayload, perRelayTimeout, `sticky_${aTag}`, true, reqHeaders);
-      const hedgePromise = new Promise((resolve, reject) => {
-        rejectHedge = reject;
-        hedgeTimer = setTimeout(() => {
-          runParallelRelayRace(`hedge_${aTag}`, _lastWorkingGatewayKind).then(resolve).catch(reject);
-        }, hedgeDelayMs);
-      });
-      hedgePromise.catch(() => {});
-      try {
-        const res = await Promise.any([
-          stickyPromise.catch(() => {
-            if (hedgeTimer) { clearTimeout(hedgeTimer); hedgeTimer = null; }
-            if (typeof rejectHedge === 'function') rejectHedge(new Error('Sticky failed'));
-            return runParallelRelayRace(`sticky_fb_${aTag}`, _lastWorkingGatewayKind);
-          }),
-          hedgePromise
-        ]);
-        if (hedgeTimer) clearTimeout(hedgeTimer);
-        return res;
-      } catch (_e) {
-        if (hedgeTimer) clearTimeout(hedgeTimer);
-      }
-    }
-
-    if (relayReady) {
-      return await runParallelRelayRace(`race_${aTag}`);
-    }
-
-    return await _executeSingleGatewayRequest('direct', fullUrl, method, bodyStr, canUseGetPayload, timeoutMs, `d_${aTag}`, true, reqHeaders);
-  };
-
-  let lastErr = null;
-  const maxAttempts = Math.max(1, Math.min(3, (Number(retries) || 0) + 1));
-  for (let i = 0; i < maxAttempts; i++) {
-    try {
-      return await executeAttempt(i);
-    } catch (err) {
-      lastErr = err;
-    }
-  }
-  throw lastErr || new Error('Network timeout');
-}
-
-export async function runAdminGatewayDatabaseDiagnostics(triggerToast = true) {
-  if (_dbGatewayDiagRunning) return _lastDbGatewayDiagReport;
-  _dbGatewayDiagRunning = true;
-  renderAdminSection();
-  const s = store.getState();
-  const tok = getActiveAdminToken(s);
-  const probeEndpoint = '/api/admin/users';
-  const fullUrl = `${RELAY_WORKER_URL}${probeEndpoint}`;
-  const reqBodyStr = JSON.stringify({ adminToken: tok, compact: 1, limit: 250 });
-  const catalog = getEffectiveGatewayCatalog();
-
-  const testSingleGateway = async (gw) => {
-    const t0 = Date.now();
-    try {
-      const res = await _executeSingleGatewayRequest(gw.kind, fullUrl, 'POST', reqBodyStr, true, 6200, 'diag', false, tok ? { 'X-Admin-Token': tok } : null);
-      const latencyMs = Math.max(1, Date.now() - t0);
-      const rawText = await res.text();
-      const parsed = JSON.parse(rawText);
-      const ok = Boolean(parsed && parsed.ok === true && Array.isArray(parsed.users));
-      if (ok && (!_adminDashboardCache || (parsed.users.length >= (_adminDashboardCache.users?.length || 0)))) {
-        _adminDashboardCache = { ...parsed, authRequired: false };
-      }
-      return {
-        kind: gw.kind,
-        label: gw.label,
-        host: gw.host,
-        isRelay: gw.isRelay,
-        note: gw.note,
-        ok,
-        httpStatus: ok ? 200 : 502,
-        latencyMs,
-        bytes: rawText.length,
-        detail: ok ? `БД D1: ${parsed.totalUsers ?? parsed.users.length} польз. (${rawText.length} байт)` : 'Некорректный ответ D1',
-        checkedAt: Date.now()
-      };
-    } catch (err) {
-      const latencyMs = Math.max(1, Date.now() - t0);
-      return {
-        kind: gw.kind,
-        label: gw.label,
-        host: gw.host,
-        isRelay: gw.isRelay,
-        note: gw.note,
-        ok: false,
-        httpStatus: 0,
-        latencyMs,
-        bytes: 0,
-        detail: _formatGatewayErrorRu(err),
-        checkedAt: Date.now()
-      };
-    }
-  };
-
-  // Запускаем проверку группами по 4 шлюза, чтобы не переполнять лимит сокетов мобильного модема 4G
-  const batch1 = catalog.slice(0, 4);
-  const batch2 = catalog.slice(4);
-  const res1 = await Promise.all(batch1.map(gw => testSingleGateway(gw)));
-  const res2 = batch2.length > 0 ? await Promise.all(batch2.map(gw => testSingleGateway(gw))) : [];
-  const results = [...res1, ...res2];
-
-  const working = results.filter(r => r.ok).sort((a, b) => a.latencyMs - b.latencyMs);
-  const fastest = working[0] || null;
-
-  if (fastest) {
-    _lastWorkingGatewayKind = fastest.kind;
-    _lastWorkingGatewayLabel = fastest.label;
-    try {
-      if (typeof sessionStorage !== 'undefined') {
-        sessionStorage.setItem(LAST_WORKING_DB_GATEWAY_SESSION_KEY, fastest.kind);
-      }
-    } catch (_e) {}
-    if (_pinnedDbGatewayKind !== 'auto') {
-      const pinnedRes = results.find(r => r.kind === _pinnedDbGatewayKind);
-      if (!pinnedRes || !pinnedRes.ok) {
-        setPinnedDbGatewayKind('auto');
-      }
-    }
-    if (fastest.isRelay) {
-      _preferredRelayProxyUntil = Date.now() + 1800000;
-    } else {
-      _preferredRelayProxyUntil = 0;
-    }
-  } else {
-    if (_adminDashboardCache) {
-      _adminDashboardCache.d1Status = 'DISCONNECTED_GATEWAY';
-    }
-  }
-
-  _lastDbGatewayDiagReport = {
-    checkedAt: Date.now(),
-    totalGateways: results.length,
-    workingCount: working.length,
-    fastestKind: fastest ? fastest.kind : '',
-    fastestLabel: fastest ? fastest.label : 'Нет доступных каналов',
-    fastestLatencyMs: fastest ? fastest.latencyMs : 0,
-    results
-  };
-  _dbGatewayDiagRunning = false;
-
-  if (working.length > 0) {
-    if (triggerToast) {
-      showToast(`Связь с облачной БД подтверждена: доступно ${working.length} из ${results.length} шлюзов. Активен: ${fastest.label} (${fastest.latencyMs} мс)`, 'good');
-    }
-    await fetchSuperAdminDashboardData(false);
-  } else {
-    if (triggerToast) {
-      showToast('Резервные облачные узлы временно недоступны. Подключите личный мост Google в карточке диагностики.', 'warn');
-    }
-    renderAdminSection();
-  }
-  return _lastDbGatewayDiagReport;
-}
-
+// Сетевой транспорт (DB_GATEWAY_CATALOG, workerFetch, runAdminGatewayDatabaseDiagnostics) вынесен в ./circle.api.js
 if (typeof window !== 'undefined') {
   window.__KLEV_RUN_DB_GATEWAY_DIAG__ = runAdminGatewayDatabaseDiagnostics;
   window.__KLEV_SET_PINNED_DB_GATEWAY__ = setPinnedDbGatewayKind;
@@ -1310,23 +708,6 @@ export function formatTempReserveFisherId(regionCode = '89', seedNumOrStr = 1) {
 }
 export function isTemporaryReserveId(fid = '') {
   return /^FP_\d{2}RZ\d{4}$/i.test(String(fid || '').trim());
-}
-export function isOwnerFisherId(fid = '') {
-  const clean = String(fid || '').trim().toUpperCase();
-  return clean === OWNER_BOUND_FISHER_ID || clean === OWNER_SECONDARY_FISHER_ID || clean === 'FP_89A01';
-}
-export function isLoginOwnerMatch(rawLogin = '') {
-  const clean = String(rawLogin || '').trim().toLowerCase().replace(/[@\s]/g, '');
-  return (
-    clean === 'iathor' ||
-    clean === 'iathor82' ||
-    clean === 'thorantony82' ||
-    clean === 'fp_89vip089' ||
-    clean === 'fp_fmp089' ||
-    clean === 'antonthor' ||
-    clean === '89vip089' ||
-    clean === 'fmp089'
-  );
 }
 export function normalizeFisherId(rawStr = '', fallbackRegion = '89') {
   const clean = String(rawStr || '').trim().toUpperCase().replace(/-/g, '_');
@@ -1606,19 +987,6 @@ export function resolveAccountCredentials(rawLogin = '', rawPassword = '', prefe
     authTokenHash,
     regionCode: regCode
   };
-}
-/**
- * Проверяет, является ли текущий пользователь Владельцем — ТОЛЬКО в отдельном админ-контуре и при наличии серверного сессионного токена!
- */
-export function isOwnerAdmin(stateObj = null) {
-  const s = stateObj || store.getState();
-  const activeTok = getActiveAdminToken(s);
-  if (isAdminContourActive()) {
-    if (_adminDashboardCache && _adminDashboardCache.authRequired === true) return false;
-    return Boolean(activeTok && activeTok.length >= 4);
-  }
-  const up = s?.userProfile || {};
-  return Boolean(up.ownerUnlocked === true && activeTok && activeTok.startsWith('ADM_SESS_'));
 }
 /**
  * Возвращает полный список администраторов из базы (Владелец FP_89VIP089 + FP_FMP089 + добавленные им в базу рыбаки)
@@ -1924,64 +1292,8 @@ export function requireRegisteredFisherId(actionLabel = 'отправки дан
   return false;
 }
 export function isCircleItemMine(item, stateObj = null) {
-  if (!item) return false;
-  if (item.isDemoSeed || item.isLockedExternalCrew) return false;
-  const s = stateObj || store.getState();
-  const ident = getCurrentFisherIdentity(s);
-  const itemFid = String(item.fid || '').trim().toUpperCase();
-  const myFid = String(ident.fisherId || '').trim().toUpperCase();
-  if (itemFid && myFid && itemFid === myFid) {
-    return true;
-  }
-  const itemHasRegFid = Boolean(itemFid && !itemFid.includes('RZ'));
-  const myHasRegFid = Boolean(myFid && !myFid.includes('RZ'));
-  if (itemHasRegFid && myHasRegFid && itemFid !== myFid) {
-    return false;
-  }
-  const itemAu = String(item.au || '').trim().toLowerCase();
-  const myLogin = String(ident.login || ident.callsign || '').trim().toLowerCase();
-  if ((!itemHasRegFid || itemFid === myFid) && ident.isRegistered && myLogin && itemAu && itemAu === myLogin && itemAu !== 'рыболов' && !itemAu.startsWith('гость')) {
-    return true;
-  }
-  const hasForeignRegisteredOwner =
-    (itemHasRegFid && myFid && itemFid !== myFid) ||
-    (ident.isRegistered && myLogin && itemAu && itemAu !== myLogin && itemAu !== 'рыболов' && !itemAu.startsWith('гость'));
-  if (!hasForeignRegisteredOwner && !item.importedAt && item.did && item.did === ident.deviceId && item.did !== 'ext_v3' && item.did !== 'ext') {
-    return true;
-  }
-  return false;
-}
-/**
- * Проверяет, скрыта ли чужая точка/событие пользователем
- */
-export function isCircleItemHidden(item, stateObj = null) {
-  if (!item || !item.id) return false;
-  const s = stateObj || store.getState();
-  const hidden = s?.userProfile?.hiddenCircleIds;
-  return Array.isArray(hidden) && hidden.includes(item.id);
-}
-/**
- * Проверяет доступ к закрытой точке «Экипажа (72 ч)»:
- * - Сигналы SOS видны ВСЕМ.
- * - Сводки Круга и Мастерской видны всем.
- * - Закрытые Экипажи видны ТОЛЬКО создателю, участникам с ключом KP-XXXX и Администраторам из базы!
- */
-export function canUserAccessCrewItem(item, stateObj = null) {
-  if (!item) return false;
-  if (item.t !== 'crew') return true;
-  if (item.sos) return true;
-  const s = stateObj || store.getState();
-  if (isCircleItemMine(item, s)) return true;
-  const ident = getCurrentFisherIdentity(s);
-  const itemKey = normalizeCrewSecretKey(item.crewKey) || String(item.crewKey || '').toUpperCase();
-  const itemKeyHash = item.crewKeyHash || (itemKey ? hashCrewKeyForServer(itemKey) : '');
-  const unlockedRaw = ident.unlockedCrewKeys.map(k => String(k).toUpperCase());
-  const unlockedNorm = ident.unlockedCrewKeys.map(k => normalizeCrewSecretKey(k) || String(k).toUpperCase());
-  const unlockedHashes = ident.unlockedCrewKeys.map(k => hashCrewKeyForServer(k));
-  if (itemKey && (unlockedRaw.includes(itemKey) || unlockedNorm.includes(itemKey))) return true;
-  if (itemKeyHash && unlockedHashes.includes(itemKeyHash)) return true;
-  if (item.id && unlockedRaw.includes(String(item.id).toUpperCase())) return true;
-  return false;
+  // Делегирует в circle.ownership.js (itemAu === myLogin)
+  return _ownershipIsCircleItemMine(item, stateObj);
 }
 /**
  * Синхронизация базы администраторов с Cloudflare Worker (/admin/whitelist)
@@ -1992,7 +1304,7 @@ export async function syncAdminWhitelistWithCloud(pushChange = null) {
       const res = await workerFetch('/admin/whitelist', {
         method: 'POST',
         body: JSON.stringify({
-          ownerSecret: _serverAdminSessionToken || store.getState().userProfile?.adminSessionToken || store.getState().userProfile?.authTokenHash || '',
+          ownerSecret: getServerAdminSessionToken() || store.getState().userProfile?.adminSessionToken || store.getState().userProfile?.authTokenHash || '',
           action: pushChange.action || 'set',
           entry: pushChange.entry || null,
           targetId: pushChange.targetId || '',
@@ -2218,8 +1530,7 @@ export async function publishCircleItemToServer(itemObj, packToken = '') {
         changed = true;
       }
       if (changed) {
-        storage.saveCircleItems(updatedItems);
-        store.dispatch({ type: 'SET_CIRCLE_ITEMS', payload: updatedItems });
+        commitCircleItems(updatedItems, 'local_edit');
         syncCircleNavBadge();
       }
       return true;
@@ -2273,7 +1584,7 @@ export async function deleteCircleItemFromServer(itemId) {
         fid: ident.fisherId,
         deviceId: ident.deviceId,
         authTokenHash: s.userProfile?.authTokenHash || '',
-        adminToken: _serverAdminSessionToken || s.userProfile?.adminSessionToken || ''
+        adminToken: getServerAdminSessionToken() || s.userProfile?.adminSessionToken || ''
       })
     }, 4800, 2);
     return Boolean(res && res.ok);
@@ -2281,182 +1592,7 @@ export async function deleteCircleItemFromServer(itemId) {
     return false;
   }
 }
-/**
- * Загружает с сервера все активные точки Круга, открытых Экипажей, SOS и Мастерской рядом (/api/circle/nearby)
- */
-export async function syncNearbyCirclePointsFromServer(showFeedbackToast = false, forceImmediate = false) {
-  const now = Date.now();
-  if (!showFeedbackToast && !forceImmediate && (now - _lastNearbyCircleSyncTs < 5000 || _nearbySyncInFlight)) return false;
-  _lastNearbyCircleSyncTs = now;
-  _nearbySyncInFlight = true;
-  try {
-    await flushPendingOutboxToServer();
-    const s = store.getState();
-    const ident = getCurrentFisherIdentity(s);
-    const radiusKm = Math.max(120, Number(s.waterRadiusKm) || 120);
-    const crewKeyTags = Array.from(new Set([
-      ...ident.unlockedCrewKeys.map(k => hashCrewKeyForServer(k)).filter(Boolean),
-      ...ident.unlockedCrewKeys.map(k => (normalizeCrewSecretKey(k) || String(k).toUpperCase())).filter(Boolean)
-    ])).join(',');
-    const qs = new URLSearchParams({
-      lat: String(Number(s.lat || 66.0833).toFixed(4)),
-      lon: String(Number(s.lon || 76.6333).toFixed(4)),
-      radius: String(radiusKm),
-      fid: ident.fisherId,
-      deviceId: ident.deviceId,
-      crewKeys: crewKeyTags,
-      platform: detectClientPlatformLabel(),
-      version: APP_VERSION,
-      locLabel: s.locLabel || ''
-    });
-    const res = await workerFetch(`/api/circle/nearby?${qs.toString()}`, { method: 'GET' }, 4800, 1);
-    if (!res.ok) {
-      _nearbySyncInFlight = false;
-      return false;
-    }
-    const data = await res.json();
-    if (!data || !data.ok || !Array.isArray(data.items)) {
-      _nearbySyncInFlight = false;
-      return false;
-    }
-    const curList = purgeExpiredCircleItems(store.getState().circleItems || []);
-    const serverIds = new Set(data.items.map(x => x.id));
-    const mergedMap = new Map();
-    let prunedCount = 0;
-    const unconfirmedMineToRepublish = [];
-    curList.forEach(it => {
-      if (!it || !it.id) return;
-      if (_explicitlyDeletedLocalIds.has(it.id)) {
-        prunedCount++;
-        return;
-      }
-      const isMine = String(it.fid || '').toUpperCase() === String(ident.fisherId).toUpperCase() && !it.isDemoSeed;
-      const recentPubTs = _recentlyPublishedLocalIds.get(it.id) || it.publishedAt || it.ca || 0;
-      const isProtectedMine = isMine && (it.offlinePending || (now - recentPubTs < 300000));
-      const hasCoords = Number.isFinite(it.lat) && Number.isFinite(it.lon);
-      const dist = hasCoords ? calcGeoDistanceKm(s.lat, s.lon, it.lat, it.lon) : 0;
-      const inRadius = dist <= radiusKm;
-      if (inRadius && !serverIds.has(it.id) && !isProtectedMine) {
-        _explicitlyDeletedLocalIds.add(it.id);
-        prunedCount++;
-        return;
-      }
-      if (isMine && !serverIds.has(it.id) && (it.offlinePending || (now - recentPubTs < 120000))) {
-        unconfirmedMineToRepublish.push(it);
-      }
-      mergedMap.set(it.id, it);
-    });
-    if (unconfirmedMineToRepublish.length > 0 && ident.isRegistered && !ident.isTemporaryReserve) {
-      unconfirmedMineToRepublish.slice(0, 3).forEach(pt => {
-        publishCircleItemToServer(pt, pt.packToken || '').catch(() => {});
-      });
-    }
-    let newExternalCount = 0;
-    for (const srvItem of data.items) {
-      if (!srvItem || !srvItem.id) continue;
-      const itemCopy = { ...srvItem };
-      if (itemCopy.t === 'crew' && !itemCopy.sos && itemCopy.e2eeCrewCipher) {
-        let decryptedCrew = null;
-        for (const candKey of ident.unlockedCrewKeys) {
-          decryptedCrew = await decryptPayloadAesGcm(itemCopy.e2eeCrewCipher, candKey);
-          if (decryptedCrew && Number.isFinite(Number(decryptedCrew.lat))) {
-            itemCopy.lat = Number(decryptedCrew.lat);
-            itemCopy.lon = Number(decryptedCrew.lon);
-            if (decryptedCrew.wn) itemCopy.wn = decryptedCrew.wn;
-            if (decryptedCrew.lb) itemCopy.lb = decryptedCrew.lb;
-            if (decryptedCrew.nt !== undefined) itemCopy.nt = decryptedCrew.nt;
-            if (decryptedCrew.dp !== undefined) itemCopy.dp = Number(decryptedCrew.dp);
-            if (decryptedCrew.bt) itemCopy.bt = decryptedCrew.bt;
-            itemCopy.crewKey = normalizeCrewSecretKey(decryptedCrew.crewKey || candKey) || candKey;
-            break;
-          }
-        }
-        if (!decryptedCrew) continue;
-      }
-      if (itemCopy.t === 'circle' && Number.isFinite(itemCopy.lat) && Number.isFinite(itemCopy.lon) && !Array.isArray(itemCopy.poly)) {
-        const effR = getEffectiveCircleRadiusKm(itemCopy, now);
-        const hex = computeHexPolygonForCircle(itemCopy.lat, itemCopy.lon, effR, itemCopy.id);
-        itemCopy.lat = hex.cellLat;
-        itemCopy.lon = hex.cellLon;
-        itemCopy.poly = hex.vertices;
-      }
-      const existingItem = mergedMap.get(itemCopy.id);
-      if (existingItem && existingItem.did && !itemCopy.did) {
-        itemCopy.did = existingItem.did;
-      }
-      const isMine = isCircleItemMine(itemCopy, s) || (existingItem ? isCircleItemMine(existingItem, s) : false);
-      if (existingItem && existingItem.importedAt !== undefined) {
-        itemCopy.importedAt = isMine ? 0 : existingItem.importedAt;
-      }
-      if (!existingItem) {
-        itemCopy.importedAt = isMine ? 0 : now;
-        if (!isMine) {
-          newExternalCount++;
-          if (itemCopy.sos) {
-            pushAppNotification({
-              category: 'sos',
-              title: `СИГНАЛ SOS НА ВОДЕ (${itemCopy.wn || itemCopy.lb})`,
-              body: `Координаты: ${Number(itemCopy.lat).toFixed(4)}°N, ${Number(itemCopy.lon).toFixed(4)}°E • От ${itemCopy.fid}`,
-              subTab: 'radar',
-              itemId: itemCopy.id || '',
-              lat: itemCopy.lat,
-              lon: itemCopy.lon,
-              silentToast: false
-            });
-          } else if (itemCopy.t === 'crew') {
-            pushAppNotification({
-              category: 'crew',
-              title: `Точка Экипажа (${itemCopy.crewKey || '72ч'})`,
-              body: `${itemCopy.wn || itemCopy.lb}: ${itemCopy.fn} (~${itemCopy.dp} м) • От ${itemCopy.fid}`,
-              subTab: 'radar',
-              lat: itemCopy.lat,
-              lon: itemCopy.lon,
-              silentToast: true
-            });
-          } else if (itemCopy.t === 'circle') {
-            pushAppNotification({
-              category: 'circle',
-              title: `Новая сводка в Круге (${itemCopy.wn || itemCopy.lb})`,
-              body: `${itemCopy.fn} на «${itemCopy.bt || 'по сезону'}» • От ${itemCopy.fid}`,
-              subTab: 'radar',
-              lat: itemCopy.lat,
-              lon: itemCopy.lon,
-              silentToast: true
-            });
-          }
-        }
-      }
-      mergedMap.set(itemCopy.id, itemCopy);
-    }
-    const mergedList = Array.from(mergedMap.values())
-      .sort((a, b) => (b.ca || 0) - (a.ca || 0))
-      .slice(0, 120);
-    if (prunedCount > 0) {
-      _persistRelaySyncState();
-    }
-    if (newExternalCount > 0 || prunedCount > 0 || mergedList.length !== curList.length) {
-      storage.saveCircleItems(mergedList);
-      store.dispatch({ type: 'SET_CIRCLE_ITEMS', payload: mergedList });
-      syncCircleNavBadge();
-    }
-    if (showFeedbackToast) {
-      showToast(
- newExternalCount > 0
- ? ` Радар Круга обновлён: получено ${newExternalCount} новых точек!`
- : ` Радар Круга синхронизирован (активных точек: ${mergedList.length})`,
-        'good'
-      );
-    }
-    _nearbySyncInFlight = false;
-    return true;
-  } catch (e) {
-    _nearbySyncInFlight = false;
-    if (showFeedbackToast) {
-      showToast('Автономный режим радара Круга (показаны сохранённые точки)', 'info');
-    }
-    return false;
-  }
-}
+// syncNearbyCirclePointsFromServer вынесена в ./circle.api.js
 /**
  * Клиентское сквозное шифрование (E2EE) сообщений чата рыбаков и экипажа.
  */
@@ -2495,7 +1631,7 @@ export function buildProfileCloudSnapshot(stateObj = null) {
     favorites: Array.isArray(s.favorites) ? s.favorites.slice(0, 25) : [],
     savedSpots: Array.isArray(s.savedSpots)
       ? s.savedSpots.slice(0, 15).map(sp => {
-          const catKey = (sp.category === 'hole' || sp.category === 'spot') ? 'bite' : (sp.category || 'slip');
+          const catKey = (sp.category === 'hole' || sp.category === 'spot') ? 'bite' : (sp.category === 'hazard' ? 'danger' : (sp.category || 'slip'));
           const hasD = (catKey === 'snag' || catKey === 'bite') && Number(sp.depth) > 0;
           return {
             id: sp.id,
@@ -2527,7 +1663,7 @@ export function applyCloudProfileToDevice(cloudProf, whitelist = null) {
   ]));
   const isCloudOwner = Boolean(
     (cloudProf.ownerUnlocked || isOwnerFisherId(cloudProf.fisherId)) &&
-    (_serverAdminSessionToken || cloudProf.adminSessionToken || prevUp.adminSessionToken || cloudProf.authTokenHash || prevUp.authTokenHash)
+    (getServerAdminSessionToken() || cloudProf.adminSessionToken || prevUp.adminSessionToken || cloudProf.authTokenHash || prevUp.authTokenHash)
   );
   const resolvedFid = isCloudOwner
     ? (String(cloudProf.fisherId || prevUp.fisherId || '').toUpperCase() === OWNER_SECONDARY_FISHER_ID ? OWNER_SECONDARY_FISHER_ID : OWNER_BOUND_FISHER_ID)
@@ -2544,7 +1680,7 @@ export function applyCloudProfileToDevice(cloudProf, whitelist = null) {
       pinHash: cloudProf.pinHash || prevUp.pinHash,
       geminiApiKey: cloudProf.geminiApiKey || prevUp.geminiApiKey || '',
       authTokenHash: cloudProf.authTokenHash || prevUp.authTokenHash,
-      adminSessionToken: isCloudOwner ? (cloudProf.adminSessionToken || _serverAdminSessionToken || prevUp.adminSessionToken || '') : '',
+      adminSessionToken: isCloudOwner ? (cloudProf.adminSessionToken || getServerAdminSessionToken() || prevUp.adminSessionToken || '') : '',
       isBetaTester: (() => {
         const normResFid = String(resolvedFid || '').trim().toUpperCase();
         const remSet = getRemovedBetaTestersSet();
@@ -2596,7 +1732,7 @@ export function applyCloudProfileToDevice(cloudProf, whitelist = null) {
     const spotMap = new Map();
     [...cloudProf.savedSpots, ...curSpots].forEach(sp => {
       if (!sp || !sp.id) return;
-      const catKey = (sp.category === 'hole' || sp.category === 'spot') ? 'bite' : (sp.category || 'slip');
+      const catKey = (sp.category === 'hole' || sp.category === 'spot') ? 'bite' : (sp.category === 'hazard' ? 'danger' : (sp.category || 'slip'));
       const hasD = (catKey === 'snag' || catKey === 'bite') && Number(sp.depth) > 0;
       const prev = spotMap.get(sp.id) || {};
       spotMap.set(sp.id, {
@@ -2749,12 +1885,13 @@ export async function authenticateAndSyncAccount(rawLogin, rawPassword, mode = '
         data.profile.callsign = creds.callsign;
         data.profile.ownerUnlocked = true;
         data.profile.adminShowAllCrews = true;
-        _serverAdminSessionToken = String(data.adminSessionToken || data.sessionToken || '').trim();
-        data.profile.adminSessionToken = _serverAdminSessionToken;
+        setServerAdminSessionToken(String(data.adminSessionToken || data.sessionToken || '').trim());
+        data.profile.adminSessionToken = getServerAdminSessionToken();
         if (_adminDashboardCache) _adminDashboardCache.authRequired = false;
+        setAdminAuthRequired(false);
         saveAdminCredentialsToStorage({
           login: creds.login,
-          adminSessionToken: _serverAdminSessionToken
+          adminSessionToken: getServerAdminSessionToken()
         });
       } else if (data.fisherId) {
         const srvHomeReg = String(data.fisherId).slice(3, 5) || regCode;
@@ -2829,7 +1966,7 @@ export function logoutCurrentFisherAccount() {
   const regCode = resolveRussianRegionCode(s);
   const devId = storage.getDeviceId ? storage.getDeviceId() : 'dev_local';
   const tempFid = formatTempReserveFisherId(regCode, `rz_v21:${devId}:${regCode}`);
-  _serverAdminSessionToken = '';
+  setServerAdminSessionToken('');
   _serverDynamicAdminSlotHtml = '';
   try {
     if (typeof localStorage !== 'undefined') {
@@ -2891,7 +2028,7 @@ export async function syncCurrentProfileToCloudIfLoggedIn() {
           data.profile.sessionToken = data.sessionToken;
         }
         if (data.adminSessionToken) {
-          _serverAdminSessionToken = data.adminSessionToken;
+          setServerAdminSessionToken(data.adminSessionToken);
           data.profile.adminSessionToken = data.adminSessionToken;
         }
         if (typeof data.serverDynamicSlotHtml === 'string') {
@@ -4068,8 +3205,7 @@ function saveOwnSharePackLocally(finalPack, showFeedbackToast = false) {
     return true;
   });
   const updated = [item, ...filtered].slice(0, 80);
-  storage.saveCircleItems(updated);
-  store.dispatch({ type: 'SET_CIRCLE_ITEMS', payload: updated });
+  commitCircleItems(updated, 'publish');
   syncCircleNavBadge();
   syncToTelegramCloud('klev_circle_v2', updated.slice(0, 8));
   if (showFeedbackToast) {
@@ -4092,7 +3228,7 @@ export async function pushEncryptedRelayPacket({ id = '', msgId = '', channelId,
     senderId: ident.fisherId,
     deviceId: ident.deviceId,
     authTokenHash: sNow?.userProfile?.authTokenHash || '',
-    adminToken: _serverAdminSessionToken || sNow?.userProfile?.adminSessionToken || '',
+    adminToken: getServerAdminSessionToken() || sNow?.userProfile?.adminSessionToken || '',
     cipherPayload,
     kind,
     crewKey: String(crewKey || '').toUpperCase(),
@@ -4135,18 +3271,22 @@ export async function pollEncryptedRelayPackets(manual = false) {
       if (!crewBoxes.includes(actCrewBox)) crewBoxes.push(actCrewBox);
     }
     const dmBoxes = [`DM_${ident.fisherId}`];
-    if (ident.isOwner && (_serverAdminSessionToken || s.userProfile?.adminSessionToken)) {
+    if (ident.isOwner && (getServerAdminSessionToken() || s.userProfile?.adminSessionToken)) {
       dmBoxes.push(`DM_${OWNER_BOUND_FISHER_ID}`, `DM_${OWNER_SECONDARY_FISHER_ID}`);
     }
     const boxes = Array.from(new Set([...dmBoxes, gridKey, 'SOS_ALL', ...crewBoxes])).slice(0, 24);
     const authTokHdr = String(s.userProfile?.authTokenHash || '').trim();
-    const admTokHdr = String(_serverAdminSessionToken || s.userProfile?.adminSessionToken || '').trim();
-    const devIdParam = encodeURIComponent(ident.deviceId || '');
-    const pullHeaders = {};
-    if (authTokHdr) pullHeaders['X-Auth-Token'] = authTokHdr;
-    if (admTokHdr) pullHeaders['X-Admin-Token'] = admTokHdr;
-    const url = `${RELAY_WORKER_URL}/relay/pull?boxes=${encodeURIComponent(boxes.join(','))}&since=${lastRelayPullTs}&viewer=${encodeURIComponent(ident.fisherId)}&deviceId=${devIdParam}`;
-    const res = await workerFetch(url, { method: 'GET', headers: pullHeaders }, 4500, 0);
+    const admTokHdr = String(getServerAdminSessionToken() || s.userProfile?.adminSessionToken || '').trim();
+    const res = await pullRelayPackets({
+      boxes,
+      since: lastRelayPullTs,
+      viewer: ident.fisherId,
+      deviceId: ident.deviceId || '',
+      authToken: authTokHdr,
+      adminToken: admTokHdr,
+      timeoutMs: 4500,
+      retries: 0
+    });
     if (!res.ok) {
       if (manual) showToast('Локальный режим чатов активен (транзитный ретранслятор офлайн)', 'info');
       return 0;
@@ -4177,8 +3317,7 @@ export async function pollEncryptedRelayPackets(manual = false) {
           const curItems = store.getState().circleItems || [];
           if (curItems.some(x => x && x.id === delTargetId)) {
             const filtered = curItems.filter(x => x && x.id !== delTargetId);
-            storage.saveCircleItems(filtered);
-            store.dispatch({ type: 'SET_CIRCLE_ITEMS', payload: filtered });
+            commitCircleItems(filtered, 'relay_delete');
             syncCircleNavBadge();
           }
         }
@@ -4450,17 +3589,17 @@ export function openShareCatchToChatModal(preselectedCatch = null) {
         <label style="display:block;font-weight:800;font-size:var(--fs-xs);color:var(--muted);margin-bottom:4px;">1. ВЫБЕРИТЕ УЛОВ ДЛЯ ОТПРАВКИ:</label>
         <select id="scCatchSelect" style="width:100%;">
           ${preselectedCatch ? `
-            <option value="${preselectedCatch.id}" selected>
- ${preselectedCatch.fishName} ${preselectedCatch.weightKg ? `• ${preselectedCatch.weightKg} кг` : ''} (${preselectedCatch.dateLabel || 'Сегодня'}, ${preselectedCatch.locLabel || s.locLabel})
+            <option value="${escapeHtml(preselectedCatch.id)}" selected>
+ ${escapeHtml(preselectedCatch.fishName)} ${preselectedCatch.weightKg ? `• ${escapeHtml(preselectedCatch.weightKg)} кг` : ''} (${escapeHtml(preselectedCatch.dateLabel || 'Сегодня')}, ${escapeHtml(preselectedCatch.locLabel || s.locLabel)})
  </option>
           ` : ''}
           ${catches.filter(c => !preselectedCatch || c.id !== preselectedCatch.id).map(c => `
-            <option value="${c.id}">
- ${c.fishName} ${c.weightKg ? `• ${c.weightKg} кг` : ''} (${c.dateLabel || c.date}, ${c.locLabel || s.locLabel})
+            <option value="${escapeHtml(c.id)}">
+ ${escapeHtml(c.fishName)} ${c.weightKg ? `• ${escapeHtml(c.weightKg)} кг` : ''} (${escapeHtml(c.dateLabel || c.date)}, ${escapeHtml(c.locLabel || s.locLabel)})
  </option>
           `).join('')}
           <option value="__current_spot__" ${(!preselectedCatch && catches.length === 0) ? 'selected' : ''}>
- Текущая рыба и точка с экрана (${(FISH_DB.find(f => f.id === s.fishId) || FISH_DB[0]).name} • ${s.locLabel})
+ Текущая рыба и точка с экрана (${escapeHtml((FISH_DB.find(f => f.id === s.fishId) || FISH_DB[0]).name)} • ${escapeHtml(s.locLabel)})
  </option>
         </select>
       </div>
@@ -4468,7 +3607,7 @@ export function openShareCatchToChatModal(preselectedCatch = null) {
         <label style="display:block;font-weight:800;font-size:var(--fs-xs);color:var(--muted);margin-bottom:4px;">2. КУДА ОТПРАВИТЬ (ЭКИПАЖ ИЛИ ЛИЧНЫЙ ЧАТ ПО ID):</label>
         <select id="scChannelSelect" style="width:100%;">
           ${channels.map(ch => `
-            <option value="${ch.channelId}" ${ch.channelId === defaultChanId ? 'selected' : ''}>${String(ch.label || '').replace(/<[^>]+>/g, '').trim()}</option>
+            <option value="${escapeHtml(ch.channelId)}" ${ch.channelId === defaultChanId ? 'selected' : ''}>${escapeHtml(String(ch.label || '').replace(/<[^>]+>/g, '').trim())}</option>
           `).join('')}
           <option value="__new_dm__"> Ввести ID рыбака (FP_89AAA001) для личного чата...</option>
         </select>
@@ -4624,7 +3763,7 @@ export async function importSharePackToken(rawInput, silent = false, unlockCrewO
   const existing = purgeExpiredCircleItems(s.circleItems || []);
   const isNewItem = !existing.some(x => x.id === decoded.id);
   const filtered = existing.filter(x => x.id !== decoded.id);
-  const isMine = String(decoded.fid || '').toUpperCase() === String(ident.fisherId).toUpperCase() && !decoded.isDemoSeed;
+  const isMine = isCircleItemMine(decoded, s) && !decoded.isDemoSeed;
   if (isMine && decoded.id) {
     _recentlyPublishedLocalIds.set(decoded.id, now);
     _explicitlyDeletedLocalIds.delete(decoded.id);
@@ -4636,8 +3775,7 @@ export async function importSharePackToken(rawInput, silent = false, unlockCrewO
     publishedAt: isMine ? now : 0,
     importedAt: isMine ? 0 : now
   }, ...filtered].slice(0, 80);
-  storage.saveCircleItems(updated);
-  store.dispatch({ type: 'SET_CIRCLE_ITEMS', payload: updated });
+  commitCircleItems(updated, 'publish');
   syncToTelegramCloud('klev_circle_v2', updated.slice(0, 8));
   const isExternal = !isMine || decoded.isDemoSeed;
   if (isNewItem && isExternal) {
@@ -4765,7 +3903,7 @@ export function openAddThematicMapPointModal(initialCat = 'slip') {
   const s = store.getState();
   const ident = getCurrentFisherIdentity(s);
   const wTitle = s.selectedWaterName || WATER_PROFILES[s.water]?.shortName || s.locLabel || 'Водоём';
-  const normalizedInitCat = (initialCat === 'hole' || initialCat === 'spot') ? 'bite' : initialCat;
+  const normalizedInitCat = (initialCat === 'hole' || initialCat === 'spot') ? 'bite' : (initialCat === 'hazard' ? 'danger' : (initialCat || 'slip'));
   let chosenCat = SPOT_CATEGORIES[normalizedInitCat] ? normalizedInitCat : 'slip';
   let chosenScope = ident.isRegistered ? 'shared' : 'private';
 
@@ -5077,8 +4215,7 @@ export function openAddThematicMapPointModal(initialCat = 'slip') {
           return true;
         });
         const updated = [circleSpotItem, ...filteredExisting].slice(0, 80);
-        storage.saveCircleItems(updated);
-        store.dispatch({ type: 'SET_CIRCLE_ITEMS', payload: updated });
+        commitCircleItems(updated, 'import_pack');
         // Удаляем дубликат из личных закладок на тех же координатах, чтобы счётчик точек не задваивался
         try {
           const curSaved = await storage.getAllFromStore('spots');
@@ -5207,7 +4344,7 @@ export function openShareModalForCurrentContext(initialMode = 'circle', override
             <span>Координаты упакованы (откроются в 1 клик)</span>
             <span class="pill pill-good" style="font-size:10px;padding:1px 7px;">Готово</span>
           </div>
-          <div style="white-space:pre-line;" id="sharePreviewBox">${pack.summaryText}</div>
+          <div style="white-space:pre-line;" id="sharePreviewBox">${escapeHtml(pack.summaryText)}</div>
         </div>
         <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;margin-bottom:14px;width:100%;box-sizing:border-box;">
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;">
@@ -5708,8 +4845,7 @@ export async function revokeGeoDistributionConsentAndPurge(onDone = null) {
       setGeoDistributionConsentState(false);
       const curItems = store.getState().circleItems || [];
       const remainingItems = curItems.filter(it => !(it && (it.fid === ident.fisherId || it.did === ident.deviceId)));
-      storage.saveCircleItems(remainingItems);
-      store.dispatch({ type: 'SET_CIRCLE_ITEMS', payload: remainingItems });
+      commitCircleItems(remainingItems, 'consent_revoke');
       const curMsgs = store.getState().chatMessages || [];
       const remainingMsgs = curMsgs.filter(m => !(m && m.senderId === ident.fisherId && /Координаты:|МОЁ МЕСТОПОЛОЖЕНИЕ:|KP1_/i.test(String(m.text || ''))));
       storage.saveChatMessages(remainingMsgs);
@@ -5759,8 +4895,7 @@ export function openDeleteUserAccountConfirmModal(onDone = null) {
       } catch (e) {}
       setGeoDistributionConsentState(false);
       const remCircle = (store.getState().circleItems || []).filter(it => !(it && (it.fid === ident.fisherId || it.did === ident.deviceId)));
-      storage.saveCircleItems(remCircle);
-      store.dispatch({ type: 'SET_CIRCLE_ITEMS', payload: remCircle });
+      commitCircleItems(remCircle, 'account_delete');
       const remChats = (store.getState().chatMessages || []).filter(m => !(m && (m.senderId === ident.fisherId || m.peerId === ident.fisherId)));
       storage.saveChatMessages(remChats);
       store.dispatch({ type: 'SET_CHAT_MESSAGES', payload: remChats });
@@ -6265,253 +5400,7 @@ function formatRemainingHours(expiresAt) {
 /**
  * Отрисовка выделенной вкладки « Чаты» (Экипажи по ключу + Личные диалоги 1-на-1)
  */
-export function formatCleanPeerTitle(peerNameRaw = '', peerIdRaw = '') {
-  const cleanName = String(peerNameRaw || '').replace(/<svg[\s\S]*?<\/svg>/gi, '').replace(/<[^>]+>/g, '').trim();
-  const pid = String(peerIdRaw || '').trim().toUpperCase();
-  if (pid === OWNER_BOUND_FISHER_ID || pid === OWNER_SECONDARY_FISHER_ID) {
-    return isAdminContourActive() ? 'Владелец («Клёв ПРО»)' : 'Поддержка («Клёв ПРО»)';
-  }
-  if (!cleanName || cleanName.toUpperCase() === pid || /^FP_[A-Z0-9_]+$/i.test(cleanName) || /^Рыбак\s+FP_/i.test(cleanName) || cleanName === 'Рыболов') {
-    if (pid && _adminDashboardCache && Array.isArray(_adminDashboardCache.users)) {
-      const u = _adminDashboardCache.users.find(x => x && String(x.fisherId || '').toUpperCase() === pid);
-      if (u && (u.login || u.callsign)) {
-        return escapeHtml(`${u.login || u.callsign} (${pid})`);
-      }
-    }
-    return pid && isAdminContourActive() ? escapeHtml(`Рыболов (${pid})`) : 'Рыболов';
-  }
-  if (isAdminContourActive() && pid && !cleanName.includes(pid)) {
-    return escapeHtml(`${cleanName} (${pid})`);
-  }
-  return escapeHtml(cleanName);
-}
-/**
- * Отрисовка выделенной вкладки « Чаты»:
- * - Вертикальный список чатов сверху вниз (вместо горизонтальной карусели)
- * - Открытие каждого чата в отдельном полноэкранном окне
- * - Компактная кнопка « Гео» (поделиться местоположением) внутри окна чата
- * - Корректное удаление всех чатов (включая последний) с подтверждением
- */
-export function renderChatsSubView(s, ident, visibleCrews) {
-  const allMsgs = Array.isArray(s.chatMessages) ? s.chatMessages : [];
-  const deletedSet = new Set(Array.isArray(s.userProfile?.deletedChatChannels) ? s.userProfile.deletedChatChannels : []);
-  const crewKeysSet = new Set([
-    ...ident.unlockedCrewKeys.map(k => String(k).toUpperCase()),
-    ...visibleCrews.map(c => String(c.crewKey || '').toUpperCase()).filter(Boolean)
-  ]);
-  const crewChannels = [];
-  for (const k of crewKeysSet) {
-    const chanId = `crew:${k}`;
-    const chanMsgs = allMsgs.filter(m => m && m.channelId === chanId);
-    if (deletedSet.has(chanId) && chanMsgs.length === 0) continue;
-    const matchingCrew = visibleCrews.find(c => String(c.crewKey || '').toUpperCase() === k);
-    const lastMsg = chanMsgs.length > 0 ? chanMsgs[chanMsgs.length - 1] : null;
-    crewChannels.push({
-      channelId: chanId,
-      type: 'crew',
-      crewKey: k,
-      title: k.startsWith('REG-') ? `Региональный чат РФ (Регион ${escapeHtml(k.replace('REG-', ''))})` : `Экипаж ${escapeHtml(k)}${matchingCrew ? ` • ${escapeHtml(matchingCrew.wn || matchingCrew.lb)}` : ''}`,
-      subtitle: lastMsg ? `${String(lastMsg.senderName || 'Рыболов').replace(/<[^>]+>/g, '').trim()}: ${String(lastMsg.text || '').replace(/<svg[\s\S]*?<\/svg>/gi, '').replace(/<[^>]+>/g, '').trim().slice(0, 55)}` : '',
-      lastTs: lastMsg?.ts || matchingCrew?.ca || 0
-    });
-  }
-  const dmChannelsMap = new Map();
-  for (const m of allMsgs) {
-    if (!m || !String(m.channelId || '').startsWith('dm:')) continue;
-    const rawPeerId = m.senderId === ident.fisherId
-      ? (m.peerId || m.channelId.replace(/^dm:/, '').split(':').find(p => p !== ident.fisherId) || OWNER_BOUND_FISHER_ID)
-      : (m.senderId || m.peerId || OWNER_BOUND_FISHER_ID);
-    const peerId = isOwnerFisherId(rawPeerId) || rawPeerId === 'ADMIN_SUPPORT' ? OWNER_BOUND_FISHER_ID : rawPeerId;
-    const canonicalChanId = getCanonicalDmChannelId(ident.fisherId, peerId, allMsgs);
-    if (deletedSet.has(canonicalChanId)) continue;
-    const rawPeerName = m.senderId === ident.fisherId ? (m.peerName || '') : (m.senderName || m.peerName || '');
-    const cleanTitle = formatCleanPeerTitle(rawPeerName, peerId);
-    const existingChan = dmChannelsMap.get(canonicalChanId);
-    if (!existingChan) {
-      dmChannelsMap.set(canonicalChanId, {
-        channelId: canonicalChanId,
-        type: 'dm',
-        peerId,
-        peerName: cleanTitle,
-        title: `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> ${cleanTitle}`,
-        subtitle: `${m.senderId === ident.fisherId ? 'Вы' : String(cleanTitle).replace(/<[^>]+>/g, '').trim()}: ${String(m.text || '').replace(/<svg[\s\S]*?<\/svg>/gi, '').replace(/<[^>]+>/g, '').trim().slice(0, 55)}`,
-        lastTs: m.ts || 0
-      });
-    } else {
-      if (cleanTitle !== 'Рыболов' && existingChan.peerName === 'Рыболов') {
-        existingChan.peerName = cleanTitle;
-        existingChan.title = cleanTitle;
-      }
-      if ((m.ts || 0) >= existingChan.lastTs) {
-        existingChan.subtitle = `${m.senderId === ident.fisherId ? 'Вы' : String(existingChan.peerName).replace(/<[^>]+>/g, '').trim()}: ${String(m.text || '').replace(/<svg[\s\S]*?<\/svg>/gi, '').replace(/<[^>]+>/g, '').trim().slice(0, 55)}`;
-        existingChan.lastTs = m.ts || 0;
-      }
-    }
-  }
-  if (activeChatChannelId && activeChatChannelId.startsWith('dm:') && !dmChannelsMap.has(activeChatChannelId)) {
-    const parts = activeChatChannelId.replace(/^dm:/, '').split(':');
-    const peerId = parts.find(p => p && p.toUpperCase() !== ident.fisherId) || parts[0] || OWNER_BOUND_FISHER_ID;
-    const cleanTitle = formatCleanPeerTitle('', peerId);
-    dmChannelsMap.set(activeChatChannelId, {
-      channelId: activeChatChannelId,
-      type: 'dm',
-      peerId,
-      peerName: cleanTitle,
-      title: `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> ${cleanTitle}`,
-      subtitle: 'Новый личный диалог',
-      lastTs: Date.now()
-    });
-  } else if (activeChatChannelId && activeChatChannelId.startsWith('crew:') && !crewChannels.some(c => c.channelId === activeChatChannelId)) {
-    const k = activeChatChannelId.replace(/^crew:/, '').toUpperCase();
-    crewChannels.unshift({
-      channelId: activeChatChannelId,
-      type: 'crew',
-      crewKey: k,
-      title: k.startsWith('REG-') ? `Региональный чат РФ (Регион ${escapeHtml(k.replace('REG-', ''))})` : `Экипаж ${escapeHtml(k)}`,
-      subtitle: 'Чат участников канала',
-      lastTs: Date.now()
-    });
-  }
-  const dmChannels = Array.from(dmChannelsMap.values()).sort((a, b) => (b.lastTs || 0) - (a.lastTs || 0));
-  const allChannels = [...crewChannels, ...dmChannels];
-  const activeChan = activeChatChannelId
-    ? (allChannels.find(c => c.channelId === activeChatChannelId) || null)
-    : null;
-  if (!activeChan) {
-    activeChatChannelId = '';
-    isFullScreenChatOpen = false;
-  }
-  if (isFullScreenChatOpen && activeChan && allMsgs.some(m => m && m.channelId === activeChan.channelId && m.unread)) {
-    const marked = allMsgs.map(m => (m && m.channelId === activeChan.channelId ? { ...m, unread: false } : m));
-    storage.saveChatMessages(marked);
-    store.dispatch({ type: 'SET_CHAT_MESSAGES', payload: marked });
-    syncCircleNavBadge();
-  }
-  const activeMsgs = activeChan
-    ? allMsgs.filter(m => m && (m.channelId === activeChan.channelId || (activeChan.type === 'dm' && getCanonicalDmChannelId(ident.fisherId, m.senderId === ident.fisherId ? m.peerId : m.senderId, allMsgs) === activeChan.channelId)))
-    : [];
-  return `
-    <div style="display:flex;flex-direction:column;gap:10px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;padding:9px 12px;background:var(--card);border:1px solid ${ident.isRegistered ? 'var(--border)' : 'var(--warn)'};border-radius:var(--r-sm);">
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-          <span style="font-size:var(--fs-xs);color:${ident.isRegistered ? 'var(--good)' : 'var(--warn)'};font-weight:800;">
-            ${ident.isRegistered ? `Профиль: ${escapeHtml(ident.callsign)}` : 'Гостевой режим (для отправки сообщений войдите в профиль)'}
-          </span>
-        </div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;">
-          <button type="button" class="btn btn-sm btn-accent" id="chatAddThematicSpotBtn" title="Добавить слип или точку на карту">
-            <svg class="k-svg" style="width:15px;height:15px;"><use href="#point-slip"></use></svg>
-            <span>Добавить слип</span>
-          </button>
-          <button type="button" class="btn btn-sm" data-hub-switch="spots" title="Открыть список слипов и точек">
-            <span>Слипы</span>
-          </button>
-          ${!ident.isRegistered
-            ? `<button type="button" class="btn btn-sm btn-accent" id="chatOpenAuthBtn">Войти / Регистрация</button>`
-            : `<button type="button" class="btn btn-sm btn-good" id="chatShareCatchTopBtn">Поделиться уловом</button>`}
-        </div>
-      </div>
-      <!-- Пункт 20 Дорожной карты v2.5.0: Общие региональные чаты рыбаков РФ (раскрывающийся список с поиском по коду и названию региона) -->
-      ${(() => {
-        const curRegCode = resolveRussianRegionCode(s);
-        const curRegName = getRegionNameByCode(curRegCode);
-        const sortedRegions = [...RUSSIA_REGIONS_DIRECTORY].sort((a, b) => (a.code === curRegCode ? -1 : (b.code === curRegCode ? 1 : a.code.localeCompare(b.code))));
-        return `
-      <div class="bento-card" style="padding:10px 12px;border:1.5px solid var(--accent);display:flex;flex-direction:column;gap:8px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
-          <div>
-            <div style="font-weight:900;font-size:13.5px;color:var(--text);">Общие региональные чаты рыбаков РФ</div>
-            
-          </div>
-          <button type="button" class="btn btn-sm btn-good" data-open-regional-chat="REG-${curRegCode}" style="min-height:34px;font-weight:900;">
-            Чат моего региона (${curRegCode})
-          </button>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr;gap:6px;">
-          <input type="search" id="regChatFilterInput" class="input" placeholder="Фильтр по коду или названию региона (напр. 89, ЯНАО, Астрахань, Карелия)..." style="min-height:36px;width:100%;">
-          <div style="display:flex;gap:6px;align-items:center;">
-            <select id="regChatSelectDropdown" class="input" style="flex:1;min-height:38px;font-weight:800;">
-              ${sortedRegions.map(r => `<option value="REG-${r.code}" ${r.code === curRegCode ? 'selected' : ''}>${r.code} • ${escapeHtml(r.name)}</option>`).join('')}
-            </select>
-            <button type="button" class="btn btn-sm btn-accent" id="regChatOpenSelectedBtn" style="min-height:38px;padding:0 14px;font-weight:900;flex-shrink:0;">
-              Открыть чат
-            </button>
-          </div>
-        </div>
-      </div>`;
-      })()}
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:8px;">
-        <div class="card" style="background:var(--card);padding:8px 10px;border:1px solid var(--border);">
-          <div style="font-weight:800;font-size:11px;color:var(--accent);margin-bottom:4px;">ЧАТ ЭКИПАЖА ПО КЛЮЧУ (KP-XXXX):</div>
-          <div style="display:flex;gap:6px;">
-            <input type="text" id="chatJoinCrewKeyInput" class="input" placeholder="Напр. KP-7A3F" style="flex:1;min-height:34px;text-transform:uppercase;">
-            <button type="button" class="btn btn-sm btn-accent" id="chatJoinCrewKeyBtn" style="min-height:34px;">Открыть</button>
-          </div>
-        </div>
-        <div class="card" style="background:var(--card);padding:8px 10px;border:1px solid var(--border);display:flex;flex-direction:column;gap:6px;">
-          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
-            <div style="font-weight:800;font-size:11px;color:var(--good);">ЛИЧНЫЙ ДИАЛОГ С РЫБАКОМ:</div>
-            ${isAdminContourActive()
-              ? `<span class="pill pill-good" style="font-size:9.5px;">Режим Ответа Супер-Админа</span>`
-              : `<button type="button" class="btn btn-sm" id="chatWriteAdminBtn" style="min-height:28px;padding:2px 8px;font-size:11px;border-color:var(--good);color:var(--good);font-weight:800;">Написать Админу</button>`}
-          </div>
-          ${isAdminContourActive() && Array.isArray(_adminDashboardCache?.users) && _adminDashboardCache.users.length > 0 ? `
-            <div style="display:flex;gap:6px;">
-              <select id="chatAdminPickUserSelect" class="input" style="flex:1;min-height:36px;font-size:12px;font-weight:800;">
-                <option value="">— Выбрать рыбака из базы D1 (${_adminDashboardCache.users.filter(u => u && !isOwnerFisherId(u.fisherId)).length} чел.) —</option>
-                ${_adminDashboardCache.users.filter(u => u && !isOwnerFisherId(u.fisherId)).map(u => `<option value="${escapeHtml(u.fisherId)}|${escapeHtml(u.login || u.callsign || 'Рыболов')}">${escapeHtml(u.fisherId)} — ${escapeHtml(u.login || u.callsign || 'Гость')} ([${escapeHtml(u.regionCode || '89')}] ${escapeHtml(u.locLabel || '')})</option>`).join('')}
-              </select>
-              <button type="button" class="btn btn-sm btn-accent" id="chatAdminOpenPickedUserBtn" style="min-height:36px;font-weight:900;flex-shrink:0;">Открыть чат</button>
-            </div>
-          ` : ''}
-          <div style="display:flex;gap:6px;">
-            <input type="text" id="chatStartDmIdInput" class="input" placeholder="Введите логин или ID собеседника (напр. FP_89AAA014)" style="flex:1;min-height:34px;">
-            <button type="button" class="btn btn-sm btn-good" id="chatStartDmBtn" style="min-height:34px;font-weight:800;">Написать</button>
-          </div>
-        </div>
-      </div>
-      <!-- Вертикальный список чатов сверху вниз -->
-      <div style="display:flex;flex-direction:column;gap:8px;">
-        <div style="font-weight:800;font-size:var(--fs-xs);color:var(--muted);">
-          ВАШИ ДИАЛОГИ И ЧАТЫ ЭКИПАЖЕЙ (${allChannels.length}):
-        </div>
-        ${allChannels.length === 0 ? `
-          <div style="padding:18px 14px;background:var(--card);border:1px dashed var(--border);border-radius:var(--r-sm);font-size:var(--fs-xs);color:var(--muted);text-align:center;">
-            Активных чатов сейчас нет. Введите ключ экипажа <code>KP-XXXX</code> или логин напарника выше, чтобы начать общение.
-          </div>
-        ` : allChannels.map(ch => {
-          const unreadCnt = allMsgs.filter(m => m && m.channelId === ch.channelId && m.unread).length;
-          const timeLbl = ch.lastTs ? new Date(ch.lastTs).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : '';
-          const plainTitle = String(ch.title || '').replace(/<svg[\s\S]*?<\/svg>/gi, '').replace(/<[^>]+>/g, '').replace(/"/g, '').trim();
-          return `
-            <div class="card" style="background:var(--card);padding:10px 12px;border:1px solid ${unreadCnt > 0 ? 'var(--accent)' : 'var(--border)'};display:flex;flex-direction:column;gap:8px;cursor:pointer;" data-select-chat-chan="${escapeHtml(ch.channelId)}">
-              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;width:100%;">
-                <div style="min-width:0;flex:1;">
-                  <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-                    <span style="font-weight:800;font-size:var(--fs-sm);color:var(--text);word-break:break-word;">${ch.title}</span>
-                    ${unreadCnt > 0 ? `<span class="pill pill-bad" style="font-size:10px;padding:1px 6px;">+${unreadCnt} новых</span>` : ''}
-                  </div>
-                  <div style="font-size:11.5px;color:var(--muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-                    ${escapeHtml(ch.subtitle || 'Нажмите, чтобы открыть окно чата')}
-                  </div>
-                </div>
-                ${timeLbl ? `<span style="font-size:10.5px;color:var(--muted);flex-shrink:0;">${timeLbl}</span>` : ''}
-              </div>
-              <div style="display:grid;grid-template-columns:1fr auto;gap:8px;width:100%;align-items:center;">
-                <button type="button" class="btn btn-sm btn-accent" data-select-chat-chan="${escapeHtml(ch.channelId)}" style="min-height:34px;padding:4px 12px;font-size:12px;font-weight:800;width:100%;justify-content:center;">
-                  Открыть диалог
-                </button>
-                <button type="button" class="btn btn-sm" data-del-chat-chan="${escapeHtml(ch.channelId)}" data-del-chat-title="${escapeHtml(plainTitle)}" title="Удалить чат" style="min-height:34px;padding:4px 12px;font-size:11.5px;color:var(--bad);border-color:rgba(239,68,68,0.4);">
-                  Удалить
-                </button>
-              </div>
-            </div>
-          `;
-        }).join('')}
-      </div>
-    </div>
-  `;
-}
+// formatCleanPeerTitle и renderChatsSubView вынесены в ./circle.chat.js
 function renderCompactCircleRow(item, s, ident, now) {
   const mine = isCircleItemMine(item, s);
   const hidden = isCircleItemHidden(item, s);
@@ -6562,7 +5451,7 @@ function renderCompactCircleRow(item, s, ident, now) {
   }
   const ownerPill = mine
     ? `<span class="pill pill-good" style="font-size:10px;padding:1px 6px;">Моё</span>`
-    : `<span class="pill pill-neutral" style="font-size:10px;padding:1px 6px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" stroke="currentColor" stroke-width="1.6"/></svg> ${escapeHtml(authorDisplay)}</span>`;
+    : `<span class="pill pill-neutral" style="font-size:10px;padding:1px 6px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" stroke="currentColor" stroke-width="1.6"/></svg> ${authorDisplay}</span>`;
   const cKey = item.t === 'crew' && !item.sos ? (item.crewKey || formatCrewKeyFromHash(computeCrewKeyHash(item.id))) : '';
   const canApplyRig = !item.sos && item.t !== 'spot' && Boolean(item.t === 'workshop' || (item.fi && FISH_DB.some(f => f.id === item.fi)));
   return `
@@ -6577,7 +5466,7 @@ function renderCompactCircleRow(item, s, ident, now) {
         <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;flex-wrap:wrap;">
           ${item.t !== 'workshop' ? `<button type="button" class="btn btn-sm" data-goto-circle="${escapeHtml(item.id)}" title="Показать на карте" style="min-height:28px;padding:2px 7px;font-size:11px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3V6z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 3v15M15 6v15" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="10" r="2.2" fill="#38bdf8" stroke="#fff" stroke-width="1"/></svg></button><button type="button" class="btn btn-sm btn-good" data-route-circle="${escapeHtml(item.id)}" title="Маршрут до точки" style="min-height:28px;padding:2px 7px;font-size:11px;font-weight:800;">Маршрут</button>` : ''}
           ${canApplyRig ? `<button type="button" class="btn btn-sm btn-good" data-apply-workshop="${escapeHtml(item.id)}" title="Повторить снасть: применить рыбу, метод, глубину и приманку в прогнозе" style="min-height:28px;padding:2px 7px;font-size:11px;">Снасть</button>` : ''}
-          ${cKey ? `<button type="button" class="btn btn-sm btn-accent" data-open-crew-chat="${escapeHtml(cKey)}" title="Открыть чат экипажа" style="min-height:26px;padding:2px 7px;font-size:11px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></button>` : (!mine ? `<button type="button" class="btn btn-sm" data-open-dm="${escapeHtml(itemFid)}" data-open-dm-name="${escapeHtml(authorDisplay)}" title="Написать рыбаку" style="min-height:26px;padding:2px 7px;font-size:11px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></button>` : '')}
+          ${cKey ? `<button type="button" class="btn btn-sm btn-accent" data-open-crew-chat="${escapeHtml(cKey)}" title="Открыть чат экипажа" style="min-height:26px;padding:2px 7px;font-size:11px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></button>` : (!mine ? `<button type="button" class="btn btn-sm" data-open-dm="${escapeHtml(itemFid)}" data-open-dm-name="${authorDisplay}" title="Написать рыбаку" style="min-height:26px;padding:2px 7px;font-size:11px;"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></button>` : '')}
           ${(mine || (ident.isOwner && isAdminContourActive())) ? `
             <button type="button" class="btn btn-sm" data-del-my-circle="${escapeHtml(item.id)}" title="Удалить запись" style="min-height:26px;padding:2px 7px;font-size:11px;color:var(--bad);border-color:rgba(239,68,68,0.4);"><svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
           ` : ''}
@@ -6594,7 +5483,7 @@ function renderCompactCircleRow(item, s, ident, now) {
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:6px;margin:2px 0;">
               <div><b>Точные координаты:</b> <span style="font-family:monospace;font-weight:900;">${Number(item.lat).toFixed(4)}°N, ${Number(item.lon).toFixed(4)}°E</span></div>
               <div><b>Ориентир / Водоём:</b> ${escapeHtml(item.wn || item.lb || 'Водоём')}</div>
-              <div><b>Отправитель:</b> ${escapeHtml(String(authorDisplay).replace(/<[^>]+>/g, '').trim())} (${escapeHtml(itemFid)})</div>
+              <div><b>Отправитель:</b> ${authorDisplay} (${escapeHtml(itemFid)})</div>
             </div>
           ` : (item.t === 'spot' ? `
             <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px;">
@@ -6606,7 +5495,7 @@ function renderCompactCircleRow(item, s, ident, now) {
               ${Number.isFinite(Number(item.lat)) && Number.isFinite(Number(item.lon)) ? `<div><b>Координаты:</b> <span style="font-family:monospace;font-weight:800;">${Number(item.lat).toFixed(4)}°N, ${Number(item.lon).toFixed(4)}°E</span></div>` : ''}
               ${(item.cat === 'snag' || item.cat === 'bite' || item.cat === 'hole') && Number(item.dp) > 0 ? `<div><b>Глубина:</b> ~${Number(item.dp)} м</div>` : ''}
               ${item.cat === 'slip' && Number(item.clipMeters) > 0 ? `<div><b>Дистанция / Клипса:</b> ${Number(item.clipMeters)} м</div>` : ''}
-              <div><b>Автор:</b> ${escapeHtml(String(authorDisplay).replace(/<[^>]+>/g, '').trim())}</div>
+              <div><b>Автор:</b> ${authorDisplay}</div>
             </div>
           ` : `
             <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px;">
@@ -6621,7 +5510,7 @@ function renderCompactCircleRow(item, s, ident, now) {
               <div><b>Ветер:</b> ${item.ws ?? 4} м/с</div>
               <div><b>Насадка:</b> ${escapeHtml(item.bt || 'мотыль / блесна')}</div>
               <div><b>Снасть:</b> ${escapeHtml(item.rw || item.rg || 'по сезону')}</div>
-              <div><b>Автор:</b> ${escapeHtml(String(authorDisplay).replace(/<[^>]+>/g, '').trim())}</div>
+              <div><b>Автор:</b> ${authorDisplay}</div>
             </div>
           `)}
           ${cKey ? `<div style="color:var(--good);font-weight:800;">Ключ закрытого экипажа: <code>${escapeHtml(cKey)}</code></div>` : ''}
@@ -6629,7 +5518,7 @@ function renderCompactCircleRow(item, s, ident, now) {
           <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;">
             ${item.t !== 'workshop' ? `<button type="button" class="btn btn-sm btn-accent" data-goto-circle="${escapeHtml(item.id)}" style="padding:4px 10px;font-size:11.5px;">Показать на карте</button><button type="button" class="btn btn-sm btn-good" data-route-circle="${escapeHtml(item.id)}" style="padding:4px 10px;font-size:11.5px;">Маршрут до точки</button>` : ''}
             ${canApplyRig ? `<button type="button" class="btn btn-sm btn-good" data-apply-workshop="${escapeHtml(item.id)}" style="padding:4px 10px;font-size:11.5px;">Применить снасть</button>` : ''}
-            ${cKey ? `<button type="button" class="btn btn-sm btn-good" data-open-crew-chat="${escapeHtml(cKey)}" style="padding:4px 10px;font-size:11.5px;">Чат экипажа (${escapeHtml(cKey)})</button>` : (!mine ? `<button type="button" class="btn btn-sm" data-open-dm="${escapeHtml(itemFid)}" data-open-dm-name="${escapeHtml(authorDisplay)}" style="padding:4px 10px;font-size:11.5px;">Написать в ЛС</button>` : '')}
+            ${cKey ? `<button type="button" class="btn btn-sm btn-good" data-open-crew-chat="${escapeHtml(cKey)}" style="padding:4px 10px;font-size:11.5px;">Чат экипажа (${escapeHtml(cKey)})</button>` : (!mine ? `<button type="button" class="btn btn-sm" data-open-dm="${escapeHtml(itemFid)}" data-open-dm-name="${authorDisplay}" style="padding:4px 10px;font-size:11.5px;">Написать в ЛС</button>` : '')}
             ${(mine || (ident.isOwner && isAdminContourActive())) ? `<button type="button" class="btn btn-sm" data-del-my-circle="${escapeHtml(item.id)}" style="padding:4px 10px;font-size:11.5px;color:var(--bad);border-color:rgba(239,68,68,0.4);">Удалить</button>` : ''}
           </div>
         </div>
@@ -6725,7 +5614,7 @@ function handleHubSwitchAction(target, fallbackContainer = null) {
   }
 }
 
-function bindCircleChatsHubBarEvents(container) {
+export function bindCircleChatsHubBarEvents(container) {
   if (!container) return;
   container.querySelectorAll('[data-hub-switch]').forEach(btn => {
     if (btn.__klevHubSwitchBound) return;
@@ -6748,285 +5637,38 @@ function bindCircleChatsHubBarEvents(container) {
     });
   }
 }
-function renderFullScreenChatWindowHtml(s, ident, visibleCrews) {
-  if (!isFullScreenChatOpen || !activeChatChannelId) return '';
-  const allMsgs = Array.isArray(s.chatMessages) ? s.chatMessages : [];
-  const deletedChannels = Array.isArray(s.userProfile?.deletedChatChannels) ? s.userProfile.deletedChatChannels : [];
-  let activeChan = null;
-  if (activeChatChannelId.startsWith('crew:')) {
-    const cKey = activeChatChannelId.replace(/^crew:/, '');
-    const isReg = cKey.startsWith('REG-');
-    const regNum = isReg ? cKey.replace(/^REG-/, '') : '';
-    const crewItem = visibleCrews.find(c => (c.crewKey || formatCrewKeyFromHash(computeCrewKeyHash(c.id))) === cKey);
-    activeChan = {
-      channelId: activeChatChannelId,
-      type: 'crew',
-      crewKey: isReg ? '' : cKey,
-      title: isReg
-        ? `Региональный чат РФ (Регион ${escapeHtml(regNum)})`
-        : `Экипаж ${escapeHtml(cKey)}${(crewItem?.wn || crewItem?.lb) ? ' • ' + escapeHtml(crewItem.wn || crewItem.lb) : ''}`
-    };
-  } else {
-    const parts = activeChatChannelId.replace(/^dm:/, '').split(':');
-    const otherId = parts.find(p => p !== ident.fisherId) || parts[0] || OWNER_BOUND_FISHER_ID;
-    const sample = allMsgs.find(m => m && m.channelId === activeChatChannelId);
-    const rawName = sample ? (sample.senderId === ident.fisherId ? sample.peerName : sample.senderName) : (otherId === OWNER_BOUND_FISHER_ID ? 'Админ' : 'Рыболов');
-    activeChan = {
-      channelId: activeChatChannelId,
-      type: 'dm',
-      peerId: otherId,
-      title: `<svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="rgba(56,189,248,0.18)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> ${formatCleanPeerTitle(rawName, otherId)}`
-    };
-  }
-  const activeMsgs = allMsgs
-    .filter(m => m && m.channelId === activeChan.channelId)
-    .sort((a, b) => (a.ts || 0) - (b.ts || 0));
-
-  return `
-    <div id="klevFullScreenChatOverlay" style="position:fixed;inset:0;z-index:9500;background:rgba(6,11,22,0.90);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:max(10px, env(safe-area-inset-top, 10px)) 8px max(10px, env(safe-area-inset-bottom, 10px)) 8px;box-sizing:border-box;overscroll-behavior:contain;">
-      <div id="klevFullScreenChatDialogCard" style="width:100%;max-width:680px;height:calc(100dvh - 24px);max-height:calc(100vh - 24px);background:var(--bg);border:1.5px solid var(--accent);border-radius:16px;box-shadow:0 20px 50px rgba(0,0,0,0.85);display:flex;flex-direction:column;overflow:hidden;">
-        <!-- Шапка окна чата (всегда видна наверху) -->
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 12px;background:var(--panel);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap;">
-          <div style="display:flex;align-items:center;gap:8px;min-width:0;flex:1;">
-            <button type="button" class="btn btn-sm" id="chatFullScreenBackBtn" style="min-height:36px;padding:4px 10px;font-weight:800;flex-shrink:0;">
-              ← К чатам
-            </button>
-            <div style="min-width:0;flex:1;">
-              <div style="font-weight:900;font-size:var(--fs-sm);color:var(--accent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-                ${activeChan.title}
-              </div>
-              <div style="font-size:10.5px;color:var(--muted);">
-                ${activeChan.type === 'crew' ? 'Чат участников канала / экипажа' : 'Личный диалог рыбаков'}
-              </div>
-            </div>
-          </div>
-          <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">
-            ${activeChan.crewKey ? `<span class="fisher-id-copy-badge" data-copy-fisher-id="${escapeHtml(activeChan.crewKey)}" data-copy-label="Ключ экипажа" style="font-size:11px;font-family:monospace;font-weight:800;cursor:pointer;padding:4px 7px;background:var(--card);border:1px solid var(--border);border-radius:6px;">${escapeHtml(activeChan.crewKey)}</span>` : ''}
-            <button type="button" class="btn btn-sm" id="chatDeleteHistoryBtn" title="Удалить переписку" style="color:var(--bad);border-color:rgba(239,68,68,0.4);min-height:36px;padding:4px 9px;">
-              <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </button>
-            <button type="button" class="btn btn-sm" id="chatFullScreenCloseBtn" title="Закрыть окно чата" style="min-height:36px;padding:4px 10px;font-weight:800;">
-              <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg> Закрыть
-            </button>
-          </div>
-        </div>
-        <!-- Область сообщений (без пустого скролла, когда сообщений 0!) -->
-        <div id="chatMessagesScrollBox" style="flex:1;${activeMsgs.length === 0 ? 'overflow:hidden;display:flex;align-items:center;justify-content:center;' : 'overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column;gap:8px;'}padding:12px;">
-          ${activeMsgs.length === 0 ? `
-            <div style="padding:20px 16px;text-align:center;color:var(--muted);font-size:var(--fs-xs);max-width:310px;background:var(--card);border:1px dashed var(--border);border-radius:12px;">
-              <div style="font-weight:800;color:var(--text);margin-bottom:4px;">Сообщений пока нет</div>
-              Напишите первое сообщение ниже, отправьте геопозицию точки или прикрепите карточку улова.
-            </div>
-          ` : activeMsgs.filter(m => m && !_explicitlyDeletedLocalIds.has(m.id)).map(m => {
-            const isMe = m.senderId === ident.fisherId;
-            const senderDisplay = isMe ? 'Вы' : formatCleanPeerTitle(m.senderName, m.senderId);
-            const msgTs = Number(m.ts) || Date.now();
-            const timeStr = new Date(msgTs).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-            const editedBadge = m.editedAt ? ' <span style="opacity:0.78;font-style:italic;">(изм.)</span>' : '';
-            const msgAgeMs = Math.max(0, Date.now() - msgTs);
-            const canEditMsg = isMe && !isAutoGeneratedShareChatMessage(m) && (msgAgeMs <= CHAT_MSG_EDIT_MAX_AGE_MS);
-            const isSelected = _selectedChatMsgId === m.id;
-            const tokenMatch = String(m.text || '').match(/KP1_[A-Za-z0-9_-]+/);
-            const packTok = m.catchMeta?.token || (tokenMatch ? tokenMatch[0] : '');
-            return `
-              <div data-chat-msg-bubble="${escapeHtml(m.id)}" data-msg-ts="${msgTs}" data-msg-mine="${isMe ? '1' : '0'}" data-msg-autoshare="${isAutoGeneratedShareChatMessage(m) ? '1' : '0'}" style="align-self:${isMe ? 'flex-end' : 'flex-start'};max-width:86%;padding:9px 12px;border-radius:12px;background:${isMe ? 'rgba(56,189,248,0.16)' : 'var(--card)'};border:1px solid ${isSelected ? 'var(--accent)' : (isMe ? 'var(--accent)' : 'var(--border)' )};box-shadow:${isSelected ? '0 0 0 2px var(--accent)' : 'none'};font-size:var(--fs-xs);flex-shrink:0;user-select:none;-webkit-user-select:none;transition:box-shadow 0.15s ease;">
-                <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap;">
-                  <b style="color:${isMe ? 'var(--accent)' : 'var(--good)'};">${senderDisplay}</b>
-                  <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
-                    <span style="font-size:10px;color:var(--muted);">${timeStr}${editedBadge}</span>
-                    <span data-chat-msg-actions="${escapeHtml(m.id)}" style="display:${isSelected ? 'inline-flex' : 'none'};align-items:center;gap:5px;">
-                      ${canEditMsg ? `
-                        <button type="button" class="btn btn-sm" data-edit-chat-msg="${escapeHtml(m.id)}" title="Редактировать сообщение (доступно 3 ч)" aria-label="Редактировать сообщение" style="width:28px;height:28px;min-height:28px;padding:0;border-radius:7px;justify-content:center;color:var(--accent);border-color:var(--accent);">
-                          <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                        </button>
-                      ` : ''}
-                      <button type="button" class="btn btn-sm" data-del-chat-msg="${escapeHtml(m.id)}" title="${isMe ? 'Удалить сообщение (у себя или у всех)' : 'Удалить сообщение у себя'}" aria-label="Удалить сообщение" style="width:28px;height:28px;min-height:28px;padding:0;border-radius:7px;justify-content:center;color:var(--bad);border-color:rgba(239,68,68,0.45);">
-                        <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14zM10 11v6M14 11v6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                      </button>
-                    </span>
-                  </div>
-                </div>
-                <div data-chat-msg-text="${escapeHtml(m.id)}" style="white-space:pre-wrap;line-height:1.45;color:var(--text);word-break:break-word;">${escapeHtml(String(m.text || '').replace(/<svg[\s\S]*?<\/svg>/gi, '').replace(/<[^>]+>/g, '').trim())}</div>
-                ${packTok ? `
-                  <div style="margin-top:6px;padding-top:5px;border-top:1px dashed var(--border);display:flex;gap:6px;flex-wrap:wrap;">
-                    <button type="button" class="btn btn-sm btn-good" data-chat-import-pack="${packTok}" style="min-height:28px;padding:2px 9px;font-size:11px;">Показать на карте</button>
-                  </div>
-                ` : ''}
-              </div>
-            `;
-          }).join('')}
-        </div>
-        <!-- Нижняя панель с раскрывающимся меню вложений (+) и многострочным полем ввода (до 5 строк со скроллом) -->
-        <div style="position:relative;display:flex;flex-direction:column;gap:8px;padding:8px 10px;background:var(--panel);border-top:1px solid var(--border);flex-shrink:0;">
-          <!-- Выдвижная панель вложений (по кнопке + / скрепке, как в Telegram / Gemini) -->
-          <div id="chatAttachBottomSheet" style="display:${_isChatAttachSheetOpen ? 'flex' : 'none'};flex-direction:column;gap:10px;padding:12px 14px;background:var(--card);border:1.5px solid var(--accent);border-radius:16px;box-shadow:0 -8px 28px rgba(0,0,0,0.45);">
-            <div style="display:flex;justify-content:space-between;align-items:center;">
-              <span style="font-size:12px;font-weight:900;color:var(--text);">Прикрепить к сообщению</span>
-              <button type="button" class="btn btn-sm" id="chatAttachSheetCloseBtn" title="Закрыть меню вложений" aria-label="Закрыть меню вложений" style="width:28px;height:28px;min-height:28px;padding:0;border-radius:50%;justify-content:center;">
-                <svg class="k-ico" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
-              </button>
-            </div>
-            <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;">
-              <button type="button" class="btn" id="chatShareLocationBtn" title="Поделиться текущим местоположением" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:10px 6px;border-radius:14px;background:var(--panel);border:1px solid var(--border);">
-                <span style="width:42px;height:42px;border-radius:50%;background:rgba(239,68,68,0.16);border:1.5px solid #ef4444;display:inline-flex;align-items:center;justify-content:center;color:#ef4444;">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z" fill="rgba(239,68,68,0.22)" stroke="currentColor" stroke-width="1.9"/><circle cx="12" cy="11" r="2.5" fill="currentColor"/></svg>
-                </span>
-                <span style="font-size:11.5px;font-weight:800;color:var(--text);">Геопозиция</span>
-              </button>
-              <button type="button" class="btn" id="chatAttachCatchBtn" title="Прикрепить карточку улова" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:10px 6px;border-radius:14px;background:var(--panel);border:1px solid var(--border);">
-                <span style="width:42px;height:42px;border-radius:50%;background:rgba(16,185,129,0.16);border:1.5px solid #10b981;display:inline-flex;align-items:center;justify-content:center;color:#10b981;">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 20C5 11 11 5 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v7c0 1.7-1.3 3-3 3s-3-1.3-3-3" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="2.4" fill="currentColor"/></svg>
-                </span>
-                <span style="font-size:11.5px;font-weight:800;color:var(--text);">Улов</span>
-              </button>
-              <button type="button" class="btn" id="chatAttachSlipSpotBtn" title="Добавить слип или точку на карту" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:10px 6px;border-radius:14px;background:var(--panel);border:1px solid var(--border);">
-                <span style="width:42px;height:42px;border-radius:50%;background:rgba(56,189,248,0.16);border:1.5px solid #38bdf8;display:inline-flex;align-items:center;justify-content:center;color:#38bdf8;">
-                  <svg class="k-svg" style="width:20px;height:20px;"><use href="#point-slip"></use></svg>
-                </span>
-                <span style="font-size:11.5px;font-weight:800;color:var(--text);">Слипы</span>
-              </button>
-            </div>
-          </div>
-          <!-- Строка ввода: кнопка вложений (+), авторасширяющееся поле до 5 строк и круглая кнопка отправки -->
-          <div style="display:flex;gap:8px;align-items:flex-end;width:100%;">
-            <button type="button" class="btn ${_isChatAttachSheetOpen ? 'btn-accent' : ''}" id="chatAttachMenuToggleBtn" title="Прикрепить геопозицию или улов" aria-label="Прикрепить геопозицию или улов" style="width:42px;height:42px;min-height:42px;padding:0;border-radius:50%;flex-shrink:0;justify-content:center;">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style="transition:transform 0.2s ease;transform:${_isChatAttachSheetOpen ? 'rotate(45deg)' : 'none'};"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
-            </button>
-            <textarea id="chatComposeInput" class="input" rows="1" placeholder="${ident.isRegistered ? 'Сообщение...' : 'Войдите в профиль для отправки...'}" style="flex:1;min-width:0;min-height:42px;max-height:118px;padding:10px 14px;font-size:14px;line-height:1.42;border-radius:20px;resize:none;overflow-y:auto;box-sizing:border-box;">${escapeHtml(_chatComposerDraftText)}</textarea>
-            <button type="button" class="btn btn-accent" id="chatSendMsgBtn" title="Отправить сообщение" aria-label="Отправить сообщение" style="width:42px;height:42px;min-height:42px;padding:0;border-radius:50%;flex-shrink:0;justify-content:center;">
-              <svg width="19" height="19" viewBox="0 0 24 24" fill="none"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  `;
-}
-
-export function mountFullScreenChatOverlayPortal(html = '') {
-  if (typeof document === 'undefined' || !document.body) return null;
-  try {
-    document.body.style.overflow = '';
-  } catch (e) {}
-  let portal = document.getElementById('klevFullScreenChatPortal');
-  if (!html || !isFullScreenChatOpen || !activeChatChannelId) {
-    if (portal) {
-      portal.innerHTML = '';
-      portal.style.display = 'none';
-    }
-    return null;
-  }
-  const activeEl = document.activeElement;
-  const wasComposeFocused = Boolean(activeEl && activeEl.id === 'chatComposeInput');
-  const prevSelStart = wasComposeFocused ? activeEl.selectionStart : null;
-  const prevSelEnd = wasComposeFocused ? activeEl.selectionEnd : null;
-  if (!portal) {
-    portal = document.createElement('div');
-    portal.id = 'klevFullScreenChatPortal';
-    document.body.appendChild(portal);
-  }
-  portal.style.display = 'block';
-  portal.innerHTML = html;
-  if (wasComposeFocused) {
-    const nextInp = portal.querySelector('#chatComposeInput');
-    if (nextInp) {
-      try {
-        nextInp.focus();
-        if (typeof prevSelStart === 'number' && typeof prevSelEnd === 'number') {
-          nextInp.setSelectionRange(prevSelStart, prevSelEnd);
-        }
-      } catch (_e) {}
-    }
-  }
-  return portal;
-}
-
+const _chatAttachSlipSpotBtnTemplate = `
+  <button type="button" class="btn" id="chatAttachSlipSpotBtn" title="Добавить слип или точку на карту" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:10px 6px;border-radius:14px;background:var(--panel);border:1px solid var(--border);">
+    <span style="width:42px;height:42px;border-radius:50%;background:rgba(56,189,248,0.16);border:1.5px solid #38bdf8;display:inline-flex;align-items:center;justify-content:center;color:#38bdf8;">
+      <svg class="k-svg" style="width:20px;height:20px;"><use href="#point-slip"></use></svg>
+    </span>
+    <span style="font-size:11.5px;font-weight:800;color:var(--text);">Слипы</span>
+  </button>
+`;
 export function renderChatsSection(customContainer = null) {
-  const container = customContainer || (typeof document !== 'undefined'
-    ? (isAdminContourActive()
-        ? (document.getElementById('admEmbeddedChatsBox') || document.getElementById('secChats'))
-        : (document.getElementById('secChats') || document.getElementById('admEmbeddedChatsBox')))
-    : null);
-  const s = store.getState();
-  const ident = getCurrentFisherIdentity(s);
-  const allItems = purgeExpiredCircleItems(s.circleItems || []);
-  const visibleCrews = allItems.filter(x => x.t === 'crew' && !x.sos && canUserAccessCrewItem(x, s));
-  try {
-    if (typeof document !== 'undefined' && document.body) {
-      document.body.style.overflow = '';
-    }
-  } catch (e) {}
-  if (!container) {
-    const overlayHtmlOnly = renderFullScreenChatWindowHtml(s, ident, visibleCrews);
-    const portalOnly = mountFullScreenChatOverlayPortal(overlayHtmlOnly);
-    if (portalOnly) bindChatViewEvents(portalOnly);
-    return;
-  }
-  const isEmbeddedInAdmin = container.id === 'admEmbeddedChatsBox';
-  const subViewHtml = renderChatsSubView(s, ident, visibleCrews);
-  const overlayHtml = renderFullScreenChatWindowHtml(s, ident, visibleCrews);
-  container.innerHTML = isEmbeddedInAdmin ? `
-    <div style="display:flex;flex-direction:column;gap:8px;">
-      ${subViewHtml}
-    </div>
-  ` : `
-    <div class="card">
-      ${isAdminContourActive() ? `
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border);">
-          <button type="button" class="btn btn-sm btn-accent" id="chatBackToAdminConsoleBtn" style="min-height:36px;font-weight:900;">
-            ← Вернуться в Консоль Супер-Админа
-          </button>
-          <span class="pill pill-good" style="font-size:10px;">Контур Супер-Админа (${escapeHtml(ident.fisherId)})</span>
-        </div>
-      ` : renderCircleChatsHubBar('chats')}
-
-      ${subViewHtml}
-    </div>
-  `;
-  mountFullScreenChatOverlayPortal(overlayHtml);
-  if (!isEmbeddedInAdmin) bindCircleChatsHubBarEvents(container);
-  container.querySelector('#chatBackToAdminConsoleBtn')?.addEventListener('click', () => {
-    isFullScreenChatOpen = false;
-    activeChatChannelId = '';
-    mountFullScreenChatOverlayPortal('');
-    router.navigate('admin');
-    renderAdminSection();
-  });
-  bindChatViewEvents(container);
+  return safeModuleRun('circle:renderChats', () => _renderChatsSectionImpl(customContainer, { attachSlipSpotBtnHtml: _chatAttachSlipSpotBtnTemplate }));
 }
 /**
  * Отрисовка вкладки « Круг»
  */
 export function render(container) {
-  if (!container) return;
-  markCircleNotificationsRead();
-  const s = store.getState();
-  const now = Date.now();
-  const ident = getCurrentFisherIdentity(s);
-  const allItems = purgeExpiredCircleItems(s.circleItems || []);
-  const accessibleItems = allItems.filter(item => {
-    if (item.t === 'crew' && !item.sos) return canUserAccessCrewItem(item, s);
-    return true;
-  });
-  const hiddenLockedCrewsCount = allItems.filter(x => x.t === 'crew' && !x.sos && !canUserAccessCrewItem(x, s)).length;
-  const nonHiddenItems = accessibleItems.filter(x => !isCircleItemHidden(x, s));
-  const hiddenItems = accessibleItems.filter(x => isCircleItemHidden(x, s));
-  const mineItems = nonHiddenItems.filter(x => isCircleItemMine(x, s));
-  const foreignItems = nonHiddenItems.filter(x => !isCircleItemMine(x, s));
-  let baseList = nonHiddenItems;
-  if (activeOwnershipFilter === 'mine') baseList = mineItems;
-  else if (activeOwnershipFilter === 'foreign') baseList = foreignItems;
-  else if (activeOwnershipFilter === 'hidden') baseList = hiddenItems;
-  const isSpotsTab = activeCategoryFilter === 'spot';
-  const radarBaseList = baseList.filter(item => item.t !== 'workshop');
-  const filteredList = baseList.filter(item => {
-    if (activeCategoryFilter === 'sos') return item.t === 'crew' && Boolean(item.sos);
-    if (activeCategoryFilter === 'crew') return item.t === 'crew' && !item.sos;
-    if (activeCategoryFilter === 'circle') return item.t === 'circle';
-    if (activeCategoryFilter === 'spot') return item.t === 'spot';
-    if (activeCategoryFilter === 'workshop') return item.t === 'workshop';
-    return item.t !== 'workshop';
-  });
+  return safeModuleRun('circle:render', () => {
+    if (!container) return;
+    markCircleNotificationsRead();
+    const s = store.getState();
+    const now = Date.now();
+    const ident = getCurrentFisherIdentity(s);
+    const allItems = purgeExpiredCircleItems(s.circleItems || []);
+    const {
+      hiddenLockedCrewsCount,
+      nonHiddenItems,
+      hiddenItems,
+      mineItems,
+      foreignItems,
+      radarBaseList,
+      filteredList
+    } = filterCircleItemsByOwnership(allItems, s, activeOwnershipFilter, activeCategoryFilter);
+    const isSpotsTab = activeCategoryFilter === 'spot';
   const hubMode = isSpotsTab ? 'spots' : (activeCategoryFilter === 'workshop' ? 'workshop' : 'radar');
   const visibleSpotCircleItems = allItems.filter(x => x && x.t === 'spot' && !isCircleItemHidden(x, s));
   const personalSavedSpots = getDeduplicatedPersonalSavedSpots(s, visibleSpotCircleItems);
@@ -7180,7 +5822,8 @@ export function render(container) {
     </div>
   `;
   bindCircleChatsHubBarEvents(container);
-  bindCircleEvents(container);
+    bindCircleEvents(container);
+  });
 }
 /**
  * Загружает с сервера полную статистику и реестр пользователей для вкладки Супер-Админа (« Админ»)
@@ -7344,7 +5987,7 @@ export async function openFullServerWebConsoleModal() {
         try {
           const res = await workerFetch('/api/admin/user/delete', {
             method: 'POST',
-            body: JSON.stringify({ targetFisherId: targetFid, adminToken: tok })
+            body: JSON.stringify({ adminToken: tok, fisherId: targetFid, targetFisherId: targetFid })
           }, 5500, 1);
           if (res.ok) {
             showToast(`Пользователь ${targetFid} удалён из базы D1`, 'info');
@@ -7386,7 +6029,7 @@ export async function fetchSuperAdminDashboardData(forceToast = false) {
   _lastAdminDashboardFetchTs = Date.now();
   const saved = getSavedAdminCredentials();
   const candidateTokens = Array.from(new Set([
-    _serverAdminSessionToken,
+    getServerAdminSessionToken(),
     s?.userProfile?.adminSessionToken,
     saved?.adminSessionToken,
     getActiveAdminToken(s)
@@ -7403,8 +6046,9 @@ export async function fetchSuperAdminDashboardData(forceToast = false) {
       if (res) {
         const data = await res.json().catch(() => null);
         if (data && data.ok && Array.isArray(data.users)) {
-          _serverAdminSessionToken = tok;
+          setServerAdminSessionToken(tok);
           _adminDashboardCache = { ...data, authRequired: false };
+          setAdminAuthRequired(false);
           try {
             const identAdm = getCurrentFisherIdentity(store.getState());
             const dmPkts = Array.isArray(data.adminDmPackets) ? data.adminDmPackets : [];
@@ -7504,7 +6148,7 @@ export async function fetchSuperAdminDashboardData(forceToast = false) {
   // Если токен устарел или отсутствует — сбрасываем невалидную сессию и показываем форму входа Владельца
   _adminDashboardLoading = false;
   if (rejectedByAuth || candidateTokens.length === 0) {
-    _serverAdminSessionToken = '';
+    setServerAdminSessionToken('');
     saveAdminCredentialsToStorage({ adminSessionToken: '' });
     store.dispatch({ type: 'UPDATE_USER_PROFILE', payload: { adminSessionToken: '', ownerUnlocked: false } });
     _adminDashboardCache = {
@@ -7513,6 +6157,7 @@ export async function fetchSuperAdminDashboardData(forceToast = false) {
       authRequired: true,
       d1Status: 'AUTH_REQUIRED'
     };
+    setAdminAuthRequired(true);
     if (forceToast) {
       showToast('Введите мастер-пароль Владельца в карточке ниже для загрузки базы пользователей D1', 'warn');
     }
@@ -7528,95 +6173,9 @@ export async function fetchSuperAdminDashboardData(forceToast = false) {
  * Отрисовка выделенной вкладки Супер-Админа « Админ» (#secAdmin) со статистикой, реестром ID и базой
  */
 
-const SECURITY_AUDIT_LOCAL_KEY = 'klev_pro_security_audit_v1';
-let _adminSecurityFactorFilter = 'all';
-
-function getLocalSecurityAuditState() {
-  try {
-    const raw = localStorage.getItem(SECURITY_AUDIT_LOCAL_KEY);
-    const parsed = raw ? JSON.parse(raw) : null;
-    if (parsed && typeof parsed === 'object' && parsed.counters) return parsed;
-  } catch (_e) {}
-  return {
-    counters: { sqli: 0, idor: 0, mass_assign: 0, deserialization: 0, data_exposure: 0, brute_force: 0, xss: 0 },
-    events: []
-  };
-}
-
-function saveLocalSecurityAuditState(stateObj) {
-  try {
-    localStorage.setItem(SECURITY_AUDIT_LOCAL_KEY, JSON.stringify(stateObj));
-  } catch (_e) {}
-}
-
-function getMergedSecurityAuditReport() {
-  const local = getLocalSecurityAuditState();
-  const srv = (_adminDashboardCache && _adminDashboardCache.securityAudit) ? _adminDashboardCache.securityAudit : null;
-  const keys = ['sqli', 'idor', 'mass_assign', 'deserialization', 'data_exposure', 'brute_force', 'xss'];
-  const counters = {};
-  let totalBlocked = 0;
-  for (const k of keys) {
-    const v = Math.max(Number(local.counters?.[k]) || 0, Number(srv?.counters?.[k]) || 0);
-    counters[k] = v;
-    totalBlocked += v;
-  }
-  const seenIds = new Set();
-  const mergedEvents = [];
-  for (const ev of [...(srv?.events || []), ...(local.events || [])]) {
-    if (ev && ev.id && !seenIds.has(ev.id)) {
-      seenIds.add(ev.id);
-      mergedEvents.push(ev);
-    }
-  }
-  mergedEvents.sort((a, b) => (b.ts || 0) - (a.ts || 0));
-  return { counters, totalBlocked, events: mergedEvents.slice(0, 50) };
-}
-
-export function runLocalSevenFactorsSelfTest() {
-  const now = Date.now();
-  const state = getLocalSecurityAuditState();
-  const testItems = [
-    { factorKey: 'sqli', factorCode: '01', factorTitle: '01 / SQL-инъекция (Поиск и параметры)', endpoint: '/auth/resolve-peer', detail: '[ТЕСТ ЗАЩИТЫ] Перехвачена SQL-сигнатура: OR 1=1 -- (параметризация D1 bind)' },
-    { factorKey: 'idor', factorCode: '02', factorTitle: '02 / IDOR / BOLA (Доступ к чужим объектам по ID)', endpoint: '/api/circle/delete', detail: '[ТЕСТ ЗАЩИТЫ] Отражена попытка удаления чужой точки Круга и чтения чужого ящика DM_<FID>' },
-    { factorKey: 'mass_assign', factorCode: '03', factorTitle: '03 / Массовое присвоение (Подмена ролей и полей формы)', endpoint: '/auth/sync', detail: '[ТЕСТ ЗАЩИТЫ] Отброшены запрещённые поля формы: role="admin", isOwner=true, activeModel' },
-    { factorKey: 'deserialization', factorCode: '04', factorTitle: '04 / Десериализация и схема (Prototype Pollution / JSON)', endpoint: '/api/circle/publish', detail: '[ТЕСТ ЗАЩИТЫ] Заблокирована инъекция прототипа {"__proto__":{"isAdmin":true}} в JSON' },
-    { factorKey: 'data_exposure', factorCode: '05', factorTitle: '05 / Защита от утечки данных API (Скрытие deviceId и токенов)', endpoint: '/api/circle/nearby', detail: '[ТЕСТ ЗАЩИТЫ] Из публичного ответа API вычищены внутренние поля did (deviceId) и токены' },
-    { factorKey: 'brute_force', factorCode: '06', factorTitle: '06 / Защита входа (Анти-брутфорс: лимит 5 попыток / 15 мин)', endpoint: '/auth/login', detail: '[ТЕСТ ЗАЩИТЫ] Сработала блокировка перебора паролей (HTTP 429 после 5 неверных попыток)' },
-    { factorKey: 'xss', factorCode: '07', factorTitle: '07 / Анти-XSS (Санитизация HTML/JS-скриптов в полях)', endpoint: '/api/circle/publish', detail: '[ТЕСТ ЗАЩИТЫ] Обезврежен скрипт <script>fetch("evil")</script> в названии точки и водоёма' }
-  ];
-  for (let i = 0; i < testItems.length; i++) {
-    const it = testItems[i];
-    state.counters[it.factorKey] = (Number(state.counters[it.factorKey]) || 0) + 1;
-    state.events.unshift({
-      id: `SEC_TEST_${now}_${i}`,
-      ts: now - i * 100,
-      factorKey: it.factorKey,
-      factorCode: it.factorCode,
-      factorTitle: it.factorTitle,
-      endpoint: it.endpoint,
-      detail: it.detail,
-      ip: '127.0.0.1 (Self-Test)',
-      fid: OWNER_BOUND_FISHER_ID,
-      blocked: true
-    });
-  }
-  state.events = state.events.slice(0, 60);
-  saveLocalSecurityAuditState(state);
-  return getMergedSecurityAuditReport();
-}
-
-if (typeof window !== 'undefined') {
-  window.__KLEV_GET_SECURITY_AUDIT__ = getMergedSecurityAuditReport;
-  window.__KLEV_RUN_SECURITY_SELFTEST__ = runLocalSevenFactorsSelfTest;
-}
-
-let _adminSearchFilter = '';
-const ADMIN_COLLAPSED_BLOCKS_KEY = 'klev_pro_admin_collapsed_v2';
 const ADMIN_LOCAL_BETA_LIST_KEY = 'klev_pro_admin_beta_testers_v1';
 const ADMIN_LOCAL_BETA_GATE_KEY = 'klev_pro_admin_beta_gate_v1';
-const ADMIN_LOCAL_POLICY_STATE_KEY = 'klev_pro_admin_policy_state_v1';
-const ADMIN_METEOINFO_D1_CACHE_KEY = 'klev_pro_admin_meteoinfo_d1_v1';
-let _isSyncingMeteoinfoD1 = false;
+export const ADMIN_LOCAL_POLICY_STATE_KEY = 'klev_pro_admin_policy_state_v1';
 
 function comparePolicyRevisions(polA, polB) {
   if (!polA && !polB) return 0;
@@ -7644,7 +6203,7 @@ function comparePolicyRevisions(polA, polB) {
   return 0;
 }
 
-function resolveLatestAdminPolicyState(db = {}) {
+export function resolveLatestAdminPolicyState(db = {}) {
   const baseline = {
     policyVersion: ACTIVE_POLICY_VERSION_DEFAULT || '2026.11.10-v2.8.3',
     appVersion: ACTIVE_APP_VERSION_DEFAULT || APP_VERSION || '2.8.3',
@@ -7686,108 +6245,9 @@ function resolveLatestAdminPolicyState(db = {}) {
   return resolved;
 }
 
-function getEffectiveMeteoinfoD1Status(db = {}) {
-  if (db && db.meteoInfoD1 && typeof db.meteoInfoD1 === 'object' && Array.isArray(db.meteoInfoD1.records)) {
-    try {
-      if (typeof localStorage !== 'undefined') {
-        localStorage.setItem(ADMIN_METEOINFO_D1_CACHE_KEY, JSON.stringify(db.meteoInfoD1));
-      }
-    } catch (e) {}
-    return db.meteoInfoD1;
-  }
-  try {
-    if (typeof localStorage !== 'undefined') {
-      const raw = localStorage.getItem(ADMIN_METEOINFO_D1_CACHE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed && Array.isArray(parsed.records)) return parsed;
-      }
-    }
-  } catch (e) {}
-  const liveClient = (typeof window !== 'undefined' && window.__KLEV_METEOINFO_LATEST__) ? window.__KLEV_METEOINFO_LATEST__ : null;
-  const now = Date.now();
-  return {
-    ok: true,
-    d1Connected: db?.d1Status === 'CONNECTED',
-    d1BindingName: db?.d1BindingName || 'DB',
-    tableName: 'meteo_hydro_cache',
-    totalRecords: 6,
-    lastSyncAt: liveClient?.ts || now,
-    channels: {
-      pogoda: { ok: true, httpStatus: 200, latencyMs: 140, url: 'https://meteoinfo.ru/pogoda', note: 'Синхронизировано (синоптические сроки 3ч + Highstock)' },
-      egmb: { ok: true, httpStatus: 200, latencyMs: 155, url: 'https://meteoinfo.ru/egmb', note: 'Гидрологический и ледовый обзор бассейнов рек РФ активен' },
-      extrainfo: { ok: true, httpStatus: 200, latencyMs: 135, url: 'https://meteoinfo.ru/extrainfopage', note: 'Мониторинг гололёда, метелей и опасных явлений активен' },
-      spaceWeather: { ok: true, kpIndex: liveClient?.spaceWeather?.kpIndex || 2.0, status: liveClient?.spaceWeather?.status || 'quiet', label: liveClient?.spaceWeather?.label || 'Геомагнитное поле спокойное (ИПГ Росгидромета)' }
-    },
-    records: [
-      { gridKey: '66.1_76.7', regionCode: '89', stationId: '23358', stationName: 'Новый Уренгой • р. Седэяха / Ево-Яха', basin: 'Бассейн р. Пур и Таз (ЯНАО)', lat: 66.08, lon: 76.68, tAirC: -6.0, pressMm: 747, windMs: 5, iceRangeCm: [14, 18], iceStatusText: 'Устойчивый ледостав (14–18 см)', roadRisk: 'SLIPPERY_60KMH', roadNote: 'Местами гололедица на подъездах к водоёму', kpIndex: 2.0, updatedAt: now },
-      { gridKey: '66.5_66.6', regionCode: '89', stationId: '23330', stationName: 'Салехард • р. Обь (Нижняя Обь)', basin: 'Нижняя Обь и Обская губа (ЯНАО)', lat: 66.53, lon: 66.60, tAirC: -7.2, pressMm: 751, windMs: 4, iceRangeCm: [15, 22], iceStatusText: 'Устойчивый ледостав (15–22 см)', roadRisk: 'SLIPPERY_60KMH', roadNote: 'Местами гололедица на трассах', kpIndex: 2.0, updatedAt: now },
-      { gridKey: '61.2_73.4', regionCode: '86', stationId: '23849', stationName: 'Сургут • р. Обь (Средняя Обь)', basin: 'Средняя Обь и р. Иртыш (ХМАО)', lat: 61.25, lon: 73.40, tAirC: -3.5, pressMm: 754, windMs: 4, iceRangeCm: [8, 13], iceStatusText: 'Первичный ледостав (8–13 см)', roadRisk: 'SLIPPERY_60KMH', roadNote: 'Местами гололедица', kpIndex: 2.0, updatedAt: now },
-      { gridKey: '57.2_65.5', regionCode: '72', stationId: '28367', stationName: 'Тюмень • р. Тура и Андреевские озёра', basin: 'Бассейн р. Тура и Тобол (Тюменская обл.)', lat: 57.15, lon: 65.53, tAirC: -1.5, pressMm: 756, windMs: 3, iceRangeCm: [4, 7], iceStatusText: 'Забереги и первичный лёд (4–7 см)', roadRisk: 'NONE', roadNote: 'Трассы в норме', kpIndex: 2.0, updatedAt: now },
-      { gridKey: '56.8_60.6', regionCode: '66', stationId: '28440', stationName: 'Екатеринбург • р. Исеть / Белоярское вдхр.', basin: 'Водоёмы Среднего Урала (Свердловская обл.)', lat: 56.84, lon: 60.60, tAirC: -1.0, pressMm: 742, windMs: 3, iceRangeCm: [3, 6], iceStatusText: 'Забереги (3–6 см)', roadRisk: 'NONE', roadNote: 'Трассы в норме', kpIndex: 2.0, updatedAt: now },
-      { gridKey: '46.3_48.0', regionCode: '30', stationId: '34880', stationName: 'Астрахань • Дельта р. Волги и Ахтуба', basin: 'Нижняя Волга и Каспийский раскатный бассейн', lat: 46.35, lon: 48.04, tAirC: 9.4, pressMm: 764, windMs: 4, iceRangeCm: [0, 0], iceStatusText: 'Открытая вода', roadRisk: 'NONE', roadNote: 'Дорожное покрытие в норме', kpIndex: 2.0, updatedAt: now }
-    ]
-  };
-}
-
-let _adminCollapsedSet = null;
-function getAdminCollapsedSet() {
-  if (_adminCollapsedSet) return _adminCollapsedSet;
-  const defaults = ['adm_blk_gateways', 'adm_blk_regions', 'adm_blk_mods', 'adm_blk_errors'];
-  try {
-    if (typeof localStorage !== 'undefined') {
-      const raw = localStorage.getItem(ADMIN_COLLAPSED_BLOCKS_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) {
-          _adminCollapsedSet = new Set(parsed);
-          return _adminCollapsedSet;
-        }
-      }
-    }
-  } catch (e) {}
-  _adminCollapsedSet = new Set(defaults);
-  return _adminCollapsedSet;
-}
-
-function toggleAdminBlockCollapsed(blockId) {
-  if (!blockId) return;
-  const set = getAdminCollapsedSet();
-  if (set.has(blockId)) set.delete(blockId);
-  else set.add(blockId);
-  try {
-    if (typeof localStorage !== 'undefined') {
-      localStorage.setItem(ADMIN_COLLAPSED_BLOCKS_KEY, JSON.stringify(Array.from(set)));
-    }
-  } catch (e) {}
-}
-
-function renderAdminAccordionCard({ id, title, subtitle = '', badgeHtml = '', borderColor = 'var(--border)', bg = 'var(--card)', bodyHtml = '' }) {
-  const isCollapsed = getAdminCollapsedSet().has(id);
-  return `
-    <div class="card" id="card_${id}" style="border:1.5px solid ${borderColor};background:${bg};padding:12px;display:flex;flex-direction:column;gap:${isCollapsed ? '0' : '10px'};">
-      <div data-adm-collapse-toggle="${id}" role="button" tabindex="0" style="display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:pointer;user-select:none;">
-        <div style="min-width:0;flex:1;">
-          <div style="font-size:13.5px;font-weight:900;color:var(--text);line-height:1.3;">${title}</div>
-          ${subtitle ? `<div style="font-size:11px;color:var(--muted);margin-top:2px;line-height:1.35;">${subtitle}</div>` : ''}
-        </div>
-        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
-          ${badgeHtml}
-          <span class="btn btn-sm" style="min-height:28px;padding:2px 8px;font-size:11px;font-weight:900;border-color:var(--accent);color:var(--accent);">
-            ${isCollapsed ? 'Развернуть ▼' : 'Свернуть ▲'}
-          </span>
-        </div>
-      </div>
-      <div id="body_${id}" style="display:${isCollapsed ? 'none' : 'flex'};flex-direction:column;gap:10px;padding-top:${isCollapsed ? '0' : '8px'};border-top:${isCollapsed ? 'none' : '1px solid var(--border)'};">
-        ${bodyHtml}
-      </div>
-    </div>
-  `;
-}
-
 const ADMIN_LOCAL_BETA_REMOVED_KEY = 'klev_pro_admin_beta_removed_v1';
 
-function getRemovedBetaTestersSet() {
+export function getRemovedBetaTestersSet() {
   const set = new Set();
   try {
     if (typeof localStorage !== 'undefined') {
@@ -7801,7 +6261,7 @@ function getRemovedBetaTestersSet() {
   return set;
 }
 
-function saveRemovedBetaTestersSet(setOrArr) {
+export function saveRemovedBetaTestersSet(setOrArr) {
   try {
     if (typeof localStorage !== 'undefined') {
       const arr = Array.from(setOrArr || []);
@@ -7993,7 +6453,7 @@ export async function verifyBetaTesterStatusFromCloud(rawFid = '') {
   return isCurrentUserBetaTester(store.getState());
 }
 
-function saveLocalBetaTestersList(list) {
+export function saveLocalBetaTestersList(list) {
   try {
     if (typeof localStorage !== 'undefined' && Array.isArray(list)) {
       localStorage.setItem(ADMIN_LOCAL_BETA_LIST_KEY, JSON.stringify(list));
@@ -8001,7 +6461,7 @@ function saveLocalBetaTestersList(list) {
   } catch (e) {}
 }
 
-function getEffectiveBetaGateConfig(db = {}) {
+export function getEffectiveBetaGateConfig(db = {}) {
   let locCfg = null;
   try {
     if (typeof localStorage !== 'undefined') {
@@ -8019,7 +6479,7 @@ function getEffectiveBetaGateConfig(db = {}) {
   };
 }
 
-function saveLocalBetaGateConfig(cfg) {
+export function saveLocalBetaGateConfig(cfg) {
   try {
     if (typeof localStorage !== 'undefined' && cfg) {
       localStorage.setItem(ADMIN_LOCAL_BETA_GATE_KEY, JSON.stringify(cfg));
@@ -8031,1760 +6491,9 @@ export function renderAdminSection(customContainer = null) {
   if (!isAdminContourActive()) return;
   const container = customContainer || (typeof document !== 'undefined' ? document.getElementById('secAdmin') : null);
   if (!container) return;
-  const s = store.getState();
-  const ident = getCurrentFisherIdentity(s);
-
-  // Sync top header bar active tab buttons
-  if (typeof document !== 'undefined') {
-    document.querySelectorAll('[data-adm-workspace-tab]').forEach(btn => {
-      const isAct = btn.getAttribute('data-adm-workspace-tab') === _activeAdminSubTab;
-      btn.classList.toggle('active', isAct);
-      btn.classList.toggle('btn-accent', isAct);
-    });
+  if (typeof window !== 'undefined' && window.__KLEV_ADMIN_MODULE__ && typeof window.__KLEV_ADMIN_MODULE__.render === 'function') {
+    return window.__KLEV_ADMIN_MODULE__.render(container);
   }
-
-  if (!ident.isOwner) {
-    const savedCreds = getSavedAdminCredentials();
-    const prefLogin = savedCreds?.login || 'iAthor';
-    const prefPass = '';
-    container.innerHTML = `
-      <div class="card" style="max-width:480px;margin:16px auto;border:2px solid var(--accent);padding:18px;display:flex;flex-direction:column;gap:12px;">
-        <div style="display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);padding-bottom:10px;">
-          <svg class="k-ico" style="color:#fbbf24;width:26px;height:26px;flex-shrink:0;" viewBox="0 0 24 24" fill="none"><path d="M3 18h18l-2-11-5 4-2-6-2 6-5-4-2 11z" fill="rgba(251,191,36,0.32)" stroke="#fbbf24" stroke-width="1.8" stroke-linejoin="round"/></svg>
-          <div>
-            <div style="font-size:var(--fs-md);font-weight:900;color:var(--accent);">Вход в «Клёв ПРО Админ»</div>
-            <div style="font-size:11.5px;color:var(--muted);">Введите логин и мастер-пароль Владельца (сохраняются на устройстве)</div>
-          </div>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:6px;">
-          <label for="admDirectLoginInput" style="font-size:11.5px;font-weight:800;color:var(--muted);">ЛОГИН ВЛАДЕЛЬЦА:</label>
-          <input type="text" id="admDirectLoginInput" class="input" value="${escapeHtml(prefLogin)}" placeholder="iAthor" style="min-height:42px;font-weight:800;">
-        </div>
-        <div style="display:flex;flex-direction:column;gap:6px;">
-          <label for="admDirectPassInput" style="font-size:11.5px;font-weight:800;color:var(--muted);">СЕРВЕРНЫЙ МАСТЕР-ПАРОЛЬ (ADMIN_SECRET_PASSWORD):</label>
-          <input type="password" id="admDirectPassInput" class="input" value="${escapeHtml(prefPass)}" placeholder="Введите мастер-пароль..." style="min-height:42px;font-weight:800;">
-        </div>
-        <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;padding:8px 10px;background:rgba(16,185,129,0.08);border:1px solid var(--border);border-radius:8px;">
-          <input type="checkbox" id="admDirectRememberChk" checked style="width:18px;height:18px;accent-color:#10b981;">
-          <span><b>Сохранить логин и пароль в памяти приложения</b> (вход без повторного запроса)</span>
-        </label>
-        <button type="button" class="btn btn-good" id="admDirectSignInSubmitBtn" style="width:100%;min-height:44px;font-size:14px;font-weight:900;justify-content:center;">
-          Войти в консоль Супер-Админа
-        </button>
-      </div>
-    `;
-    const doDirectSignIn = async () => {
-      const lVal = (container.querySelector('#admDirectLoginInput')?.value || 'iAthor').trim();
-      const pVal = (container.querySelector('#admDirectPassInput')?.value || '').trim();
-      const remChk = Boolean(container.querySelector('#admDirectRememberChk')?.checked);
-      const btn = container.querySelector('#admDirectSignInSubmitBtn');
-      if (!pVal || pVal.length < 4) {
-        showToast('Введите серверный мастер-пароль Владельца', 'warn');
-        return;
-      }
-      if (btn) {
-        btn.disabled = true;
-        btn.textContent = 'Проверка на сервере...';
-      }
-      const res = await authenticateAndSyncAccount(lVal, pVal, 'login', '89');
-      if (!res.ok) {
-        if (btn) {
-          btn.disabled = false;
-          btn.textContent = 'Войти в консоль Супер-Админа';
-        }
-        showToast(res.error || 'Неверный мастер-пароль', 'bad');
-        return;
-      }
-      if (remChk) {
-        saveAdminCredentialsToStorage({
-          login: lVal,
-          adminSessionToken: _serverAdminSessionToken || store.getState()?.userProfile?.adminSessionToken || ''
-        });
-      }
-      showToast('Вход выполнен! Данные входа сохранены.', 'good');
-      renderAdminSection(container);
-      fetchSuperAdminDashboardData(true);
-    };
-    container.querySelector('#admDirectSignInSubmitBtn')?.addEventListener('click', doDirectSignIn);
-    container.querySelector('#admDirectPassInput')?.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        doDirectSignIn();
-      }
-    });
-    if (prefPass && prefPass.length >= 6 && !_authRequestInFlight) {
-      setTimeout(() => {
-        if (!isOwnerAdmin()) doDirectSignIn();
-      }, 150);
-    }
-    return;
-  }
-
-  if ((!_adminDashboardCache || (Date.now() - _lastAdminDashboardFetchTs > 2500)) && !_adminDashboardLoading && !_dbGatewayDiagRunning) {
-    fetchSuperAdminDashboardData(false);
-  }
-  const db = _adminDashboardCache || {};
-  const users = Array.isArray(db.users) ? db.users : [];
-  const srvPoints = Array.isArray(db.points) ? db.points : (s.circleItems || []);
-  const counters = db.counters || {};
-  const reserveCounters = db.reserveCounters || {};
-  const now = Date.now();
-  const permanentUsers = users.filter(u => u && !isTemporaryReserveId(u.fisherId));
-  const reserveUsers = users.filter(u => u && isTemporaryReserveId(u.fisherId));
-  const tgBoundUsers = users.filter(u => u && (u.tgId || u.tgUsername));
-  const active24h = users.filter(u => u && (now - (u.lastSeen || 0)) < 86400000).length;
-  const active7d = users.filter(u => u && (now - (u.lastSeen || 0)) < 7 * 86400000).length;
-  const apkCount = users.filter(u => String(u?.platform || '').toUpperCase().includes('APK')).length;
-  const iosCount = users.filter(u => String(u?.platform || '').toUpperCase().includes('IOS')).length;
-  const tgCount = users.filter(u => String(u?.platform || '').toUpperCase().includes('TG')).length;
-  const webCount = Math.max(0, users.length - apkCount - iosCount - tgCount);
-
-  const regStats = {};
-  for (const u of users) {
-    const rc = u.regionCode || '89';
-    if (!regStats[rc]) regStats[rc] = { perm: 0, rz: 0 };
-    if (isTemporaryReserveId(u.fisherId)) regStats[rc].rz++;
-    else regStats[rc].perm++;
-  }
-  const allRegs = Array.from(new Set([...Object.keys(regStats), '89']))
-    .filter(rc => rc === '89' || (regStats[rc] && (regStats[rc].perm > 0 || regStats[rc].rz > 0)))
-    .sort();
-  const adminList = getAdminWhitelistEntries(s);
-  const showAllCrewsFlag = s.userProfile?.adminShowAllCrews !== false;
-  const betaList = getEffectiveBetaTestersList(db);
-  const betaIdsSet = new Set(betaList.map(b => String(b.id).toUpperCase()));
-  const gateCfg = getEffectiveBetaGateConfig(db);
-  const qNorm = (_adminSearchFilter || '').trim().toLowerCase();
-  const filteredUsers = users.filter(u => {
-    if (!qNorm) return true;
-    const hay = `${u.fisherId || ''} ${u.login || ''} ${u.callsign || ''} ${u.tgUsername || ''} ${u.locLabel || ''} ${u.regionCode || ''} ${u.platform || ''}`.toLowerCase();
-    return hay.includes(qNorm);
-  });
-
-  // Render strictly the active tab's collapsible blocks!
-  let tabContentHtml = '';
-
-  if (_activeAdminSubTab === 'dashboard') {
-    // ВКЛАДКА 1: СЕРВЕР, D1 И ИИ GEMINI
-    const summaryBodyHtml = `
-      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
-        <button type="button" class="btn btn-sm ${ident.fisherId === OWNER_BOUND_FISHER_ID ? 'btn-good' : ''}" data-switch-owner-fid="${OWNER_BOUND_FISHER_ID}" style="min-height:38px;font-family:monospace;font-weight:900;justify-content:center;">
-          ${ident.fisherId === OWNER_BOUND_FISHER_ID ? 'Активен: ' : 'Включить: '}${OWNER_BOUND_FISHER_ID}
-        </button>
-        <button type="button" class="btn btn-sm ${ident.fisherId === OWNER_SECONDARY_FISHER_ID ? 'btn-good' : ''}" data-switch-owner-fid="${OWNER_SECONDARY_FISHER_ID}" style="min-height:38px;font-family:monospace;font-weight:900;justify-content:center;">
-          ${ident.fisherId === OWNER_SECONDARY_FISHER_ID ? 'Активен: ' : 'Включить: '}${OWNER_SECONDARY_FISHER_ID}
-        </button>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;text-align:center;">
-        <div style="padding:8px 6px;background:var(--panel);border:1px solid var(--border);border-radius:8px;">
-          <div style="font-size:18px;font-weight:900;color:var(--good);">${users.length}</div>
-          <div style="font-size:10px;color:var(--muted);font-weight:700;">Всего ID в БД</div>
-        </div>
-        <div style="padding:8px 6px;background:var(--panel);border:1px solid var(--border);border-radius:8px;">
-          <div style="font-size:18px;font-weight:900;color:var(--accent);">${permanentUsers.length}</div>
-          <div style="font-size:10px;color:var(--muted);font-weight:700;">Постоянных ID</div>
-        </div>
-        <div style="padding:8px 6px;background:var(--panel);border:1px solid var(--border);border-radius:8px;">
-          <div style="font-size:18px;font-weight:900;color:var(--warn);">${reserveUsers.length}</div>
-          <div style="font-size:10px;color:var(--muted);font-weight:700;">Резервных RZ</div>
-        </div>
-        <div style="padding:8px 6px;background:var(--panel);border:1px solid var(--border);border-radius:8px;">
-          <div style="font-size:16px;font-weight:900;color:var(--good);">${tgBoundUsers.length}</div>
-          <div style="font-size:10px;color:var(--muted);font-weight:700;">В Telegram</div>
-        </div>
-        <div style="padding:8px 6px;background:var(--panel);border:1px solid var(--border);border-radius:8px;">
-          <div style="font-size:16px;font-weight:900;color:var(--text);">${active24h} / ${active7d}</div>
-          <div style="font-size:10px;color:var(--muted);font-weight:700;">Активны 24ч/7д</div>
-        </div>
-        <div style="padding:8px 6px;background:var(--panel);border:1px solid var(--border);border-radius:8px;">
-          <div style="font-size:16px;font-weight:900;color:var(--accent);">${srvPoints.length}</div>
-          <div style="font-size:10px;color:var(--muted);font-weight:700;">Точек на карте</div>
-        </div>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
-        <button type="button" class="btn btn-sm btn-accent" id="admRefreshServerBtn" style="min-height:42px;font-weight:900;justify-content:center;">
-          ${_adminDashboardLoading ? 'Синхронизация с D1...' : 'Обновить базу D1'}
-        </button>
-        <button type="button" class="btn btn-sm" id="admOpenFullConsoleBtn" style="min-height:42px;font-weight:800;justify-content:center;">
-          Табличная консоль D1
-        </button>
-        <button type="button" class="btn btn-sm" id="admExportUsersJsonBtn" style="min-height:40px;font-weight:800;justify-content:center;">
-          Выгрузить базу (.JSON)
-        </button>
-        <button type="button" class="btn btn-sm" id="admExportUsersCsvBtn" style="min-height:40px;font-weight:800;justify-content:center;">
-          Выгрузить таблицу (.CSV)
-        </button>
-      </div>
-    `;
-
-    // Блок 1.2: Облачные шлюзы D1
-    const catalog = getEffectiveGatewayCatalog();
-    const pinnedKind = getPinnedDbGatewayKind();
-    const diag = _lastDbGatewayDiagReport;
-    const activeLabel = getLastActiveDbGatewayLabel();
-    const customBridgeVal = getCustomDbRelayBridgeUrl();
-    const isConnectedNow = (db.d1Status === 'CONNECTED' && (!diag || diag.workingCount > 0)) || Boolean(diag && diag.workingCount > 0);
-    const gatewaysBodyHtml = `
-      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
-        <button type="button" class="btn btn-sm btn-good" id="admTestDbGatewayBtn" style="min-height:40px;font-weight:900;justify-content:center;">
-          ${_dbGatewayDiagRunning ? 'Проверка шлюзов...' : `Проверить все ${catalog.length} шлюзов`}
-        </button>
-        <button type="button" class="btn btn-sm ${pinnedKind === 'auto' ? 'btn-accent' : ''}" id="admResetDbGatewayAutoBtn" style="min-height:40px;font-weight:800;justify-content:center;">
-          Авто-выбор лучшего
-        </button>
-      </div>
-      <div style="display:flex;flex-direction:column;gap:6px;max-height:280px;overflow-y:auto;">
-        ${catalog.map(gw => {
-          const r = diag && Array.isArray(diag.results) ? diag.results.find(x => x.kind === gw.kind) : null;
-          const isPinned = pinnedKind === gw.kind;
-          const isCurrentActive = _lastWorkingGatewayKind === gw.kind;
-          return `
-            <div style="padding:8px 10px;border-radius:8px;border:1px solid ${isCurrentActive ? 'var(--good)' : 'var(--border)'};background:var(--panel);display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
-              <div style="min-width:0;flex:1;">
-                <div style="font-weight:800;font-size:12px;color:var(--text);">
-                  ${escapeHtml(gw.label)} ${isCurrentActive ? '<span class="pill pill-good" style="font-size:9px;">АКТИВЕН</span>' : ''}
-                </div>
-                <div style="font-size:10.5px;color:var(--muted);font-family:monospace;">${escapeHtml(gw.host)} ${r ? `• ${r.latencyMs} мс` : ''}</div>
-              </div>
-              <button type="button" class="btn btn-sm ${isPinned ? 'btn-good' : ''}" data-pin-db-gateway="${gw.kind}" style="min-height:32px;padding:4px 10px;font-size:11px;font-weight:800;">
-                ${isPinned ? 'Закреплён' : 'Выбрать'}
-              </button>
-            </div>
-          `;
-        }).join('')}
-      </div>
-      <div style="padding:9px 10px;border-radius:8px;background:var(--panel);border:1px dashed var(--accent);display:flex;flex-direction:column;gap:6px;">
-        <div style="font-weight:800;font-size:11.5px;color:var(--accent);">Личный мост Google Apps Script (script.google.com):</div>
-        <input type="url" id="admCustomRelayBridgeInput" class="input" value="${escapeHtml(customBridgeVal)}" placeholder="https://script.google.com/macros/s/.../exec" style="width:100%;min-height:36px;font-size:11.5px;font-family:monospace;">
-        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
-          <button type="button" class="btn btn-sm btn-accent" id="admSaveCustomRelayBridgeBtn" style="min-height:36px;font-weight:800;justify-content:center;">Сохранить мост</button>
-          <button type="button" class="btn btn-sm" id="admCopyGoogleBridgeCodeBtn" style="min-height:36px;font-weight:800;justify-content:center;">Код для Google</button>
-        </div>
-      </div>
-    `;
-
-    // Блок 1.3: Gemini API
-    const srvQ = db.aiQuota || {};
-    const todayStr = new Date().toISOString().slice(0, 10);
-    let locKey = String(s.userProfile?.geminiApiKey || '');
-    let locQuota = {};
-    try {
-      if (typeof localStorage !== 'undefined') {
-        if (!locKey) locKey = String(localStorage.getItem('klev_gemini_api_key_v2') || '').trim();
-        locQuota = JSON.parse(localStorage.getItem('klev_gemini_quota_v2') || '{}') || {};
-      }
-    } catch (e) {}
-    const effRawKey = srvQ.rawApiKey || locKey || '';
-    const srvKeysArr = Array.isArray(srvQ.rawApiKeys) && srvQ.rawApiKeys.length > 0
-      ? srvQ.rawApiKeys
-      : effRawKey.split(',').map(k => k.trim().replace(/^["'\s]+|["'\s]+$/g, '')).filter(Boolean);
-    const key1Val = srvKeysArr[0] || '';
-    const key2Val = srvKeysArr[1] || '';
-    const key3Val = srvKeysArr[2] || '';
-    const activeKeyList = [key1Val, key2Val, key3Val].filter(k => k.length >= 16);
-    const keyCount = Math.max(srvQ.keyCount || 0, activeKeyList.length);
-    const limitPerDay = Math.max(1500, (keyCount || 1) * 1500);
-    const locUsedToday = (locQuota.dateKey === todayStr && Number.isFinite(Number(locQuota.usedToday))) ? Number(locQuota.usedToday) : 0;
-    const srvUsedToday = Math.max(0, Number(srvQ.usedToday) || 0);
-    const usedToday = Math.max(srvUsedToday, locUsedToday);
-    const remainingToday = Math.max(0, limitPerDay - usedToday);
-    const geminiBodyHtml = `
-      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;">
-        <div style="padding:8px 10px;background:var(--panel);border:1px solid var(--border);border-radius:8px;">
-          <div style="font-size:10px;color:var(--muted);font-weight:800;">ЗАПРОСОВ СЕГОДНЯ</div>
-          <div style="font-size:18px;font-weight:900;color:var(--accent);">${usedToday}</div>
-        </div>
-        <div style="padding:8px 10px;background:var(--panel);border:1px solid var(--border);border-radius:8px;">
-          <div style="font-size:10px;color:var(--muted);font-weight:800;">ОСТАТОК КВОТЫ</div>
-          <div style="font-size:18px;font-weight:900;color:var(--good);">${remainingToday} / ${limitPerDay}</div>
-        </div>
-      </div>
-      <div style="display:flex;flex-direction:column;gap:6px;">
-        <input type="password" id="admGeminiApiKeyInput1" data-adm-gemini-key-slot="1" class="input" value="${escapeHtml(key1Val)}" placeholder="Ключ #1 Google Gemini (AIzaSy...)" style="width:100%;min-height:38px;font-family:monospace;font-size:12px;">
-        <input type="password" id="admGeminiApiKeyInput2" data-adm-gemini-key-slot="2" class="input" value="${escapeHtml(key2Val)}" placeholder="Резервный ключ #2 (AIzaSy...)" style="width:100%;min-height:38px;font-family:monospace;font-size:12px;">
-        <input type="password" id="admGeminiApiKeyInput3" data-adm-gemini-key-slot="3" class="input" value="${escapeHtml(key3Val)}" placeholder="Резервный ключ #3 (AIzaSy...)" style="width:100%;min-height:38px;font-family:monospace;font-size:12px;">
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
-        <button type="button" class="btn btn-sm btn-good" id="admSaveGeminiKeyBtn" style="min-height:40px;font-weight:900;justify-content:center;">Сохранить ключи</button>
-        <button type="button" class="btn btn-sm btn-accent" id="admTestGeminiKeyBtn" style="min-height:40px;font-weight:800;justify-content:center;">Проверить связь</button>
-        <button type="button" class="btn btn-sm" id="admToggleShowGeminiKeyBtn" style="min-height:40px;font-weight:800;justify-content:center;">Показать ключи</button>
-        <button type="button" class="btn btn-sm" id="admResetGeminiQuotaBtn" style="min-height:40px;font-weight:800;justify-content:center;">Сбросить счётчик</button>
-      </div>
-    `;
-
-    const miStat = getEffectiveMeteoinfoD1Status(db);
-    const miCh = miStat.channels || {};
-    const miRecs = Array.isArray(miStat.records) ? miStat.records : [];
-    const miSyncTimeStr = miStat.lastSyncAt
-      ? new Date(miStat.lastSyncAt).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })
-      : '—';
-    const meteoinfoBodyHtml = `
-      <div style="font-size:11.5px;color:var(--muted);line-height:1.42;">
-        <b>Контроль каналов Гидрометцентра России (https://meteoinfo.ru) и кэша в БД Cloudflare D1 (таблица <code>meteo_hydro_cache</code>):</b> показывает статус парсинга фактической погоды станций, ледового обзора рек РФ, дорожных предупреждений и геомагнитного индекса Kp.
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;">
-        <div style="padding:8px 10px;background:var(--panel);border:1px solid ${miCh.pogoda?.ok !== false ? 'var(--good)' : 'var(--warn)'};border-radius:8px;font-size:11px;">
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:4px;">
-            <b>1. Погода станций (/pogoda)</b>
-            <span class="pill pill-good" style="font-size:9.5px;">HTTP ${miCh.pogoda?.httpStatus || 200} • ${miCh.pogoda?.latencyMs || 140} мс</span>
-          </div>
-          <div style="color:var(--muted);margin-top:3px;font-size:10.5px;">${escapeHtml(miCh.pogoda?.note || 'Таблицы станций ВМО и Highstock активны')}</div>
-        </div>
-        <div style="padding:8px 10px;background:var(--panel);border:1px solid ${miCh.egmb?.ok !== false ? 'var(--good)' : 'var(--warn)'};border-radius:8px;font-size:11px;">
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:4px;">
-            <b>2. Гидрообзор и лёд (/egmb)</b>
-            <span class="pill pill-good" style="font-size:9.5px;">HTTP ${miCh.egmb?.httpStatus || 200} • ${miCh.egmb?.latencyMs || 155} мс</span>
-          </div>
-          <div style="color:var(--muted);margin-top:3px;font-size:10.5px;">${escapeHtml(miCh.egmb?.note || 'Ледовая сводка рек и водохранилищ РФ')}</div>
-        </div>
-        <div style="padding:8px 10px;background:var(--panel);border:1px solid ${miCh.extrainfo?.ok !== false ? 'var(--good)' : 'var(--warn)'};border-radius:8px;font-size:11px;">
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:4px;">
-            <b>3. Дорожные риски (/extrainfopage)</b>
-            <span class="pill pill-good" style="font-size:9.5px;">HTTP ${miCh.extrainfo?.httpStatus || 200} • ${miCh.extrainfo?.latencyMs || 135} мс</span>
-          </div>
-          <div style="color:var(--muted);margin-top:3px;font-size:10.5px;">${escapeHtml(miCh.extrainfo?.note || 'Контроль гололёда, наката и метелей')}</div>
-        </div>
-        <div style="padding:8px 10px;background:var(--panel);border:1px solid var(--accent);border-radius:8px;font-size:11px;">
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:4px;">
-            <b>4. Космопогода ИПГ (Kp-индекс)</b>
-            <span class="pill pill-accent" style="font-size:9.5px;">Kp = ${Number(miCh.spaceWeather?.kpIndex || 2.0).toFixed(1)}</span>
-          </div>
-          <div style="color:var(--muted);margin-top:3px;font-size:10.5px;">${escapeHtml(miCh.spaceWeather?.label || 'Геомагнитное поле спокойное')}</div>
-        </div>
-      </div>
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;padding:7px 10px;background:var(--panel);border:1px solid var(--border);border-radius:8px;font-size:11px;">
-        <span>Таблица D1: <code>${escapeHtml(miStat.tableName || 'meteo_hydro_cache')}</code> • Записей: <b style="color:var(--good);">${miRecs.length}</b></span>
-        <span>Синхронизация: <b style="color:var(--accent);">${escapeHtml(miSyncTimeStr)}</b></span>
-      </div>
-      <div style="display:flex;flex-direction:column;gap:5px;max-height:220px;overflow-y:auto;">
-        ${miRecs.map(r => {
-          const iceTxt = r.iceStatusText || (Array.isArray(r.iceRangeCm) && r.iceRangeCm[1] > 0 ? `Лёд ${r.iceRangeCm[0]}–${r.iceRangeCm[1]} см` : 'Открытая вода');
-          const tStr = Number(r.tAirC) > 0 ? `+${r.tAirC}°C` : `${r.tAirC ?? -5}°C`;
-          return `
-            <div style="padding:7px 10px;background:var(--panel);border:1px solid var(--border);border-radius:7px;font-size:11px;display:flex;flex-direction:column;gap:2px;">
-              <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;">
-                <b>[${escapeHtml(r.regionCode || '89')}] ${escapeHtml(r.stationName || r.gridKey)}</b>
-                <span style="font-family:monospace;font-size:10.5px;color:var(--accent);">Сетка D1: ${escapeHtml(r.gridKey)}</span>
-              </div>
-              <div style="color:var(--text);">
-                Воздух: <b>${escapeHtml(tStr)}</b> • Давление: <b>${r.pressMm || 752} мм</b> • Ветер: <b>${r.windMs || 4} м/с</b> • Гидрообзор: <b style="color:var(--good);">${escapeHtml(iceTxt)}</b>
-              </div>
-              <div style="color:var(--muted);font-size:10.5px;">
-                Бассейн: ${escapeHtml(r.basin || 'РФ')} • Трассы: ${escapeHtml(r.roadNote || 'Норма')} • Kp=${Number(r.kpIndex || 2).toFixed(1)}
-              </div>
-            </div>
-          `;
-        }).join('')}
-      </div>
-      <button type="button" class="btn btn-good" id="admSyncMeteoinfoD1Btn" style="width:100%;min-height:42px;font-weight:900;justify-content:center;">
-        ${_isSyncingMeteoinfoD1 ? 'Проверка meteoinfo.ru и запись в БД D1...' : 'Проверить связь с meteoinfo.ru и обновить БД D1'}
-      </button>
-    `;
-
-    tabContentHtml = [
-      renderAdminAccordionCard({
-        id: 'adm_blk_summary',
-        title: `1.1 Паспорт Супер-Админа (${escapeHtml(ident.fisherId)})`,
-        subtitle: `Владелец: Антон (${escapeHtml(ident.login)}) • Синхронизация и выгрузка базы D1`,
-        badgeHtml: `<span class="pill pill-good" style="font-size:10px;">${escapeHtml(APP_DISPLAY_VERSION)}</span>`,
-        borderColor: 'var(--good)',
-        bodyHtml: summaryBodyHtml
-      }),
-      renderAdminAccordionCard({
-        id: 'adm_blk_gateways',
-        title: `1.2 Резервные каналы связи с БД D1`,
-        subtitle: `Активный маршрут: ${escapeHtml(activeLabel)}`,
-        badgeHtml: `<span class="pill ${isConnectedNow ? 'pill-good' : 'pill-warn'}" style="font-size:10px;">${isConnectedNow ? 'ПОДКЛЮЧЕНА' : 'ПРОВЕРКА'}</span>`,
-        borderColor: isConnectedNow ? 'var(--good)' : 'var(--accent)',
-        bodyHtml: gatewaysBodyHtml
-      }),
-      renderAdminAccordionCard({
-        id: 'adm_blk_meteoinfo',
-        title: `1.3 Статус данных Гидрометцентра РФ (meteoinfo.ru) в БД D1`,
-        subtitle: `Таблица meteo_hydro_cache: ${miRecs.length} секторов • /pogoda • /egmb • /extrainfopage`,
-        badgeHtml: `<span class="pill pill-good" style="font-size:10px;">В БД D1: ${miRecs.length}</span>`,
-        borderColor: 'var(--good)',
-        bodyHtml: meteoinfoBodyHtml
-      }),
-      renderAdminAccordionCard({
-        id: 'adm_blk_gemini',
-        title: `1.4 Нейросеть Google Gemini API`,
-        subtitle: `Использовано сегодня: ${usedToday} • Свободно: ${remainingToday}`,
-        badgeHtml: `<span class="pill pill-accent" style="font-size:10px;">Ключей: ${keyCount}/3</span>`,
-        borderColor: 'var(--accent)',
-        bodyHtml: geminiBodyHtml
-      })
-    ].join('');
-
-  } else if (_activeAdminSubTab === 'users_beta') {
-    // ВКЛАДКА 2: РЫБАКИ, БЕТА-ТЕСТ И УДАЛЕНИЕ УЗ
-    const betaBodyHtml = `
-      <div style="display:flex;flex-direction:column;gap:8px;padding:10px;background:var(--panel);border:1px solid var(--border);border-radius:8px;">
-        <div style="font-size:11.5px;font-weight:800;color:var(--accent);">Режим доступа к Фазе 2 (Автономная связь):</div>
-        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;">
-          <button type="button" class="btn btn-sm ${gateCfg.phase2BetaOnly !== false ? 'btn-accent' : ''}" data-adm-set-gate="2:beta" style="min-height:38px;font-weight:900;justify-content:center;">
-            Только Бета-тест
-          </button>
-          <button type="button" class="btn btn-sm ${gateCfg.phase2BetaOnly === false ? 'btn-good' : ''}" data-adm-set-gate="2:all" style="min-height:38px;font-weight:900;justify-content:center;">
-            Открыто всем
-          </button>
-        </div>
-        <div style="font-size:11.5px;font-weight:800;color:var(--accent);margin-top:4px;">Режим доступа к Фазе 3 (Маршруты и «Я потерялся»):</div>
-        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;">
-          <button type="button" class="btn btn-sm ${gateCfg.phase3BetaOnly !== false ? 'btn-accent' : ''}" data-adm-set-gate="3:beta" style="min-height:38px;font-weight:900;justify-content:center;">
-            Только Бета-тест
-          </button>
-          <button type="button" class="btn btn-sm ${gateCfg.phase3BetaOnly === false ? 'btn-good' : ''}" data-adm-set-gate="3:all" style="min-height:38px;font-weight:900;justify-content:center;">
-            Открыто всем
-          </button>
-        </div>
-      </div>
-
-      <!-- Полноширинная форма добавления Бета-тестера без обрезки полей -->
-      <div style="display:flex;flex-direction:column;gap:8px;padding:10px;background:var(--panel);border:1.5px solid var(--good);border-radius:8px;">
-        <div style="font-size:12px;font-weight:900;color:var(--good);">Добавить пользователя в список Бета-тестеров:</div>
-        ${users.length > 0 ? `
-          <select id="admBetaPickExistingUserSelect" class="input" style="width:100%;min-height:40px;font-size:12.5px;font-weight:800;">
-            <option value="">— Выбрать рыбака из базы D1 (${users.length} чел.) или ввести ID вручную ниже —</option>
-            ${users.map(u => `<option value="${escapeHtml(u.fisherId)}|${escapeHtml(u.login || u.callsign || 'Рыболов')}">${escapeHtml(u.fisherId)} — ${escapeHtml(u.login || u.callsign || 'Гость')} ([${escapeHtml(u.regionCode || '89')}] ${escapeHtml(u.locLabel || '')})</option>`).join('')}
-          </select>
-        ` : ''}
-        <input type="text" id="admBetaAddFidInput" class="input" placeholder="Введите ID пользователя (например: FP_89AAA001)" style="width:100%;min-height:42px;font-family:monospace;font-size:13.5px;font-weight:900;text-transform:uppercase;">
-        <input type="text" id="admBetaAddLabelInput" class="input" placeholder="Имя / Позывной / Примечание (например: Тестер ЯНАО)" style="width:100%;min-height:40px;font-size:13px;">
-        <button type="button" class="btn btn-good" id="admBetaAddConfirmBtn" style="width:100%;min-height:44px;font-size:13.5px;font-weight:900;justify-content:center;">
-          + Назначить Бета-тестером (открыть Фазу 2 и 3)
-        </button>
-      </div>
-
-      <div style="display:flex;flex-direction:column;gap:6px;">
-        <div style="font-size:11.5px;font-weight:800;color:var(--muted);text-transform:uppercase;">Активные Бета-тестеры (${betaList.length}):</div>
-        ${betaList.map(bt => `
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px;background:var(--panel);border:1px solid var(--border);border-radius:8px;font-size:12px;">
-            <div style="min-width:0;flex:1;">
-              <b style="font-family:monospace;color:var(--good);font-size:13px;">${escapeHtml(bt.id)}</b>
-              <div style="font-size:11px;color:var(--text);">${escapeHtml(bt.label || 'Бета-тестер')} <span style="color:var(--muted);">(${escapeHtml(bt.addedAt || '')})</span></div>
-            </div>
-            ${!isOwnerFisherId(bt.id) ? `
-              <button type="button" class="btn btn-sm" data-adm-remove-beta="${escapeHtml(bt.id)}" style="min-height:32px;padding:4px 10px;font-size:11.5px;font-weight:800;color:var(--bad);border-color:rgba(239,68,68,0.45);">
-                Снять Бета
-              </button>
-            ` : `<span class="pill pill-good" style="font-size:10.5px;">Владелец</span>`}
-          </div>
-        `).join('')}
-      </div>
-    `;
-
-    const usersBodyHtml = `
-      <input type="search" id="admUserSearchInput" class="input" value="${escapeHtml(_adminSearchFilter)}" placeholder="Поиск по ID (FP_...), логину, @username, городу..." style="width:100%;min-height:42px;font-size:13px;">
-      <div style="display:flex;flex-direction:column;gap:8px;max-height:460px;overflow-y:auto;">
-        ${filteredUsers.length === 0 ? `
-          <div style="padding:14px;text-align:center;color:var(--muted);background:var(--panel);border-radius:8px;">
-            Пользователи не найдены. Перейдите на вкладку «1. Сервер» и нажмите «Обновить базу D1».
-          </div>
-        ` : filteredUsers.map(u => {
-          const isRz = isTemporaryReserveId(u.fisherId);
-          const isOwn = isOwnerFisherId(u.fisherId);
-          const isBeta = betaIdsSet.has(String(u.fisherId || '').toUpperCase()) || Boolean(u.isBetaTester);
-          const timeStr = u.lastSeen ? new Date(u.lastSeen).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
-          return `
-            <div style="padding:10px;background:var(--panel);border:1px solid ${isBeta ? 'var(--good)' : 'var(--border)'};border-radius:8px;display:flex;flex-direction:column;gap:6px;">
-              <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;">
-                <span class="fisher-id-copy-badge" data-copy-fisher-id="${escapeHtml(u.fisherId)}" style="font-family:monospace;font-weight:900;font-size:13.5px;color:${isOwn ? 'var(--good)' : (isRz ? 'var(--warn)' : 'var(--accent)')};cursor:pointer;">
-                  ${escapeHtml(u.fisherId)}
-                </span>
-                <div style="display:flex;gap:4px;flex-wrap:wrap;">
-                  ${isBeta ? '<span class="pill pill-good" style="font-size:10px;">БЕТА-ТЕСТЕР</span>' : ''}
-                  <span class="pill ${isOwn ? 'pill-good' : (isRz ? 'pill-warn' : 'pill-accent')}" style="font-size:10px;">
-                    ${isOwn ? 'ВЛАДЕЛЕЦ' : (isRz ? 'Резерв RZ' : 'Постоянный')}
-                  </span>
-                </div>
-              </div>
-              <div style="font-size:12px;color:var(--text);">
-                <b>${escapeHtml(u.login || u.callsign || 'Гость')}</b> • [${escapeHtml(u.regionCode || '89')}] ${escapeHtml(u.locLabel || 'РФ')}
-                ${u.tgUsername ? ` • <span style="color:#38bdf8;">@${escapeHtml(u.tgUsername)}</span>` : ''}
-              </div>
-              <div style="font-size:11px;color:var(--muted);">
-                ${escapeHtml(u.platform || 'WEB')} • Сессий: ${u.sessionsCount || 1} • Точек: ${u.circlePostsCount || 0} • Был: ${timeStr}
-              </div>
-              ${!isOwn ? `
-                <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:2px;">
-                  <button type="button" class="btn btn-sm ${isBeta ? '' : 'btn-good'}" data-adm-quick-beta="${escapeHtml(u.fisherId)}" data-adm-quick-beta-name="${escapeHtml(u.login || u.callsign || 'Рыболов')}" data-adm-quick-beta-mode="${isBeta ? 'remove' : 'add'}" style="min-height:34px;font-size:11px;font-weight:800;justify-content:center;">
-                    ${isBeta ? 'Снять Бета' : '+ В Бета'}
-                  </button>
-                  <button type="button" class="btn btn-sm btn-accent" data-adm-reply-err-user="${escapeHtml(u.fisherId)}" data-adm-reply-err-name="${escapeHtml(u.login || u.callsign || 'Рыболов')}" style="min-height:34px;font-size:11px;font-weight:800;justify-content:center;">
-                    Написать
-                  </button>
-                  <button type="button" class="btn btn-sm" data-adm-del-user="${escapeHtml(u.fisherId)}" data-adm-del-name="${escapeHtml(u.callsign || u.login || u.fisherId)}" style="min-height:34px;font-size:11px;font-weight:800;color:var(--bad);border-color:rgba(239,68,68,0.45);justify-content:center;">
-                    Удалить УЗ
-                  </button>
-                </div>
-              ` : ''}
-            </div>
-          `;
-        }).join('')}
-      </div>
-    `;
-
-    const regionsBodyHtml = `
-      <div style="display:flex;flex-wrap:wrap;gap:6px;">
-        ${allRegs.map(rc => {
-          const st = regStats[rc] || { perm: 0, rz: 0 };
-          return `<span style="padding:5px 9px;border-radius:8px;background:var(--panel);border:1px solid var(--border);font-size:11.5px;">Регион <b>${rc}</b>: пост. <b style="color:var(--good);">${st.perm}</b> • рез. <b style="color:var(--warn);">${st.rz}</b></span>`;
-        }).join('')}
-      </div>
-    `;
-
-    tabContentHtml = [
-      renderAdminAccordionCard({
-        id: 'adm_blk_beta',
-        title: `2.1 Бета-тестеры (Фаза 2 и Фаза 3)`,
-        subtitle: `Выдача прав доступа по ID рыбака и переключение режимов`,
-        badgeHtml: `<span class="pill pill-good" style="font-size:10px;">Активно: ${betaList.length}</span>`,
-        borderColor: 'var(--good)',
-        bodyHtml: betaBodyHtml
-      }),
-      renderAdminAccordionCard({
-        id: 'adm_blk_users',
-        title: `2.2 Реестр пользователей БД и Удаление УЗ`,
-        subtitle: `Постоянных: ${permanentUsers.length} • Резервных: ${reserveUsers.length}`,
-        badgeHtml: `<span class="pill pill-accent" style="font-size:10px;">Всего: ${users.length}</span>`,
-        borderColor: 'var(--accent)',
-        bodyHtml: usersBodyHtml
-      }),
-      renderAdminAccordionCard({
-        id: 'adm_blk_regions',
-        title: `2.3 Статистика ID по регионам РФ`,
-        subtitle: `Счётчики выданных постоянных и резервных ID`,
-        badgeHtml: `<span class="pill" style="font-size:10px;">Регионов: ${allRegs.length}</span>`,
-        borderColor: 'var(--border)',
-        bodyHtml: regionsBodyHtml
-      })
-    ].join('');
-
-  } else if (_activeAdminSubTab === 'moderation') {
-    // ВКЛАДКА 3: ТОЧКИ, КРУГИ И РЕГИОНАЛЬНЫЕ ЧАТЫ
-    const visibleSrvPoints = showAllCrewsFlag
-      ? srvPoints
-      : srvPoints.filter(pt => !(pt && pt.t === 'crew' && !pt.sos && !isCircleItemMine(pt, s)));
-
-    const pointsBodyHtml = `
-      <button type="button" class="btn btn-sm ${showAllCrewsFlag ? 'btn-good' : ''}" id="admToggleAllCrewsBtn" style="width:100%;min-height:40px;font-weight:800;justify-content:center;">
-        ${showAllCrewsFlag ? 'Видимость закрытых Экипажей: ВКЛЮЧЕНА' : 'Видимость закрытых Экипажей: СКРЫТА'}
-      </button>
-      <div style="display:flex;flex-direction:column;gap:6px;max-height:360px;overflow-y:auto;">
-        ${visibleSrvPoints.length === 0 ? `
-          <div style="padding:14px;text-align:center;color:var(--muted);background:var(--panel);border-radius:8px;">
-            Активных точек на сервере сейчас нет.
-          </div>
-        ` : visibleSrvPoints.map(pt => `
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px;background:var(--panel);border:1px solid var(--border);border-radius:8px;font-size:12px;">
-            <div style="min-width:0;flex:1;">
-              <b>${pt.sos ? 'SOS' : (pt.t === 'crew' ? `Экипаж <code>${escapeHtml(pt.crewKey || '')}</code>` : (pt.t === 'spot' ? 'Слип/Точка' : 'Круг'))}</b> • ${escapeHtml(pt.fn || 'Точка')} (${escapeHtml(pt.wn || pt.lb || 'Водоём')})
-              <div style="font-size:11px;color:var(--accent);font-family:monospace;">Автор: ${escapeHtml(pt.fid || '—')}</div>
-            </div>
-            <button type="button" class="btn btn-sm" data-adm-del-srv-point="${escapeHtml(pt.id)}" data-adm-del-srv-title="${escapeHtml(`${pt.fn || 'Точка'} (${pt.wn || pt.lb || 'Водоём'})`)}" style="min-height:32px;padding:4px 10px;color:var(--bad);border-color:rgba(239,68,68,0.45);font-weight:800;">
-              Удалить
-            </button>
-          </div>
-        `).join('')}
-      </div>
-    `;
-
-    const regChatsMap = db.regionalChats || {};
-    const regChatKeys = Object.keys(regChatsMap);
-    const regChatsBodyHtml = `
-      <div style="font-size:12px;color:var(--muted);">
-        Введите код региона (например, <code>REG-89</code> или <code>89</code>), чтобы полностью очистить историю регионального чата на сервере D1 у всех участников:
-      </div>
-      <input type="text" id="admWipeRegCodeInput" class="input" placeholder="Код региона (например: REG-89)" value="REG-89" style="width:100%;min-height:42px;font-family:monospace;font-weight:900;">
-      <button type="button" class="btn btn-sm" id="admWipeRegChatBtn" style="width:100%;min-height:42px;font-weight:900;background:#ef4444;border-color:#ef4444;color:#fff;justify-content:center;">
-        Очистить региональный чат на сервере D1
-      </button>
-    `;
-
-    const modsBodyHtml = `
-      <input type="text" id="admAddModIdInput" class="input" placeholder="ID рыбака (например: FP_89AAA001)" style="width:100%;min-height:40px;font-family:monospace;text-transform:uppercase;">
-      <input type="text" id="admAddModLabelInput" class="input" placeholder="Имя / Примечание" style="width:100%;min-height:40px;">
-      <button type="button" class="btn btn-sm btn-good" id="admAddModConfirmBtn" style="width:100%;min-height:40px;font-weight:900;justify-content:center;">
-        + Назначить модератором Круга
-      </button>
-      <div style="display:flex;flex-direction:column;gap:6px;">
-        ${adminList.map(adm => `
-          <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 10px;background:var(--panel);border:1px solid var(--border);border-radius:8px;font-size:12px;">
-            <span><b style="font-family:monospace;color:var(--good);">${escapeHtml(adm.id)}</b> • ${escapeHtml(adm.label)}</span>
-            ${DEFAULT_ADMIN_IDS.includes(adm.id)
-              ? `<span class="pill pill-good" style="font-size:10px;">Владелец</span>`
-              : `<button type="button" class="btn btn-sm" data-adm-remove-mod="${escapeHtml(adm.id)}" data-adm-remove-label="${escapeHtml(adm.label)}" style="min-height:28px;padding:2px 8px;color:var(--bad);">Снять</button>`}
-          </div>
-        `).join('')}
-      </div>
-    `;
-
-    const allChatMsgsCount = Array.isArray(s.chatMessages) ? s.chatMessages.length : 0;
-    const unreadChatMsgsCount = Array.isArray(s.chatMessages) ? s.chatMessages.filter(m => m && m.unread).length : 0;
-    tabContentHtml = [
-      renderAdminAccordionCard({
-        id: 'adm_blk_livechats',
-        title: `3.0 Чаты, Обращения рыбаков и Личные диалоги`,
-        subtitle: `Ответы рыбакам от лица Супер-Админа (${escapeHtml(ident.fisherId)}), региональные чаты и Экипажи`,
-        badgeHtml: `<span class="pill ${unreadChatMsgsCount > 0 ? 'pill-bad' : 'pill-good'}" style="font-size:10px;">${unreadChatMsgsCount > 0 ? `Новых: +${unreadChatMsgsCount}` : `Сообщений: ${allChatMsgsCount}`}</span>`,
-        borderColor: 'var(--good)',
-        bodyHtml: `<div id="admEmbeddedChatsBox"></div>`
-      }),
-      renderAdminAccordionCard({
-        id: 'adm_blk_points',
-        title: `3.1 Точки на сервере (Круг, Слипы, SOS)`,
-        subtitle: `Просмотр и удаление опубликованных точек с карты`,
-        badgeHtml: `<span class="pill pill-accent" style="font-size:10px;">Точек: ${visibleSrvPoints.length}</span>`,
-        borderColor: 'var(--accent)',
-        bodyHtml: pointsBodyHtml
-      }),
-      renderAdminAccordionCard({
-        id: 'adm_blk_regchats',
-        title: `3.2 Модерация региональных чатов РФ`,
-        subtitle: `Очистка региональных каналов (REG-89 и др.) на сервере D1`,
-        badgeHtml: `<span class="pill pill-warn" style="font-size:10px;">Каналов: ${regChatKeys.length}</span>`,
-        borderColor: 'var(--warn)',
-        bodyHtml: regChatsBodyHtml
-      }),
-      renderAdminAccordionCard({
-        id: 'adm_blk_mods',
-        title: `3.3 База модераторов Круга`,
-        subtitle: `Назначение помощников модерации точек`,
-        badgeHtml: `<span class="pill" style="font-size:10px;">Модераторов: ${adminList.length}</span>`,
-        borderColor: 'var(--border)',
-        bodyHtml: modsBodyHtml
-      })
-    ].join('');
-
-  } else {
-    // ВКЛАДКА 4: ЩИТ ИБ, ПОЛИТИКИ (152-ФЗ) И ОШИБКИ
-    const polState = resolveLatestAdminPolicyState(db);
-    const editableSectionsStr = formatPolicySectionsToEditableText(
-      Array.isArray(polState.sections) && polState.sections.length > 0 ? polState.sections : DEFAULT_POLICY_SECTIONS
-    );
-    const consentsMap = (db && db.userConsents && typeof db.userConsents === 'object') ? db.userConsents : {};
-    const acceptedCurrCount = Object.values(consentsMap).filter(c => c && c.policyVersion === polState.policyVersion && c.chkPrivacy && c.chkTerms).length;
-
-    const policyBodyHtml = `
-      <div style="font-size:11.5px;color:var(--muted);line-height:1.45;">
-        <b>Механизм прямого обновления без пересборки (Отправитель -> Получатель):</b> при нажатии кнопки «Отправить...» новая редакция, сводка и полный текст разделов передаются во все активные и будущие клиентские сессии (Сайт, PWA, Android APK, TMA), записываются в локальное окружение клиентов (<code>klev_pro_remote_policy_env_v1</code>) и автоматически открывают окно согласия с чекбоксами.
-      </div>
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;padding:7px 10px;background:var(--panel);border:1px solid var(--border);border-radius:8px;font-size:11px;">
-        <span>Активная редакция: <b style="color:var(--accent);">${escapeHtml(polState.policyVersion || '2026.11.10-v2.8.3')}</b></span>
-        <span>Приняли в D1: <b style="color:var(--good);">${acceptedCurrCount} чел.</b></span>
-        <button type="button" class="btn btn-sm" id="admBumpPolicyVerBtn" style="min-height:26px;padding:2px 8px;font-size:10.5px;font-weight:800;">+ Новая дата/номер</button>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
-        <div>
-          <label style="font-size:10.5px;font-weight:800;color:var(--muted);">РЕДАКЦИЯ ПОЛИТИКИ:</label>
-          <input type="text" id="admPolicyVerInput" class="input" value="${escapeHtml(polState.policyVersion || '2026.11.10-v2.8.3')}" style="width:100%;min-height:40px;font-weight:800;">
-        </div>
-        <div>
-          <label style="font-size:10.5px;font-weight:800;color:var(--muted);">ВЕРСИЯ ПРИЛОЖЕНИЯ:</label>
-          <input type="text" id="admPolicyAppVerInput" class="input" value="${escapeHtml(polState.appVersion || '2.8.3')}" style="width:100%;min-height:40px;font-weight:800;">
-        </div>
-      </div>
-      <div>
-        <label style="font-size:10.5px;font-weight:800;color:var(--muted);">КРАТКОЕ ОПИСАНИЕ ИЗМЕНЕНИЙ (SUMMARY В ШАПКЕ ОКНА СОГЛАШЕНИЯ):</label>
-        <input type="text" id="admPolicySummaryInput" class="input" value="${escapeHtml(polState.summary || '')}" placeholder="Краткое описание изменений в политике..." style="width:100%;min-height:40px;">
-      </div>
-      <div>
-        <label style="font-size:10.5px;font-weight:800;color:var(--muted);">ПОЛНЫЙ ТЕКСТ И РАЗДЕЛЫ СОГЛАШЕНИЯ (ЗАПИСЫВАЮТСЯ В ОКРУЖЕНИЕ КЛИЕНТОВ):</label>
-        <textarea id="admPolicySectionsTextarea" class="input" rows="8" style="width:100%;min-height:150px;font-size:11.5px;line-height:1.42;font-family:inherit;resize:vertical;">${escapeHtml(editableSectionsStr)}</textarea>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1.5fr;gap:8px;">
-        <button type="button" class="btn btn-sm" id="admPreviewPolicyModalBtn" style="min-height:42px;font-weight:800;justify-content:center;">
-          Предпросмотр окна
-        </button>
-        <button type="button" class="btn btn-good" id="admPublishPolicyVerBtn" style="min-height:42px;font-weight:900;justify-content:center;">
-          Отправить в клиентские сессии
-        </button>
-      </div>
-    `;
-
-    const secRep = getMergedSecurityAuditReport();
-    const c = secRep.counters || {};
-    const factorDefs = [
-      { key: 'sqli', short: '01 SQL-инъекции', count: c.sqli || 0 },
-      { key: 'idor', short: '02 IDOR / BOLA', count: c.idor || 0 },
-      { key: 'mass_assign', short: '03 Формы / Роли', count: c.mass_assign || 0 },
-      { key: 'deserialization', short: '04 Файлы / JSON', count: c.deserialization || 0 },
-      { key: 'data_exposure', short: '05 Утечки API', count: c.data_exposure || 0 },
-      { key: 'brute_force', short: '06 Анти-Брутфорс', count: c.brute_force || 0 },
-      { key: 'xss', short: '07 Анти-XSS', count: c.xss || 0 }
-    ];
-    const filteredEvs = _adminSecurityFactorFilter === 'all'
-      ? secRep.events
-      : secRep.events.filter(ev => ev.factorKey === _adminSecurityFactorFilter);
-
-    const shieldBodyHtml = `
-      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;">
-        ${factorDefs.map(f => `
-          <div style="padding:7px 9px;background:var(--panel);border:1px solid ${f.count > 0 ? 'var(--warn)' : 'var(--border)'};border-radius:8px;display:flex;justify-content:space-between;align-items:center;font-size:11.5px;">
-            <b>${f.short}</b>
-            <span class="pill ${f.count > 0 ? 'pill-warn' : 'pill-good'}" style="font-size:9.5px;">${f.count > 0 ? `Блок: ${f.count}` : 'OK'}</span>
-          </div>
-        `).join('')}
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
-        <button type="button" class="btn btn-sm btn-accent" id="admRunSecuritySelfTestBtn" style="min-height:40px;font-weight:800;justify-content:center;">
-          Тест 7 рубежей ИБ
-        </button>
-        <button type="button" class="btn btn-sm btn-good" id="admSyncSecurityAuditBtn" style="min-height:40px;font-weight:800;justify-content:center;">
-          Синхронизировать
-        </button>
-        <button type="button" class="btn btn-sm" id="admClearSecurityAuditBtn" style="grid-column:1 / -1;min-height:38px;font-weight:800;justify-content:center;" ${secRep.totalBlocked === 0 ? 'disabled' : ''}>
-          Очистить журнал ИБ (${secRep.totalBlocked})
-        </button>
-      </div>
-      <div style="display:flex;flex-direction:column;gap:5px;max-height:200px;overflow-y:auto;">
-        ${filteredEvs.length === 0 ? `
-          <div style="padding:10px;background:var(--panel);border-radius:8px;text-align:center;color:var(--muted);font-size:11.5px;">
-            Атак не зафиксировано. Все 7 рубежей бэкенда активны.
-          </div>
-        ` : filteredEvs.slice(0, 20).map(ev => `
-          <div style="padding:7px 10px;background:var(--panel);border:1px solid var(--border);border-radius:7px;font-size:11px;">
-            <b style="color:var(--accent);">[${escapeHtml(ev.factorTitle || ev.factorKey)}]</b> — ${escapeHtml(ev.detail || '')}
-          </div>
-        `).join('')}
-      </div>
-    `;
-
-    const localErrs = (typeof window !== 'undefined' && typeof window.__KLEV_GET_CLIENT_ERRORS__ === 'function')
-      ? window.__KLEV_GET_CLIENT_ERRORS__()
-      : [];
-    const remoteErrs = Array.isArray(db.clientErrors) ? db.clientErrors : [];
-    const errList = [...localErrs, ...remoteErrs].slice(0, 15);
-    const errorsBodyHtml = `
-      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
-        <button type="button" class="btn btn-sm btn-accent" id="admTestErrorCaptureBtn" style="min-height:38px;font-weight:800;justify-content:center;">Тест перехвата</button>
-        <button type="button" class="btn btn-sm" id="admClearErrorLogBtn" style="min-height:38px;font-weight:800;justify-content:center;">Очистить (${errList.length})</button>
-      </div>
-      <div style="display:flex;flex-direction:column;gap:5px;max-height:180px;overflow-y:auto;">
-        ${errList.length === 0 ? `<div style="padding:10px;text-align:center;color:var(--muted);font-size:11.5px;">Сбоев на клиентах не зафиксировано.</div>` : errList.map(er => `
-          <div style="padding:7px 9px;background:var(--panel);border:1px solid var(--border);border-radius:7px;font-size:11px;">
-            <b style="color:var(--warn);">[${escapeHtml(er.type || 'ERR')}]</b> ${escapeHtml(er.msg || '')}
-          </div>
-        `).join('')}
-      </div>
-    `;
-
-    tabContentHtml = [
-      renderAdminAccordionCard({
-        id: 'adm_blk_policy',
-        title: `4.1 Редакция Политики и Согласия (152-ФЗ)`,
-        subtitle: `Управление версией Политики для сайта и приложения`,
-        badgeHtml: `<span class="pill pill-warn" style="font-size:10px;">${escapeHtml(polState.policyVersion || '2026.11.10-v2.8.3')}</span>`,
-        borderColor: 'var(--warn)',
-        bodyHtml: policyBodyHtml
-      }),
-      renderAdminAccordionCard({
-        id: 'adm_blk_shield',
-        title: `4.2 Щит Бэкенда (7 рубежей защиты)`,
-        subtitle: `Мониторинг SQLi, IDOR, брутфорса и XSS`,
-        badgeHtml: `<span class="pill ${secRep.totalBlocked === 0 ? 'pill-good' : 'pill-warn'}" style="font-size:10px;">Блок: ${secRep.totalBlocked}</span>`,
-        borderColor: 'var(--accent)',
-        bodyHtml: shieldBodyHtml
-      }),
-      renderAdminAccordionCard({
-        id: 'adm_blk_errors',
-        title: `4.3 Телеметрия ошибок клиента`,
-        subtitle: `Перехват ошибок WebView/JS`,
-        badgeHtml: `<span class="pill ${errList.length === 0 ? 'pill-good' : 'pill-warn'}" style="font-size:10px;">Сбоев: ${errList.length}</span>`,
-        borderColor: 'var(--border)',
-        bodyHtml: errorsBodyHtml
-      })
-    ].join('');
-  }
-
-  const needsMasterPassBanner = Boolean(db.authRequired || !getActiveAdminToken(s));
-  const savedPassVal = '';
-  const masterPassBannerHtml = needsMasterPassBanner ? `
-    <div class="card" style="border:2px solid var(--warn);background:rgba(245,158,11,0.12);padding:12px;display:flex;flex-direction:column;gap:8px;">
-      <div style="font-size:13px;font-weight:900;color:var(--warn);">Подключение к закрытой базе D1 (после очистки кэша)</div>
-      <div style="font-size:11.5px;color:var(--text);line-height:1.4;">
-        Введите серверный мастер-пароль Владельца (<code>ADMIN_SECRET_PASSWORD</code>), чтобы загрузить всех пользователей и точки из базы D1 и сохранить ключ в памяти приложения:
-      </div>
-      <input type="password" id="admInlineMasterPassInput" class="input" value="${escapeHtml(savedPassVal)}" placeholder="Введите мастер-пароль Владельца..." style="width:100%;min-height:42px;font-weight:800;">
-      <button type="button" class="btn btn-good" id="admInlineMasterPassSaveBtn" style="width:100%;min-height:42px;font-weight:900;justify-content:center;">
-        Сохранить пароль и загрузить базу D1
-      </button>
-    </div>
-  ` : '';
-
-  container.innerHTML = `
-    <div style="display:flex;flex-direction:column;gap:10px;padding-bottom:24px;">
-      ${masterPassBannerHtml}
-      ${(typeof document !== 'undefined' && document.getElementById('adminTopTabBar')) ? '' : `
-      <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;padding:6px;background:var(--panel);border:1.5px solid var(--accent);border-radius:10px;">
-        <button type="button" class="btn btn-sm ${_activeAdminSubTab === 'dashboard' ? 'btn-accent' : ''}" data-adm-subtab-btn="dashboard" style="min-height:40px;padding:4px 2px;font-size:11px;font-weight:900;justify-content:center;">
-          1. Сервер·D1
-        </button>
-        <button type="button" class="btn btn-sm ${_activeAdminSubTab === 'users_beta' ? 'btn-accent' : ''}" data-adm-subtab-btn="users_beta" style="min-height:40px;padding:4px 2px;font-size:11px;font-weight:900;justify-content:center;">
-          2. Бета·Люди
-        </button>
-        <button type="button" class="btn btn-sm ${_activeAdminSubTab === 'moderation' ? 'btn-accent' : ''}" data-adm-subtab-btn="moderation" style="min-height:40px;padding:4px 2px;font-size:11px;font-weight:900;justify-content:center;">
-          3. Чаты·Точки
-        </button>
-        <button type="button" class="btn btn-sm ${_activeAdminSubTab === 'security_policy' ? 'btn-accent' : ''}" data-adm-subtab-btn="security_policy" style="min-height:40px;padding:4px 2px;font-size:11px;font-weight:900;justify-content:center;">
-          4. 152-ФЗ·ИБ
-        </button>
-      </div>`}
-      <!-- Быстрые кнопки сворачивания/разворачивания всех блоков текущей вкладки -->
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 10px;background:var(--panel);border:1px solid var(--border);border-radius:8px;">
-        <span style="font-size:11.5px;font-weight:900;color:var(--accent);">
-          ${_activeAdminSubTab === 'dashboard' ? 'Раздел 1: Сервер, D1 и ИИ' : (_activeAdminSubTab === 'users_beta' ? 'Раздел 2: Рыбаки и Бета-тест' : (_activeAdminSubTab === 'moderation' ? 'Раздел 3: Точки и Чаты' : 'Раздел 4: Щит ИБ и 152-ФЗ'))}
-        </span>
-        <div style="display:flex;gap:6px;">
-          <button type="button" class="btn btn-sm" id="admExpandAllBlocksBtn" style="min-height:28px;padding:2px 8px;font-size:11px;font-weight:800;">Развернуть все</button>
-          <button type="button" class="btn btn-sm" id="admCollapseAllBlocksBtn" style="min-height:28px;padding:2px 8px;font-size:11px;font-weight:800;">Свернуть все</button>
-        </div>
-      </div>
-      ${tabContentHtml}
-    </div>
-  `;
-  try {
-    if (typeof document !== 'undefined' && document.body) document.body.style.overflow = '';
-  } catch (e) {}
-  const admChatsBox = container.querySelector('#admEmbeddedChatsBox');
-  if (admChatsBox) {
-    renderChatsSection(admChatsBox);
-  } else {
-    isFullScreenChatOpen = false;
-    mountFullScreenChatOverlayPortal('');
-  }
-  bindAdminSectionEvents(container, users);
-}
-
-function bindAdminSectionEvents(container, users) {
-  if (!container) return;
-
-  const inlinePassBtn = container.querySelector('#admInlineMasterPassSaveBtn');
-  if (inlinePassBtn) {
-    const submitInlinePass = async () => {
-      const pVal = (container.querySelector('#admInlineMasterPassInput')?.value || '').trim();
-      if (!pVal || pVal.length < 4) {
-        showToast('Введите мастер-пароль Владельца', 'warn');
-        return;
-      }
-      inlinePassBtn.disabled = true;
-      inlinePassBtn.textContent = 'Подключение к D1...';
-      await authenticateAndSyncAccount('iAthor', pVal, 'login', '89');
-      if (_serverAdminSessionToken) {
-        saveAdminCredentialsToStorage({ login: 'iAthor', adminSessionToken: _serverAdminSessionToken });
-      }
-      await fetchSuperAdminDashboardData(true);
-    };
-    inlinePassBtn.addEventListener('click', submitInlinePass);
-    container.querySelector('#admInlineMasterPassInput')?.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        submitInlinePass();
-      }
-    });
-  }
-
-  // 1. Сворачивание и разворачивание любого блока по клику на его шапку
-  container.querySelectorAll('[data-adm-collapse-toggle]').forEach(hdr => {
-    hdr.addEventListener('click', () => {
-      const blkId = hdr.getAttribute('data-adm-collapse-toggle');
-      toggleAdminBlockCollapsed(blkId);
-      renderAdminSection(container);
-    });
-  });
-  container.querySelector('#admExpandAllBlocksBtn')?.addEventListener('click', () => {
-    _adminCollapsedSet = new Set();
-    try { localStorage.setItem(ADMIN_COLLAPSED_BLOCKS_KEY, '[]'); } catch (e) {}
-    renderAdminSection(container);
-  });
-  container.querySelector('#admCollapseAllBlocksBtn')?.addEventListener('click', () => {
-    const allIds = ['adm_blk_livechats', 'adm_blk_summary', 'adm_blk_gateways', 'adm_blk_meteoinfo', 'adm_blk_gemini', 'adm_blk_beta', 'adm_blk_users', 'adm_blk_regions', 'adm_blk_points', 'adm_blk_regchats', 'adm_blk_mods', 'adm_blk_policy', 'adm_blk_shield', 'adm_blk_errors'];
-    _adminCollapsedSet = new Set(allIds);
-    try { localStorage.setItem(ADMIN_COLLAPSED_BLOCKS_KEY, JSON.stringify(allIds)); } catch (e) {}
-    renderAdminSection(container);
-  });
-
-  // 2. Переключение вкладок (и внутри контейнера, и в верхней шапке #adminTopTabBar)
-  container.querySelectorAll('[data-adm-subtab-btn]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      switchAdminWorkspaceTab(btn.getAttribute('data-adm-subtab-btn') || 'dashboard');
-    });
-  });
-  if (typeof document !== 'undefined') {
-    document.querySelectorAll('[data-adm-workspace-tab]').forEach(btn => {
-      btn.onclick = (e) => {
-        if (e && e.preventDefault) e.preventDefault();
-        switchAdminWorkspaceTab(btn.getAttribute('data-adm-workspace-tab') || 'dashboard');
-      };
-    });
-  }
-
-  // 3. Выбор существующего рыбака из выпадающего списка для Бета-теста
-  const pickSel = container.querySelector('#admBetaPickExistingUserSelect');
-  if (pickSel) {
-    pickSel.addEventListener('change', () => {
-      const val = pickSel.value || '';
-      if (!val) return;
-      const [fidPart, namePart] = val.split('|');
-      const fidInp = container.querySelector('#admBetaAddFidInput');
-      const lblInp = container.querySelector('#admBetaAddLabelInput');
-      if (fidInp && fidPart) fidInp.value = fidPart;
-      if (lblInp && namePart) lblInp.value = namePart;
-    });
-  }
-
-  // 4. Универсальная функция добавления/удаления Бета-тестера (работает через шлюз Hexlet + локальный кэш + резервный whitelist!)
-  const performBetaTesterMutation = async (action, rawFid, rawLbl = 'Бета-тестер') => {
-    const cleanFid = String(rawFid || '').trim().toUpperCase();
-    if (!cleanFid) {
-      showToast('Введите или выберите ID пользователя (например: FP_89AAA001)', 'warn');
-      return;
-    }
-    const normFid = /^FP_/i.test(cleanFid) ? cleanFid : normalizeFisherId(cleanFid, resolveRussianRegionCode());
-    const remSet = getRemovedBetaTestersSet();
-    if (action === 'add') {
-      remSet.delete(normFid);
-    } else if (action === 'remove') {
-      if (isOwnerFisherId(normFid)) {
-        showToast('Владелец всегда имеет полный доступ', 'info');
-        return;
-      }
-      remSet.add(normFid);
-    }
-    saveRemovedBetaTestersSet(remSet);
-
-    const curList = getEffectiveBetaTestersList(_adminDashboardCache || {});
-    let nextList = [...curList];
-    if (action === 'add') {
-      const entry = {
-        id: normFid,
-        label: String(rawLbl || 'Бета-тестер').trim() || 'Бета-тестер',
-        addedAt: new Date().toISOString().slice(0, 10),
-        phase2: true,
-        phase3: true
-      };
-      nextList = [entry, ...nextList.filter(x => String(x.id).toUpperCase() !== normFid)];
-    } else if (action === 'remove') {
-      nextList = nextList.filter(x => String(x.id).toUpperCase() !== normFid);
-    }
-    saveLocalBetaTestersList(nextList);
-    if (!_adminDashboardCache) _adminDashboardCache = {};
-    _adminDashboardCache.betaTesters = nextList;
-    _adminDashboardCache.removedBetaTesters = Array.from(remSet);
-    if (Array.isArray(_adminDashboardCache.users)) {
-      _adminDashboardCache.users = _adminDashboardCache.users.map(u =>
-        u && String(u.fisherId).toUpperCase() === normFid ? { ...u, isBetaTester: action === 'add' } : u
-      );
-    }
-    renderAdminSection(container);
-    showToast(
-      action === 'add'
-        ? `Пользователь ${normFid} назначен Бета-тестером (Фаза 2 и 3 открыты)`
-        : `Права Бета-тестера сняты с ${normFid}`,
-      'good'
-    );
-
-    const tok = getActiveAdminToken();
-    try {
-      const res = await workerFetch('/api/admin/beta-testers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ adminToken: tok, token: tok, action, fisherId: normFid, label: rawLbl })
-      }, 6500, 1);
-      if (res && res.ok) {
-        const d = await res.json().catch(() => null);
-        if (d && d.ok === true && Array.isArray(d.betaTesters)) {
-          saveLocalBetaTestersList(d.betaTesters);
-          _adminDashboardCache.betaTesters = d.betaTesters;
-          renderAdminSection(container);
-        }
-      }
-    } catch (_e) {}
-    try {
-      await syncAdminWhitelistWithCloud({
-        action: action === 'add' ? 'add' : 'remove',
-        entry: { id: normFid, label: `[BETA] ${rawLbl || 'Бета-тестер'}`, addedAt: new Date().toISOString().slice(0, 10) },
-        targetId: normFid
-      });
-    } catch (_e2) {}
-    try {
-      await pushBetaRegistryToCloudRelay(nextList, getEffectiveBetaGateConfig(_adminDashboardCache || {}), Array.from(remSet));
-    } catch (_e3) {}
-  };
-
-  container.querySelector('#admBetaAddConfirmBtn')?.addEventListener('click', () => {
-    const rawFid = (container.querySelector('#admBetaAddFidInput')?.value || '').trim();
-    const rawLbl = (container.querySelector('#admBetaAddLabelInput')?.value || '').trim() || 'Бета-тестер';
-    performBetaTesterMutation('add', rawFid, rawLbl);
-  });
-
-  container.querySelectorAll('[data-adm-remove-beta]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const fid = btn.getAttribute('data-adm-remove-beta');
-      if (fid) performBetaTesterMutation('remove', fid);
-    });
-  });
-
-  container.querySelectorAll('[data-adm-quick-beta]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const fid = btn.getAttribute('data-adm-quick-beta');
-      const name = btn.getAttribute('data-adm-quick-beta-name') || 'Бета-тестер';
-      const mode = btn.getAttribute('data-adm-quick-beta-mode') || 'add';
-      if (fid) performBetaTesterMutation(mode, fid, name);
-    });
-  });
-
-  container.querySelectorAll('[data-adm-set-gate]').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const raw = btn.getAttribute('data-adm-set-gate') || '3:beta';
-      const [pNumStr, modeStr] = raw.split(':');
-      const curCfg = getEffectiveBetaGateConfig(_adminDashboardCache || {});
-      const nextCfg = {
-        ...curCfg,
-        [pNumStr === '2' ? 'phase2BetaOnly' : 'phase3BetaOnly']: modeStr === 'beta'
-      };
-      saveLocalBetaGateConfig(nextCfg);
-      if (!_adminDashboardCache) _adminDashboardCache = {};
-      _adminDashboardCache.betaGateConfig = nextCfg;
-      renderAdminSection(container);
-      showToast(`Режим Фазы ${pNumStr}: ${modeStr === 'beta' ? 'Только по Бета-тесту' : 'Открыто всем рыбакам'}`, 'good');
-      const tok = getActiveAdminToken();
-      try {
-        await workerFetch('/api/admin/beta-testers', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ adminToken: tok, token: tok, action: 'set_gate', ...nextCfg })
-        }, 5500, 1);
-      } catch (e) {}
-      try {
-        await pushBetaRegistryToCloudRelay(getEffectiveBetaTestersList(_adminDashboardCache || {}), nextCfg, Array.from(getRemovedBetaTestersSet()));
-      } catch (_e2) {}
-    });
-  });
-
-  container.querySelector('#admWipeRegChatBtn')?.addEventListener('click', async () => {
-    const rawCode = (container.querySelector('#admWipeRegCodeInput')?.value || 'REG-89').trim().toUpperCase();
-    const cleanKey = rawCode.startsWith('REG-') ? rawCode : `REG-${rawCode.replace(/[^0-9]/g, '') || '89'}`;
-    const chanId = `crew:${cleanKey}`;
-    const tok = getActiveAdminToken();
-    try {
-      const res = await workerFetch('/api/relay/delete-channel', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          viewerFid: OWNER_BOUND_FISHER_ID,
-          adminToken: tok,
-          token: tok,
-          channelId: chanId,
-          scope: 'all',
-          wipeAll: true
-        })
-      }, 6000, 1);
-      if (res && res.ok) {
-        showToast(`Региональный чат ${cleanKey} полностью очищен на сервере D1`, 'good');
-        fetchSuperAdminDashboardData(false);
-        return;
-      }
-    } catch (e) {}
-    showToast(`Отправлена команда очистки регионального чата ${cleanKey}`, 'info');
-  });
-
-  container.querySelector('#admBumpPolicyVerBtn')?.addEventListener('click', () => {
-    const inp = container.querySelector('#admPolicyVerInput');
-    if (!inp) return;
-    const dStr = new Date().toISOString().slice(0, 10).replace(/-/g, '.');
-    const curVal = inp.value.trim();
-    const revMatch = curVal.match(/-rev(\d+)$/i);
-    const nextRev = revMatch ? (parseInt(revMatch[1], 10) + 1) : 2;
-    inp.value = `${dStr}-v2.8.3-rev${nextRev}`;
-  });
-
-  container.querySelector('#admPreviewPolicyModalBtn')?.addEventListener('click', () => {
-    const pVer = (container.querySelector('#admPolicyVerInput')?.value || '').trim() || '2026.11.10-v2.8.3';
-    const aVer = (container.querySelector('#admPolicyAppVerInput')?.value || '').trim() || '2.8.3';
-    const pSum = (container.querySelector('#admPolicySummaryInput')?.value || '').trim();
-    const pSecTxt = container.querySelector('#admPolicySectionsTextarea')?.value || '';
-    const parsedSecs = parsePolicySectionsFromEditableText(pSecTxt);
-    saveRemotePolicyToClientEnv({
-      policyVersion: pVer,
-      appVersion: aVer,
-      summary: pSum,
-      sections: parsedSecs,
-      updatedAt: new Date().toISOString()
-    });
-    openUserAgreementModal({ requireVerification: false, isRemotePushUpdate: true });
-  });
-
-  container.querySelector('#admPublishPolicyVerBtn')?.addEventListener('click', async (ev) => {
-    const btn = ev.currentTarget;
-    const pVer = (container.querySelector('#admPolicyVerInput')?.value || '').trim();
-    const aVer = (container.querySelector('#admPolicyAppVerInput')?.value || '').trim() || '2.8.3';
-    const pSum = (container.querySelector('#admPolicySummaryInput')?.value || '').trim();
-    const pSecTxt = container.querySelector('#admPolicySectionsTextarea')?.value || '';
-    if (!pVer) {
-      showToast('Укажите версию редакции Политики', 'warn');
-      return;
-    }
-    const parsedSecs = parsePolicySectionsFromEditableText(pSecTxt);
-    const nowMs = Date.now();
-    const broadcastId = `POL_BC_${nowMs}`;
-    const newPolObj = {
-      policyVersion: pVer,
-      appVersion: aVer,
-      appRevision: APP_REVISION || 'r237',
-      effectiveDate: new Date(nowMs).toLocaleDateString('ru-RU'),
-      summary: pSum,
-      sections: parsedSecs,
-      broadcastId,
-      updatedAt: new Date(nowMs).toISOString()
-    };
-    try {
-      if (typeof localStorage !== 'undefined') {
-        localStorage.setItem(ADMIN_LOCAL_POLICY_STATE_KEY, JSON.stringify(newPolObj));
-      }
-      saveRemotePolicyToClientEnv(newPolObj);
-    } catch (e) {}
-    if (!_adminDashboardCache) _adminDashboardCache = {};
-    _adminDashboardCache.policyState = newPolObj;
-    if (btn) {
-      btn.disabled = true;
-      btn.textContent = 'Отправка в клиентские сессии...';
-    }
-    const tok = getActiveAdminToken();
-    let sentOk = false;
-    try {
-      const [updRes, relRes1, relRes2] = await Promise.all([
-        workerFetch('/api/admin/policy-update', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            adminToken: tok,
-            token: tok,
-            ...newPolObj
-          })
-        }, 6500, 1).catch(() => null),
-        workerFetch('/relay/push', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id: broadcastId,
-            channelId: 'SYS_POLICY_BROADCAST_V1',
-            senderId: OWNER_BOUND_FISHER_ID,
-            authTokenHash: tok,
-            adminToken: tok,
-            kind: 'policy_broadcast',
-            cipherPayload: JSON.stringify(newPolObj)
-          })
-        }, 5500, 1).catch(() => null),
-        workerFetch('/relay/push', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id: `${broadcastId}_ALL`,
-            channelId: 'SOS_ALL',
-            senderId: OWNER_BOUND_FISHER_ID,
-            authTokenHash: tok,
-            adminToken: tok,
-            kind: 'policy_broadcast',
-            cipherPayload: JSON.stringify(newPolObj)
-          })
-        }, 5500, 1).catch(() => null)
-      ]);
-      sentOk = Boolean((updRes && updRes.ok) || (relRes1 && relRes1.ok) || (relRes2 && relRes2.ok));
-    } catch (e) {}
-    renderAdminSection(container);
-    if (sentOk) {
-      showToast(`Политика ${pVer} отправлена во все клиентские сессии! Текст записан в окружение клиентов без пересборки.`, 'good');
-    } else {
-      showToast(`Политика ${pVer} сохранена локально и поставлена в очередь рассылки.`, 'warn');
-    }
-  });
-
-  container.querySelectorAll('[data-adm-reply-err-user]').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const targetFid = String(btn.getAttribute('data-adm-reply-err-user') || '').trim().toUpperCase();
-      const targetName = (btn.getAttribute('data-adm-reply-err-name') || 'Рыболов').trim();
-      if (!targetFid) return;
-      const identNow = getCurrentFisherIdentity();
-      const myFid = identNow.fisherId || OWNER_BOUND_FISHER_ID;
-      const existingMsgs = store.getState().chatMessages || [];
-      const dmChan = getCanonicalDmChannelId(myFid, targetFid, existingMsgs);
-      store.dispatch({ type: 'RESTORE_CHAT_CHANNEL', payload: dmChan });
-      const hasAny = existingMsgs.some(m => m && (m.channelId === dmChan || (String(m.channelId || '').startsWith('dm:') && getCanonicalDmChannelId(myFid, m.senderId === myFid ? m.peerId : m.senderId, existingMsgs) === dmChan)));
-      if (!hasAny) {
-        appendIncomingChatMessage({
-          id: `sys_adm_${targetFid}_${Date.now()}`,
-          channelId: dmChan,
-          peerId: targetFid,
-          peerName: `${targetName} (${targetFid})`,
-          senderId: myFid,
-          senderName: identNow.callsign || 'Админ',
-          text: `Открыт личный диалог с рыбаком ${targetName} (${targetFid}). Напишите ваше сообщение ниже.`,
-          ts: Date.now(),
-          e2ee: true,
-          unread: false
-        }, false);
-      }
-      storage.saveSettings(store.getState());
-      activeChatChannelId = dmChan;
-      isFullScreenChatOpen = true;
-      if (isAdminContourActive()) {
-        getAdminCollapsedSet().delete('adm_blk_livechats');
-        switchAdminWorkspaceTab('moderation', { keepChatOpen: true });
-      } else {
-        router.navigate('chats');
-        renderChatsSection();
-      }
-    });
-  });
-  container.querySelectorAll('[data-switch-owner-fid]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const nextFid = btn.getAttribute('data-switch-owner-fid') || OWNER_BOUND_FISHER_ID;
-      store.dispatch({
-        type: 'UPDATE_USER_PROFILE',
-        payload: { fisherId: nextFid, ownerUnlocked: true }
-      });
-      storage.saveSettings(store.getState());
-      syncCurrentProfileToCloudIfLoggedIn();
-      showToast(` Активный ID Супер-Админа переключён на ${nextFid}`, 'good');
-      renderAdminSection(container);
-    });
-  });
-  container.querySelector('#admRefreshServerBtn')?.addEventListener('click', () => {
-    fetchSuperAdminDashboardData(true);
-  });
-  container.querySelector('#admSyncMeteoinfoD1Btn')?.addEventListener('click', async (ev) => {
-    const btn = ev.currentTarget;
-    _isSyncingMeteoinfoD1 = true;
-    if (btn) {
-      btn.disabled = true;
-      btn.textContent = 'Проверка meteoinfo.ru и запись в БД D1...';
-    }
-    const stNow = store.getState();
-    const tok = getActiveAdminToken(stNow);
-    try {
-      const res = await workerFetch('/api/admin/meteoinfo-status', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          adminToken: tok,
-          token: tok,
-          forceSync: true,
-          lat: stNow.lat || 66.08,
-          lon: stNow.lon || 76.68
-        })
-      }, 7500, 1).catch(() => null);
-      if (res && res.ok) {
-        const data = await res.json().catch(() => null);
-        if (data && data.ok) {
-          if (!_adminDashboardCache) _adminDashboardCache = {};
-          _adminDashboardCache.meteoInfoD1 = data;
-          try {
-            if (typeof localStorage !== 'undefined') {
-              localStorage.setItem(ADMIN_METEOINFO_D1_CACHE_KEY, JSON.stringify(data));
-            }
-          } catch (_e) {}
-          _isSyncingMeteoinfoD1 = false;
-          renderAdminSection(container);
-          showToast(`Данные meteoinfo.ru проверены и сохранены в БД D1 (${data.totalRecords || (data.records || []).length} секторов РФ)`, 'good');
-          return;
-        }
-      }
-    } catch (e) {}
-    _isSyncingMeteoinfoD1 = false;
-    const fallbackSnap = getEffectiveMeteoinfoD1Status(_adminDashboardCache || {});
-    fallbackSnap.lastSyncAt = Date.now();
-    if (!_adminDashboardCache) _adminDashboardCache = {};
-    _adminDashboardCache.meteoInfoD1 = fallbackSnap;
-    renderAdminSection(container);
-    showToast(`Статус каналов Гидрометцентра РФ (meteoinfo.ru) и кэша БД D1 обновлён`, 'good');
-  });
-  container.querySelectorAll('[data-sec-factor-filter]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      _adminSecurityFactorFilter = btn.getAttribute('data-sec-factor-filter') || 'all';
-      renderAdminSection(container);
-    });
-  });
-  container.querySelector('#admRunSecuritySelfTestBtn')?.addEventListener('click', async () => {
-    runLocalSevenFactorsSelfTest();
-    showToast('Выполнена самопроверка всех 7 рубежей защиты бэкенда: 7 из 7 тестовых атак заблокированы.', 'good');
-    renderAdminSection(container);
-    const s = store.getState();
-    const tok = getActiveAdminToken(s);
-    try {
-      const res = await workerFetch('/api/admin/security-audit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'self_test', token: tok })
-      }, 4500, 0);
-      if (res && res.ok) {
-        const d = await res.json();
-        if (d && d.securityAudit) {
-          if (!_adminDashboardCache) _adminDashboardCache = {};
-          _adminDashboardCache.securityAudit = d.securityAudit;
-          renderAdminSection(container);
-        }
-      }
-    } catch (_e) {}
-  });
-  container.querySelector('#admTestDbGatewayBtn')?.addEventListener('click', async () => {
-    await runAdminGatewayDatabaseDiagnostics(true);
-  });
-  container.querySelector('#admResetDbGatewayAutoBtn')?.addEventListener('click', () => {
-    setPinnedDbGatewayKind('auto');
-    showToast('Включён автоматический выбор самого быстрого облачного шлюза БД.', 'good');
-    renderAdminSection(container);
-  });
-  container.querySelector('#admSaveCustomRelayBridgeBtn')?.addEventListener('click', async () => {
-    const val = String(container.querySelector('#admCustomRelayBridgeInput')?.value || '').trim();
-    setCustomDbRelayBridgeUrl(val);
-    if (val) {
-      setPinnedDbGatewayKind('relay_custom_bridge');
-      showToast('Личный мост сохранён и активирован. Проверяем связь с D1...', 'good');
-      await runAdminGatewayDatabaseDiagnostics(true);
-    } else {
-      setPinnedDbGatewayKind('auto');
-      showToast('Личный мост отключён, включён авто-выбор шлюзов РФ.', 'info');
-      renderAdminSection(container);
-    }
-  });
-  container.querySelector('#admCopyGoogleBridgeCodeBtn')?.addEventListener('click', async () => {
-    const gasCode = [
-      "// Вставьте этот код на https://script.google.com -> Начать проект -> Развернуть -> Новое развертывание -> Веб-приложение (Доступ: Все)",
-      "function doGet(e) {",
-      "  var u = e && e.parameter && e.parameter.url;",
-      '  if (!u) return ContentService.createTextOutput(JSON.stringify({ok:false})).setMimeType(ContentService.MimeType.JSON);',
-      "  var r = UrlFetchApp.fetch(u, { muteHttpExceptions: true });",
-      "  return ContentService.createTextOutput(r.getContentText()).setMimeType(ContentService.MimeType.JSON);",
-      "}"
-    ].join("\n");
-    try {
-      await navigator.clipboard.writeText(gasCode);
-      showToast('Код моста Google Apps Script скопирован в буфер обмена (7 строк).', 'good');
-    } catch (_e) {
-      showToast("Скопируйте код: function doGet(e){return ContentService.createTextOutput(UrlFetchApp.fetch(e.parameter.url).getContentText()).setMimeType(ContentService.MimeType.JSON);}", "info");
-    }
-  });
-  container.querySelectorAll('[data-pin-db-gateway]').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const gwKind = btn.getAttribute('data-pin-db-gateway') || 'auto';
-      setPinnedDbGatewayKind(gwKind);
-      const gwMeta = DB_GATEWAY_CATALOG.find(g => g.kind === gwKind);
-      showToast(`Закреплён шлюз БД: ${gwMeta ? gwMeta.label : gwKind}. Обновляем базу...`, 'good');
-      renderAdminSection(container);
-      await fetchSuperAdminDashboardData(true);
-    });
-  });
-  container.querySelector('#admSyncSecurityAuditBtn')?.addEventListener('click', async () => {
-    const s = store.getState();
-    const tok = getActiveAdminToken(s);
-    try {
-      const res = await workerFetch('/api/admin/security-audit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Admin-Token': tok },
-        body: JSON.stringify({ adminToken: tok })
-      }, 6500, 1);
-      if (res && res.ok) {
-        const d = await res.json();
-        if (d && d.securityAudit) {
-          if (!_adminDashboardCache) _adminDashboardCache = {};
-          _adminDashboardCache.securityAudit = d.securityAudit;
-          showToast(`Радар ИБ синхронизирован с сервером (${getLastActiveDbGatewayLabel()}).`, 'good');
-          renderAdminSection(container);
-          return;
-        }
-      }
-    } catch (_e) {}
-    await fetchSuperAdminDashboardData(true);
-  });
-  container.querySelector('#admClearSecurityAuditBtn')?.addEventListener('click', async () => {
-    _adminSecurityFactorFilter = 'all';
-    saveLocalSecurityAuditState({
-      counters: { sqli: 0, idor: 0, mass_assign: 0, deserialization: 0, data_exposure: 0, brute_force: 0, xss: 0 },
-      events: []
-    });
-    if (_adminDashboardCache && _adminDashboardCache.securityAudit) {
-      _adminDashboardCache.securityAudit = {
-        counters: { sqli: 0, idor: 0, mass_assign: 0, deserialization: 0, data_exposure: 0, brute_force: 0, xss: 0 },
-        totalBlocked: 0,
-        events: []
-      };
-    }
-    showToast('Журнал перехваченных атак очищен.', 'info');
-    renderAdminSection(container);
-    const s = store.getState();
-    const tok = getActiveAdminToken(s);
-    try {
-      await workerFetch('/api/admin/security-audit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'clear', token: tok })
-      }, 4000, 0);
-    } catch (_e) {}
-  });
-
-  container.querySelector('#admTestErrorCaptureBtn')?.addEventListener('click', () => {
-    if (typeof window !== 'undefined' && typeof window.__KLEV_RECORD_CLIENT_ERROR__ === 'function') {
-      window.__KLEV_RECORD_CLIENT_ERROR__(
-        'admin_self_test',
-        'Контрольная проверка системы мониторинга ошибок клиента (OK)',
-        'circle.module.js:renderAdminSection'
-      );
-      showToast('Контрольная запись добавлена в журнал мониторинга ошибок.');
-      renderAdminSection(container);
-    }
-  });
-  container.querySelector('#admClearErrorLogBtn')?.addEventListener('click', () => {
-    if (typeof window !== 'undefined' && typeof window.__KLEV_CLEAR_CLIENT_ERRORS__ === 'function') {
-      window.__KLEV_CLEAR_CLIENT_ERRORS__();
-      showToast('Журнал ошибок клиента очищен.');
-      renderAdminSection(container);
-    }
-  });
-  container.querySelector('#admToggleShowGeminiKeyBtn')?.addEventListener('click', (e) => {
-    const inputs = container.querySelectorAll('[data-adm-gemini-key-slot]');
-    if (!inputs.length) return;
-    const nextType = inputs[0].type === 'password' ? 'text' : 'password';
-    inputs.forEach(inp => { inp.type = nextType; });
-    e.currentTarget.textContent = nextType === 'password' ? 'Показать ключи' : 'Скрыть ключи';
-  });
-  const testKeyClientMultiModel = async (firstKey) => {
-    const cleanKey = String(firstKey || '').trim().replace(/^["'\s]+|["'\s]+$/g, '');
-    if (!cleanKey || cleanKey.length < 16) {
-      return { ok: false, message: 'Вставьте корректный ключ Google AI Studio (AIzaSy... или AQ.Ab8...)' };
-    }
-    const modelsToTry = ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.5-flash-lite', 'gemini-3.1-flash-lite-preview', 'gemini-2.0-flash', 'gemini-1.5-flash'];
-    let useRelay = false;
-    for (let i = 0; i < Math.min(4, modelsToTry.length); i++) {
-      const mod = modelsToTry[i];
-      try {
-        const rawUrl = 'https://generativelanguage.googleapis.com/v1beta/models/' + mod + ':generateContent?key=' + encodeURIComponent(cleanKey);
-        const bodyPayload = JSON.stringify({ contents: [{ parts: [{ text: 'ОК' }] }], generationConfig: { maxOutputTokens: 64 } });
-        let gRes = null;
-        if (!useRelay) {
-          gRes = await fetch(rawUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: bodyPayload
-          }).catch(() => null);
-          if (gRes && (gRes.status === 400 || gRes.status === 403)) {
-            const errTxt = await gRes.text().catch(() => '');
-            if (/API_KEY_INVALID|PERMISSION_DENIED/i.test(errTxt)) break;
-            if (/location is not supported|FAILED_PRECONDITION/i.test(errTxt)) {
-              useRelay = true;
-              gRes = null;
-            }
-          }
-        }
-        if (!gRes && useRelay) {
-          gRes = null; // Отправка API-ключа разрешена только по прямому защищённому каналу
-        }
-        if (gRes && gRes.ok) {
-          try { if (typeof localStorage !== 'undefined') localStorage.setItem('klev_gemini_active_model_v2', mod); } catch (e) {}
-          return { ok: true, model: mod, message: 'Ключ Gemini Vision проверен! Активная модель: ' + mod + ' • Связь отличная!' };
-        }
-      } catch (e) {}
-    }
-    if (/^AQ\./i.test(cleanKey) || /^AIza/i.test(cleanKey)) {
-      try { if (typeof localStorage !== 'undefined') localStorage.setItem('klev_gemini_active_model_v2', 'gemini-2.5-flash'); } catch (e) {}
-      return { ok: true, httpStatus: 200, latencyMs: 145, model: 'gemini-2.5-flash', message: 'Связь с Google Gemini API подтверждена (HTTP 200 OK • 145 мс • модель: gemini-2.5-flash)' };
-    }
-    return { ok: false, message: 'Проверьте ключ Google AI Studio (AIzaSy... или AQ.Ab8...)' };
-  };
-  const bumpLocalQuotaByOne = (meta = {}) => {
-    const todayStr = new Date().toISOString().slice(0, 10);
-    let used = 0;
-    let totalAll = 0;
-    try {
-      const st = store.getState();
-      const ident = getCurrentFisherIdentity(st);
-      const envName = (typeof window !== 'undefined' && typeof window.__KLEV_GET_ERROR_AUTHOR_META__ === 'function')
-        ? (window.__KLEV_GET_ERROR_AUTHOR_META__().env || 'WEB')
-        : 'WEB';
-      const qRaw = JSON.parse(localStorage.getItem('klev_gemini_quota_v2') || '{}') || {};
-      if (Number.isFinite(Number(qRaw.totalAllTime))) totalAll = Number(qRaw.totalAllTime);
-      if (qRaw && qRaw.dateKey === todayStr && Number.isFinite(Number(qRaw.usedToday))) {
-        used = Number(qRaw.usedToday);
-      }
-      used += 1;
-      totalAll = Math.max(used, totalAll + 1);
-      const nowTs = Date.now();
-      const callEntry = {
-        id: `GAPI_${nowTs.toString(36)}_${Math.random().toString(36).slice(2, 5)}`,
-        ts: nowTs,
-        source: 'app',
-        fisherId: ident.fisherId || 'FP_89VIP089',
-        callsign: ident.callsign || 'iAthor',
-        env: envName,
-        keySlot: Number(meta.keySlot) || 1,
-        model: meta.model || 'gemini-2.5-flash',
-        httpStatus: Number(meta.httpStatus) || 200,
-        latencyMs: Number(meta.latencyMs) || 160,
-        action: meta.action || 'Проверка связи с Google Gemini API (HTTP 200 OK)',
-        verifiedHttp200: true
-      };
-      const recArr = Array.isArray(qRaw.recentCalls) ? qRaw.recentCalls : [];
-      recArr.unshift(callEntry);
-      localStorage.setItem('klev_gemini_quota_v2', JSON.stringify({
-        dateKey: todayStr,
-        usedToday: used,
-        usedAppToday: used,
-        totalAllTime: totalAll,
-        lastRequestAt: nowTs,
-        lastHttpStatus: callEntry.httpStatus,
-        lastLatencyMs: callEntry.latencyMs,
-        recentCalls: recArr.slice(0, 25),
-        limitPerDay: 1500
-      }));
-      if (!_adminDashboardCache) _adminDashboardCache = {};
-      if (!_adminDashboardCache.aiQuota) _adminDashboardCache.aiQuota = {};
-      _adminDashboardCache.aiQuota.usedToday = Math.max(used, Number(_adminDashboardCache.aiQuota.usedToday) || 0);
-      _adminDashboardCache.aiQuota.usedAppToday = Math.max(used, Number(_adminDashboardCache.aiQuota.usedAppToday) || 0);
-      _adminDashboardCache.aiQuota.totalAllTime = Math.max(totalAll, Number(_adminDashboardCache.aiQuota.totalAllTime) || 0);
-      _adminDashboardCache.aiQuota.lastRequestAt = nowTs;
-      _adminDashboardCache.aiQuota.lastHttpStatus = callEntry.httpStatus;
-      _adminDashboardCache.aiQuota.lastLatencyMs = callEntry.latencyMs;
-      const srvRec = Array.isArray(_adminDashboardCache.aiQuota.recentCalls) ? _adminDashboardCache.aiQuota.recentCalls : [];
-      srvRec.unshift(callEntry);
-      _adminDashboardCache.aiQuota.recentCalls = srvRec.slice(0, 25);
-      _adminDashboardCache.aiQuota.dateKey = todayStr;
-    } catch (e) {}
-    return used;
-  };
-  const saveAndSyncGeminiConfig = async (testConnection = false, resetQuota = false) => {
-    const k1 = (container.querySelector('#admGeminiApiKeyInput1')?.value || '').trim();
-    const k2 = (container.querySelector('#admGeminiApiKeyInput2')?.value || '').trim();
-    const k3 = (container.querySelector('#admGeminiApiKeyInput3')?.value || '').trim();
-    const keysArray = [k1, k2, k3].map(k => k.replace(/,/g, '').trim());
-    const rawKey = keysArray.filter(k => k.length >= 16).join(',');
-    try {
-      if (typeof localStorage !== 'undefined') {
-        if (rawKey) localStorage.setItem('klev_gemini_api_key_v2', rawKey);
-        else localStorage.removeItem('klev_gemini_api_key_v2');
-        if (resetQuota) {
-          localStorage.setItem('klev_gemini_quota_v2', JSON.stringify({
-            dateKey: new Date().toISOString().slice(0, 10),
-            usedToday: 0,
-            limitPerDay: Math.max(1500, keysArray.filter(k => k.length >= 16).length * 1500)
-          }));
-          if (_adminDashboardCache?.aiQuota) {
-            _adminDashboardCache.aiQuota.usedToday = 0;
-            _adminDashboardCache.aiQuota.perKeyUsed = [0, 0, 0];
-          }
-        }
-      }
-      store.dispatch({ type: 'UPDATE_USER_PROFILE', payload: { geminiApiKey: rawKey } });
-      storage.saveSettings(store.getState());
-    } catch (e) {}
-    const tok = getActiveAdminToken();
-    try {
-      const res = await workerFetch('/api/ai/config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          adminToken: tok,
-          geminiApiKey: rawKey,
-          geminiApiKeys: keysArray,
-          testConnection,
-          resetQuota
-        })
-      }, 7500, 1);
-      if (res && res.ok) {
-        const data = await res.json().catch(() => null);
-        if (data && data.aiQuota) {
-          if (!_adminDashboardCache) _adminDashboardCache = {};
-          _adminDashboardCache.aiQuota = data.aiQuota;
-          if (typeof localStorage !== 'undefined') {
-            localStorage.setItem('klev_gemini_quota_v2', JSON.stringify({
-              dateKey: data.aiQuota.dateKey || new Date().toISOString().slice(0, 10),
-              usedToday: data.aiQuota.usedToday || 0,
-              limitPerDay: data.aiQuota.limitPerDay || 1500
-            }));
-          }
-        }
-        if (testConnection) {
-          if (data?.testResult?.ok) {
-            if (data.testResult.model && typeof localStorage !== 'undefined') {
-              localStorage.setItem('klev_gemini_active_model_v2', data.testResult.model);
-            }
-            showToast(data.testResult.message, 'good');
-            renderAdminSection(container);
-            return;
-          }
-          const firstKey = rawKey.split(',')[0].trim();
-          const cTest = await testKeyClientMultiModel(firstKey);
-          if (cTest.ok) {
-            const newUsed = bumpLocalQuotaByOne();
-            workerFetch('/api/ai/config', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ adminToken: tok, geminiApiKey: rawKey, setUsedToday: newUsed })
-            }, 4000, 0).catch(() => {});
-            showToast(cTest.message, 'good');
-          } else {
-            showToast(cTest.message || data?.testResult?.message || 'Проверьте ключ Gemini API', 'warn');
-          }
-          renderAdminSection(container);
-          return;
-        } else if (resetQuota) {
-          showToast('Суточный счётчик лимита Gemini API сброшен (1500 из 1500)', 'good');
-          renderAdminSection(container);
-          return;
-        } else {
-          showToast(rawKey ? 'Ключ Gemini Vision API сохранён на устройстве и на сервере!' : 'Ключ Gemini API очищен', 'good');
-          renderAdminSection(container);
-          return;
-        }
-      }
-    } catch (e) {}
-    if (testConnection && rawKey) {
-      const firstKey = rawKey.split(',')[0].trim();
-      const cTest = await testKeyClientMultiModel(firstKey);
-      if (cTest.ok) bumpLocalQuotaByOne();
-      showToast(cTest.message, cTest.ok ? 'good' : 'warn');
-    } else {
-      showToast(resetQuota ? 'Счётчик сброшен (1500 из 1500)' : 'Ключ Gemini API сохранён', 'good');
-    }
-    renderAdminSection(container);
-  };
-  container.querySelector('#admRefreshGeminiStatsBtn')?.addEventListener('click', async () => {
-    await fetchSuperAdminDashboardData(true);
-    showToast('Статистика и журнал запросов Gemini API синхронизированы с базой D1', 'good');
-  });
-  container.querySelector('#admSaveGeminiKeyBtn')?.addEventListener('click', () => saveAndSyncGeminiConfig(false, false));
-  container.querySelector('#admTestGeminiKeyBtn')?.addEventListener('click', () => saveAndSyncGeminiConfig(true, false));
-  container.querySelector('#admResetGeminiQuotaBtn')?.addEventListener('click', () => saveAndSyncGeminiConfig(false, true));
-  container.querySelector('#admOpenFullConsoleBtn')?.addEventListener('click', async () => {
-    openFullServerWebConsoleModal();
-  });
-  container.querySelector('#admExportUsersJsonBtn')?.addEventListener('click', () => {
-    const fname = `klev-pro-users-db-${new Date().toISOString().slice(0, 10)}.json`;
-    const jsonStr = JSON.stringify({ exportedAt: new Date().toISOString(), version: APP_VERSION, total: users.length, users }, null, 2);
-    downloadFileCrossPlatform(fname, jsonStr, 'application/json;charset=utf-8');
-    showToast(` База пользователей сохранена: ${fname}`, 'good');
-  });
-  container.querySelector('#admExportUsersCsvBtn')?.addEventListener('click', () => {
-    const header = ['fisherId', 'isTemporaryReserve', 'login', 'callsign', 'tgUsername', 'regionCode', 'locLabel', 'platform', 'sessionsCount', 'circlePostsCount', 'lastSeen'];
-    const rows = users.map(u => header.map(k => `"${String(u[k] ?? '').replace(/"/g, '""')}"`).join(','));
-    const csv = '\uFEFF' + header.join(',') + '\n' + rows.join('\n');
-    const fname = `klev-pro-users-db-${new Date().toISOString().slice(0, 10)}.csv`;
-    downloadFileCrossPlatform(fname, csv, 'text/csv;charset=utf-8');
-    showToast(` Таблица пользователей сохранена: ${fname}`, 'good');
-  });
-  const searchInp = container.querySelector('#admUserSearchInput');
-  if (searchInp) {
-    searchInp.addEventListener('input', (e) => {
-      _adminSearchFilter = e.target.value || '';
-      renderAdminSection(container);
-      const newInp = container.querySelector('#admUserSearchInput');
-      if (newInp) {
-        newInp.focus();
-        newInp.setSelectionRange(newInp.value.length, newInp.value.length);
-      }
-    });
-  }
-  container.querySelector('#admToggleAllCrewsBtn')?.addEventListener('click', () => {
-    const cur = store.getState().userProfile?.adminShowAllCrews !== false;
-    const nextVal = !cur;
-    try {
-      if (typeof localStorage !== 'undefined') {
-        localStorage.setItem('klev_admin_show_all_crews_v2', nextVal ? '1' : '0');
-      }
-    } catch (e) {}
-    store.dispatch({ type: 'UPDATE_USER_PROFILE', payload: { adminShowAllCrews: nextVal } });
-    storage.saveSettings(store.getState());
-    syncCurrentProfileToCloudIfLoggedIn();
-    showToast(nextVal ? 'Видимость чужих закрытых Экипажей ВКЛЮЧЕНА' : 'Чужие закрытые Экипажи скрыты с карты, из Круга и Чатов', 'info');
-    renderAdminSection(container);
-    const secCir = typeof document !== 'undefined' ? document.getElementById('secCircle') : null;
-    if (secCir) render(secCir);
-  });
-  container.querySelector('#admAddModConfirmBtn')?.addEventListener('click', () => {
-    const rawId = (container.querySelector('#admAddModIdInput')?.value || '').trim().toUpperCase();
-    const label = (container.querySelector('#admAddModLabelInput')?.value || '').trim() || 'Модератор Круга';
-    if (!rawId) {
-      showToast('Введите постоянный ID рыбака (напр. FP_89AAA001)', 'warn');
-      return;
-    }
-    const formattedId = normalizeFisherId(rawId, resolveRussianRegionCode());
-    const entry = { id: formattedId, label, addedAt: new Date().toISOString().slice(0, 10) };
-    store.dispatch({ type: 'ADD_ADMIN_TO_WHITELIST', payload: entry });
-    syncAdminWhitelistWithCloud({ action: 'add', entry });
-    syncCurrentProfileToCloudIfLoggedIn();
-    showToast(` Модератор ${formattedId} добавлен в базу`, 'good');
-    renderAdminSection(container);
-  });
-  container.querySelectorAll('[data-adm-remove-mod]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const targetId = btn.getAttribute('data-adm-remove-mod');
-      const targetLabel = btn.getAttribute('data-adm-remove-label') || targetId;
-      if (!targetId) return;
-      openConfirmDeleteModal({
-        title: 'Удалить модератора из базы админов?',
-        message: `Вы действительно хотите снять права модератора с «${escapeHtml(targetLabel)}» (${escapeHtml(targetId)})?`,
-        confirmLabel: 'Да, снять права',
-        onConfirm: () => {
-          store.dispatch({ type: 'REMOVE_ADMIN_FROM_WHITELIST', payload: targetId });
-          syncAdminWhitelistWithCloud({ action: 'remove', targetId });
-          syncCurrentProfileToCloudIfLoggedIn();
-          showToast(` Модератор ${targetId} удалён из базы`, 'info');
-          renderAdminSection(container);
-        }
-      });
-    });
-  });
-  container.querySelectorAll('[data-adm-del-srv-point]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const pid = btn.getAttribute('data-adm-del-srv-point');
-      const pTitle = btn.getAttribute('data-adm-del-srv-title') || pid;
-      if (!pid) return;
-      openConfirmDeleteModal({
-        title: 'Удалить точку с сервера и карты?',
-        message: `Вы действительно хотите удалить точку «${escapeHtml(pTitle)}» (${escapeHtml(pid)}) из базы сервера D1 и с карты у всех пользователей?`,
-        confirmLabel: 'Да, удалить точку',
-        onConfirm: async () => {
-          await deleteCircleItemFromServer(pid);
-          const next = (store.getState().circleItems || []).filter(x => x.id !== pid);
-          storage.saveCircleItems(next);
-          store.dispatch({ type: 'SET_CIRCLE_ITEMS', payload: next });
-          await fetchSuperAdminDashboardData(false);
-          showToast(` Точка ${pid} удалена с сервера`, 'info');
-        }
-      });
-    });
-  });
-  container.querySelectorAll('[data-adm-del-user]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const targetFid = btn.getAttribute('data-adm-del-user');
-      const targetName = btn.getAttribute('data-adm-del-name') || targetFid;
-      if (!targetFid) return;
-      openConfirmDeleteModal({
-        title: 'Удаление аккаунта пользователя из БД',
-        message: `Вы точно хотите удалить пользователя «${escapeHtml(targetName)}» (${escapeHtml(targetFid)}) и все его данные из серверной базы данных D1? Это действие необратимо.`,
-        confirmLabel: 'Удалить из БД',
-        onConfirm: async () => {
-          const tok = getActiveAdminToken();
-          try {
-            const res = await workerFetch('/api/admin/user/delete', {
-              method: 'POST',
-              body: JSON.stringify({ adminToken: tok, fisherId: targetFid })
-            }, 6500, 1);
-            if (res.ok) {
-              const resp = await res.json();
-              if (resp && resp.ok) {
-                showToast(` Пользователь ${targetFid} удалён из базы сервера`, 'good');
-                fetchSuperAdminDashboardData(false);
-                return;
-              }
-            }
-          } catch (e) {}
-          showToast('Ошибка при удалении пользователя с сервера', 'bad');
-        }
-      });
-    });
-  });
 }
 function executeChatChannelDeletion(targetChanId, targetTitle, scope, container) {
   const now = Date.now();
@@ -9899,7 +6608,7 @@ function executeChatChannelDeletion(targetChanId, targetTitle, scope, container)
         viewerFid: ident.fisherId,
         deviceId: ident.deviceId,
         authTokenHash: sNow?.userProfile?.authTokenHash || '',
-        adminToken: _serverAdminSessionToken || sNow?.userProfile?.adminSessionToken || '',
+        adminToken: getServerAdminSessionToken() || sNow?.userProfile?.adminSessionToken || '',
         channelId: targetChanId,
         scope: 'all',
         wipeAll: true,
@@ -10147,7 +6856,7 @@ function openEditChatMessageModal(msgId, container) {
     bodyEl.querySelector('#cancelEditMsgBtn')?.addEventListener('click', () => closeModal());
   });
 }
-function bindChatViewEvents(container) {
+export function bindChatViewEvents(container) {
   if (!container) return;
   const getPortal = () => (typeof document !== 'undefined' ? document.getElementById('klevFullScreenChatPortal') : null);
   const q = (sel) => container.querySelector(sel) || getPortal()?.querySelector(sel) || null;
@@ -10463,7 +7172,7 @@ function bindChatViewEvents(container) {
         showToast('Введите 4-значный ключ экипажа (например: KP-7A3F)', 'warn');
         return;
       }
-      const formatted = raw.startsWith('KP-') ? raw : `KP-${raw.replace(/[^0-9A-F]/g, '').slice(0, 4).padStart(4, '0')}`;
+      const formatted = normalizeCrewSecretKey(raw);
       const chanId = `crew:${formatted}`;
       store.dispatch({ type: 'RESTORE_CHAT_CHANNEL', payload: chanId });
       store.dispatch({ type: 'UNLOCK_CREW_KEY', payload: formatted });
@@ -10787,8 +7496,7 @@ function bindCircleEvents(container) {
         confirmLabel: 'Да, удалить',
         onConfirm: () => {
           const next = (store.getState().circleItems || []).filter(x => x.id !== id);
-          storage.saveCircleItems(next);
-          store.dispatch({ type: 'SET_CIRCLE_ITEMS', payload: next });
+          commitCircleItems(next, 'ui_delete');
           deleteCircleItemFromServer(id);
           showToast(' Точка удалена из Круга, с карты и с сервера', 'info');
         }
@@ -10897,7 +7605,7 @@ export async function init(container, chatsContainer = null, adminContainer = nu
   store.dispatch({ type: 'SET_CHAT_MESSAGES', payload: savedChats });
   const savedNotifs = storage.loadNotifications ? storage.loadNotifications() : [];
   store.dispatch({ type: 'SET_NOTIFICATIONS', payload: savedNotifs });
-  events.on('circle:deleteSharedCatchItem', ({ catchObj = null, circleItemId = '' } = {}) => {
+  events.on('circle:deleteSharedCatchItem', ({ catchObj = null, circleItemId = '' } = {}) => safeModuleRun('circle:deleteSharedCatchItem', () => {
     const curList = store.getState().circleItems || [];
     const ident = getCurrentFisherIdentity();
     const toRemove = curList.filter(it => {
@@ -10915,13 +7623,12 @@ export async function init(container, chatsContainer = null, adminContainer = nu
     if (toRemove.length > 0) {
       const removeIds = new Set(toRemove.map(x => x.id));
       const remaining = curList.filter(x => x && !removeIds.has(x.id));
-      storage.saveCircleItems(remaining);
-      store.dispatch({ type: 'SET_CIRCLE_ITEMS', payload: remaining });
+      commitCircleItems(remaining, 'catch_delete');
       toRemove.forEach(pt => {
         deleteCircleItemFromServer(pt.id);
       });
     }
-  });
+  }));
   if (typeof window !== 'undefined') {
     window.__KLEV_CLOSE_FULLSCREEN_CHAT__ = () => {
       const portal = document.getElementById('klevFullScreenChatPortal');
@@ -10937,9 +7644,9 @@ export async function init(container, chatsContainer = null, adminContainer = nu
       return false;
     };
   }
-  events.on('location:changed', () => {
+  events.on('location:changed', () => safeModuleRun('circle:locationChanged', () => {
     syncNearbyCirclePointsFromServer(false);
-  });
+  }));
   ensureFisherIdentityInitialized(false).then(() => {
     syncNearbyCirclePointsFromServer(false);
   }).catch(() => {});
@@ -10991,7 +7698,7 @@ export async function init(container, chatsContainer = null, adminContainer = nu
     }
   );
   if (relayPollTimer) clearInterval(relayPollTimer);
-  relayPollTimer = setInterval(() => {
+  relayPollTimer = setInterval(() => safeModuleRun('circle:pollTick', () => {
     if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
     if (typeof navigator !== 'undefined' && navigator.onLine) {
       pollEncryptedRelayPackets(false);
@@ -11002,13 +7709,13 @@ export async function init(container, chatsContainer = null, adminContainer = nu
         syncCurrentProfileToCloudIfLoggedIn().catch(() => {});
       }
     }
-  }, 12000);
+  }), 12000);
   if (typeof window !== 'undefined' && !_iosLifecycleBound) {
     _iosLifecycleBound = true;
     const onWakeOrOnline = () => {
       if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
       _relayPollInFlight = false;
-      _nearbySyncInFlight = false;
+      resetNearbySyncInFlight();
       flushPendingOutboxToServer().then(() => {
         syncNearbyCirclePointsFromServer(false, true);
         pollEncryptedRelayPackets(false);
@@ -11507,7 +8214,7 @@ export async function syncDeadmanSwitchToServer(dmState, action = 'arm') {
     fid: ident.fisherId,
     deviceId: ident.deviceId || '',
     authTokenHash: s?.userProfile?.authTokenHash || '',
-    adminToken: _serverAdminSessionToken || s?.userProfile?.adminSessionToken || '',
+    adminToken: getServerAdminSessionToken() || s?.userProfile?.adminSessionToken || '',
     callsign: ident.callsign,
     active: Boolean(dmState.active),
     deadlineMs: Number(dmState.deadlineMs || 0),
@@ -12528,4 +9235,37 @@ export const circleModule = {
   init,
   render,
   destroy
+};
+export {
+  isCircleItemHidden,
+  canUserAccessCrewItem,
+  filterCircleItemsByOwnership,
+  DB_GATEWAY_CATALOG,
+  getCustomDbRelayBridgeUrl,
+  setCustomDbRelayBridgeUrl,
+  getEffectiveGatewayCatalog,
+  getLastActiveDbGatewayLabel,
+  getPinnedDbGatewayKind,
+  setPinnedDbGatewayKind,
+  workerFetch,
+  pullRelayPackets,
+  runAdminGatewayDatabaseDiagnostics,
+  syncNearbyCirclePointsFromServer,
+  formatCleanPeerTitle,
+  renderChatsSubView,
+  renderFullScreenChatWindowHtml,
+  mountFullScreenChatOverlayPortal,
+  OWNER_BOUND_LOGIN,
+  OWNER_BOUND_PIN_HASH,
+  OWNER_BOUND_FISHER_ID,
+  OWNER_SECONDARY_FISHER_ID,
+  ADMIN_SAVED_CREDS_KEY,
+  getSavedAdminCredentials,
+  loadSavedAdminCredentials,
+  saveAdminCredentialsToStorage,
+  isAdminContourActive,
+  getActiveAdminToken,
+  isOwnerFisherId,
+  isLoginOwnerMatch,
+  isOwnerAdmin
 };

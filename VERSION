@@ -1,16 +1,16 @@
 {
-  "version": "2.9.1",
-  "revision": "r252",
-  "buildNumber": 250,
-  "versionCode": 293252,
-  "displayVersion": "v2.9.1 r250",
-  "fullVersion": "2.9.1-r252",
-  "policyVersion": "2026.11.20-v2.9.1",
+  "version": "2.9.2",
+  "revision": "r255",
+  "buildNumber": 255,
+  "versionCode": 293255,
+  "displayVersion": "v2.9.2 r255",
+  "fullVersion": "2.9.2-r255",
+  "policyVersion": "2026.11.22-v2.9.2",
   "releaseDate": "2026-11-22",
   "date": "22 ноября 2026",
-  "apkFileName": "klev-pro-v2.9.1.apk",
-  "adminApkFileName": "klev-pro-admin-v2.9.1.apk",
-  "apkUrl": "https://klevpro.ru/apk/klev-pro-v2.9.1.apk",
+  "apkFileName": "klev-pro-v2.9.2.apk",
+  "adminApkFileName": "klev-pro-admin-v2.9.2.apk",
+  "apkUrl": "https://klevpro.ru/apk/klev-pro-v2.9.2.apk",
   "fileSize": "38.8 МБ",
-  "versionBranchNote": "Релиз v2.9.1 (ревизия r250): полноценное фоновое голосовое ведение и автозавершение прямых и обратных маршрутов без ложного срабатывания при перезапуске, рабочая вкладка Слипы в разделе Круг и Чаты, отображение общих точек во вкладке Круг/Мои с кнопкой маршрута и без удаления чужих точек, чистая русская генерация числительных расстояний словами в TTS без «метроветров», старт маршрута строго от первой точки касания с маркером Старт (А) и Финиш (Б)."
+  "versionBranchNote": "Релиз v2.9.2 (ревизия r255): синхронизация ядра, оболочек, телеметрии ошибок, динамических иконок PWA, нативного сейфа данных и конвейера сборки Android APK."
 }

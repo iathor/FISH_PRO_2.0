@@ -58,11 +58,18 @@ jobs:
           if [ -f "kp-control-89.html" ]; then cp -f "kp-control-89.html" /tmp/kp-control-89-master.html; fi
           if [ -f "icon-512.png" ]; then cp -f "icon-512.png" /tmp/icon-user-512.png; fi
           if [ -f "icon-admin-512.png" ]; then cp -f "icon-admin-512.png" /tmp/icon-admin-512.png; fi
+          if [ -f "js/dist/app-user.bundle.js" ]; then cp -f "js/dist/app-user.bundle.js" /tmp/app-user.bundle.js; fi
+          if [ -f "js/dist/app-admin.bundle.js" ]; then cp -f "js/dist/app-admin.bundle.js" /tmp/app-admin.bundle.js; fi
           for f in index.html kp-control-89.html app-runtime.js VERSION policy-version.json manifest.json version.json icon.svg icon-192.png icon-512.png icon-admin-192.png icon-admin-512.png apple-touch-icon.png sw.js css js assets; do
             if [ -e "$f" ]; then
               cp -r "$f" "$PROJ_DIR/app/src/main/assets/www/"
             fi
           done
+          rm -rf "$PROJ_DIR/app/src/main/assets/www/js/dist"
+          if [ -f "js/dist/app-user.bundle.js" ]; then
+            cp -f "js/dist/app-user.bundle.js" "$PROJ_DIR/app/src/main/assets/www/app-runtime.js"
+            cp -f "js/dist/app-user.bundle.js" "$PROJ_DIR/app/src/main/assets/www/js/app.bundle.js"
+          fi
           if [ -f "apk/apk-version.json" ]; then
             mkdir -p "$PROJ_DIR/app/src/main/assets/www/apk"
             cp -f "apk/apk-version.json" "$PROJ_DIR/app/src/main/assets/www/apk/apk-version.json"
@@ -100,7 +107,7 @@ jobs:
           KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           KS_SEG_1="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"
-          KS_SEG_2="MIIEkQYJKoZIhvcNAQcGoIIEgjCCBH4CAQAwggR3BgkqhkiG9w0BBwEwZgYJKoZIhvcNAQUNMFkwOAYJKoZIhvcNAQUMMCsEFOpMj3Mk9Y5zCAVr5xeUEQAsgMe+AgInEAIBIDAMBggqhkiG9w0CCQUAMB0GCWCGSAFlAwQBKgQQwOzSz6HcuLrQXCZbvhqcVYCCBACgQcI6w8PMCbgbUUGUVd4G+3OXUVqHPJz5z1FXSDhGOl5BDWJq5R13fqQxj/kqAA6mVDVon3YClqck/rnXLLESfxxI4w/+0b7tMGu/NHQhtItbDpZ0fOwSpM7WqA0OX1/+Ylj1OBB4ZmWSGfMUfdo+H39G2t/KbGwAIz+AyJulG/B2K3lCTe5LLleGXZQMBi3NumvvrcexChf7Zni8dkNYEzGgqjYed5HtzPK2HHJvD3nBlxaQL0KSGyGoiCs9NKgICVCvOX+IoTZxAtVCMxRcZjnPQLHju4BeHkZzSz//rRrFZ1s1Xpen1btoRnR8JMUpARkxvSa8C3x+sJd2hawTO8oxV6750eAkVp85h4pcelGdwZ0NB8V0nSZcHG+lbNakZQvkhdKleSFdc4r/u1v3W4J3kmK2NkQhgewhY1BBwvPMCetVa9x5GlHm0r8gObb1lEIwIehzTQR6PhrSmGZFT8JVjCR9d92YehQE1IBPP8NyEb2Xq9+wIMxxPHBBURfHBCPzVWlKFRQfrimvPIIMtVMeHFGAxZxNt62eDIPkL5ehIiLdomnwfbJhLcA/NqYc9XSlCG6I/wERJWSnS95IkeRhfYJYceiTF0twKFCbiF07mMDTpu2F5lFBaSZKp39aamM1uTuMVknxi7FX6CjXVD/BZxvkpqsJhgw8lANV1ukulpb2NrtgGUn+QPS1FbS1rTq3Lnegb1suaSPXa8XCplQMbZTJIMOhjeCA0c/w2v7eafnmdKB6qhV3Ri3JsCusCKmao8woGyY6aFnn7cvy1nbTnQZzr4HS9urvFc+erDSq35CbvaqSaMf4D3eE5fxCFaptgit8tyDppTSsZJM1J9TOE+XJYUGAcWQIaO6xk9WMtH7NpsnJTuRo+ET0i2hOB/QqPj7HD4jlga3CtL3hp9Ps+ahj9BJaK4HCyjIOY6SXweN7kKLKFp64WUEv/nlsGMW+M0f8pZ7ULq87uZbe/SxjmCD1vB18htucmQCSiHDc+++CgWXoNFxiRQL3xpqBNfGCZzF/QWvlbuwTpgUx5kt30YKvqg+VsTM+0pigUfOC5fQuGMB5sTDzCRMytzwGwe5wbGBk6JnOd7iGQ9K3fDSoLNudHY16hy0I5NImleV3/jt41zPBLNTXNNoPUxaiRyw01HTxAIdSjB05RvQiu/iD7dN/jz4SwgMdzbzqfZbX0mJzVjrKJiqmwEhyj+efvXqZVZdcDskXNOry7Fd/A9Y180Yqfmr15658oe9D7kKrZbzrQrdMf7RC/oZP40iRI2iUAUld5WOeY0jEISr7H266YV6OSKvm7oH09DzYKTXcUznejmZ1J7kvRCMuZwaN0mPpaStlG6gAnd5KbAr3ME0wMTANBglghkgBZQMEAgEFAAQg8wtNCEABtZqFRQ+8RosdkVx4mkwUpWY+/cJMh0BtcW8EFJKVW27dRtaBpFHHcKOo1/vUEYM9AgInEA=="
+          KS_SEG_2="MIIEkQYJKoZIhvcNAQcGoIIEgjCCBH4CAQAwggR3BgkqhkiG9w0BBwEwZgYJKoZIhvcNAQUNMFkwOAYJKoZIhvcNAQUMMCsEFOpMj3Mk9Y5zCAVr5xeUEQAsgMe+AgInEAIBIDAMBggqhkiG9w0CCQUAMB0GCWCGSAFlAwQBKgQQwOzSz6HcuLrQXCZbvhqcVYCCBACgQcI6w8PMCbgbUUGUVd4G+3OXUVqHPJz5z1FXSDhGOl5BDWJq5R13fqQxj/kqAA6mVDVon3YClqck/rnXLLESfxxI4w/+0b7tMGu/NHQhtItbDpZ0fOwSpM7WqA0OX1/+Ylj1OBB4ZmWSGfMUfdo+H39G2t/KbGwAIz+AyJulG/B2K3lCTe5LLleGXZQMBi3NumvvrcexChf7Zni8dkNYEzGgqjYed5HtzPK2HHJvD3nBlxaQL0KSGyGoiCs9NKgICVCvOX+IoTZxAtVCMxRcZjnPQLHju4BeHkZzSz//rRrFZ1s1Xpen1btoRnR8JMUpARkxvSa8C3x+sJd2hawTO8oxV6750eAkVp85h4pcelGdwZ0NB8V0nSZcHG+lbNakZQvkhdKleSFdc4r/u1v3W4J3kmK2NkQhgewhY1BBwvPMCetVa9x5GlHm0r8gObb1lEIwIehzTQR6PhrSmGZFT8JVjCR9d92YehQE1IBPP8NyEb2Xq9+wIMxxPHBBURfHBCPzVWlKFRQfrimvPIIMtVMeHFGAxZxNt62eDIPkL5ehIiLdomnwfbJhLcA/NqYc9XSlCG6I/wERJWSnS95IkeRhfYJYceiTF0twKFCbiF07mMDTpu2F5lFBaSZKp39aamM1uTuMVknxi7FX6CjXVD/BZxvkpqsJhgw8lANV1ukulpb2NrtgGUn+QPS1FbS1rTq3Lnegb1suaSPXa8XCplQMbZTJIMOhjeCA0c/w2v7eafnmdKB6qhV3Ri3JsCusCKmao8woGyY6aFnn7cvy1nbTnQZzr4HS9urvFc+erDSq35CbvaqSaMf4D3eE5fxCFaptgit8tyDppTSsZJM1J9TOE+XJYUGAcWQIaO6xk9WMtH7NpsnJTuRo+ET0i2hOB/QqPj7HD4jlga3CtL3hp9Ps+ahj9BJaK4HCyjIOY6SXweN7kKLKFp64WUEv/nlsGMW+M0f8pZ7ULq87uZbe/SxjmCD1vB18htucmQCSiHDc+++CgWXoNFxiRQL3xpqBNfGCZzF/QWvlbuwTpgUx9kt30YKvqg+VsTM+0pigUfOC5fQuGMB5sTDzCRMytzwGwe5wbGBk6JnOd7iGQ9K3fDSoLNudHY16hy0I5NImleV3/jt41zPBLNTXNNoPUxaiRyw01HTxAIdSjB05RvQiu/iD7dN/jz4SwgMdzbzqfZbX0mJzVjrKJiqmwEhyj+efvXqZVZdcDskXNOry7Fd/A9Y180Yqfmr15658oe9D7kKrZbzrQrdMf7RC/oZP40iRI2iUAUld5WOeY0jEISr7H266YV6OSKvm7oH09DzYKTXcUznejmZ1J7kvRCMuZwaN0mPpaStlG6gAnd5KbAr3ME0wMTANBglghkgBZQMEAgEFAAQg8wtNCEABtZqFRQ+8RosdkVx4mkwUpWY+/cJMh0BtcW8EFJKVW27dRtaBpFHHcKOo1/vUEYM9AgInEA=="
           COMPAT_B64="${KS_SEG_1}${KS_SEG_2}"
           KP_A="KP3_fP1u54mZ"
           KP_B="XdaYzrdj1anX"
@@ -123,7 +130,7 @@ jobs:
         working-directory: ${{ steps.locate.outputs.proj_dir }}
         run: |
           if command -v terser >/dev/null 2>&1; then
-            find app/src/main/assets/www/js -name "*.js" -type f | while read -r jsf; do
+            find app/src/main/assets/www/js -name "*.js" ! -name "*.bundle.js" -type f | while read -r jsf; do
               terser "$jsf" --module --compress dead_code=true,drop_debugger=true,passes=2 --mangle --comments false -o "$jsf.obf" && mv "$jsf.obf" "$jsf" || true
             done
           fi
@@ -135,6 +142,15 @@ jobs:
           rm -rf /tmp/klev-android-user
           cp -a . /tmp/klev-android-user
           cd /tmp/klev-android-user
+
+          rm -rf app/src/main/assets/www/js/dist
+          if [ -f "$GITHUB_WORKSPACE/js/dist/app-user.bundle.js" ]; then
+            cp -f "$GITHUB_WORKSPACE/js/dist/app-user.bundle.js" "app/src/main/assets/www/app-runtime.js"
+            cp -f "$GITHUB_WORKSPACE/js/dist/app-user.bundle.js" "app/src/main/assets/www/js/app.bundle.js"
+          elif [ -f "/tmp/app-user.bundle.js" ]; then
+            cp -f "/tmp/app-user.bundle.js" "app/src/main/assets/www/app-runtime.js"
+            cp -f "/tmp/app-user.bundle.js" "app/src/main/assets/www/js/app.bundle.js"
+          fi
 
           sed -i 's/applicationId "ru.klevpro.admin"/applicationId "ru.klevpro.app"/g' app/build.gradle
           sed -i 's/<string name="app_name">Клёв ПРО Админ<\/string>/<string name="app_name">Клёв ПРО 2.0<\/string>/g' app/src/main/res/values/strings.xml
@@ -186,6 +202,15 @@ jobs:
           cp -a . /tmp/klev-android-admin
           cd /tmp/klev-android-admin
 
+          rm -rf app/src/main/assets/www/js/dist
+          if [ -f "$GITHUB_WORKSPACE/js/dist/app-admin.bundle.js" ]; then
+            cp -f "$GITHUB_WORKSPACE/js/dist/app-admin.bundle.js" "app/src/main/assets/www/app-runtime.js"
+            cp -f "$GITHUB_WORKSPACE/js/dist/app-admin.bundle.js" "app/src/main/assets/www/js/app.bundle.js"
+          elif [ -f "/tmp/app-admin.bundle.js" ]; then
+            cp -f "/tmp/app-admin.bundle.js" "app/src/main/assets/www/app-runtime.js"
+            cp -f "/tmp/app-admin.bundle.js" "app/src/main/assets/www/js/app.bundle.js"
+          fi
+
           if [ -f "/tmp/kp-control-89-master.html" ]; then
             cp -f "/tmp/kp-control-89-master.html" "app/src/main/assets/www/index.html"
             cp -f "/tmp/kp-control-89-master.html" "app/src/main/assets/www/kp-control-89.html"
@@ -231,10 +256,10 @@ jobs:
           mkdir -p apk
           rm -f apk/*.apk
           if [ -f "/tmp/klev-apk-dist/klev-pro-v2.5.6.apk" ]; then
-            cp -f "/tmp/klev-apk-dist/klev-pro-v2.5.6.apk" apk/klev-pro-v2.9.1.apk
+            cp -f "/tmp/klev-apk-dist/klev-pro-v2.5.6.apk" apk/klev-pro-v2.9.2.apk
           fi
           if [ -f "/tmp/klev-apk-dist/klev-pro-admin-v2.5.6.apk" ]; then
-            cp -f "/tmp/klev-apk-dist/klev-pro-admin-v2.5.6.apk" apk/klev-pro-admin-v2.9.1.apk
+            cp -f "/tmp/klev-apk-dist/klev-pro-admin-v2.5.6.apk" apk/klev-pro-admin-v2.9.2.apk
           fi
           ls -lh apk/
           EXPECTED_APK_NAME=$(node -e "const v=JSON.parse(require('fs').readFileSync('version.json','utf8')); console.log(new URL(v.apkUrl).pathname.replace(/^\/+/, ''));")
@@ -246,7 +271,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
           if ! git diff --cached --quiet; then
-            git commit -m "chore(release): publish v2.9.1-r252 web & signed apks"
+            git commit -m "chore(release): publish v2.9.2-r255 web & signed apks"
             git pull --rebase origin "${GITHUB_REF_NAME:-main}" || true
             git push origin HEAD:"${GITHUB_REF_NAME:-main}"
           fi
