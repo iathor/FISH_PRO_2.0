@@ -2,12 +2,12 @@
  * @file circle.ownership.js
  * @description Логика владения, скрытия, доступа к закрытым Экипажам и фильтрации «Все / Мои / Чужие» для модуля Круг.
  */
-import { store } from '../../core/store.js?v=2.9.2-r257';
+import { store } from '../../core/store.js?v=2.9.2-r258';
 import {
   getCurrentFisherIdentity,
   normalizeCrewSecretKey,
   hashCrewKeyForServer
-} from './circle.module.js?v=2.9.2-r257';
+} from './circle.module.js?v=2.9.2-r258';
 
 /**
  * Определяет, принадлежит ли точка Круга/Слипа/Экипажа текущему пользователю.

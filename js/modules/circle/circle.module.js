@@ -9,13 +9,13 @@
  * - Выделенная вкладка « Чаты» на нижней панели навигации + отправка карточки улова прямо в чат.
  * - Закрытый режим Супер-Админа (только для Владельца + управляемая База Администраторов с синхронизацией).
  */
-import { events, KLEV_EVENTS, safeModuleRun } from '../../core/events.js?v=2.9.2-r257';
+import { events, KLEV_EVENTS, safeModuleRun } from '../../core/events.js?v=2.9.2-r258';
 import {
   isCircleItemMine as _ownershipIsCircleItemMine,
   isCircleItemHidden,
   canUserAccessCrewItem,
   filterCircleItemsByOwnership
-} from './circle.ownership.js?v=2.9.2-r257';
+} from './circle.ownership.js?v=2.9.2-r258';
 import {
   DB_GATEWAY_CATALOG,
   getCustomDbRelayBridgeUrl,
@@ -30,23 +30,23 @@ import {
   pullRelayPackets,
   runAdminGatewayDatabaseDiagnostics,
   syncNearbyCirclePointsFromServer
-} from './circle.api.js?v=2.9.2-r257';
+} from './circle.api.js?v=2.9.2-r258';
 import {
   formatCleanPeerTitle,
   renderChatsSubView,
   renderFullScreenChatWindowHtml,
   mountFullScreenChatOverlayPortal,
   renderChatsSection as _renderChatsSectionImpl
-} from './circle.chat.js?v=2.9.2-r257';
-import { store } from '../../core/store.js?v=2.9.2-r257';
-import { storage, calcGeoDistanceKm, safeJsonParse } from '../../core/storage.js?v=2.9.2-r257';
-import { router } from '../../core/router.js?v=2.9.2-r257';
-import { APP_VERSION, APP_REVISION, APP_DISPLAY_VERSION, getSeasonalBaitsForContext, SPOT_CATEGORIES } from '../../core/config.js?v=2.9.2-r257';
-import { detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.9.2-r257';
-import { findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.9.2-r257';
-import { WATER_PROFILES } from '../../data/waters.js?v=2.9.2-r257';
-import { FISH_DB } from '../../data/species.js?v=2.9.2-r257';
-import { escapeHtml, isAnonymousCallsignValid, createPill, showToast, openModal, closeModal, copyFisherIdToClipboard, openConfirmDeleteModal, openUserAgreementModal, isUserAgreementAccepted, downloadFileCrossPlatform, triggerSystemNotificationCrossPlatform, requestSystemNotificationsAccess, flashHighlightElement, isPolicyVersionAccepted, getSavedPolicyConsentMeta, POLICY_CONSENT_META_KEY, ACTIVE_POLICY_VERSION_DEFAULT, ACTIVE_APP_VERSION_DEFAULT, saveRemotePolicyToClientEnv, getRemotePolicyFromClientEnv, parsePolicySectionsFromEditableText, formatPolicySectionsToEditableText, DEFAULT_POLICY_SECTIONS, isGeoDistributionConsentActive, ensureGeoDistributionConsent, setGeoDistributionConsentState } from '../../ui/components.js?v=2.9.2-r257';
+} from './circle.chat.js?v=2.9.2-r258';
+import { store } from '../../core/store.js?v=2.9.2-r258';
+import { storage, calcGeoDistanceKm, safeJsonParse } from '../../core/storage.js?v=2.9.2-r258';
+import { router } from '../../core/router.js?v=2.9.2-r258';
+import { APP_VERSION, APP_REVISION, APP_DISPLAY_VERSION, getSeasonalBaitsForContext, SPOT_CATEGORIES } from '../../core/config.js?v=2.9.2-r258';
+import { detectBasinByCoords, isCoastalInBasin } from '../../data/basins.js?v=2.9.2-r258';
+import { findNearestRussianSettlement, getNearestRussianWaters } from '../../data/russia-waters.js?v=2.9.2-r258';
+import { WATER_PROFILES } from '../../data/waters.js?v=2.9.2-r258';
+import { FISH_DB } from '../../data/species.js?v=2.9.2-r258';
+import { escapeHtml, isAnonymousCallsignValid, createPill, showToast, openModal, closeModal, copyFisherIdToClipboard, openConfirmDeleteModal, openUserAgreementModal, isUserAgreementAccepted, downloadFileCrossPlatform, triggerSystemNotificationCrossPlatform, requestSystemNotificationsAccess, flashHighlightElement, isPolicyVersionAccepted, getSavedPolicyConsentMeta, POLICY_CONSENT_META_KEY, ACTIVE_POLICY_VERSION_DEFAULT, ACTIVE_APP_VERSION_DEFAULT, saveRemotePolicyToClientEnv, getRemotePolicyFromClientEnv, parsePolicySectionsFromEditableText, formatPolicySectionsToEditableText, DEFAULT_POLICY_SECTIONS, isGeoDistributionConsentActive, ensureGeoDistributionConsent, setGeoDistributionConsentState } from '../../ui/components.js?v=2.9.2-r258';
 import {
   RELAY_WORKER_URL,
   buildShareUrls,
@@ -59,7 +59,7 @@ import {
   syncToTelegramCloud,
   readFromTelegramCloud,
   triggerHaptic
-} from '../../core/telegram.js?v=2.9.2-r257';
+} from '../../core/telegram.js?v=2.9.2-r258';
 import {
   OWNER_BOUND_LOGIN,
   OWNER_BOUND_PIN_HASH,
@@ -77,9 +77,9 @@ import {
   getServerAdminSessionToken,
   setServerAdminSessionToken,
   setAdminAuthRequired
-} from '../admin/admin.auth.js?v=2.9.2-r257';
-import { setLocation } from '../geo/geo.module.js?v=2.9.2-r257';
-import { calcDynamicRig } from '../forecast/forecast.module.js?v=2.9.2-r257';
+} from '../admin/admin.auth.js?v=2.9.2-r258';
+import { setLocation } from '../geo/geo.module.js?v=2.9.2-r258';
+import { calcDynamicRig } from '../forecast/forecast.module.js?v=2.9.2-r258';
 export const CREW_TTL_MS = 72 * 60 * 60 * 1000;
 /**
  * Вычисляет точное время окончания действия ссылки на длинную экспедицию:

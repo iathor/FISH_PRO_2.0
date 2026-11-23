@@ -1,6 +1,6 @@
-import { APP_VERSION, IMG_SEARCH_DIRS } from '../core/config.js?v=2.9.2-r257';
-import { getRatingWord } from '../core/format.js?v=2.9.2-r257';
-import { FISH_DB } from '../data/species.js?v=2.9.2-r257';
+import { APP_VERSION, IMG_SEARCH_DIRS } from '../core/config.js?v=2.9.2-r258';
+import { getRatingWord } from '../core/format.js?v=2.9.2-r258';
+import { FISH_DB } from '../data/species.js?v=2.9.2-r258';
 let clipSeq = 0;
 /**
  * Кеш статуса внешних PNG-изображений рыб:

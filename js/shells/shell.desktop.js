@@ -1,5 +1,5 @@
-import { safeModuleRun } from '../core/events.js?v=2.9.2-r257';
-import { closeModal } from '../ui/components.js?v=2.9.2-r257';
+import { safeModuleRun } from '../core/events.js?v=2.9.2-r258';
+import { closeModal } from '../ui/components.js?v=2.9.2-r258';
 
 function syncDesktopLayout() {
   if (typeof window === 'undefined' || typeof document === 'undefined') return;

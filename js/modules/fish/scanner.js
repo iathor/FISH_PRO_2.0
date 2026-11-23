@@ -5,14 +5,14 @@
  * - Единый прямой промпт без рамок/точек/квадратов на фото: «Определи, что за рыба на фото, примерный размер и вес»
  * - Автоматическая подстановка ответа нейросети (вид, размер, вес в г/кг, диагностические признаки и разбор нескольких рыб в кадре) в карточку Атласа РФ
  */
-import { store } from '../../core/store.js?v=2.9.2-r257';
-import { router } from '../../core/router.js?v=2.9.2-r257';
-import { RELAY_WORKER_URL, triggerHaptic } from '../../core/telegram.js?v=2.9.2-r257';
-import { workerFetch } from '../circle/circle.module.js?v=2.9.2-r257';
-import { BASIN_CONFIGS } from '../../data/basins.js?v=2.9.2-r257';
-import { FISH_DB } from '../../data/species.js?v=2.9.2-r257';
-import { renderFishVisual } from '../../ui/svg.js?v=2.9.2-r257';
-import { escapeHtml, openModal, closeModal, showToast, flashHighlightElement } from '../../ui/components.js?v=2.9.2-r257';
+import { store } from '../../core/store.js?v=2.9.2-r258';
+import { router } from '../../core/router.js?v=2.9.2-r258';
+import { RELAY_WORKER_URL, triggerHaptic } from '../../core/telegram.js?v=2.9.2-r258';
+import { workerFetch } from '../circle/circle.module.js?v=2.9.2-r258';
+import { BASIN_CONFIGS } from '../../data/basins.js?v=2.9.2-r258';
+import { FISH_DB } from '../../data/species.js?v=2.9.2-r258';
+import { renderFishVisual } from '../../ui/svg.js?v=2.9.2-r258';
+import { escapeHtml, openModal, closeModal, showToast, flashHighlightElement } from '../../ui/components.js?v=2.9.2-r258';
 /**
  * Коэффициент упитанности Фултона (k) по видам рыб для расчёта веса по длине:
  * W (кг) = (k * L_см^3) / 100000
@@ -1266,9 +1266,9 @@ export async function analyzeFishPhotoHybrid(imgSrc, bypassCache = false) {
     };
 
     // 2А. Многоканальный запрос к Cloudflare Worker /api/ai/identify-fish:
-    // Сначала прямой POST (12 сек для ожидания ответа Gemini Vision), а при сетевом сбое — гарантированная пакетная передача
-    // чанков через резервный E2E GET-каскад workerFetch (Hexlet / Vercel / EveryOrigin)
-    const workerBodyStr = JSON.stringify({
+    // Сначала прямой POST (12 сек для ожидания ответа Gemini Vision), а при гео-ограничении узла или сетевом сбое шлюза —
+    // автоматический повтор с forceRelay: true и резервная пакетная передача чанков через E2E GET-каскад workerFetch
+    const payload = {
       ...authPayloadFields,
       basinCode,
       locLabel,
@@ -1276,12 +1276,20 @@ export async function analyzeFishPhotoHybrid(imgSrc, bypassCache = false) {
       roiDhash: feat.roiDhash,
       imageBase64: pureB64,
       ...(activeClientKey && activeClientKey.length >= 16 ? { geminiApiKey: activeClientKey } : {}),
-      bypassCache: true
-    });
+      bypassCache: true,
+      ...(bypassCache === true ? { forceRelay: true } : {})
+    };
+    const workerBodyStr = JSON.stringify(payload);
+
+    const recordWorkerErrorDiagnostic = (wRes, wJson) => {
+      if ((!wRes || !wRes.ok || !wJson?.ok) && typeof wJson?.error === "string" && wJson.error.trim()) {
+        lastWorkerErrorMsg = wJson.error.trim();
+      }
+    };
 
     const parseWorkerResponseObj = (data) => {
-      if (data && data.ok === false && typeof data.error === "string" && data.error.trim()) {
-        if (/[А-Яа-яЁё]/.test(data.error) || /limit|quota|key|Forbidden|Unauthorized/i.test(data.error)) {
+      if (!data || !data.ok) {
+        if (typeof data?.error === "string" && data.error.trim()) {
           lastWorkerErrorMsg = data.error.trim();
         }
       }
@@ -1295,31 +1303,61 @@ export async function analyzeFishPhotoHybrid(imgSrc, bypassCache = false) {
       return { data, parsed };
     };
 
-    const callDirectPostFast = async (timeoutMs = 12000) => {
+    const sendDirectIdentifyPost = async (bodyPayload, timeoutMs = 12000) => {
       const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
       const timer = ctrl ? setTimeout(() => ctrl.abort(), timeoutMs) : null;
       try {
-        const res = await fetch(`${RELAY_WORKER_URL}/api/ai/identify-fish`, {
+        const wRes = await fetch(`${RELAY_WORKER_URL}/api/ai/identify-fish`, {
           method: "POST",
           headers: directAuthHeaders,
-          body: workerBodyStr,
+          body: JSON.stringify(bodyPayload),
           mode: "cors",
           credentials: "omit",
           signal: ctrl?.signal
         });
         if (timer) clearTimeout(timer);
-        const data = res ? await res.json().catch(() => null) : null;
-        if (data && data.ok === false && typeof data.error === "string" && data.error.trim()) {
-          if (/[А-Яа-яЁё]/.test(data.error) || /limit|quota|key/i.test(data.error)) {
-            lastWorkerErrorMsg = data.error.trim();
-          }
-        }
-        if (!res || !res.ok) throw new Error(data?.error || ("Direct HTTP " + (res?.status || 0)));
-        return parseWorkerResponseObj(data);
+        const wJson = wRes ? await wRes.json().catch(() => null) : null;
+        recordWorkerErrorDiagnostic(wRes, wJson);
+        return { wRes, wJson };
       } catch (err) {
         if (timer) clearTimeout(timer);
         throw err;
       }
+    };
+
+    const callDirectPostFast = async (timeoutMs = 12000) => {
+      let { wRes, wJson } = await sendDirectIdentifyPost(payload, timeoutMs);
+      if (!wRes || !wRes.ok || !wJson?.ok) {
+        const errCode = String(wJson?.errorCode || "").trim();
+        const status = Number(wRes?.status || 0);
+        const isTerminalConfigOrAuthError =
+          errCode === "NO_KEYS_CONFIGURED" ||
+          errCode === "API_KEY_INVALID" ||
+          errCode === "BETA_RESTRICTED" ||
+          status === 403;
+        const shouldAutoRetryForceRelay =
+          !isTerminalConfigOrAuthError &&
+          (wJson?.errorCode === "GEO_LOCATION_UNSUPPORTED" ||
+            wJson?.errorCode === "NETWORK_UNREACHABLE" ||
+            status === 502 ||
+            status === 504);
+        if (shouldAutoRetryForceRelay) {
+          ({ wRes, wJson } = await sendDirectIdentifyPost({ ...payload, forceRelay: true }, timeoutMs));
+        }
+      }
+      if (!wRes || !wRes.ok) {
+        const err = new Error(wJson?.error || ("Direct HTTP " + (wRes?.status || 0)));
+        if (
+          wJson?.errorCode === "NO_KEYS_CONFIGURED" ||
+          wJson?.errorCode === "API_KEY_INVALID" ||
+          wJson?.errorCode === "BETA_RESTRICTED" ||
+          wRes?.status === 403
+        ) {
+          err.isTerminalWorkerError = true;
+        }
+        throw err;
+      }
+      return parseWorkerResponseObj(wJson);
     };
 
     const callSingleShotCompactGetRelay = async () => {
@@ -1333,40 +1371,33 @@ export async function analyzeFishPhotoHybrid(imgSrc, bypassCache = false) {
           locLabel,
           dhash: feat.dhash,
           imageBase64: compactImg,
-          bypassCache: true
+          bypassCache: true,
+          ...(bypassCache === true ? { forceRelay: true } : {})
         })
       }, 18000, 1);
       const sData = sRes ? await sRes.json().catch(() => null) : null;
-      if (sData && sData.ok === false && typeof sData.error === "string" && sData.error.trim()) {
-        if (/[А-Яа-яЁё]/.test(sData.error) || /limit|quota|key/i.test(sData.error)) {
-          lastWorkerErrorMsg = sData.error.trim();
-        }
-      }
+      recordWorkerErrorDiagnostic(sRes, sData);
       if (!sRes || !sRes.ok) throw new Error(sData?.error || ('Single-shot GET relay HTTP ' + (sRes?.status || 0)));
       return parseWorkerResponseObj(sData);
     };
 
     const callPostProxyWorkerRelay = async () => {
-      const proxyUrl = `${RELAY_WORKER_URL}/api/ai/identify-fish`;
+      const relayUrl = `${RELAY_WORKER_URL}/api/ai/identify-fish`;
       const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
       const timer = ctrl ? setTimeout(() => ctrl.abort(), 14000) : null;
       try {
-        const pRes = await fetch(proxyUrl, {
+        const pRes = await fetch(relayUrl, {
           method: 'POST',
           headers: directAuthHeaders,
-          body: workerBodyStr,
+          body: JSON.stringify({ ...payload, forceRelay: true }),
           mode: 'cors',
           credentials: 'omit',
           signal: ctrl?.signal
         });
         if (timer) clearTimeout(timer);
         const pData = pRes ? await pRes.json().catch(() => null) : null;
-        if (pData && pData.ok === false && typeof pData.error === "string" && pData.error.trim()) {
-          if (/[А-Яа-яЁё]/.test(pData.error) || /limit|quota|key/i.test(pData.error)) {
-            lastWorkerErrorMsg = pData.error.trim();
-          }
-        }
-        if (!pRes || !pRes.ok) throw new Error(pData?.error || ('PostProxy HTTP ' + (pRes?.status || 0)));
+        recordWorkerErrorDiagnostic(pRes, pData);
+        if (!pRes || !pRes.ok) throw new Error(pData?.error || ('PostRelay HTTP ' + (pRes?.status || 0)));
         return parseWorkerResponseObj(pData);
       } catch (e) {
         if (timer) clearTimeout(timer);
@@ -1397,9 +1428,7 @@ export async function analyzeFishPhotoHybrid(imgSrc, bypassCache = false) {
           })
         }, 7000, 1);
         const firstJson = firstRes ? await firstRes.json().catch(() => null) : null;
-        if (firstJson && firstJson.ok === false && typeof firstJson.error === 'string' && /[А-Яа-яЁё]/.test(firstJson.error)) {
-          lastWorkerErrorMsg = firstJson.error.trim();
-        }
+        recordWorkerErrorDiagnostic(firstRes, firstJson);
         if (!firstJson || !firstJson.ok || typeof firstJson.savedIdx !== 'number') {
           throw new Error(firstJson?.error || 'Worker chunkMode not active or chunk 0 failed');
         }
@@ -1440,13 +1469,12 @@ export async function analyzeFishPhotoHybrid(imgSrc, bypassCache = false) {
             dhash: feat.dhash,
             roiDhash: feat.roiDhash,
             ...(activeClientKey && activeClientKey.length >= 16 ? { geminiApiKey: activeClientKey } : {}),
-            bypassCache: true
+            bypassCache: true,
+            ...(bypassCache === true ? { forceRelay: true } : {})
           })
         }, 20000, 1);
         const execData = execRes ? await execRes.json().catch(() => null) : null;
-        if (execData && execData.ok === false && typeof execData.error === 'string' && /[А-Яа-яЁё]/.test(execData.error)) {
-          lastWorkerErrorMsg = execData.error.trim();
-        }
+        recordWorkerErrorDiagnostic(execRes, execData);
         if (!execRes || !execRes.ok) throw new Error(execData?.error || ('Chunked exec HTTP ' + (execRes?.status || 0)));
         return parseWorkerResponseObj(execData);
       } catch (_chunkErr) {
@@ -1463,7 +1491,9 @@ export async function analyzeFishPhotoHybrid(imgSrc, bypassCache = false) {
       try {
         workerWinner = await callDirectPostFast(12000);
       } catch (_directErr) {
-        workerWinner = await callChunkedCloudRelay();
+        if (!_directErr?.isTerminalWorkerError) {
+          workerWinner = await callChunkedCloudRelay();
+        }
       }
       if (workerWinner && workerWinner.parsed) {
         const { data: cloudData, parsed: parsedFromRaw } = workerWinner;

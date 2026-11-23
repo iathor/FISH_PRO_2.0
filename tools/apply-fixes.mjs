@@ -40,9 +40,9 @@ if (!versionRaw) {
 }
 const VER = JSON.parse(versionRaw);
 const V_NUM = String(VER.version || '2.9.2').trim();
-const V_REV = String(VER.revision || 'r257').trim();
-const V_BUILD = Number(VER.buildNumber || 257);
-const V_CODE = Number(VER.versionCode || 293257);
+const V_REV = String(VER.revision || 'r258').trim();
+const V_BUILD = Number(VER.buildNumber || 258);
+const V_CODE = Number(VER.versionCode || 293258);
 const V_DISPLAY = String(VER.displayVersion || `v${V_NUM} ${V_REV}`).trim();
 const V_FULL = String(VER.fullVersion || `${V_NUM}-${V_REV}`).trim();
 const V_POLICY = String(VER.policyVersion || `2026.11.22-v${V_NUM}`).trim();
@@ -79,14 +79,10 @@ function cleanTrashFilesAndGitignore() {
   };
   walkAndRemoveDotZero(ROOT);
 
-  // Удаляем ручной дубль воркера в bot/cloudflare-worker-bot.js (источник истины — в корне)
-  const dupWorker = path.join(ROOT, 'bot/cloudflare-worker-bot.js');
-  if (fs.existsSync(dupWorker)) {
-    fs.unlinkSync(dupWorker);
-  }
-  const botDir = path.join(ROOT, 'bot');
-  if (fs.existsSync(botDir) && fs.readdirSync(botDir).length === 0) {
-    fs.rmdirSync(botDir);
+  // Синхронизируем bot/cloudflare-worker-bot.js с корневым cloudflare-worker-bot.js
+  const rootWorkerRaw = readText('cloudflare-worker-bot.js');
+  if (rootWorkerRaw) {
+    writeTextIfChanged('bot/cloudflare-worker-bot.js', rootWorkerRaw);
   }
 
   // Обновляем .gitignore без изменения самих файлов ключей
@@ -513,6 +509,7 @@ function matchWorkerRoute(normPath, ...routes) {
   w = w.replace(/"displayVersion":\s*"v2\.[0-9]+\.[0-9]+\s+r\d+"/g, `"displayVersion": "${V_DISPLAY}"`);
 
   writeTextIfChanged('cloudflare-worker-bot.js', w);
+  writeTextIfChanged('bot/cloudflare-worker-bot.js', w);
 }
 
 // ============================================================================
@@ -550,10 +547,14 @@ function patchVersionAndAndroidFiles() {
     obj.fileSize = VER.fileSize || obj.fileSize || '38.8 МБ';
     obj.title = `Обновление «Клёв ПРО 2.0» (${V_DISPLAY})`;
     obj.versionBranchNote = V_BRANCH_NOTE;
-    obj.subtitle = `${V_BRANCH_NOTE} Точечная защита ИИ-сканера и шлюзов, прямые тайлы карт без обрыва 16 КБ и единый контур погоды для полярных широт.`;
-    obj.summary = `${V_BRANCH_NOTE} Синхронизированы блоки погоды и расчёт восхода/заката для северных широт, обновлены лимитеры D1 и прямая загрузка карт.`;
+    if (!obj.subtitle || String(obj.subtitle).includes('Точечная защита')) {
+      obj.subtitle = 'Стабильная работа ИИ-определителя рыбы по фото, импорт маршрутов в форматах GPX, KML и KMZ, обновлённые офлайн-карты и улучшенная контрастная тема.';
+    }
+    if (!obj.summary || String(obj.summary).includes('Синхронизированы блоки погоды')) {
+      obj.summary = 'Повышена надёжность распознавания улова по фото с понятными подсказками, добавлен импорт пользовательских маршрутов, очищены квадраты офлайн-карт и улучшено оформление экранов.';
+    }
     if (Array.isArray(obj.changelog)) {
-      const noteItem = `Стабильная ветка v${V_NUM} (${V_REV}): основной номер версии закреплён на ${V_NUM} до выхода версии 3.0 — при скачивании с сайта или обновлении внутри приложения ориентируйтесь на номер ревизии (${V_REV}).`;
+      const noteItem = `Стабильная ветка v${V_NUM} (${V_REV}): при скачивании с сайта или обновлении внутри приложения ориентируйтесь на номер ревизии (${V_REV}).`;
       obj.changelog = [
         noteItem,
         ...obj.changelog.filter(x => !String(x).includes('Стабильная ветка v'))
@@ -573,7 +574,7 @@ function patchVersionAndAndroidFiles() {
     pol.updatedAt = `${VER.releaseDate || '2026-11-17'}T12:00:00Z`;
     pol.effectiveDate = `${VER.date || '17 ноября 2026'} г.`;
     pol.title = `Политика конфиденциальности, Пользовательское соглашение и Правила обработки геоданных «Клёв ПРО 2.0» (Редакция ${V_DISPLAY})`;
-    pol.summary = `Редакция ${V_DISPLAY}: ${V_BRANCH_NOTE} Сохранность пользовательских данных при очистке кэша, единый постоянный ID рыбака на всех устройствах по логину и паролю, расчёт гидрологии и льда по данным Росгидромета (meteoinfo.ru).`;
+    pol.summary = `Редакция ${V_DISPLAY}: сохранность пользовательских данных при очистке кэша, единый постоянный ID рыбака на всех устройствах по логину и паролю, расчёт гидрологии и льда по данным Росгидромета (meteoinfo.ru).`;
     pol.versionBranchNote = V_BRANCH_NOTE;
     writeTextIfChanged('policy-version.json', JSON.stringify(pol, null, 2) + '\n');
   }
@@ -597,7 +598,7 @@ function patchVersionAndAndroidFiles() {
   let gradle = readText('android/app/build.gradle');
   if (gradle) {
     gradle = gradle.replace(/versionCode\s+\d+/g, `versionCode ${V_CODE}`).replace(/:\s*293\d{3}/g, `: ${V_CODE}`).replace(/def effVerCode = \d+/g, `def effVerCode = ${V_CODE}`);
-    gradle = gradle.replace(/versionName\s+"[^"]+"/g, `versionName "${V_FULL}"`);
+    gradle = gradle.replace(/versionName\s+"[^"]+"(?:\s*\/\/\s*versionName\s+"[^"]+")?/g, `versionName "${V_NUM}" // versionName "${V_FULL}"`);
     writeTextIfChanged('android/app/build.gradle', gradle);
   }
 

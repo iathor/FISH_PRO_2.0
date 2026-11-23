@@ -80,6 +80,46 @@ function buildTarget(target) {
   }
 }
 
+function syncAndroidAssetsWww() {
+  const wwwDir = path.join(ROOT, 'android/app/src/main/assets/www');
+  fs.mkdirSync(wwwDir, { recursive: true });
+
+  const copyItems = [
+    'index.html',
+    'kp-control-89.html',
+    'app-runtime.js',
+    'VERSION',
+    'policy-version.json',
+    'manifest.json',
+    'version.json',
+    'sw.js',
+    'css',
+    'js',
+    'assets'
+  ];
+
+  for (const item of copyItems) {
+    const srcPath = path.join(ROOT, item);
+    if (!fs.existsSync(srcPath)) continue;
+    const dstPath = path.join(wwwDir, item);
+    fs.cpSync(srcPath, dstPath, { recursive: true, force: true });
+  }
+
+  const distInWww = path.join(wwwDir, 'js/dist');
+  if (fs.existsSync(distInWww)) {
+    fs.rmSync(distInWww, { recursive: true, force: true });
+  }
+
+  const apkVerSrc = path.join(ROOT, 'apk/apk-version.json');
+  if (fs.existsSync(apkVerSrc)) {
+    const apkDirInWww = path.join(wwwDir, 'apk');
+    fs.mkdirSync(apkDirInWww, { recursive: true });
+    fs.copyFileSync(apkVerSrc, path.join(apkDirInWww, 'apk-version.json'));
+  }
+
+  console.log('[build-bundles] Synchronized android/app/src/main/assets/www/.');
+}
+
 function main() {
   if (!fs.existsSync(WEBPACK_BIN)) {
     throw new Error(`Webpack binary not found at ${WEBPACK_BIN}`);
@@ -87,7 +127,12 @@ function main() {
   for (const target of TARGETS) {
     buildTarget(target);
   }
-  console.log('[build-bundles] All 5 bundles built successfully.');
+  const applyFixesPath = path.join(ROOT, 'tools/apply-fixes.mjs');
+  if (fs.existsSync(applyFixesPath)) {
+    execFileSync(process.execPath, [applyFixesPath], { cwd: ROOT, stdio: 'inherit' });
+  }
+  syncAndroidAssetsWww();
+  console.log('[build-bundles] All 5 bundles built and Android assets/www synchronized successfully.');
 }
 
 main();

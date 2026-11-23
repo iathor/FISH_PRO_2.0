@@ -1,6 +1,6 @@
-import { renderFishVisual } from '../../ui/svg.js?v=2.9.2-r257';
-import { MAP_LAYERS, SPOT_CATEGORIES, getCompatibleMethods } from '../../core/config.js?v=2.9.2-r257';
-import { events, KLEV_EVENTS, safeModuleRun } from '../../core/events.js?v=2.9.2-r257';
+import { renderFishVisual } from '../../ui/svg.js?v=2.9.2-r258';
+import { MAP_LAYERS, SPOT_CATEGORIES, getCompatibleMethods } from '../../core/config.js?v=2.9.2-r258';
+import { events, KLEV_EVENTS, safeModuleRun } from '../../core/events.js?v=2.9.2-r258';
 import {
   ARC_TRANSPORT_MODES,
   calcHaversineKm,
@@ -14,7 +14,7 @@ import {
   parseTrackTimestampMs,
   extractKmlFromKmzBuffer,
   parseTrackFromExternalFileText
-} from './geo.routing.js?v=2.9.2-r257';
+} from './geo.routing.js?v=2.9.2-r258';
 
 export {
   cleanTrackNameFromFileName,
@@ -33,20 +33,20 @@ import {
   _estimateSatellitesFromAccuracy,
   _gpsFilterIngest as _gpsFilterIngestImpl,
   computeGpsTelemetryStep
-} from './geo.gps.js?v=2.9.2-r257';
+} from './geo.gps.js?v=2.9.2-r258';
 import {
   normalizeSpotCatKey,
   computeDeduplicatedMapCounts as _overlaysComputeDeduplicatedMapCounts,
   prepareOverlayMarkerLists
-} from './geo.overlays.js?v=2.9.2-r257';
-import { storage, safeJsonParse } from '../../core/storage.js?v=2.9.2-r257';
-import { router } from '../../core/router.js?v=2.9.2-r257';
-import { store } from '../../core/store.js?v=2.9.2-r257';
-import { fetchWithTimeout } from '../../core/http.js?v=2.9.2-r257';
-import { installShortcut, syncInstallButtons } from '../../core/pwa.js?v=2.9.2-r257';
-import { triggerHaptic, RELAY_WORKER_URL } from '../../core/telegram.js?v=2.9.2-r257';
-import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.9.2-r257';
-import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.9.2-r257';
+} from './geo.overlays.js?v=2.9.2-r258';
+import { storage, safeJsonParse } from '../../core/storage.js?v=2.9.2-r258';
+import { router } from '../../core/router.js?v=2.9.2-r258';
+import { store } from '../../core/store.js?v=2.9.2-r258';
+import { fetchWithTimeout } from '../../core/http.js?v=2.9.2-r258';
+import { installShortcut, syncInstallButtons } from '../../core/pwa.js?v=2.9.2-r258';
+import { triggerHaptic, RELAY_WORKER_URL } from '../../core/telegram.js?v=2.9.2-r258';
+import { BASIN_CONFIGS, detectBasinByCoords, isCoastalInBasin, getSpotEcoregion, isSpeciesInGeoRange } from '../../data/basins.js?v=2.9.2-r258';
+import { WATER_PROFILES, getAvailableWaterTypes } from '../../data/waters.js?v=2.9.2-r258';
 import {
   RUSSIA_CITIES,
   RUSSIA_WATERS,
@@ -54,10 +54,10 @@ import {
   getNearestRussianSettlements,
   getNearestRussianWaters,
   getWaterTypeShortTag
-} from '../../data/russia-waters.js?v=2.9.2-r257';
-import { FISH_DB } from '../../data/species.js?v=2.9.2-r257';
-import { routeOnGrid } from './grid-router.js?v=2.9.2-r257';
-import { routeBoatRobust } from './boat-router.js?v=2.9.2-r257';
+} from '../../data/russia-waters.js?v=2.9.2-r258';
+import { FISH_DB } from '../../data/species.js?v=2.9.2-r258';
+import { routeOnGrid } from './grid-router.js?v=2.9.2-r258';
+import { routeBoatRobust } from './boat-router.js?v=2.9.2-r258';
 import {
   isVoiceGuidanceScreenEnabled,
   isVoiceGuidanceBackgroundEnabled,
@@ -69,7 +69,7 @@ import {
   formatSpokenRouteDistanceRu as _ttsFormatSpokenRouteDistanceRu,
   _normalizeDistanceTokensForSpeechRu,
   speakRouteGuidanceRu
-} from './geo.tts.js?v=2.9.2-r257';
+} from './geo.tts.js?v=2.9.2-r258';
 import {
   COMPASS_DEADBAND_DEG,
   COMPASS_ROT_DEADBAND_DEG,
@@ -82,11 +82,11 @@ import {
   computeMapRotationStep,
   stabilizeOverlayElement,
   stabilizeMapOverlaysInBox
-} from './geo.compass.js?v=2.9.2-r257';
-import { escapeHtml, createPill, showToast, openModal, closeModal, openConfirmDeleteModal, downloadFileCrossPlatform, flashHighlightElement, isGeoDistributionConsentActive, ensureGeoDistributionConsent, setGeoDistributionConsentState } from '../../ui/components.js?v=2.9.2-r257';
-import { fetchWeather, weatherModule } from '../weather/weather.module.js?v=2.9.2-r257';
-import { calcDayBest } from '../forecast/forecast.module.js?v=2.9.2-r257';
-import { computeHexPolygonForCircle, getEffectiveCircleRadiusKm, getCircleHexDecayState, canUserAccessCrewItem, getCurrentFisherIdentity, isUserAdmin, isCurrentUserBetaTester, verifyBetaTesterStatusFromCloud, isCircleItemMine, isCircleItemHidden, openAddThematicMapPointModal } from '../circle/circle.module.js?v=2.9.2-r257';
+} from './geo.compass.js?v=2.9.2-r258';
+import { escapeHtml, createPill, showToast, openModal, closeModal, openConfirmDeleteModal, downloadFileCrossPlatform, flashHighlightElement, isGeoDistributionConsentActive, ensureGeoDistributionConsent, setGeoDistributionConsentState } from '../../ui/components.js?v=2.9.2-r258';
+import { fetchWeather, weatherModule } from '../weather/weather.module.js?v=2.9.2-r258';
+import { calcDayBest } from '../forecast/forecast.module.js?v=2.9.2-r258';
+import { computeHexPolygonForCircle, getEffectiveCircleRadiusKm, getCircleHexDecayState, canUserAccessCrewItem, getCurrentFisherIdentity, isUserAdmin, isCurrentUserBetaTester, verifyBetaTesterStatusFromCloud, isCircleItemMine, isCircleItemHidden, openAddThematicMapPointModal } from '../circle/circle.module.js?v=2.9.2-r258';
 // ============================================================================
 // АВТОНОМНОЕ ЯДРО, РЕПРОЕКТОР EPSG:3395 И ИНСПЕКТОР ПРОВЕРКИ ОФЛАЙН-КАРТ (ФАЗА 1 • v2)
 // Хранение в формате инлайн-DataURL (100% сохранность после перезапуска Android WebView)

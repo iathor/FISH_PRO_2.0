@@ -76,8 +76,8 @@ test('3.3 Регулярка шлюз тайлов блокирует чужие
 
 test('3.4 & 4.8 Единый источник версии VERSION (2.9.0 r240) синхронизирован во всех файлах и ссылка на APK валидна', () => {
   assert.equal(verData.version, '2.9.2');
-  assert.equal(verData.revision, 'r257');
-  assert.equal(verData.versionCode, 293257);
+  assert.equal(verData.revision, 'r258');
+  assert.equal(verData.versionCode, 293258);
 
   const vJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'version.json'), 'utf8'));
   const apkVJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'apk/apk-version.json'), 'utf8'));
@@ -376,7 +376,7 @@ test('6.6 Аудит r248: пересобранный app-runtime.js + app.bundl
   const wf = fs.readFileSync(path.join(ROOT, '.github/workflows/build-android-apk.yml'), 'utf8');
   const verJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'VERSION'), 'utf8'));
 
-  assert.equal(verJson.fullVersion, '2.9.2-r257', 'В VERSION должен быть fullVersion 2.9.2-r257');
+  assert.equal(verJson.fullVersion, '2.9.2-r258', 'В VERSION должен быть fullVersion 2.9.2-r258');
   assert.equal(rtSrc, bundleSrc, 'app-runtime.js и js/app.bundle.js должны быть идентичны');
   for (const sym of ['transform-origin:14px 27px;', 'fcWeatherRoadStormCard', 'fcWeatherHourlyWaveCard', '_klevTouchStart', '__KLEV_STARTUP_GPS_SYNCED__']) {
     assert.ok(rtSrc.includes(sym), `В скомпилированном app-runtime.js отсутствует ${sym}`);
@@ -385,7 +385,7 @@ test('6.6 Аудит r248: пересобранный app-runtime.js + app.bundl
   assert.ok(layoutCss.includes('img.leaflet-marker-icon') && idxHtml.includes('img.leaflet-marker-icon'), 'Синий дефолтный img.leaflet-marker-icon должен скрываться на мобильных через CSS');
   assert.ok(!/\.compass-bearing-active\s+#mapBox\s*\{[^}]*transform:\s*none/i.test(idxHtml), 'В index.html не должно быть transform: none для #mapBox');
   assert.ok(!/\.compass-bearing-active\s+#mapBox\s*\{[^}]*transform:\s*none/i.test(kpHtml), 'В kp-control-89.html не должно быть transform: none для #mapBox');
-  assert.ok(gradle.includes('applicationId "ru.klevpro.app"') && gradle.includes('versionName "2.9.2-r257"'), 'В android/app/build.gradle должны быть ru.klevpro.app и 2.9.2-r257');
+  assert.ok(gradle.includes('applicationId "ru.klevpro.app"') && gradle.includes('versionName "2.9.2-r258"'), 'В android/app/build.gradle должны быть ru.klevpro.app и 2.9.2-r258');
   assert.ok(stringsXml.includes('Клёв ПРО 2.0'), 'В strings.xml должно быть имя Клёв ПРО 2.0');
   assert.ok(mainJava.includes('compassWanted = true') && mainJava.includes('TYPE_MAGNETIC_FIELD'), 'В MainActivity.java должен быть включён компас с резервом TYPE_MAGNETIC_FIELD');
   assert.ok(wf.includes('/tmp/klev-android-user') && wf.includes('/tmp/klev-android-admin'), 'Workflow должен собирать User и Admin APK в изолированных директориях');
@@ -588,10 +588,10 @@ test('r255: закрытие всех 9 пунктов глубокой инсп
   assert.ok(adminJs.includes('setChatUiState') && adminJs.includes('setChatUiState({ isFullScreenChatOpen: false })'), 'В admin.module.js должен вызываться сеттер setChatUiState');
 
   // 3. Синхронизация buildNumber === 255 и getAppBuildNumber() -> 255
-  assert.equal(verJson.buildNumber, 257, 'buildNumber в version.json должен быть 257');
-  assert.equal(apkVerJson.buildNumber, 257, 'buildNumber в apk/apk-version.json должен быть 257');
-  assert.ok(configJs.includes('export const APP_BUILD_NUMBER = 257;') && configJs.includes('"buildNumber": 257'), 'В config.js должен быть APP_BUILD_NUMBER = 257');
-  assert.ok(/public\s+int\s+getAppBuildNumber\(\)\s*\{\s*return\s+257;\s*\}/.test(mainJava), 'В MainActivity.java getAppBuildNumber() должен возвращать 257');
+  assert.equal(verJson.buildNumber, 258, 'buildNumber в version.json должен быть 258');
+  assert.equal(apkVerJson.buildNumber, 258, 'buildNumber в apk/apk-version.json должен быть 258');
+  assert.ok(configJs.includes('export const APP_BUILD_NUMBER = 258;') && configJs.includes('"buildNumber": 258'), 'В config.js должен быть APP_BUILD_NUMBER = 258');
+  assert.ok(/public\s+int\s+getAppBuildNumber\(\)\s*\{\s*return\s+258;\s*\}/.test(mainJava), 'В MainActivity.java getAppBuildNumber() должен возвращать 258');
   assert.ok(gatewayJava.includes('KlevPro/2.9.2'), 'В LocalGatewayClient.java должен быть User-Agent KlevPro/2.9.2');
 
   // 4. prevUserPos и remMeters <= 25 в geo.module.js
@@ -738,8 +738,99 @@ test('r257: проверка всех 5 пунктов BUGS (офлайн-ква
     workerJs.includes('for (const prof of cloudAuthProfiles.values())') &&
     workerJs.includes('loadedProf = await loadPersistedAuthProfile(env,') &&
     workerJs.includes('const alreadySaved = globalThis.__klevVisionChunkStore.has(chunkKey);') &&
-    workerJs.includes('async function callGeminiGenerateContentSmart(apiKey, contentsPayload, genConfig = {}, timeoutMs = 12000, env = null)') &&
-    workerJs.includes('if (!res) break;'),
+    workerJs.includes('async function callGeminiGenerateContentSmart(') &&
+    workerJs.includes('if (!res) {'),
     'В cloudflare-worker-bot.js должны быть обновленные verifyAiVisionBetaAccess, дедупликация чанков и callGeminiGenerateContentSmart'
+  );
+});
+
+test('r258: защита ключей GEMINI_CONFIG_V2 / GEMINI_KEYS_VAULT_V2 в D1, порядок синхронизации в боте, каскад шлюзов и диагностика Vision ИИ', () => {
+  const workerJs = fs.readFileSync(path.join(ROOT, 'cloudflare-worker-bot.js'), 'utf8');
+  const botWorkerJs = fs.readFileSync(path.join(ROOT, 'bot/cloudflare-worker-bot.js'), 'utf8');
+  const scannerJs = fs.readFileSync(path.join(ROOT, 'js/modules/fish/scanner.js'), 'utf8');
+  const mainJava = fs.readFileSync(path.join(ROOT, 'android/app/src/main/java/ru/klevpro/app/MainActivity.java'), 'utf8');
+  const wwwIdx = fs.readFileSync(path.join(ROOT, 'android/app/src/main/assets/www/index.html'), 'utf8');
+  const wwwVer = JSON.parse(fs.readFileSync(path.join(ROOT, 'android/app/src/main/assets/www/version.json'), 'utf8'));
+  const wwwCfg = fs.readFileSync(path.join(ROOT, 'android/app/src/main/assets/www/js/core/config.js'), 'utf8');
+
+  // Побайтовая идентичность корневого воркера и bot/cloudflare-worker-bot.js + синхронизация Android assets/www
+  assert.equal(workerJs, botWorkerJs, 'cloudflare-worker-bot.js и bot/cloudflare-worker-bot.js должны быть побайтово идентичны');
+  assert.ok(/public\s+String\s+getAppRevision\(\)\s*\{\s*return\s+"r258";\s*\}/.test(mainJava), 'В MainActivity.java getAppRevision() должен возвращать r258');
+  assert.ok(wwwIdx.includes('2.9.2-r258'), 'В android/app/src/main/assets/www/index.html должна быть версия 2.9.2-r258');
+  assert.equal(wwwVer.fullVersion, '2.9.2-r258', 'В android/app/src/main/assets/www/version.json должна быть версия 2.9.2-r258');
+  assert.equal(wwwVer.buildNumber, 258, 'В android/app/src/main/assets/www/version.json buildNumber должен быть 258');
+  assert.ok(wwwCfg.includes('export const APP_BUILD_NUMBER = 258;') && wwwCfg.includes('2.9.2-r258'), 'В android/app/src/main/assets/www/js/core/config.js должна быть версия 2.9.2-r258 (258)');
+
+  // 1. Защита и восстановление всех 3 слотов apiKeys в applyParsedGeminiConfigToStore, syncFreshGeminiConfigFromD1 и persistSystemMeta
+  assert.ok(
+    workerJs.includes('function extractNormalizedGeminiKeys(obj)') &&
+    workerJs.includes('geminiConfigStore.apiKeys = norm.apiKeys;') &&
+    workerJs.includes('geminiConfigStore.apiKey = norm.apiKey || norm.firstKey;'),
+    'applyParsedGeminiConfigToStore должен восстанавливать все 3 слота apiKeys через extractNormalizedGeminiKeys'
+  );
+  assert.ok(
+    workerJs.includes("SELECT k, v FROM klev_kv WHERE k IN ('GEMINI_CONFIG_V2', 'GEMINI_KEYS_VAULT_V2', 'SYS_STATE_V2_1_1')"),
+    'syncFreshGeminiConfigFromD1 должен проверять GEMINI_CONFIG_V2, GEMINI_KEYS_VAULT_V2 и SYS_STATE_V2_1_1'
+  );
+  const mPersist = workerJs.match(/async function persistSystemMeta\([\s\S]*?\n\}/);
+  assert.ok(mPersist, 'Функция persistSystemMeta должна присутствовать в воркере');
+  assert.ok(
+    mPersist[0].includes('const hasValidKeyInMem = () => Boolean(') &&
+    mPersist[0].includes('if (!hasValidKeyInMem())') &&
+    mPersist[0].includes('await syncFreshGeminiConfigFromD1(env);') &&
+    /if\s*\(hasValidKeyInMem\(\)\)\s*\{[\s\S]*?\.bind\('GEMINI_CONFIG_V2'/.test(mPersist[0]),
+    'persistSystemMeta не должен перезаписывать GEMINI_CONFIG_V2 без валидного ключа (>= 16 символов) в памяти'
+  );
+
+  // 2. Порядок синхронизации ключей в identifyFishPhotoForBot
+  const mBotId = workerJs.match(/async function identifyFishPhotoForBot\([\s\S]*?\n\}/);
+  assert.ok(mBotId, 'Функция identifyFishPhotoForBot должна присутствовать в воркере');
+  const syncIdx = mBotId[0].indexOf('await syncFreshGeminiConfigFromD1(env);');
+  const getKeysIdx = mBotId[0].indexOf('const geminiKeys = getEffectiveGeminiKeys(env');
+  assert.ok(syncIdx > 0 && getKeysIdx > syncIdx, 'В identifyFishPhotoForBot вызов await syncFreshGeminiConfigFromD1(env) должен стоять ДО getEffectiveGeminiKeys');
+
+  // 3. Каскад шлюзов, forceRelay, _workerEdgeNeedsGeoRelay, полный список моделей и классификация errorCode
+  assert.ok(
+    workerJs.includes('let _workerEdgeNeedsGeoRelay = false;') &&
+    workerJs.includes('async function _fetchGeminiWithGeoFallback(gUrl, bodyStr, timeoutMs = 15000, forceRelayOrEnv = false, maybeEnv = null)') &&
+    workerJs.includes('async function callGeminiGenerateContentSmart(apiKeyOrKeys, contentsPayload, genConfig = {}, timeoutMs = 15000, preferredModel = "", forceRelay = false, maybeEnv = null)'),
+    'В воркере должны работать _workerEdgeNeedsGeoRelay и параметр forceRelay в _fetchGeminiWithGeoFallback и callGeminiGenerateContentSmart'
+  );
+  for (const modName of [
+    'gemini-2.5-flash',
+    'gemini-3-flash-preview',
+    'gemini-2.5-pro',
+    'gemini-2.5-flash-lite',
+    'gemini-3.1-flash-lite-preview',
+    'gemini-2.0-flash'
+  ]) {
+    assert.ok(workerJs.includes('"' + modName + '"'), 'В списке моделей воркера должна быть ' + modName);
+  }
+  for (const errCode of [
+    'NO_KEYS_CONFIGURED',
+    'API_KEY_INVALID',
+    'GEO_LOCATION_UNSUPPORTED',
+    'QUOTA_EXHAUSTED_429'
+  ]) {
+    assert.ok(workerJs.includes('"' + errCode + '"'), 'В классификации ошибок воркера должен быть код ' + errCode);
+  }
+
+  // 4. В js/modules/fish/scanner.js: автоповтор с forceRelay: true при GEO_LOCATION_UNSUPPORTED / NETWORK_UNREACHABLE / 502 / 504, передача forceRelay при bypassCache === true и сохранение wJson.error
+  assert.ok(
+    scannerJs.includes('...(bypassCache === true ? { forceRelay: true } : {})'),
+    'При bypassCache === true в analyzeFishPhotoHybrid должен сразу передаваться forceRelay: true'
+  );
+  assert.ok(
+    scannerJs.includes('wJson?.errorCode === "GEO_LOCATION_UNSUPPORTED"') &&
+    scannerJs.includes('wJson?.errorCode === "NETWORK_UNREACHABLE"') &&
+    scannerJs.includes('status === 502') &&
+    scannerJs.includes('status === 504') &&
+    scannerJs.includes('({ wRes, wJson } = await sendDirectIdentifyPost({ ...payload, forceRelay: true }, timeoutMs));'),
+    'При сбое первого запроса (GEO_LOCATION_UNSUPPORTED, NETWORK_UNREACHABLE, HTTP 502/504) должен выполняться автоповтор с forceRelay: true'
+  );
+  assert.ok(
+    scannerJs.includes('const recordWorkerErrorDiagnostic = (wRes, wJson) =>') &&
+    scannerJs.includes('lastWorkerErrorMsg = wJson.error.trim();'),
+    'scanner.js должен сохранять точный wJson.error от сервера в lastWorkerErrorMsg'
   );
 });
