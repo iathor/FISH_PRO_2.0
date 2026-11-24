@@ -1,13 +1,13 @@
-import { store } from './store.js?v=2.9.2-r258';
+import { store } from './store.js?v=2.9.2-r259';
 /**
  * @file updater.js
- * @description Модуль строгого контроля версий (v2.9.2 (r258)):
+ * @description Модуль строгого контроля версий (v2.9.2 (r259)):
  * - В Android APK: запрос на обновление выводится ТОЛЬКО если версия/ревизия на сервере СТРОГО ВЫШЕ установленной в APK.
  * - На Сайте и в PWA: проверка выхода новой версии с уведомлением о необходимости обновления кэша
  *   и бережной очисткой устаревшего кэша и технических куки БЕЗ удаления пользовательских данных (точек, журнала, профиля, чатов, офлайн-карт).
  */
-import { APP_VERSION, APP_BUILD_NUMBER, APP_REVISION, APP_DISPLAY_VERSION, RELEASE_CACHE_KEY, CURRENT_RELEASE_INFO } from './config.js?v=2.9.2-r258';
-import { showToast, escapeHtml } from '../ui/components.js?v=2.9.2-r258';
+import { APP_VERSION, APP_BUILD_NUMBER, APP_REVISION, APP_DISPLAY_VERSION, RELEASE_CACHE_KEY, CURRENT_RELEASE_INFO } from './config.js?v=2.9.2-r259';
+import { showToast, escapeHtml } from '../ui/components.js?v=2.9.2-r259';
 
 export const PUBLIC_SITE_ORIGIN = 'https://klevpro.ru';
 export const APK_MANIFEST_PATH = '/apk/apk-version.json';
@@ -109,10 +109,13 @@ export function compareSemverStrings(vA = '', vB = '') {
  * 2) Только при полном равенстве семантической версии сравнивается номер сборки (buildNumber / rNNN).
  */
 export function compareReleaseVersions(verA, revA, verB, revB) {
-  const semCmp = compareSemverStrings(verA, verB);
-  if (semCmp !== 0) return semCmp;
   const rA = extractBuildRevisionNumber(revA);
   const rB = extractBuildRevisionNumber(revB);
+  if (rA > 0 && rB > 0 && String(verA || '2').startsWith('2.') && String(verB || '2').startsWith('2.') && rA !== rB) {
+    return rA > rB ? 1 : -1;
+  }
+  const semCmp = compareSemverStrings(verA, verB);
+  if (semCmp !== 0) return semCmp;
   if (rA !== rB && (rA > 0 || rB > 0)) {
     return rA > rB ? 1 : -1;
   }

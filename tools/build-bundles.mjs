@@ -1,3 +1,4 @@
+import vm from 'node:vm';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -120,9 +121,25 @@ function syncAndroidAssetsWww() {
   console.log('[build-bundles] Synchronized android/app/src/main/assets/www/.');
 }
 
+
+function verifyBundlesSyntax() {
+  for (const target of TARGETS) {
+    for (const relOut of target.outputs) {
+      const destAbs = path.resolve(ROOT, relOut);
+      const code = fs.readFileSync(destAbs, "utf8");
+      new vm.Script(code, { filename: relOut });
+      console.log(`[build-bundles] VM syntax verified: ${relOut}`);
+    }
+  }
+}
+
 function main() {
   if (!fs.existsSync(WEBPACK_BIN)) {
     throw new Error(`Webpack binary not found at ${WEBPACK_BIN}`);
+  }
+  const geoBuildPath = path.join(ROOT, 'tools/build-geo-db.mjs');
+  if (fs.existsSync(geoBuildPath)) {
+    execFileSync(process.execPath, [geoBuildPath], { cwd: ROOT, stdio: 'inherit' });
   }
   for (const target of TARGETS) {
     buildTarget(target);
@@ -131,6 +148,7 @@ function main() {
   if (fs.existsSync(applyFixesPath)) {
     execFileSync(process.execPath, [applyFixesPath], { cwd: ROOT, stdio: 'inherit' });
   }
+  verifyBundlesSyntax();
   syncAndroidAssetsWww();
   console.log('[build-bundles] All 5 bundles built and Android assets/www synchronized successfully.');
 }

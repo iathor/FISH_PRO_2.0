@@ -1,30 +1,30 @@
 /**
  * @file config.js
- * @description Конфигурация приложения (Релиз 2.9.2 r258), картографические слои и адаптивные справочники снастей и сезонных наживок
+ * @description Конфигурация приложения (Релиз 2.9.2 r259), картографические слои и адаптивные справочники снастей и сезонных наживок
  */
 export const APP_VERSION = '2.9.2';
-export const APP_BUILD_NUMBER = 258;
-export const APP_REVISION = 'r258';
-export const APP_FULL_VERSION = '2.9.2-r258';
-export const APP_DISPLAY_VERSION = 'v2.9.2 r258';
-export const APP_RELEASE_LABEL = 'v2.9.2 (r258)';
-export const APP_VERSION_CODE = 293258;
+export const APP_BUILD_NUMBER = 259;
+export const APP_REVISION = 'r259';
+export const APP_FULL_VERSION = '2.9.2-r259';
+export const APP_DISPLAY_VERSION = 'v2.9.2 r259';
+export const APP_RELEASE_LABEL = 'v2.9.2 (r259)';
+export const APP_VERSION_CODE = 293259;
 export const STATE_CACHE_KEY = 'klev_pro_state_v2.0';
 export const WEATHER_CACHE_KEY = 'klev_pro_weather_v2.0';
 export const RELEASE_CACHE_KEY = 'klev_pro_release_v2.0';
 export const WEATHER_TTL_MS = 2 * 60 * 60 * 1000;
 export const CURRENT_RELEASE_INFO = {
   "version": "2.9.2",
-  "versionCode": 293258,
-  "buildNumber": 258,
-  "revision": "r258",
-  "displayVersion": "v2.9.2 r258",
-  "releaseLabel": "v2.9.2 (r258)",
+  "versionCode": 293259,
+  "buildNumber": 259,
+  "revision": "r259",
+  "displayVersion": "v2.9.2 r259",
+  "releaseLabel": "v2.9.2 (r259)",
   "date": "22 ноября 2026",
   "releasedAt": "2026-11-22T12:00:00Z",
   "apkUrl": "https://klevpro.ru/apk/klev-pro-v2.9.2.apk",
   "fileSize": "38.8 МБ",
-  "title": "Обновление «Клёв ПРО 2.0» (v2.9.2 r258)",
+  "title": "Обновление «Клёв ПРО 2.0» (v2.9.2 r259)",
   "subtitle": "Водный движок NavMesh (обход островов, приоритет фарватера и учёт течения), управление офлайн-картами с плашки и фильтрация точек.",
   "summary": "Внедрён 2D-движок водной маршрутизации NavMesh с обходом островов, приоритетом фарватера и учётом вектора течения, в плашку офлайн-карт добавлены тумблер Вкл/Выкл и управление загруженными картами, синхронизированы фильтры точек.",
   "highlights": [

@@ -5,11 +5,11 @@
  * выделенная вкладка « Чаты» с отправкой улова, автопривязка и автокопирование ID рыбака FP-XXXXX,
  * закрытый Супер-Админ + управляемая База Администраторов) (Ревизия 2.1.1)
  */
-import { DEFAULT_STATE, getCompatibleMethods, getSeasonalBaitsForContext } from './config.js?v=2.9.2-r258';
-import { storage } from './storage.js?v=2.9.2-r258';
-import { detectBasinByCoords, BASIN_CONFIGS, isCoastalInBasin, getSpotEcoregion } from '../data/basins.js?v=2.9.2-r258';
-import { findNearestRussianSettlement } from '../data/russia-waters.js?v=2.9.2-r258';
-import { FISH_DB } from '../data/species.js?v=2.9.2-r258';
+import { DEFAULT_STATE, getCompatibleMethods, getSeasonalBaitsForContext } from './config.js?v=2.9.2-r259';
+import { storage } from './storage.js?v=2.9.2-r259';
+import { detectBasinByCoords, BASIN_CONFIGS, isCoastalInBasin, getSpotEcoregion, isSpeciesInGeoRange, rankSpeciesWithUserPriority } from '../data/basins.js?v=2.9.2-r259';
+import { findNearestRussianSettlement } from '../data/russia-waters.js?v=2.9.2-r259';
+import { FISH_DB } from '../data/species.js?v=2.9.2-r259';
 function getActiveDaySeasonContext(state, overrideDays = null, overrideDayIdx = null, overrideIceState = null) {
   const rawDays = overrideDays ?? state?.weatherDays;
   const days = Array.isArray(rawDays) ? rawDays : [];
@@ -19,8 +19,51 @@ function getActiveDaySeasonContext(state, overrideDays = null, overrideDayIdx = 
   const effWaterTemp = Number.isFinite(day?.waterTemp) ? day.waterTemp : 12;
   return { effIce, effWaterTemp };
 }
+function pickBestFishForLocationContext(nextState) {
+  if (!nextState || typeof nextState !== 'object') return 'pike';
+  const lat = Number.isFinite(Number(nextState.lat)) ? Number(nextState.lat) : 55.75;
+  const lon = Number.isFinite(Number(nextState.lon)) ? Number(nextState.lon) : 37.62;
+  const basinCode = nextState.basinCode || detectBasinByCoords(lat, lon);
+  const waterType = nextState.water || 'small_river';
+  const waterName = nextState.selectedWaterName || '';
+  const isCoastal = Boolean(nextState.isCoastal || waterType === 'sea_gulf' || waterType === 'open_sea');
+  const hasCooling = waterType === 'cooling_reservoir';
+  const rTypes = new Set([waterType]);
+  const ecoreg = getSpotEcoregion(lat, lon, basinCode, waterType, waterName);
+  const sigOrder = ecoreg.signatureSpecies || [];
+  const sigMap = new Map(sigOrder.map((id, idx) => [id, idx]));
+
+  const localAllowedPool = FISH_DB.filter(f =>
+    f.legal !== 'redbook' &&
+    isSpeciesInGeoRange(f, lat, lon, basinCode, waterType, nextState.waterRadiusKm || 50, rTypes, isCoastal, hasCooling, waterName)
+  );
+  if (!localAllowedPool.length) return nextState.fishId || 'pike';
+
+  const targetIds = Array.isArray(nextState.userProfile?.targetSpecies) ? nextState.userProfile.targetSpecies : [];
+  const favIds = Array.isArray(nextState.favorites) ? nextState.favorites : [];
+
+  const scored = localAllowedPool.map(f => {
+    const sigIdx = sigMap.has(f.id) ? sigMap.get(f.id) : -1;
+    const bonus = sigIdx >= 0 ? Math.max(6, 30 - sigIdx * 2) : -6;
+    return { fish: f, rankSc: 65 + bonus };
+  });
+  const ranked = rankSpeciesWithUserPriority(scored, targetIds, favIds);
+  const curFishId = nextState.fishId;
+  const curFishAllowed = localAllowedPool.some(f => f.id === curFishId);
+  const topCandidate = ranked[0]?.fish?.id;
+  if (!curFishAllowed) return topCandidate || localAllowedPool[0].id;
+  const curIsUserPriority = targetIds.includes(curFishId) || favIds.includes(curFishId);
+  const topIsHigherUserPriority = ranked[0]?.priorityGroup > (targetIds.includes(curFishId) ? 3 : (favIds.includes(curFishId) ? 2 : 1));
+  if (topIsHigherUserPriority || !curIsUserPriority) {
+    return topCandidate || curFishId;
+  }
+  return curFishId;
+}
+
 function syncTackleForContext(nextState, forcePrimaryMethod = false) {
-  const fishObj = FISH_DB.find(f => f.id === nextState.fishId) || FISH_DB[0];
+  if (!nextState || typeof nextState !== 'object') return nextState;
+  const fishObj = FISH_DB.find(f => f && f.id === nextState.fishId) || FISH_DB[0];
+  if (!fishObj) return nextState;
   const { effIce, effWaterTemp } = getActiveDaySeasonContext(nextState);
   const compat = getCompatibleMethods(fishObj, effIce, nextState.water, effWaterTemp);
   let nextMethod = nextState.method;
@@ -361,6 +404,7 @@ function reducer(state, action) {
         selectedWaterName: '',
         dayIdx: 2
       };
+      nextBase.fishId = pickBestFishForLocationContext(nextBase);
       return syncTackleForContext(nextBase, false);
     }
     case 'SET_LOCATION_LABELS':
@@ -377,6 +421,7 @@ function reducer(state, action) {
         selectedWaterName: nextSelectedWaterName,
         basinName: ecoregion.displayBasinName || state.basinName
       };
+      nextBase.fishId = pickBestFishForLocationContext(nextBase);
       return syncTackleForContext(nextBase, waterChanged);
     }
     case 'SET_METHOD': {
@@ -428,8 +473,9 @@ function reducer(state, action) {
       return { ...state, fishGroup: action.payload };
     case 'TOGGLE_FAVORITE': {
       const id = action.payload;
-      const exists = state.favorites.includes(id);
-      const favorites = exists ? state.favorites.filter(x => x !== id) : [id, ...state.favorites];
+      const curFavs = Array.isArray(state.favorites) ? state.favorites : [];
+      const exists = curFavs.includes(id);
+      const favorites = exists ? curFavs.filter(x => x !== id) : [id, ...curFavs];
       return {
         ...state,
         favorites,
@@ -439,7 +485,7 @@ function reducer(state, action) {
     }
     case 'TOGGLE_PIN_DAY': {
       const idx = action.payload;
-      let pinned = [...state.pinnedDays];
+      let pinned = Array.isArray(state.pinnedDays) ? [...state.pinnedDays] : [2];
       if (pinned.includes(idx)) pinned = pinned.filter(x => x !== idx);
       else if (pinned.length < 3) pinned.push(idx);
       else pinned = [pinned[1], pinned[2], idx];
@@ -449,7 +495,7 @@ function reducer(state, action) {
       return { ...state, calendarMode: action.payload };
     case 'TOGGLE_COMPARE_SPECIES': {
       const fid = action.payload;
-      let list = [...state.compareSpeciesIds];
+      let list = Array.isArray(state.compareSpeciesIds) ? [...state.compareSpeciesIds] : [...DEFAULT_STATE.compareSpeciesIds];
       if (list.includes(fid)) {
         if (list.length > 1) list = list.filter(x => x !== fid);
       } else if (list.length < 3) {
@@ -513,7 +559,7 @@ function reducer(state, action) {
         water: action.payload.water,
         method: action.payload.method,
         fishId: action.payload.fishId || state.fishId,
-        favorites: targetSpecies,
+        favorites: Array.isArray(state.favorites) && state.favorites.length > 0 ? state.favorites : targetSpecies,
         favoritesExplicitlySet: true,
         onlyFavoritesFilter: targetSpecies.length === 0 ? false : state.onlyFavoritesFilter,
         userProfile: {
@@ -548,8 +594,12 @@ const saved = isOldUnconfirmedDefault
   ? { ...rawSavedSettings, lat: DEFAULT_STATE.lat, lon: DEFAULT_STATE.lon, locLabel: DEFAULT_STATE.locLabel, locAdmin1: DEFAULT_STATE.locAdmin1, locAdmin2: DEFAULT_STATE.locAdmin2 }
   : rawSavedSettings;
 const hasConfirmedLoc = Boolean(saved.hasUserLocation || isOwnerSaved);
-const initLat = saved.lat ?? DEFAULT_STATE.lat;
-const initLon = saved.lon ?? DEFAULT_STATE.lon;
+const rawLatNum = Number(saved.lat);
+const rawLonNum = Number(saved.lon);
+const initLat = (Number.isFinite(rawLatNum) && rawLatNum >= -90 && rawLatNum <= 90) ? rawLatNum : DEFAULT_STATE.lat;
+const initLon = (Number.isFinite(rawLonNum) && rawLonNum >= -180 && rawLonNum <= 180) ? rawLonNum : DEFAULT_STATE.lon;
+const rawDepthNum = Number(saved.depth);
+const initDepth = (Number.isFinite(rawDepthNum) && rawDepthNum >= 0.5 && rawDepthNum <= 250) ? rawDepthNum : DEFAULT_STATE.depth;
 const initBasin = detectBasinByCoords(initLat, initLon);
 const initCoastal = isCoastalInBasin(initBasin, initLat, initLon);
 let initWater = saved.water ?? DEFAULT_STATE.water;
@@ -587,10 +637,24 @@ const mergedUserProfile = {
     ...(saved.userProfile?.notifSettings || {})
   }
 };
-export const store = createStore(syncTackleForContext({
+const initPinnedDays = (Array.isArray(saved.pinnedDays) && saved.pinnedDays.length > 0)
+  ? saved.pinnedDays.filter(d => Number.isInteger(d) && d >= 0 && d <= 9)
+  : [...DEFAULT_STATE.pinnedDays];
+const initCompareSpeciesIds = (Array.isArray(saved.compareSpeciesIds) && saved.compareSpeciesIds.length > 0)
+  ? saved.compareSpeciesIds.filter(id => FISH_DB.some(f => f && f.id === id))
+  : [...DEFAULT_STATE.compareSpeciesIds];
+const baseInitialState = {
   ...DEFAULT_STATE,
   ...saved,
-  userProfile: mergedUserProfile,
+  lat: initLat,
+  lon: initLon,
+  depth: initDepth,
+  pinnedDays: initPinnedDays.length > 0 ? initPinnedDays : [...DEFAULT_STATE.pinnedDays],
+  compareSpeciesIds: initCompareSpeciesIds.length > 0 ? initCompareSpeciesIds : [...DEFAULT_STATE.compareSpeciesIds],
+  userProfile: {
+    ...mergedUserProfile,
+    targetSpecies: Array.isArray(mergedUserProfile.targetSpecies) ? mergedUserProfile.targetSpecies : []
+  },
   appMode: initAppMode,
   locLabel: initLocLabel,
   locAdmin1: initLocAdmin1,
@@ -611,5 +675,12 @@ export const store = createStore(syncTackleForContext({
   circleItems: storage.loadCircleItems ? storage.loadCircleItems() : [],
   chatMessages: storage.loadChatMessages ? storage.loadChatMessages() : [],
   notifications: storage.loadNotifications ? storage.loadNotifications() : [],
-  proFactorWeights: saved.proFactorWeights || { temp: 1.0, press: 1.0, archive_shock: 1.0, circle_field: 1.0 }
-}, false));
+  proFactorWeights: (saved.proFactorWeights && typeof saved.proFactorWeights === 'object')
+    ? saved.proFactorWeights
+    : { temp: 1.0, press: 1.0, archive_shock: 1.0, circle_field: 1.0 }
+};
+const validSavedFish = FISH_DB.some(f => f && f.id === baseInitialState.fishId && f.legal !== 'redbook');
+if (!validSavedFish) {
+  baseInitialState.fishId = pickBestFishForLocationContext(baseInitialState);
+}
+export const store = createStore(syncTackleForContext(baseInitialState, false));

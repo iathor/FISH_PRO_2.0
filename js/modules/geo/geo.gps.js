@@ -1,6 +1,6 @@
-import { safeModuleRun } from '../../core/events.js?v=2.9.2-r258';
-import { store } from '../../core/store.js?v=2.9.2-r258';
-import { calcHaversineKm, calcBearingDeg } from './geo.routing.js?v=2.9.2-r258';
+import { safeModuleRun } from '../../core/events.js?v=2.9.2-r259';
+import { store } from '../../core/store.js?v=2.9.2-r259';
+import { calcHaversineKm, calcBearingDeg } from './geo.routing.js?v=2.9.2-r259';
 
 export const LAST_REAL_USER_GPS_KEY = 'klev_pro_last_real_gps_v1';
 export const GPSF_MODE_VMAX = { walk: 3.5, bike: 12, boat: 18, snowmobile: 30, car: 45 };

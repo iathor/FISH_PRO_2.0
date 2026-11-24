@@ -1,5 +1,5 @@
-import { showToast } from '../ui/components.js?v=2.9.2-r258';
-import { APP_FULL_VERSION } from './config.js?v=2.9.2-r258';
+import { showToast } from '../ui/components.js?v=2.9.2-r259';
+import { APP_FULL_VERSION } from './config.js?v=2.9.2-r259';
 export const PWA_INSTALLED_KEY = 'klev_pro_pwa_installed';
 let deferredInstallPrompt = null;
 export function generateFloatIconDataURL(size = 512) {
@@ -42,7 +42,7 @@ export function generateFloatIconDataURL(size = 512) {
 export function initDynamicTouchIcon() {
   try {
     const isAdminContour = typeof window !== 'undefined' && window.__KLEV_ADMIN_CONTOUR__ === true;
-    const verSuffix = `?v=${APP_FULL_VERSION || '2.9.2-r258'}`;
+    const verSuffix = `?v=${APP_FULL_VERSION || '2.9.2-r259'}`;
     const fav = document.getElementById('dynamicFavicon');
     const touch = document.getElementById('dynamicTouchIcon');
     if (fav) {
@@ -188,7 +188,7 @@ export function showInstallModal(htmlText) {
   }
   const iconEl = modal.querySelector('#modalIconPreview');
   const isAdminContour = typeof window !== 'undefined' && window.__KLEV_ADMIN_CONTOUR__ === true;
-  if (iconEl) iconEl.src = `${isAdminContour ? 'icon-admin-192.png' : 'icon-192.png'}?v=${APP_FULL_VERSION || '2.9.2-r258'}`;
+  if (iconEl) iconEl.src = `${isAdminContour ? 'icon-admin-192.png' : 'icon-192.png'}?v=${APP_FULL_VERSION || '2.9.2-r259'}`;
   const txtEl = modal.querySelector('#modalInstallText');
   if (txtEl) {
     const safeHtml = String(htmlText || '')

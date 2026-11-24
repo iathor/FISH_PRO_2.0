@@ -1,4 +1,4 @@
-import { svgIcon } from './icons.js?v=2.9.2-r258';
+import { svgIcon } from './icons.js?v=2.9.2-r259';
 /**
  * Экранирует пользовательские строки перед вставкой в HTML (защита от DOM XSS и инъекций тегов)
  */
@@ -10,6 +10,9 @@ export function escapeHtml(raw) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+if (typeof window !== 'undefined') {
+  window.esc = escapeHtml;
 }
 /**
  * Проверяет, что рыболовный позывной (логин) не содержит персональных данных (номера телефона или e-mail)

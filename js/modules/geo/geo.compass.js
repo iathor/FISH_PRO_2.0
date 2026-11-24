@@ -1,4 +1,4 @@
-import { safeModuleRun } from '../../core/events.js?v=2.9.2-r258';
+import { safeModuleRun } from '../../core/events.js?v=2.9.2-r259';
 
 export const COMPASS_DEADBAND_DEG = 1.8;
 export const COMPASS_ROT_DEADBAND_DEG = 1.2;

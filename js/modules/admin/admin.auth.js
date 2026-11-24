@@ -2,7 +2,7 @@
  * @file admin.auth.js
  * @description Изолированный модуль авторизации и управления админ-сессией (ADM_SESS_..., klev_pro_admin_saved_creds_v2, без хранения пароля).
  */
-import { store } from '../../core/store.js?v=2.9.2-r258';
+import { store } from '../../core/store.js?v=2.9.2-r259';
 
 export const OWNER_BOUND_LOGIN = 'iAthor';
 export const OWNER_BOUND_PIN_HASH = 'owner_iathor_vip089';

@@ -32,14 +32,20 @@ jobs:
 
       - name: Auto-Unpack Release ZIP (Mobile Upload Support)
         run: |
-          for ZFILE in FISH_PRO_2.0_SOURCE.zip FISH_PRO_2.0.zip FISH_PRO_2.0_r247.zip FISH_PRO_2.0_SOURCE_r247.zip; do
-            if [ -f "$ZFILE" ]; then
-              echo "Detected uploaded archive $ZFILE — unpacking into repository root..."
-              unzip -q -o "$ZFILE" -d .
-              rm -f "$ZFILE"
-            fi
-          done
+          while IFS= read -r -d '' ZFILE; do
+            echo "Detected uploaded source archive $ZFILE — unpacking into repository root..."
+            unzip -q -o "$ZFILE" -d .
+            rm -f "$ZFILE"
+          done < <(find . -maxdepth 1 -type f -name "FISH_PRO_2.0*SOURCE*.zip" -printf '%T@ %p\0' | sort -z -n | cut -z -d' ' -f2-)
+          while IFS= read -r -d '' ZFILE; do
+            echo "Detected uploaded release archive $ZFILE — unpacking into repository root..."
+            unzip -q -o "$ZFILE" -d .
+            rm -f "$ZFILE"
+          done < <(find . -maxdepth 1 -type f -name "FISH_PRO_2.0*.zip" -printf '%T@ %p\0' | sort -z -n | cut -z -d' ' -f2-)
           rm -rf klev-pro-2 standalone android/app/release-key.jks
+          if [ -f "app-runtime.js" ]; then node --check app-runtime.js; fi
+          if [ -f "js/dist/app-user.bundle.js" ]; then node --check js/dist/app-user.bundle.js; fi
+          if [ -f "js/dist/app-admin.bundle.js" ]; then node --check js/dist/app-admin.bundle.js; fi
 
       - name: Prepare Android Assets & Resources (From android/ Directory)
         id: locate
@@ -271,7 +277,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
           if ! git diff --cached --quiet; then
-            git commit -m "chore(release): publish v2.9.2-r258 web & signed apks"
+            git commit -m "chore(release): publish v2.9.2-r259 web & signed apks"
             git pull --rebase origin "${GITHUB_REF_NAME:-main}" || true
             git push origin HEAD:"${GITHUB_REF_NAME:-main}"
           fi

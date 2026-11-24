@@ -40,9 +40,9 @@ if (!versionRaw) {
 }
 const VER = JSON.parse(versionRaw);
 const V_NUM = String(VER.version || '2.9.2').trim();
-const V_REV = String(VER.revision || 'r258').trim();
+const V_REV = String(VER.revision || 'r259').trim();
 const V_BUILD = Number(VER.buildNumber || 258);
-const V_CODE = Number(VER.versionCode || 293258);
+const V_CODE = Number(VER.versionCode || 293259);
 const V_DISPLAY = String(VER.displayVersion || `v${V_NUM} ${V_REV}`).trim();
 const V_FULL = String(VER.fullVersion || `${V_NUM}-${V_REV}`).trim();
 const V_POLICY = String(VER.policyVersion || `2026.11.22-v${V_NUM}`).trim();
@@ -786,7 +786,10 @@ function patchFrontendAndServiceWorker() {
     runtimeCode = m[1].trim();
   }
 
-  // --- Патчим runtimeCode ---
+  // --- Патчим runtimeCode и все целевые бандлы js/dist/*.bundle.js ---
+  const patchSingleBundleCode = (rawBundle) => {
+    let runtimeCode = rawBundle;
+
   // 1) 3.4: Единая версия 2.9.0 / r240 / 293240 + пояснение о ветке 2.9.0
   runtimeCode = runtimeCode.replace(
     /const e="2\.[0-9]+\.[0-9]+",t=\d+,n="r\d+",a="v2\.[0-9]+\.[0-9]+\s+r\d+"/,
@@ -876,11 +879,7 @@ function patchFrontendAndServiceWorker() {
   // 5) 4.6: Погода — астрономический расчёт восхода/заката для полярных широт (66.08°N), единый источник данных и «Нет данных» при isReal === false
   if (!runtimeCode.includes('function calcPolarSunTimes(')) {
     const polarSunFn = `function calcPolarSunTimes(dateStr,lat=66.08,lon=76.68){try{const s=String(dateStr||"").slice(0,10),dt=s?new Date(s+"T12:00:00Z"):new Date(),start=new Date(Date.UTC(dt.getUTCFullYear(),0,0)),doy=Math.floor((dt-start)/864e5),tz=Math.round(Number(lon||76.68)/15),g=2*Math.PI/365*(doy-1+.5),eq=229.18*(75e-6+.001868*Math.cos(g)-.032077*Math.sin(g)-.014615*Math.cos(2*g)-.040849*Math.sin(2*g)),decl=.006918-.399912*Math.cos(g)+.070257*Math.sin(g)-.006758*Math.cos(2*g)+.000907*Math.sin(2*g)-.002697*Math.cos(3*g)+.00148*Math.sin(3*g),latR=Math.max(-89.5,Math.min(89.5,Number(lat)||66.08))*Math.PI/180,zen=90.833*Math.PI/180,cosH=Math.cos(zen)/(Math.cos(latR)*Math.cos(decl))-Math.tan(latR)*Math.tan(decl);if(cosH>1)return{sunriseHr:12,sunsetHr:12,polarNight:!0,polarDay:!1};if(cosH<-1)return{sunriseHr:0,sunsetHr:24,polarNight:!1,polarDay:!0};const ha=180*Math.acos(cosH)/Math.PI,sr=((720-4*(Number(lon||76.68)+ha)-eq)/60+tz+24)%24,ss=((720-4*(Number(lon||76.68)-ha)-eq)/60+tz+24)%24;return{sunriseHr:Math.round(100*sr)/100,sunsetHr:Math.round(100*ss)/100,polarNight:!1,polarDay:!1}}catch(e){return{sunriseHr:8.8,sunsetHr:14.48,polarNight:!1,polarDay:!1}}}`;
-    if (runtimeCode.includes('function Un(')) {
-      runtimeCode = runtimeCode.replace('function Un(', polarSunFn + 'function Un(');
-    } else {
-      runtimeCode = runtimeCode.replace('(()=>{"use strict";', '(()=>{"use strict";' + polarSunFn);
-    }
+    runtimeCode = runtimeCode.replace('(()=>{"use strict";', '(()=>{"use strict";' + polarSunFn);
     // В Un (fallback) и Wn (Met.no) используем calcPolarSunTimes(r, e, 76.68) вместо 6.8+.02*a / 18.2-.02*a и 7 / 17.8
     runtimeCode = runtimeCode.replace(
       'sunriseHr:6.8+.02*a,sunsetHr:18.2-.02*a',
@@ -924,6 +923,21 @@ function patchFrontendAndServiceWorker() {
     'A=!1===i.isReal?"НЕТ ДАННЫХ О ЛЬДЕ":"ice_safe"===i.iceState?`БЕЗОПАСНЫЙ ЛЁД (~${i.iceThickness||12} СМ)`:"ice_danger"===i.iceState?`ОПАСНЫЙ ЛЁД (~${i.iceThickness||4} СМ)`:"ice_slush"===i.iceState?"ЗАБЕРЕГИ И ШУГА":"ОТКРЫТАЯ ВОДА"'
   );
 
+
+    return runtimeCode;
+  };
+  runtimeCode = patchSingleBundleCode(runtimeCode);
+  for (const distBundleRel of [
+    'js/dist/app-user.bundle.js',
+    'js/dist/app-admin.bundle.js',
+    'js/dist/web-desktop.bundle.js',
+    'js/dist/web-mobile.bundle.js'
+  ]) {
+    const distRaw = readText(distBundleRel);
+    if (distRaw) {
+      writeTextIfChanged(distBundleRel, patchSingleBundleCode(distRaw).trim() + '\n');
+    }
+  }
   // Сохраняем или откатываем внешний файл app-runtime.js (5.1)
   if (ROLLBACK_INLINE_JS) {
     if (externalRuntimeRe.test(idx)) {
@@ -1101,6 +1115,18 @@ function patchFrontendAndServiceWorker() {
       `function isMapTileHostname(hostname = '') {\n  return /(^|\\.)(maps\\.yandex\\.net|arcgisonline\\.com|openstreetmap\\.org|openstreetmap\\.fr|cartocdn\\.com|opentopomap\\.org|maps\\.mail\\.ru)$/i.test(String(hostname || ''));\n}`
     );
     writeTextIfChanged('sw.js', sw);
+  }
+  if (fs.existsSync(path.join(ROOT, 'android/app/src/main/assets/www'))) {
+    const userDist = readText('js/dist/app-user.bundle.js') || runtimeCode;
+    writeTextIfChanged('android/app/src/main/assets/www/app-runtime.js', userDist.trim() + '\n');
+    writeTextIfChanged('android/app/src/main/assets/www/js/app.bundle.js', userDist.trim() + '\n');
+    writeTextIfChanged('android/app/src/main/assets/www/index.html', idx);
+    writeTextIfChanged('android/app/src/main/assets/www/kp-control-89.html', kp);
+    if (sw) writeTextIfChanged('android/app/src/main/assets/www/sw.js', sw);
+    for (const fSync of ['VERSION', 'version.json', 'policy-version.json', 'manifest.json', 'js/core/config.js']) {
+      const fTxt = readText(fSync);
+      if (fTxt) writeTextIfChanged('android/app/src/main/assets/www/' + fSync, fTxt);
+    }
   }
 }
 

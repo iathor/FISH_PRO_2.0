@@ -1,5 +1,5 @@
-import { STATE_CACHE_KEY, WEATHER_CACHE_KEY, WEATHER_TTL_MS } from './config.js?v=2.9.2-r258';
-import { formatLocalYYYYMMDD } from './format.js?v=2.9.2-r258';
+import { STATE_CACHE_KEY, WEATHER_CACHE_KEY, WEATHER_TTL_MS } from './config.js?v=2.9.2-r259';
+import { formatLocalYYYYMMDD } from './format.js?v=2.9.2-r259';
 const DB_NAME = 'KlevProDB_v2_1_1';
 export const CLEAN_SLATE_FLAG_KEY = 'klev_pro_clean_slate_v2_1_1_r4';
 export const CLEAN_SLATE_NOTICE_KEY = 'klev_pro_clean_slate_notice_v2_1_1_r4';
@@ -597,7 +597,7 @@ export const storage = {
     return {
       schema: 'KlevProFullBackup_v3',
       version: '2.9.2',
-      revision: 'r258',
+      revision: 'r259',
       exportedAt: new Date().toISOString(),
       deviceId: this.getDeviceId(),
       summary: {
@@ -748,7 +748,7 @@ export const storage = {
       ...(Array.isArray(payload.days) ? payload.days : [])
     ];
     for (const day of incomingDays) {
-      if (!day || !day.date || !Array.isArray(day.hours) || day.hours.length === 0) continue;
+      if (!day || !day.date || day.isReal === false || !Array.isArray(day.hours) || day.hours.length === 0) continue;
       const dStr = day.date;
       const isPastDay = dStr < todayStr;
       const existing = targetCluster.daysByDate[dStr];
